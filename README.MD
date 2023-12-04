@@ -1,5 +1,12 @@
 
-The Qwt Widget Library
+# The Qwt Widget Library
+
+this is fork from qwt lib
+
+add the cmake ,can build with qt5 and qt6
+
+Perhaps some improvements will also be submitted to this hub
+
 ----------------------
 
       Qwt is an extension to the libraries of the Qt Project.  
@@ -11,12 +18,7 @@ The Qwt Widget Library
 
       Qwt is hosted at http://qwt.sf.net
 
-Installation
-------------
-      
-      Read INSTALL how to build and install Qwt.
-
-Copyright
+# Copyright
 ---------
 
     Qwt Widget Library 
