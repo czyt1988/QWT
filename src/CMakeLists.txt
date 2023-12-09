@@ -279,26 +279,26 @@ if(QWT_CONFIG_QWTPLOT)
 endif()
 
 if(QWT_CONFIG_QWTOPENGL)
+    set(QWT_HEADER_OPENGL
+        qwt_plot_opengl_canvas.h
+    )
+    set(QWT_SOURCE_OPENGL
+        qwt_plot_opengl_canvas.cpp
+    )
     if(${QT_VERSION_MAJOR} LESS 6)
-        set(QWT_HEADER_OPENGL
-            qwt_plot_svgitem.h
-        )
-        set(QWT_SOURCE_OPENGL
-            qwt_plot_svgitem.cpp
-        )
-        list(APPEND QWT_HEADER_FILES ${QWT_HEADER_OPENGL})
-        list(APPEND QWT_SOURCE_FILES ${QWT_SOURCE_OPENGL})
+        list(APPEND QWT_HEADER_OPENGL qwt_plot_glcanvas.h)
+        list(APPEND QWT_SOURCE_OPENGL qwt_plot_glcanvas.cpp)
     endif()
+    list(APPEND QWT_HEADER_FILES ${QWT_HEADER_OPENGL})
+    list(APPEND QWT_SOURCE_FILES ${QWT_SOURCE_OPENGL})
 endif()
 
 if(QWT_CONFIG_QWTSVG)
     set(QWT_HEADER_SVG
-        qwt_plot_glcanvas.h
-        qwt_plot_opengl_canvas.h
+        qwt_plot_svgitem.h
     )
     set(QWT_SOURCE_SVG
-        qwt_plot_glcanvas.cpp
-        qwt_plot_opengl_canvas.cpp
+        qwt_plot_svgitem.cpp
     )
     list(APPEND QWT_HEADER_FILES ${QWT_HEADER_SVG})
     list(APPEND QWT_SOURCE_FILES ${QWT_SOURCE_SVG})
@@ -411,6 +411,15 @@ if(QWT_CONFIG_QWTOPENGL)
     target_link_libraries(${QWT_LIB_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::OpenGL
     )
+    if(${QT_VERSION_MAJOR} EQUAL 6)
+        find_package(Qt${QT_VERSION_MAJOR} ${QWT_MIN_QT_VERSION} COMPONENTS
+            OpenGLWidgets
+            REQUIRED
+        )
+        target_link_libraries(${QWT_LIB_NAME} PRIVATE
+            Qt${QT_VERSION_MAJOR}::OpenGLWidgets
+        )
+    endif()
 endif()
 
 if(QWT_CONFIG_QWTSVG)
