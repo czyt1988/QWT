@@ -461,6 +461,8 @@ target_include_directories(${QWT_LIB_NAME} PUBLIC
 ########################################################
 # 安装
 ########################################################
+include(CMakePackageConfigHelpers)
+
 message(STATUS "${QWT_LIB_NAME} install dir is : ${CMAKE_INSTALL_PREFIX}")
 
 # DALibConfig.cmake.in中，会让此变量和“${PACKAGE_PREFIX_DIR}/”进行拼接，也就是${PACKAGE_PREFIX_DIR}/@QWT_LIB_INCLUDE_INSTALL_DIR@
@@ -479,39 +481,40 @@ write_basic_package_version_file(
 configure_package_config_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/QwtConfig.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/${QWT_LIB_NAME}Config.cmake"
-  INSTALL_DESTINATION lib/cmake/${QWT_LIB_NAME}
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${QWT_LIB_NAME}
   PATH_VARS QWT_LIB_INCLUDE_INSTALL_DIR
 )
 # 声明导出target的名称
 install(TARGETS ${QWT_LIB_NAME}
     EXPORT ${QWT_LIB_NAME}Targets
-    INCLUDES DESTINATION include/${QWT_LIB_NAME}
-    RUNTIME DESTINATION bin
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${QWT_LIB_NAME}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
 install(EXPORT "${QWT_LIB_NAME}Targets"
     FILE ${QWT_LIB_NAME}Targets.cmake # 导出的文件基准名。
-    DESTINATION lib/cmake/${QWT_LIB_NAME}
+    NAMESPACE ${QWT_LIB_NAME}::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${QWT_LIB_NAME}
 )
 
 install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/${QWT_LIB_NAME}Config.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/${QWT_LIB_NAME}ConfigVersion.cmake"
-    DESTINATION lib/cmake/${QWT_LIB_NAME}
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${QWT_LIB_NAME}
 )
 
 install(FILES
     ${QWT_HEADER_FILES}
-    DESTINATION include/${QWT_LIB_NAME}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${QWT_LIB_NAME}
     COMPONENT headers
 )
 
 file(GLOB QWT_INCLUDE_IN_CLASS_FILES "${CMAKE_CURRENT_LIST_DIR}/../classincludes/Qwt*")
 install(FILES
     ${QWT_INCLUDE_IN_CLASS_FILES}
-    DESTINATION include/${QWT_LIB_NAME}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${QWT_LIB_NAME}
     COMPONENT headers
 )
 
