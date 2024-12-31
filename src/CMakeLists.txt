@@ -383,7 +383,10 @@ add_library(${QWT_LIB_NAME} SHARED
         ${QWT_HEADER_FILES}
         ${QWT_SOURCE_FILES}
 #        ${QWT_HEADERS_MOC}
-)	
+)
+# 启用别名，可以通过qwt::qwt引入
+add_library(${QWT_LIB_NAME}::${QWT_LIB_NAME} ALIAS ${QWT_LIB_NAME})
+
 # 构建库定义的宏
 target_compile_definitions(${QWT_LIB_NAME} PRIVATE QT_DLL)
 # 此宏必须为public
