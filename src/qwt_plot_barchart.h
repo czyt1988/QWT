@@ -12,9 +12,9 @@
 
 #include "qwt_global.h"
 #include "qwt_plot_abstract_barchart.h"
+#include "qwt_column_symbol.h"
 
 class QwtColumnRect;
-class QwtColumnSymbol;
 template< typename T >
 class QwtSeriesData;
 
@@ -86,6 +86,9 @@ public:
 
     void setBrush(const QBrush& b);
     QBrush brush() const;
+
+    void setFrameStyle(QwtColumnSymbol::FrameStyle f);
+    QwtColumnSymbol::FrameStyle frameStyle() const;
 
     void setLegendMode(LegendMode);
     LegendMode legendMode() const;

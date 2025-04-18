@@ -19,7 +19,7 @@
 class QwtPlotBarChart::PrivateData
 {
 public:
-    PrivateData() : symbol(NULL), legendMode(QwtPlotBarChart::LegendChartTitle)
+    PrivateData() : symbol(nullptr), legendMode(QwtPlotBarChart::LegendChartTitle)
     {
     }
 
@@ -151,12 +151,14 @@ const QwtColumnSymbol* QwtPlotBarChart::symbol() const
  */
 void QwtPlotBarChart::setPen(const QPen& p)
 {
-    if (m_data->symbol) {
-        m_data->symbol->setPen(p);
-
-        legendChanged();
-        itemChanged();
+    if (!m_data->symbol) {
+        m_data->symbol = new QwtColumnSymbol();
     }
+
+    m_data->symbol->setPen(p);
+
+    legendChanged();
+    itemChanged();
 }
 
 /**
@@ -177,12 +179,14 @@ QPen QwtPlotBarChart::pen() const
  */
 void QwtPlotBarChart::setBrush(const QBrush& b)
 {
-    if (m_data->symbol) {
-        m_data->symbol->setBrush(b);
-
-        legendChanged();
-        itemChanged();
+    if (!m_data->symbol) {
+        m_data->symbol = new QwtColumnSymbol();
     }
+
+    m_data->symbol->setBrush(b);
+
+    legendChanged();
+    itemChanged();
 }
 
 /**
@@ -195,6 +199,34 @@ QBrush QwtPlotBarChart::brush() const
         return m_data->symbol->brush();
     }
     return QBrush();
+}
+
+/**
+ * @brief set bar symbol frame style
+ * @param f
+ */
+void QwtPlotBarChart::setFrameStyle(QwtColumnSymbol::FrameStyle f)
+{
+    if (!m_data->symbol) {
+        m_data->symbol = new QwtColumnSymbol();
+    }
+
+    m_data->symbol->setFrameStyle(f);
+
+    legendChanged();
+    itemChanged();
+}
+
+/**
+ * @brief bar symbol frame style
+ * @return
+ */
+QwtColumnSymbol::FrameStyle QwtPlotBarChart::frameStyle() const
+{
+    if (m_data->symbol) {
+        return m_data->symbol->frameStyle();
+    }
+    return QwtColumnSymbol::NoFrame;
 }
 
 /*!

@@ -107,13 +107,12 @@ static void qwtDrawPanel(QPainter* painter, const QRectF& rect, const QPen& pen,
 class QwtColumnSymbol::PrivateData
 {
 public:
-    PrivateData() : style(QwtColumnSymbol::Box), frameStyle(QwtColumnSymbol::Raised), lineWidth(2)
+    PrivateData() : style(QwtColumnSymbol::Box), frameStyle(QwtColumnSymbol::Raised)
     {
     }
 
     QwtColumnSymbol::Style style;
     QwtColumnSymbol::FrameStyle frameStyle;
-    int lineWidth;
     // add by qwt 2,you can set pen and brush to draw bar
     QPen pen;
     QBrush brush;
@@ -129,7 +128,7 @@ QwtColumnSymbol::QwtColumnSymbol(Style style)
 {
     m_data        = new PrivateData();
     m_data->style = style;
-    m_data->pen   = QPen(Qt::black, 0.5);
+    m_data->pen   = QPen(Qt::black, 1);
     m_data->brush = QBrush(Qt::gray);
 }
 
@@ -226,7 +225,7 @@ void QwtColumnSymbol::setLineWidth(int width)
     if (width < 0)
         width = 0;
 
-    m_data->lineWidth = width;
+    m_data->pen.setWidth(width);
 }
 
 /*!
@@ -235,7 +234,7 @@ void QwtColumnSymbol::setLineWidth(int width)
  */
 int QwtColumnSymbol::lineWidth() const
 {
-    return m_data->lineWidth;
+    return m_data->pen.width();
 }
 
 /*!
