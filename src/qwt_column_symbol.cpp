@@ -14,116 +14,109 @@
 #include <qpainter.h>
 #include <qpalette.h>
 
-static void qwtDrawBox( QPainter* p, const QRectF& rect,
-    const QPalette& pal, double lw )
+/**
+ * @brief draw a box
+ * __
+ * |*|
+ * |*|
+ *
+ * @param p
+ * @param rect
+ * @param pen
+ * @param brush
+ */
+static void qwtDrawBox(QPainter* p, const QRectF& rect, const QPen& pen, const QBrush& brush)
 {
-    if ( lw > 0.0 )
-    {
-        if ( rect.width() == 0.0 )
-        {
-            p->setPen( pal.dark().color() );
-            p->drawLine( rect.topLeft(), rect.bottomLeft() );
-            return;
-        }
-
-        if ( rect.height() == 0.0 )
-        {
-            p->setPen( pal.dark().color() );
-            p->drawLine( rect.topLeft(), rect.topRight() );
-            return;
-        }
-
-        lw = qwtMinF( lw, rect.height() / 2.0 - 1.0 );
-        lw = qwtMinF( lw, rect.width() / 2.0 - 1.0 );
-
-        const QRectF outerRect = rect.adjusted( 0, 0, 1, 1 );
-        QPolygonF polygon( outerRect );
-
-        if ( outerRect.width() > 2 * lw && outerRect.height() > 2 * lw )
-        {
-            const QRectF innerRect = outerRect.adjusted( lw, lw, -lw, -lw );
-            polygon = polygon.subtracted( innerRect );
-        }
-
-        p->setPen( Qt::NoPen );
-
-        p->setBrush( pal.dark() );
-        p->drawPolygon( polygon );
+    if (rect.isValid()) {
+        p->fillRect(rect, brush);
     }
-
-    const QRectF windowRect = rect.adjusted( lw, lw, -lw + 1, -lw + 1 );
-    if ( windowRect.isValid() )
-        p->fillRect( windowRect, pal.window() );
+    qreal lw = pen.widthF();
+    if (lw > 0.0) {
+        // 仅仅有一条线
+        if (rect.width() == 0.0) {
+            p->setPen(brush.color());
+            p->drawLine(rect.topLeft(), rect.bottomLeft());
+            return;
+        }
+        // 没有高度
+        if (rect.height() == 0.0) {
+            p->setPen(brush.color());
+            p->drawLine(rect.topLeft(), rect.topRight());
+            return;
+        }
+        // 保证线宽不要超过矩形的宽度或者高度的一半
+        lw        = qwtMinF(pen.widthF(), rect.height() / 2.0 - 1.0);
+        qreal lw2 = qwtMinF(pen.widthF(), rect.width() / 2.0 - 1.0);
+        lw        = qwtMinF(lw, lw2);
+        QPen newPen(pen);
+        newPen.setWidthF(lw);
+        p->drawRect(rect);
+    }
 }
 
-static void qwtDrawPanel( QPainter* painter, const QRectF& rect,
-    const QPalette& pal, double lw )
+static void qwtDrawPanel(QPainter* painter, const QRectF& rect, const QPen& pen, const QBrush& brush)
 {
-    if ( lw > 0.0 )
-    {
-        if ( rect.width() == 0.0 )
-        {
-            painter->setPen( pal.window().color() );
-            painter->drawLine( rect.topLeft(), rect.bottomLeft() );
+    qreal lw = pen.widthF();
+    if (lw > 0.0) {
+        if (rect.width() == 0.0) {
+            painter->setPen(brush.color());
+            painter->drawLine(rect.topLeft(), rect.bottomLeft());
             return;
         }
 
-        if ( rect.height() == 0.0 )
-        {
-            painter->setPen( pal.window().color() );
-            painter->drawLine( rect.topLeft(), rect.topRight() );
+        if (rect.height() == 0.0) {
+            painter->setPen(brush.color());
+            painter->drawLine(rect.topLeft(), rect.topRight());
             return;
         }
 
-        lw = qwtMinF( lw, rect.height() / 2.0 - 1.0 );
-        lw = qwtMinF( lw, rect.width() / 2.0 - 1.0 );
+        lw        = qwtMinF(lw, rect.height() / 2.0 - 1.0);
+        qreal lw2 = qwtMinF(lw, rect.width() / 2.0 - 1.0);
+        lw        = qwtMinF(lw, lw2);
 
-        const QRectF outerRect = rect.adjusted( 0, 0, 1, 1 );
-        const QRectF innerRect = outerRect.adjusted( lw, lw, -lw, -lw );
+        const QRectF outerRect = rect.adjusted(0, 0, 1, 1);
+        const QRectF innerRect = outerRect.adjusted(lw, lw, -lw, -lw);
 
-        QPolygonF lines[2];
+        QPolygonF lines[ 2 ];
 
-        lines[0] += outerRect.bottomLeft();
-        lines[0] += outerRect.topLeft();
-        lines[0] += outerRect.topRight();
-        lines[0] += innerRect.topRight();
-        lines[0] += innerRect.topLeft();
-        lines[0] += innerRect.bottomLeft();
+        lines[ 0 ] += outerRect.bottomLeft();
+        lines[ 0 ] += outerRect.topLeft();
+        lines[ 0 ] += outerRect.topRight();
+        lines[ 0 ] += innerRect.topRight();
+        lines[ 0 ] += innerRect.topLeft();
+        lines[ 0 ] += innerRect.bottomLeft();
 
-        lines[1] += outerRect.topRight();
-        lines[1] += outerRect.bottomRight();
-        lines[1] += outerRect.bottomLeft();
-        lines[1] += innerRect.bottomLeft();
-        lines[1] += innerRect.bottomRight();
-        lines[1] += innerRect.topRight();
+        lines[ 1 ] += outerRect.topRight();
+        lines[ 1 ] += outerRect.bottomRight();
+        lines[ 1 ] += outerRect.bottomLeft();
+        lines[ 1 ] += innerRect.bottomLeft();
+        lines[ 1 ] += innerRect.bottomRight();
+        lines[ 1 ] += innerRect.topRight();
 
-        painter->setPen( Qt::NoPen );
+        painter->setPen(Qt::NoPen);
 
-        painter->setBrush( pal.light() );
-        painter->drawPolygon( lines[0] );
-        painter->setBrush( pal.dark() );
-        painter->drawPolygon( lines[1] );
+        painter->setBrush(brush.color().lighter());
+        painter->drawPolygon(lines[ 0 ]);
+        painter->setBrush(brush.color().darker());
+        painter->drawPolygon(lines[ 1 ]);
     }
 
-    painter->fillRect( rect.adjusted( lw, lw, -lw + 1, -lw + 1 ), pal.window() );
+    painter->fillRect(rect.adjusted(lw, lw, -lw + 1, -lw + 1), brush);
 }
 
 class QwtColumnSymbol::PrivateData
 {
-  public:
-    PrivateData()
-        : style( QwtColumnSymbol::Box )
-        , frameStyle( QwtColumnSymbol::Raised )
-        , palette( Qt::gray )
-        , lineWidth( 2 )
+public:
+    PrivateData() : style(QwtColumnSymbol::Box), frameStyle(QwtColumnSymbol::Raised), lineWidth(2)
     {
     }
 
     QwtColumnSymbol::Style style;
     QwtColumnSymbol::FrameStyle frameStyle;
-
-    QPalette palette;
     int lineWidth;
+    // add by qwt 2,you can set pen and brush to draw bar
+    QPen pen;
+    QBrush brush;
 };
 
 /*!
@@ -132,10 +125,12 @@ class QwtColumnSymbol::PrivateData
    \param style Style of the symbol
    \sa setStyle(), style(), Style
  */
-QwtColumnSymbol::QwtColumnSymbol( Style style )
+QwtColumnSymbol::QwtColumnSymbol(Style style)
 {
-    m_data = new PrivateData();
+    m_data        = new PrivateData();
     m_data->style = style;
+    m_data->pen   = QPen(Qt::black, 0.5);
+    m_data->brush = QBrush(Qt::gray);
 }
 
 //! Destructor
@@ -150,7 +145,7 @@ QwtColumnSymbol::~QwtColumnSymbol()
    \param style Style
    \sa style(), setPalette()
  */
-void QwtColumnSymbol::setStyle( Style style )
+void QwtColumnSymbol::setStyle(Style style)
 {
     m_data->style = style;
 }
@@ -164,24 +159,40 @@ QwtColumnSymbol::Style QwtColumnSymbol::style() const
     return m_data->style;
 }
 
-/*!
-   Assign a palette for the symbol
-
-   \param palette Palette
-   \sa palette(), setStyle()
+/**
+ * @brief Specify the outline pen
+ * @param pen
  */
-void QwtColumnSymbol::setPalette( const QPalette& palette )
+void QwtColumnSymbol::setPen(const QPen& pen)
 {
-    m_data->palette = palette;
+    m_data->pen = pen;
 }
 
-/*!
-   \return Current palette
-   \sa setPalette()
+/**
+ * @brief  outline pen
+ * @return
  */
-const QPalette& QwtColumnSymbol::palette() const
+QPen QwtColumnSymbol::pen() const
 {
-    return m_data->palette;
+    return m_data->pen;
+}
+
+/**
+ * @brief Specify draw brush
+ * @param b
+ */
+void QwtColumnSymbol::setBrush(const QBrush& b)
+{
+    m_data->brush = b;
+}
+
+/**
+ * @brief draw brush
+ * @return
+ */
+QBrush QwtColumnSymbol::brush() const
+{
+    return m_data->brush;
 }
 
 /*!
@@ -190,7 +201,7 @@ const QPalette& QwtColumnSymbol::palette() const
    \param frameStyle Frame style
    \sa frameStyle(), setLineWidth(), setStyle()
  */
-void QwtColumnSymbol::setFrameStyle( FrameStyle frameStyle )
+void QwtColumnSymbol::setFrameStyle(FrameStyle frameStyle)
 {
     m_data->frameStyle = frameStyle;
 }
@@ -210,9 +221,9 @@ QwtColumnSymbol::FrameStyle QwtColumnSymbol::frameStyle() const
    \param width Width
    \sa lineWidth(), setFrameStyle()
  */
-void QwtColumnSymbol::setLineWidth( int width )
+void QwtColumnSymbol::setLineWidth(int width)
 {
-    if ( width < 0 )
+    if (width < 0)
         width = 0;
 
     m_data->lineWidth = width;
@@ -235,19 +246,16 @@ int QwtColumnSymbol::lineWidth() const
 
    \sa drawBox()
  */
-void QwtColumnSymbol::draw( QPainter* painter,
-    const QwtColumnRect& rect ) const
+void QwtColumnSymbol::draw(QPainter* painter, const QwtColumnRect& rect) const
 {
     painter->save();
 
-    switch ( m_data->style )
-    {
-        case QwtColumnSymbol::Box:
-        {
-            drawBox( painter, rect );
-            break;
-        }
-        default:;
+    switch (m_data->style) {
+    case QwtColumnSymbol::Box: {
+        drawBox(painter, rect);
+        break;
+    }
+    default:;
     }
 
     painter->restore();
@@ -261,58 +269,53 @@ void QwtColumnSymbol::draw( QPainter* painter,
 
    \sa draw()
  */
-void QwtColumnSymbol::drawBox( QPainter* painter,
-    const QwtColumnRect& rect ) const
+void QwtColumnSymbol::drawBox(QPainter* painter, const QwtColumnRect& rect) const
 {
     QRectF r = rect.toRect();
-    if ( QwtPainter::roundingAlignment( painter ) )
-    {
-        r.setLeft( qRound( r.left() ) );
-        r.setRight( qRound( r.right() ) );
-        r.setTop( qRound( r.top() ) );
-        r.setBottom( qRound( r.bottom() ) );
+    if (QwtPainter::roundingAlignment(painter)) {
+        r.setLeft(qRound(r.left()));
+        r.setRight(qRound(r.right()));
+        r.setTop(qRound(r.top()));
+        r.setBottom(qRound(r.bottom()));
     }
 
-    switch ( m_data->frameStyle )
-    {
-        case QwtColumnSymbol::Raised:
-        {
-            qwtDrawPanel( painter, r, m_data->palette, m_data->lineWidth );
-            break;
-        }
-        case QwtColumnSymbol::Plain:
-        {
-            qwtDrawBox( painter, r, m_data->palette, m_data->lineWidth );
-            break;
-        }
-        default:
-        {
-            painter->fillRect( r.adjusted( 0, 0, 1, 1 ), m_data->palette.window() );
-        }
+    switch (m_data->frameStyle) {
+    case QwtColumnSymbol::Raised: {
+        qwtDrawPanel(painter, r, m_data->pen, m_data->brush);
+        break;
+    }
+    case QwtColumnSymbol::Plain: {
+        // qwtDrawBox(painter, r, m_data->palette, m_data->lineWidth);
+        qwtDrawBox(painter, r, m_data->pen, m_data->brush);
+        break;
+    }
+    default: {
+        painter->fillRect(r.adjusted(0, 0, 1, 1), m_data->brush);
+    }
     }
 }
 
 //! \return A normalized QRect built from the intervals
 QRectF QwtColumnRect::toRect() const
 {
-    QRectF r( hInterval.minValue(), vInterval.minValue(),
-        hInterval.maxValue() - hInterval.minValue(),
-        vInterval.maxValue() - vInterval.minValue() );
+    QRectF r(hInterval.minValue(),
+             vInterval.minValue(),
+             hInterval.maxValue() - hInterval.minValue(),
+             vInterval.maxValue() - vInterval.minValue());
 
     r = r.normalized();
 
-    if ( hInterval.borderFlags() & QwtInterval::ExcludeMinimum )
-        r.adjust( 1, 0, 0, 0 );
+    if (hInterval.borderFlags() & QwtInterval::ExcludeMinimum)
+        r.adjust(1, 0, 0, 0);
 
-    if ( hInterval.borderFlags() & QwtInterval::ExcludeMaximum )
-        r.adjust( 0, 0, -1, 0 );
+    if (hInterval.borderFlags() & QwtInterval::ExcludeMaximum)
+        r.adjust(0, 0, -1, 0);
 
-    if ( vInterval.borderFlags() & QwtInterval::ExcludeMinimum )
-        r.adjust( 0, 1, 0, 0 );
+    if (vInterval.borderFlags() & QwtInterval::ExcludeMinimum)
+        r.adjust(0, 1, 0, 0);
 
-    if ( vInterval.borderFlags() & QwtInterval::ExcludeMaximum )
-        r.adjust( 0, 0, 0, -1 );
+    if (vInterval.borderFlags() & QwtInterval::ExcludeMaximum)
+        r.adjust(0, 0, 0, -1);
 
     return r;
 }
-

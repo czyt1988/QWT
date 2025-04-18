@@ -25,7 +25,7 @@ class QRectF;
  */
 class QWT_EXPORT QwtColumnRect
 {
-  public:
+public:
     //! Direction of the column
     enum Direction
     {
@@ -43,8 +43,7 @@ class QWT_EXPORT QwtColumnRect
     };
 
     //! Build an rectangle with invalid intervals directed BottomToTop.
-    QwtColumnRect()
-        : direction( BottomToTop )
+    QwtColumnRect() : direction(BottomToTop)
     {
     }
 
@@ -54,7 +53,7 @@ class QWT_EXPORT QwtColumnRect
     //! \return Orientation
     Qt::Orientation orientation() const
     {
-        if ( direction == LeftToRight || direction == RightToLeft )
+        if (direction == LeftToRight || direction == RightToLeft)
             return Qt::Horizontal;
 
         return Qt::Vertical;
@@ -73,7 +72,7 @@ class QWT_EXPORT QwtColumnRect
 //! A drawing primitive for columns
 class QWT_EXPORT QwtColumnSymbol
 {
-  public:
+public:
     /*!
        Style
        \sa setStyle(), style()
@@ -113,28 +112,31 @@ class QWT_EXPORT QwtColumnSymbol
         Raised
     };
 
-  public:
-    explicit QwtColumnSymbol( Style = NoStyle );
+public:
+    explicit QwtColumnSymbol(Style = NoStyle);
     virtual ~QwtColumnSymbol();
 
-    void setFrameStyle( FrameStyle );
+    void setFrameStyle(FrameStyle);
     FrameStyle frameStyle() const;
 
-    void setLineWidth( int width );
+    void setLineWidth(int width);
     int lineWidth() const;
 
-    void setPalette( const QPalette& );
-    const QPalette& palette() const;
-
-    void setStyle( Style );
+    void setStyle(Style);
     Style style() const;
 
-    virtual void draw( QPainter*, const QwtColumnRect& ) const;
+    void setPen(const QPen& pen);
+    QPen pen() const;
 
-  protected:
-    void drawBox( QPainter*, const QwtColumnRect& ) const;
+    void setBrush(const QBrush& b);
+    QBrush brush() const;
 
-  private:
+    virtual void draw(QPainter*, const QwtColumnRect&) const;
+
+protected:
+    void drawBox(QPainter*, const QwtColumnRect&) const;
+
+private:
     Q_DISABLE_COPY(QwtColumnSymbol)
 
     class PrivateData;
