@@ -50,6 +50,7 @@ static void qwtDrawBox(QPainter* p, const QRectF& rect, const QPen& pen, const Q
         lw        = qwtMinF(lw, lw2);
         QPen newPen(pen);
         newPen.setWidthF(lw);
+        p->setPen(newPen);
         p->drawRect(rect);
     }
 }
@@ -107,7 +108,7 @@ static void qwtDrawPanel(QPainter* painter, const QRectF& rect, const QPen& pen,
 class QwtColumnSymbol::PrivateData
 {
 public:
-    PrivateData() : style(QwtColumnSymbol::Box), frameStyle(QwtColumnSymbol::Raised)
+    PrivateData() : style(QwtColumnSymbol::Box), frameStyle(QwtColumnSymbol::Plain)
     {
     }
 

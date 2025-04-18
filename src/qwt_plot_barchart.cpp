@@ -19,7 +19,7 @@
 class QwtPlotBarChart::PrivateData
 {
 public:
-    PrivateData() : symbol(nullptr), legendMode(QwtPlotBarChart::LegendChartTitle)
+    PrivateData() : symbol(new QwtColumnSymbol(QwtColumnSymbol::Box)), legendMode(QwtPlotBarChart::LegendChartTitle)
     {
     }
 
@@ -152,7 +152,7 @@ const QwtColumnSymbol* QwtPlotBarChart::symbol() const
 void QwtPlotBarChart::setPen(const QPen& p)
 {
     if (!m_data->symbol) {
-        m_data->symbol = new QwtColumnSymbol();
+        m_data->symbol = new QwtColumnSymbol(QwtColumnSymbol::Box);
     }
 
     m_data->symbol->setPen(p);
@@ -180,7 +180,7 @@ QPen QwtPlotBarChart::pen() const
 void QwtPlotBarChart::setBrush(const QBrush& b)
 {
     if (!m_data->symbol) {
-        m_data->symbol = new QwtColumnSymbol();
+        m_data->symbol = new QwtColumnSymbol(QwtColumnSymbol::Box);
     }
 
     m_data->symbol->setBrush(b);
@@ -208,7 +208,7 @@ QBrush QwtPlotBarChart::brush() const
 void QwtPlotBarChart::setFrameStyle(QwtColumnSymbol::FrameStyle f)
 {
     if (!m_data->symbol) {
-        m_data->symbol = new QwtColumnSymbol();
+        m_data->symbol = new QwtColumnSymbol(QwtColumnSymbol::Box);
     }
 
     m_data->symbol->setFrameStyle(f);
