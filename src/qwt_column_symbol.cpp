@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -28,30 +28,28 @@
 static void qwtDrawBox(QPainter* p, const QRectF& rect, const QPen& pen, const QBrush& brush)
 {
     if (rect.isValid()) {
+        // A valid rectangle has a width() > 0 and height() > 0
         p->fillRect(rect, brush);
-    }
-    qreal lw = pen.widthF();
-    if (lw > 0.0) {
-        // 仅仅有一条线
-        if (rect.width() == 0.0) {
+        if (rect.width() > 2 * pen.widthF()) {
+            // 保证线宽不要超过矩形的宽度或者高度的一半
+            p->setPen(pen);
+            p->drawRect(rect);
+        }
+    } else {
+        // 矩形不合法，那么有可能图被缩放的过小，导致宽或者高为0
+        // 仅矩形的宽度大于2倍线宽，才有绘制边线的意义
+        if (qFuzzyIsNull(rect.width())) {
+            // 没有宽度
             p->setPen(brush.color());
             p->drawLine(rect.topLeft(), rect.bottomLeft());
             return;
         }
         // 没有高度
-        if (rect.height() == 0.0) {
+        if (qFuzzyIsNull(rect.height())) {
             p->setPen(brush.color());
             p->drawLine(rect.topLeft(), rect.topRight());
             return;
         }
-        // 保证线宽不要超过矩形的宽度或者高度的一半
-        lw        = qwtMinF(pen.widthF(), rect.height() / 2.0 - 1.0);
-        qreal lw2 = qwtMinF(pen.widthF(), rect.width() / 2.0 - 1.0);
-        lw        = qwtMinF(lw, lw2);
-        QPen newPen(pen);
-        newPen.setWidthF(lw);
-        p->setPen(newPen);
-        p->drawRect(rect);
     }
 }
 
