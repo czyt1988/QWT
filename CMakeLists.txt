@@ -6,8 +6,8 @@ cmake_minimum_required(VERSION 3.5)
 ########################################################
 # 版本定义
 ########################################################
-set(QWT_VERSION_MAJOR 6)
-set(QWT_VERSION_MINOR 2)
+set(QWT_VERSION_MAJOR 7)
+set(QWT_VERSION_MINOR 0)
 set(QWT_VERSION_PATCH 0)
 set(QWT_VERSION "${QWT_VERSION_MAJOR}.${QWT_VERSION_MINOR}.${QWT_VERSION_PATCH}")
 message(STATUS "QWT Version is ${QWT_VERSION}")
@@ -47,6 +47,7 @@ option(QWT_CONFIG_QWTPOLAR "QwtPolar enables all classes, that are needed to use
 option(QWT_CONFIG_QWTWIDGETS "QwtWidgets enables all classes, that are needed to use the all other widgets (sliders, dials, ...), beside QwtPlot." ON)
 option(QWT_CONFIG_QWTSVG "If you want to display svg images on the plot canvas, or export a plot to a SVG document" ON)
 option(QWT_CONFIG_QWTOPENGL "If you want to use a OpenGL plot canvas" ON)
+option(QWT_CONFIG_BUILD_EXAMPLE "build examples" ON)
 ########################################################
 # MSVC设置
 ########################################################
@@ -81,5 +82,8 @@ message(STATUS "CMAKE_CURRENT_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}")
 ########################################################
 add_subdirectory(src)
 
+if(QWT_CONFIG_BUILD_EXAMPLE)
+    add_subdirectory(examples)
+endif()
 
 
