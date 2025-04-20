@@ -48,6 +48,7 @@ option(QWT_CONFIG_QWTWIDGETS "QwtWidgets enables all classes, that are needed to
 option(QWT_CONFIG_QWTSVG "If you want to display svg images on the plot canvas, or export a plot to a SVG document" ON)
 option(QWT_CONFIG_QWTOPENGL "If you want to use a OpenGL plot canvas" ON)
 option(QWT_CONFIG_BUILD_EXAMPLE "build examples" ON)
+option(QWT_CONFIG_BUILD_PLAYGROUND "build playground" ON)
 ########################################################
 # MSVC设置
 ########################################################
@@ -85,5 +86,7 @@ add_subdirectory(src)
 if(QWT_CONFIG_BUILD_EXAMPLE)
     add_subdirectory(examples)
 endif()
-
+if(QWT_CONFIG_BUILD_PLAYGROUND)
+    add_subdirectory(playground)
+endif()
 
