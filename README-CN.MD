@@ -1,16 +1,16 @@
-In the realm of 2D curve rendering with high efficiency, QWT emerges as a preferable open-source choice within the Qt framework, particularly in contrast to alternatives such as QCustomPlot, which is governed by the GPL license and carries an infectiousness in terms of its licensing implications. However, with the Qwt project no longer being maintained, the original QWT has become unable to meet some of my development needs, like the absence of CMake support. As a result, I have taken it upon myself to maintain and update the original QWT project, and I have also open-sourced it to better fit my development scenario.
+在 2D 曲线高效渲染领域，`QWT` 凭借其友好的开源协议，成为 Qt 框架下的优质之选（相比之下，QCustomPlot 采用 GPL 协议，具有一定的传染性）。然而，随着 `Qwt` 项目进入停更状态，原 `QWT` 已无法满足我的一些需求，例如缺乏 `CMake` 支持。鉴于此，我决定对原始 `QWT` 项目进行维护更新，并将其开源，以更好地适配我的开发场景。
 
-So far, I have released the tag v0.0.4 version, which introduces CMake support to the original QWT project. If your only goal is to add CMake support to QWT, you can simply download this version. Starting from the versions after tag v0.0.4, I will make targeted modifications to the original QWT source code based on my own needs. This will include expanding functionality and optimizing interfaces, and I will continue the original QWT version numbering sequence(starting from version 6.2). This project begins at version 7.0. It should be noted that version 7.0 and its subsequent versions have some incompatible interfaces with QWT 6.2.0. USERS ARE ADVISED TO BE AWARE OF THIS.
+目前，我已发布 tag v0.0.4 版本，为原始 `QWT` 项目引入了 `CMake` 支持。若您仅需为 `QWT` 添加 `CMake` 支持，可直接下载该版本。从 tag v0.0.4 后续版本开始，我将基于自身需求对原 `QWT` 源码进行针对性修改，包括功能拓展与接口优化，同时延续原 `QWT` 的版本号序列（从 6.2 版本起延续原有编号体系）。此项目从 7.0 版本起步，需特别提醒的是，7.0 及后续版本在某些接口上与 `QWT` 6.2.0 存在不兼容之处，请使用者留意。
 
 # changelog
 
+## tag:???（还未发布） | version:7.0.0
+
+- 增强 QwtPlotBarChart 的接口以支持pen和brush的设置.
+
 ## tag:v0.0.4 | version:6.2.0
 
-- add cmake support
-
-## tag:??? | version:7.0.0
-
-- Enhance the interface of QwtPlotBarChart to support pen and brush settings.
+- 添加 CMake 支持
 
 # The Qwt Widget Library
 
@@ -32,6 +32,7 @@ Perhaps some improvements will also be submitted to this hub
       Qwt is hosted at http://qwt.sf.net
 
 # Copyright
+---------
 
     Qwt Widget Library 
     Copyright (C) 1997   Josef Wilgen
@@ -45,10 +46,12 @@ Perhaps some improvements will also be submitted to this hub
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
 
-# Gallery
+----------------------
+
+# 绘图展示
 
 
-## Basic Charts
+## 基本图表
 
 ![Simple Plot](docs/screenshots/simpleplot.png)  
 `examples/simpleplot`  
@@ -65,7 +68,7 @@ Perhaps some improvements will also be submitted to this hub
 ![Curve Demo](docs/screenshots/curvedemo.png)  
 `examples/curvedemo`  
 
-## Real-Time Visualization
+## 实时可视化
 ![CPU Monitor](docs/screenshots/cpuplot.png)  
 `examples/cpuplot`  
 
@@ -75,7 +78,7 @@ Perhaps some improvements will also be submitted to this hub
 ![Oscilloscope](docs/screenshots/oscilloscope.png)  
 `examples/oscilloscope`  
 
-## Advanced Charts
+## 高级图表
 ![Polar Demo](docs/screenshots/polardemo.png)  
 `examples/polardemo`  
 
@@ -127,7 +130,8 @@ Perhaps some improvements will also be submitted to this hub
 ![SVG Map](docs/screenshots/svgmap.png)  
 `playground/svgmap`  
 
-## Dynamic Demos
+## 动态演示
+
 ![Animated Demo](docs/screenshots/animated.png)  
 `examples/animated`  
 
@@ -137,7 +141,8 @@ Perhaps some improvements will also be submitted to this hub
 ![Refresh Test](docs/screenshots/refreshtest.png)  
 `examples/refreshtest`  
 
-## Styling & Symbols
+## 样式与符号
+
 ![Legends Demo](docs/screenshots/legends.png)  
 `examples/legends`  
 
@@ -147,7 +152,8 @@ Perhaps some improvements will also be submitted to this hub
 ![Shape Rendering](docs/screenshots/shapes.png)  
 `playground/shapes`  
 
-## Control Widgets
+## 控件窗口
+
 ![Dial Controls](docs/screenshots/controls-dial.png)  
 `examples/controls`  
 
@@ -166,7 +172,7 @@ Perhaps some improvements will also be submitted to this hub
 ![Time Scale Demo](docs/screenshots/timescale.png)  
 `playground/timescale`  
 
-## Dials
+## 仪表盘
 
 ![Compass Dial](docs/screenshots/dials-compass.png)  
 `examples/dials`  
