@@ -6,7 +6,8 @@
 
 ## tag:???（还未发布） | version:7.0.0
 
-- 增强 QwtPlotBarChart 的接口以支持pen和brush的设置.
+- 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
+- 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
 
 ## tag:v0.0.4 | version:6.2.0
 

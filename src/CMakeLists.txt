@@ -214,6 +214,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_point_mapper.h
         qwt_raster_data.h
         qwt_matrix_raster_data.h
+        qwt_grid_raster_data.h
         qwt_vectorfield_symbol.h
         qwt_sampling_thread.h
         qwt_samples.h
@@ -267,6 +268,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_point_mapper.cpp
         qwt_raster_data.cpp
         qwt_matrix_raster_data.cpp
+        qwt_grid_raster_data.cpp
         qwt_vectorfield_symbol.cpp
         qwt_sampling_thread.cpp
         qwt_series_data.cpp
