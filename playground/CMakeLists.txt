@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required(VERSION 3.5)
 project(QwtPlayground LANGUAGES CXX)
-
+include_directories(${CMAKE_CURRENT_LIST_DIR}/../classincludes)
 add_subdirectory(curvetracker)
 add_subdirectory(graphicscale)
 add_subdirectory(plotmatrix)

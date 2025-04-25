@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required(VERSION 3.5)
 project(QwtExamples LANGUAGES CXX)
-
+include_directories(${CMAKE_CURRENT_LIST_DIR}/../classincludes)
 add_subdirectory(animation)
 add_subdirectory(BarChart)
 add_subdirectory(bode)
