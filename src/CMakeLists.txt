@@ -212,6 +212,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_magnifier.h
         qwt_plot_rescaler.h
         qwt_point_mapper.h
+        qwt_grid_data.hpp
         qwt_raster_data.h
         qwt_matrix_raster_data.h
         qwt_grid_raster_data.h
