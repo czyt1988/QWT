@@ -458,11 +458,9 @@ set_target_properties(${QWT_LIB_NAME} PROPERTIES
 target_include_directories(${QWT_LIB_NAME} PUBLIC
     $<INSTALL_INTERFACE:include/${QWT_LIB_NAME}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../classincludes>
 )
-target_include_directories(${QWT_LIB_NAME} PUBLIC
-    $<INSTALL_INTERFACE:include/${QWT_LIB_NAME}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>/../classincludes
-)
+
 
 ########################################################
 # 安装
