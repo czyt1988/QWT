@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -50,8 +50,7 @@ class QwtTextEngine;
 
 class QWT_EXPORT QwtText
 {
-  public:
-
+public:
     /*!
        \brief Text format
 
@@ -123,7 +122,7 @@ class QWT_EXPORT QwtText
         PaintBackground = 0x04
     };
 
-    Q_DECLARE_FLAGS( PaintAttributes, PaintAttribute )
+    Q_DECLARE_FLAGS(PaintAttributes, PaintAttribute)
 
     /*!
        \brief Layout Attributes
@@ -140,69 +139,70 @@ class QWT_EXPORT QwtText
         MinimumLayout = 0x01
     };
 
-    Q_DECLARE_FLAGS( LayoutAttributes, LayoutAttribute )
+    Q_DECLARE_FLAGS(LayoutAttributes, LayoutAttribute)
 
     QwtText();
-    QwtText( const QString&, TextFormat textFormat = AutoText );
-    QwtText( const QwtText& );
+    QwtText(const QString&, TextFormat textFormat = AutoText);
+    QwtText(const QwtText&);
 
     ~QwtText();
 
-    QwtText& operator=( const QwtText& );
+    QwtText& operator=(const QwtText&);
 
-    bool operator==( const QwtText& ) const;
-    bool operator!=( const QwtText& ) const;
+    bool operator==(const QwtText&) const;
+    bool operator!=(const QwtText&) const;
 
-    void setText( const QString&,
-        QwtText::TextFormat textFormat = AutoText );
+    void setText(const QString&, QwtText::TextFormat textFormat = AutoText);
     QString text() const;
 
     bool isNull() const;
     bool isEmpty() const;
 
-    void setFont( const QFont& );
+    void setFont(const QFont&);
     QFont font() const;
 
-    QFont usedFont( const QFont& ) const;
+    QFont usedFont(const QFont&) const;
 
-    void setRenderFlags( int );
+    // get the current format
+    TextFormat format() const;
+
+    void setRenderFlags(int);
     int renderFlags() const;
 
-    void setColor( const QColor& );
+    void setColor(const QColor&);
     QColor color() const;
 
-    QColor usedColor( const QColor& ) const;
+    QColor usedColor(const QColor&) const;
 
-    void setBorderRadius( double );
+    void setBorderRadius(double);
     double borderRadius() const;
 
-    void setBorderPen( const QPen& );
+    void setBorderPen(const QPen&);
     QPen borderPen() const;
 
-    void setBackgroundBrush( const QBrush& );
+    void setBackgroundBrush(const QBrush&);
     QBrush backgroundBrush() const;
 
-    void setPaintAttribute( PaintAttribute, bool on = true );
-    bool testPaintAttribute( PaintAttribute ) const;
+    void setPaintAttribute(PaintAttribute, bool on = true);
+    bool testPaintAttribute(PaintAttribute) const;
 
-    void setLayoutAttribute( LayoutAttribute, bool on = true );
-    bool testLayoutAttribute( LayoutAttribute ) const;
+    void setLayoutAttribute(LayoutAttribute, bool on = true);
+    bool testLayoutAttribute(LayoutAttribute) const;
 
-    double heightForWidth( double width ) const;
-    double heightForWidth( double width, const QFont& ) const;
+    double heightForWidth(double width) const;
+    double heightForWidth(double width, const QFont&) const;
 
     QSizeF textSize() const;
-    QSizeF textSize( const QFont& ) const;
+    QSizeF textSize(const QFont&) const;
 
-    void draw( QPainter* painter, const QRectF& rect ) const;
+    void draw(QPainter* painter, const QRectF& rect) const;
 
-    static const QwtTextEngine* textEngine(
-        const QString& text, QwtText::TextFormat = AutoText );
+    static const QwtTextEngine* textEngine(const QString& text, QwtText::TextFormat = AutoText);
 
-    static const QwtTextEngine* textEngine( QwtText::TextFormat );
-    static void setTextEngine( QwtText::TextFormat, QwtTextEngine* );
+    static const QwtTextEngine* textEngine(QwtText::TextFormat);
+    static void setTextEngine(QwtText::TextFormat, QwtTextEngine*);
 
-  private:
+private:
     class PrivateData;
     PrivateData* m_data;
 
@@ -210,9 +210,9 @@ class QWT_EXPORT QwtText
     LayoutCache* m_layoutCache;
 };
 
-Q_DECLARE_OPERATORS_FOR_FLAGS( QwtText::PaintAttributes )
-Q_DECLARE_OPERATORS_FOR_FLAGS( QwtText::LayoutAttributes )
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtText::PaintAttributes)
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtText::LayoutAttributes)
 
-Q_DECLARE_METATYPE( QwtText )
+Q_DECLARE_METATYPE(QwtText)
 
 #endif
