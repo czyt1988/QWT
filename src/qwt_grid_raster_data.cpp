@@ -57,12 +57,13 @@ QwtGridRasterData::PrivateData::GridData::ResampleMode QwtGridRasterData::Privat
 // name
 //===============================================================
 
-QwtGridRasterData::QwtGridRasterData()
+QwtGridRasterData::QwtGridRasterData() : m_data(new QwtGridRasterData::PrivateData())
 {
 }
 
 QwtGridRasterData::~QwtGridRasterData()
 {
+    delete m_data;
 }
 
 /**
