@@ -205,6 +205,18 @@ public:
     }
 
     /**
+     * @brief operator []
+     *
+     * 根据给定的 x 和 y 坐标查询值。
+     *
+     * @param xy,std::pair<x,y>
+     * @return The interpolated or nearest value. / 插值或最近邻值。
+     */
+    T operator[](const std::pair< T, T >& xy) const
+    {
+        return value(xy.first, xy.second);
+    }
+    /**
      * @brief Query value at (x, y).
      *
      * 根据给定的 x 和 y 坐标查询值。
@@ -249,6 +261,63 @@ public:
     ResampleMode resampleMode() const
     {
         return m_mode;
+    }
+
+    /**
+     * @brief x的尺寸
+     * @return
+     */
+    size_type xSize() const
+    {
+        return m_xAxis.size();
+    }
+
+    /**
+     * @brief y的尺寸
+     * @return
+     */
+    size_type ySize() const
+    {
+        return m_yAxis.size();
+    }
+
+    /**
+     * @brief value矩阵的尺寸
+     * @return <xsize,ysize>
+     */
+    std::pair< size_type, size_type > valueSize() const
+    {
+        return std::make_pair(xSize(), ySize());
+    }
+
+    /**
+     * @brief x 值对应的内容
+     * @param ix
+     * @return
+     */
+    T atX(size_type ix) const
+    {
+        return m_xAxis.at(ix);
+    }
+
+    /**
+     * @brief y值对应的内容
+     * @param ix
+     * @return
+     */
+    T atY(size_type iy) const
+    {
+        return m_yAxis.at(iy);
+    }
+
+    /**
+     * @brief value值对应的内容
+     * @param ix
+     * @return
+     */
+    T atValue(size_type ix, size_type iy) const
+    {
+        return m_data.at(ix).at(iy);
     }
 
     /**

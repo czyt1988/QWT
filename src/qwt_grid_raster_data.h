@@ -87,6 +87,18 @@ public:
 
     virtual QRectF pixelHint(const QRectF&) const QWT_OVERRIDE;
 
+    // 获取尺寸
+    int xSize() const;
+    int ySize() const;
+    std::pair< int, int > valueSize() const;
+
+    // 获取value矩阵对应位置的值
+    double atValue(int xIndex, int yIndex) const;
+
+    // 获取x,y在索引位置对应的值
+    double atX(int xIndex) const;
+    double atY(int yIndex) const;
+
 private:
     class PrivateData;
     PrivateData* m_data;

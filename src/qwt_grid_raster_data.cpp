@@ -165,3 +165,67 @@ QRectF QwtGridRasterData::pixelHint(const QRectF& area) const
 
     return rect;
 }
+
+/**
+ * @brief x 值对应的内容
+ * @param ix
+ * @return
+ */
+int QwtGridRasterData::xSize() const
+{
+    return m_data->gridData.xSize();
+}
+
+/**
+ * @brief y值对应的内容
+ * @param ix
+ * @return
+ */
+int QwtGridRasterData::ySize() const
+{
+    return m_data->gridData.ySize();
+}
+
+/**
+ * @brief y值对应的内容
+ * @param ix
+ * @return
+ */
+std::pair< int, int > QwtGridRasterData::valueSize() const
+{
+    return m_data->gridData.valueSize();
+}
+
+/**
+ * @brief value值对应的内容
+ * @param ix
+ * @return
+ */
+double QwtGridRasterData::atValue(int xIndex, int yIndex) const
+{
+    return m_data->gridData.atValue(xIndex, yIndex);
+}
+
+/**
+ * @brief Get the x-axis values.
+ *
+ * 获取 x 轴值。
+ *
+ * @return The x-axis values. / x 轴值。
+ */
+double QwtGridRasterData::atX(int xIndex) const
+{
+    return m_data->gridData.atX(xIndex);
+}
+
+/**
+ * @brief Get the y-axis values.
+ *
+ * 获取 y 轴值。
+ *
+ * @return The y-axis values. / y 轴值。
+ */
+double QwtGridRasterData::atY(int yIndex) const
+{
+    return m_data->gridData.atY(yIndex);
+}

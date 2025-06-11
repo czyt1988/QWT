@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -18,7 +18,8 @@
 class QwtScaleMap;
 class QwtSymbol;
 class QwtCurveFitter;
-template< typename T > class QwtSeriesData;
+template< typename T >
+class QwtSeriesData;
 class QwtText;
 class QPainter;
 class QPolygonF;
@@ -53,11 +54,9 @@ class QPen;
 
    \sa QwtPointSeriesData, QwtSymbol, QwtScaleMap
  */
-class QWT_EXPORT QwtPlotCurve
-    : public QwtPlotSeriesItem
-    , public QwtSeriesStore< QPointF >
+class QWT_EXPORT QwtPlotCurve : public QwtPlotSeriesItem, public QwtSeriesStore< QPointF >
 {
-  public:
+public:
     /*!
         Curve styles.
         \sa setStyle(), style()
@@ -130,7 +129,7 @@ class QWT_EXPORT QwtPlotCurve
         Fitted = 0x02
     };
 
-    Q_DECLARE_FLAGS( CurveAttributes, CurveAttribute )
+    Q_DECLARE_FLAGS(CurveAttributes, CurveAttribute)
 
     /*!
         Attributes how to represent the curve on the legend
@@ -165,7 +164,7 @@ class QWT_EXPORT QwtPlotCurve
         LegendShowBrush = 0x04
     };
 
-    Q_DECLARE_FLAGS( LegendAttributes, LegendAttribute )
+    Q_DECLARE_FLAGS(LegendAttributes, LegendAttribute)
 
     /*!
         Attributes to modify the drawing algorithm.
@@ -231,116 +230,122 @@ class QWT_EXPORT QwtPlotCurve
         FilterPointsAggressive = 0x10,
     };
 
-    Q_DECLARE_FLAGS( PaintAttributes, PaintAttribute )
+    Q_DECLARE_FLAGS(PaintAttributes, PaintAttribute)
 
-    explicit QwtPlotCurve( const QString& title = QString() );
-    explicit QwtPlotCurve( const QwtText& title );
+    explicit QwtPlotCurve(const QString& title = QString());
+    explicit QwtPlotCurve(const QwtText& title);
 
     virtual ~QwtPlotCurve();
 
     virtual int rtti() const QWT_OVERRIDE;
 
-    void setPaintAttribute( PaintAttribute, bool on = true );
-    bool testPaintAttribute( PaintAttribute ) const;
+    void setPaintAttribute(PaintAttribute, bool on = true);
+    bool testPaintAttribute(PaintAttribute) const;
 
-    void setLegendAttribute( LegendAttribute, bool on = true );
-    bool testLegendAttribute( LegendAttribute ) const;
+    void setLegendAttribute(LegendAttribute, bool on = true);
+    bool testLegendAttribute(LegendAttribute) const;
 
-    void setLegendAttributes( LegendAttributes );
+    void setLegendAttributes(LegendAttributes);
     LegendAttributes legendAttributes() const;
 
-    void setRawSamples( const double* xData, const double* yData, int size );
-    void setRawSamples( const float* xData, const float* yData, int size );
+    void setRawSamples(const double* xData, const double* yData, int size);
+    void setRawSamples(const float* xData, const float* yData, int size);
 
-    void setRawSamples( const double* yData, int size );
-    void setRawSamples( const float* yData, int size );
+    void setRawSamples(const double* yData, int size);
+    void setRawSamples(const float* yData, int size);
 
-    void setSamples( const double* xData, const double* yData, int size );
-    void setSamples( const float* xData, const float* yData, int size );
+    void setSamples(const double* xData, const double* yData, int size);
+    void setSamples(const float* xData, const float* yData, int size);
 
-    void setSamples( const double* yData, int size );
-    void setSamples( const float* yData, int size );
+    void setSamples(const double* yData, int size);
+    void setSamples(const float* yData, int size);
 
-    void setSamples( const QVector< double >& yData );
-    void setSamples( const QVector< float >& yData );
+    void setSamples(const QVector< double >& yData);
+    void setSamples(const QVector< float >& yData);
 
-    void setSamples( const QVector< double >& xData, const QVector< double >& yData );
-    void setSamples( const QVector< float >& xData, const QVector< float >& yData );
+    void setSamples(const QVector< double >& xData, const QVector< double >& yData);
+    void setSamples(const QVector< float >& xData, const QVector< float >& yData);
+    void setSamples(QVector< double >&& xData, QVector< double >&& yData);
+    void setSamples(QVector< float >&& xData, QVector< float >&& yData);
 
-    void setSamples( const QVector< QPointF >& );
-    void setSamples( QwtSeriesData< QPointF >* );
+    void setSamples(QVector< QPointF >&&);
+    void setSamples(const QVector< QPointF >&);
+    void setSamples(QwtSeriesData< QPointF >*);
 
-    virtual int closestPoint( const QPointF& pos, double* dist = NULL ) const;
+    virtual int closestPoint(const QPointF& pos, double* dist = NULL) const;
 
     double minXValue() const;
     double maxXValue() const;
     double minYValue() const;
     double maxYValue() const;
 
-    void setCurveAttribute( CurveAttribute, bool on = true );
-    bool testCurveAttribute( CurveAttribute ) const;
+    void setCurveAttribute(CurveAttribute, bool on = true);
+    bool testCurveAttribute(CurveAttribute) const;
 
-    void setPen( const QColor&, qreal width = 0.0, Qt::PenStyle = Qt::SolidLine );
-    void setPen( const QPen& );
+    void setPen(const QColor&, qreal width = 0.0, Qt::PenStyle = Qt::SolidLine);
+    void setPen(const QPen&);
     const QPen& pen() const;
 
-    void setBrush( const QBrush& );
+    void setBrush(const QBrush&);
     const QBrush& brush() const;
 
-    void setBaseline( double );
+    void setBaseline(double);
     double baseline() const;
 
-    void setStyle( CurveStyle style );
+    void setStyle(CurveStyle style);
     CurveStyle style() const;
 
-    void setSymbol( QwtSymbol* );
+    void setSymbol(QwtSymbol*);
     const QwtSymbol* symbol() const;
 
-    void setCurveFitter( QwtCurveFitter* );
+    void setCurveFitter(QwtCurveFitter*);
     QwtCurveFitter* curveFitter() const;
 
-    virtual void drawSeries( QPainter*,
-        const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QRectF& canvasRect, int from, int to ) const QWT_OVERRIDE;
+    virtual void drawSeries(QPainter*,
+                            const QwtScaleMap& xMap,
+                            const QwtScaleMap& yMap,
+                            const QRectF& canvasRect,
+                            int from,
+                            int to) const QWT_OVERRIDE;
 
-    virtual QwtGraphic legendIcon( int index, const QSizeF& ) const QWT_OVERRIDE;
+    virtual QwtGraphic legendIcon(int index, const QSizeF&) const QWT_OVERRIDE;
 
-  protected:
-
+protected:
     void init();
 
-    virtual void drawCurve( QPainter*, int style,
-        const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QRectF& canvasRect, int from, int to ) const;
+    virtual void drawCurve(QPainter*,
+                           int style,
+                           const QwtScaleMap& xMap,
+                           const QwtScaleMap& yMap,
+                           const QRectF& canvasRect,
+                           int from,
+                           int to) const;
 
-    virtual void drawSymbols( QPainter*, const QwtSymbol&,
-        const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QRectF& canvasRect, int from, int to ) const;
+    virtual void drawSymbols(QPainter*,
+                             const QwtSymbol&,
+                             const QwtScaleMap& xMap,
+                             const QwtScaleMap& yMap,
+                             const QRectF& canvasRect,
+                             int from,
+                             int to) const;
 
-    virtual void drawLines( QPainter*,
-        const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QRectF& canvasRect, int from, int to ) const;
+    virtual void
+    drawLines(QPainter*, const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QRectF& canvasRect, int from, int to) const;
 
-    virtual void drawSticks( QPainter*,
-        const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QRectF& canvasRect, int from, int to ) const;
+    virtual void
+    drawSticks(QPainter*, const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QRectF& canvasRect, int from, int to) const;
 
-    virtual void drawDots( QPainter*,
-        const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QRectF& canvasRect, int from, int to ) const;
+    virtual void
+    drawDots(QPainter*, const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QRectF& canvasRect, int from, int to) const;
 
-    virtual void drawSteps( QPainter*,
-        const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QRectF& canvasRect, int from, int to ) const;
+    virtual void
+    drawSteps(QPainter*, const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QRectF& canvasRect, int from, int to) const;
 
-    virtual void fillCurve( QPainter*,
-        const QwtScaleMap&, const QwtScaleMap&,
-        const QRectF& canvasRect, QPolygonF& ) const;
+    virtual void fillCurve(QPainter*, const QwtScaleMap&, const QwtScaleMap&, const QRectF& canvasRect, QPolygonF&) const;
 
-    void closePolyline( QPainter*,
-        const QwtScaleMap&, const QwtScaleMap&, QPolygonF& ) const;
+    void closePolyline(QPainter*, const QwtScaleMap&, const QwtScaleMap&, QPolygonF&) const;
 
-  private:
+private:
     class PrivateData;
     PrivateData* m_data;
 };
@@ -369,8 +374,8 @@ inline double QwtPlotCurve::maxYValue() const
     return boundingRect().bottom();
 }
 
-Q_DECLARE_OPERATORS_FOR_FLAGS( QwtPlotCurve::PaintAttributes )
-Q_DECLARE_OPERATORS_FOR_FLAGS( QwtPlotCurve::LegendAttributes )
-Q_DECLARE_OPERATORS_FOR_FLAGS( QwtPlotCurve::CurveAttributes )
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtPlotCurve::PaintAttributes)
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtPlotCurve::LegendAttributes)
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtPlotCurve::CurveAttributes)
 
 #endif
