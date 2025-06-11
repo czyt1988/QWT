@@ -5,6 +5,7 @@
 #include <limits>
 #include <cmath>
 #include <cassert>
+#include <stdexcept>
 
 /**
  * @class QwtGridData
