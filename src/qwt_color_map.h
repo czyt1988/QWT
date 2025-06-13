@@ -16,7 +16,8 @@
 class QwtInterval;
 
 #if QT_VERSION < 0x060000
-template< typename T > class QVector;
+template< typename T >
+class QVector;
 #endif
 
 /*!
@@ -36,7 +37,7 @@ template< typename T > class QVector;
 
 class QWT_EXPORT QwtColorMap
 {
-  public:
+public:
     /*!
         Format for color mapping
         \sa rgb(), colorIndex(), colorTable()
@@ -60,10 +61,10 @@ class QWT_EXPORT QwtColorMap
         Indexed
     };
 
-    explicit QwtColorMap( Format = QwtColorMap::RGB );
+    explicit QwtColorMap(Format = QwtColorMap::RGB);
     virtual ~QwtColorMap();
 
-    void setFormat( Format );
+    void setFormat(Format);
     Format format() const;
 
     /*!
@@ -73,16 +74,15 @@ class QWT_EXPORT QwtColorMap
        \param value Value
        \return RGB value, corresponding to value
      */
-    virtual QRgb rgb( const QwtInterval& interval, double value ) const = 0;
+    virtual QRgb rgb(const QwtInterval& interval, double value) const = 0;
 
-    virtual uint colorIndex( int numColors,
-        const QwtInterval& interval, double value ) const;
+    virtual uint colorIndex(int numColors, const QwtInterval& interval, double value) const;
 
-    QColor color( const QwtInterval&, double value ) const;
-    virtual QVector< QRgb > colorTable( int numColors ) const;
+    QColor color(const QwtInterval&, double value) const;
+    virtual QVector< QRgb > colorTable(int numColors) const;
     virtual QVector< QRgb > colorTable256() const;
 
-  private:
+private:
     Q_DISABLE_COPY(QwtColorMap)
 
     Format m_format;
@@ -97,7 +97,7 @@ class QWT_EXPORT QwtColorMap
  */
 class QWT_EXPORT QwtLinearColorMap : public QwtColorMap
 {
-  public:
+public:
     /*!
        Mode of color map
        \sa setMode(), mode()
@@ -111,32 +111,29 @@ class QWT_EXPORT QwtLinearColorMap : public QwtColorMap
         ScaledColors
     };
 
-    explicit QwtLinearColorMap( QwtColorMap::Format = QwtColorMap::RGB );
+    explicit QwtLinearColorMap(QwtColorMap::Format = QwtColorMap::RGB);
 
-    QwtLinearColorMap( const QColor& from, const QColor& to,
-        QwtColorMap::Format = QwtColorMap::RGB );
+    QwtLinearColorMap(const QColor& from, const QColor& to, QwtColorMap::Format = QwtColorMap::RGB);
 
     virtual ~QwtLinearColorMap();
 
-    void setMode( Mode );
+    void setMode(Mode);
     Mode mode() const;
 
-    void setColorInterval( const QColor& color1, const QColor& color2 );
-    void addColorStop( double value, const QColor& );
+    void setColorInterval(const QColor& color1, const QColor& color2);
+    void addColorStop(double value, const QColor&);
     QVector< double > colorStops() const;
-
+    QVector< QColor > colors() const;
     QColor color1() const;
     QColor color2() const;
 
-    virtual QRgb rgb( const QwtInterval&,
-        double value ) const QWT_OVERRIDE;
+    virtual QRgb rgb(const QwtInterval&, double value) const QWT_OVERRIDE;
 
-    virtual uint colorIndex( int numColors,
-        const QwtInterval&, double value ) const QWT_OVERRIDE;
+    virtual uint colorIndex(int numColors, const QwtInterval&, double value) const QWT_OVERRIDE;
 
     class ColorStops;
 
-  private:
+private:
     class PrivateData;
     PrivateData* m_data;
 };
@@ -146,22 +143,21 @@ class QWT_EXPORT QwtLinearColorMap : public QwtColorMap
  */
 class QWT_EXPORT QwtAlphaColorMap : public QwtColorMap
 {
-  public:
-    explicit QwtAlphaColorMap( const QColor& = QColor( Qt::gray ) );
+public:
+    explicit QwtAlphaColorMap(const QColor& = QColor(Qt::gray));
     virtual ~QwtAlphaColorMap();
 
-    void setAlphaInterval( int alpha1, int alpha2 );
+    void setAlphaInterval(int alpha1, int alpha2);
 
     int alpha1() const;
     int alpha2() const;
 
-    void setColor( const QColor& );
+    void setColor(const QColor&);
     QColor color() const;
 
-    virtual QRgb rgb( const QwtInterval&,
-        double value ) const QWT_OVERRIDE;
+    virtual QRgb rgb(const QwtInterval&, double value) const QWT_OVERRIDE;
 
-  private:
+private:
     class PrivateData;
     PrivateData* m_data;
 };
@@ -179,14 +175,14 @@ class QWT_EXPORT QwtAlphaColorMap : public QwtColorMap
  */
 class QWT_EXPORT QwtHueColorMap : public QwtColorMap
 {
-  public:
-    explicit QwtHueColorMap( QwtColorMap::Format = QwtColorMap::RGB );
+public:
+    explicit QwtHueColorMap(QwtColorMap::Format = QwtColorMap::RGB);
     virtual ~QwtHueColorMap();
 
-    void setHueInterval( int hue1, int hue2 ); // direction ?
-    void setSaturation( int saturation );
-    void setValue( int value );
-    void setAlpha( int alpha );
+    void setHueInterval(int hue1, int hue2);  // direction ?
+    void setSaturation(int saturation);
+    void setValue(int value);
+    void setAlpha(int alpha);
 
     int hue1() const;
     int hue2() const;
@@ -194,10 +190,9 @@ class QWT_EXPORT QwtHueColorMap : public QwtColorMap
     int value() const;
     int alpha() const;
 
-    virtual QRgb rgb( const QwtInterval&,
-        double value ) const QWT_OVERRIDE;
+    virtual QRgb rgb(const QwtInterval&, double value) const QWT_OVERRIDE;
 
-  private:
+private:
     class PrivateData;
     PrivateData* m_data;
 };
@@ -213,14 +208,14 @@ class QWT_EXPORT QwtHueColorMap : public QwtColorMap
  */
 class QWT_EXPORT QwtSaturationValueColorMap : public QwtColorMap
 {
-  public:
+public:
     QwtSaturationValueColorMap();
     virtual ~QwtSaturationValueColorMap();
 
-    void setHue( int hue );
-    void setSaturationInterval( int sat1, int sat2 );
-    void setValueInterval( int value1, int value2 );
-    void setAlpha( int alpha );
+    void setHue(int hue);
+    void setSaturationInterval(int sat1, int sat2);
+    void setValueInterval(int value1, int value2);
+    void setAlpha(int alpha);
 
     int hue() const;
     int saturation1() const;
@@ -229,10 +224,9 @@ class QWT_EXPORT QwtSaturationValueColorMap : public QwtColorMap
     int value2() const;
     int alpha() const;
 
-    virtual QRgb rgb( const QwtInterval&,
-        double value ) const QWT_OVERRIDE;
+    virtual QRgb rgb(const QwtInterval&, double value) const QWT_OVERRIDE;
 
-  private:
+private:
     class PrivateData;
     PrivateData* m_data;
 };
@@ -245,9 +239,9 @@ class QWT_EXPORT QwtSaturationValueColorMap : public QwtColorMap
 
    \return Color corresponding to value
  */
-inline QColor QwtColorMap::color( const QwtInterval& interval, double value ) const
+inline QColor QwtColorMap::color(const QwtInterval& interval, double value) const
 {
-    return QColor::fromRgba( rgb( interval, value ) );
+    return QColor::fromRgba(rgb(interval, value));
 }
 
 /*!
