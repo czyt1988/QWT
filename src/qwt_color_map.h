@@ -122,8 +122,8 @@ public:
 
     void setColorInterval(const QColor& color1, const QColor& color2);
     void addColorStop(double value, const QColor&);
-    QVector< double > colorStops() const;
-    QVector< QColor > colors() const;
+    QVector< double > stopPos() const;
+    QVector< QColor > stopColors() const;
     QColor color1() const;
     QColor color2() const;
 

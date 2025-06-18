@@ -410,7 +410,7 @@ void QwtLinearColorMap::addColorStop(double value, const QColor& color)
 /*!
    \return Positions of color stops in increasing order
  */
-QVector< double > QwtLinearColorMap::colorStops() const
+QVector< double > QwtLinearColorMap::stopPos() const
 {
     return m_data->colorStops.stops();
 }

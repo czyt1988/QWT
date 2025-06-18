@@ -8,6 +8,7 @@
 
 - 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
 - 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
+- `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
 
 ## tag:v0.0.4 | version:6.2.0
 
@@ -33,6 +34,7 @@ Perhaps some improvements will also be submitted to this hub
       Qwt is hosted at http://qwt.sf.net
 
 # Copyright
+
 ---------
 
     Qwt Widget Library 
@@ -50,7 +52,6 @@ Perhaps some improvements will also be submitted to this hub
 ----------------------
 
 # 绘图展示
-
 
 ## 基本图表
 
@@ -70,6 +71,7 @@ Perhaps some improvements will also be submitted to this hub
 `examples/curvedemo`  
 
 ## 实时可视化
+
 ![CPU Monitor](docs/screenshots/cpuplot.png)  
 `examples/cpuplot`  
 
@@ -80,6 +82,7 @@ Perhaps some improvements will also be submitted to this hub
 `examples/oscilloscope`  
 
 ## 高级图表
+
 ![Polar Demo](docs/screenshots/polardemo.png)  
 `examples/polardemo`  
 
