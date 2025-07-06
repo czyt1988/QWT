@@ -2,6 +2,79 @@
 
 目前，我已发布 tag v0.0.4 版本，为原始 `QWT` 项目引入了 `CMake` 支持。若您仅需为 `QWT` 添加 `CMake` 支持，可直接下载该版本。从 tag v0.0.4 后续版本开始，我将基于自身需求对原 `QWT` 源码进行针对性修改，包括功能拓展与接口优化，同时延续原 `QWT` 的版本号序列（从 6.2 版本起延续原有编号体系）。此项目从 7.0 版本起步，需特别提醒的是，7.0 及后续版本在某些接口上与 `QWT` 6.2.0 存在不兼容之处，请使用者留意。
 
+# 为何选用`QWT`而不是`QCustomPlot`
+
+## Qwt有着友好的开源协议
+
+`QCustomPlot`采用`GPL 协议`，如果你的项目使用了`QCustomPlot`,你的项目也应`GPL 协议`
+
+而`Qwt`的许可证是**LGPL（GNU Lesser General Public License）v2.1**，同时附加了3个条款：
+
+### Qwt的附加条款1——**静态链接例外**
+
+```plaintext
+Static linking of applications and widgets to the Qwt library does not constitute a derivative work
+and does not require the author to provide source code for the application or widget.
+```
+
+- ✅ **允许行为**：
+  - 商业软件**静态链接** Qwt 库
+  - 无需公开**自有代码**的源代码
+  - 无需提供 Qwt 的源代码（前提是使用官方未修改版本）
+
+- ⚠️ **限制条件**：
+  ```plaintext
+  If you link to a modified version of Qwt, 
+  then the changes to Qwt must be provided under the terms of the LGPL
+  ```
+  - 若修改了 Qwt 源代码，**必须公开修改部分的源代码**
+
+### Qwt的附加条款2——**继承派生例外**
+
+```plaintext
+Widgets that are subclassed from Qwt widgets do not constitute a derivative work.
+```
+
+- ✅ **允许行为**：
+  - 从 Qwt 组件派生子类（如继承 `QwtPlot`）
+  - 派生类**不被视为衍生作品**
+  - 无需遵循 LGPL 的源代码公开要求
+
+### Qwt的附加条款3——**标识要求**
+
+```plaintext
+Programs must identify their use of Qwt:
+"[program/widget] is based in part on the work of the Qwt project (http://qwt.sf.net)"
+```
+
+- 📌 **必须遵守**：
+  - 在软件文档或"关于"页面添加声明：`本软件使用了Qwt项目 (http://qwt.sf.net) 的部分成果`
+
+从上面可看出，Qwt的协议是非常友好的
+
+## `Qwt`有着更抽象的封装，和更高的自由度
+
+`Qwt`的架构更符合软件工程原则，但`QCustomPlot`的简约设计在快速开发中则是更胜一筹的
+
+`QCustomPlot`单头文件和cpp文件实现（qcustomplot.h + qcustomplot.cpp），零依赖，高度集成，降低学习曲线，这样导致内部耦合度较高，扩展性受限
+
+`Qwt`设计更加模块化（Plot, Scale, Curve 等独立组件），遵循经典的 MVC 模式，职责分离清晰，但是组件众多导致初始化复杂
+
+`QCustomPlot`的优势是交互功能开箱即用，例如鼠标缩放，坐标轴缩放，而`Qwt`需要较多的代码来实现，但`Qwt`有着更精细的控制能力
+
+从性能看，`Qwt`理论上是比`QCustomPlot`更有优势的，但`QCustomPlot`做了大数据点的抽稀处理，`Qwt`这方面没有处理，导致超大规模渲染上比`QCustomPlot`弱一点，这正是我想对其进行改进的原因
+
+---
+# 目标
+
+- [x] CMake支持 
+- [ ] 支持Qt6
+- [ ] C++11优化
+- [ ] 合并为单一文件，简化引入
+- [ ] 优化超大规模数据的渲染
+- [ ] 提供一些集成的交互方法，让使用更简单
+- [ ] 美化控件
+
 # changelog
 
 ## tag:???（还未发布） | version:7.0.0
