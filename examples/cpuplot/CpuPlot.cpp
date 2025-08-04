@@ -19,97 +19,91 @@
 
 namespace
 {
-    class TimeScaleDraw : public QwtScaleDraw
+class TimeScaleDraw : public QwtScaleDraw
+{
+public:
+    TimeScaleDraw(const QTime& base) : baseTime(base)
     {
-      public:
-        TimeScaleDraw( const QTime& base )
-            : baseTime( base )
-        {
-        }
-        virtual QwtText label( double v ) const QWT_OVERRIDE
-        {
-            QTime upTime = baseTime.addSecs( static_cast< int >( v ) );
-            return upTime.toString();
-        }
-      private:
-        QTime baseTime;
-    };
-
-    class Background : public QwtPlotItem
+    }
+    virtual QwtText label(double v) const QWT_OVERRIDE
     {
-      public:
-        Background()
-        {
-            setZ( 0.0 );
-        }
+        QTime upTime = baseTime.addSecs(static_cast< int >(v));
+        return upTime.toString();
+    }
 
-        virtual int rtti() const QWT_OVERRIDE
-        {
-            return QwtPlotItem::Rtti_PlotUserItem;
-        }
+private:
+    QTime baseTime;
+};
 
-        virtual void draw( QPainter* painter,
-            const QwtScaleMap&, const QwtScaleMap& yMap,
-            const QRectF& canvasRect ) const QWT_OVERRIDE
-        {
-            QColor c( Qt::white );
-            QRectF r = canvasRect;
-
-            for ( int i = 100; i > 0; i -= 10 )
-            {
-                r.setBottom( yMap.transform( i - 10 ) );
-                r.setTop( yMap.transform( i ) );
-                painter->fillRect( r, c );
-
-                c = c.darker( 110 );
-            }
-        }
-    };
-
-    class CpuCurve : public QwtPlotCurve
+class Background : public QwtPlotItem
+{
+public:
+    Background()
     {
-      public:
-        CpuCurve( const QString& title )
-            : QwtPlotCurve( title )
-        {
-            setRenderHint( QwtPlotItem::RenderAntialiased );
-        }
+        setZ(0.0);
+    }
 
-        void setColor( const QColor& color )
-        {
-            QColor c = color;
-            c.setAlpha( 150 );
+    virtual int rtti() const QWT_OVERRIDE
+    {
+        return QwtPlotItem::Rtti_PlotUserItem;
+    }
 
-            setPen( QPen( Qt::NoPen ) );
-            setBrush( c );
+    virtual void draw(QPainter* painter, const QwtScaleMap&, const QwtScaleMap& yMap, const QRectF& canvasRect) const QWT_OVERRIDE
+    {
+        QColor c(Qt::white);
+        QRectF r = canvasRect;
+
+        for (int i = 100; i > 0; i -= 10) {
+            r.setBottom(yMap.transform(i - 10));
+            r.setTop(yMap.transform(i));
+            painter->fillRect(r, c);
+
+            c = c.darker(110);
         }
-    };
+    }
+};
+
+class CpuCurve : public QwtPlotCurve
+{
+public:
+    CpuCurve(const QString& title) : QwtPlotCurve(title)
+    {
+        setRenderHint(QwtPlotItem::RenderAntialiased);
+    }
+
+    void setColor(const QColor& color)
+    {
+        QColor c = color;
+        c.setAlpha(150);
+
+        setPen(QPen(Qt::NoPen));
+        setBrush(c);
+    }
+};
 }
 
-CpuPlot::CpuPlot( QWidget* parent )
-    : QwtPlot( parent )
-    , m_dataCount( 0 )
+CpuPlot::CpuPlot(QWidget* parent) : QwtPlot(parent), m_dataCount(0)
 {
     using namespace QwtAxis;
 
-    setAutoReplot( false );
+    setAutoReplot(false);
 
     QwtPlotCanvas* canvas = new QwtPlotCanvas();
-    canvas->setBorderRadius( 10 );
+    canvas->setBorderRadius(0);
 
-    setCanvas( canvas );
+    setCanvas(canvas);
 
-    plotLayout()->setAlignCanvasToScales( true );
+    plotLayout()->setAlignCanvasToScales(true);
 
     QwtLegend* legend = new QwtLegend;
-    legend->setDefaultItemMode( QwtLegendData::Checkable );
-    insertLegend( legend, QwtPlot::RightLegend );
+    legend->setDefaultItemMode(QwtLegendData::Checkable);
+    insertLegend(legend, QwtPlot::RightLegend);
 
-    setAxisTitle( XBottom, " System Uptime [h:m:s]" );
-    setAxisScaleDraw( XBottom, new TimeScaleDraw( m_cpuStat.upTime() ) );
-    setAxisScale( XBottom, 0, HISTORY );
-    setAxisLabelRotation( XBottom, -50.0 );
-    setAxisLabelAlignment( XBottom, Qt::AlignLeft | Qt::AlignBottom );
+    setAxisTitle(XBottom, " System Uptime [h:m:s]");
+    setAxisScaleDraw(XBottom, new TimeScaleDraw(m_cpuStat.upTime()));
+    setAxisScale(XBottom, 0, HISTORY);
+    setAxisLabelRotation(XBottom, -50.0);
+    setAxisLabelAlignment(XBottom, Qt::AlignLeft | Qt::AlignBottom);
 
     /*
        In situations, when there is a label at the most right position of the
@@ -120,115 +114,106 @@ CpuPlot::CpuPlot( QWidget* parent )
        is enough space for the overlapping label below the left scale.
      */
 
-    QwtScaleWidget* scaleWidget = axisWidget( XBottom );
-    const int fmh = QFontMetrics( scaleWidget->font() ).height();
-    scaleWidget->setMinBorderDist( 0, fmh / 2 );
+    QwtScaleWidget* scaleWidget = axisWidget(XBottom);
+    const int fmh               = QFontMetrics(scaleWidget->font()).height();
+    scaleWidget->setMinBorderDist(0, fmh / 2);
 
-    setAxisTitle( YLeft, "Cpu Usage [%]" );
-    setAxisScale( YLeft, 0, 100 );
+    setAxisTitle(YLeft, "Cpu Usage [%]");
+    setAxisScale(YLeft, 0, 100);
 
     Background* bg = new Background();
-    bg->attach( this );
+    bg->attach(this);
 
     CpuPieMarker* pie = new CpuPieMarker();
-    pie->attach( this );
+    pie->attach(this);
 
     CpuCurve* curve;
 
-    curve = new CpuCurve( "System" );
-    curve->setColor( Qt::red );
-    curve->attach( this );
-    m_data[System].curve = curve;
+    curve = new CpuCurve("System");
+    curve->setColor(Qt::red);
+    curve->attach(this);
+    m_data[ System ].curve = curve;
 
-    curve = new CpuCurve( "User" );
-    curve->setColor( Qt::blue );
-    curve->setZ( curve->z() - 1 );
-    curve->attach( this );
-    m_data[User].curve = curve;
+    curve = new CpuCurve("User");
+    curve->setColor(Qt::blue);
+    curve->setZ(curve->z() - 1);
+    curve->attach(this);
+    m_data[ User ].curve = curve;
 
-    curve = new CpuCurve( "Total" );
-    curve->setColor( Qt::black );
-    curve->setZ( curve->z() - 2 );
-    curve->attach( this );
-    m_data[Total].curve = curve;
+    curve = new CpuCurve("Total");
+    curve->setColor(Qt::black);
+    curve->setZ(curve->z() - 2);
+    curve->attach(this);
+    m_data[ Total ].curve = curve;
 
-    curve = new CpuCurve( "Idle" );
-    curve->setColor( Qt::darkCyan );
-    curve->setZ( curve->z() - 3 );
-    curve->attach( this );
-    m_data[Idle].curve = curve;
+    curve = new CpuCurve("Idle");
+    curve->setColor(Qt::darkCyan);
+    curve->setZ(curve->z() - 3);
+    curve->attach(this);
+    m_data[ Idle ].curve = curve;
 
-    showCurve( m_data[System].curve, true );
-    showCurve( m_data[User].curve, true );
-    showCurve( m_data[Total].curve, false );
-    showCurve( m_data[Idle].curve, false );
+    showCurve(m_data[ System ].curve, true);
+    showCurve(m_data[ User ].curve, true);
+    showCurve(m_data[ Total ].curve, false);
+    showCurve(m_data[ Idle ].curve, false);
 
-    for ( int i = 0; i < HISTORY; i++ )
-        m_timeData[HISTORY - 1 - i] = i;
+    for (int i = 0; i < HISTORY; i++)
+        m_timeData[ HISTORY - 1 - i ] = i;
 
-    ( void )startTimer( 1000 ); // 1 second
+    (void)startTimer(1000);  // 1 second
 
-    connect( legend, SIGNAL(checked(const QVariant&,bool,int)),
-        SLOT(legendChecked(const QVariant&,bool)) );
+    connect(legend, SIGNAL(checked(const QVariant&, bool, int)), SLOT(legendChecked(const QVariant&, bool)));
 }
 
-void CpuPlot::timerEvent( QTimerEvent* )
+void CpuPlot::timerEvent(QTimerEvent*)
 {
-    for ( int i = m_dataCount; i > 0; i-- )
-    {
-        for ( int c = 0; c < NCpuData; c++ )
-        {
-            if ( i < HISTORY )
-                m_data[c].data[i] = m_data[c].data[i - 1];
+    for (int i = m_dataCount; i > 0; i--) {
+        for (int c = 0; c < NCpuData; c++) {
+            if (i < HISTORY)
+                m_data[ c ].data[ i ] = m_data[ c ].data[ i - 1 ];
         }
     }
 
-    m_cpuStat.statistic( m_data[User].data[0], m_data[System].data[0] );
+    m_cpuStat.statistic(m_data[ User ].data[ 0 ], m_data[ System ].data[ 0 ]);
 
-    m_data[Total].data[0] = m_data[User].data[0] + m_data[System].data[0];
-    m_data[Idle].data[0] = 100.0 - m_data[Total].data[0];
+    m_data[ Total ].data[ 0 ] = m_data[ User ].data[ 0 ] + m_data[ System ].data[ 0 ];
+    m_data[ Idle ].data[ 0 ]  = 100.0 - m_data[ Total ].data[ 0 ];
 
-    if ( m_dataCount < HISTORY )
+    if (m_dataCount < HISTORY)
         m_dataCount++;
 
-    for ( int j = 0; j < HISTORY; j++ )
-        m_timeData[j]++;
+    for (int j = 0; j < HISTORY; j++)
+        m_timeData[ j ]++;
 
-    setAxisScale( QwtAxis::XBottom,
-        m_timeData[HISTORY - 1], m_timeData[0] );
+    setAxisScale(QwtAxis::XBottom, m_timeData[ HISTORY - 1 ], m_timeData[ 0 ]);
 
-    for ( int c = 0; c < NCpuData; c++ )
-    {
-        m_data[c].curve->setRawSamples(
-            m_timeData, m_data[c].data, m_dataCount );
+    for (int c = 0; c < NCpuData; c++) {
+        m_data[ c ].curve->setRawSamples(m_timeData, m_data[ c ].data, m_dataCount);
     }
 
     replot();
 }
 
-void CpuPlot::legendChecked( const QVariant& itemInfo, bool on )
+void CpuPlot::legendChecked(const QVariant& itemInfo, bool on)
 {
-    QwtPlotItem* plotItem = infoToItem( itemInfo );
-    if ( plotItem )
-        showCurve( plotItem, on );
+    QwtPlotItem* plotItem = infoToItem(itemInfo);
+    if (plotItem)
+        showCurve(plotItem, on);
 }
 
-void CpuPlot::showCurve( QwtPlotItem* item, bool on )
+void CpuPlot::showCurve(QwtPlotItem* item, bool on)
 {
-    item->setVisible( on );
+    item->setVisible(on);
 
-    QwtLegend* lgd = qobject_cast< QwtLegend* >( legend() );
+    QwtLegend* lgd = qobject_cast< QwtLegend* >(legend());
 
-    QList< QWidget* > legendWidgets =
-        lgd->legendWidgets( itemToInfo( item ) );
+    QList< QWidget* > legendWidgets = lgd->legendWidgets(itemToInfo(item));
 
-    if ( legendWidgets.size() == 1 )
-    {
-        QwtLegendLabel* legendLabel =
-            qobject_cast< QwtLegendLabel* >( legendWidgets[0] );
+    if (legendWidgets.size() == 1) {
+        QwtLegendLabel* legendLabel = qobject_cast< QwtLegendLabel* >(legendWidgets[ 0 ]);
 
-        if ( legendLabel )
-            legendLabel->setChecked( on );
+        if (legendLabel)
+            legendLabel->setChecked(on);
     }
 
     replot();

@@ -57,7 +57,7 @@ TVPlot::TVPlot(QWidget* parent) : QwtPlot(parent)
 
     QwtPlotCanvas* canvas = new QwtPlotCanvas();
     canvas->setPalette(Qt::gray);
-    canvas->setBorderRadius(10);
+    canvas->setBorderRadius(0);
     setCanvas(canvas);
 
     plotLayout()->setAlignCanvasToScales(true);

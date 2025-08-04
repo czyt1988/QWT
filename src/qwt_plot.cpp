@@ -24,43 +24,39 @@
 #include <qapplication.h>
 #include <qcoreevent.h>
 
-static inline void qwtEnableLegendItems( QwtPlot* plot, bool on )
+static inline void qwtEnableLegendItems(QwtPlot* plot, bool on)
 {
     // gcc seems to have problems with const char sig[] in combination with certain options
-    const char* sig = SIGNAL(legendDataChanged(QVariant,QList<QwtLegendData>));
-    const char* slot = SLOT(updateLegendItems(QVariant,QList<QwtLegendData>));
+    const char* sig  = SIGNAL(legendDataChanged(QVariant, QList< QwtLegendData >));
+    const char* slot = SLOT(updateLegendItems(QVariant, QList< QwtLegendData >));
 
-    if ( on )
-        QObject::connect( plot, sig, plot, slot );
+    if (on)
+        QObject::connect(plot, sig, plot, slot);
     else
-        QObject::disconnect( plot, sig, plot, slot );
+        QObject::disconnect(plot, sig, plot, slot);
 }
 
-static void qwtSetTabOrder(
-    QWidget* first, QWidget* second, bool withChildren )
+static void qwtSetTabOrder(QWidget* first, QWidget* second, bool withChildren)
 {
     QList< QWidget* > tabChain;
     tabChain += first;
     tabChain += second;
 
-    if ( withChildren )
-    {
+    if (withChildren) {
         QList< QWidget* > children = second->findChildren< QWidget* >();
 
         QWidget* w = second->nextInFocusChain();
-        while ( children.contains( w ) )
-        {
-            children.removeAll( w );
+        while (children.contains(w)) {
+            children.removeAll(w);
 
             tabChain += w;
             w = w->nextInFocusChain();
         }
     }
 
-    for ( int i = 0; i < tabChain.size() - 1; i++ )
-    {
-        QWidget* from = tabChain[i];
-        QWidget* to = tabChain[i + 1];
+    for (int i = 0; i < tabChain.size() - 1; i++) {
+        QWidget* from = tabChain[ i ];
+        QWidget* to   = tabChain[ i + 1 ];
 
         const Qt::FocusPolicy policy1 = from->focusPolicy();
         const Qt::FocusPolicy policy2 = to->focusPolicy();
@@ -68,25 +64,25 @@ static void qwtSetTabOrder(
         QWidget* proxy1 = from->focusProxy();
         QWidget* proxy2 = to->focusProxy();
 
-        from->setFocusPolicy( Qt::TabFocus );
-        from->setFocusProxy( NULL);
+        from->setFocusPolicy(Qt::TabFocus);
+        from->setFocusProxy(NULL);
 
-        to->setFocusPolicy( Qt::TabFocus );
-        to->setFocusProxy( NULL);
+        to->setFocusPolicy(Qt::TabFocus);
+        to->setFocusProxy(NULL);
 
-        QWidget::setTabOrder( from, to );
+        QWidget::setTabOrder(from, to);
 
-        from->setFocusPolicy( policy1 );
-        from->setFocusProxy( proxy1);
+        from->setFocusPolicy(policy1);
+        from->setFocusProxy(proxy1);
 
-        to->setFocusPolicy( policy2 );
-        to->setFocusProxy( proxy2 );
+        to->setFocusPolicy(policy2);
+        to->setFocusProxy(proxy2);
     }
 }
 
 class QwtPlot::PrivateData
 {
-  public:
+public:
     QPointer< QwtTextLabel > titleLabel;
     QPointer< QwtTextLabel > footerLabel;
     QPointer< QWidget > canvas;
@@ -100,10 +96,9 @@ class QwtPlot::PrivateData
    \brief Constructor
    \param parent Parent widget
  */
-QwtPlot::QwtPlot( QWidget* parent )
-    : QFrame( parent )
+QwtPlot::QwtPlot(QWidget* parent) : QFrame(parent)
 {
-    initPlot( QwtText() );
+    initPlot(QwtText());
 }
 
 /*!
@@ -111,17 +106,16 @@ QwtPlot::QwtPlot( QWidget* parent )
    \param title Title text
    \param parent Parent widget
  */
-QwtPlot::QwtPlot( const QwtText& title, QWidget* parent )
-    : QFrame( parent )
+QwtPlot::QwtPlot(const QwtText& title, QWidget* parent) : QFrame(parent)
 {
-    initPlot( title );
+    initPlot(title);
 }
 
 //! Destructor
 QwtPlot::~QwtPlot()
 {
-    setAutoReplot( false );
-    detachItems( QwtPlotItem::Rtti_PlotItem, autoDelete() );
+    setAutoReplot(false);
+    detachItems(QwtPlotItem::Rtti_PlotItem, autoDelete());
 
     delete m_data->layout;
     deleteAxesData();
@@ -132,29 +126,29 @@ QwtPlot::~QwtPlot()
    \brief Initializes a QwtPlot instance
    \param title Title text
  */
-void QwtPlot::initPlot( const QwtText& title )
+void QwtPlot::initPlot(const QwtText& title)
 {
     m_data = new PrivateData;
 
-    m_data->layout = new QwtPlotLayout;
+    m_data->layout     = new QwtPlotLayout;
     m_data->autoReplot = false;
 
     // title
-    m_data->titleLabel = new QwtTextLabel( this );
-    m_data->titleLabel->setObjectName( "QwtPlotTitle" );
-    m_data->titleLabel->setFont( QFont( fontInfo().family(), 14, QFont::Bold ) );
+    m_data->titleLabel = new QwtTextLabel(this);
+    m_data->titleLabel->setObjectName("QwtPlotTitle");
+    m_data->titleLabel->setFont(QFont(fontInfo().family(), 14, QFont::Bold));
 
-    QwtText text( title );
-    text.setRenderFlags( Qt::AlignCenter | Qt::TextWordWrap );
-    m_data->titleLabel->setText( text );
+    QwtText text(title);
+    text.setRenderFlags(Qt::AlignCenter | Qt::TextWordWrap);
+    m_data->titleLabel->setText(text);
 
     // footer
-    m_data->footerLabel = new QwtTextLabel( this );
-    m_data->footerLabel->setObjectName( "QwtPlotFooter" );
+    m_data->footerLabel = new QwtTextLabel(this);
+    m_data->footerLabel->setObjectName("QwtPlotFooter");
 
     QwtText footer;
-    footer.setRenderFlags( Qt::AlignCenter | Qt::TextWordWrap );
-    m_data->footerLabel->setText( footer );
+    footer.setRenderFlags(Qt::AlignCenter | Qt::TextWordWrap);
+    m_data->footerLabel->setText(footer);
 
     // legend
     m_data->legend = NULL;
@@ -163,27 +157,24 @@ void QwtPlot::initPlot( const QwtText& title )
     initAxesData();
 
     // canvas
-    m_data->canvas = new QwtPlotCanvas( this );
-    m_data->canvas->setObjectName( "QwtPlotCanvas" );
-    m_data->canvas->installEventFilter( this );
+    m_data->canvas = new QwtPlotCanvas(this);
+    m_data->canvas->setObjectName("QwtPlotCanvas");
+    m_data->canvas->installEventFilter(this);
 
-    setSizePolicy( QSizePolicy::MinimumExpanding,
-        QSizePolicy::MinimumExpanding );
+    setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 
-    resize( 200, 200 );
+    resize(200, 200);
 
     using namespace QwtAxis;
 
     QList< QWidget* > focusChain;
-    focusChain << this << m_data->titleLabel << axisWidget( XTop )
-               << axisWidget( YLeft ) << m_data->canvas
-               << axisWidget( YRight ) << axisWidget( XBottom )
-               << m_data->footerLabel;
+    focusChain << this << m_data->titleLabel << axisWidget(XTop) << axisWidget(YLeft) << m_data->canvas
+               << axisWidget(YRight) << axisWidget(XBottom) << m_data->footerLabel;
 
-    for ( int i = 0; i < focusChain.size() - 1; i++ )
-        qwtSetTabOrder( focusChain[i], focusChain[i + 1], false );
+    for (int i = 0; i < focusChain.size() - 1; i++)
+        qwtSetTabOrder(focusChain[ i ], focusChain[ i + 1 ], false);
 
-    qwtEnableLegendItems( this, true );
+    qwtEnableLegendItems(this, true);
 }
 
 /*!
@@ -210,20 +201,19 @@ void QwtPlot::initPlot( const QwtText& title )
    \param canvas Canvas Widget
    \sa canvas()
  */
-void QwtPlot::setCanvas( QWidget* canvas )
+void QwtPlot::setCanvas(QWidget* canvas)
 {
-    if ( canvas == m_data->canvas )
+    if (canvas == m_data->canvas)
         return;
 
     delete m_data->canvas;
     m_data->canvas = canvas;
 
-    if ( canvas )
-    {
-        canvas->setParent( this );
-        canvas->installEventFilter( this );
+    if (canvas) {
+        canvas->setParent(this);
+        canvas->installEventFilter(this);
 
-        if ( isVisible() )
+        if (isVisible())
             canvas->show();
     }
 }
@@ -234,18 +224,17 @@ void QwtPlot::setCanvas( QWidget* canvas )
 
    \return See QFrame::event()
  */
-bool QwtPlot::event( QEvent* event )
+bool QwtPlot::event(QEvent* event)
 {
-    bool ok = QFrame::event( event );
-    switch ( event->type() )
-    {
-        case QEvent::LayoutRequest:
-            updateLayout();
-            break;
-        case QEvent::PolishRequest:
-            replot();
-            break;
-        default:;
+    bool ok = QFrame::event(event);
+    switch (event->type()) {
+    case QEvent::LayoutRequest:
+        updateLayout();
+        break;
+    case QEvent::PolishRequest:
+        replot();
+        break;
+    default:;
     }
     return ok;
 }
@@ -268,27 +257,23 @@ bool QwtPlot::event( QEvent* event )
 
    \sa updateCanvasMargins(), updateLayout()
  */
-bool QwtPlot::eventFilter( QObject* object, QEvent* event )
+bool QwtPlot::eventFilter(QObject* object, QEvent* event)
 {
-    if ( object == m_data->canvas )
-    {
-        if ( event->type() == QEvent::Resize )
-        {
+    if (object == m_data->canvas) {
+        if (event->type() == QEvent::Resize) {
             updateCanvasMargins();
-        }
-        else if ( event->type() == QEvent::ContentsRectChange )
-        {
+        } else if (event->type() == QEvent::ContentsRectChange) {
             updateLayout();
         }
     }
 
-    return QFrame::eventFilter( object, event );
+    return QFrame::eventFilter(object, event);
 }
 
 //! Replots the plot if autoReplot() is \c true.
 void QwtPlot::autoRefresh()
 {
-    if ( m_data->autoReplot )
+    if (m_data->autoReplot)
         replot();
 }
 
@@ -307,7 +292,7 @@ void QwtPlot::autoRefresh()
    \param tf \c true or \c false. Defaults to \c true.
    \sa replot()
  */
-void QwtPlot::setAutoReplot( bool tf )
+void QwtPlot::setAutoReplot(bool tf)
 {
     m_data->autoReplot = tf;
 }
@@ -325,11 +310,10 @@ bool QwtPlot::autoReplot() const
    Change the plot's title
    \param title New title
  */
-void QwtPlot::setTitle( const QString& title )
+void QwtPlot::setTitle(const QString& title)
 {
-    if ( title != m_data->titleLabel->text().text() )
-    {
-        m_data->titleLabel->setText( title );
+    if (title != m_data->titleLabel->text().text()) {
+        m_data->titleLabel->setText(title);
         updateLayout();
     }
 }
@@ -338,11 +322,10 @@ void QwtPlot::setTitle( const QString& title )
    Change the plot's title
    \param title New title
  */
-void QwtPlot::setTitle( const QwtText& title )
+void QwtPlot::setTitle(const QwtText& title)
 {
-    if ( title != m_data->titleLabel->text() )
-    {
-        m_data->titleLabel->setText( title );
+    if (title != m_data->titleLabel->text()) {
+        m_data->titleLabel->setText(title);
         updateLayout();
     }
 }
@@ -369,11 +352,10 @@ const QwtTextLabel* QwtPlot::titleLabel() const
    Change the text the footer
    \param text New text of the footer
  */
-void QwtPlot::setFooter( const QString& text )
+void QwtPlot::setFooter(const QString& text)
 {
-    if ( text != m_data->footerLabel->text().text() )
-    {
-        m_data->footerLabel->setText( text );
+    if (text != m_data->footerLabel->text().text()) {
+        m_data->footerLabel->setText(text);
         updateLayout();
     }
 }
@@ -382,11 +364,10 @@ void QwtPlot::setFooter( const QString& text )
    Change the text the footer
    \param text New text of the footer
  */
-void QwtPlot::setFooter( const QwtText& text )
+void QwtPlot::setFooter(const QwtText& text)
 {
-    if ( text != m_data->footerLabel->text() )
-    {
-        m_data->footerLabel->setText( text );
+    if (text != m_data->footerLabel->text()) {
+        m_data->footerLabel->setText(text);
         updateLayout();
     }
 }
@@ -415,10 +396,9 @@ const QwtTextLabel* QwtPlot::footerLabel() const
    \param layout Layout()
    \sa plotLayout()
  */
-void QwtPlot::setPlotLayout( QwtPlotLayout* layout )
+void QwtPlot::setPlotLayout(QwtPlotLayout* layout)
 {
-    if ( layout != m_data->layout )
-    {
+    if (layout != m_data->layout) {
         delete m_data->layout;
         m_data->layout = layout;
 
@@ -456,7 +436,6 @@ const QwtAbstractLegend* QwtPlot::legend() const
     return m_data->legend;
 }
 
-
 /*!
    \return the plot's canvas
  */
@@ -482,34 +461,29 @@ QSize QwtPlot::sizeHint() const
     int dw = 0;
     int dh = 0;
 
-    for ( int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++ )
-    {
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
         {
-            const QwtAxisId axisId( axisPos );
+            const QwtAxisId axisId(axisPos);
 
-            if ( isAxisVisible( axisId ) )
-            {
-                const int niceDist = 40;
-                const QwtScaleWidget* scaleWidget = axisWidget( axisId );
-                const QwtScaleDiv& scaleDiv = scaleWidget->scaleDraw()->scaleDiv();
-                const int majCnt = scaleDiv.ticks( QwtScaleDiv::MajorTick ).count();
+            if (isAxisVisible(axisId)) {
+                const int niceDist                = 40;
+                const QwtScaleWidget* scaleWidget = axisWidget(axisId);
+                const QwtScaleDiv& scaleDiv       = scaleWidget->scaleDraw()->scaleDiv();
+                const int majCnt                  = scaleDiv.ticks(QwtScaleDiv::MajorTick).count();
 
                 const QSize hint = scaleWidget->minimumSizeHint();
 
-                if ( QwtAxis::isYAxis( axisPos ) )
-                {
-                    const int hDiff = ( majCnt - 1 ) * niceDist - hint.height();
-                    dh = qMax( dh, hDiff );
-                }
-                else
-                {
-                    const int wDiff = ( majCnt - 1 ) * niceDist - hint.width();
-                    dw = qMax( dw, wDiff );
+                if (QwtAxis::isYAxis(axisPos)) {
+                    const int hDiff = (majCnt - 1) * niceDist - hint.height();
+                    dh              = qMax(dh, hDiff);
+                } else {
+                    const int wDiff = (majCnt - 1) * niceDist - hint.width();
+                    dw              = qMax(dw, wDiff);
                 }
             }
         }
     }
-    return minimumSizeHint() + QSize( dw, dh );
+    return minimumSizeHint() + QSize(dw, dh);
 }
 
 /*!
@@ -517,8 +491,8 @@ QSize QwtPlot::sizeHint() const
  */
 QSize QwtPlot::minimumSizeHint() const
 {
-    QSize hint = m_data->layout->minimumSizeHint( this );
-    hint += QSize( 2 * frameWidth(), 2 * frameWidth() );
+    QSize hint = m_data->layout->minimumSizeHint(this);
+    hint += QSize(2 * frameWidth(), 2 * frameWidth());
 
     return hint;
 }
@@ -527,9 +501,9 @@ QSize QwtPlot::minimumSizeHint() const
    Resize and update internal layout
    \param e Resize event
  */
-void QwtPlot::resizeEvent( QResizeEvent* e )
+void QwtPlot::resizeEvent(QResizeEvent* e)
 {
-    QFrame::resizeEvent( e );
+    QFrame::resizeEvent(e);
     updateLayout();
 }
 
@@ -545,7 +519,7 @@ void QwtPlot::resizeEvent( QResizeEvent* e )
 void QwtPlot::replot()
 {
     bool doAutoReplot = autoReplot();
-    setAutoReplot( false );
+    setAutoReplot(false);
 
     updateAxes();
 
@@ -554,20 +528,17 @@ void QwtPlot::replot()
        axes labels. We need to process them here before painting
        to avoid that scales and canvas get out of sync.
      */
-    QApplication::sendPostedEvents( this, QEvent::LayoutRequest );
+    QApplication::sendPostedEvents(this, QEvent::LayoutRequest);
 
-    if ( m_data->canvas )
-    {
-        const bool ok = QMetaObject::invokeMethod(
-            m_data->canvas, "replot", Qt::DirectConnection );
-        if ( !ok )
-        {
+    if (m_data->canvas) {
+        const bool ok = QMetaObject::invokeMethod(m_data->canvas, "replot", Qt::DirectConnection);
+        if (!ok) {
             // fallback, when canvas has no a replot method
-            m_data->canvas->update( m_data->canvas->contentsRect() );
+            m_data->canvas->update(m_data->canvas->contentsRect());
         }
     }
 
-    setAutoReplot( doAutoReplot );
+    setAutoReplot(doAutoReplot);
 }
 
 /*!
@@ -577,79 +548,65 @@ void QwtPlot::replot()
 void QwtPlot::updateLayout()
 {
     QwtPlotLayout* layout = m_data->layout;
-    layout->activate( this, contentsRect() );
+    layout->activate(this, contentsRect());
 
-    const QRect titleRect = layout->titleRect().toRect();
+    const QRect titleRect  = layout->titleRect().toRect();
     const QRect footerRect = layout->footerRect().toRect();
     const QRect legendRect = layout->legendRect().toRect();
     const QRect canvasRect = layout->canvasRect().toRect();
 
     // resize and show the visible widgets
 
-    if ( !m_data->titleLabel->text().isEmpty() )
-    {
-        m_data->titleLabel->setGeometry( titleRect );
-        if ( !m_data->titleLabel->isVisibleTo( this ) )
+    if (!m_data->titleLabel->text().isEmpty()) {
+        m_data->titleLabel->setGeometry(titleRect);
+        if (!m_data->titleLabel->isVisibleTo(this))
             m_data->titleLabel->show();
-    }
-    else
+    } else
         m_data->titleLabel->hide();
 
-    if ( !m_data->footerLabel->text().isEmpty() )
-    {
-        m_data->footerLabel->setGeometry( footerRect );
-        if ( !m_data->footerLabel->isVisibleTo( this ) )
+    if (!m_data->footerLabel->text().isEmpty()) {
+        m_data->footerLabel->setGeometry(footerRect);
+        if (!m_data->footerLabel->isVisibleTo(this))
             m_data->footerLabel->show();
-    }
-    else
-    {
+    } else {
         m_data->footerLabel->hide();
     }
 
-    for ( int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++ )
-    {
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
         {
-            const QwtAxisId axisId( axisPos );
+            const QwtAxisId axisId(axisPos);
 
-            QwtScaleWidget* scaleWidget = axisWidget( axisId );
+            QwtScaleWidget* scaleWidget = axisWidget(axisId);
 
-            if ( isAxisVisible( axisId ) )
-            {
-                const QRect scaleRect = layout->scaleRect( axisId ).toRect();
+            if (isAxisVisible(axisId)) {
+                const QRect scaleRect = layout->scaleRect(axisId).toRect();
 
-                if ( scaleRect != scaleWidget->geometry() )
-                {
-                    scaleWidget->setGeometry( scaleRect );
+                if (scaleRect != scaleWidget->geometry()) {
+                    scaleWidget->setGeometry(scaleRect);
 
                     int startDist, endDist;
-                    scaleWidget->getBorderDistHint( startDist, endDist );
-                    scaleWidget->setBorderDist( startDist, endDist );
+                    scaleWidget->getBorderDistHint(startDist, endDist);
+                    scaleWidget->setBorderDist(startDist, endDist);
                 }
 
-                if ( !scaleWidget->isVisibleTo( this ) )
+                if (!scaleWidget->isVisibleTo(this))
                     scaleWidget->show();
-            }
-            else
-            {
+            } else {
                 scaleWidget->hide();
             }
         }
     }
 
-    if ( m_data->legend )
-    {
-        if ( m_data->legend->isEmpty() )
-        {
+    if (m_data->legend) {
+        if (m_data->legend->isEmpty()) {
             m_data->legend->hide();
-        }
-        else
-        {
-            m_data->legend->setGeometry( legendRect );
+        } else {
+            m_data->legend->setGeometry(legendRect);
             m_data->legend->show();
         }
     }
 
-    m_data->canvas->setGeometry( canvasRect );
+    m_data->canvas->setGeometry(canvasRect);
 }
 
 /*!
@@ -667,30 +624,34 @@ void QwtPlot::updateLayout()
 
    updateCanvasMargins(), QwtPlotItem::getCanvasMarginHint()
  */
-void QwtPlot::getCanvasMarginsHint(
-    const QwtScaleMap maps[], const QRectF& canvasRect,
-    double& left, double& top, double& right, double& bottom) const
+void QwtPlot::getCanvasMarginsHint(const QwtScaleMap maps[],
+                                   const QRectF& canvasRect,
+                                   double& left,
+                                   double& top,
+                                   double& right,
+                                   double& bottom) const
 {
     left = top = right = bottom = -1.0;
 
     const QwtPlotItemList& itmList = itemList();
-    for ( QwtPlotItemIterator it = itmList.begin();
-        it != itmList.end(); ++it )
-    {
+    for (QwtPlotItemIterator it = itmList.begin(); it != itmList.end(); ++it) {
         const QwtPlotItem* item = *it;
-        if ( item->testItemAttribute( QwtPlotItem::Margins ) )
-        {
+        if (item->testItemAttribute(QwtPlotItem::Margins)) {
             using namespace QwtAxis;
 
             double m[ AxisPositions ];
-            item->getCanvasMarginHint(
-                maps[ item->xAxis() ], maps[ item->yAxis() ],
-                canvasRect, m[YLeft], m[XTop], m[YRight], m[XBottom] );
+            item->getCanvasMarginHint(maps[ item->xAxis() ],
+                                      maps[ item->yAxis() ],
+                                      canvasRect,
+                                      m[ YLeft ],
+                                      m[ XTop ],
+                                      m[ YRight ],
+                                      m[ XBottom ]);
 
-            left = qwtMaxF( left, m[YLeft] );
-            top = qwtMaxF( top, m[XTop] );
-            right = qwtMaxF( right, m[YRight] );
-            bottom = qwtMaxF( bottom, m[XBottom] );
+            left   = qwtMaxF(left, m[ YLeft ]);
+            top    = qwtMaxF(top, m[ XTop ]);
+            right  = qwtMaxF(right, m[ YRight ]);
+            bottom = qwtMaxF(bottom, m[ XBottom ]);
         }
     }
 }
@@ -708,25 +669,22 @@ void QwtPlot::updateCanvasMargins()
     using namespace QwtAxis;
 
     QwtScaleMap maps[ AxisPositions ];
-    for ( int axisId = 0; axisId < AxisPositions; axisId++ )
-        maps[axisId] = canvasMap( axisId );
+    for (int axisId = 0; axisId < AxisPositions; axisId++)
+        maps[ axisId ] = canvasMap(axisId);
 
-    double margins[AxisPositions];
-    getCanvasMarginsHint( maps, canvas()->contentsRect(),
-        margins[YLeft], margins[XTop], margins[YRight], margins[XBottom] );
+    double margins[ AxisPositions ];
+    getCanvasMarginsHint(maps, canvas()->contentsRect(), margins[ YLeft ], margins[ XTop ], margins[ YRight ], margins[ XBottom ]);
 
     bool doUpdate = false;
-    for ( int axisPos = 0; axisPos < AxisPositions; axisPos++ )
-    {
-        if ( margins[axisPos] >= 0.0 )
-        {
-            const int m = qwtCeil( margins[axisPos] );
-            plotLayout()->setCanvasMargin( m, axisPos);
+    for (int axisPos = 0; axisPos < AxisPositions; axisPos++) {
+        if (margins[ axisPos ] >= 0.0) {
+            const int m = qwtCeil(margins[ axisPos ]);
+            plotLayout()->setCanvasMargin(m, axisPos);
             doUpdate = true;
         }
     }
 
-    if ( doUpdate )
+    if (doUpdate)
         updateLayout();
 }
 
@@ -739,13 +697,13 @@ void QwtPlot::updateCanvasMargins()
            plot items better overload drawItems()
    \sa drawItems()
  */
-void QwtPlot::drawCanvas( QPainter* painter )
+void QwtPlot::drawCanvas(QPainter* painter)
 {
     QwtScaleMap maps[ QwtAxis::AxisPositions ];
-    for ( int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++ )
-        maps[axisPos] = canvasMap( axisPos );
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++)
+        maps[ axisPos ] = canvasMap(axisPos);
 
-    drawItems( painter, m_data->canvas->contentsRect(), maps );
+    drawItems(painter, m_data->canvas->contentsRect(), maps);
 }
 
 /*!
@@ -761,30 +719,24 @@ void QwtPlot::drawCanvas( QPainter* painter )
         fix the margins manually using QWidget::setContentsMargins()
  */
 
-void QwtPlot::drawItems( QPainter* painter, const QRectF& canvasRect,
-    const QwtScaleMap maps[ QwtAxis::AxisPositions ] ) const
+void QwtPlot::drawItems(QPainter* painter, const QRectF& canvasRect, const QwtScaleMap maps[ QwtAxis::AxisPositions ]) const
 {
     const QwtPlotItemList& itmList = itemList();
-    for ( QwtPlotItemIterator it = itmList.begin();
-        it != itmList.end(); ++it )
-    {
+    for (QwtPlotItemIterator it = itmList.begin(); it != itmList.end(); ++it) {
         QwtPlotItem* item = *it;
-        if ( item && item->isVisible() )
-        {
+        if (item && item->isVisible()) {
             const QwtAxisId xAxis = item->xAxis();
             const QwtAxisId yAxis = item->yAxis();
 
             painter->save();
 
-            painter->setRenderHint( QPainter::Antialiasing,
-                item->testRenderHint( QwtPlotItem::RenderAntialiased ) );
+            painter->setRenderHint(QPainter::Antialiasing, item->testRenderHint(QwtPlotItem::RenderAntialiased));
 
 #if QT_VERSION < 0x050100
-            painter->setRenderHint( QPainter::HighQualityAntialiasing,
-                item->testRenderHint( QwtPlotItem::RenderAntialiased ) );
+            painter->setRenderHint(QPainter::HighQualityAntialiasing, item->testRenderHint(QwtPlotItem::RenderAntialiased));
 #endif
 
-            item->draw( painter, maps[xAxis], maps[yAxis], canvasRect );
+            item->draw(painter, maps[ xAxis ], maps[ yAxis ], canvasRect);
 
             painter->restore();
         }
@@ -797,63 +749,52 @@ void QwtPlot::drawItems( QPainter* painter, const QRectF& canvasRect,
           translated to plot coordinates and vice versa.
    \sa QwtScaleMap, transform(), invTransform()
  */
-QwtScaleMap QwtPlot::canvasMap( QwtAxisId axisId ) const
+QwtScaleMap QwtPlot::canvasMap(QwtAxisId axisId) const
 {
     QwtScaleMap map;
-    if ( !m_data->canvas )
+    if (!m_data->canvas)
         return map;
 
-    map.setTransformation( axisScaleEngine( axisId )->transformation() );
+    map.setTransformation(axisScaleEngine(axisId)->transformation());
 
-    const QwtScaleDiv& sd = axisScaleDiv( axisId );
-    map.setScaleInterval( sd.lowerBound(), sd.upperBound() );
+    const QwtScaleDiv& sd = axisScaleDiv(axisId);
+    map.setScaleInterval(sd.lowerBound(), sd.upperBound());
 
-    if ( isAxisVisible( axisId ) )
-    {
-        const QwtScaleWidget* s = axisWidget( axisId );
-        if ( QwtAxis::isYAxis( axisId ) )
-        {
+    if (isAxisVisible(axisId)) {
+        const QwtScaleWidget* s = axisWidget(axisId);
+        if (QwtAxis::isYAxis(axisId)) {
             double y = s->y() + s->startBorderDist() - m_data->canvas->y();
             double h = s->height() - s->startBorderDist() - s->endBorderDist();
-            map.setPaintInterval( y + h, y );
-        }
-        else
-        {
+            map.setPaintInterval(y + h, y);
+        } else {
             double x = s->x() + s->startBorderDist() - m_data->canvas->x();
             double w = s->width() - s->startBorderDist() - s->endBorderDist();
-            map.setPaintInterval( x, x + w );
+            map.setPaintInterval(x, x + w);
         }
-    }
-    else
-    {
+    } else {
         using namespace QwtAxis;
 
         const QRect& canvasRect = m_data->canvas->contentsRect();
-        if ( isYAxis( axisId ) )
-        {
+        if (isYAxis(axisId)) {
             int top = 0;
-            if ( !plotLayout()->alignCanvasToScale( XTop ) )
-                top = plotLayout()->canvasMargin( XTop );
+            if (!plotLayout()->alignCanvasToScale(XTop))
+                top = plotLayout()->canvasMargin(XTop);
 
             int bottom = 0;
-            if ( !plotLayout()->alignCanvasToScale( XBottom ) )
-                bottom = plotLayout()->canvasMargin( XBottom );
+            if (!plotLayout()->alignCanvasToScale(XBottom))
+                bottom = plotLayout()->canvasMargin(XBottom);
 
-            map.setPaintInterval( canvasRect.bottom() - bottom,
-                canvasRect.top() + top );
-        }
-        else
-        {
+            map.setPaintInterval(canvasRect.bottom() - bottom, canvasRect.top() + top);
+        } else {
             int left = 0;
-            if ( !plotLayout()->alignCanvasToScale( YLeft ) )
-                left = plotLayout()->canvasMargin( YLeft );
+            if (!plotLayout()->alignCanvasToScale(YLeft))
+                left = plotLayout()->canvasMargin(YLeft);
 
             int right = 0;
-            if ( !plotLayout()->alignCanvasToScale( YRight ) )
-                right = plotLayout()->canvasMargin( YRight );
+            if (!plotLayout()->alignCanvasToScale(YRight))
+                right = plotLayout()->canvasMargin(YRight);
 
-            map.setPaintInterval( canvasRect.left() + left,
-                canvasRect.right() - right );
+            map.setPaintInterval(canvasRect.left() + left, canvasRect.right() - right);
         }
     }
 
@@ -870,12 +811,12 @@ QwtScaleMap QwtPlot::canvasMap( QwtAxisId axisId ) const
    \param brush New background brush
    \sa canvasBackground()
  */
-void QwtPlot::setCanvasBackground( const QBrush& brush )
+void QwtPlot::setCanvasBackground(const QBrush& brush)
 {
     QPalette pal = m_data->canvas->palette();
-    pal.setBrush( QPalette::Window, brush );
+    pal.setBrush(QPalette::Window, brush);
 
-    canvas()->setPalette( pal );
+    canvas()->setPalette(pal);
 }
 
 /*!
@@ -887,8 +828,7 @@ void QwtPlot::setCanvasBackground( const QBrush& brush )
  */
 QBrush QwtPlot::canvasBackground() const
 {
-    return canvas()->palette().brush(
-        QPalette::Normal, QPalette::Window );
+    return canvas()->palette().brush(QPalette::Normal, QPalette::Window);
 }
 
 /*!
@@ -924,84 +864,72 @@ QBrush QwtPlot::canvasBackground() const
    \sa legend(), QwtPlotLayout::legendPosition(),
       QwtPlotLayout::setLegendPosition()
  */
-void QwtPlot::insertLegend( QwtAbstractLegend* legend,
-    QwtPlot::LegendPosition pos, double ratio )
+void QwtPlot::insertLegend(QwtAbstractLegend* legend, QwtPlot::LegendPosition pos, double ratio)
 {
-    m_data->layout->setLegendPosition( pos, ratio );
+    m_data->layout->setLegendPosition(pos, ratio);
 
-    if ( legend != m_data->legend )
-    {
-        if ( m_data->legend && m_data->legend->parent() == this )
+    if (legend != m_data->legend) {
+        if (m_data->legend && m_data->legend->parent() == this)
             delete m_data->legend;
 
         m_data->legend = legend;
 
-        if ( m_data->legend )
-        {
-            connect(
-                this, SIGNAL(legendDataChanged(QVariant,QList<QwtLegendData>)),
-                m_data->legend, SLOT(updateLegend(QVariant,QList<QwtLegendData>))
-                );
+        if (m_data->legend) {
+            connect(this,
+                    SIGNAL(legendDataChanged(QVariant, QList< QwtLegendData >)),
+                    m_data->legend,
+                    SLOT(updateLegend(QVariant, QList< QwtLegendData >)));
 
-            if ( m_data->legend->parent() != this )
-                m_data->legend->setParent( this );
+            if (m_data->legend->parent() != this)
+                m_data->legend->setParent(this);
 
-            qwtEnableLegendItems( this, false );
+            qwtEnableLegendItems(this, false);
             updateLegend();
-            qwtEnableLegendItems( this, true );
+            qwtEnableLegendItems(this, true);
 
-            QwtLegend* lgd = qobject_cast< QwtLegend* >( legend );
-            if ( lgd )
-            {
-                switch ( m_data->layout->legendPosition() )
-                {
-                    case LeftLegend:
-                    case RightLegend:
-                    {
-                        if ( lgd->maxColumns() == 0     )
-                            lgd->setMaxColumns( 1 ); // 1 column: align vertical
-                        break;
-                    }
-                    case TopLegend:
-                    case BottomLegend:
-                    {
-                        lgd->setMaxColumns( 0 ); // unlimited
-                        break;
-                    }
-                    default:
-                        break;
+            QwtLegend* lgd = qobject_cast< QwtLegend* >(legend);
+            if (lgd) {
+                switch (m_data->layout->legendPosition()) {
+                case LeftLegend:
+                case RightLegend: {
+                    if (lgd->maxColumns() == 0)
+                        lgd->setMaxColumns(1);  // 1 column: align vertical
+                    break;
+                }
+                case TopLegend:
+                case BottomLegend: {
+                    lgd->setMaxColumns(0);  // unlimited
+                    break;
+                }
+                default:
+                    break;
                 }
             }
 
             QWidget* previousInChain = NULL;
-            switch ( m_data->layout->legendPosition() )
-            {
-                case LeftLegend:
-                {
-                    const QwtAxisId axisId( QwtAxis::XTop );
-                    previousInChain = axisWidget( axisId );
-                    break;
-                }
-                case TopLegend:
-                {
-                    previousInChain = this;
-                    break;
-                }
-                case RightLegend:
-                {
-                    const QwtAxisId axisId( QwtAxis::YRight );
-                    previousInChain = axisWidget( axisId );
-                    break;
-                }
-                case BottomLegend:
-                {
-                    previousInChain = footerLabel();
-                    break;
-                }
+            switch (m_data->layout->legendPosition()) {
+            case LeftLegend: {
+                const QwtAxisId axisId(QwtAxis::XTop);
+                previousInChain = axisWidget(axisId);
+                break;
+            }
+            case TopLegend: {
+                previousInChain = this;
+                break;
+            }
+            case RightLegend: {
+                const QwtAxisId axisId(QwtAxis::YRight);
+                previousInChain = axisWidget(axisId);
+                break;
+            }
+            case BottomLegend: {
+                previousInChain = footerLabel();
+                break;
+            }
             }
 
-            if ( previousInChain )
-                qwtSetTabOrder( previousInChain, legend, true );
+            if (previousInChain)
+                qwtSetTabOrder(previousInChain, legend, true);
         }
     }
 
@@ -1016,10 +944,8 @@ void QwtPlot::insertLegend( QwtAbstractLegend* legend,
 void QwtPlot::updateLegend()
 {
     const QwtPlotItemList& itmList = itemList();
-    for ( QwtPlotItemIterator it = itmList.begin();
-        it != itmList.end(); ++it )
-    {
-        updateLegend( *it );
+    for (QwtPlotItemIterator it = itmList.begin(); it != itmList.end(); ++it) {
+        updateLegend(*it);
     }
 }
 
@@ -1029,18 +955,18 @@ void QwtPlot::updateLegend()
    \param plotItem Plot item
    \sa QwtPlotItem::legendData(), legendDataChanged()
  */
-void QwtPlot::updateLegend( const QwtPlotItem* plotItem )
+void QwtPlot::updateLegend(const QwtPlotItem* plotItem)
 {
-    if ( plotItem == NULL )
+    if (plotItem == NULL)
         return;
 
     QList< QwtLegendData > legendData;
 
-    if ( plotItem->testItemAttribute( QwtPlotItem::Legend ) )
+    if (plotItem->testItemAttribute(QwtPlotItem::Legend))
         legendData = plotItem->legendData();
 
-    const QVariant itemInfo = itemToInfo( const_cast< QwtPlotItem* >( plotItem ) );
-    Q_EMIT legendDataChanged( itemInfo, legendData );
+    const QVariant itemInfo = itemToInfo(const_cast< QwtPlotItem* >(plotItem));
+    Q_EMIT legendDataChanged(itemInfo, legendData);
 }
 
 /*!
@@ -1055,19 +981,15 @@ void QwtPlot::updateLegend( const QwtPlotItem* plotItem )
    \sa QwtPlotItem::LegendInterest,
       QwtPlotLegendItem, QwtPlotItem::updateLegend()
  */
-void QwtPlot::updateLegendItems( const QVariant& itemInfo,
-    const QList< QwtLegendData >& legendData )
+void QwtPlot::updateLegendItems(const QVariant& itemInfo, const QList< QwtLegendData >& legendData)
 {
-    QwtPlotItem* plotItem = infoToItem( itemInfo );
-    if ( plotItem )
-    {
+    QwtPlotItem* plotItem = infoToItem(itemInfo);
+    if (plotItem) {
         const QwtPlotItemList& itmList = itemList();
-        for ( QwtPlotItemIterator it = itmList.begin();
-            it != itmList.end(); ++it )
-        {
+        for (QwtPlotItemIterator it = itmList.begin(); it != itmList.end(); ++it) {
             QwtPlotItem* item = *it;
-            if ( item->testItemInterest( QwtPlotItem::LegendInterest ) )
-                item->updateLegend( plotItem, legendData );
+            if (item->testItemInterest(QwtPlotItem::LegendInterest))
+                item->updateLegend(plotItem, legendData);
         }
     }
 }
@@ -1078,46 +1000,38 @@ void QwtPlot::updateLegendItems( const QVariant& itemInfo,
    \param plotItem Plot item
    \param on When true attach the item, otherwise detach it
  */
-void QwtPlot::attachItem( QwtPlotItem* plotItem, bool on )
+void QwtPlot::attachItem(QwtPlotItem* plotItem, bool on)
 {
-    if ( plotItem->testItemInterest( QwtPlotItem::LegendInterest ) )
-    {
+    if (plotItem->testItemInterest(QwtPlotItem::LegendInterest)) {
         // plotItem is some sort of legend
 
         const QwtPlotItemList& itmList = itemList();
-        for ( QwtPlotItemIterator it = itmList.begin();
-            it != itmList.end(); ++it )
-        {
+        for (QwtPlotItemIterator it = itmList.begin(); it != itmList.end(); ++it) {
             QwtPlotItem* item = *it;
 
             QList< QwtLegendData > legendData;
-            if ( on && item->testItemAttribute( QwtPlotItem::Legend ) )
-            {
+            if (on && item->testItemAttribute(QwtPlotItem::Legend)) {
                 legendData = item->legendData();
-                plotItem->updateLegend( item, legendData );
+                plotItem->updateLegend(item, legendData);
             }
         }
     }
 
-    if ( on )
-        insertItem( plotItem );
+    if (on)
+        insertItem(plotItem);
     else
-        removeItem( plotItem );
+        removeItem(plotItem);
 
-    Q_EMIT itemAttached( plotItem, on );
+    Q_EMIT itemAttached(plotItem, on);
 
-    if ( plotItem->testItemAttribute( QwtPlotItem::Legend ) )
-    {
+    if (plotItem->testItemAttribute(QwtPlotItem::Legend)) {
         // the item wants to be represented on the legend
 
-        if ( on )
-        {
-            updateLegend( plotItem );
-        }
-        else
-        {
-            const QVariant itemInfo = itemToInfo( plotItem );
-            Q_EMIT legendDataChanged( itemInfo, QList< QwtLegendData >() );
+        if (on) {
+            updateLegend(plotItem);
+        } else {
+            const QVariant itemInfo = itemToInfo(plotItem);
+            Q_EMIT legendDataChanged(itemInfo, QList< QwtLegendData >());
         }
     }
 
@@ -1136,9 +1050,9 @@ void QwtPlot::attachItem( QwtPlotItem* plotItem, bool on )
    \return Plot item embedded in a QVariant
    \sa infoToItem()
  */
-QVariant QwtPlot::itemToInfo( QwtPlotItem* plotItem ) const
+QVariant QwtPlot::itemToInfo(QwtPlotItem* plotItem) const
 {
-    return QVariant::fromValue( plotItem );
+    return QVariant::fromValue(plotItem);
 }
 
 /*!
@@ -1156,10 +1070,10 @@ QVariant QwtPlot::itemToInfo( QwtPlotItem* plotItem ) const
    \return A plot item, when successful, otherwise a NULL pointer.
    \sa itemToInfo()
  */
-QwtPlotItem* QwtPlot::infoToItem( const QVariant& itemInfo ) const
+QwtPlotItem* QwtPlot::infoToItem(const QVariant& itemInfo) const
 {
-    if ( itemInfo.canConvert< QwtPlotItem* >() )
-        return qvariant_cast< QwtPlotItem* >( itemInfo );
+    if (itemInfo.canConvert< QwtPlotItem* >())
+        return qvariant_cast< QwtPlotItem* >(itemInfo);
 
     return NULL;
 }

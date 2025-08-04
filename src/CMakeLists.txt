@@ -449,9 +449,10 @@ set_target_properties(${QWT_LIB_NAME} PROPERTIES
     DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX}
     VERSION ${QWT_LIB_VERSION}
     EXPORT_NAME ${QWT_LIB_NAME}
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
-
-
 ########################################################
 # 目标依赖目录
 ########################################################
