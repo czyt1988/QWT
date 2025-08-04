@@ -1,5 +1,36 @@
+Qwt 7.0.0
+
+------
+
+**Qwt 7.0** is my modified version based on Qwt 6.2.0 source code. It complies with Qwt's open-source license, and I'm releasing these modifications as open-source.
+
+Starting from this version, Qwt will support:
+- The latest **C++11 standard**
+- **CMake build system**
+
+**Modifications in this version:**
+1. Enhanced `QwtPlotBarChart` interface to support **pen and brush configuration**  
+2. Added `QwtGridRasterData` class – supports **2D data tables** with **grid interpolation** on X/Y axes (vs. `QwtMatrixRasterData`)  
+3. Added `stopColors()` function to `QwtLinearColorMap` and renamed `colorStop()` to `stopPos()`  
+
+
+> **Qwt7.0**是我基于Qwt6.2.0版本对源码进行修改后的版本，遵循Qwt的开源协议，我将修改进行开源
+>
+>从此版本的Qwt，将有如下改动:
+>	
+>- 支持最新的**C++11标准**
+>- **支持CMake构建**
+>
+>下面是此版本的修改内容：
+>- 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
+>- 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
+>- `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
+
+
+
 Qwt 6.2.0
-=========
+
+------
 
 0) Requirement for Qt >= 4.8
 
