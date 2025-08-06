@@ -82,6 +82,34 @@ Programs must identify their use of Qwt:
 - 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
 - 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
 - `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
+- `Qwt`的初始化参数进行了调整，让默认绘图更符合当前绘图的审美
+
+`QwtPlotCanvas`初始化如下：
+```cpp
+QwtPlotCanvas::QwtPlotCanvas(QwtPlot* plot) : QFrame(plot), QwtPlotAbstractCanvas(this)
+{
+    ...
+
+    setLineWidth(0);
+    setFrameShadow(QFrame::Plain);
+    setFrameShape(QFrame::Box);
+}
+```
+
+`QwtPlotLayout`初始化调整如下
+```cpp
+QwtPlotLayout::QwtPlotLayout()
+{
+...
+    setCanvasMargin(-1);
+...
+}
+
+## tag:???（还未发布） | version:7.0.0
+
+- 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
+- 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
+- `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
 
 ## tag:v0.0.4 | version:6.2.0
 
