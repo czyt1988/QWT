@@ -102,58 +102,58 @@ private:
     size_t m_size;
 };
 
-/*!
-   \brief Synthetic point data
-
-   QwtSyntheticPointData provides a fixed number of points for an interval.
-   The points are calculated in equidistant steps in x-direction.
-
-   If the interval is invalid, the points are calculated for
-   the "rectangle of interest", what normally is the displayed area on the
-   plot canvas. In this mode you get different levels of detail, when
-   zooming in/out.
-
-   \par Example
-
-   The following example shows how to implement a sinus curve.
-
-   \code
- #include <cmath>
- #include <qwt_series_data.h>
- #include <qwt_plot_curve.h>
- #include <qwt_plot.h>
- #include <qapplication.h>
-
-   class SinusData: public QwtSyntheticPointData
-   {
-   public:
-    SinusData():
-        QwtSyntheticPointData( 100 )
-    {
-    }
-
-    virtual double y( double x ) const
-    {
-        return qSin( x );
-    }
-   };
-
-   int main(int argc, char **argv)
-   {
-    QApplication a( argc, argv );
-
-    QwtPlot plot;
-    plot.setAxisScale( QwtAxis::XBottom, 0.0, 10.0 );
-    plot.setAxisScale( QwtAxis::YLeft, -1.0, 1.0 );
-
-    QwtPlotCurve *curve = new QwtPlotCurve( "y = sin(x)" );
-    curve->setData( new SinusData() );
-    curve->attach( &plot );
-
-    plot.show();
-    return a.exec();
-   }
-   \endcode
+/**
+ *   @brief Synthetic point data
+ *
+ *   QwtSyntheticPointData provides a fixed number of points for an interval.
+ *   The points are calculated in equidistant steps in x-direction.
+ *
+ *   If the interval is invalid, the points are calculated for
+ *   the "rectangle of interest", what normally is the displayed area on the
+ *   plot canvas. In this mode you get different levels of detail, when
+ *   zooming in/out.
+ *
+ *   @par Example
+ *
+ *   The following example shows how to implement a sinus curve.
+ *
+ *   @code
+ *   #include <cmath>
+ *   #include <qwt_series_data.h>
+ *   #include <qwt_plot_curve.h>
+ *   #include <qwt_plot.h>
+ *   #include <qapplication.h>
+ *
+ *   class SinusData: public QwtSyntheticPointData
+ *   {
+ *   public:
+ *    SinusData():
+ *        QwtSyntheticPointData( 100 )
+ *    {
+ *    }
+ *
+ *    virtual double y( double x ) const
+ *    {
+ *        return qSin( x );
+ *    }
+ *   };
+ *
+ *   int main(int argc, char **argv)
+ *   {
+ *    QApplication a( argc, argv );
+ *
+ *    QwtPlot plot;
+ *    plot.setAxisScale( QwtAxis::XBottom, 0.0, 10.0 );
+ *    plot.setAxisScale( QwtAxis::YLeft, -1.0, 1.0 );
+ *
+ *    QwtPlotCurve *curve = new QwtPlotCurve( "y = sin(x)" );
+ *    curve->setData( new SinusData() );
+ *    curve->attach( &plot );
+ *
+ *    plot.show();
+ *    return a.exec();
+ *   }
+ *   @endcode
  */
 class QWT_EXPORT QwtSyntheticPointData : public QwtPointSeriesData
 {

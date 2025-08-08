@@ -64,19 +64,17 @@
 #include <qpdfwriter.h>
 #endif
 
-static inline double qwtDistance(
-    const QPointF& p1, const QPointF& p2 )
+static inline double qwtDistance(const QPointF& p1, const QPointF& p2)
 {
     double dx = p2.x() - p1.x();
     double dy = p2.y() - p1.y();
-    return qSqrt( dx * dx + dy * dy );
+    return qSqrt(dx * dx + dy * dy);
 }
 
 class QwtPolarRenderer::PrivateData
 {
-  public:
-    PrivateData()
-        : plot( NULL )
+public:
+    PrivateData() : plot(NULL)
     {
     }
 
@@ -87,8 +85,7 @@ class QwtPolarRenderer::PrivateData
    Constructor
    \param parent Parent object
  */
-QwtPolarRenderer::QwtPolarRenderer( QObject* parent )
-    : QObject( parent )
+QwtPolarRenderer::QwtPolarRenderer(QObject* parent) : QObject(parent)
 {
     m_data = new PrivateData;
 }
@@ -110,11 +107,9 @@ QwtPolarRenderer::~QwtPolarRenderer()
    \param sizeMM Size for the document in millimeters.
    \param resolution Resolution in dots per Inch (dpi)
  */
-void QwtPolarRenderer::renderDocument( QwtPolarPlot* plot,
-    const QString& fileName, const QSizeF& sizeMM, int resolution )
+void QwtPolarRenderer::renderDocument(QwtPolarPlot* plot, const QString& fileName, const QSizeF& sizeMM, int resolution)
 {
-    renderDocument( plot, fileName,
-        QFileInfo( fileName ).suffix(), sizeMM, resolution );
+    renderDocument(plot, fileName, QFileInfo(fileName).suffix(), sizeMM, resolution);
 }
 
 /*!
@@ -135,98 +130,91 @@ void QwtPolarRenderer::renderDocument( QwtPolarPlot* plot,
 
    \sa renderTo(), render(), QwtPainter::setRoundingAlignment()
  */
-void QwtPolarRenderer::renderDocument( QwtPolarPlot* plot,
-    const QString& fileName, const QString& format,
-    const QSizeF& sizeMM, int resolution )
+void QwtPolarRenderer::renderDocument(QwtPolarPlot* plot,
+                                      const QString& fileName,
+                                      const QString& format,
+                                      const QSizeF& sizeMM,
+                                      int resolution)
 {
-    if ( plot == NULL || sizeMM.isEmpty() || resolution <= 0 )
+    if (plot == NULL || sizeMM.isEmpty() || resolution <= 0)
         return;
 
     QString title = plot->title().text();
-    if ( title.isEmpty() )
+    if (title.isEmpty())
         title = "Plot Document";
 
     const double mmToInch = 1.0 / 25.4;
-    const QSizeF size = sizeMM * mmToInch * resolution;
+    const QSizeF size     = sizeMM * mmToInch * resolution;
 
-    const QRectF documentRect( 0.0, 0.0, size.width(), size.height() );
+    const QRectF documentRect(0.0, 0.0, size.width(), size.height());
 
     const QString fmt = format.toLower();
-    if ( format == "pdf" )
-    {
+    if (format == "pdf") {
 #if QWT_FORMAT_PDF
 #if QWT_PDF_WRITER
-        QPdfWriter pdfWriter( fileName );
-        pdfWriter.setPageSize( QPageSize( sizeMM, QPageSize::Millimeter ) );
-        pdfWriter.setTitle( title );
-        pdfWriter.setPageMargins( QMarginsF() );
-        pdfWriter.setResolution( resolution );
+        QPdfWriter pdfWriter(fileName);
+        pdfWriter.setPageSize(QPageSize(sizeMM, QPageSize::Millimeter));
+        pdfWriter.setTitle(title);
+        pdfWriter.setPageMargins(QMarginsF());
+        pdfWriter.setResolution(resolution);
 
-        QPainter painter( &pdfWriter );
-        render( plot, &painter, documentRect );
+        QPainter painter(&pdfWriter);
+        render(plot, &painter, documentRect);
 
 #else
         QPrinter printer;
-        printer.setOutputFormat( QPrinter::PdfFormat );
-        printer.setColorMode( QPrinter::Color );
-        printer.setFullPage( true );
-        printer.setPaperSize( sizeMM, QPrinter::Millimeter );
-        printer.setDocName( title );
-        printer.setOutputFileName( fileName );
-        printer.setResolution( resolution );
+        printer.setOutputFormat(QPrinter::PdfFormat);
+        printer.setColorMode(QPrinter::Color);
+        printer.setFullPage(true);
+        printer.setPaperSize(sizeMM, QPrinter::Millimeter);
+        printer.setDocName(title);
+        printer.setOutputFileName(fileName);
+        printer.setResolution(resolution);
 
-        QPainter painter( &printer );
-        render( plot, &painter, documentRect );
+        QPainter painter(&printer);
+        render(plot, &painter, documentRect);
 #endif
 #endif
-    }
-    else if ( format == "ps" )
-    {
+    } else if (format == "ps") {
 #if QWT_FORMAT_POSTSCRIPT
         QPrinter printer;
-        printer.setColorMode( QPrinter::Color );
-        printer.setFullPage( true );
-        printer.setPaperSize( sizeMM, QPrinter::Millimeter );
-        printer.setDocName( title );
-        printer.setOutputFileName( fileName );
-        printer.setOutputFormat( QPrinter::PostScriptFormat );
-        printer.setResolution( resolution );
+        printer.setColorMode(QPrinter::Color);
+        printer.setFullPage(true);
+        printer.setPaperSize(sizeMM, QPrinter::Millimeter);
+        printer.setDocName(title);
+        printer.setOutputFileName(fileName);
+        printer.setOutputFormat(QPrinter::PostScriptFormat);
+        printer.setResolution(resolution);
 
-        QPainter painter( &printer );
-        render( plot, &painter, documentRect );
+        QPainter painter(&printer);
+        render(plot, &painter, documentRect);
 #endif
-    }
-    else if ( format == "svg" )
-    {
+    } else if (format == "svg") {
 #ifdef QWT_FORMAT_SVG
         QSvgGenerator generator;
-        generator.setTitle( title );
-        generator.setFileName( fileName );
-        generator.setResolution( resolution );
-        generator.setViewBox( documentRect );
+        generator.setTitle(title);
+        generator.setFileName(fileName);
+        generator.setResolution(resolution);
+        generator.setViewBox(documentRect);
 
-        QPainter painter( &generator );
-        render( plot, &painter, documentRect );
+        QPainter painter(&generator);
+        render(plot, &painter, documentRect);
 #endif
-    }
-    else
-    {
-        if ( QImageWriter::supportedImageFormats().indexOf(
-            format.toLatin1() ) >= 0 )
-        {
-            const QRect imageRect = documentRect.toRect();
-            const int dotsPerMeter = qRound( resolution * mmToInch * 1000.0 );
+    } else {
+        if (QImageWriter::supportedImageFormats().indexOf(format.toLatin1()) >= 0) {
+            const QRect imageRect  = documentRect.toRect();
+            const int dotsPerMeter = qRound(resolution * mmToInch * 1000.0);
 
-            QImage image( imageRect.size(), QImage::Format_ARGB32 );
-            image.setDotsPerMeterX( dotsPerMeter );
-            image.setDotsPerMeterY( dotsPerMeter );
-            image.fill( QColor( Qt::white ).rgb() );
+            QImage image(imageRect.size(), QImage::Format_ARGB32);
+            image.setDotsPerMeterX(dotsPerMeter);
+            image.setDotsPerMeterY(dotsPerMeter);
+            image.fill(QColor(Qt::white).rgb());
 
-            QPainter painter( &image );
-            render( plot, &painter, imageRect );
+            QPainter painter(&image);
+            render(plot, &painter, imageRect);
             painter.end();
 
-            image.save( fileName, format.toLatin1() );
+            image.save(fileName, format.toLatin1());
         }
     }
 }
@@ -244,16 +232,14 @@ void QwtPolarRenderer::renderDocument( QwtPolarPlot* plot,
    \sa renderDocument(), render(), QwtPainter::setRoundingAlignment()
  */
 
-void QwtPolarRenderer::renderTo(
-    QwtPolarPlot* plot, QPaintDevice& paintDevice ) const
+void QwtPolarRenderer::renderTo(QwtPolarPlot* plot, QPaintDevice& paintDevice) const
 {
     int w = paintDevice.width();
     int h = paintDevice.height();
 
-    QPainter p( &paintDevice );
-    render( plot, &p, QRectF( 0, 0, w, h ) );
+    QPainter p(&paintDevice);
+    render(plot, &p, QRectF(0, 0, w, h));
 }
-
 
 /*!
    \brief Render the plot to a QPrinter
@@ -270,19 +256,18 @@ void QwtPolarRenderer::renderTo(
 
 #ifndef QT_NO_PRINTER
 
-void QwtPolarRenderer::renderTo(
-    QwtPolarPlot* plot, QPrinter& printer ) const
+void QwtPolarRenderer::renderTo(QwtPolarPlot* plot, QPrinter& printer) const
 {
     int w = printer.width();
     int h = printer.height();
 
-    QRectF rect( 0, 0, w, h );
+    QRectF rect(0, 0, w, h);
     double aspect = rect.width() / rect.height();
-    if ( ( aspect < 1.0 ) )
-        rect.setHeight( aspect * rect.width() );
+    if ((aspect < 1.0))
+        rect.setHeight(aspect * rect.width());
 
-    QPainter p( &printer );
-    render( plot, &p, rect );
+    QPainter p(&printer);
+    render(plot, &p, rect);
 }
 
 #endif
@@ -300,18 +285,17 @@ void QwtPolarRenderer::renderTo(
    \param plot Plot to be rendered
    \param generator SVG generator
  */
-void QwtPolarRenderer::renderTo(
-    QwtPolarPlot* plot, QSvgGenerator& generator ) const
+void QwtPolarRenderer::renderTo(QwtPolarPlot* plot, QSvgGenerator& generator) const
 {
     QRectF rect = generator.viewBoxF();
-    if ( rect.isEmpty() )
-        rect.setRect( 0, 0, generator.width(), generator.height() );
+    if (rect.isEmpty())
+        rect.setRect(0, 0, generator.width(), generator.height());
 
-    if ( rect.isEmpty() )
-        rect.setRect( 0, 0, 800, 600 ); // something
+    if (rect.isEmpty())
+        rect.setRect(0, 0, 800, 600);  // something
 
-    QPainter p( &generator );
-    render( plot, &p, rect );
+    QPainter p(&generator);
+    render(plot, &p, rect);
 }
 
 #endif
@@ -323,12 +307,9 @@ void QwtPolarRenderer::renderTo(
    \param painter Painter
    \param plotRect Bounding rectangle for the plot
  */
-void QwtPolarRenderer::render( QwtPolarPlot* plot,
-    QPainter* painter, const QRectF& plotRect ) const
+void QwtPolarRenderer::render(QwtPolarPlot* plot, QPainter* painter, const QRectF& plotRect) const
 {
-    if ( plot == NULL || painter == NULL || !painter->isActive() ||
-        !plotRect.isValid() || plot->size().isNull() )
-    {
+    if (plot == NULL || painter == NULL || !painter->isActive() || !plotRect.isValid() || plot->size().isNull()) {
         return;
     }
 
@@ -340,38 +321,36 @@ void QwtPolarRenderer::render( QwtPolarPlot* plot,
        layout in screen coordinates and paint with a scaled painter.
      */
     QTransform transform;
-    transform.scale(
-        double( painter->device()->logicalDpiX() ) / plot->logicalDpiX(),
-        double( painter->device()->logicalDpiY() ) / plot->logicalDpiY() );
+    transform.scale(double(painter->device()->logicalDpiX()) / plot->logicalDpiX(),
+                    double(painter->device()->logicalDpiY()) / plot->logicalDpiY());
 
-    const QRectF layoutRect = transform.inverted().mapRect( plotRect );
+    const QRectF layoutRect = transform.inverted().mapRect(plotRect);
 
     QwtPolarLayout* layout = plot->plotLayout();
 
     // All paint operations need to be scaled according to
     // the paint device metrics.
 
-    QwtPolarLayout::Options layoutOptions =
-        QwtPolarLayout::IgnoreScrollbars | QwtPolarLayout::IgnoreFrames;
+    QwtPolarLayout::Options layoutOptions = QwtPolarLayout::IgnoreScrollbars | QwtPolarLayout::IgnoreFrames;
 
-    layout->activate( plot, layoutRect, layoutOptions );
-
-    painter->save();
-    painter->setWorldTransform( transform, true );
+    layout->activate(plot, layoutRect, layoutOptions);
 
     painter->save();
-    renderTitle( painter, layout->titleRect() );
+    painter->setWorldTransform(transform, true);
+
+    painter->save();
+    renderTitle(painter, layout->titleRect());
     painter->restore();
 
     painter->save();
-    renderLegend( plot, painter, layout->legendRect() );
+    renderLegend(plot, painter, layout->legendRect());
     painter->restore();
 
     const QRectF canvasRect = layout->canvasRect();
 
     painter->save();
-    painter->setClipRect( canvasRect );
-    plot->drawCanvas( painter, canvasRect );
+    painter->setClipRect(canvasRect);
+    plot->drawCanvas(painter, canvasRect);
     painter->restore();
 
     painter->restore();
@@ -388,17 +367,16 @@ void QwtPolarRenderer::render( QwtPolarPlot* plot,
    \param rect Bounding rectangle
  */
 
-void QwtPolarRenderer::renderTitle( QPainter* painter, const QRectF& rect ) const
+void QwtPolarRenderer::renderTitle(QPainter* painter, const QRectF& rect) const
 {
     QwtTextLabel* title = m_data->plot->titleLabel();
 
-    painter->setFont( title->font() );
+    painter->setFont(title->font());
 
-    const QColor color = title->palette().color(
-        QPalette::Active, QPalette::Text );
+    const QColor color = title->palette().color(QPalette::Active, QPalette::Text);
 
-    painter->setPen( color );
-    title->text().draw( painter, rect );
+    painter->setPen(color);
+    title->text().draw(painter, rect);
 }
 
 /*!
@@ -408,11 +386,10 @@ void QwtPolarRenderer::renderTitle( QPainter* painter, const QRectF& rect ) cons
    \param painter Painter
    \param rect Bounding rectangle
  */
-void QwtPolarRenderer::renderLegend( const QwtPolarPlot* plot,
-    QPainter* painter, const QRectF& rect ) const
+void QwtPolarRenderer::renderLegend(const QwtPolarPlot* plot, QPainter* painter, const QRectF& rect) const
 {
-    if ( plot->legend() )
-        plot->legend()->renderLegend( painter, rect, true );
+    if (plot->legend())
+        plot->legend()->renderLegend(painter, rect, true);
 }
 
 /*!
@@ -427,10 +404,9 @@ void QwtPolarRenderer::renderLegend( const QwtPolarPlot* plot,
 
    \sa renderDocument()
  */
-bool QwtPolarRenderer::exportTo( QwtPolarPlot* plot,
-    const QString& documentName, const QSizeF& sizeMM, int resolution )
+bool QwtPolarRenderer::exportTo(QwtPolarPlot* plot, const QString& documentName, const QSizeF& sizeMM, int resolution)
 {
-    if ( plot == NULL )
+    if (plot == NULL)
         return false;
 
     QString fileName = documentName;
@@ -438,48 +414,44 @@ bool QwtPolarRenderer::exportTo( QwtPolarPlot* plot,
     // What about translation
 
 #ifndef QT_NO_FILEDIALOG
-    const QList< QByteArray > imageFormats =
-        QImageWriter::supportedImageFormats();
+    const QList< QByteArray > imageFormats = QImageWriter::supportedImageFormats();
 
     QStringList filter;
 #ifndef QT_NO_PRINTER
-    filter += QString( "PDF " ) + tr( "Documents" ) + " (*.pdf)";
+    filter += QString("PDF ") + tr("Documents") + " (*.pdf)";
 #endif
 #ifndef QWT_NO_SVG
-    filter += QString( "SVG " ) + tr( "Documents" ) + " (*.svg)";
+    filter += QString("SVG ") + tr("Documents") + " (*.svg)";
 #endif
 #ifndef QT_NO_PRINTER
-    filter += QString( "Postscript " ) + tr( "Documents" ) + " (*.ps)";
+    filter += QString("Postscript ") + tr("Documents") + " (*.ps)";
 #endif
 
-    if ( imageFormats.size() > 0 )
-    {
-        QString imageFilter( tr( "Images" ) );
+    if (imageFormats.size() > 0) {
+        QString imageFilter(tr("Images"));
         imageFilter += " (";
-        for ( int i = 0; i < imageFormats.size(); i++ )
-        {
-            if ( i > 0 )
+        for (int i = 0; i < imageFormats.size(); i++) {
+            if (i > 0)
                 imageFilter += " ";
             imageFilter += "*.";
-            imageFilter += imageFormats[i];
+            imageFilter += imageFormats[ i ];
         }
         imageFilter += ")";
 
         filter += imageFilter;
     }
 
-    fileName = QFileDialog::getSaveFileName(
-        NULL, tr( "Export File Name" ), fileName,
-        filter.join( ";;" ), NULL, QFileDialog::DontConfirmOverwrite );
+    fileName = QFileDialog::getSaveFileName(NULL,
+                                            tr("Export File Name"),
+                                            fileName,
+                                            filter.join(";;"),
+                                            NULL,
+                                            QFileDialog::DontConfirmOverwrite);
 #endif
-    if ( fileName.isEmpty() )
+    if (fileName.isEmpty())
         return false;
 
-    renderDocument( plot, fileName, sizeMM, resolution );
+    renderDocument(plot, fileName, sizeMM, resolution);
 
     return true;
 }
-
-#if QWT_MOC_INCLUDE
-#include "moc_qwt_polar_renderer.cpp"
-#endif

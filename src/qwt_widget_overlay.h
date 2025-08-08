@@ -39,7 +39,8 @@ class QRegion;
  */
 class QWT_EXPORT QwtWidgetOverlay : public QWidget
 {
-  public:
+    Q_OBJECT
+public:
     /*!
        \brief Mask mode
 
@@ -111,23 +112,23 @@ class QWT_EXPORT QwtWidgetOverlay : public QWidget
         DrawOverlay
     };
 
-    explicit QwtWidgetOverlay( QWidget* );
+    explicit QwtWidgetOverlay(QWidget*);
     virtual ~QwtWidgetOverlay();
 
-    void setMaskMode( MaskMode );
+    void setMaskMode(MaskMode);
     MaskMode maskMode() const;
 
-    void setRenderMode( RenderMode );
+    void setRenderMode(RenderMode);
     RenderMode renderMode() const;
 
-    virtual bool eventFilter( QObject*, QEvent*) QWT_OVERRIDE;
+    virtual bool eventFilter(QObject*, QEvent*) QWT_OVERRIDE;
 
-  public Q_SLOTS:
+public Q_SLOTS:
     void updateOverlay();
 
-  protected:
-    virtual void paintEvent( QPaintEvent* ) QWT_OVERRIDE;
-    virtual void resizeEvent( QResizeEvent* ) QWT_OVERRIDE;
+protected:
+    virtual void paintEvent(QPaintEvent*) QWT_OVERRIDE;
+    virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
 
     virtual QRegion maskHint() const;
 
@@ -135,13 +136,13 @@ class QWT_EXPORT QwtWidgetOverlay : public QWidget
        Draw the widget overlay
        \param painter Painter
      */
-    virtual void drawOverlay( QPainter* painter ) const = 0;
+    virtual void drawOverlay(QPainter* painter) const = 0;
 
-  private:
+private:
     void updateMask();
-    void draw( QPainter* ) const;
+    void draw(QPainter*) const;
 
-  private:
+private:
     class PrivateData;
     PrivateData* m_data;
 };

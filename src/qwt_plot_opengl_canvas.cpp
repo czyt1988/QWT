@@ -19,11 +19,8 @@
 
 class QwtPlotOpenGLCanvas::PrivateData
 {
-  public:
-    PrivateData()
-        : isPolished( false )
-        , fboDirty( true )
-        , fbo( NULL )
+public:
+    PrivateData() : isPolished(false), fboDirty(true), fbo(NULL)
     {
     }
 
@@ -45,14 +42,12 @@ class QwtPlotOpenGLCanvas::PrivateData
    \param plot Parent plot widget
    \sa QwtPlot::setCanvas()
  */
-QwtPlotOpenGLCanvas::QwtPlotOpenGLCanvas( QwtPlot* plot )
-    : QOpenGLWidget( plot )
-    , QwtPlotAbstractGLCanvas( this )
+QwtPlotOpenGLCanvas::QwtPlotOpenGLCanvas(QwtPlot* plot) : QOpenGLWidget(plot), QwtPlotAbstractGLCanvas(this)
 {
     QSurfaceFormat fmt = format();
-    fmt.setSamples( 4 );
+    fmt.setSamples(4);
 
-    init( fmt );
+    init(fmt);
 }
 
 /*!
@@ -62,28 +57,26 @@ QwtPlotOpenGLCanvas::QwtPlotOpenGLCanvas( QwtPlot* plot )
    \param plot Parent plot widget
    \sa QwtPlot::setCanvas()
  */
-QwtPlotOpenGLCanvas::QwtPlotOpenGLCanvas(
-        const QSurfaceFormat& format, QwtPlot* plot )
-    : QOpenGLWidget( plot )
-    , QwtPlotAbstractGLCanvas( this )
+QwtPlotOpenGLCanvas::QwtPlotOpenGLCanvas(const QSurfaceFormat& format, QwtPlot* plot)
+    : QOpenGLWidget(plot), QwtPlotAbstractGLCanvas(this)
 {
-    init( format );
+    init(format);
 }
 
-void QwtPlotOpenGLCanvas::init( const QSurfaceFormat& format )
+void QwtPlotOpenGLCanvas::init(const QSurfaceFormat& format)
 {
-    m_data = new PrivateData;
+    m_data             = new PrivateData;
     m_data->numSamples = format.samples();
 
-    setFormat( format );
+    setFormat(format);
 
 #if 1
-    setAttribute( Qt::WA_OpaquePaintEvent, true );
+    setAttribute(Qt::WA_OpaquePaintEvent, true);
 #endif
 
-    setLineWidth( 2 );
-    setFrameShadow( QFrame::Sunken );
-    setFrameShape( QFrame::Panel );
+    setLineWidth(2);
+    setFrameShadow(QFrame::Sunken);
+    setFrameShape(QFrame::Panel);
 }
 
 //! Destructor
@@ -98,10 +91,10 @@ QwtPlotOpenGLCanvas::~QwtPlotOpenGLCanvas()
    \param event Paint event
    \sa QwtPlot::drawCanvas()
  */
-void QwtPlotOpenGLCanvas::paintEvent( QPaintEvent* event )
+void QwtPlotOpenGLCanvas::paintEvent(QPaintEvent* event)
 {
-    if ( m_data->isPolished )
-        QOpenGLWidget::paintEvent( event );
+    if (m_data->isPolished)
+        QOpenGLWidget::paintEvent(event);
 }
 
 /*!
@@ -109,12 +102,11 @@ void QwtPlotOpenGLCanvas::paintEvent( QPaintEvent* event )
    \param event Qt Event
    \return See QGLWidget::event()
  */
-bool QwtPlotOpenGLCanvas::event( QEvent* event )
+bool QwtPlotOpenGLCanvas::event(QEvent* event)
 {
-    const bool ok = QOpenGLWidget::event( event );
+    const bool ok = QOpenGLWidget::event(event);
 
-    if ( event->type() == QEvent::PolishRequest )
-    {
+    if (event->type() == QEvent::PolishRequest) {
         // In opposite to non OpenGL widgets receive pointless
         // early repaints. As we always have a QEvent::PolishRequest
         // followed by QEvent::Paint, we can ignore all these repaints.
@@ -122,14 +114,11 @@ bool QwtPlotOpenGLCanvas::event( QEvent* event )
         m_data->isPolished = true;
     }
 
-    if ( event->type() == QEvent::PolishRequest ||
-        event->type() == QEvent::StyleChange )
-    {
+    if (event->type() == QEvent::PolishRequest || event->type() == QEvent::StyleChange) {
         // assuming, that we always have a styled background
         // when we have a style sheet
 
-        setAttribute( Qt::WA_StyledBackground,
-            testAttribute( Qt::WA_StyleSheet ) );
+        setAttribute(Qt::WA_StyledBackground, testAttribute(Qt::WA_StyleSheet));
     }
 
     return ok;
@@ -165,9 +154,9 @@ void QwtPlotOpenGLCanvas::clearBackingStore()
    \param rect Bounding rectangle of the canvas
    \return Painter path, that can be used for clipping
  */
-QPainterPath QwtPlotOpenGLCanvas::borderPath( const QRect& rect ) const
+QPainterPath QwtPlotOpenGLCanvas::borderPath(const QRect& rect) const
 {
-    return canvasBorderPath( rect );
+    return canvasBorderPath(rect);
 }
 
 //! No operation - reserved for some potential use in the future
@@ -178,19 +167,16 @@ void QwtPlotOpenGLCanvas::initializeGL()
 //! Paint the plot
 void QwtPlotOpenGLCanvas::paintGL()
 {
-    const bool hasFocusIndicator =
-        hasFocus() && focusIndicator() == CanvasFocusIndicator;
+    const bool hasFocusIndicator = hasFocus() && focusIndicator() == CanvasFocusIndicator;
 
     QPainter painter;
 
-    if ( testPaintAttribute( QwtPlotOpenGLCanvas::BackingStore ) &&
-        QOpenGLFramebufferObject::hasOpenGLFramebufferBlit() )
-    {
-        const qreal pixelRatio = QwtPainter::devicePixelRatio( NULL );
-        const QSize fboSize = size() * pixelRatio;
+    if (testPaintAttribute(QwtPlotOpenGLCanvas::BackingStore) && QOpenGLFramebufferObject::hasOpenGLFramebufferBlit()) {
+        const qreal pixelRatio = QwtPainter::devicePixelRatio(NULL);
+        const QSize fboSize    = size() * pixelRatio;
 
-        if ( hasFocusIndicator )
-            painter.begin( this );
+        if (hasFocusIndicator)
+            painter.begin(this);
 
         /*
            QOpenGLWidget has its own internal FBO, that is used to restore
@@ -202,57 +188,47 @@ void QwtPlotOpenGLCanvas::paintGL()
                - ???
          */
 
-        if ( m_data->fbo )
-        {
-            if ( m_data->fbo->size() != fboSize )
-            {
+        if (m_data->fbo) {
+            if (m_data->fbo->size() != fboSize) {
                 delete m_data->fbo;
                 m_data->fbo = NULL;
             }
         }
 
-        if ( m_data->fbo == NULL )
-        {
+        if (m_data->fbo == NULL) {
             QOpenGLFramebufferObjectFormat fboFormat;
-            fboFormat.setSamples( m_data->numSamples );
-            fboFormat.setAttachment( QOpenGLFramebufferObject::CombinedDepthStencil );
+            fboFormat.setSamples(m_data->numSamples);
+            fboFormat.setAttachment(QOpenGLFramebufferObject::CombinedDepthStencil);
 
-            m_data->fbo = new QOpenGLFramebufferObject( fboSize, fboFormat );
+            m_data->fbo      = new QOpenGLFramebufferObject(fboSize, fboFormat);
             m_data->fboDirty = true;
         }
 
-        if ( m_data->fboDirty )
-        {
+        if (m_data->fboDirty) {
             m_data->fbo->bind();
 
-            QOpenGLPaintDevice pd( fboSize );
+            QOpenGLPaintDevice pd(fboSize);
 
-            QPainter fboPainter( &pd );
-            fboPainter.scale( pixelRatio, pixelRatio );
-            draw( &fboPainter);
+            QPainter fboPainter(&pd);
+            fboPainter.scale(pixelRatio, pixelRatio);
+            draw(&fboPainter);
             fboPainter.end();
 
             m_data->fboDirty = false;
         }
 
-        QOpenGLFramebufferObject::blitFramebuffer( NULL, m_data->fbo );
-    }
-    else
-    {
-        painter.begin( this );
-        draw( &painter );
+        QOpenGLFramebufferObject::blitFramebuffer(NULL, m_data->fbo);
+    } else {
+        painter.begin(this);
+        draw(&painter);
     }
 
-    if ( hasFocusIndicator )
-        drawFocusIndicator( &painter );
+    if (hasFocusIndicator)
+        drawFocusIndicator(&painter);
 }
 
 //! No operation - reserved for some potential use in the future
-void QwtPlotOpenGLCanvas::resizeGL( int, int )
+void QwtPlotOpenGLCanvas::resizeGL(int, int)
 {
     // nothing to do
 }
-
-#if QWT_MOC_INCLUDE
-#include "moc_qwt_plot_opengl_canvas.cpp"
-#endif

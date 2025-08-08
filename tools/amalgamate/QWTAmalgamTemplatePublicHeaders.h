@@ -1,4 +1,4 @@
-﻿//Global
+﻿// 通用定义
 #include "../../src/qwt_global.h"
 #include "../../src/qwt.h"
 #include "../../src/qwt_polar.h"
@@ -10,7 +10,9 @@
 #include "../../src/qwt_scale_map.h"
 #include "../../src/qwt_dyngrid_layout.h"
 #include "../../src/qwt_weeding_curve_fitter.h"
+#include "../../src/qwt_samples.h"
 #include "../../src/qwt_point_3d.h"
+#include "../../src/qwt_series_data.h"
 #include "../../src/qwt_raster_data.h"
 #include "../../src/qwt_grid_data.hpp"
 #include "../../src/qwt_grid_raster_data.h"
@@ -39,7 +41,7 @@
 #include "../../src/qwt_counter.h"
 #include "../../src/qwt_curve_fitter.h"
 #include "../../src/qwt_polar_fitter.h"
-#include "../../src/qwt_samples.h"
+
 #include "../../src/qwt_sampling_thread.h"
 #include "../../src/qwt_scale_div.h"
 #include "../../src/qwt_scale_draw.h"
@@ -67,7 +69,6 @@
 #include "../../src/qwt_date_scale_engine.h"
 #include "../../src/qwt_round_scale_draw.h"
 #include "../../src/qwt_series_store.h"
-#include "../../src/qwt_series_data.h"
 #include "../../src/qwt_point_data.h"
 #include "../../src/qwt_point_mapper.h"
 #include "../../src/qwt_dial_needle.h"
@@ -114,7 +115,7 @@
 #include "../../src/qwt_plot_vectorfield.h"
 #include "../../src/qwt_plot_zoneitem.h"
 #include "../../src/qwt_plot_zoomer.h"
-//polar items
+// polar items
 #include "../../src/qwt_polar_canvas.h"
 #include "../../src/qwt_polar_item.h"
 #include "../../src/qwt_polar_itemdict.h"

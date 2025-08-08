@@ -23,11 +23,13 @@
  */
 class QwtAbstractSeriesStore
 {
-  public:
+public:
     //! Destructor
-    virtual ~QwtAbstractSeriesStore() {}
+    virtual ~QwtAbstractSeriesStore()
+    {
+    }
 
-  protected:
+protected:
 #ifndef QWT_PYTHON_WRAPPER
     //! dataChanged() indicates, that the series has been changed.
     virtual void dataChanged() = 0;
@@ -36,7 +38,7 @@ class QwtAbstractSeriesStore
        Set a the "rectangle of interest" for the stored series
        \sa QwtSeriesData<T>::setRectOfInterest()
      */
-    virtual void setRectOfInterest( const QRectF& ) = 0;
+    virtual void setRectOfInterest(const QRectF&) = 0;
 
     //! \return Bounding rectangle of the stored series
     virtual QRectF dataRect() const = 0;
@@ -45,10 +47,20 @@ class QwtAbstractSeriesStore
     virtual size_t dataSize() const = 0;
 #else
     // Needed for generating the python bindings, but not for using them !
-    virtual void dataChanged() {}
-    virtual void setRectOfInterest( const QRectF& ) {}
-    virtual QRectF dataRect() const { return QRectF( 0.0, 0.0, -1.0, -1.0 ); }
-    virtual size_t dataSize() const { return 0; }
+    virtual void dataChanged()
+    {
+    }
+    virtual void setRectOfInterest(const QRectF&)
+    {
+    }
+    virtual QRectF dataRect() const
+    {
+        return QRectF(0.0, 0.0, -1.0, -1.0);
+    }
+    virtual size_t dataSize() const
+    {
+        return 0;
+    }
 #endif
 };
 
@@ -65,7 +77,7 @@ class QwtAbstractSeriesStore
 template< typename T >
 class QwtSeriesStore : public virtual QwtAbstractSeriesStore
 {
-  public:
+public:
     /*!
        \brief Constructor
        The store contains no series
@@ -82,7 +94,7 @@ class QwtSeriesStore : public virtual QwtAbstractSeriesStore
        \warning The item takes ownership of the data object, deleting
                it when its not used anymore.
      */
-    void setData( QwtSeriesData< T >* series );
+    void setData(QwtSeriesData< T >* series);
 
     //! \return the the series data
     QwtSeriesData< T >* data();
@@ -94,7 +106,7 @@ class QwtSeriesStore : public virtual QwtAbstractSeriesStore
         \param index Index
         \return Sample at position index
      */
-    T sample( int index ) const;
+    T sample(int index) const;
 
     /*!
        \return Number of samples of the series
@@ -116,7 +128,7 @@ class QwtSeriesStore : public virtual QwtAbstractSeriesStore
        \param rect Rectangle of interest
        \sa QwtSeriesData<T>::setRectOfInterest()
      */
-    virtual void setRectOfInterest( const QRectF& rect ) QWT_OVERRIDE;
+    virtual void setRectOfInterest(const QRectF& rect) QWT_OVERRIDE;
 
     /*!
        Replace a series without deleting the previous one
@@ -124,15 +136,14 @@ class QwtSeriesStore : public virtual QwtAbstractSeriesStore
        \param series New series
        \return Previously assigned series
      */
-    QwtSeriesData< T >* swapData( QwtSeriesData< T >* series );
+    QwtSeriesData< T >* swapData(QwtSeriesData< T >* series);
 
-  private:
+private:
     QwtSeriesData< T >* m_series;
 };
 
 template< typename T >
-QwtSeriesStore< T >::QwtSeriesStore()
-    : m_series( NULL )
+QwtSeriesStore< T >::QwtSeriesStore() : m_series(NULL)
 {
 }
 
@@ -155,16 +166,15 @@ inline const QwtSeriesData< T >* QwtSeriesStore< T >::data() const
 }
 
 template< typename T >
-inline T QwtSeriesStore< T >::sample( int index ) const
+inline T QwtSeriesStore< T >::sample(int index) const
 {
-    return m_series ? m_series->sample( index ) : T();
+    return m_series ? m_series->sample(index) : T();
 }
 
 template< typename T >
-void QwtSeriesStore< T >::setData( QwtSeriesData< T >* series )
+void QwtSeriesStore< T >::setData(QwtSeriesData< T >* series)
 {
-    if ( m_series != series )
-    {
+    if (m_series != series) {
         delete m_series;
         m_series = series;
         dataChanged();
@@ -174,7 +184,7 @@ void QwtSeriesStore< T >::setData( QwtSeriesData< T >* series )
 template< typename T >
 size_t QwtSeriesStore< T >::dataSize() const
 {
-    if ( m_series == NULL )
+    if (m_series == NULL)
         return 0;
 
     return m_series->size();
@@ -183,24 +193,24 @@ size_t QwtSeriesStore< T >::dataSize() const
 template< typename T >
 QRectF QwtSeriesStore< T >::dataRect() const
 {
-    if ( m_series == NULL )
-        return QRectF( 1.0, 1.0, -2.0, -2.0 ); // invalid
+    if (m_series == NULL)
+        return QRectF(1.0, 1.0, -2.0, -2.0);  // invalid
 
     return m_series->boundingRect();
 }
 
 template< typename T >
-void QwtSeriesStore< T >::setRectOfInterest( const QRectF& rect )
+void QwtSeriesStore< T >::setRectOfInterest(const QRectF& rect)
 {
-    if ( m_series )
-        m_series->setRectOfInterest( rect );
+    if (m_series)
+        m_series->setRectOfInterest(rect);
 }
 
 template< typename T >
-QwtSeriesData< T >* QwtSeriesStore< T >::swapData( QwtSeriesData< T >* series )
+QwtSeriesData< T >* QwtSeriesStore< T >::swapData(QwtSeriesData< T >* series)
 {
     QwtSeriesData< T >* swappedSeries = m_series;
-    m_series = series;
+    m_series                          = series;
 
     return swappedSeries;
 }

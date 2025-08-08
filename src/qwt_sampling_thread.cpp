@@ -12,17 +12,16 @@
 
 class QwtSamplingThread::PrivateData
 {
-  public:
+public:
     QElapsedTimer timer;
     double msecsInterval;
 };
 
 //! Constructor
-QwtSamplingThread::QwtSamplingThread( QObject* parent )
-    : QThread( parent )
+QwtSamplingThread::QwtSamplingThread(QObject* parent) : QThread(parent)
 {
-    m_data = new PrivateData;
-    m_data->msecsInterval = 1e3; // 1 second
+    m_data                = new PrivateData;
+    m_data->msecsInterval = 1e3;  // 1 second
 }
 
 //! Destructor
@@ -38,9 +37,9 @@ QwtSamplingThread::~QwtSamplingThread()
    \param msecs Interval
    \sa interval()
  */
-void QwtSamplingThread::setInterval( double msecs )
+void QwtSamplingThread::setInterval(double msecs)
 {
-    if ( msecs < 0.0 )
+    if (msecs < 0.0)
         msecs = 0.0;
 
     m_data->msecsInterval = msecs;
@@ -61,7 +60,7 @@ double QwtSamplingThread::interval() const
  */
 double QwtSamplingThread::elapsed() const
 {
-    if ( m_data->timer.isValid() )
+    if (m_data->timer.isValid())
         return m_data->timer.nsecsElapsed() / 1e6;
 
     return 0.0;
@@ -89,24 +88,18 @@ void QwtSamplingThread::run()
         this would break existing code. TODO ...
         Anyway - for QThread::usleep we even need microseconds( usecs )
      */
-    while ( m_data->timer.isValid() )
-    {
+    while (m_data->timer.isValid()) {
         const qint64 timestamp = m_data->timer.nsecsElapsed();
-        sample( timestamp / 1e9 ); // seconds
+        sample(timestamp / 1e9);  // seconds
 
-        if ( m_data->msecsInterval > 0.0 )
-        {
+        if (m_data->msecsInterval > 0.0) {
             const double interval = m_data->msecsInterval * 1e3;
-            const double elapsed = ( m_data->timer.nsecsElapsed() - timestamp ) / 1e3;
+            const double elapsed  = (m_data->timer.nsecsElapsed() - timestamp) / 1e3;
 
             const double usecs = interval - elapsed;
 
-            if ( usecs > 0.0 )
-                QThread::usleep( qRound( usecs ) );
+            if (usecs > 0.0)
+                QThread::usleep(qRound(usecs));
         }
     }
 }
-
-#if QWT_MOC_INCLUDE
-#include "moc_qwt_sampling_thread.cpp"
-#endif

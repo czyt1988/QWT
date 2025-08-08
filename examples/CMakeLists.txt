@@ -27,3 +27,5 @@ add_subdirectory(splineeditor)
 add_subdirectory(stockchart)
 add_subdirectory(sysinfo)
 add_subdirectory(tvplot)
+# 静态编译示例
+add_subdirectory(staticExample)

@@ -22,9 +22,7 @@ class QwtPolarPicker::PrivateData
    \param canvas Plot canvas to observe, also the parent object
  */
 
-QwtPolarPicker::QwtPolarPicker( QwtPolarCanvas* canvas )
-    : QwtPicker( canvas )
-    , m_data( nullptr )
+QwtPolarPicker::QwtPolarPicker(QwtPolarCanvas* canvas) : QwtPicker(canvas), m_data(nullptr)
 {
 }
 
@@ -40,10 +38,8 @@ QwtPolarPicker::QwtPolarPicker( QwtPolarCanvas* canvas )
 
    \sa QwtPolarPlot::autoReplot(), QwtPolarPlot::replot(), scaleRect()
  */
-QwtPolarPicker::QwtPolarPicker(
-        RubberBand rubberBand, DisplayMode trackerMode, QwtPolarCanvas* canvas )
-    : QwtPicker( rubberBand, trackerMode, canvas )
-    , m_data( nullptr )
+QwtPolarPicker::QwtPolarPicker(RubberBand rubberBand, DisplayMode trackerMode, QwtPolarCanvas* canvas)
+    : QwtPicker(rubberBand, trackerMode, canvas), m_data(nullptr)
 {
 }
 
@@ -55,20 +51,20 @@ QwtPolarPicker::~QwtPolarPicker()
 //! \return Observed plot canvas
 QwtPolarCanvas* QwtPolarPicker::canvas()
 {
-    return qobject_cast< QwtPolarCanvas* >( parentWidget() );
+    return qobject_cast< QwtPolarCanvas* >(parentWidget());
 }
 
 //! \return Observed plot canvas
 const QwtPolarCanvas* QwtPolarPicker::canvas() const
 {
-    return qobject_cast< const QwtPolarCanvas* >( parentWidget() );
+    return qobject_cast< const QwtPolarCanvas* >(parentWidget());
 }
 
 //! \return Plot widget, containing the observed plot canvas
 QwtPolarPlot* QwtPolarPicker::plot()
 {
     QwtPolarCanvas* w = canvas();
-    if ( w )
+    if (w)
         return w->plot();
 
     return NULL;
@@ -78,7 +74,7 @@ QwtPolarPlot* QwtPolarPicker::plot()
 const QwtPolarPlot* QwtPolarPicker::plot() const
 {
     const QwtPolarCanvas* w = canvas();
-    if ( w )
+    if (w)
         return w->plot();
 
     return NULL;
@@ -90,10 +86,10 @@ const QwtPolarPlot* QwtPolarPicker::plot() const
    \param pos Position in pixel coordinates
    \return Position string
  */
-QwtText QwtPolarPicker::trackerText( const QPoint& pos ) const
+QwtText QwtPolarPicker::trackerText(const QPoint& pos) const
 {
-    const QwtPointPolar polarPoint = invTransform( pos );
-    return trackerTextPolar( polarPoint );
+    const QwtPointPolar polarPoint = invTransform(pos);
+    return trackerTextPolar(polarPoint);
 }
 
 /*!
@@ -108,12 +104,11 @@ QwtText QwtPolarPicker::trackerText( const QPoint& pos ) const
    \param pos Position
    \return Position string
  */
-QwtText QwtPolarPicker::trackerTextPolar( const QwtPointPolar& pos ) const
+QwtText QwtPolarPicker::trackerTextPolar(const QwtPointPolar& pos) const
 {
-    const QString text = QString::number( pos.radius(), 'f', 4 )
-        + ", " + QString::number( pos.azimuth(), 'f', 4 );
+    const QString text = QString::number(pos.radius(), 'f', 4) + ", " + QString::number(pos.azimuth(), 'f', 4);
 
-    return QwtText( text );
+    return QwtText(text);
 }
 
 /*!
@@ -125,10 +120,10 @@ QwtText QwtPolarPicker::trackerTextPolar( const QwtPointPolar& pos ) const
    \note The appended(const QPoint &), appended(const QDoublePoint &)
         signals are emitted.
  */
-void QwtPolarPicker::append( const QPoint& pos )
+void QwtPolarPicker::append(const QPoint& pos)
 {
-    QwtPicker::append( pos );
-    Q_EMIT appended( invTransform( pos ) );
+    QwtPicker::append(pos);
+    Q_EMIT appended(invTransform(pos));
 }
 
 /*!
@@ -140,10 +135,10 @@ void QwtPolarPicker::append( const QPoint& pos )
    \note The moved(const QPoint &), moved(const QDoublePoint &)
         signals are emitted.
  */
-void QwtPolarPicker::move( const QPoint& pos )
+void QwtPolarPicker::move(const QPoint& pos)
 {
-    QwtPicker::move( pos );
-    Q_EMIT moved( invTransform( pos ) );
+    QwtPicker::move(pos);
+    Q_EMIT moved(invTransform(pos));
 }
 
 /*!
@@ -154,45 +149,41 @@ void QwtPolarPicker::move( const QPoint& pos )
    \return true if the selection is accepted, false otherwise
  */
 
-bool QwtPolarPicker::end( bool ok )
+bool QwtPolarPicker::end(bool ok)
 {
-    ok = QwtPicker::end( ok );
-    if ( !ok )
+    ok = QwtPicker::end(ok);
+    if (!ok)
         return false;
 
     QwtPolarPlot* plot = QwtPolarPicker::plot();
-    if ( !plot )
+    if (!plot)
         return false;
 
     const QPolygon points = selection();
-    if ( points.count() == 0 )
+    if (points.count() == 0)
         return false;
 
-    QwtPickerMachine::SelectionType selectionType =
-        QwtPickerMachine::NoSelection;
+    QwtPickerMachine::SelectionType selectionType = QwtPickerMachine::NoSelection;
 
-    if ( stateMachine() )
+    if (stateMachine())
         selectionType = stateMachine()->selectionType();
 
-    switch ( selectionType )
-    {
-        case QwtPickerMachine::PointSelection:
-        {
-            const QwtPointPolar pos = invTransform( points[0] );
-            Q_EMIT selected( pos );
-            break;
-        }
-        case QwtPickerMachine::RectSelection:
-        case QwtPickerMachine::PolygonSelection:
-        {
-            QVector< QwtPointPolar > polarPoints( points.count() );
-            for ( int i = 0; i < points.count(); i++ )
-                polarPoints[i] = invTransform( points[i] );
+    switch (selectionType) {
+    case QwtPickerMachine::PointSelection: {
+        const QwtPointPolar pos = invTransform(points[ 0 ]);
+        Q_EMIT selected(pos);
+        break;
+    }
+    case QwtPickerMachine::RectSelection:
+    case QwtPickerMachine::PolygonSelection: {
+        QVector< QwtPointPolar > polarPoints(points.count());
+        for (int i = 0; i < points.count(); i++)
+            polarPoints[ i ] = invTransform(points[ i ]);
 
-            Q_EMIT selected( polarPoints );
-        }
-        default:
-            break;
+        Q_EMIT selected(polarPoints);
+    }
+    default:
+        break;
     }
 
     return true;
@@ -205,13 +196,13 @@ bool QwtPolarPicker::end( bool ok )
     \return Point in plot coordinates
     \sa transform(), canvas()
  */
-QwtPointPolar QwtPolarPicker::invTransform( const QPoint& pos ) const
+QwtPointPolar QwtPolarPicker::invTransform(const QPoint& pos) const
 {
     QwtPointPolar polarPos;
-    if ( canvas() == NULL )
+    if (canvas() == NULL)
         return QwtPointPolar();
 
-    return canvas()->invTransform( pos );
+    return canvas()->invTransform(pos);
 }
 
 /*!
@@ -221,7 +212,7 @@ QwtPointPolar QwtPolarPicker::invTransform( const QPoint& pos ) const
 QRect QwtPolarPicker::pickRect() const
 {
     const QRect cr = canvas()->contentsRect();
-    const QRect pr = plot()->plotRect( cr ).toRect();
+    const QRect pr = plot()->plotRect(cr).toRect();
 
     return cr & pr;
 }
@@ -231,14 +222,10 @@ QPainterPath QwtPolarPicker::pickArea() const
     const QRect cr = canvas()->contentsRect();
 
     QPainterPath crPath;
-    crPath.addRect( cr );
+    crPath.addRect(cr);
 
     QPainterPath prPath;
-    prPath.addEllipse( plot()->plotRect( cr ) );
+    prPath.addEllipse(plot()->plotRect(cr));
 
-    return crPath.intersected( prPath );
+    return crPath.intersected(prPath);
 }
-
-#if QWT_MOC_INCLUDE
-#include "moc_qwt_polar_picker.cpp"
-#endif

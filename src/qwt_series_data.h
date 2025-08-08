@@ -296,60 +296,58 @@ QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtOHLCSample >&, int fro
 
 QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >&, int from = 0, int to = -1);
 
-/*!
-    Binary search for a sorted series of samples
-
-    qwtUpperSampleIndex returns the index of sample that is the upper bound
-    of value. Is the the value smaller than the smallest value the return
-    value will be 0. Is the value greater or equal than the largest
-    value the return value will be -1.
-
-   \par Example
-    The following example shows finds a point of curve from an x
-    coordinate
-    \code
- #include <qwt_series_data.h>
- #include <qwt_plot_curve.h>
-
-      struct compareX
-      {
-          inline bool operator()( const double x, const QPointF &pos ) const
-          {
-              return ( x < pos.x() );
-          }
-      };
-
-      QLineF curveLineAt( const QwtPlotCurve *curve, double x )
-      {
-          int index = qwtUpperSampleIndex<QPointF>(
- * curve->data(), x, compareX() );
-
-          if ( index == -1 &&
-              x == curve->sample( curve->dataSize() - 1 ).x() )
-          {
-              // the last sample is excluded from qwtUpperSampleIndex
-              index = curve->dataSize() - 1;
-          }
-
-          QLineF line; // invalid
-          if ( index > 0 )
-          {
-              line.setP1( curve->sample( index - 1 ) );
-              line.setP2( curve->sample( index ) );
-          }
-
-          return line;
-      }
-
-    \endcode
-   \endpar
-
-   \param series Series of samples
-   \param value Value
-   \param lessThan Compare operation
-
-   \note The samples must be sorted according to the order specified
-        by the lessThan object
+/**
+ * Binary search for a sorted series of samples
+ *
+ * qwtUpperSampleIndex returns the index of sample that is the upper bound
+ * of value. Is the the value smaller than the smallest value the return
+ * value will be 0. Is the value greater or equal than the largest
+ * value the return value will be -1.
+ * 
+ * @par Example
+ * The following example shows finds a point of curve from an x
+ * coordinate
+ * @code
+ * #include <qwt_series_data.h>
+ * #include <qwt_plot_curve.h>
+ * 
+ *   struct compareX
+ *   {
+ *       inline bool operator()( const double x, const QPointF &pos ) const
+ *       {
+ *           return ( x < pos.x() );
+ *       }
+ *   };
+ * 
+ *   QLineF curveLineAt( const QwtPlotCurve *curve, double x )
+ *   {
+ *       int index = qwtUpperSampleIndex<QPointF>(*curve->data(), x, compareX() );
+ * 
+ *       if ( index == -1 &&
+ *           x == curve->sample( curve->dataSize() - 1 ).x() )
+ *       {
+ *           // the last sample is excluded from qwtUpperSampleIndex
+ *           index = curve->dataSize() - 1;
+ *       }
+ * 
+ *       QLineF line; // invalid
+ *       if ( index > 0 )
+ *       {
+ *           line.setP1( curve->sample( index - 1 ) );
+ *           line.setP2( curve->sample( index ) );
+ *       }
+ * 
+ *       return line;
+ *   }
+ * 
+ * @endcode
+ * @endpar
+ * 
+ * @param series Series of samples
+ * @param value Value
+ * @param lessThan Compare operation
+ * @note The samples must be sorted according to the order specified
+ *        by the lessThan object
  */
 template< typename T, typename LessThan >
 inline int qwtUpperSampleIndex(const QwtSeriesData< T >& series, double value, LessThan lessThan)

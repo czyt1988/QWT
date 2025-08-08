@@ -396,8 +396,6 @@ target_compile_definitions(${QWT_LIB_NAME} PRIVATE QT_DLL)
 target_compile_definitions(${QWT_LIB_NAME} PUBLIC QWT_DLL)
 #此宏必须为private
 target_compile_definitions(${QWT_LIB_NAME} PRIVATE QWT_MAKEDLL)
-# 此宏必须为public
-target_compile_definitions(${QWT_LIB_NAME} PUBLIC QWT_MOC_INCLUDE=1)
 ########################################################
 # 依赖链接
 ########################################################

@@ -104,6 +104,7 @@ QwtPlotLayout::QwtPlotLayout()
     setCanvasMargin(-1);
 ...
 }
+- 去除QWT_MOC_INCLUDE
 
 ## tag:???（还未发布） | version:7.0.0
 

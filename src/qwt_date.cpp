@@ -18,8 +18,8 @@
 #if QT_VERSION >= 0x050000
 
 typedef qint64 QwtJulianDay;
-static const QwtJulianDay minJulianDayD = Q_INT64_C( -784350574879 );
-static const QwtJulianDay maxJulianDayD = Q_INT64_C( 784354017364 );
+static const QwtJulianDay cs_date_minJulianDayD = Q_INT64_C(-784350574879);
+static const QwtJulianDay cs_date_maxJulianDayD = Q_INT64_C(784354017364);
 
 #else
 
@@ -28,88 +28,74 @@ static const QwtJulianDay maxJulianDayD = Q_INT64_C( 784354017364 );
 // we have the range [ 1, INT_MAX ]
 
 typedef int QwtJulianDay;
-static const QwtJulianDay minJulianDayD = 1;
-static const QwtJulianDay maxJulianDayD = std::numeric_limits< int >::max();
+static const QwtJulianDay cs_date_minJulianDayD = 1;
+static const QwtJulianDay cs_date_maxJulianDayD = std::numeric_limits< int >::max();
 
 #endif
 
-static QString qwtExpandedFormat( const QString& format,
-    const QDateTime& dateTime, QwtDate::Week0Type week0Type )
+static QString qwtExpandedFormat(const QString& format, const QDateTime& dateTime, QwtDate::Week0Type week0Type)
 {
-    const int week = QwtDate::weekNumber( dateTime.date(), week0Type );
+    const int week = QwtDate::weekNumber(dateTime.date(), week0Type);
 
     QString weekNo;
-    weekNo.setNum( week );
+    weekNo.setNum(week);
 
     QString weekNoWW;
-    if ( weekNo.length() == 1 )
-        weekNoWW += QLatin1Char( '0' );
+    if (weekNo.length() == 1)
+        weekNoWW += QLatin1Char('0');
 
     weekNoWW += weekNo;
 
     QString fmt = format;
-    fmt.replace( QLatin1String( "ww" ), weekNoWW );
-    fmt.replace( QLatin1Char( 'w' ), weekNo );
+    fmt.replace(QLatin1String("ww"), weekNoWW);
+    fmt.replace(QLatin1Char('w'), weekNo);
 
-    if ( week == 1 && dateTime.date().month() != 1 )
-    {
+    if (week == 1 && dateTime.date().month() != 1) {
         // in case of week 1, we might need to increment the year
 
-        QLatin1String s_yyyy( "yyyy" );
-        QLatin1String s_yy( "yy" );
+        QLatin1String s_yyyy("yyyy");
+        QLatin1String s_yy("yy");
 
         // week 1 might start in the previous year
 
-        bool doReplaceYear = fmt.contains( s_yy );
+        bool doReplaceYear = fmt.contains(s_yy);
 
-        if ( doReplaceYear )
-        {
-            if ( fmt.contains( 'M' ) )
-            {
+        if (doReplaceYear) {
+            if (fmt.contains('M')) {
                 // in case of also having 'M' we have a conflict about
                 // which year to show
 
                 doReplaceYear = false;
-            }
-            else
-            {
+            } else {
                 // in case of also having 'd' or 'dd' we have a conflict about
                 // which year to show
 
                 int numD = 0;
 
-                for ( int i = 0; i < fmt.size(); i++ )
-                {
-                    if ( fmt[i] == 'd' )
-                    {
+                for (int i = 0; i < fmt.size(); i++) {
+                    if (fmt[ i ] == 'd') {
                         numD++;
-                    }
-                    else
-                    {
-                        if ( numD > 0 && numD <= 2 )
+                    } else {
+                        if (numD > 0 && numD <= 2)
                             break;
 
                         numD = 0;
                     }
                 }
 
-                if ( numD > 0 && numD <= 2 )
+                if (numD > 0 && numD <= 2)
                     doReplaceYear = false;
             }
         }
 
-        if ( doReplaceYear )
-        {
-            const QDate dt( dateTime.date().year() + 1, 1, 1 );
-            const QString dtString = QLocale().toString( dt, s_yyyy );
+        if (doReplaceYear) {
+            const QDate dt(dateTime.date().year() + 1, 1, 1);
+            const QString dtString = QLocale().toString(dt, s_yyyy);
 
-            if ( fmt.contains( s_yyyy ) )
-            {
-                fmt.replace( s_yyyy, dtString );
-            }
-            else
-            {
-                fmt.replace( s_yy, dtString );
+            if (fmt.contains(s_yyyy)) {
+                fmt.replace(s_yyyy, dtString);
+            } else {
+                fmt.replace(s_yy, dtString);
             }
         }
     }
@@ -122,8 +108,7 @@ static inline Qt::DayOfWeek qwtFirstDayOfWeek()
     return QLocale().firstDayOfWeek();
 }
 
-static inline void qwtFloorTime(
-    QwtDate::IntervalType intervalType, QDateTime& dt )
+static inline void qwtFloorTime(QwtDate::IntervalType intervalType, QDateTime& dt)
 {
     // when dt is inside the special hour where DST is ending
     // an hour is no unique. Therefore we have to
@@ -131,55 +116,49 @@ static inline void qwtFloorTime(
 
     const Qt::TimeSpec timeSpec = dt.timeSpec();
 
-    if ( timeSpec == Qt::LocalTime )
-        dt = dt.toTimeSpec( Qt::UTC );
+    if (timeSpec == Qt::LocalTime)
+        dt = dt.toTimeSpec(Qt::UTC);
 
     const QTime t = dt.time();
-    switch( intervalType )
-    {
-        case QwtDate::Second:
-        {
-            dt.setTime( QTime( t.hour(), t.minute(), t.second() ) );
-            break;
-        }
-        case QwtDate::Minute:
-        {
-            dt.setTime( QTime( t.hour(), t.minute(), 0 ) );
-            break;
-        }
-        case QwtDate::Hour:
-        {
-            dt.setTime( QTime( t.hour(), 0, 0 ) );
-            break;
-        }
-        default:
-            break;
+    switch (intervalType) {
+    case QwtDate::Second: {
+        dt.setTime(QTime(t.hour(), t.minute(), t.second()));
+        break;
+    }
+    case QwtDate::Minute: {
+        dt.setTime(QTime(t.hour(), t.minute(), 0));
+        break;
+    }
+    case QwtDate::Hour: {
+        dt.setTime(QTime(t.hour(), 0, 0));
+        break;
+    }
+    default:
+        break;
     }
 
-    if ( timeSpec == Qt::LocalTime )
-        dt = dt.toTimeSpec( Qt::LocalTime );
+    if (timeSpec == Qt::LocalTime)
+        dt = dt.toTimeSpec(Qt::LocalTime);
 }
 
-static inline QDateTime qwtToTimeSpec(
-    const QDateTime& dt, Qt::TimeSpec spec )
+static inline QDateTime qwtToTimeSpec(const QDateTime& dt, Qt::TimeSpec spec)
 {
-    if ( dt.timeSpec() == spec )
+    if (dt.timeSpec() == spec)
         return dt;
 
     const qint64 jd = dt.date().toJulianDay();
-    if ( jd < 0 || jd >= std::numeric_limits< int >::max() )
-    {
+    if (jd < 0 || jd >= std::numeric_limits< int >::max()) {
         // the conversion between local time and UTC
         // is internally limited. To avoid
         // overflows we simply ignore the difference
         // for those dates
 
         QDateTime dt2 = dt;
-        dt2.setTimeSpec( spec );
+        dt2.setTimeSpec(spec);
         return dt2;
     }
 
-    return dt.toTimeSpec( spec );
+    return dt.toTimeSpec(spec);
 }
 
 #if 0
@@ -215,34 +194,29 @@ static inline qint64 qwtFloorDiv( int a, int b )
 
 #endif
 
-static inline QDate qwtToDate( int year, int month = 1, int day = 1 )
+static inline QDate qwtToDate(int year, int month = 1, int day = 1)
 {
 #if QT_VERSION >= 0x050000
-    return QDate( year, month, day );
+    return QDate(year, month, day);
 #else
-    if ( year > 100000 )
-    {
+    if (year > 100000) {
         // code from QDate but using doubles to avoid overflows
         // for large values
 
-        const int m1 = ( month - 14 ) / 12;
-        const int m2 = ( 367 * ( month - 2 - 12 * m1 ) ) / 12;
-        const double y1 = std::floor( ( 4900.0 + year + m1 ) / 100 );
+        const int m1    = (month - 14) / 12;
+        const int m2    = (367 * (month - 2 - 12 * m1)) / 12;
+        const double y1 = std::floor((4900.0 + year + m1) / 100);
 
-        const double jd = std::floor( ( 1461.0 * ( year + 4800 + m1 ) ) / 4 ) + m2
-            - std::floor( ( 3 * y1 ) / 4 ) + day - 32075;
+        const double jd = std::floor((1461.0 * (year + 4800 + m1)) / 4) + m2 - std::floor((3 * y1) / 4) + day - 32075;
 
-        if ( jd > maxJulianDayD )
-        {
+        if (jd > cs_date_maxJulianDayD) {
             qWarning() << "qwtToDate: overflow";
             return QDate();
         }
 
-        return QDate::fromJulianDay( static_cast< QwtJulianDay >( jd ) );
-    }
-    else
-    {
-        return QDate( year, month, day );
+        return QDate::fromJulianDay(static_cast< QwtJulianDay >(jd));
+    } else {
+        return QDate(year, month, day);
     }
 #endif
 }
@@ -258,29 +232,28 @@ static inline QDate qwtToDate( int year, int month = 1, int day = 1 )
    \sa toDouble(), QDateTime::setMSecsSinceEpoch()
    \note The return datetime for Qt::OffsetFromUTC will be Qt::UTC
  */
-QDateTime QwtDate::toDateTime( double value, Qt::TimeSpec timeSpec )
+QDateTime QwtDate::toDateTime(double value, Qt::TimeSpec timeSpec)
 {
     const int msecsPerDay = 86400000;
 
-    const double days = static_cast< qint64 >( std::floor( value / msecsPerDay ) );
+    const double days = static_cast< qint64 >(std::floor(value / msecsPerDay));
 
     const double jd = QwtDate::JulianDayForEpoch + days;
-    if ( ( jd > maxJulianDayD ) || ( jd < minJulianDayD ) )
-    {
+    if ((jd > cs_date_maxJulianDayD) || (jd < cs_date_minJulianDayD)) {
         qWarning() << "QwtDate::toDateTime: overflow";
         return QDateTime();
     }
 
-    const QDate d = QDate::fromJulianDay( static_cast< QwtJulianDay >( jd ) );
+    const QDate d = QDate::fromJulianDay(static_cast< QwtJulianDay >(jd));
 
-    const int msecs = static_cast< int >( value - days * msecsPerDay );
+    const int msecs = static_cast< int >(value - days * msecsPerDay);
 
-    static const QTime timeNull( 0, 0, 0, 0 );
+    static const QTime timeNull(0, 0, 0, 0);
 
-    QDateTime dt( d, timeNull.addMSecs( msecs ), Qt::UTC );
+    QDateTime dt(d, timeNull.addMSecs(msecs), Qt::UTC);
 
-    if ( timeSpec == Qt::LocalTime )
-        dt = qwtToTimeSpec( dt, timeSpec );
+    if (timeSpec == Qt::LocalTime)
+        dt = qwtToTimeSpec(dt, timeSpec);
 
     return dt;
 }
@@ -295,17 +268,16 @@ QDateTime QwtDate::toDateTime( double value, Qt::TimeSpec timeSpec )
    \warning For values very far below or above 1970-01-01 UTC rounding errors
            will happen due to the limited significance of a double.
  */
-double QwtDate::toDouble( const QDateTime& dateTime )
+double QwtDate::toDouble(const QDateTime& dateTime)
 {
     const int msecsPerDay = 86400000;
 
-    const QDateTime dt = qwtToTimeSpec( dateTime, Qt::UTC );
+    const QDateTime dt = qwtToTimeSpec(dateTime, Qt::UTC);
 
     const double days = dt.date().toJulianDay() - QwtDate::JulianDayForEpoch;
 
-    const QTime time = dt.time();
-    const double secs = 3600.0 * time.hour() +
-        60.0 * time.minute() + time.second();
+    const QTime time  = dt.time();
+    const double secs = 3600.0 * time.hour() + 60.0 * time.minute() + time.second();
 
     return days * msecsPerDay + time.msec() + 1000.0 * secs;
 }
@@ -320,92 +292,82 @@ double QwtDate::toDouble( const QDateTime& dateTime )
    \return Ceiled datetime
    \sa floor()
  */
-QDateTime QwtDate::ceil( const QDateTime& dateTime, IntervalType intervalType )
+QDateTime QwtDate::ceil(const QDateTime& dateTime, IntervalType intervalType)
 {
-    if ( dateTime.date() >= QwtDate::maxDate() )
+    if (dateTime.date() >= QwtDate::maxDate())
         return dateTime;
 
     QDateTime dt = dateTime;
 
-    switch ( intervalType )
-    {
-        case QwtDate::Millisecond:
-        {
-            break;
-        }
-        case QwtDate::Second:
-        {
-            qwtFloorTime( QwtDate::Second, dt );
-            if ( dt < dateTime )
-                dt = dt.addSecs( 1 );
+    switch (intervalType) {
+    case QwtDate::Millisecond: {
+        break;
+    }
+    case QwtDate::Second: {
+        qwtFloorTime(QwtDate::Second, dt);
+        if (dt < dateTime)
+            dt = dt.addSecs(1);
 
-            break;
-        }
-        case QwtDate::Minute:
-        {
-            qwtFloorTime( QwtDate::Minute, dt );
-            if ( dt < dateTime )
-                dt = dt.addSecs( 60 );
+        break;
+    }
+    case QwtDate::Minute: {
+        qwtFloorTime(QwtDate::Minute, dt);
+        if (dt < dateTime)
+            dt = dt.addSecs(60);
 
-            break;
-        }
-        case QwtDate::Hour:
-        {
-            qwtFloorTime( QwtDate::Hour, dt );
-            if ( dt < dateTime )
-                dt = dt.addSecs( 3600 );
+        break;
+    }
+    case QwtDate::Hour: {
+        qwtFloorTime(QwtDate::Hour, dt);
+        if (dt < dateTime)
+            dt = dt.addSecs(3600);
 
-            break;
-        }
-        case QwtDate::Day:
-        {
-            dt.setTime( QTime( 0, 0 ) );
-            if ( dt < dateTime )
-                dt = dt.addDays( 1 );
+        break;
+    }
+    case QwtDate::Day: {
+        dt.setTime(QTime(0, 0));
+        if (dt < dateTime)
+            dt = dt.addDays(1);
 
-            break;
-        }
-        case QwtDate::Week:
-        {
-            dt.setTime( QTime( 0, 0 ) );
-            if ( dt < dateTime )
-                dt = dt.addDays( 1 );
+        break;
+    }
+    case QwtDate::Week: {
+        dt.setTime(QTime(0, 0));
+        if (dt < dateTime)
+            dt = dt.addDays(1);
 
-            int days = qwtFirstDayOfWeek() - dt.date().dayOfWeek();
-            if ( days < 0 )
-                days += 7;
+        int days = qwtFirstDayOfWeek() - dt.date().dayOfWeek();
+        if (days < 0)
+            days += 7;
 
-            dt = dt.addDays( days );
+        dt = dt.addDays(days);
 
-            break;
-        }
-        case QwtDate::Month:
-        {
-            dt.setTime( QTime( 0, 0 ) );
-            dt.setDate( qwtToDate( dateTime.date().year(),
-                dateTime.date().month() ) );
+        break;
+    }
+    case QwtDate::Month: {
+        dt.setTime(QTime(0, 0));
+        dt.setDate(qwtToDate(dateTime.date().year(), dateTime.date().month()));
 
-            if ( dt < dateTime )
-                dt = dt.addMonths( 1 );
+        if (dt < dateTime)
+            dt = dt.addMonths(1);
 
-            break;
-        }
-        case QwtDate::Year:
-        {
-            dt.setTime( QTime( 0, 0 ) );
+        break;
+    }
+    case QwtDate::Year: {
+        dt.setTime(QTime(0, 0));
 
-            const QDate d = dateTime.date();
+        const QDate d = dateTime.date();
 
-            int year = d.year();
-            if ( d.month() > 1 || d.day() > 1 || !dateTime.time().isNull() )
-                year++;
+        int year = d.year();
+        if (d.month() > 1 || d.day() > 1 || !dateTime.time().isNull())
+            year++;
 
-            if ( year == 0 )
-                year++; // there is no year 0
+        if (year == 0)
+            year++;  // there is no year 0
 
-            dt.setDate( qwtToDate( year ) );
-            break;
-        }
+        dt.setDate(qwtToDate(year));
+        break;
+    }
     }
 
     return dt;
@@ -422,63 +384,54 @@ QDateTime QwtDate::ceil( const QDateTime& dateTime, IntervalType intervalType )
    \return Floored datetime
    \sa floor()
  */
-QDateTime QwtDate::floor( const QDateTime& dateTime,
-    IntervalType intervalType )
+QDateTime QwtDate::floor(const QDateTime& dateTime, IntervalType intervalType)
 {
-    if ( dateTime.date() <= QwtDate::minDate() )
+    if (dateTime.date() <= QwtDate::minDate())
         return dateTime;
 
     QDateTime dt = dateTime;
 
-    switch ( intervalType )
-    {
-        case QwtDate::Millisecond:
-        {
-            break;
-        }
-        case QwtDate::Second:
-        case QwtDate::Minute:
-        case QwtDate::Hour:
-        {
-            qwtFloorTime( intervalType, dt );
-            break;
-        }
-        case QwtDate::Day:
-        {
-            dt.setTime( QTime( 0, 0 ) );
-            break;
-        }
-        case QwtDate::Week:
-        {
-            dt.setTime( QTime( 0, 0 ) );
+    switch (intervalType) {
+    case QwtDate::Millisecond: {
+        break;
+    }
+    case QwtDate::Second:
+    case QwtDate::Minute:
+    case QwtDate::Hour: {
+        qwtFloorTime(intervalType, dt);
+        break;
+    }
+    case QwtDate::Day: {
+        dt.setTime(QTime(0, 0));
+        break;
+    }
+    case QwtDate::Week: {
+        dt.setTime(QTime(0, 0));
 
-            int days = dt.date().dayOfWeek() - qwtFirstDayOfWeek();
-            if ( days < 0 )
-                days += 7;
+        int days = dt.date().dayOfWeek() - qwtFirstDayOfWeek();
+        if (days < 0)
+            days += 7;
 
-            dt = dt.addDays( -days );
+        dt = dt.addDays(-days);
 
-            break;
-        }
-        case QwtDate::Month:
-        {
-            dt.setTime( QTime( 0, 0 ) );
+        break;
+    }
+    case QwtDate::Month: {
+        dt.setTime(QTime(0, 0));
 
-            const QDate date = qwtToDate( dt.date().year(),
-                dt.date().month() );
-            dt.setDate( date );
+        const QDate date = qwtToDate(dt.date().year(), dt.date().month());
+        dt.setDate(date);
 
-            break;
-        }
-        case QwtDate::Year:
-        {
-            dt.setTime( QTime( 0, 0 ) );
+        break;
+    }
+    case QwtDate::Year: {
+        dt.setTime(QTime(0, 0));
 
-            const QDate date = qwtToDate( dt.date().year() );
-            dt.setDate( date );
+        const QDate date = qwtToDate(dt.date().year());
+        dt.setDate(date);
 
-            break;
-        }
+        break;
+    }
     }
 
     return dt;
@@ -499,8 +452,8 @@ QDateTime QwtDate::floor( const QDateTime& dateTime,
 QDate QwtDate::minDate()
 {
     static QDate date;
-    if ( !date.isValid() )
-        date = QDate::fromJulianDay( minJulianDayD );
+    if (!date.isValid())
+        date = QDate::fromJulianDay(cs_date_minJulianDayD);
 
     return date;
 }
@@ -521,8 +474,8 @@ QDate QwtDate::minDate()
 QDate QwtDate::maxDate()
 {
     static QDate date;
-    if ( !date.isValid() )
-        date = QDate::fromJulianDay( maxJulianDayD );
+    if (!date.isValid())
+        date = QDate::fromJulianDay(cs_date_maxJulianDayD);
 
     return date;
 }
@@ -539,30 +492,29 @@ QDate QwtDate::maxDate()
 
    \sa QLocale::firstDayOfWeek(), weekNumber()
  */
-QDate QwtDate::dateOfWeek0( int year, Week0Type type )
+QDate QwtDate::dateOfWeek0(int year, Week0Type type)
 {
     const Qt::DayOfWeek firstDayOfWeek = qwtFirstDayOfWeek();
 
-    QDate dt0( year, 1, 1 );
+    QDate dt0(year, 1, 1);
 
     // floor to the first day of the week
     int days = dt0.dayOfWeek() - firstDayOfWeek;
-    if ( days < 0 )
+    if (days < 0)
         days += 7;
 
-    dt0 = dt0.addDays( -days );
+    dt0 = dt0.addDays(-days);
 
-    if ( type == QwtDate::FirstThursday )
-    {
+    if (type == QwtDate::FirstThursday) {
         // according to ISO 8601 the first week is defined
         // by the first Thursday.
 
         int d = Qt::Thursday - firstDayOfWeek;
-        if ( d < 0 )
+        if (d < 0)
             d += 7;
 
-        if ( dt0.addDays( d ).year() < year )
-            dt0 = dt0.addDays( 7 );
+        if (dt0.addDays(d).year() < year)
+            dt0 = dt0.addDays(7);
     }
 
     return dt0;
@@ -582,32 +534,26 @@ QDate QwtDate::dateOfWeek0( int year, Week0Type type )
 
    \return Week number, starting with 1
  */
-int QwtDate::weekNumber( const QDate& date, Week0Type type )
+int QwtDate::weekNumber(const QDate& date, Week0Type type)
 {
     int weekNo;
 
-    if ( type == QwtDate::FirstDay )
-    {
+    if (type == QwtDate::FirstDay) {
         QDate day0;
 
-        if ( date.month() == 12 && date.day() >= 24 )
-        {
+        if (date.month() == 12 && date.day() >= 24) {
             // week 1 usually starts in the previous years.
             // and we have to check if we are already there
 
-            day0 = dateOfWeek0( date.year() + 1, type );
-            if ( day0.daysTo( date ) < 0 )
-                day0 = dateOfWeek0( date.year(), type );
-        }
-        else
-        {
-            day0 = dateOfWeek0( date.year(), type );
+            day0 = dateOfWeek0(date.year() + 1, type);
+            if (day0.daysTo(date) < 0)
+                day0 = dateOfWeek0(date.year(), type);
+        } else {
+            day0 = dateOfWeek0(date.year(), type);
         }
 
-        weekNo = day0.daysTo( date ) / 7 + 1;
-    }
-    else
-    {
+        weekNo = day0.daysTo(date) / 7 + 1;
+    } else {
         weekNo = date.weekNumber();
     }
 
@@ -632,30 +578,26 @@ int QwtDate::weekNumber( const QDate& date, Week0Type type )
    \param dateTime Datetime value
    \return Offset in seconds
  */
-int QwtDate::utcOffset( const QDateTime& dateTime )
+int QwtDate::utcOffset(const QDateTime& dateTime)
 {
     int seconds = 0;
 
-    switch( dateTime.timeSpec() )
-    {
-        case Qt::UTC:
-        {
-            break;
-        }
-        case Qt::OffsetFromUTC:
-        {
+    switch (dateTime.timeSpec()) {
+    case Qt::UTC: {
+        break;
+    }
+    case Qt::OffsetFromUTC: {
 #if QT_VERSION >= 0x050200
-            seconds = dateTime.offsetFromUtc();
+        seconds = dateTime.offsetFromUtc();
 #else
-            seconds = dateTime.utcOffset();
+        seconds = dateTime.utcOffset();
 #endif
-            break;
-        }
-        default:
-        {
-            const QDateTime dt1( dateTime.date(), dateTime.time(), Qt::UTC );
-            seconds = dateTime.secsTo( dt1 );
-        }
+        break;
+    }
+    default: {
+        const QDateTime dt1(dateTime.date(), dateTime.time(), Qt::UTC);
+        seconds = dateTime.secsTo(dt1);
+    }
     }
 
     return seconds;
@@ -683,14 +625,12 @@ int QwtDate::utcOffset( const QDateTime& dateTime )
    \return Datetime string
    \sa QDateTime::toString(), weekNumber(), QwtDateScaleDraw
  */
-QString QwtDate::toString( const QDateTime& dateTime,
-    const QString& format, Week0Type week0Type )
+QString QwtDate::toString(const QDateTime& dateTime, const QString& format, Week0Type week0Type)
 {
     QString fmt = format;
-    if ( fmt.contains( 'w' ) )
-    {
-        fmt = qwtExpandedFormat( fmt, dateTime, week0Type );
+    if (fmt.contains('w')) {
+        fmt = qwtExpandedFormat(fmt, dateTime, week0Type);
     }
 
-    return QLocale().toString( dateTime, fmt );
+    return QLocale().toString(dateTime, fmt);
 }
