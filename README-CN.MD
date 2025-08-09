@@ -75,10 +75,46 @@ Programs must identify their use of Qwt:
 - [ ] 提供一些集成的交互方法，让使用更简单
 - [ ] 美化控件
 
+# 构建
+
+## 静态构建
+
+此项目把原Qwt整个工程合并为QwtPlot.h和QwtPlot.cpp，直接引入项目即可
+
+QwtPlot依赖Core Gui Widgets Svg Concurrent OpenGL PrintSupport这几个模块，需要引入工程
+
+cmake示例：
+
+```cmake
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} 5.8 COMPONENTS Core Gui Widgets Svg Concurrent OpenGL PrintSupport REQUIRED)
+
+
+add_executable(YOUR_APP_NAME
+    main.cpp
+    QwtPlot.h
+    QwtPlot.cpp
+)
+
+target_link_libraries(YOUR_APP_NAME 
+    PUBLIC
+    Qt${QT_VERSION_MAJOR}::Core 
+    Qt${QT_VERSION_MAJOR}::Gui 
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Svg
+    Qt${QT_VERSION_MAJOR}::Concurrent
+    Qt${QT_VERSION_MAJOR}::OpenGL
+    Qt${QT_VERSION_MAJOR}::PrintSupport
+    )
+```
+
+
 # changelog
 
-## tag:???（还未发布） | version:7.0.0
+## tag:v7.0.0
 
+- 把整个工程合并为QwtPlot.h和QwtPlot.cpp，直接可以引入，文件位于src-amalgamate
+- 例子增加staticExample
 - 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
 - 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
 - `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
@@ -105,12 +141,9 @@ QwtPlotLayout::QwtPlotLayout()
 ...
 }
 - 去除QWT_MOC_INCLUDE
+- 调整了一些类的实现，以便能合并到一个文件中
 
-## tag:???（还未发布） | version:7.0.0
 
-- 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
-- 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
-- `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
 
 ## tag:v0.0.4 | version:6.2.0
 
