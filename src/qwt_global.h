@@ -14,25 +14,25 @@
 
 // QWT_VERSION is (major << 16) + (minor << 8) + patch.
 
-#define QWT_VERSION       0x060200
-#define QWT_VERSION_STR   "6.2.0"
+#define QWT_VERSION 0x070000
+#define QWT_VERSION_STR "7.0.0"
 
-#if defined( _MSC_VER ) /* MSVC Compiler */
+#if defined(_MSC_VER) /* MSVC Compiler */
 /* template-class specialization 'identifier' is already instantiated */
-#pragma warning(disable: 4660)
+#pragma warning(disable : 4660)
 /* inherits via dominance */
-#pragma warning(disable: 4250)
-#endif // _MSC_VER
+#pragma warning(disable : 4250)
+#endif  // _MSC_VER
 
 #ifdef QWT_DLL
 
-#if defined( QWT_MAKEDLL )     // create a Qwt DLL library
+#if defined(QWT_MAKEDLL)  // create a Qwt DLL library
 #define QWT_EXPORT Q_DECL_EXPORT
-#else                        // use a Qwt DLL library
+#else  // use a Qwt DLL library
 #define QWT_EXPORT Q_DECL_IMPORT
 #endif
 
-#endif // QWT_DLL
+#endif  // QWT_DLL
 
 #ifndef QWT_EXPORT
 #define QWT_EXPORT
