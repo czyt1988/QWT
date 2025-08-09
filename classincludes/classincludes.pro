@@ -81,6 +81,7 @@ CLASSHEADERS = \
     QwtSplinePolynomial \
     QwtSymbol \
     QwtSystemClock \
+    QwtStyleSheetRecorder \
     QwtText \
     QwtTextEngine \
     QwtTextLabel \

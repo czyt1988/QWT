@@ -16,29 +16,22 @@
 #include "qwt_round_scale_draw.h"
 #include "qwt_legend.h"
 #include "qwt_dyngrid_layout.h"
-
+#include "qwt_math.h"
 #include <qpointer.h>
 #include <qpaintengine.h>
 #include <qpainter.h>
 #include <qevent.h>
 
-static inline double qwtDistance(const QPointF& p1, const QPointF& p2)
-{
-    double dx = p2.x() - p1.x();
-    double dy = p2.y() - p1.y();
-    return qSqrt(dx * dx + dy * dy);
-}
-
 namespace
 {
-class ScaleData
+class QwtPolarPlotScaleData
 {
 public:
-    ScaleData() : isValid(false), scaleEngine(NULL)
+    QwtPolarPlotScaleData() : isValid(false), scaleEngine(NULL)
     {
     }
 
-    ~ScaleData()
+    ~QwtPolarPlotScaleData()
     {
         delete scaleEngine;
     }
@@ -69,7 +62,7 @@ public:
     QwtPointPolar zoomPos;
     double zoomFactor;
 
-    ScaleData scaleData[ QwtPolar::ScaleCount ];
+    QwtPolarPlotScaleData scaleData[ QwtPolar::ScaleCount ];
     QPointer< QwtTextLabel > titleLabel;
     QPointer< QwtPolarCanvas > canvas;
     QPointer< QwtAbstractLegend > legend;
@@ -349,7 +342,7 @@ void QwtPolarPlot::setAutoScale(int scaleId)
     if (scaleId != QwtPolar::ScaleRadius)
         return;
 
-    ScaleData& scaleData = m_data->scaleData[ scaleId ];
+    QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
     if (!scaleData.doAutoScale) {
         scaleData.doAutoScale = true;
         autoRefresh();
@@ -383,7 +376,7 @@ void QwtPolarPlot::setScaleMaxMinor(int scaleId, int maxMinor)
 
     maxMinor = qBound(0, maxMinor, 100);
 
-    ScaleData& scaleData = m_data->scaleData[ scaleId ];
+    QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
 
     if (maxMinor != scaleData.maxMinor) {
         scaleData.maxMinor = maxMinor;
@@ -419,7 +412,7 @@ void QwtPolarPlot::setScaleMaxMajor(int scaleId, int maxMajor)
 
     maxMajor = qBound(1, maxMajor, 10000);
 
-    ScaleData& scaleData = m_data->scaleData[ scaleId ];
+    QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
     if (maxMajor != scaleData.maxMinor) {
         scaleData.maxMajor = maxMajor;
         scaleData.isValid  = false;
@@ -454,7 +447,7 @@ void QwtPolarPlot::setScaleEngine(int scaleId, QwtScaleEngine* scaleEngine)
     if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
         return;
 
-    ScaleData& scaleData = m_data->scaleData[ scaleId ];
+    QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
     if (scaleEngine == NULL || scaleEngine == scaleData.scaleEngine)
         return;
 
@@ -508,7 +501,7 @@ void QwtPolarPlot::setScale(int scaleId, double min, double max, double stepSize
     if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
         return;
 
-    ScaleData& scaleData = m_data->scaleData[ scaleId ];
+    QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
 
     scaleData.isValid = false;
 
@@ -531,7 +524,7 @@ void QwtPolarPlot::setScaleDiv(int scaleId, const QwtScaleDiv& scaleDiv)
     if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
         return;
 
-    ScaleData& scaleData = m_data->scaleData[ scaleId ];
+    QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
 
     scaleData.scaleDiv    = scaleDiv;
     scaleData.isValid     = true;
@@ -772,7 +765,7 @@ void QwtPolarPlot::initPlot(const QwtText& title)
     m_data->canvasBrush = QBrush(Qt::white);
 
     for (int scaleId = 0; scaleId < QwtPolar::ScaleCount; scaleId++) {
-        ScaleData& scaleData = m_data->scaleData[ scaleId ];
+        QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
 
         if (scaleId == QwtPolar::Azimuth) {
             scaleData.minValue = 0.0;
@@ -975,7 +968,7 @@ void QwtPolarPlot::updateScale(int scaleId)
     if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
         return;
 
-    ScaleData& d = m_data->scaleData[ scaleId ];
+    QwtPolarPlotScaleData& d = m_data->scaleData[ scaleId ];
 
     double minValue = d.minValue;
     double maxValue = d.maxValue;

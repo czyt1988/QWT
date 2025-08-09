@@ -29,6 +29,7 @@
 #include "../../src/qwt_point_polar.cpp"
 #include "../../src/qwt_clipper.cpp"
 #include "../../src/qwt_null_paintdevice.cpp"
+#include "../../src/qwt_stylesheet_recorder.cpp"
 #include "../../src/qwt_painter_command.cpp"
 #include "../../src/qwt_graphic.cpp"
 #include "../../src/qwt_event_pattern.cpp"

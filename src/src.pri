@@ -26,6 +26,7 @@ HEADERS += \
     qwt_math.h \
     qwt_magnifier.h \
     qwt_null_paintdevice.h \
+    qwt_stylesheet_recorder.h \
     qwt_painter.h \
     qwt_painter_command.h \
     qwt_panner.h \
@@ -72,6 +73,7 @@ SOURCES += \
     qwt_math.cpp \
     qwt_magnifier.cpp \
     qwt_null_paintdevice.cpp \
+    qwt_stylesheet_recorder.cpp \
     qwt_painter.cpp \
     qwt_painter_command.cpp \
     qwt_panner.cpp \

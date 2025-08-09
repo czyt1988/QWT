@@ -52,20 +52,6 @@ static void qwtUpdateLegendIconSize(QwtPlotCurve* curve)
     }
 }
 
-static int qwtVerifyRange(int size, int& i1, int& i2)
-{
-    if (size < 1)
-        return 0;
-
-    i1 = qBound(0, i1, size - 1);
-    i2 = qBound(0, i2, size - 1);
-
-    if (i1 > i2)
-        qSwap(i1, i2);
-
-    return (i2 - i1 + 1);
-}
-
 class QwtPlotCurve::PrivateData
 {
 public:
@@ -644,8 +630,14 @@ void QwtPlotCurve::drawDots(QPainter* painter,
         QwtPainter::drawPoints(painter, points);
         fillCurve(painter, xMap, yMap, canvasRect, points);
     } else if (m_data->paintAttributes & ImageBuffer) {
-        const QImage image = mapper.toImage(
-            xMap, yMap, data(), from, to, m_data->pen, painter->testRenderHint(QPainter::Antialiasing), renderThreadCount());
+        const QImage image = mapper.toImage(xMap,
+                                            yMap,
+                                            data(),
+                                            from,
+                                            to,
+                                            m_data->pen,
+                                            painter->testRenderHint(QPainter::Antialiasing),
+                                            renderThreadCount());
 
         painter->drawImage(canvasRect.toAlignedRect(), image);
     } else if (m_data->paintAttributes & MinimizeMemory) {

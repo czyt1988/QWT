@@ -160,6 +160,8 @@ enum Scale
 #ifndef QWT_MATH_H
 #define QWT_MATH_H
 
+#include <QPointF>
+#include <QtMath>
 /*
    Microsoft says:
 
@@ -250,49 +252,49 @@ QT_WARNING_DISABLE_GCC("-Wdouble-promotion")
 //! \return Minimum of a and b.
 QWT_CONSTEXPR inline float qwtMinF(float a, float b)
 {
-    return (a < b) ? a : b;
+	return (a < b) ? a : b;
 }
 
 //! \return Minimum of a and b.
 QWT_CONSTEXPR inline double qwtMinF(double a, double b)
 {
-    return (a < b) ? a : b;
+	return (a < b) ? a : b;
 }
 
 //! \return Minimum of a and b.
 QWT_CONSTEXPR inline qreal qwtMinF(float a, double b)
 {
-    return (a < b) ? a : b;
+	return (a < b) ? a : b;
 }
 
 //! \return Minimum of a and b.
 QWT_CONSTEXPR inline qreal qwtMinF(double a, float b)
 {
-    return (a < b) ? a : b;
+	return (a < b) ? a : b;
 }
 
 //! \return Maximum of a and b.
 QWT_CONSTEXPR inline float qwtMaxF(float a, float b)
 {
-    return (a < b) ? b : a;
+	return (a < b) ? b : a;
 }
 
 //! \return Maximum of a and b.
 QWT_CONSTEXPR inline double qwtMaxF(double a, double b)
 {
-    return (a < b) ? b : a;
+	return (a < b) ? b : a;
 }
 
 //! \return Maximum of a and b.
 QWT_CONSTEXPR inline qreal qwtMaxF(float a, double b)
 {
-    return (a < b) ? b : a;
+	return (a < b) ? b : a;
 }
 
 //! \return Maximum of a and b.
 QWT_CONSTEXPR inline qreal qwtMaxF(double a, float b)
 {
-    return (a < b) ? b : a;
+	return (a < b) ? b : a;
 }
 
 #if defined(QT_WARNING_POP)
@@ -317,12 +319,12 @@ QWT_EXPORT quint32 qwtRand();
  */
 inline int qwtFuzzyCompare(double value1, double value2, double intervalSize)
 {
-    const double eps = qAbs(1.0e-6 * intervalSize);
+	const double eps = qAbs(1.0e-6 * intervalSize);
 
-    if (value2 - value1 > eps)
+	if (value2 - value1 > eps)
 		return -1;
 
-    if (value1 - value2 > eps)
+	if (value1 - value2 > eps)
 		return 1;
 
 	return 0;
@@ -331,10 +333,10 @@ inline int qwtFuzzyCompare(double value1, double value2, double intervalSize)
 //! Return the sign
 inline int qwtSign(double x)
 {
-    if (x > 0.0)
+	if (x > 0.0)
 		return 1;
-    else if (x < 0.0)
-        return (-1);
+	else if (x < 0.0)
+		return (-1);
 	else
 		return 0;
 }
@@ -348,30 +350,30 @@ inline double qwtSqr(double x)
 //! Approximation of arc tangent ( error below 0,005 radians )
 inline double qwtFastAtan(double x)
 {
-    if (x < -1.0)
-        return -M_PI_2 - x / (x * x + 0.28);
+	if (x < -1.0)
+		return -M_PI_2 - x / (x * x + 0.28);
 
-    if (x > 1.0)
-        return M_PI_2 - x / (x * x + 0.28);
+	if (x > 1.0)
+		return M_PI_2 - x / (x * x + 0.28);
 
-    return x / (1.0 + x * x * 0.28);
+	return x / (1.0 + x * x * 0.28);
 }
 
 //! Approximation of arc tangent ( error below 0,005 radians )
 inline double qwtFastAtan2(double y, double x)
 {
-    if (x > 0)
-        return qwtFastAtan(y / x);
+	if (x > 0)
+		return qwtFastAtan(y / x);
 
-    if (x < 0) {
-        const double d = qwtFastAtan(y / x);
-        return (y >= 0) ? d + M_PI : d - M_PI;
+	if (x < 0) {
+		const double d = qwtFastAtan(y / x);
+		return (y >= 0) ? d + M_PI : d - M_PI;
 	}
 
-    if (y < 0.0)
+	if (y < 0.0)
 		return -M_PI_2;
 
-    if (y > 0.0)
+	if (y > 0.0)
 		return M_PI_2;
 
 	return 0.0;
@@ -390,7 +392,7 @@ inline double qwtFastAtan2(double y, double x)
  */
 inline double qwtCubicPolynomial(double x, double a, double b, double c, double d)
 {
-    return (((a * x) + b) * x + c) * x + d;
+	return (((a * x) + b) * x + c) * x + d;
 }
 
 //! Translate degrees into radians
@@ -412,7 +414,7 @@ inline double qwtDegrees(double degrees)
 inline int qwtCeil(qreal value)
 {
 	using std::ceil;
-    return int(ceil(value));
+	return int(ceil(value));
 }
 /*!
     The same as qFloor, but avoids including qmath.h
@@ -421,9 +423,57 @@ inline int qwtCeil(qreal value)
 inline int qwtFloor(qreal value)
 {
 	using std::floor;
-    return int(floor(value));
+	return int(floor(value));
 }
 
+/**
+ * @brief 验证并调整数组索引范围
+ *
+ * 确保给定的索引范围在有效范围内，并返回实际有效的元素个数。
+ * 该函数会自动修正无效的索引值，确保i1 <= i2。
+ *
+ * 这个函数通常用于数组或容器的范围检查，确保访问不会越界
+ *
+ * @param size 数组的总大小
+ * @param i1 起始索引（会被修正到有效范围内）
+ * @param i2 结束索引（会被修正到有效范围内）
+ * @return 返回有效范围内的元素个数，如果数组大小无效则返回0
+ *
+ * @details 处理逻辑如下：
+ * 1. 如果数组大小小于1，直接返回0
+ * 2. 使用qBound将i1和i2限制在[0, size-1]范围内
+ * 3. 如果i1 > i2，则交换两个值确保i1 <= i2
+ * 4. 返回范围内的元素个数(i2 - i1 + 1)
+ *
+ *
+ *
+ */
+inline int qwtVerifyRange(int size, int& i1, int& i2)
+{
+	if (size < 1)
+		return 0;
+
+	i1 = qBound(0, i1, size - 1);
+	i2 = qBound(0, i2, size - 1);
+
+	if (i1 > i2)
+		qSwap(i1, i2);
+
+	return (i2 - i1 + 1);
+}
+
+/**
+ * @brief 求距离
+ * @param p1
+ * @param p2
+ * @return
+ */
+inline double qwtDistance(const QPointF& p1, const QPointF& p2)
+{
+	double dx = p2.x() - p1.x();
+	double dy = p2.y() - p1.y();
+	return qSqrt(dx * dx + dy * dy);
+}
 #endif
 
 /*** End of inlined file: qwt_math.h ***/
@@ -3351,7 +3401,7 @@ class QWT_EXPORT QwtMatrixRasterData : public QwtRasterData
 public:
 	/*!
 	   \brief Resampling algorithm
-       The default setting is NearestNeighbour;
+	   The default setting is NearestNeighbour;
 	 */
 	enum ResampleMode
 	{
@@ -3980,6 +4030,63 @@ private:
 
 /*** End of inlined file: qwt_null_paintdevice.h ***/
 
+/*** Start of inlined file: qwt_stylesheet_recorder.h ***/
+#ifndef QWTSTYLESHEETRECORDER_H
+#define QWTSTYLESHEETRECORDER_H
+
+#include <QList>
+#include <QVector>
+#include <QRectF>
+#include <QRectF>
+#include <QPainterPath>
+#include <QBrush>
+#include <QPointF>
+
+class QWT_EXPORT QwtStyleSheetRecorder QWT_FINAL : public QwtNullPaintDevice
+{
+public:
+	explicit QwtStyleSheetRecorder(const QSize& size);
+	virtual void updateState(const QPaintEngineState& state) QWT_OVERRIDE;
+	virtual void drawRects(const QRectF* rects, int count) QWT_OVERRIDE;
+	virtual void drawRects(const QRect* rects, int count) QWT_OVERRIDE;
+	virtual void drawPath(const QPainterPath& path) QWT_OVERRIDE;
+	void setCornerRects(const QPainterPath& path);
+
+protected:
+	virtual QSize sizeMetrics() const QWT_OVERRIDE;
+
+private:
+	void alignCornerRects(const QRectF& rect);
+
+public:
+	QVector< QRectF > clipRects;
+
+	struct Border
+	{
+		QList< QPainterPath > pathList;
+		QList< QRectF > rectList;
+		QRegion clipRegion;
+	} border;
+
+	struct Background
+	{
+		QPainterPath path;
+		QBrush brush;
+		QPointF origin;
+	} background;
+
+private:
+	const QSize m_size;
+
+	QPen m_pen;
+	QBrush m_brush;
+	QPointF m_origin;
+};
+
+#endif  // QWTSTYLESHEETRECORDER_H
+
+/*** End of inlined file: qwt_stylesheet_recorder.h ***/
+
 /*** Start of inlined file: qwt_painter_command.h ***/
 #ifndef QWT_PAINTER_COMMAND_H
 #define QWT_PAINTER_COMMAND_H
@@ -4580,59 +4687,59 @@ class QPainterPath;
 class QWT_EXPORT QwtPainter
 {
 public:
-    static void setPolylineSplitting(bool);
+	static void setPolylineSplitting(bool);
 	static bool polylineSplitting();
 
-    static void setRoundingAlignment(bool);
+	static void setRoundingAlignment(bool);
 	static bool roundingAlignment();
-    static bool roundingAlignment(const QPainter*);
+	static bool roundingAlignment(const QPainter*);
 
-    static void drawText(QPainter*, qreal x, qreal y, const QString&);
-    static void drawText(QPainter*, const QPointF&, const QString&);
-    static void drawText(QPainter*, qreal x, qreal y, qreal w, qreal h, int flags, const QString&);
-    static void drawText(QPainter*, const QRectF&, int flags, const QString&);
+	static void drawText(QPainter*, qreal x, qreal y, const QString&);
+	static void drawText(QPainter*, const QPointF&, const QString&);
+	static void drawText(QPainter*, qreal x, qreal y, qreal w, qreal h, int flags, const QString&);
+	static void drawText(QPainter*, const QRectF&, int flags, const QString&);
 
 #ifndef QT_NO_RICHTEXT
-    static void drawSimpleRichText(QPainter*, const QRectF&, int flags, const QTextDocument&);
+	static void drawSimpleRichText(QPainter*, const QRectF&, int flags, const QTextDocument&);
 #endif
 
-    static void drawRect(QPainter*, qreal x, qreal y, qreal w, qreal h);
-    static void drawRect(QPainter*, const QRectF& rect);
-    static void fillRect(QPainter*, const QRectF&, const QBrush&);
+	static void drawRect(QPainter*, qreal x, qreal y, qreal w, qreal h);
+	static void drawRect(QPainter*, const QRectF& rect);
+	static void fillRect(QPainter*, const QRectF&, const QBrush&);
 
-    static void drawEllipse(QPainter*, const QRectF&);
-    static void drawPie(QPainter*, const QRectF& r, int a, int alen);
+	static void drawEllipse(QPainter*, const QRectF&);
+	static void drawPie(QPainter*, const QRectF& r, int a, int alen);
 
-    static void drawLine(QPainter*, qreal x1, qreal y1, qreal x2, qreal y2);
-    static void drawLine(QPainter*, const QPointF& p1, const QPointF& p2);
-    static void drawLine(QPainter*, const QLineF&);
+	static void drawLine(QPainter*, qreal x1, qreal y1, qreal x2, qreal y2);
+	static void drawLine(QPainter*, const QPointF& p1, const QPointF& p2);
+	static void drawLine(QPainter*, const QLineF&);
 
-    static void drawPolygon(QPainter*, const QPolygonF&);
-    static void drawPolyline(QPainter*, const QPolygonF&);
-    static void drawPolyline(QPainter*, const QPointF*, int pointCount);
+	static void drawPolygon(QPainter*, const QPolygonF&);
+	static void drawPolyline(QPainter*, const QPolygonF&);
+	static void drawPolyline(QPainter*, const QPointF*, int pointCount);
 
-    static void drawPolygon(QPainter*, const QPolygon&);
-    static void drawPolyline(QPainter*, const QPolygon&);
-    static void drawPolyline(QPainter*, const QPoint*, int pointCount);
+	static void drawPolygon(QPainter*, const QPolygon&);
+	static void drawPolyline(QPainter*, const QPolygon&);
+	static void drawPolyline(QPainter*, const QPoint*, int pointCount);
 
-    static void drawPoint(QPainter*, const QPoint&);
-    static void drawPoints(QPainter*, const QPolygon&);
-    static void drawPoints(QPainter*, const QPoint*, int pointCount);
+	static void drawPoint(QPainter*, const QPoint&);
+	static void drawPoints(QPainter*, const QPolygon&);
+	static void drawPoints(QPainter*, const QPoint*, int pointCount);
 
-    static void drawPoint(QPainter*, qreal x, qreal y);
-    static void drawPoint(QPainter*, const QPointF&);
-    static void drawPoints(QPainter*, const QPolygonF&);
-    static void drawPoints(QPainter*, const QPointF*, int pointCount);
+	static void drawPoint(QPainter*, qreal x, qreal y);
+	static void drawPoint(QPainter*, const QPointF&);
+	static void drawPoints(QPainter*, const QPolygonF&);
+	static void drawPoints(QPainter*, const QPointF*, int pointCount);
 
-    static void drawPath(QPainter*, const QPainterPath&);
-    static void drawImage(QPainter*, const QRectF&, const QImage&);
-    static void drawPixmap(QPainter*, const QRectF&, const QPixmap&);
+	static void drawPath(QPainter*, const QPainterPath&);
+	static void drawImage(QPainter*, const QRectF&, const QImage&);
+	static void drawPixmap(QPainter*, const QRectF&, const QPixmap&);
 
-    static void drawRoundFrame(QPainter*, const QRectF&, const QPalette&, int lineWidth, int frameStyle);
+	static void drawRoundFrame(QPainter*, const QRectF&, const QPalette&, int lineWidth, int frameStyle);
 
-    static void drawRoundedFrame(QPainter*, const QRectF&, qreal xRadius, qreal yRadius, const QPalette&, int lineWidth, int frameStyle);
+	static void drawRoundedFrame(QPainter*, const QRectF&, qreal xRadius, qreal yRadius, const QPalette&, int lineWidth, int frameStyle);
 
-    static void drawFrame(QPainter*,
+	static void drawFrame(QPainter*,
                           const QRectF& rect,
                           const QPalette& palette,
                           QPalette::ColorRole foregroundRole,
@@ -4640,30 +4747,39 @@ public:
                           int midLineWidth,
                           int frameStyle);
 
-    static void drawFocusRect(QPainter*, const QWidget*);
-    static void drawFocusRect(QPainter*, const QWidget*, const QRect&);
+	static void drawFocusRect(QPainter*, const QWidget*);
+	static void drawFocusRect(QPainter*, const QWidget*, const QRect&);
 
-    static void drawColorBar(QPainter*, const QwtColorMap&, const QwtInterval&, const QwtScaleMap&, Qt::Orientation, const QRectF&);
+	static void drawColorBar(QPainter*, const QwtColorMap&, const QwtInterval&, const QwtScaleMap&, Qt::Orientation, const QRectF&);
 
-    static bool isAligning(const QPainter*);
+	static bool isAligning(const QPainter*);
 	static bool isX11GraphicsSystem();
 
-    static void fillPixmap(const QWidget*, QPixmap&, const QPoint& offset = QPoint());
+	static void fillPixmap(const QWidget*, QPixmap&, const QPoint& offset = QPoint());
+	static void fillRegion(QPainter* painter, const QRegion& region);
+	static void fillBackground(QPainter* painter, QWidget* widget, const QVector< QRectF >& fillRects);
+	static void fillBackground(QPainter* painter, QWidget* canvas);
 
-    static void drawBackgound(QPainter*, const QRectF&, const QWidget*);
+	static void drawBackgound(QPainter*, const QRectF&, const QWidget*);
+	// 绘制widget的背景
+	static void drawCanvasBackgound(QPainter* painter, QWidget* canvas);
 
-    static QPixmap backingStore(QWidget*, const QSize&);
-    static qreal devicePixelRatio(const QPaintDevice*);
+	static void drawStyledBackground(QWidget* w, QPainter* painter);
 
-    static qreal effectivePenWidth(const QPen&);
+	static QPixmap backingStore(QWidget*, const QSize&);
+	static qreal devicePixelRatio(const QPaintDevice*);
 
-    static int horizontalAdvance(const QFontMetrics&, const QString&);
-    static qreal horizontalAdvance(const QFontMetricsF&, const QString&);
+	static qreal effectivePenWidth(const QPen&);
 
-    static int horizontalAdvance(const QFontMetrics&, QChar);
-    static qreal horizontalAdvance(const QFontMetricsF&, QChar);
+	static int horizontalAdvance(const QFontMetrics&, const QString&);
+	static qreal horizontalAdvance(const QFontMetricsF&, const QString&);
 
-    static QFont scaledFont(const QFont&, const QPaintDevice* = nullptr);
+	static int horizontalAdvance(const QFontMetrics&, QChar);
+	static qreal horizontalAdvance(const QFontMetricsF&, QChar);
+
+	static QFont scaledFont(const QFont&, const QPaintDevice* = nullptr);
+
+	static QWidget* findBackgroundWidget(QWidget* w);
 
 private:
 	static bool m_polylineSplitting;
@@ -4673,31 +4789,31 @@ private:
 //!  Wrapper for QPainter::drawPoint()
 inline void QwtPainter::drawPoint(QPainter* painter, qreal x, qreal y)
 {
-    QwtPainter::drawPoint(painter, QPointF(x, y));
+	QwtPainter::drawPoint(painter, QPointF(x, y));
 }
 
 //! Wrapper for QPainter::drawPoints()
 inline void QwtPainter::drawPoints(QPainter* painter, const QPolygon& polygon)
 {
-    drawPoints(painter, polygon.data(), polygon.size());
+	drawPoints(painter, polygon.data(), polygon.size());
 }
 
 //! Wrapper for QPainter::drawPoints()
 inline void QwtPainter::drawPoints(QPainter* painter, const QPolygonF& polygon)
 {
-    drawPoints(painter, polygon.data(), polygon.size());
+	drawPoints(painter, polygon.data(), polygon.size());
 }
 
 //!  Wrapper for QPainter::drawLine()
 inline void QwtPainter::drawLine(QPainter* painter, qreal x1, qreal y1, qreal x2, qreal y2)
 {
-    QwtPainter::drawLine(painter, QPointF(x1, y1), QPointF(x2, y2));
+	QwtPainter::drawLine(painter, QPointF(x1, y1), QPointF(x2, y2));
 }
 
 //!  Wrapper for QPainter::drawLine()
 inline void QwtPainter::drawLine(QPainter* painter, const QLineF& line)
 {
-    QwtPainter::drawLine(painter, line.p1(), line.p2());
+	QwtPainter::drawLine(painter, line.p1(), line.p2());
 }
 
 /*!
@@ -4738,7 +4854,7 @@ inline bool QwtPainter::roundingAlignment(const QPainter* painter)
 inline qreal QwtPainter::effectivePenWidth(const QPen& pen)
 {
 	const qreal width = pen.widthF();
-    return (width < 1.0) ? 1.0 : width;
+	return (width < 1.0) ? 1.0 : width;
 }
 
 #endif
@@ -10671,7 +10787,14 @@ public:
 #define QWT_PICKER
 
 #include <qobject.h>
-
+#include <QPen>
+#include <QFont>
+#include <QPainterPath>
+#include <QPoint>
+#include <QPolygon>
+#include <QSize>
+#include <QRect>
+#include <QRegion>
 class QwtPickerMachine;
 class QwtWidgetOverlay;
 class QwtText;
@@ -10680,14 +10803,6 @@ class QMouseEvent;
 class QWheelEvent;
 class QKeyEvent;
 class QPainter;
-class QPen;
-class QFont;
-class QRegion;
-class QPainterPath;
-class QPoint;
-class QRect;
-class QSize;
-class QPolygon;
 
 /*!
    \brief QwtPicker provides selections on a widget
@@ -10759,17 +10874,17 @@ class QWT_EXPORT QwtPicker : public QObject, public QwtEventPattern
 {
 	Q_OBJECT
 
-    Q_ENUMS(RubberBand DisplayMode ResizeMode)
+	Q_ENUMS(RubberBand DisplayMode ResizeMode)
 
-    Q_PROPERTY(bool isEnabled READ isEnabled WRITE setEnabled)
-    Q_PROPERTY(ResizeMode resizeMode READ resizeMode WRITE setResizeMode)
+	Q_PROPERTY(bool isEnabled READ isEnabled WRITE setEnabled)
+	Q_PROPERTY(ResizeMode resizeMode READ resizeMode WRITE setResizeMode)
 
-    Q_PROPERTY(DisplayMode trackerMode READ trackerMode WRITE setTrackerMode)
-    Q_PROPERTY(QPen trackerPen READ trackerPen WRITE setTrackerPen)
-    Q_PROPERTY(QFont trackerFont READ trackerFont WRITE setTrackerFont)
+	Q_PROPERTY(DisplayMode trackerMode READ trackerMode WRITE setTrackerMode)
+	Q_PROPERTY(QPen trackerPen READ trackerPen WRITE setTrackerPen)
+	Q_PROPERTY(QFont trackerFont READ trackerFont WRITE setTrackerFont)
 
-    Q_PROPERTY(RubberBand rubberBand READ rubberBand WRITE setRubberBand)
-    Q_PROPERTY(QPen rubberBandPen READ rubberBandPen WRITE setRubberBandPen)
+	Q_PROPERTY(RubberBand rubberBand READ rubberBand WRITE setRubberBand)
+	Q_PROPERTY(QPen rubberBandPen READ rubberBandPen WRITE setRubberBandPen)
 
 public:
 	/*!
@@ -10842,57 +10957,57 @@ public:
 		KeepSize
 	};
 
-    explicit QwtPicker(QWidget* parent);
-    explicit QwtPicker(RubberBand rubberBand, DisplayMode trackerMode, QWidget*);
+	explicit QwtPicker(QWidget* parent);
+	explicit QwtPicker(RubberBand rubberBand, DisplayMode trackerMode, QWidget*);
 
 	virtual ~QwtPicker();
 
-    void setStateMachine(QwtPickerMachine*);
+	void setStateMachine(QwtPickerMachine*);
 	const QwtPickerMachine* stateMachine() const;
 	QwtPickerMachine* stateMachine();
 
-    void setRubberBand(RubberBand);
+	void setRubberBand(RubberBand);
 	RubberBand rubberBand() const;
 
-    void setTrackerMode(DisplayMode);
+	void setTrackerMode(DisplayMode);
 	DisplayMode trackerMode() const;
 
-    void setResizeMode(ResizeMode);
+	void setResizeMode(ResizeMode);
 	ResizeMode resizeMode() const;
 
-    void setRubberBandPen(const QPen&);
+	void setRubberBandPen(const QPen&);
 	QPen rubberBandPen() const;
 
-    void setTrackerPen(const QPen&);
+	void setTrackerPen(const QPen&);
 	QPen trackerPen() const;
 
-    void setTrackerFont(const QFont&);
+	void setTrackerFont(const QFont&);
 	QFont trackerFont() const;
 
 	bool isEnabled() const;
 	bool isActive() const;
 
-    virtual bool eventFilter(QObject*, QEvent*) QWT_OVERRIDE;
+	virtual bool eventFilter(QObject*, QEvent*) QWT_OVERRIDE;
 
 	QWidget* parentWidget();
 	const QWidget* parentWidget() const;
 
 	virtual QPainterPath pickArea() const;
 
-    virtual void drawRubberBand(QPainter*) const;
-    virtual void drawTracker(QPainter*) const;
+	virtual void drawRubberBand(QPainter*) const;
+	virtual void drawTracker(QPainter*) const;
 
 	virtual QRegion trackerMask() const;
 	virtual QRegion rubberBandMask() const;
 
-    virtual QwtText trackerText(const QPoint& pos) const;
+	virtual QwtText trackerText(const QPoint& pos) const;
 	QPoint trackerPosition() const;
-    virtual QRect trackerRect(const QFont&) const;
+	virtual QRect trackerRect(const QFont&) const;
 
 	QPolygon selection() const;
 
 public Q_SLOTS:
-    void setEnabled(bool);
+	void setEnabled(bool);
 
 Q_SIGNALS:
 	/*!
@@ -10902,7 +11017,7 @@ Q_SIGNALS:
 
 	   \param on True, when the picker has been activated
 	 */
-    void activated(bool on);
+	void activated(bool on);
 
 	/*!
 	   A signal emitting the selected points,
@@ -10910,7 +11025,7 @@ Q_SIGNALS:
 
 	   \param polygon Selected points
 	 */
-    void selected(const QPolygon& polygon);
+	void selected(const QPolygon& polygon);
 
 	/*!
 	   A signal emitted when a point has been appended to the selection
@@ -10918,7 +11033,7 @@ Q_SIGNALS:
 	   \param pos Position of the appended point.
 	   \sa append(). moved()
 	 */
-    void appended(const QPoint& pos);
+	void appended(const QPoint& pos);
 
 	/*!
 	   A signal emitted whenever the last appended point of the
@@ -10927,7 +11042,7 @@ Q_SIGNALS:
 	   \param pos Position of the moved last point of the selection.
 	   \sa move(), appended()
 	 */
-    void moved(const QPoint& pos);
+	void moved(const QPoint& pos);
 
 	/*!
 	   A signal emitted whenever the last appended point of the
@@ -10936,7 +11051,7 @@ Q_SIGNALS:
 	   \param pos Position of the point, that has been removed
 	   \sa remove(), appended()
 	 */
-    void removed(const QPoint& pos);
+	void removed(const QPoint& pos);
 	/*!
 	   A signal emitted when the active selection has been changed.
 	   This might happen when the observed widget is resized.
@@ -10944,33 +11059,33 @@ Q_SIGNALS:
 	   \param selection Changed selection
 	   \sa stretchSelection()
 	 */
-    void changed(const QPolygon& selection);
+	void changed(const QPolygon& selection);
 
 protected:
-    virtual QPolygon adjustedPoints(const QPolygon&) const;
+	virtual QPolygon adjustedPoints(const QPolygon&) const;
 
-    virtual void transition(const QEvent*);
+	virtual void transition(const QEvent*);
 
 	virtual void begin();
-    virtual void append(const QPoint&);
-    virtual void move(const QPoint&);
+	virtual void append(const QPoint&);
+	virtual void move(const QPoint&);
 	virtual void remove();
-    virtual bool end(bool ok = true);
+	virtual bool end(bool ok = true);
 
-    virtual bool accept(QPolygon&) const;
+	virtual bool accept(QPolygon&) const;
 	virtual void reset();
 
-    virtual void widgetMousePressEvent(QMouseEvent*);
-    virtual void widgetMouseReleaseEvent(QMouseEvent*);
-    virtual void widgetMouseDoubleClickEvent(QMouseEvent*);
-    virtual void widgetMouseMoveEvent(QMouseEvent*);
-    virtual void widgetWheelEvent(QWheelEvent*);
-    virtual void widgetKeyPressEvent(QKeyEvent*);
-    virtual void widgetKeyReleaseEvent(QKeyEvent*);
-    virtual void widgetEnterEvent(QEvent*);
-    virtual void widgetLeaveEvent(QEvent*);
+	virtual void widgetMousePressEvent(QMouseEvent*);
+	virtual void widgetMouseReleaseEvent(QMouseEvent*);
+	virtual void widgetMouseDoubleClickEvent(QMouseEvent*);
+	virtual void widgetMouseMoveEvent(QMouseEvent*);
+	virtual void widgetWheelEvent(QWheelEvent*);
+	virtual void widgetKeyPressEvent(QKeyEvent*);
+	virtual void widgetKeyReleaseEvent(QKeyEvent*);
+	virtual void widgetEnterEvent(QEvent*);
+	virtual void widgetLeaveEvent(QEvent*);
 
-    virtual void stretchSelection(const QSize& oldSize, const QSize& newSize);
+	virtual void stretchSelection(const QSize& oldSize, const QSize& newSize);
 
 	virtual void updateDisplay();
 
@@ -10980,9 +11095,9 @@ protected:
 	const QPolygon& pickedPoints() const;
 
 private:
-    void init(QWidget*, RubberBand rubberBand, DisplayMode trackerMode);
+	void init(QWidget*, RubberBand rubberBand, DisplayMode trackerMode);
 
-    void setMouseTracking(bool);
+	void setMouseTracking(bool);
 
 	class PrivateData;
 	PrivateData* m_data;
@@ -13318,7 +13433,7 @@ public:
     virtual QwtGraphic legendIcon(int index, const QSizeF&) const QWT_OVERRIDE;
 
 protected:
-    void init();
+	void init();
 
     virtual void drawTube(QPainter*,
                           const QwtScaleMap& xMap,
@@ -13500,7 +13615,7 @@ protected:
     virtual void drawLabel(QPainter*, const QRectF&, const QPointF&) const;
 
 private:
-	class PrivateData;
+    class PrivateData;
 	PrivateData* m_data;
 };
 
@@ -15312,7 +15427,7 @@ public:
     virtual QwtGraphic legendIcon(int index, const QSizeF&) const QWT_OVERRIDE;
 
 protected:
-    void init();
+	void init();
 
     virtual void drawCurve(QPainter*,
                            int style,

@@ -3808,8 +3808,8 @@ double QwtMatrixRasterData::value(double x, double y) const
             col = m_data->numColumns - 1;
 
         value = m_data->value(row, col);
-    }
 	}
+    }
 
 	return value;
 }
@@ -5785,6 +5785,113 @@ void QwtNullPaintDevice::updateState(const QPaintEngineState& state)
 
 /*** End of inlined file: qwt_null_paintdevice.cpp ***/
 
+/*** Start of inlined file: qwt_stylesheet_recorder.cpp ***/
+QwtStyleSheetRecorder::QwtStyleSheetRecorder(const QSize& size) : QwtNullPaintDevice(), m_size(size)
+{
+}
+void QwtStyleSheetRecorder::updateState(const QPaintEngineState& state)
+{
+	if (state.state() & QPaintEngine::DirtyPen) {
+		m_pen = state.pen();
+	}
+	if (state.state() & QPaintEngine::DirtyBrush) {
+		m_brush = state.brush();
+	}
+	if (state.state() & QPaintEngine::DirtyBrushOrigin) {
+		m_origin = state.brushOrigin();
+	}
+}
+
+void QwtStyleSheetRecorder::drawRects(const QRectF* rects, int count)
+{
+	for (int i = 0; i < count; i++)
+		border.rectList += rects[ i ];
+}
+
+void QwtStyleSheetRecorder::drawRects(const QRect* rects, int count)
+{
+	for (int i = 0; i < count; i++) {
+		this->border.rectList += rects[ i ];
+	}
+}
+
+void QwtStyleSheetRecorder::drawPath(const QPainterPath& path)
+{
+	const QRectF rect(QPointF(0.0, 0.0), m_size);
+	if (path.controlPointRect().contains(rect.center())) {
+		setCornerRects(path);
+		alignCornerRects(rect);
+
+		background.path   = path;
+		background.brush  = m_brush;
+		background.origin = m_origin;
+	} else {
+		border.pathList += path;
+	}
+}
+
+void QwtStyleSheetRecorder::setCornerRects(const QPainterPath& path)
+{
+	QPointF pos(0.0, 0.0);
+
+	for (int i = 0; i < path.elementCount(); i++) {
+		QPainterPath::Element el = path.elementAt(i);
+		switch (el.type) {
+		case QPainterPath::MoveToElement:
+		case QPainterPath::LineToElement: {
+			pos.setX(el.x);
+			pos.setY(el.y);
+			break;
+		}
+		case QPainterPath::CurveToElement: {
+			QRectF r(pos, QPointF(el.x, el.y));
+			clipRects += r.normalized();
+
+			pos.setX(el.x);
+			pos.setY(el.y);
+
+			break;
+		}
+		case QPainterPath::CurveToDataElement: {
+			if (clipRects.size() > 0) {
+				QRectF r = clipRects.last();
+				r.setCoords(qwtMinF(r.left(), el.x),
+                            qwtMinF(r.top(), el.y),
+                            qwtMaxF(r.right(), el.x),
+                            qwtMaxF(r.bottom(), el.y));
+				clipRects.last() = r.normalized();
+			}
+			break;
+		}
+		}
+	}
+}
+
+QSize QwtStyleSheetRecorder::sizeMetrics() const
+{
+	return m_size;
+}
+
+void QwtStyleSheetRecorder::alignCornerRects(const QRectF& rect)
+{
+	for (int i = 0; i < clipRects.size(); i++) {
+		QRectF& r = clipRects[ i ];
+		if (r.center().x() < rect.center().x()) {
+			r.setLeft(rect.left());
+		} else {
+			r.setRight(rect.right());
+		}
+
+		if (r.center().y() < rect.center().y()) {
+			r.setTop(rect.top());
+		} else {
+			r.setBottom(rect.bottom());
+		}
+	}
+}
+
+/*** End of inlined file: qwt_stylesheet_recorder.cpp ***/
+
 /*** Start of inlined file: qwt_painter_command.cpp ***/
 //! Construct an invalid command
 QwtPainterCommand::QwtPainterCommand() : m_type(Invalid)
@@ -7376,14 +7483,14 @@ static inline bool qwtIsRasterPaintEngineBuggy()
 
 static inline bool qwtIsClippingNeeded(const QPainter* painter, QRectF& clipRect)
 {
-    bool doClipping        = false;
+	bool doClipping        = false;
 	const QPaintEngine* pe = painter->paintEngine();
-    if (pe && pe->type() == QPaintEngine::SVG) {
+	if (pe && pe->type() == QPaintEngine::SVG) {
 		// The SVG paint engine ignores any clipping,
 
-        if (painter->hasClipping()) {
+		if (painter->hasClipping()) {
 			doClipping = true;
-            clipRect   = painter->clipRegion().boundingRect();
+			clipRect   = painter->clipRegion().boundingRect();
 		}
 	}
 
@@ -7394,15 +7501,15 @@ template< class T >
 static inline void qwtDrawPolyline(QPainter* painter, const T* points, int pointCount, bool polylineSplitting)
 {
 	bool doSplit = false;
-    if (polylineSplitting && pointCount > 3) {
+	if (polylineSplitting && pointCount > 3) {
 		const QPaintEngine* pe = painter->paintEngine();
-        if (pe && pe->type() == QPaintEngine::Raster) {
-            if (painter->pen().width() <= 1) {
+		if (pe && pe->type() == QPaintEngine::Raster) {
+			if (painter->pen().width() <= 1) {
 				// work around a bug with short lines below 2 pixels difference
 				// in height and width
 
 				doSplit = qwtIsRasterPaintEngineBuggy();
-            } else {
+			} else {
 				/*
 				   Raster paint engine is much faster when splitting
 				   the polygon, but of course we might see some issues where
@@ -7413,57 +7520,57 @@ static inline void qwtDrawPolyline(QPainter* painter, const T* points, int point
 		}
 	}
 
-    if (doSplit) {
+	if (doSplit) {
 		QPen pen = painter->pen();
 
 		const int splitSize = 6;
 
-        if (pen.width() <= 1 && pen.isSolid() && qwtIsRasterPaintEngineBuggy()
+		if (pen.width() <= 1 && pen.isSolid() && qwtIsRasterPaintEngineBuggy()
             && !(painter->renderHints() & QPainter::Antialiasing)) {
 			int k = 0;
 
-            for (int i = k + 1; i < pointCount; i++) {
-                const QPointF& p1 = points[ i - 1 ];
-                const QPointF& p2 = points[ i ];
+			for (int i = k + 1; i < pointCount; i++) {
+				const QPointF& p1 = points[ i - 1 ];
+				const QPointF& p2 = points[ i ];
 
-                const bool isBad = (qAbs(p2.y() - p1.y()) <= 1) && qAbs(p2.x() - p1.x()) <= 1;
+				const bool isBad = (qAbs(p2.y() - p1.y()) <= 1) && qAbs(p2.x() - p1.x()) <= 1;
 
-                if (isBad || (i - k >= splitSize)) {
-                    painter->drawPolyline(points + k, i - k + 1);
+				if (isBad || (i - k >= splitSize)) {
+					painter->drawPolyline(points + k, i - k + 1);
 					k = i;
 				}
 			}
 
-            painter->drawPolyline(points + k, pointCount - k);
-        } else {
-            for (int i = 0; i < pointCount; i += splitSize) {
-                const int n = qMin(splitSize + 1, pointCount - i);
-                painter->drawPolyline(points + i, n);
+			painter->drawPolyline(points + k, pointCount - k);
+		} else {
+			for (int i = 0; i < pointCount; i += splitSize) {
+				const int n = qMin(splitSize + 1, pointCount - i);
+				painter->drawPolyline(points + i, n);
 			}
 		}
-    } else {
-        painter->drawPolyline(points, pointCount);
+	} else {
+		painter->drawPolyline(points, pointCount);
 	}
 }
 
 static inline QSize qwtScreenResolution()
 {
 	static QSize screenResolution;
-    if (!screenResolution.isValid()) {
+	if (!screenResolution.isValid()) {
 		/*
             We might have screens with different resolutions. TODO ...
 		 */
 #if QT_VERSION >= 0x060000
 		QScreen* screen = QGuiApplication::primaryScreen();
-        if (screen) {
-            screenResolution.setWidth(screen->logicalDotsPerInchX());
-            screenResolution.setHeight(screen->logicalDotsPerInchY());
+		if (screen) {
+			screenResolution.setWidth(screen->logicalDotsPerInchX());
+			screenResolution.setHeight(screen->logicalDotsPerInchY());
 		}
 #else
 		QDesktopWidget* desktop = QApplication::desktop();
-        if (desktop) {
-            screenResolution.setWidth(desktop->logicalDpiX());
-            screenResolution.setHeight(desktop->logicalDpiY());
+		if (desktop) {
+			screenResolution.setWidth(desktop->logicalDpiX());
+			screenResolution.setHeight(desktop->logicalDpiY());
 		}
 #endif
 	}
@@ -7473,17 +7580,17 @@ static inline QSize qwtScreenResolution()
 
 static inline void qwtUnscaleFont(QPainter* painter)
 {
-    if (painter->font().pixelSize() >= 0)
+	if (painter->font().pixelSize() >= 0)
 		return;
 
 	const QSize screenResolution = qwtScreenResolution();
 
 	const QPaintDevice* pd = painter->device();
-    if (pd->logicalDpiX() != screenResolution.width() || pd->logicalDpiY() != screenResolution.height()) {
-        QFont pixelFont = QwtPainter::scaledFont(painter->font());
-        pixelFont.setPixelSize(QFontInfo(pixelFont).pixelSize());
+	if (pd->logicalDpiX() != screenResolution.width() || pd->logicalDpiY() != screenResolution.height()) {
+		QFont pixelFont = QwtPainter::scaledFont(painter->font());
+		pixelFont.setPixelSize(QFontInfo(pixelFont).pixelSize());
 
-        painter->setFont(pixelFont);
+		painter->setFont(pixelFont);
 	}
 }
 
@@ -7503,11 +7610,11 @@ bool QwtPainter::isX11GraphicsSystem()
 	 */
 
 	static int onX11 = -1;
-    if (onX11 < 0) {
-        QPixmap pm(1, 1);
-        QPainter painter(&pm);
+	if (onX11 < 0) {
+		QPixmap pm(1, 1);
+		QPainter painter(&pm);
 
-        onX11 = (painter.paintEngine()->type() == QPaintEngine::X11) ? 1 : 0;
+		onX11 = (painter.paintEngine()->type() == QPaintEngine::X11) ? 1 : 0;
 	}
 
 	return onX11 == 1;
@@ -7529,28 +7636,28 @@ bool QwtPainter::isX11GraphicsSystem()
  */
 bool QwtPainter::isAligning(const QPainter* painter)
 {
-    if (painter && painter->isActive()) {
-        const QPaintEngine::Type type = painter->paintEngine()->type();
+	if (painter && painter->isActive()) {
+		const QPaintEngine::Type type = painter->paintEngine()->type();
 
-        if (type >= QPaintEngine::User) {
+		if (type >= QPaintEngine::User) {
 			// we have no idea - better don't align
 			return false;
 		}
 
-        switch (type) {
-        case QPaintEngine::Pdf:
-        case QPaintEngine::SVG:
+		switch (type) {
+		case QPaintEngine::Pdf:
+		case QPaintEngine::SVG:
 #if 0
 			case QPaintEngine::MacPrinter:
 #endif
-            return false;
+			return false;
 
-        default:
-            break;
+		default:
+			break;
 		}
 
 		const QTransform& tr = painter->transform();
-        if (tr.isRotating() || tr.isScaling()) {
+		if (tr.isRotating() || tr.isScaling()) {
 			// we might have to check translations too
 			return false;
 		}
@@ -7598,13 +7705,13 @@ void QwtPainter::setPolylineSplitting(bool enable)
 //! Wrapper for QPainter::drawPath()
 void QwtPainter::drawPath(QPainter* painter, const QPainterPath& path)
 {
-    painter->drawPath(path);
+	painter->drawPath(path);
 }
 
 //! Wrapper for QPainter::drawRect()
 void QwtPainter::drawRect(QPainter* painter, qreal x, qreal y, qreal w, qreal h)
 {
-    drawRect(painter, QRectF(x, y, w, h));
+	drawRect(painter, QRectF(x, y, w, h));
 }
 
 //! Wrapper for QPainter::drawRect()
@@ -7613,35 +7720,35 @@ void QwtPainter::drawRect(QPainter* painter, const QRectF& rect)
 	const QRectF r = rect;
 
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping) {
-        if (!clipRect.intersects(r))
+	if (deviceClipping) {
+		if (!clipRect.intersects(r))
 			return;
 
-        if (!clipRect.contains(r)) {
-            fillRect(painter, r & clipRect, painter->brush());
+		if (!clipRect.contains(r)) {
+			fillRect(painter, r & clipRect, painter->brush());
 
 			painter->save();
-            painter->setBrush(Qt::NoBrush);
-            drawPolyline(painter, QPolygonF(r));
+			painter->setBrush(Qt::NoBrush);
+			drawPolyline(painter, QPolygonF(r));
 			painter->restore();
 
 			return;
 		}
 	}
 
-    painter->drawRect(r);
+	painter->drawRect(r);
 }
 
 //! Wrapper for QPainter::fillRect()
 void QwtPainter::fillRect(QPainter* painter, const QRectF& rect, const QBrush& brush)
 {
-    if (!rect.isValid())
+	if (!rect.isValid())
 		return;
 
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
 	/*
 	   Performance of Qt4 is horrible for a non trivial brush. Without
@@ -7649,78 +7756,78 @@ void QwtPainter::fillRect(QPainter* painter, const QRectF& rect, const QBrush& b
 	   (might result from zooming)
 	 */
 
-    if (deviceClipping)
+	if (deviceClipping)
 		clipRect &= painter->window();
 	else
 		clipRect = painter->window();
 
-    if (painter->hasClipping())
+	if (painter->hasClipping())
 		clipRect &= painter->clipRegion().boundingRect();
 
 	QRectF r = rect;
-    if (deviceClipping)
-        r = r.intersected(clipRect);
+	if (deviceClipping)
+		r = r.intersected(clipRect);
 
-    if (r.isValid())
-        painter->fillRect(r, brush);
+	if (r.isValid())
+		painter->fillRect(r, brush);
 }
 
 //! Wrapper for QPainter::drawPie()
 void QwtPainter::drawPie(QPainter* painter, const QRectF& rect, int a, int alen)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
-    if (deviceClipping && !clipRect.contains(rect))
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	if (deviceClipping && !clipRect.contains(rect))
 		return;
 
-    painter->drawPie(rect, a, alen);
+	painter->drawPie(rect, a, alen);
 }
 
 //! Wrapper for QPainter::drawEllipse()
 void QwtPainter::drawEllipse(QPainter* painter, const QRectF& rect)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping && !clipRect.contains(rect))
+	if (deviceClipping && !clipRect.contains(rect))
 		return;
 
-    painter->drawEllipse(rect);
+	painter->drawEllipse(rect);
 }
 
 //! Wrapper for QPainter::drawText()
 void QwtPainter::drawText(QPainter* painter, qreal x, qreal y, const QString& text)
 {
-    drawText(painter, QPointF(x, y), text);
+	drawText(painter, QPointF(x, y), text);
 }
 
 //! Wrapper for QPainter::drawText()
 void QwtPainter::drawText(QPainter* painter, const QPointF& pos, const QString& text)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping && !clipRect.contains(pos))
+	if (deviceClipping && !clipRect.contains(pos))
 		return;
 
 	painter->save();
-    qwtUnscaleFont(painter);
-    painter->drawText(pos, text);
+	qwtUnscaleFont(painter);
+	painter->drawText(pos, text);
 	painter->restore();
 }
 
 //! Wrapper for QPainter::drawText()
 void QwtPainter::drawText(QPainter* painter, qreal x, qreal y, qreal w, qreal h, int flags, const QString& text)
 {
-    drawText(painter, QRectF(x, y, w, h), flags, text);
+	drawText(painter, QRectF(x, y, w, h), flags, text);
 }
 
 //! Wrapper for QPainter::drawText()
 void QwtPainter::drawText(QPainter* painter, const QRectF& rect, int flags, const QString& text)
 {
 	painter->save();
-    qwtUnscaleFont(painter);
-    painter->drawText(rect, flags, text);
+	qwtUnscaleFont(painter);
+	painter->drawText(rect, flags, text);
 	painter->restore();
 }
 
@@ -7742,36 +7849,36 @@ void QwtPainter::drawSimpleRichText(QPainter* painter, const QRectF& rect, int f
 
 	QRectF unscaledRect = rect;
 
-    if (painter->font().pixelSize() < 0) {
+	if (painter->font().pixelSize() < 0) {
 		const QSize res = qwtScreenResolution();
 
 		const QPaintDevice* pd = painter->device();
-        if (pd->logicalDpiX() != res.width() || pd->logicalDpiY() != res.height()) {
+		if (pd->logicalDpiX() != res.width() || pd->logicalDpiY() != res.height()) {
 			QTransform transform;
-            transform.scale(res.width() / qreal(pd->logicalDpiX()), res.height() / qreal(pd->logicalDpiY()));
+			transform.scale(res.width() / qreal(pd->logicalDpiX()), res.height() / qreal(pd->logicalDpiY()));
 
-            painter->setWorldTransform(transform, true);
+			painter->setWorldTransform(transform, true);
 			unscaledRect = transform.inverted().mapRect(rect);
 		}
 	}
 
-    txt->setDefaultFont(painter->font());
-    txt->setPageSize(QSizeF(unscaledRect.width(), QWIDGETSIZE_MAX));
+	txt->setDefaultFont(painter->font());
+	txt->setPageSize(QSizeF(unscaledRect.width(), QWIDGETSIZE_MAX));
 
 	QAbstractTextDocumentLayout* layout = txt->documentLayout();
 
 	const qreal height = layout->documentSize().height();
-    qreal y            = unscaledRect.y();
-    if (flags & Qt::AlignBottom)
-        y += (unscaledRect.height() - height);
-    else if (flags & Qt::AlignVCenter)
-        y += (unscaledRect.height() - height) / 2;
+	qreal y            = unscaledRect.y();
+	if (flags & Qt::AlignBottom)
+		y += (unscaledRect.height() - height);
+	else if (flags & Qt::AlignVCenter)
+		y += (unscaledRect.height() - height) / 2;
 
 	QAbstractTextDocumentLayout::PaintContext context;
-    context.palette.setColor(QPalette::Text, painter->pen().color());
+	context.palette.setColor(QPalette::Text, painter->pen().color());
 
-    painter->translate(unscaledRect.x(), y);
-    layout->draw(painter, context);
+	painter->translate(unscaledRect.x(), y);
+	layout->draw(painter, context);
 
 	painter->restore();
 	delete txt;
@@ -7783,29 +7890,29 @@ void QwtPainter::drawSimpleRichText(QPainter* painter, const QRectF& rect, int f
 void QwtPainter::drawLine(QPainter* painter, const QPointF& p1, const QPointF& p2)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping && !(clipRect.contains(p1) && clipRect.contains(p2))) {
+	if (deviceClipping && !(clipRect.contains(p1) && clipRect.contains(p2))) {
 		QPolygonF polygon;
 		polygon += p1;
 		polygon += p2;
-        drawPolyline(painter, polygon);
+		drawPolyline(painter, polygon);
 		return;
 	}
 
-    painter->drawLine(p1, p2);
+	painter->drawLine(p1, p2);
 }
 
 //! Wrapper for QPainter::drawPolygon()
 void QwtPainter::drawPolygon(QPainter* painter, const QPolygonF& polygon)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping) {
-        painter->drawPolygon(QwtClipper::clippedPolygonF(clipRect, polygon, true));
-    } else {
-        painter->drawPolygon(polygon);
+	if (deviceClipping) {
+		painter->drawPolygon(QwtClipper::clippedPolygonF(clipRect, polygon, true));
+	} else {
+		painter->drawPolygon(polygon);
 	}
 }
 
@@ -7813,14 +7920,14 @@ void QwtPainter::drawPolygon(QPainter* painter, const QPolygonF& polygon)
 void QwtPainter::drawPolyline(QPainter* painter, const QPolygonF& polygon)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping) {
-        const QPolygonF cpa = QwtClipper::clippedPolygonF(clipRect, polygon);
+	if (deviceClipping) {
+		const QPolygonF cpa = QwtClipper::clippedPolygonF(clipRect, polygon);
 
-        qwtDrawPolyline< QPointF >(painter, cpa.constData(), cpa.size(), m_polylineSplitting);
-    } else {
-        qwtDrawPolyline< QPointF >(painter, polygon.constData(), polygon.size(), m_polylineSplitting);
+		qwtDrawPolyline< QPointF >(painter, cpa.constData(), cpa.size(), m_polylineSplitting);
+	} else {
+		qwtDrawPolyline< QPointF >(painter, polygon.constData(), polygon.size(), m_polylineSplitting);
 	}
 }
 
@@ -7828,16 +7935,16 @@ void QwtPainter::drawPolyline(QPainter* painter, const QPolygonF& polygon)
 void QwtPainter::drawPolyline(QPainter* painter, const QPointF* points, int pointCount)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping) {
-        QPolygonF polygon(pointCount);
-        std::memcpy(polygon.data(), points, pointCount * sizeof(QPointF));
+	if (deviceClipping) {
+		QPolygonF polygon(pointCount);
+		std::memcpy(polygon.data(), points, pointCount * sizeof(QPointF));
 
-        QwtClipper::clipPolygonF(clipRect, polygon);
-        qwtDrawPolyline< QPointF >(painter, polygon.constData(), polygon.size(), m_polylineSplitting);
-    } else {
-        qwtDrawPolyline< QPointF >(painter, points, pointCount, m_polylineSplitting);
+		QwtClipper::clipPolygonF(clipRect, polygon);
+		qwtDrawPolyline< QPointF >(painter, polygon.constData(), polygon.size(), m_polylineSplitting);
+	} else {
+		qwtDrawPolyline< QPointF >(painter, points, pointCount, m_polylineSplitting);
 	}
 }
 
@@ -7845,12 +7952,12 @@ void QwtPainter::drawPolyline(QPainter* painter, const QPointF* points, int poin
 void QwtPainter::drawPolygon(QPainter* painter, const QPolygon& polygon)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping) {
-        painter->drawPolygon(QwtClipper::clippedPolygon(clipRect, polygon, true));
-    } else {
-        painter->drawPolygon(polygon);
+	if (deviceClipping) {
+		painter->drawPolygon(QwtClipper::clippedPolygon(clipRect, polygon, true));
+	} else {
+		painter->drawPolygon(polygon);
 	}
 }
 
@@ -7858,14 +7965,14 @@ void QwtPainter::drawPolygon(QPainter* painter, const QPolygon& polygon)
 void QwtPainter::drawPolyline(QPainter* painter, const QPolygon& polygon)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping) {
-        const QPolygon cpa = QwtClipper::clippedPolygon(clipRect, polygon);
+	if (deviceClipping) {
+		const QPolygon cpa = QwtClipper::clippedPolygon(clipRect, polygon);
 
-        qwtDrawPolyline< QPoint >(painter, cpa.constData(), cpa.size(), m_polylineSplitting);
-    } else {
-        qwtDrawPolyline< QPoint >(painter, polygon.constData(), polygon.size(), m_polylineSplitting);
+		qwtDrawPolyline< QPoint >(painter, cpa.constData(), cpa.size(), m_polylineSplitting);
+	} else {
+		qwtDrawPolyline< QPoint >(painter, polygon.constData(), polygon.size(), m_polylineSplitting);
 	}
 }
 
@@ -7873,16 +7980,16 @@ void QwtPainter::drawPolyline(QPainter* painter, const QPolygon& polygon)
 void QwtPainter::drawPolyline(QPainter* painter, const QPoint* points, int pointCount)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping) {
-        QPolygon polygon(pointCount);
-        std::memcpy(polygon.data(), points, pointCount * sizeof(QPoint));
+	if (deviceClipping) {
+		QPolygon polygon(pointCount);
+		std::memcpy(polygon.data(), points, pointCount * sizeof(QPoint));
 
-        QwtClipper::clipPolygon(clipRect, polygon);
-        qwtDrawPolyline< QPoint >(painter, polygon.constData(), polygon.size(), m_polylineSplitting);
-    } else {
-        qwtDrawPolyline< QPoint >(painter, points, pointCount, m_polylineSplitting);
+		QwtClipper::clipPolygon(clipRect, polygon);
+		qwtDrawPolyline< QPoint >(painter, polygon.constData(), polygon.size(), m_polylineSplitting);
+	} else {
+		qwtDrawPolyline< QPoint >(painter, points, pointCount, m_polylineSplitting);
 	}
 }
 
@@ -7890,59 +7997,59 @@ void QwtPainter::drawPolyline(QPainter* painter, const QPoint* points, int point
 void QwtPainter::drawPoint(QPainter* painter, const QPointF& pos)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping && !clipRect.contains(pos))
+	if (deviceClipping && !clipRect.contains(pos))
 		return;
 
-    painter->drawPoint(pos);
+	painter->drawPoint(pos);
 }
 
 //! Wrapper for QPainter::drawPoint()
 void QwtPainter::drawPoint(QPainter* painter, const QPoint& pos)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping) {
-        const int minX = qwtCeil(clipRect.left());
-        const int maxX = qwtFloor(clipRect.right());
-        const int minY = qwtCeil(clipRect.top());
-        const int maxY = qwtFloor(clipRect.bottom());
+	if (deviceClipping) {
+		const int minX = qwtCeil(clipRect.left());
+		const int maxX = qwtFloor(clipRect.right());
+		const int minY = qwtCeil(clipRect.top());
+		const int maxY = qwtFloor(clipRect.bottom());
 
-        if (pos.x() < minX || pos.x() > maxX || pos.y() < minY || pos.y() > maxY) {
+		if (pos.x() < minX || pos.x() > maxX || pos.y() < minY || pos.y() > maxY) {
 			return;
 		}
 	}
 
-    painter->drawPoint(pos);
+	painter->drawPoint(pos);
 }
 
 //! Wrapper for QPainter::drawPoints()
 void QwtPainter::drawPoints(QPainter* painter, const QPoint* points, int pointCount)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping) {
-        const int minX = qwtCeil(clipRect.left());
-        const int maxX = qwtFloor(clipRect.right());
-        const int minY = qwtCeil(clipRect.top());
-        const int maxY = qwtFloor(clipRect.bottom());
+	if (deviceClipping) {
+		const int minX = qwtCeil(clipRect.left());
+		const int maxX = qwtFloor(clipRect.right());
+		const int minY = qwtCeil(clipRect.top());
+		const int maxY = qwtFloor(clipRect.bottom());
 
-        const QRect r(minX, minY, maxX - minX, maxY - minY);
+		const QRect r(minX, minY, maxX - minX, maxY - minY);
 
-        QPolygon clippedPolygon(pointCount);
+		QPolygon clippedPolygon(pointCount);
 		QPoint* clippedData = clippedPolygon.data();
 
 		int numClippedPoints = 0;
-        for (int i = 0; i < pointCount; i++) {
-            if (r.contains(points[ i ]))
-                clippedData[ numClippedPoints++ ] = points[ i ];
+		for (int i = 0; i < pointCount; i++) {
+			if (r.contains(points[ i ]))
+				clippedData[ numClippedPoints++ ] = points[ i ];
 		}
-        painter->drawPoints(clippedData, numClippedPoints);
-    } else {
-        painter->drawPoints(points, pointCount);
+		painter->drawPoints(clippedData, numClippedPoints);
+	} else {
+		painter->drawPoints(points, pointCount);
 	}
 }
 
@@ -7950,20 +8057,20 @@ void QwtPainter::drawPoints(QPainter* painter, const QPoint* points, int pointCo
 void QwtPainter::drawPoints(QPainter* painter, const QPointF* points, int pointCount)
 {
 	QRectF clipRect;
-    const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
+	const bool deviceClipping = qwtIsClippingNeeded(painter, clipRect);
 
-    if (deviceClipping) {
-        QPolygonF clippedPolygon(pointCount);
+	if (deviceClipping) {
+		QPolygonF clippedPolygon(pointCount);
 		QPointF* clippedData = clippedPolygon.data();
 
 		int numClippedPoints = 0;
-        for (int i = 0; i < pointCount; i++) {
-            if (clipRect.contains(points[ i ]))
-                clippedData[ numClippedPoints++ ] = points[ i ];
+		for (int i = 0; i < pointCount; i++) {
+			if (clipRect.contains(points[ i ]))
+				clippedData[ numClippedPoints++ ] = points[ i ];
 		}
-        painter->drawPoints(clippedData, numClippedPoints);
-    } else {
-        painter->drawPoints(points, pointCount);
+		painter->drawPoints(clippedData, numClippedPoints);
+	} else {
+		painter->drawPoints(points, pointCount);
 	}
 }
 
@@ -7972,15 +8079,15 @@ void QwtPainter::drawImage(QPainter* painter, const QRectF& rect, const QImage& 
 {
 	const QRect alignedRect = rect.toAlignedRect();
 
-    if (alignedRect != rect) {
-        const QRectF clipRect = rect.adjusted(0.0, 0.0, -1.0, -1.0);
+	if (alignedRect != rect) {
+		const QRectF clipRect = rect.adjusted(0.0, 0.0, -1.0, -1.0);
 
 		painter->save();
-        painter->setClipRect(clipRect, Qt::IntersectClip);
-        painter->drawImage(alignedRect, image);
+		painter->setClipRect(clipRect, Qt::IntersectClip);
+		painter->drawImage(alignedRect, image);
 		painter->restore();
-    } else {
-        painter->drawImage(alignedRect, image);
+	} else {
+		painter->drawImage(alignedRect, image);
 	}
 }
 
@@ -7989,34 +8096,34 @@ void QwtPainter::drawPixmap(QPainter* painter, const QRectF& rect, const QPixmap
 {
 	const QRect alignedRect = rect.toAlignedRect();
 
-    if (alignedRect != rect) {
-        const QRectF clipRect = rect.adjusted(0.0, 0.0, -1.0, -1.0);
+	if (alignedRect != rect) {
+		const QRectF clipRect = rect.adjusted(0.0, 0.0, -1.0, -1.0);
 
 		painter->save();
-        painter->setClipRect(clipRect, Qt::IntersectClip);
-        painter->drawPixmap(alignedRect, pixmap);
+		painter->setClipRect(clipRect, Qt::IntersectClip);
+		painter->drawPixmap(alignedRect, pixmap);
 		painter->restore();
-    } else {
-        painter->drawPixmap(alignedRect, pixmap);
+	} else {
+		painter->drawPixmap(alignedRect, pixmap);
 	}
 }
 
 //! Draw a focus rectangle on a widget using its style.
 void QwtPainter::drawFocusRect(QPainter* painter, const QWidget* widget)
 {
-    drawFocusRect(painter, widget, widget->rect());
+	drawFocusRect(painter, widget, widget->rect());
 }
 
 //! Draw a focus rectangle on a widget using its style.
 void QwtPainter::drawFocusRect(QPainter* painter, const QWidget* widget, const QRect& rect)
 {
 	QStyleOptionFocusRect opt;
-    opt.initFrom(widget);
+	opt.initFrom(widget);
 	opt.rect = rect;
 	opt.state |= QStyle::State_HasFocus;
-    opt.backgroundColor = widget->palette().color(widget->backgroundRole());
+	opt.backgroundColor = widget->palette().color(widget->backgroundRole());
 
-    widget->style()->drawPrimitive(QStyle::PE_FrameFocusRect, &opt, painter, widget);
+	widget->style()->drawPrimitive(QStyle::PE_FrameFocusRect, &opt, painter, widget);
 }
 
 /*!
@@ -8040,43 +8147,43 @@ void QwtPainter::drawRoundFrame(QPainter* painter, const QRectF& rect, const QPa
 	};
 
 	Style style = Plain;
-    if ((frameStyle & QFrame::Sunken) == QFrame::Sunken)
+	if ((frameStyle & QFrame::Sunken) == QFrame::Sunken)
 		style = Sunken;
-    else if ((frameStyle & QFrame::Raised) == QFrame::Raised)
+	else if ((frameStyle & QFrame::Raised) == QFrame::Raised)
 		style = Raised;
 
 	const qreal lw2 = 0.5 * lineWidth;
-    QRectF r        = rect.adjusted(lw2, lw2, -lw2, -lw2);
+	QRectF r        = rect.adjusted(lw2, lw2, -lw2, -lw2);
 
 	QBrush brush;
 
-    if (style != Plain) {
-        QColor c1 = palette.color(QPalette::Light);
-        QColor c2 = palette.color(QPalette::Dark);
+	if (style != Plain) {
+		QColor c1 = palette.color(QPalette::Light);
+		QColor c2 = palette.color(QPalette::Dark);
 
-        if (style == Sunken)
-            qSwap(c1, c2);
+		if (style == Sunken)
+			qSwap(c1, c2);
 
-        QLinearGradient gradient(r.topLeft(), r.bottomRight());
-        gradient.setColorAt(0.0, c1);
+		QLinearGradient gradient(r.topLeft(), r.bottomRight());
+		gradient.setColorAt(0.0, c1);
 #if 0
 		gradient.setColorAt( 0.3, c1 );
 		gradient.setColorAt( 0.7, c2 );
 #endif
-        gradient.setColorAt(1.0, c2);
+		gradient.setColorAt(1.0, c2);
 
-        brush = QBrush(gradient);
-    } else  // Plain
+		brush = QBrush(gradient);
+	} else  // Plain
 	{
-        brush = palette.brush(QPalette::WindowText);
+		brush = palette.brush(QPalette::WindowText);
 	}
 
 	painter->save();
 
-    painter->setPen(QPen(brush, lineWidth));
-    painter->setBrush(Qt::NoBrush);
+	painter->setPen(QPen(brush, lineWidth));
+	painter->setBrush(Qt::NoBrush);
 
-    painter->drawEllipse(r);
+	painter->drawEllipse(r);
 
 	painter->restore();
 }
@@ -8100,125 +8207,125 @@ void QwtPainter::drawFrame(QPainter* painter,
                            int midLineWidth,
                            int frameStyle)
 {
-    if (frameWidth <= 0 || rect.isEmpty())
+	if (frameWidth <= 0 || rect.isEmpty())
 		return;
 
 	const int shadow = frameStyle & QFrame::Shadow_Mask;
 
 	painter->save();
 
-    if (shadow == QFrame::Plain) {
-        const QRectF outerRect = rect.adjusted(0.0, 0.0, -1.0, -1.0);
-        const QRectF innerRect = outerRect.adjusted(frameWidth, frameWidth, -frameWidth, -frameWidth);
+	if (shadow == QFrame::Plain) {
+		const QRectF outerRect = rect.adjusted(0.0, 0.0, -1.0, -1.0);
+		const QRectF innerRect = outerRect.adjusted(frameWidth, frameWidth, -frameWidth, -frameWidth);
 
 		QPainterPath path;
-        path.addRect(outerRect);
-        path.addRect(innerRect);
+		path.addRect(outerRect);
+		path.addRect(innerRect);
 
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(palette.color(foregroundRole));
+		painter->setPen(Qt::NoPen);
+		painter->setBrush(palette.color(foregroundRole));
 
-        painter->drawPath(path);
-    } else {
+		painter->drawPath(path);
+	} else {
 		const int shape = frameStyle & QFrame::Shape_Mask;
 
-        if (shape == QFrame::Box) {
-            const QRectF outerRect = rect.adjusted(0.0, 0.0, -1.0, -1.0);
-            const QRectF midRect1  = outerRect.adjusted(frameWidth, frameWidth, -frameWidth, -frameWidth);
-            const QRectF midRect2  = midRect1.adjusted(midLineWidth, midLineWidth, -midLineWidth, -midLineWidth);
+		if (shape == QFrame::Box) {
+			const QRectF outerRect = rect.adjusted(0.0, 0.0, -1.0, -1.0);
+			const QRectF midRect1  = outerRect.adjusted(frameWidth, frameWidth, -frameWidth, -frameWidth);
+			const QRectF midRect2  = midRect1.adjusted(midLineWidth, midLineWidth, -midLineWidth, -midLineWidth);
 
-            const QRectF innerRect = midRect2.adjusted(frameWidth, frameWidth, -frameWidth, -frameWidth);
+			const QRectF innerRect = midRect2.adjusted(frameWidth, frameWidth, -frameWidth, -frameWidth);
 
 			QPainterPath path1;
-            path1.moveTo(outerRect.bottomLeft());
-            path1.lineTo(outerRect.topLeft());
-            path1.lineTo(outerRect.topRight());
-            path1.lineTo(midRect1.topRight());
-            path1.lineTo(midRect1.topLeft());
-            path1.lineTo(midRect1.bottomLeft());
+			path1.moveTo(outerRect.bottomLeft());
+			path1.lineTo(outerRect.topLeft());
+			path1.lineTo(outerRect.topRight());
+			path1.lineTo(midRect1.topRight());
+			path1.lineTo(midRect1.topLeft());
+			path1.lineTo(midRect1.bottomLeft());
 
 			QPainterPath path2;
-            path2.moveTo(outerRect.bottomLeft());
-            path2.lineTo(outerRect.bottomRight());
-            path2.lineTo(outerRect.topRight());
-            path2.lineTo(midRect1.topRight());
-            path2.lineTo(midRect1.bottomRight());
-            path2.lineTo(midRect1.bottomLeft());
+			path2.moveTo(outerRect.bottomLeft());
+			path2.lineTo(outerRect.bottomRight());
+			path2.lineTo(outerRect.topRight());
+			path2.lineTo(midRect1.topRight());
+			path2.lineTo(midRect1.bottomRight());
+			path2.lineTo(midRect1.bottomLeft());
 
 			QPainterPath path3;
-            path3.moveTo(midRect2.bottomLeft());
-            path3.lineTo(midRect2.topLeft());
-            path3.lineTo(midRect2.topRight());
-            path3.lineTo(innerRect.topRight());
-            path3.lineTo(innerRect.topLeft());
-            path3.lineTo(innerRect.bottomLeft());
+			path3.moveTo(midRect2.bottomLeft());
+			path3.lineTo(midRect2.topLeft());
+			path3.lineTo(midRect2.topRight());
+			path3.lineTo(innerRect.topRight());
+			path3.lineTo(innerRect.topLeft());
+			path3.lineTo(innerRect.bottomLeft());
 
 			QPainterPath path4;
-            path4.moveTo(midRect2.bottomLeft());
-            path4.lineTo(midRect2.bottomRight());
-            path4.lineTo(midRect2.topRight());
-            path4.lineTo(innerRect.topRight());
-            path4.lineTo(innerRect.bottomRight());
-            path4.lineTo(innerRect.bottomLeft());
+			path4.moveTo(midRect2.bottomLeft());
+			path4.lineTo(midRect2.bottomRight());
+			path4.lineTo(midRect2.topRight());
+			path4.lineTo(innerRect.topRight());
+			path4.lineTo(innerRect.bottomRight());
+			path4.lineTo(innerRect.bottomLeft());
 
 			QPainterPath path5;
-            path5.addRect(midRect1);
-            path5.addRect(midRect2);
+			path5.addRect(midRect1);
+			path5.addRect(midRect2);
 
-            painter->setPen(Qt::NoPen);
+			painter->setPen(Qt::NoPen);
 
 			QBrush brush1 = palette.dark().color();
 			QBrush brush2 = palette.light().color();
 
-            if (shadow == QFrame::Raised)
-                qSwap(brush1, brush2);
+			if (shadow == QFrame::Raised)
+				qSwap(brush1, brush2);
 
-            painter->setBrush(brush1);
-            painter->drawPath(path1);
-            painter->drawPath(path4);
+			painter->setBrush(brush1);
+			painter->drawPath(path1);
+			painter->drawPath(path4);
 
-            painter->setBrush(brush2);
-            painter->drawPath(path2);
-            painter->drawPath(path3);
+			painter->setBrush(brush2);
+			painter->drawPath(path2);
+			painter->drawPath(path3);
 
-            painter->setBrush(palette.mid());
-            painter->drawPath(path5);
-        } else {
-            const QRectF outerRect = rect.adjusted(0.0, 0.0, -1.0, -1.0);
-            const QRectF innerRect = outerRect.adjusted(frameWidth - 1.0,
+			painter->setBrush(palette.mid());
+			painter->drawPath(path5);
+		} else {
+			const QRectF outerRect = rect.adjusted(0.0, 0.0, -1.0, -1.0);
+			const QRectF innerRect = outerRect.adjusted(frameWidth - 1.0,
                                                         frameWidth - 1.0,
                                                         -(frameWidth - 1.0),
                                                         -(frameWidth - 1.0));
 
 			QPainterPath path1;
-            path1.moveTo(outerRect.bottomLeft());
-            path1.lineTo(outerRect.topLeft());
-            path1.lineTo(outerRect.topRight());
-            path1.lineTo(innerRect.topRight());
-            path1.lineTo(innerRect.topLeft());
-            path1.lineTo(innerRect.bottomLeft());
+			path1.moveTo(outerRect.bottomLeft());
+			path1.lineTo(outerRect.topLeft());
+			path1.lineTo(outerRect.topRight());
+			path1.lineTo(innerRect.topRight());
+			path1.lineTo(innerRect.topLeft());
+			path1.lineTo(innerRect.bottomLeft());
 
 			QPainterPath path2;
-            path2.moveTo(outerRect.bottomLeft());
-            path2.lineTo(outerRect.bottomRight());
-            path2.lineTo(outerRect.topRight());
-            path2.lineTo(innerRect.topRight());
-            path2.lineTo(innerRect.bottomRight());
-            path2.lineTo(innerRect.bottomLeft());
+			path2.moveTo(outerRect.bottomLeft());
+			path2.lineTo(outerRect.bottomRight());
+			path2.lineTo(outerRect.topRight());
+			path2.lineTo(innerRect.topRight());
+			path2.lineTo(innerRect.bottomRight());
+			path2.lineTo(innerRect.bottomLeft());
 
-            painter->setPen(Qt::NoPen);
+			painter->setPen(Qt::NoPen);
 
 			QBrush brush1 = palette.dark().color();
 			QBrush brush2 = palette.light().color();
 
-            if (shadow == QFrame::Raised)
-                qSwap(brush1, brush2);
+			if (shadow == QFrame::Raised)
+				qSwap(brush1, brush2);
 
-            painter->setBrush(brush1);
-            painter->drawPath(path1);
+			painter->setBrush(brush1);
+			painter->drawPath(path1);
 
-            painter->setBrush(brush2);
-            painter->drawPath(path2);
+			painter->setBrush(brush2);
+			painter->drawPath(path2);
 		}
 	}
 
@@ -8248,14 +8355,14 @@ void QwtPainter::drawRoundedFrame(QPainter* painter,
                                   int frameStyle)
 {
 	painter->save();
-    painter->setRenderHint(QPainter::Antialiasing, true);
-    painter->setBrush(Qt::NoBrush);
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	painter->setBrush(Qt::NoBrush);
 
-    qreal lw2        = lineWidth * 0.5;
-    QRectF innerRect = rect.adjusted(lw2, lw2, -lw2, -lw2);
+	qreal lw2        = lineWidth * 0.5;
+	QRectF innerRect = rect.adjusted(lw2, lw2, -lw2, -lw2);
 
 	QPainterPath path;
-    path.addRoundedRect(innerRect, xRadius, yRadius);
+	path.addRoundedRect(innerRect, xRadius, yRadius);
 
 	enum Style
 	{
@@ -8265,94 +8372,94 @@ void QwtPainter::drawRoundedFrame(QPainter* painter,
 	};
 
 	Style style = Plain;
-    if ((frameStyle & QFrame::Sunken) == QFrame::Sunken)
+	if ((frameStyle & QFrame::Sunken) == QFrame::Sunken)
 		style = Sunken;
-    else if ((frameStyle & QFrame::Raised) == QFrame::Raised)
+	else if ((frameStyle & QFrame::Raised) == QFrame::Raised)
 		style = Raised;
 
-    if (style != Plain && path.elementCount() == 17) {
+	if (style != Plain && path.elementCount() == 17) {
 		// move + 4 * ( cubicTo + lineTo )
-        QPainterPath pathList[ 8 ];
+		QPainterPath pathList[ 8 ];
 
-        for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 4; i++) {
 			const int j = i * 4 + 1;
 
-            pathList[ 2 * i ].moveTo(path.elementAt(j - 1).x, path.elementAt(j - 1).y);
+			pathList[ 2 * i ].moveTo(path.elementAt(j - 1).x, path.elementAt(j - 1).y);
 
-            pathList[ 2 * i ].cubicTo(path.elementAt(j + 0).x,
+			pathList[ 2 * i ].cubicTo(path.elementAt(j + 0).x,
                                       path.elementAt(j + 0).y,
                                       path.elementAt(j + 1).x,
                                       path.elementAt(j + 1).y,
                                       path.elementAt(j + 2).x,
                                       path.elementAt(j + 2).y);
 
-            pathList[ 2 * i + 1 ].moveTo(path.elementAt(j + 2).x, path.elementAt(j + 2).y);
-            pathList[ 2 * i + 1 ].lineTo(path.elementAt(j + 3).x, path.elementAt(j + 3).y);
+			pathList[ 2 * i + 1 ].moveTo(path.elementAt(j + 2).x, path.elementAt(j + 2).y);
+			pathList[ 2 * i + 1 ].lineTo(path.elementAt(j + 3).x, path.elementAt(j + 3).y);
 		}
 
-        QColor c1(palette.color(QPalette::Dark));
-        QColor c2(palette.color(QPalette::Light));
+		QColor c1(palette.color(QPalette::Dark));
+		QColor c2(palette.color(QPalette::Light));
 
-        if (style == Raised)
-            qSwap(c1, c2);
+		if (style == Raised)
+			qSwap(c1, c2);
 
-        for (int i = 0; i < 4; i++) {
-            const QRectF r = pathList[ 2 * i ].controlPointRect();
+		for (int i = 0; i < 4; i++) {
+			const QRectF r = pathList[ 2 * i ].controlPointRect();
 
 			QPen arcPen;
-            arcPen.setCapStyle(Qt::FlatCap);
-            arcPen.setWidth(lineWidth);
+			arcPen.setCapStyle(Qt::FlatCap);
+			arcPen.setWidth(lineWidth);
 
 			QPen linePen;
-            linePen.setCapStyle(Qt::FlatCap);
-            linePen.setWidth(lineWidth);
+			linePen.setCapStyle(Qt::FlatCap);
+			linePen.setWidth(lineWidth);
 
-            switch (i) {
-            case 0: {
-                arcPen.setColor(c1);
-                linePen.setColor(c1);
-                break;
-            }
-            case 1: {
-                QLinearGradient gradient;
-                gradient.setStart(r.topLeft());
-                gradient.setFinalStop(r.bottomRight());
-                gradient.setColorAt(0.0, c1);
-                gradient.setColorAt(1.0, c2);
+			switch (i) {
+			case 0: {
+				arcPen.setColor(c1);
+				linePen.setColor(c1);
+				break;
+			}
+			case 1: {
+				QLinearGradient gradient;
+				gradient.setStart(r.topLeft());
+				gradient.setFinalStop(r.bottomRight());
+				gradient.setColorAt(0.0, c1);
+				gradient.setColorAt(1.0, c2);
 
-                arcPen.setBrush(gradient);
-                linePen.setColor(c2);
-                break;
-            }
-            case 2: {
-                arcPen.setColor(c2);
-                linePen.setColor(c2);
-                break;
-            }
-            case 3: {
-                QLinearGradient gradient;
+				arcPen.setBrush(gradient);
+				linePen.setColor(c2);
+				break;
+			}
+			case 2: {
+				arcPen.setColor(c2);
+				linePen.setColor(c2);
+				break;
+			}
+			case 3: {
+				QLinearGradient gradient;
 
-                gradient.setStart(r.bottomRight());
-                gradient.setFinalStop(r.topLeft());
-                gradient.setColorAt(0.0, c2);
-                gradient.setColorAt(1.0, c1);
+				gradient.setStart(r.bottomRight());
+				gradient.setFinalStop(r.topLeft());
+				gradient.setColorAt(0.0, c2);
+				gradient.setColorAt(1.0, c1);
 
-                arcPen.setBrush(gradient);
-                linePen.setColor(c1);
-                break;
-            }
+				arcPen.setBrush(gradient);
+				linePen.setColor(c1);
+				break;
+			}
 			}
 
-            painter->setPen(arcPen);
-            painter->drawPath(pathList[ 2 * i ]);
+			painter->setPen(arcPen);
+			painter->drawPath(pathList[ 2 * i ]);
 
-            painter->setPen(linePen);
-            painter->drawPath(pathList[ 2 * i + 1 ]);
+			painter->setPen(linePen);
+			painter->drawPath(pathList[ 2 * i + 1 ]);
 		}
-    } else {
-        QPen pen(palette.color(QPalette::WindowText), lineWidth);
-        painter->setPen(pen);
-        painter->drawPath(path);
+	} else {
+		QPen pen(palette.color(QPalette::WindowText), lineWidth);
+		painter->setPen(pen);
+		painter->drawPath(path);
 	}
 
 	painter->restore();
@@ -8376,7 +8483,7 @@ void QwtPainter::drawColorBar(QPainter* painter,
                               const QRectF& rect)
 {
 	QVector< QRgb > colorTable;
-    if (colorMap.format() == QwtColorMap::Indexed)
+	if (colorMap.format() == QwtColorMap::Indexed)
 		colorTable = colorMap.colorTable256();
 
 	QColor c;
@@ -8388,66 +8495,66 @@ void QwtPainter::drawColorBar(QPainter* painter,
 	   ( f.e. in a Pdf document )
 	 */
 
-    QPixmap pixmap(devRect.size());
-    pixmap.fill(Qt::transparent);
+	QPixmap pixmap(devRect.size());
+	pixmap.fill(Qt::transparent);
 
-    QPainter pmPainter(&pixmap);
-    pmPainter.translate(-devRect.x(), -devRect.y());
+	QPainter pmPainter(&pixmap);
+	pmPainter.translate(-devRect.x(), -devRect.y());
 
-    if (orientation == Qt::Horizontal) {
+	if (orientation == Qt::Horizontal) {
 		QwtScaleMap sMap = scaleMap;
-        sMap.setPaintInterval(rect.left(), rect.right());
+		sMap.setPaintInterval(rect.left(), rect.right());
 
-        for (int x = devRect.left(); x <= devRect.right(); x++) {
-            const double value = sMap.invTransform(x);
+		for (int x = devRect.left(); x <= devRect.right(); x++) {
+			const double value = sMap.invTransform(x);
 
-            if (colorMap.format() == QwtColorMap::RGB)
-                c.setRgba(colorMap.rgb(interval, value));
+			if (colorMap.format() == QwtColorMap::RGB)
+				c.setRgba(colorMap.rgb(interval, value));
 			else
-                c = colorTable[ colorMap.colorIndex(256, interval, value) ];
+				c = colorTable[ colorMap.colorIndex(256, interval, value) ];
 
-            pmPainter.setPen(c);
-            pmPainter.drawLine(x, devRect.top(), x, devRect.bottom());
+			pmPainter.setPen(c);
+			pmPainter.drawLine(x, devRect.top(), x, devRect.bottom());
 		}
-    } else  // Vertical
+	} else  // Vertical
 	{
 		QwtScaleMap sMap = scaleMap;
-        sMap.setPaintInterval(rect.bottom(), rect.top());
+		sMap.setPaintInterval(rect.bottom(), rect.top());
 
-        for (int y = devRect.top(); y <= devRect.bottom(); y++) {
-            const double value = sMap.invTransform(y);
+		for (int y = devRect.top(); y <= devRect.bottom(); y++) {
+			const double value = sMap.invTransform(y);
 
-            if (colorMap.format() == QwtColorMap::RGB)
-                c.setRgba(colorMap.rgb(interval, value));
+			if (colorMap.format() == QwtColorMap::RGB)
+				c.setRgba(colorMap.rgb(interval, value));
 			else
-                c = colorTable[ colorMap.colorIndex(256, interval, value) ];
+				c = colorTable[ colorMap.colorIndex(256, interval, value) ];
 
-            pmPainter.setPen(c);
-            pmPainter.drawLine(devRect.left(), y, devRect.right(), y);
+			pmPainter.setPen(c);
+			pmPainter.drawLine(devRect.left(), y, devRect.right(), y);
 		}
 	}
 	pmPainter.end();
 
-    drawPixmap(painter, rect, pixmap);
+	drawPixmap(painter, rect, pixmap);
 }
 
 static inline void qwtFillRect(const QWidget* widget, QPainter* painter, const QRect& rect, const QBrush& brush)
 {
-    if (brush.style() == Qt::TexturePattern) {
+	if (brush.style() == Qt::TexturePattern) {
 		painter->save();
 
-        painter->setClipRect(rect);
-        painter->drawTiledPixmap(rect, brush.texture(), rect.topLeft());
+		painter->setClipRect(rect);
+		painter->drawTiledPixmap(rect, brush.texture(), rect.topLeft());
 
 		painter->restore();
-    } else if (brush.gradient()) {
+	} else if (brush.gradient()) {
 		painter->save();
 
-        painter->setClipRect(rect);
-        painter->fillRect(0, 0, widget->width(), widget->height(), brush);
+		painter->setClipRect(rect);
+		painter->fillRect(0, 0, widget->width(), widget->height(), brush);
 
 		painter->restore();
-    } else {
+	} else {
 		painter->fillRect(rect, brush);
 	}
 }
@@ -8467,28 +8574,150 @@ static inline void qwtFillRect(const QWidget* widget, QPainter* painter, const Q
  */
 void QwtPainter::fillPixmap(const QWidget* widget, QPixmap& pixmap, const QPoint& offset)
 {
-    const QRect rect(offset, pixmap.size());
+	const QRect rect(offset, pixmap.size());
 
-    QPainter painter(&pixmap);
-    painter.translate(-offset);
+	QPainter painter(&pixmap);
+	painter.translate(-offset);
 
-    const QBrush autoFillBrush = widget->palette().brush(widget->backgroundRole());
+	const QBrush autoFillBrush = widget->palette().brush(widget->backgroundRole());
 
-    if (!(widget->autoFillBackground() && autoFillBrush.isOpaque())) {
-        const QBrush bg = widget->palette().brush(QPalette::Window);
-        qwtFillRect(widget, &painter, rect, bg);
+	if (!(widget->autoFillBackground() && autoFillBrush.isOpaque())) {
+		const QBrush bg = widget->palette().brush(QPalette::Window);
+		qwtFillRect(widget, &painter, rect, bg);
 	}
 
-    if (widget->autoFillBackground())
-        qwtFillRect(widget, &painter, rect, autoFillBrush);
+	if (widget->autoFillBackground())
+		qwtFillRect(widget, &painter, rect, autoFillBrush);
 
-    if (widget->testAttribute(Qt::WA_StyledBackground)) {
-        painter.setClipRegion(rect);
+	if (widget->testAttribute(Qt::WA_StyledBackground)) {
+		painter.setClipRegion(rect);
 
 		QStyleOption opt;
-        opt.initFrom(widget);
-        widget->style()->drawPrimitive(QStyle::PE_Widget, &opt, &painter, widget);
+		opt.initFrom(widget);
+		widget->style()->drawPrimitive(QStyle::PE_Widget, &opt, &painter, widget);
 	}
+}
+
+/**
+ * @brief 填充区域
+ * @param painter
+ * @param region
+ */
+void QwtPainter::fillRegion(QPainter* painter, const QRegion& region)
+{
+#if QT_VERSION >= 0x050800
+	for (QRegion::const_iterator it = region.cbegin(); it != region.cend(); ++it) {
+		painter->drawRect(*it);
+	}
+#else
+	painter->drawRects(region.rects());
+#endif
+}
+
+/**
+ * @brief 填充widget背景的指定矩形区域
+ *
+ * 使用父级widget的背景来填充当前widget的指定矩形区域列表。
+ * 这个函数主要用于处理透明或半透明widget的背景填充优化。
+ *
+ * @param painter 用于绘制的QPainter对象
+ * @param widget 需要填充背景的目标widget
+ * @param fillRects 需要填充的矩形区域列表
+ *
+ * @details 填充过程如下：
+ * 1. 如果填充矩形列表为空，直接返回
+ * 2. 确定裁剪区域：如果painter有裁剪设置则使用变换后的裁剪区域，
+ *    否则使用widget的内容区域
+ * 3. 查找能够填充未填充区域的背景widget
+ * 4. 遍历每个填充矩形：
+ *    - 检查是否与裁剪区域相交
+ *    - 创建临时pixmap并使用fillPixmap填充
+ *    - 将pixmap绘制到目标位置
+ *
+ * @note 这个函数通常用于处理圆角边框或其他需要局部背景填充的情况
+ *
+ * @sa QwtPainter::fillPixmap(), QwtPainter::findBackgroundWidget()
+ */
+void QwtPainter::fillBackground(QPainter* painter, QWidget* widget, const QVector< QRectF >& fillRects)
+{
+	if (fillRects.isEmpty()) {
+		return;
+	}
+
+	QRegion clipRegion;
+	if (painter->hasClipping()) {
+		clipRegion = painter->transform().map(painter->clipRegion());
+	} else {
+		clipRegion = widget->contentsRect();
+	}
+
+	// Try to find out which widget fills
+	// the unfilled areas of the styled background
+
+	QWidget* bgWidget = QwtPainter::findBackgroundWidget(widget->parentWidget());
+
+	for (int i = 0; i < fillRects.size(); i++) {
+		const QRect rect = fillRects[ i ].toAlignedRect();
+		if (clipRegion.intersects(rect)) {
+			QPixmap pm(rect.size());
+			QwtPainter::fillPixmap(bgWidget, pm, widget->mapTo(bgWidget, rect.topLeft()));
+			painter->drawPixmap(rect, pm);
+		}
+	}
+}
+
+/**
+ * @brief 自动检测并填充widget的背景
+ *
+ * 根据widget的样式属性自动检测需要填充的背景区域，并调用相应的填充函数。
+ * 支持样式化背景和圆角边框的背景填充。
+ *
+ * @param painter 用于绘制的QPainter对象
+ * @param canvas 需要填充背景的目标widget
+ *
+ * @details 处理逻辑如下：
+ * 1. 如果widget启用了样式化背景（WA_StyledBackground）：
+ *    - 使用样式表记录器记录背景绘制信息
+ *    - 如果背景不透明，使用记录的裁剪矩形列表
+ *    - 否则使用整个widget矩形
+ * 2. 如果widget设置了borderRadius属性：
+ *    - 计算四个角的矩形区域作为填充区域
+ * 3. 调用qwtFillBackground进行实际填充
+ *
+ * @note 这个函数是背景填充的入口点，会自动选择合适的填充策略
+ *
+ * @sa fillBackground(), QwtStyleSheetRecorder
+ */
+void QwtPainter::fillBackground(QPainter* painter, QWidget* canvas)
+{
+	QVector< QRectF > rects;
+
+	if (canvas->testAttribute(Qt::WA_StyledBackground)) {
+		QwtStyleSheetRecorder recorder(canvas->size());
+
+		QPainter p(&recorder);
+		QwtPainter::drawStyledBackground(canvas, &p);
+		p.end();
+
+		if (recorder.background.brush.isOpaque()) {
+			rects = recorder.clipRects;
+		} else {
+			rects += canvas->rect();
+		}
+	} else {
+		const double borderRadius = canvas->property("borderRadius").toDouble();
+		if (borderRadius > 0.0) {
+			QSizeF sz(borderRadius, borderRadius);
+
+			const QRectF r = canvas->rect();
+			rects += QRectF(r.topLeft(), sz);
+			rects += QRectF(r.topRight() - QPointF(borderRadius, 0), sz);
+			rects += QRectF(r.bottomRight() - QPointF(borderRadius, borderRadius), sz);
+			rects += QRectF(r.bottomLeft() - QPointF(0, borderRadius), sz);
+		}
+	}
+
+	fillBackground(painter, canvas, rects);
 }
 
 /*!
@@ -8502,17 +8731,104 @@ void QwtPainter::fillPixmap(const QWidget* widget, QPixmap& pixmap, const QPoint
  */
 void QwtPainter::drawBackgound(QPainter* painter, const QRectF& rect, const QWidget* widget)
 {
-    if (widget->testAttribute(Qt::WA_StyledBackground)) {
+	if (widget->testAttribute(Qt::WA_StyledBackground)) {
 		QStyleOption opt;
-        opt.initFrom(widget);
+		opt.initFrom(widget);
 		opt.rect = rect.toAlignedRect();
 
-        widget->style()->drawPrimitive(QStyle::PE_Widget, &opt, painter, widget);
-    } else {
-        const QBrush brush = widget->palette().brush(widget->backgroundRole());
+		widget->style()->drawPrimitive(QStyle::PE_Widget, &opt, painter, widget);
+	} else {
+		const QBrush brush = widget->palette().brush(widget->backgroundRole());
 
-        painter->fillRect(rect, brush);
+		painter->fillRect(rect, brush);
 	}
+}
+
+/**
+ * @brief 绘制widget的背景
+ *
+ * 绘制指定canvas widget的背景，支持多种背景类型包括纯色、渐变和纹理模式。
+ * 该函数会处理自定义边界路径裁剪和不同背景类型的优化绘制。
+ *
+ * @param painter 用于绘制的QPainter对象
+ * @param canvas 需要绘制背景的目标widget
+ *
+ * @details 绘制过程如下：
+ * 1. 保存当前绘图器状态
+ * 2. 通过反射调用canvas的borderPath方法获取边界路径用于裁剪
+ * 3. 根据背景画刷类型采用不同的绘制策略：
+ *    - 纹理模式：创建临时pixmap并使用fillPixmap填充后绘制
+ *    - 渐变模式：根据渐变坐标模式选择填充裁剪区域或整个矩形
+ *    - 普通模式：直接填充裁剪区域
+ * 4. 恢复绘图器状态
+ *
+ * @note 该函数通过Qt的反射机制调用canvas的borderPath方法，
+ *       因此canvas类需要提供相应的Q_INVOKABLE方法签名：
+ *       @code
+ *       Q_INVOKABLE QPainterPath borderPath(const QRect& rect) const;
+ *       @endcode
+ *
+ * @warning 如果canvas没有提供borderPath方法，将使用默认矩形边界
+ *
+ * @sa QwtPainter::fillPixmap(), QwtPainter::fillRegion(),
+ *     QWidget::backgroundRole(), QWidget::palette()
+ */
+void QwtPainter::drawCanvasBackgound(QPainter* painter, QWidget* canvas)
+{
+	painter->save();
+
+	QPainterPath borderClip;
+
+	(void)QMetaObject::invokeMethod(canvas,
+                                    "borderPath",
+                                    Qt::DirectConnection,
+                                    Q_RETURN_ARG(QPainterPath, borderClip),
+                                    Q_ARG(QRect, canvas->rect()));
+
+	if (!borderClip.isEmpty()) {
+		painter->setClipPath(borderClip, Qt::IntersectClip);
+	}
+
+	const QBrush& brush = canvas->palette().brush(canvas->backgroundRole());
+
+	if (brush.style() == Qt::TexturePattern) {
+		QPixmap pm(canvas->size());
+		QwtPainter::fillPixmap(canvas, pm);
+		painter->drawPixmap(0, 0, pm);
+	} else if (brush.gradient()) {
+		const bool fillClipRegion = brush.gradient()->coordinateMode() != QGradient::ObjectBoundingMode;
+
+		painter->setPen(Qt::NoPen);
+		painter->setBrush(brush);
+
+		if (fillClipRegion) {
+			QwtPainter::fillRegion(painter, painter->clipRegion());
+		} else {
+			painter->drawRect(canvas->rect());
+		}
+	} else {
+		painter->setPen(Qt::NoPen);
+		painter->setBrush(brush);
+		QwtPainter::fillRegion(painter, painter->clipRegion());
+	}
+
+	painter->restore();
+}
+
+/**
+ * @brief 确保widget背景按照当前GUI风格（如Windows、Fusion等）正确绘制
+ *
+ * 支持渐变、纹理、圆角等复杂背景效果
+ *
+ * 自动适配系统或应用程序的主题设置
+ * @param w
+ * @param painter
+ */
+void QwtPainter::drawStyledBackground(QWidget* w, QPainter* painter)
+{
+	QStyleOption opt;
+	opt.initFrom(w);
+	w->style()->drawPrimitive(QStyle::PE_Widget, &opt, painter, w);
 }
 
 /*!
@@ -8525,9 +8841,9 @@ void QwtPainter::drawBackgound(QPainter* painter, const QRectF& rect, const QWid
 int QwtPainter::horizontalAdvance(const QFontMetrics& fontMetrics, const QString& text)
 {
 #if QT_VERSION >= 0x050b00
-    return fontMetrics.horizontalAdvance(text);
+	return fontMetrics.horizontalAdvance(text);
 #else
-    return fontMetrics.width(text);
+	return fontMetrics.width(text);
 #endif
 }
 
@@ -8541,9 +8857,9 @@ int QwtPainter::horizontalAdvance(const QFontMetrics& fontMetrics, const QString
 qreal QwtPainter::horizontalAdvance(const QFontMetricsF& fontMetrics, const QString& text)
 {
 #if QT_VERSION >= 0x050b00
-    return fontMetrics.horizontalAdvance(text);
+	return fontMetrics.horizontalAdvance(text);
 #else
-    return fontMetrics.width(text);
+	return fontMetrics.width(text);
 #endif
 }
 
@@ -8557,9 +8873,9 @@ qreal QwtPainter::horizontalAdvance(const QFontMetricsF& fontMetrics, const QStr
 int QwtPainter::horizontalAdvance(const QFontMetrics& fontMetrics, QChar ch)
 {
 #if QT_VERSION >= 0x050b00
-    return fontMetrics.horizontalAdvance(ch);
+	return fontMetrics.horizontalAdvance(ch);
 #else
-    return fontMetrics.width(ch);
+	return fontMetrics.width(ch);
 #endif
 }
 
@@ -8573,9 +8889,9 @@ int QwtPainter::horizontalAdvance(const QFontMetrics& fontMetrics, QChar ch)
 qreal QwtPainter::horizontalAdvance(const QFontMetricsF& fontMetrics, QChar ch)
 {
 #if QT_VERSION >= 0x050b00
-    return fontMetrics.horizontalAdvance(ch);
+	return fontMetrics.horizontalAdvance(ch);
 #else
-    return fontMetrics.width(ch);
+	return fontMetrics.width(ch);
 #endif
 }
 
@@ -8590,7 +8906,7 @@ qreal QwtPainter::horizontalAdvance(const QFontMetricsF& fontMetrics, QChar ch)
  */
 QFont QwtPainter::scaledFont(const QFont& font, const QPaintDevice* paintDevice)
 {
-    if (paintDevice == nullptr) {
+	if (paintDevice == nullptr) {
 #if QT_VERSION < 0x060000
 		paintDevice = QApplication::desktop();
 #else
@@ -8601,16 +8917,16 @@ QFont QwtPainter::scaledFont(const QFont& font, const QPaintDevice* paintDevice)
 				return nullptr;
 			}
 
-            virtual int metric(PaintDeviceMetric metric) const QWT_OVERRIDE
+			virtual int metric(PaintDeviceMetric metric) const QWT_OVERRIDE
 			{
-                if (metric == PdmDpiY) {
+				if (metric == PdmDpiY) {
 					QScreen* screen = QGuiApplication::primaryScreen();
-                    if (screen) {
+					if (screen) {
 						return screen->logicalDotsPerInchY();
 					}
 				}
 
-                return QPaintDevice::metric(metric);
+				return QPaintDevice::metric(metric);
 			}
 		};
 
@@ -8619,7 +8935,56 @@ QFont QwtPainter::scaledFont(const QFont& font, const QPaintDevice* paintDevice)
 #endif
 	}
 
-    return QFont(font, const_cast< QPaintDevice* >(paintDevice));
+	return QFont(font, const_cast< QPaintDevice* >(paintDevice));
+}
+
+/**
+ * @brief 查找具有可见背景的顶层widget
+ *
+ * 递归地向上遍历widget的父级层次结构，寻找第一个具有不透明背景的widget。
+ * 这个函数用于优化绘图操作，避免在透明或无背景的widget上进行不必要的背景绘制。
+ *
+ * @param w 要检查的起始widget
+ * @return 返回第一个具有可见背景的widget，如果找不到则返回根widget
+ *
+ * @details 查找逻辑如下：
+ * 1. 如果widget没有父级（根widget），直接返回该widget
+ * 2. 如果widget启用了自动背景填充且背景不透明，则返回该widget
+ * 3. 如果widget使用样式化背景，通过实际绘制测试背景是否可见，如果可见则返回
+ * 4. 如果以上条件都不满足，则递归检查父级widget
+ *
+ * @note 这个函数主要用于绘图优化，帮助确定在哪里开始绘制背景以避免重复绘制
+ *
+ * @sa QWidget::autoFillBackground(), QWidget::backgroundRole(), QWidget::testAttribute()
+ */
+QWidget* QwtPainter::findBackgroundWidget(QWidget* w)
+{
+	if (w->parentWidget() == nullptr) {
+		return w;
+	}
+
+	if (w->autoFillBackground()) {
+		const QBrush brush = w->palette().brush(w->backgroundRole());
+		if (brush.color().alpha() > 0) {
+			return w;
+		}
+	}
+
+	if (w->testAttribute(Qt::WA_StyledBackground)) {
+		QImage image(1, 1, QImage::Format_ARGB32);
+		image.fill(Qt::transparent);
+
+		QPainter painter(&image);
+		painter.translate(-w->rect().center());
+		QwtPainter::drawStyledBackground(w, &painter);
+		painter.end();
+
+		if (qAlpha(image.pixel(0, 0)) != 0) {
+			return w;
+		}
+	}
+
+	return findBackgroundWidget(w->parentWidget());
 }
 
 /*!
@@ -8631,7 +8996,7 @@ qreal QwtPainter::devicePixelRatio(const QPaintDevice* paintDevice)
 	qreal pixelRatio = 0.0;
 
 #if QT_VERSION >= 0x050100
-    if (paintDevice) {
+	if (paintDevice) {
 #if QT_VERSION >= 0x050600
 		pixelRatio = paintDevice->devicePixelRatioF();
 #else
@@ -8639,15 +9004,15 @@ qreal QwtPainter::devicePixelRatio(const QPaintDevice* paintDevice)
 #endif
 	}
 #else
-    Q_UNUSED(paintDevice)
+	Q_UNUSED(paintDevice)
 #endif
 
 #if QT_VERSION >= 0x050000
-    if (pixelRatio == 0.0 && qApp)
+	if (pixelRatio == 0.0 && qApp)
 		pixelRatio = qApp->devicePixelRatio();
 #endif
 
-    if (pixelRatio == 0.0)
+	if (pixelRatio == 0.0)
 		pixelRatio = 1.0;
 
 	return pixelRatio;
@@ -8664,21 +9029,21 @@ QPixmap QwtPainter::backingStore(QWidget* widget, const QSize& size)
 	QPixmap pm;
 
 #if QT_VERSION >= 0x050000
-    const qreal pixelRatio = QwtPainter::devicePixelRatio(widget);
+	const qreal pixelRatio = QwtPainter::devicePixelRatio(widget);
 
-    pm = QPixmap(size * pixelRatio);
-    pm.setDevicePixelRatio(pixelRatio);
+	pm = QPixmap(size * pixelRatio);
+	pm.setDevicePixelRatio(pixelRatio);
 #else
-    pm = QPixmap(size);
+	pm = QPixmap(size);
 #endif
 
 #ifdef Q_WS_X11
-    if (widget && isX11GraphicsSystem()) {
-        if (pm.x11Info().screen() != widget->x11Info().screen())
-            pm.x11SetScreen(widget->x11Info().screen());
+	if (widget && isX11GraphicsSystem()) {
+		if (pm.x11Info().screen() != widget->x11Info().screen())
+			pm.x11SetScreen(widget->x11Info().screen());
 	}
 #else
-    Q_UNUSED(widget)
+	Q_UNUSED(widget)
 #endif
 
 	return pm;
@@ -13933,13 +14298,13 @@ inline void drawBackbone(QPainter* painter, const QwtScaleDraw* scaleDraw)
         QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
 
         break;
-    }
+	}
     case QwtScaleDraw::BottomScale: {
         const qreal y = pos.y() - 1.0 + pw2;
         QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
 
         break;
-	}
+    }
     }
 }
 
@@ -14085,8 +14450,8 @@ inline void drawTick(QPainter* painter, const QwtScaleDraw* scaleDraw, qreal tic
         QwtPainter::drawLine(painter, tickPos, y2 + 1, tickPos, y1 + 1 - off);
 
         break;
-    }
 	}
+    }
 }
 }
 
@@ -14431,8 +14796,8 @@ QPointF QwtScaleDraw::labelPosition(double value) const
         px = tval;
         py = m_data->pos.y() - dist;
         break;
-    }
 	}
+    }
 
     return QPointF(px, py);
 }
@@ -20052,7 +20417,7 @@ void QwtSymbol::setColor(const QColor& color)
         if (m_data->brush.color() != color) {
             m_data->brush.setColor(color);
             invalidateCache();
-        }
+		}
         break;
     }
     case QwtSymbol::Cross:
@@ -20069,7 +20434,7 @@ void QwtSymbol::setColor(const QColor& color)
     default: {
         if (m_data->brush.color() != color || m_data->pen.color() != color) {
             invalidateCache();
-		}
+        }
 
         m_data->brush.setColor(color);
         m_data->pen.setColor(color);
@@ -22647,11 +23012,11 @@ class ControlPointsStore
 {
 public:
     inline ControlPointsStore() : m_cp(NULL)
-	{
+    {
     }
 
     inline void init(int size)
-    {
+	{
         controlPoints.resize(size);
         m_cp = controlPoints.data();
     }
@@ -23050,8 +23415,8 @@ double slopeBoundary(int boundaryCondition, double boundaryValue, const QPointF&
     }
     default: {
         m = dy / dx;  // something
-	}
     }
+	}
 
     return m;
 }
@@ -24869,7 +25234,7 @@ public:
             } else {
                 const Equation2 eq = m_conditionsEQ[ 1 ].substituted1(eqSpline0);
                 b1                 = eq0.resolved1(eq);
-            }
+			}
 
             const double b2 = eq0.resolved2(b1);
             const double b0 = eqSpline0.resolved1(b1, b2);
@@ -24906,7 +25271,7 @@ public:
 
             b0 = eqY.resolved1(eqX);
             b1 = eqY.resolved2(b0);
-        }
+		}
 
         m_store.storeFirst(h0, p[ 0 ], p[ 1 ], b0, b1);
         m_store.storeNext(1, h0, p[ 0 ], p[ 1 ], b0, b1);
@@ -24952,7 +25317,7 @@ private:
     }
 
     double resolveSpline(const QPolygonF& points, double b1)
-    {
+	{
         const int n      = points.size();
         const QPointF* p = points.constData();
 
@@ -24978,7 +25343,7 @@ class EquationSystem2
 {
 public:
     const T& store() const
-	{
+    {
         return m_store;
     }
 
@@ -25072,7 +25437,7 @@ private:
             eq2.r = 3.0 * (slope2 - slope1) - eq1.r * k;
 
             slope1 = slope2;
-        }
+		}
 
         // b[0] * m_p[n-2] + b[n-2] * m_q[n-2] + b[n-1] * pN = m_r[n-2]
         eqn.setup(m_eq[ n - 2 ].q, m_eq[ n - 2 ].p + eqSplineN.p, m_eq[ n - 2 ].r);
@@ -25253,7 +25618,7 @@ static void qwtSetupEndEquations(int conditionBegin,
             // the imaginary endpoints have the same distance as h0/hn
 
             v0 = h0 / (points[ 2 ].x() - points[ 1 ].x());
-		}
+        }
 
         eq[ 0 ].setup(1.0, -(1.0 + v0), v0, 0.0);
         break;
@@ -25264,7 +25629,7 @@ static void qwtSetupEndEquations(int conditionBegin,
         eq[ 0 ].setup(1.0, 0.0, 0.0, 0.0);
         break;
     }
-    }
+	}
 
     switch (conditionEnd) {
     case QwtSpline::Clamped1: {
@@ -25307,7 +25672,7 @@ static void qwtSetupEndEquations(int conditionBegin,
             // the imaginary endpoints have the same distance as hn
 
             vn = hn / (points[ n - 2 ].x() - points[ n - 3 ].x());
-		}
+        }
 
         eq[ 1 ].setup(vn, -(1.0 + vn), 1.0, 0.0);
         break;
@@ -25318,7 +25683,7 @@ static void qwtSetupEndEquations(int conditionBegin,
         eq[ 1 ].setup(0.0, 0.0, 1.0, 0.0);
         break;
     }
-    }
+	}
 }
 
 class QwtSplineCubic::PrivateData
@@ -26682,7 +27047,7 @@ static double qwtDivideMajorStep(double stepSize, int maxMinSteps, QwtDate::Inte
                 minStepSize = 1;
             } else {
                 minStepSize = QwtScaleArithmetic::divideInterval(stepSizeInWeeks, maxMinSteps, 10);
-            }
+			}
 		}
         break;
     }
@@ -26707,13 +27072,13 @@ static double qwtDivideMajorStep(double stepSize, int maxMinSteps, QwtDate::Inte
         } else {
             // something in months
 
-			static int limits[] = { 1, 2, 3, 4, 6, 12 };
+            static int limits[] = { 1, 2, 3, 4, 6, 12 };
 
             int numSteps = qwtStepCount(12 * stepSize, maxMinSteps, limits, sizeof(limits) / sizeof(int));
 
             if (numSteps > 0)
-				minStepSize = stepSize / numSteps;
-		}
+                minStepSize = stepSize / numSteps;
+        }
 
         break;
     }
@@ -27394,7 +27759,7 @@ QDateTime QwtDateScaleEngine::alignDate(const QDateTime& dateTime, double stepSi
             if (dt.time().msec() > 0 || dt.time().second() > 0 || dt.time().minute() > 0) {
                 hour++;
 			}
-        }
+		}
         const int h = qwtAlignValue(hour, stepSize, up);
 
         dt = QwtDate::floor(dt, QwtDate::Day);
@@ -27443,8 +27808,8 @@ QDateTime QwtDateScaleEngine::alignDate(const QDateTime& dateTime, double stepSi
         if (up) {
             if (dt.date().day() > 1 || dt.time() > QTime(0, 0)) {
                 month++;
-			}
-        }
+            }
+		}
 
         const int m = qwtAlignValue(month - 1, stepSize, up);
 
@@ -27458,8 +27823,8 @@ QDateTime QwtDateScaleEngine::alignDate(const QDateTime& dateTime, double stepSi
         if (up) {
             if (dateTime.date().dayOfYear() > 1 || dt.time() > QTime(0, 0)) {
                 year++;
-            }
-		}
+			}
+        }
 
         const int y = qwtAlignValue(year, stepSize, up);
 
@@ -32376,7 +32741,7 @@ QList< QwtPickerMachine::Command > QwtPickerClickRectMachine::transition(const Q
                 cmdList += Append;
                 setState(1);
                 break;
-            }
+			}
             case 1: {
                 // Uh, strange we missed the MouseButtonRelease
                 break;
@@ -32385,7 +32750,7 @@ QList< QwtPickerMachine::Command > QwtPickerClickRectMachine::transition(const Q
                 cmdList += End;
                 setState(0);
             }
-			}
+            }
 		}
         break;
     }
@@ -34745,366 +35110,89 @@ QwtPlotItemList QwtPlotDict::itemList(int rtti) const
 #include <qstyle.h>
 #include <qstyleoption.h>
 
-namespace
-{
-class QwtStyleSheetRecorder QWT_FINAL : public QwtNullPaintDevice
-{
-public:
-    explicit QwtStyleSheetRecorder(const QSize& size) : m_size(size)
-	{
-    }
-
-    virtual void updateState(const QPaintEngineState& state) QWT_OVERRIDE
-    {
-        if (state.state() & QPaintEngine::DirtyPen) {
-            m_pen = state.pen();
-        }
-        if (state.state() & QPaintEngine::DirtyBrush) {
-            m_brush = state.brush();
-        }
-        if (state.state() & QPaintEngine::DirtyBrushOrigin) {
-            m_origin = state.brushOrigin();
-		}
-    }
-
-    virtual void drawRects(const QRectF* rects, int count) QWT_OVERRIDE
-    {
-        for (int i = 0; i < count; i++)
-            border.rectList += rects[ i ];
-    }
-
-    virtual void drawRects(const QRect* rects, int count) QWT_OVERRIDE
-    {
-        for (int i = 0; i < count; i++)
-            border.rectList += rects[ i ];
-    }
-
-    virtual void drawPath(const QPainterPath& path) QWT_OVERRIDE
-    {
-        const QRectF rect(QPointF(0.0, 0.0), m_size);
-        if (path.controlPointRect().contains(rect.center())) {
-            setCornerRects(path);
-            alignCornerRects(rect);
-
-            background.path   = path;
-            background.brush  = m_brush;
-            background.origin = m_origin;
-        } else {
-            border.pathList += path;
-		}
-    }
-
-    void setCornerRects(const QPainterPath& path)
-    {
-        QPointF pos(0.0, 0.0);
-
-        for (int i = 0; i < path.elementCount(); i++) {
-            QPainterPath::Element el = path.elementAt(i);
-            switch (el.type) {
-            case QPainterPath::MoveToElement:
-            case QPainterPath::LineToElement: {
-                pos.setX(el.x);
-                pos.setY(el.y);
-                break;
-            }
-            case QPainterPath::CurveToElement: {
-                QRectF r(pos, QPointF(el.x, el.y));
-                clipRects += r.normalized();
-
-                pos.setX(el.x);
-                pos.setY(el.y);
-
-                break;
-            }
-            case QPainterPath::CurveToDataElement: {
-                if (clipRects.size() > 0) {
-                    QRectF r = clipRects.last();
-                    r.setCoords(qwtMinF(r.left(), el.x),
-                                qwtMinF(r.top(), el.y),
-                                qwtMaxF(r.right(), el.x),
-                                qwtMaxF(r.bottom(), el.y));
-                    clipRects.last() = r.normalized();
-				}
-                break;
-            }
-            }
-		}
-    }
-
-protected:
-    virtual QSize sizeMetrics() const QWT_OVERRIDE
-    {
-        return m_size;
-    }
-
-private:
-    void alignCornerRects(const QRectF& rect)
-    {
-        for (int i = 0; i < clipRects.size(); i++) {
-            QRectF& r = clipRects[ i ];
-            if (r.center().x() < rect.center().x())
-                r.setLeft(rect.left());
-            else
-                r.setRight(rect.right());
-
-            if (r.center().y() < rect.center().y())
-                r.setTop(rect.top());
-            else
-                r.setBottom(rect.bottom());
-		}
-    }
-
-public:
-    QVector< QRectF > clipRects;
-
-    struct Border
-    {
-        QList< QPainterPath > pathList;
-        QList< QRectF > rectList;
-        QRegion clipRegion;
-    } border;
-
-    struct Background
-    {
-        QPainterPath path;
-        QBrush brush;
-        QPointF origin;
-    } background;
-
-private:
-    const QSize m_size;
-
-    QPen m_pen;
-    QBrush m_brush;
-    QPointF m_origin;
-};
-}
-
 static void qwtUpdateContentsRect(int fw, QWidget* canvas)
 {
-    canvas->setContentsMargins(fw, fw, fw, fw);
-}
-
-static void qwtFillRegion(QPainter* painter, const QRegion& region)
-{
-#if QT_VERSION >= 0x050800
-    for (QRegion::const_iterator it = region.cbegin(); it != region.cend(); ++it) {
-        painter->drawRect(*it);
-	}
-#else
-    painter->drawRects(region.rects());
-#endif
-}
-
-static void qwtDrawBackground(QPainter* painter, QWidget* canvas)
-{
-	painter->save();
-
-	QPainterPath borderClip;
-
-    (void)QMetaObject::invokeMethod(canvas,
-                                    "borderPath",
-                                    Qt::DirectConnection,
-                                    Q_RETURN_ARG(QPainterPath, borderClip),
-                                    Q_ARG(QRect, canvas->rect()));
-
-    if (!borderClip.isEmpty())
-        painter->setClipPath(borderClip, Qt::IntersectClip);
-
-    const QBrush& brush = canvas->palette().brush(canvas->backgroundRole());
-
-    if (brush.style() == Qt::TexturePattern) {
-        QPixmap pm(canvas->size());
-        QwtPainter::fillPixmap(canvas, pm);
-        painter->drawPixmap(0, 0, pm);
-    } else if (brush.gradient()) {
-        const bool fillClipRegion = brush.gradient()->coordinateMode() != QGradient::ObjectBoundingMode;
-
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(brush);
-
-        if (fillClipRegion)
-            qwtFillRegion(painter, painter->clipRegion());
-		else
-            painter->drawRect(canvas->rect());
-    } else {
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(brush);
-        qwtFillRegion(painter, painter->clipRegion());
-	}
-
-	painter->restore();
-}
-
-static inline void qwtDrawStyledBackground(QWidget* w, QPainter* painter)
-{
-	QStyleOption opt;
-	opt.initFrom(w);
-    w->style()->drawPrimitive(QStyle::PE_Widget, &opt, painter, w);
-}
-
-static QWidget* qwtBackgroundWidget(QWidget* w)
-{
-    if (w->parentWidget() == NULL)
-		return w;
-
-    if (w->autoFillBackground()) {
-        const QBrush brush = w->palette().brush(w->backgroundRole());
-        if (brush.color().alpha() > 0)
-			return w;
-	}
-
-    if (w->testAttribute(Qt::WA_StyledBackground)) {
-        QImage image(1, 1, QImage::Format_ARGB32);
-        image.fill(Qt::transparent);
-
-        QPainter painter(&image);
-        painter.translate(-w->rect().center());
-        qwtDrawStyledBackground(w, &painter);
-		painter.end();
-
-        if (qAlpha(image.pixel(0, 0)) != 0)
-			return w;
-	}
-
-    return qwtBackgroundWidget(w->parentWidget());
-}
-
-static void qwtFillBackground(QPainter* painter, QWidget* widget, const QVector< QRectF >& fillRects)
-{
-    if (fillRects.isEmpty())
-		return;
-
-	QRegion clipRegion;
-    if (painter->hasClipping())
-        clipRegion = painter->transform().map(painter->clipRegion());
-	else
-		clipRegion = widget->contentsRect();
-
-	// Try to find out which widget fills
-	// the unfilled areas of the styled background
-
-    QWidget* bgWidget = qwtBackgroundWidget(widget->parentWidget());
-
-    for (int i = 0; i < fillRects.size(); i++) {
-        const QRect rect = fillRects[ i ].toAlignedRect();
-        if (clipRegion.intersects(rect)) {
-            QPixmap pm(rect.size());
-            QwtPainter::fillPixmap(bgWidget, pm, widget->mapTo(bgWidget, rect.topLeft()));
-            painter->drawPixmap(rect, pm);
-		}
-	}
-}
-
-static void qwtFillBackground(QPainter* painter, QWidget* canvas)
-{
-	QVector< QRectF > rects;
-
-    if (canvas->testAttribute(Qt::WA_StyledBackground)) {
-        QwtStyleSheetRecorder recorder(canvas->size());
-
-        QPainter p(&recorder);
-        qwtDrawStyledBackground(canvas, &p);
-		p.end();
-
-        if (recorder.background.brush.isOpaque())
-			rects = recorder.clipRects;
-		else
-			rects += canvas->rect();
-    } else {
-        const double borderRadius = canvas->property("borderRadius").toDouble();
-        if (borderRadius > 0.0) {
-            QSizeF sz(borderRadius, borderRadius);
-
-			const QRectF r = canvas->rect();
-            rects += QRectF(r.topLeft(), sz);
-            rects += QRectF(r.topRight() - QPointF(borderRadius, 0), sz);
-            rects += QRectF(r.bottomRight() - QPointF(borderRadius, borderRadius), sz);
-            rects += QRectF(r.bottomLeft() - QPointF(0, borderRadius), sz);
-		}
-	}
-
-    qwtFillBackground(painter, canvas, rects);
+	canvas->setContentsMargins(fw, fw, fw, fw);
 }
 
 static inline void qwtRevertPath(QPainterPath& path)
 {
-    if (path.elementCount() == 4) {
+	if (path.elementCount() == 4) {
 		QPainterPath::Element el0 = path.elementAt(0);
 		QPainterPath::Element el3 = path.elementAt(3);
 
-        path.setElementPositionAt(0, el3.x, el3.y);
-        path.setElementPositionAt(3, el0.x, el0.y);
+		path.setElementPositionAt(0, el3.x, el3.y);
+		path.setElementPositionAt(3, el0.x, el0.y);
 	}
 }
 
 static QPainterPath qwtCombinePathList(const QRectF& rect, const QList< QPainterPath >& pathList)
 {
-    if (pathList.isEmpty())
+	if (pathList.isEmpty())
 		return QPainterPath();
 
-    QPainterPath ordered[ 8 ];  // starting top left
+	QPainterPath ordered[ 8 ];  // starting top left
 
-    for (int i = 0; i < pathList.size(); i++) {
-        int index            = -1;
-        QPainterPath subPath = pathList[ i ];
+	for (int i = 0; i < pathList.size(); i++) {
+		int index            = -1;
+		QPainterPath subPath = pathList[ i ];
 
-        const QRectF br = pathList[ i ].controlPointRect();
-        if (br.center().x() < rect.center().x()) {
-            if (br.center().y() < rect.center().y()) {
-                if (qAbs(br.top() - rect.top()) < qAbs(br.left() - rect.left())) {
+		const QRectF br = pathList[ i ].controlPointRect();
+		if (br.center().x() < rect.center().x()) {
+			if (br.center().y() < rect.center().y()) {
+				if (qAbs(br.top() - rect.top()) < qAbs(br.left() - rect.left())) {
 					index = 1;
-                } else {
+				} else {
 					index = 0;
 				}
-            } else {
-                if (qAbs(br.bottom() - rect.bottom()) < qAbs(br.left() - rect.left())) {
+			} else {
+				if (qAbs(br.bottom() - rect.bottom()) < qAbs(br.left() - rect.left())) {
 					index = 6;
-                } else {
+				} else {
 					index = 7;
 				}
 			}
 
-            if (subPath.currentPosition().y() > br.center().y())
-                qwtRevertPath(subPath);
-        } else {
-            if (br.center().y() < rect.center().y()) {
-                if (qAbs(br.top() - rect.top()) < qAbs(br.right() - rect.right())) {
+			if (subPath.currentPosition().y() > br.center().y())
+				qwtRevertPath(subPath);
+		} else {
+			if (br.center().y() < rect.center().y()) {
+				if (qAbs(br.top() - rect.top()) < qAbs(br.right() - rect.right())) {
 					index = 2;
-                } else {
+				} else {
 					index = 3;
 				}
-            } else {
-                if (qAbs(br.bottom() - rect.bottom()) < qAbs(br.right() - rect.right())) {
+			} else {
+				if (qAbs(br.bottom() - rect.bottom()) < qAbs(br.right() - rect.right())) {
 					index = 5;
-                } else {
+				} else {
 					index = 4;
 				}
 			}
-            if (subPath.currentPosition().y() < br.center().y())
-                qwtRevertPath(subPath);
+			if (subPath.currentPosition().y() < br.center().y())
+				qwtRevertPath(subPath);
 		}
-        ordered[ index ] = subPath;
+		ordered[ index ] = subPath;
 	}
 
-    for (int i = 0; i < 4; i++) {
-        if (ordered[ 2 * i ].isEmpty() != ordered[ 2 * i + 1 ].isEmpty()) {
+	for (int i = 0; i < 4; i++) {
+		if (ordered[ 2 * i ].isEmpty() != ordered[ 2 * i + 1 ].isEmpty()) {
 			// we don't accept incomplete rounded borders
 			return QPainterPath();
 		}
 	}
 
-    const QPolygonF corners(rect);
+	const QPolygonF corners(rect);
 
 	QPainterPath path;
-    // path.moveTo( rect.topLeft() );
+	// path.moveTo( rect.topLeft() );
 
-    for (int i = 0; i < 4; i++) {
-        if (ordered[ 2 * i ].isEmpty()) {
-            path.lineTo(corners[ i ]);
-        } else {
-            path.connectPath(ordered[ 2 * i ]);
-            path.connectPath(ordered[ 2 * i + 1 ]);
+	for (int i = 0; i < 4; i++) {
+		if (ordered[ 2 * i ].isEmpty()) {
+			path.lineTo(corners[ i ]);
+		} else {
+			path.connectPath(ordered[ 2 * i ]);
+			path.connectPath(ordered[ 2 * i + 1 ]);
 		}
 	}
 
@@ -35119,32 +35207,32 @@ static QPainterPath qwtCombinePathList(const QRectF& rect, const QList< QPainter
 
 static QPainterPath qwtBorderPath(const QWidget* canvas, const QRect& rect)
 {
-    if (canvas->testAttribute(Qt::WA_StyledBackground)) {
-        QwtStyleSheetRecorder recorder(rect.size());
+	if (canvas->testAttribute(Qt::WA_StyledBackground)) {
+		QwtStyleSheetRecorder recorder(rect.size());
 
-        QPainter painter(&recorder);
+		QPainter painter(&recorder);
 
 		QStyleOption opt;
-        opt.initFrom(canvas);
+		opt.initFrom(canvas);
 		opt.rect = rect;
-        canvas->style()->drawPrimitive(QStyle::PE_Widget, &opt, &painter, canvas);
+		canvas->style()->drawPrimitive(QStyle::PE_Widget, &opt, &painter, canvas);
 
 		painter.end();
 
-        if (!recorder.background.path.isEmpty())
+		if (!recorder.background.path.isEmpty())
 			return recorder.background.path;
 
-        if (!recorder.border.rectList.isEmpty())
-            return qwtCombinePathList(rect, recorder.border.pathList);
-    } else {
-        const double borderRadius = canvas->property("borderRadius").toDouble();
+		if (!recorder.border.rectList.isEmpty())
+			return qwtCombinePathList(rect, recorder.border.pathList);
+	} else {
+		const double borderRadius = canvas->property("borderRadius").toDouble();
 
-        if (borderRadius > 0.0) {
-            double fw2 = canvas->property("frameWidth").toInt() * 0.5;
-            QRectF r   = QRectF(rect).adjusted(fw2, fw2, -fw2, -fw2);
+		if (borderRadius > 0.0) {
+			double fw2 = canvas->property("frameWidth").toInt() * 0.5;
+			QRectF r   = QRectF(rect).adjusted(fw2, fw2, -fw2, -fw2);
 
 			QPainterPath path;
-            path.addRoundedRect(r, borderRadius, borderRadius);
+			path.addRoundedRect(r, borderRadius, borderRadius);
 			return path;
 		}
 	}
@@ -35155,7 +35243,7 @@ static QPainterPath qwtBorderPath(const QWidget* canvas, const QRect& rect)
 class QwtPlotAbstractCanvas::PrivateData
 {
 public:
-    PrivateData() : focusIndicator(NoFocusIndicator), borderRadius(0)
+	PrivateData() : focusIndicator(NoFocusIndicator), borderRadius(0)
 	{
 		styleSheet.hasBorder = false;
 	}
@@ -35186,13 +35274,13 @@ public:
  */
 QwtPlotAbstractCanvas::QwtPlotAbstractCanvas(QWidget* canvasWidget)
 {
-    m_data               = new PrivateData;
+	m_data               = new PrivateData;
 	m_data->canvasWidget = canvasWidget;
 
 #ifndef QT_NO_CURSOR
-    canvasWidget->setCursor(Qt::CrossCursor);
+	canvasWidget->setCursor(Qt::CrossCursor);
 #endif
-    canvasWidget->setAutoFillBackground(true);
+	canvasWidget->setAutoFillBackground(true);
 }
 
 //! Destructor
@@ -35204,13 +35292,13 @@ QwtPlotAbstractCanvas::~QwtPlotAbstractCanvas()
 //! Return parent plot widget
 QwtPlot* QwtPlotAbstractCanvas::plot()
 {
-    return qobject_cast< QwtPlot* >(m_data->canvasWidget->parent());
+	return qobject_cast< QwtPlot* >(m_data->canvasWidget->parent());
 }
 
 //! Return parent plot widget
 const QwtPlot* QwtPlotAbstractCanvas::plot() const
 {
-    return qobject_cast< const QwtPlot* >(m_data->canvasWidget->parent());
+	return qobject_cast< const QwtPlot* >(m_data->canvasWidget->parent());
 }
 
 /*!
@@ -35242,12 +35330,12 @@ void QwtPlotAbstractCanvas::drawFocusIndicator(QPainter* painter)
 	const int margin = 1;
 
 	QRect focusRect = m_data->canvasWidget->contentsRect();
-    focusRect.setRect(focusRect.x() + margin,
+	focusRect.setRect(focusRect.x() + margin,
                       focusRect.y() + margin,
                       focusRect.width() - 2 * margin,
                       focusRect.height() - 2 * margin);
 
-    QwtPainter::drawFocusRect(painter, m_data->canvasWidget, focusRect);
+	QwtPainter::drawFocusRect(painter, m_data->canvasWidget, focusRect);
 }
 
 /*!
@@ -35258,7 +35346,7 @@ void QwtPlotAbstractCanvas::drawFocusIndicator(QPainter* painter)
  */
 void QwtPlotAbstractCanvas::setBorderRadius(double radius)
 {
-    m_data->borderRadius = qwtMaxF(0.0, radius);
+	m_data->borderRadius = qwtMaxF(0.0, radius);
 }
 
 /*!
@@ -35273,7 +35361,7 @@ double QwtPlotAbstractCanvas::borderRadius() const
 //! \return Path for the canvas border
 QPainterPath QwtPlotAbstractCanvas::canvasBorderPath(const QRect& rect) const
 {
-    return qwtBorderPath(canvasWidget(), rect);
+	return qwtBorderPath(canvasWidget(), rect);
 }
 
 /*!
@@ -35284,15 +35372,15 @@ void QwtPlotAbstractCanvas::drawBorder(QPainter* painter)
 {
 	const QWidget* w = canvasWidget();
 
-    if (m_data->borderRadius > 0) {
-        const int frameWidth = w->property("frameWidth").toInt();
-        if (frameWidth > 0) {
-            const int frameShape  = w->property("frameShape").toInt();
-            const int frameShadow = w->property("frameShadow").toInt();
+	if (m_data->borderRadius > 0) {
+		const int frameWidth = w->property("frameWidth").toInt();
+		if (frameWidth > 0) {
+			const int frameShape  = w->property("frameShape").toInt();
+			const int frameShadow = w->property("frameShadow").toInt();
 
-            const QRectF frameRect = w->property("frameRect").toRect();
+			const QRectF frameRect = w->property("frameRect").toRect();
 
-            QwtPainter::drawRoundedFrame(painter,
+			QwtPainter::drawRoundedFrame(painter,
                                          frameRect,
                                          m_data->borderRadius,
                                          m_data->borderRadius,
@@ -35300,97 +35388,97 @@ void QwtPlotAbstractCanvas::drawBorder(QPainter* painter)
                                          frameWidth,
                                          frameShape | frameShadow);
 		}
-    } else {
-        const int frameShape  = w->property("frameShape").toInt();
-        const int frameShadow = w->property("frameShadow").toInt();
+	} else {
+		const int frameShape  = w->property("frameShape").toInt();
+		const int frameShadow = w->property("frameShadow").toInt();
 
 #if QT_VERSION < 0x050000
 		QStyleOptionFrameV3 opt;
 #else
 		QStyleOptionFrame opt;
 #endif
-        opt.initFrom(w);
+		opt.initFrom(w);
 
-        opt.frameShape = QFrame::Shape(int(opt.frameShape) | frameShape);
+		opt.frameShape = QFrame::Shape(int(opt.frameShape) | frameShape);
 
-        switch (frameShape) {
-        case QFrame::Box:
-        case QFrame::HLine:
-        case QFrame::VLine:
-        case QFrame::StyledPanel:
-        case QFrame::Panel: {
-            opt.lineWidth    = w->property("lineWidth").toInt();
-            opt.midLineWidth = w->property("midLineWidth").toInt();
-            break;
-        }
-        default: {
-            opt.lineWidth = w->property("frameWidth").toInt();
-            break;
-        }
+		switch (frameShape) {
+		case QFrame::Box:
+		case QFrame::HLine:
+		case QFrame::VLine:
+		case QFrame::StyledPanel:
+		case QFrame::Panel: {
+			opt.lineWidth    = w->property("lineWidth").toInt();
+			opt.midLineWidth = w->property("midLineWidth").toInt();
+			break;
+		}
+		default: {
+			opt.lineWidth = w->property("frameWidth").toInt();
+			break;
+		}
 		}
 
-        if (frameShadow == QFrame::Sunken)
+		if (frameShadow == QFrame::Sunken)
 			opt.state |= QStyle::State_Sunken;
-        else if (frameShadow == QFrame::Raised)
+		else if (frameShadow == QFrame::Raised)
 			opt.state |= QStyle::State_Raised;
 
-        w->style()->drawControl(QStyle::CE_ShapedFrame, &opt, painter, w);
+		w->style()->drawControl(QStyle::CE_ShapedFrame, &opt, painter, w);
 	}
 }
 
 //! Helper function for the derived plot canvas
 void QwtPlotAbstractCanvas::drawBackground(QPainter* painter)
 {
-    qwtDrawBackground(painter, canvasWidget());
+	QwtPainter::drawCanvasBackgound(painter, canvasWidget());
 }
 
 //! Helper function for the derived plot canvas
 void QwtPlotAbstractCanvas::fillBackground(QPainter* painter)
 {
-    qwtFillBackground(painter, canvasWidget());
+	QwtPainter::fillBackground(painter, canvasWidget());
 }
 
 //! Helper function for the derived plot canvas
 void QwtPlotAbstractCanvas::drawUnstyled(QPainter* painter)
 {
-    fillBackground(painter);
+	fillBackground(painter);
 
 	QWidget* w = canvasWidget();
 
-    if (w->autoFillBackground()) {
+	if (w->autoFillBackground()) {
 		const QRect canvasRect = w->rect();
 
 		painter->save();
 
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(w->palette().brush(w->backgroundRole()));
+		painter->setPen(Qt::NoPen);
+		painter->setBrush(w->palette().brush(w->backgroundRole()));
 
-        const QRect frameRect = w->property("frameRect").toRect();
-        if (borderRadius() > 0.0 && (canvasRect == frameRect)) {
-            const int frameWidth = w->property("frameWidth").toInt();
-            if (frameWidth > 0) {
-                painter->setClipPath(canvasBorderPath(canvasRect));
-                painter->drawRect(canvasRect);
-            } else {
-                painter->setRenderHint(QPainter::Antialiasing, true);
-                painter->drawPath(canvasBorderPath(canvasRect));
+		const QRect frameRect = w->property("frameRect").toRect();
+		if (borderRadius() > 0.0 && (canvasRect == frameRect)) {
+			const int frameWidth = w->property("frameWidth").toInt();
+			if (frameWidth > 0) {
+				painter->setClipPath(canvasBorderPath(canvasRect));
+				painter->drawRect(canvasRect);
+			} else {
+				painter->setRenderHint(QPainter::Antialiasing, true);
+				painter->drawPath(canvasBorderPath(canvasRect));
 			}
-        } else {
-            painter->drawRect(canvasRect);
+		} else {
+			painter->drawRect(canvasRect);
 		}
 
 		painter->restore();
 	}
 
-    drawCanvas(painter);
+	drawCanvas(painter);
 }
 
 //! Helper function for the derived plot canvas
 void QwtPlotAbstractCanvas::drawStyled(QPainter* painter, bool hackStyledBackground)
 {
-    fillBackground(painter);
+	fillBackground(painter);
 
-    if (hackStyledBackground) {
+	if (hackStyledBackground) {
 		// Antialiasing rounded borders is done by
 		// inserting pixels with colors between the
 		// border color and the color on the canvas,
@@ -35403,7 +35491,7 @@ void QwtPlotAbstractCanvas::drawStyled(QPainter* painter, bool hackStyledBackgro
 		// The only way to avoid these annoying "artefacts"
 		// is to paint the border on top of the plot items.
 
-        if (!m_data->styleSheet.hasBorder || m_data->styleSheet.borderPath.isEmpty()) {
+		if (!m_data->styleSheet.hasBorder || m_data->styleSheet.borderPath.isEmpty()) {
 			// We have no border with at least one rounded corner
 			hackStyledBackground = false;
 		}
@@ -35411,30 +35499,30 @@ void QwtPlotAbstractCanvas::drawStyled(QPainter* painter, bool hackStyledBackgro
 
 	QWidget* w = canvasWidget();
 
-    if (hackStyledBackground) {
+	if (hackStyledBackground) {
 		painter->save();
 
 		// paint background without border
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(m_data->styleSheet.background.brush);
-        painter->setBrushOrigin(m_data->styleSheet.background.origin);
-        painter->setClipPath(m_data->styleSheet.borderPath);
-        painter->drawRect(w->contentsRect());
+		painter->setPen(Qt::NoPen);
+		painter->setBrush(m_data->styleSheet.background.brush);
+		painter->setBrushOrigin(m_data->styleSheet.background.origin);
+		painter->setClipPath(m_data->styleSheet.borderPath);
+		painter->drawRect(w->contentsRect());
 
 		painter->restore();
 
-        drawCanvas(painter);
+		drawCanvas(painter);
 
 		// Now paint the border on top
 		QStyleOptionFrame opt;
-        opt.initFrom(w);
-        w->style()->drawPrimitive(QStyle::PE_Frame, &opt, painter, w);
-    } else {
+		opt.initFrom(w);
+		w->style()->drawPrimitive(QStyle::PE_Frame, &opt, painter, w);
+	} else {
 		QStyleOption opt;
-        opt.initFrom(w);
-        w->style()->drawPrimitive(QStyle::PE_Widget, &opt, painter, w);
+		opt.initFrom(w);
+		w->style()->drawPrimitive(QStyle::PE_Widget, &opt, painter, w);
 
-        drawCanvas(painter);
+		drawCanvas(painter);
 	}
 }
 
@@ -35445,20 +35533,20 @@ void QwtPlotAbstractCanvas::drawCanvas(QPainter* painter)
 
 	painter->save();
 
-    if (!m_data->styleSheet.borderPath.isEmpty()) {
-        painter->setClipPath(m_data->styleSheet.borderPath, Qt::IntersectClip);
-    } else {
-        if (borderRadius() > 0.0) {
-            const QRect frameRect = w->property("frameRect").toRect();
-            painter->setClipPath(canvasBorderPath(frameRect), Qt::IntersectClip);
-        } else {
-            painter->setClipRect(w->contentsRect(), Qt::IntersectClip);
+	if (!m_data->styleSheet.borderPath.isEmpty()) {
+		painter->setClipPath(m_data->styleSheet.borderPath, Qt::IntersectClip);
+	} else {
+		if (borderRadius() > 0.0) {
+			const QRect frameRect = w->property("frameRect").toRect();
+			painter->setClipPath(canvasBorderPath(frameRect), Qt::IntersectClip);
+		} else {
+			painter->setClipRect(w->contentsRect(), Qt::IntersectClip);
 		}
 	}
 
-    QwtPlot* plot = qobject_cast< QwtPlot* >(w->parent());
-    if (plot)
-        plot->drawCanvas(painter);
+	QwtPlot* plot = qobject_cast< QwtPlot* >(w->parent());
+	if (plot)
+		plot->drawCanvas(painter);
 
 	painter->restore();
 }
@@ -35468,29 +35556,29 @@ void QwtPlotAbstractCanvas::updateStyleSheetInfo()
 {
 	QWidget* w = canvasWidget();
 
-    if (!w->testAttribute(Qt::WA_StyledBackground))
+	if (!w->testAttribute(Qt::WA_StyledBackground))
 		return;
 
-    QwtStyleSheetRecorder recorder(w->size());
+	QwtStyleSheetRecorder recorder(w->size());
 
-    QPainter painter(&recorder);
+	QPainter painter(&recorder);
 
 	QStyleOption opt;
 	opt.initFrom(w);
-    w->style()->drawPrimitive(QStyle::PE_Widget, &opt, &painter, w);
+	w->style()->drawPrimitive(QStyle::PE_Widget, &opt, &painter, w);
 
 	painter.end();
 
-    m_data->styleSheet.hasBorder   = !recorder.border.rectList.isEmpty();
+	m_data->styleSheet.hasBorder   = !recorder.border.rectList.isEmpty();
 	m_data->styleSheet.cornerRects = recorder.clipRects;
 
-    if (recorder.background.path.isEmpty()) {
-        if (!recorder.border.rectList.isEmpty()) {
-            m_data->styleSheet.borderPath = qwtCombinePathList(w->rect(), recorder.border.pathList);
+	if (recorder.background.path.isEmpty()) {
+		if (!recorder.border.rectList.isEmpty()) {
+			m_data->styleSheet.borderPath = qwtCombinePathList(w->rect(), recorder.border.pathList);
 		}
-    } else {
-        m_data->styleSheet.borderPath        = recorder.background.path;
-        m_data->styleSheet.background.brush  = recorder.background.brush;
+	} else {
+		m_data->styleSheet.borderPath        = recorder.background.path;
+		m_data->styleSheet.background.brush  = recorder.background.brush;
 		m_data->styleSheet.background.origin = recorder.background.origin;
 	}
 }
@@ -35510,7 +35598,7 @@ const QWidget* QwtPlotAbstractCanvas::canvasWidget() const
 class QwtPlotAbstractGLCanvas::PrivateData
 {
 public:
-    PrivateData() : frameStyle(QFrame::Panel | QFrame::Sunken), lineWidth(2), midLineWidth(0)
+	PrivateData() : frameStyle(QFrame::Panel | QFrame::Sunken), lineWidth(2), midLineWidth(0)
 	{
 	}
 
@@ -35529,7 +35617,7 @@ QwtPlotAbstractGLCanvas::QwtPlotAbstractGLCanvas(QWidget* canvasWidget) : QwtPlo
 {
 	m_data = new PrivateData;
 
-    qwtUpdateContentsRect(frameWidth(), canvasWidget);
+	qwtUpdateContentsRect(frameWidth(), canvasWidget);
 	m_data->paintAttributes = QwtPlotAbstractGLCanvas::BackingStore;
 }
 
@@ -35549,15 +35637,15 @@ QwtPlotAbstractGLCanvas::~QwtPlotAbstractGLCanvas()
  */
 void QwtPlotAbstractGLCanvas::setPaintAttribute(PaintAttribute attribute, bool on)
 {
-    if (bool(m_data->paintAttributes & attribute) == on)
+	if (bool(m_data->paintAttributes & attribute) == on)
 		return;
 
-    if (on) {
+	if (on) {
 		m_data->paintAttributes |= attribute;
-    } else {
+	} else {
 		m_data->paintAttributes &= ~attribute;
 
-        if (attribute == BackingStore)
+		if (attribute == BackingStore)
 			clearBackingStore();
 	}
 }
@@ -35584,9 +35672,9 @@ bool QwtPlotAbstractGLCanvas::testPaintAttribute(PaintAttribute attribute) const
  */
 void QwtPlotAbstractGLCanvas::setFrameStyle(int style)
 {
-    if (style != m_data->frameStyle) {
+	if (style != m_data->frameStyle) {
 		m_data->frameStyle = style;
-        qwtUpdateContentsRect(frameWidth(), canvasWidget());
+		qwtUpdateContentsRect(frameWidth(), canvasWidget());
 
 		canvasWidget()->update();
 	}
@@ -35609,7 +35697,7 @@ int QwtPlotAbstractGLCanvas::frameStyle() const
  */
 void QwtPlotAbstractGLCanvas::setFrameShadow(QFrame::Shadow shadow)
 {
-    setFrameStyle((m_data->frameStyle & QFrame::Shape_Mask) | shadow);
+	setFrameStyle((m_data->frameStyle & QFrame::Shape_Mask) | shadow);
 }
 
 /*!
@@ -35618,7 +35706,7 @@ void QwtPlotAbstractGLCanvas::setFrameShadow(QFrame::Shadow shadow)
  */
 QFrame::Shadow QwtPlotAbstractGLCanvas::frameShadow() const
 {
-    return (QFrame::Shadow)(m_data->frameStyle & QFrame::Shadow_Mask);
+	return (QFrame::Shadow)(m_data->frameStyle & QFrame::Shadow_Mask);
 }
 
 /*!
@@ -35629,7 +35717,7 @@ QFrame::Shadow QwtPlotAbstractGLCanvas::frameShadow() const
  */
 void QwtPlotAbstractGLCanvas::setFrameShape(QFrame::Shape shape)
 {
-    setFrameStyle((m_data->frameStyle & QFrame::Shadow_Mask) | shape);
+	setFrameStyle((m_data->frameStyle & QFrame::Shadow_Mask) | shape);
 }
 
 /*!
@@ -35638,7 +35726,7 @@ void QwtPlotAbstractGLCanvas::setFrameShape(QFrame::Shape shape)
  */
 QFrame::Shape QwtPlotAbstractGLCanvas::frameShape() const
 {
-    return (QFrame::Shape)(m_data->frameStyle & QFrame::Shape_Mask);
+	return (QFrame::Shape)(m_data->frameStyle & QFrame::Shape_Mask);
 }
 
 /*!
@@ -35651,10 +35739,10 @@ QFrame::Shape QwtPlotAbstractGLCanvas::frameShape() const
  */
 void QwtPlotAbstractGLCanvas::setLineWidth(int width)
 {
-    width = qMax(width, 0);
-    if (width != m_data->lineWidth) {
-        m_data->lineWidth = qMax(width, 0);
-        qwtUpdateContentsRect(frameWidth(), canvasWidget());
+	width = qMax(width, 0);
+	if (width != m_data->lineWidth) {
+		m_data->lineWidth = qMax(width, 0);
+		qwtUpdateContentsRect(frameWidth(), canvasWidget());
 		canvasWidget()->update();
 	}
 }
@@ -35678,10 +35766,10 @@ int QwtPlotAbstractGLCanvas::lineWidth() const
  */
 void QwtPlotAbstractGLCanvas::setMidLineWidth(int width)
 {
-    width = qMax(width, 0);
-    if (width != m_data->midLineWidth) {
+	width = qMax(width, 0);
+	if (width != m_data->midLineWidth) {
 		m_data->midLineWidth = width;
-        qwtUpdateContentsRect(frameWidth(), canvasWidget());
+		qwtUpdateContentsRect(frameWidth(), canvasWidget());
 		canvasWidget()->update();
 	}
 }
@@ -35700,7 +35788,7 @@ int QwtPlotAbstractGLCanvas::midLineWidth() const
  */
 int QwtPlotAbstractGLCanvas::frameWidth() const
 {
-    return (frameStyle() != QFrame::NoFrame) ? m_data->lineWidth : 0;
+	return (frameStyle() != QFrame::NoFrame) ? m_data->lineWidth : 0;
 }
 
 /*!
@@ -35712,36 +35800,36 @@ void QwtPlotAbstractGLCanvas::replot()
 	invalidateBackingStore();
 
 	QWidget* w = canvasWidget();
-    if (testPaintAttribute(QwtPlotAbstractGLCanvas::ImmediatePaint))
-        w->repaint(w->contentsRect());
+	if (testPaintAttribute(QwtPlotAbstractGLCanvas::ImmediatePaint))
+		w->repaint(w->contentsRect());
 	else
-        w->update(w->contentsRect());
+		w->update(w->contentsRect());
 }
 
 //! \return The rectangle where the frame is drawn in.
 QRect QwtPlotAbstractGLCanvas::frameRect() const
 {
 	const int fw = frameWidth();
-    return canvasWidget()->contentsRect().adjusted(-fw, -fw, fw, fw);
+	return canvasWidget()->contentsRect().adjusted(-fw, -fw, fw, fw);
 }
 
 //! Helper function for the derived plot canvas
 void QwtPlotAbstractGLCanvas::draw(QPainter* painter)
 {
 #if FIX_GL_TRANSLATION
-    if (painter->paintEngine()->type() == QPaintEngine::OpenGL2) {
+	if (painter->paintEngine()->type() == QPaintEngine::OpenGL2) {
 		// work around a translation bug of QPaintEngine::OpenGL2
-        painter->translate(1, 1);
+		painter->translate(1, 1);
 	}
 #endif
 
-    if (canvasWidget()->testAttribute(Qt::WA_StyledBackground))
-        drawStyled(painter, true);
+	if (canvasWidget()->testAttribute(Qt::WA_StyledBackground))
+		drawStyled(painter, true);
 	else
-        drawUnstyled(painter);
+		drawUnstyled(painter);
 
-    if (frameWidth() > 0)
-        drawBorder(painter);
+	if (frameWidth() > 0)
+		drawBorder(painter);
 }
 
 /*** End of inlined file: qwt_plot_abstract_canvas.cpp ***/
@@ -38374,7 +38462,7 @@ void QwtPlotAbstractBarChart::getCanvasMarginHint(const QwtScaleMap& xMap,
     default: {
         const size_t numSamples = dataSize();
         if (numSamples <= 0)
-			break;
+            break;
 
         // doesn't work for nonlinear scales
 
@@ -38405,8 +38493,8 @@ void QwtPlotAbstractBarChart::getCanvasMarginHint(const QwtScaleMap& xMap,
 
         hint = 0.5 * sampleWidthP;
         hint += qMax(m_data->margin, 0);
-    }
 	}
+    }
 
     if (orientation() == Qt::Vertical) {
 		left = right = hint;
@@ -38977,20 +39065,6 @@ static void qwtUpdateLegendIconSize(QwtPlotCurve* curve)
 
 		curve->setLegendIconSize(sz);
 	}
-}
-
-static int qwtVerifyRange(int size, int& i1, int& i2)
-{
-	if (size < 1)
-		return 0;
-
-	i1 = qBound(0, i1, size - 1);
-	i2 = qBound(0, i2, size - 1);
-
-	if (i1 > i2)
-		qSwap(i1, i2);
-
-	return (i2 - i1 + 1);
 }
 
 class QwtPlotCurve::PrivateData
@@ -39571,7 +39645,7 @@ void QwtPlotCurve::drawDots(QPainter* painter,
 		QwtPainter::drawPoints(painter, points);
 		fillCurve(painter, xMap, yMap, canvasRect, points);
 	} else if (m_data->paintAttributes & ImageBuffer) {
-        const QImage image = mapper.toImage(xMap,
+		const QImage image = mapper.toImage(xMap,
                                             yMap,
                                             data(),
                                             from,
@@ -41004,7 +41078,7 @@ void QwtPlotDirectPainter::drawSeries(QwtPlotSeriesItem* seriesItem, int from, i
         } else {
             if (m_data->hasClipping)
                 m_data->painter.setClipping(false);
-		}
+        }
     } else {
 		reset();
 
@@ -42635,7 +42709,7 @@ void QwtPlotMarker::drawLabel(QPainter* painter, const QRectF& canvasRect, const
             symbolOff = m_data->symbol->size() + QSizeF(1, 1);
             symbolOff /= 2;
 		}
-    }
+	}
     }
 
 	qreal pw2 = m_data->pen.widthF() / 2.0;
@@ -46557,7 +46631,7 @@ static QPainterPath qwtTransformPath(const QwtScaleMap& xMap, const QwtScaleMap&
             if (doAlign) {
                 x = qRound(x);
                 y = qRound(y);
-            }
+			}
 
             shape.moveTo(x, y);
             break;
@@ -48801,7 +48875,7 @@ void QwtPlotTradingCurve::drawSymbols(QPainter* painter,
                     drawUserSymbol(painter, m_data->symbolStyle, translatedSample, orient, inverted, symbolWidth);
 				}
             }
-			}
+            }
 		}
 	}
 }
@@ -50849,40 +50923,6 @@ bool QwtPlotZoomer::end(bool ok)
 #include <qx11info_x11.h>
 #endif
 
-static inline void qwtDrawStyledBackground(QWidget* widget, QPainter* painter)
-{
-	QStyleOption opt;
-	opt.initFrom(widget);
-	widget->style()->drawPrimitive(QStyle::PE_Widget, &opt, painter, widget);
-}
-
-static QWidget* qwtBackgroundWidget(QWidget* w)
-{
-	if (w->parentWidget() == NULL)
-		return w;
-
-	if (w->autoFillBackground()) {
-		const QBrush brush = w->palette().brush(w->backgroundRole());
-		if (brush.color().alpha() > 0)
-			return w;
-	}
-
-	if (w->testAttribute(Qt::WA_StyledBackground)) {
-		QImage image(1, 1, QImage::Format_ARGB32);
-		image.fill(Qt::transparent);
-
-		QPainter painter(&image);
-		painter.translate(-w->rect().center());
-		qwtDrawStyledBackground(w, &painter);
-		painter.end();
-
-		if (qAlpha(image.pixel(0, 0)) != 0)
-			return w;
-	}
-
-	return qwtBackgroundWidget(w->parentWidget());
-}
-
 class QwtPolarCanvas::PrivateData
 {
 public:
@@ -51020,13 +51060,13 @@ void QwtPolarCanvas::paintEvent(QPaintEvent* event)
 
 			if (testAttribute(Qt::WA_StyledBackground)) {
 				p.begin(&bs);
-				qwtDrawStyledBackground(this, &p);
+				QwtPainter::drawStyledBackground(this, &p);
 			} else {
 				if (autoFillBackground()) {
 					p.begin(&bs);
 					p.fillRect(rect(), palette().brush(backgroundRole()));
 				} else {
-					QWidget* bgWidget = qwtBackgroundWidget(plot());
+					QWidget* bgWidget = QwtPainter::findBackgroundWidget(plot());
 
 					QwtPainter::fillPixmap(bgWidget, bs, mapTo(bgWidget, rect().topLeft()));
 
@@ -51042,7 +51082,7 @@ void QwtPolarCanvas::paintEvent(QPaintEvent* event)
 
 		painter.drawPixmap(0, 0, *m_data->backingStore);
 	} else {
-		qwtDrawStyledBackground(this, &painter);
+		QwtPainter::drawStyledBackground(this, &painter);
 
 		plot()->drawCanvas(&painter, contentsRect());
 
@@ -51750,30 +51790,16 @@ const QwtPolarItemList& QwtPolarItemDict::itemList() const
 
 static inline bool qwtInsidePole(const QwtScaleMap& map, double radius)
 {
-    return map.isInverting() ? (radius > map.s1()) : (radius < map.s1());
-}
-
-static int qwtVerifyRange(int size, int& i1, int& i2)
-{
-    if (size < 1)
-		return 0;
-
-    i1 = qBound(0, i1, size - 1);
-    i2 = qBound(0, i2, size - 1);
-
-    if (i1 > i2)
-        qSwap(i1, i2);
-
-    return (i2 - i1 + 1);
+	return map.isInverting() ? (radius > map.s1()) : (radius < map.s1());
 }
 
 class QwtPolarCurve::PrivateData
 {
 public:
-    PrivateData() : style(QwtPolarCurve::Lines), curveFitter(NULL)
+	PrivateData() : style(QwtPolarCurve::Lines), curveFitter(NULL)
 	{
 		symbol = new QwtSymbol();
-        pen    = QPen(Qt::black);
+		pen    = QPen(Qt::black);
 	}
 
 	~PrivateData()
@@ -51824,14 +51850,14 @@ QwtPolarCurve::~QwtPolarCurve()
 //! Initialize data members
 void QwtPolarCurve::init()
 {
-    m_data   = new PrivateData;
+	m_data   = new PrivateData;
 	m_series = NULL;
 
-    setItemAttribute(QwtPolarItem::AutoScale);
-    setItemAttribute(QwtPolarItem::Legend);
-    setZ(20.0);
+	setItemAttribute(QwtPolarItem::AutoScale);
+	setItemAttribute(QwtPolarItem::Legend);
+	setZ(20.0);
 
-    setRenderHint(RenderAntialiased, true);
+	setRenderHint(RenderAntialiased, true);
 }
 
 //! \return QwtPolarCurve::Rtti_PolarCurve
@@ -51849,7 +51875,7 @@ int QwtPolarCurve::rtti() const
  */
 void QwtPolarCurve::setLegendAttribute(LegendAttribute attribute, bool on)
 {
-    if (on)
+	if (on)
 		m_data->legendAttributes |= attribute;
 	else
 		m_data->legendAttributes &= ~attribute;
@@ -51865,7 +51891,7 @@ void QwtPolarCurve::setLegendAttribute(LegendAttribute attribute, bool on)
  */
 bool QwtPolarCurve::testLegendAttribute(LegendAttribute attribute) const
 {
-    return (m_data->legendAttributes & attribute);
+	return (m_data->legendAttributes & attribute);
 }
 
 /*!
@@ -51876,7 +51902,7 @@ bool QwtPolarCurve::testLegendAttribute(LegendAttribute attribute) const
  */
 void QwtPolarCurve::setStyle(CurveStyle style)
 {
-    if (style != m_data->style) {
+	if (style != m_data->style) {
 		m_data->style = style;
 		itemChanged();
 	}
@@ -51898,7 +51924,7 @@ QwtPolarCurve::CurveStyle QwtPolarCurve::style() const
  */
 void QwtPolarCurve::setSymbol(QwtSymbol* symbol)
 {
-    if (symbol != m_data->symbol) {
+	if (symbol != m_data->symbol) {
 		delete m_data->symbol;
 		m_data->symbol = symbol;
 		itemChanged();
@@ -51921,7 +51947,7 @@ const QwtSymbol* QwtPolarCurve::symbol() const
  */
 void QwtPolarCurve::setPen(const QPen& pen)
 {
-    if (pen != m_data->pen) {
+	if (pen != m_data->pen) {
 		m_data->pen = pen;
 		itemChanged();
 	}
@@ -51946,7 +51972,7 @@ const QPen& QwtPolarCurve::pen() const
  */
 void QwtPolarCurve::setData(QwtSeriesData< QwtPointPolar >* data)
 {
-    if (m_series != data) {
+	if (m_series != data) {
 		delete m_series;
 		m_series = data;
 		itemChanged();
@@ -51966,7 +51992,7 @@ void QwtPolarCurve::setData(QwtSeriesData< QwtPointPolar >* data)
  */
 void QwtPolarCurve::setCurveFitter(QwtCurveFitter* curveFitter)
 {
-    if (curveFitter != m_data->curveFitter) {
+	if (curveFitter != m_data->curveFitter) {
 		delete m_data->curveFitter;
 		m_data->curveFitter = curveFitter;
 
@@ -52000,10 +52026,10 @@ void QwtPolarCurve::draw(QPainter* painter,
                          double radius,
                          const QRectF& canvasRect) const
 {
-    Q_UNUSED(radius);
-    Q_UNUSED(canvasRect);
+	Q_UNUSED(radius);
+	Q_UNUSED(canvasRect);
 
-    draw(painter, azimuthMap, radialMap, pole, 0, -1);
+	draw(painter, azimuthMap, radialMap, pole, 0, -1);
 }
 
 /*!
@@ -52025,23 +52051,23 @@ void QwtPolarCurve::draw(QPainter* painter,
                          int from,
                          int to) const
 {
-    if (!painter || dataSize() <= 0)
+	if (!painter || dataSize() <= 0)
 		return;
 
-    if (to < 0)
+	if (to < 0)
 		to = dataSize() - 1;
 
-    if (qwtVerifyRange(dataSize(), from, to) > 0) {
+	if (qwtVerifyRange(dataSize(), from, to) > 0) {
 		painter->save();
-        painter->setPen(m_data->pen);
+		painter->setPen(m_data->pen);
 
-        drawCurve(painter, m_data->style, azimuthMap, radialMap, pole, from, to);
+		drawCurve(painter, m_data->style, azimuthMap, radialMap, pole, from, to);
 
 		painter->restore();
 
-        if (m_data->symbol->style() != QwtSymbol::NoSymbol) {
+		if (m_data->symbol->style() != QwtSymbol::NoSymbol) {
 			painter->save();
-            drawSymbols(painter, *m_data->symbol, azimuthMap, radialMap, pole, from, to);
+			drawSymbols(painter, *m_data->symbol, azimuthMap, radialMap, pole, from, to);
 			painter->restore();
 		}
 	}
@@ -52067,13 +52093,13 @@ void QwtPolarCurve::drawCurve(QPainter* painter,
                               int from,
                               int to) const
 {
-    switch (style) {
-    case Lines:
-        drawLines(painter, azimuthMap, radialMap, pole, from, to);
-        break;
-    case NoCurve:
-    default:
-        break;
+	switch (style) {
+	case Lines:
+		drawLines(painter, azimuthMap, radialMap, pole, from, to);
+		break;
+	case NoCurve:
+	default:
+		break;
 	}
 }
 
@@ -52096,65 +52122,65 @@ void QwtPolarCurve::drawLines(QPainter* painter,
                               int to) const
 {
 	int size = to - from + 1;
-    if (size <= 0)
+	if (size <= 0)
 		return;
 
 	QPolygonF polyline;
 
-    if (m_data->curveFitter) {
-        QPolygonF points(size);
-        for (int j = from; j <= to; j++) {
-            const QwtPointPolar point = sample(j);
-            points[ j - from ]        = QPointF(point.azimuth(), point.radius());
+	if (m_data->curveFitter) {
+		QPolygonF points(size);
+		for (int j = from; j <= to; j++) {
+			const QwtPointPolar point = sample(j);
+			points[ j - from ]        = QPointF(point.azimuth(), point.radius());
 		}
 
-        points = m_data->curveFitter->fitCurve(points);
+		points = m_data->curveFitter->fitCurve(points);
 
-        polyline.resize(points.size());
+		polyline.resize(points.size());
 
 		QPointF* polylineData = polyline.data();
-        QPointF* pointsData   = points.data();
+		QPointF* pointsData   = points.data();
 
-        for (int i = 0; i < points.size(); i++) {
-            const QwtPointPolar point(pointsData[ i ].x(), pointsData[ i ].y());
+		for (int i = 0; i < points.size(); i++) {
+			const QwtPointPolar point(pointsData[ i ].x(), pointsData[ i ].y());
 
-            double r       = radialMap.transform(point.radius());
-            const double a = azimuthMap.transform(point.azimuth());
+			double r       = radialMap.transform(point.radius());
+			const double a = azimuthMap.transform(point.azimuth());
 
-            polylineData[ i ] = qwtPolar2Pos(pole, r, a);
+			polylineData[ i ] = qwtPolar2Pos(pole, r, a);
 		}
-    } else {
-        polyline.resize(size);
+	} else {
+		polyline.resize(size);
 		QPointF* polylineData = polyline.data();
 
-        for (int i = from; i <= to; i++) {
-            QwtPointPolar point = sample(i);
-            if (!qwtInsidePole(radialMap, point.radius())) {
-                double r                 = radialMap.transform(point.radius());
-                const double a           = azimuthMap.transform(point.azimuth());
-                polylineData[ i - from ] = qwtPolar2Pos(pole, r, a);
-            } else {
-                polylineData[ i - from ] = pole;
+		for (int i = from; i <= to; i++) {
+			QwtPointPolar point = sample(i);
+			if (!qwtInsidePole(radialMap, point.radius())) {
+				double r                 = radialMap.transform(point.radius());
+				const double a           = azimuthMap.transform(point.azimuth());
+				polylineData[ i - from ] = qwtPolar2Pos(pole, r, a);
+			} else {
+				polylineData[ i - from ] = pole;
 			}
 		}
 	}
 
 	QRectF clipRect;
-    if (painter->hasClipping()) {
+	if (painter->hasClipping()) {
 		clipRect = painter->clipRegion().boundingRect();
-    } else {
+	} else {
 		clipRect = painter->window();
-        if (!clipRect.isEmpty())
-            clipRect = painter->transform().inverted().mapRect(clipRect);
+		if (!clipRect.isEmpty())
+			clipRect = painter->transform().inverted().mapRect(clipRect);
 	}
 
-    if (!clipRect.isEmpty()) {
-        double off = qCeil(qMax(qreal(1.0), painter->pen().widthF()));
-        clipRect   = clipRect.toRect().adjusted(-off, -off, off, off);
-        QwtClipper::clipPolygonF(clipRect, polyline);
+	if (!clipRect.isEmpty()) {
+		double off = qCeil(qMax(qreal(1.0), painter->pen().widthF()));
+		clipRect   = clipRect.toRect().adjusted(-off, -off, off, off);
+		QwtClipper::clipPolygonF(clipRect, polyline);
 	}
 
-    QwtPainter::drawPolyline(painter, polyline);
+	QwtPainter::drawPolyline(painter, polyline);
 }
 
 /*!
@@ -52178,30 +52204,30 @@ void QwtPolarCurve::drawSymbols(QPainter* painter,
                                 int from,
                                 int to) const
 {
-    painter->setBrush(symbol.brush());
-    painter->setPen(symbol.pen());
+	painter->setBrush(symbol.brush());
+	painter->setPen(symbol.pen());
 
 	const int chunkSize = 500;
 
-    for (int i = from; i <= to; i += chunkSize) {
-        const int n = qMin(chunkSize, to - i + 1);
+	for (int i = from; i <= to; i += chunkSize) {
+		const int n = qMin(chunkSize, to - i + 1);
 
 		QPolygonF points;
-        for (int j = 0; j < n; j++) {
-            const QwtPointPolar point = sample(i + j);
+		for (int j = 0; j < n; j++) {
+			const QwtPointPolar point = sample(i + j);
 
-            if (!qwtInsidePole(radialMap, point.radius())) {
-                const double r = radialMap.transform(point.radius());
-                const double a = azimuthMap.transform(point.azimuth());
+			if (!qwtInsidePole(radialMap, point.radius())) {
+				const double r = radialMap.transform(point.radius());
+				const double a = azimuthMap.transform(point.azimuth());
 
-                points += qwtPolar2Pos(pole, r, a);
-            } else {
+				points += qwtPolar2Pos(pole, r, a);
+			} else {
 				points += pole;
 			}
 		}
 
-        if (points.size() > 0)
-            symbol.drawSymbols(painter, points);
+		if (points.size() > 0)
+			symbol.drawSymbols(painter, points);
 	}
 }
 
@@ -52225,49 +52251,49 @@ size_t QwtPolarCurve::dataSize() const
  */
 QwtGraphic QwtPolarCurve::legendIcon(int index, const QSizeF& size) const
 {
-    Q_UNUSED(index);
+	Q_UNUSED(index);
 
-    if (size.isEmpty())
+	if (size.isEmpty())
 		return QwtGraphic();
 
 	QwtGraphic graphic;
-    graphic.setDefaultSize(size);
-    graphic.setRenderHint(QwtGraphic::RenderPensUnscaled, true);
+	graphic.setDefaultSize(size);
+	graphic.setRenderHint(QwtGraphic::RenderPensUnscaled, true);
 
-    QPainter painter(&graphic);
-    painter.setRenderHint(QPainter::Antialiasing, testRenderHint(QwtPolarItem::RenderAntialiased));
+	QPainter painter(&graphic);
+	painter.setRenderHint(QPainter::Antialiasing, testRenderHint(QwtPolarItem::RenderAntialiased));
 
-    if (m_data->legendAttributes == 0) {
+	if (m_data->legendAttributes == 0) {
 		QBrush brush;
 
-        if (style() != QwtPolarCurve::NoCurve) {
-            brush = QBrush(pen().color());
-        } else if (m_data->symbol && (m_data->symbol->style() != QwtSymbol::NoSymbol)) {
-            brush = QBrush(m_data->symbol->pen().color());
+		if (style() != QwtPolarCurve::NoCurve) {
+			brush = QBrush(pen().color());
+		} else if (m_data->symbol && (m_data->symbol->style() != QwtSymbol::NoSymbol)) {
+			brush = QBrush(m_data->symbol->pen().color());
 		}
 
-        if (brush.style() != Qt::NoBrush) {
-            QRectF r(0, 0, size.width(), size.height());
-            painter.fillRect(r, brush);
+		if (brush.style() != Qt::NoBrush) {
+			QRectF r(0, 0, size.width(), size.height());
+			painter.fillRect(r, brush);
 		}
 	}
 
-    if (m_data->legendAttributes & QwtPolarCurve::LegendShowLine) {
-        if (pen() != Qt::NoPen) {
+	if (m_data->legendAttributes & QwtPolarCurve::LegendShowLine) {
+		if (pen() != Qt::NoPen) {
 			QPen pn = pen();
-            pn.setCapStyle(Qt::FlatCap);
+			pn.setCapStyle(Qt::FlatCap);
 
-            painter.setPen(pn);
+			painter.setPen(pn);
 
 			const double y = 0.5 * size.height();
-            QwtPainter::drawLine(&painter, 0.0, y, size.width(), y);
+			QwtPainter::drawLine(&painter, 0.0, y, size.width(), y);
 		}
 	}
 
-    if (m_data->legendAttributes & QwtPolarCurve::LegendShowSymbol) {
-        if (m_data->symbol) {
-            QRectF r(0, 0, size.width(), size.height());
-            m_data->symbol->drawSymbol(&painter, r);
+	if (m_data->legendAttributes & QwtPolarCurve::LegendShowSymbol) {
+		if (m_data->symbol) {
+			QRectF r(0, 0, size.width(), size.height());
+			m_data->symbol->drawSymbol(&painter, r);
 		}
 	}
 
@@ -52287,11 +52313,11 @@ QwtInterval QwtPolarCurve::boundingInterval(int scaleId) const
 {
 	const QRectF boundingRect = m_series->boundingRect();
 
-    if (scaleId == QwtPolar::ScaleAzimuth)
-        return QwtInterval(boundingRect.left(), boundingRect.right());
+	if (scaleId == QwtPolar::ScaleAzimuth)
+		return QwtInterval(boundingRect.left(), boundingRect.right());
 
-    if (scaleId == QwtPolar::ScaleRadius)
-        return QwtInterval(boundingRect.top(), boundingRect.bottom());
+	if (scaleId == QwtPolar::ScaleRadius)
+		return QwtInterval(boundingRect.top(), boundingRect.bottom());
 
 	return QwtInterval();
 }
@@ -55287,7 +55313,7 @@ public:
 		int dimWithoutTitle;
 	};
 
-    struct CanvasData
+	struct CanvasData
 	{
 		void init(const QWidget* canvas)
 		{
@@ -57347,23 +57373,16 @@ void QwtPlotRescaler::updateScales(QwtInterval intervals[ QwtAxis::AxisPositions
 #include <qpainter.h>
 #include <qevent.h>
 
-static inline double qwtDistance(const QPointF& p1, const QPointF& p2)
-{
-	double dx = p2.x() - p1.x();
-	double dy = p2.y() - p1.y();
-	return qSqrt(dx * dx + dy * dy);
-}
-
 namespace
 {
-class ScaleData
+class QwtPolarPlotScaleData
 {
 public:
-	ScaleData() : isValid(false), scaleEngine(NULL)
+	QwtPolarPlotScaleData() : isValid(false), scaleEngine(NULL)
 	{
 	}
 
-	~ScaleData()
+	~QwtPolarPlotScaleData()
 	{
 		delete scaleEngine;
 	}
@@ -57394,7 +57413,7 @@ public:
 	QwtPointPolar zoomPos;
 	double zoomFactor;
 
-	ScaleData scaleData[ QwtPolar::ScaleCount ];
+	QwtPolarPlotScaleData scaleData[ QwtPolar::ScaleCount ];
 	QPointer< QwtTextLabel > titleLabel;
 	QPointer< QwtPolarCanvas > canvas;
 	QPointer< QwtAbstractLegend > legend;
@@ -57674,7 +57693,7 @@ void QwtPolarPlot::setAutoScale(int scaleId)
 	if (scaleId != QwtPolar::ScaleRadius)
 		return;
 
-	ScaleData& scaleData = m_data->scaleData[ scaleId ];
+	QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
 	if (!scaleData.doAutoScale) {
 		scaleData.doAutoScale = true;
 		autoRefresh();
@@ -57708,7 +57727,7 @@ void QwtPolarPlot::setScaleMaxMinor(int scaleId, int maxMinor)
 
 	maxMinor = qBound(0, maxMinor, 100);
 
-	ScaleData& scaleData = m_data->scaleData[ scaleId ];
+	QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
 
 	if (maxMinor != scaleData.maxMinor) {
 		scaleData.maxMinor = maxMinor;
@@ -57744,7 +57763,7 @@ void QwtPolarPlot::setScaleMaxMajor(int scaleId, int maxMajor)
 
 	maxMajor = qBound(1, maxMajor, 10000);
 
-	ScaleData& scaleData = m_data->scaleData[ scaleId ];
+	QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
 	if (maxMajor != scaleData.maxMinor) {
 		scaleData.maxMajor = maxMajor;
 		scaleData.isValid  = false;
@@ -57779,7 +57798,7 @@ void QwtPolarPlot::setScaleEngine(int scaleId, QwtScaleEngine* scaleEngine)
 	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return;
 
-	ScaleData& scaleData = m_data->scaleData[ scaleId ];
+	QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
 	if (scaleEngine == NULL || scaleEngine == scaleData.scaleEngine)
 		return;
 
@@ -57833,7 +57852,7 @@ void QwtPolarPlot::setScale(int scaleId, double min, double max, double stepSize
 	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return;
 
-	ScaleData& scaleData = m_data->scaleData[ scaleId ];
+	QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
 
 	scaleData.isValid = false;
 
@@ -57856,7 +57875,7 @@ void QwtPolarPlot::setScaleDiv(int scaleId, const QwtScaleDiv& scaleDiv)
 	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return;
 
-	ScaleData& scaleData = m_data->scaleData[ scaleId ];
+	QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
 
 	scaleData.scaleDiv    = scaleDiv;
 	scaleData.isValid     = true;
@@ -58097,7 +58116,7 @@ void QwtPolarPlot::initPlot(const QwtText& title)
 	m_data->canvasBrush = QBrush(Qt::white);
 
 	for (int scaleId = 0; scaleId < QwtPolar::ScaleCount; scaleId++) {
-		ScaleData& scaleData = m_data->scaleData[ scaleId ];
+		QwtPolarPlotScaleData& scaleData = m_data->scaleData[ scaleId ];
 
 		if (scaleId == QwtPolar::Azimuth) {
 			scaleData.minValue = 0.0;
@@ -58300,7 +58319,7 @@ void QwtPolarPlot::updateScale(int scaleId)
 	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return;
 
-	ScaleData& d = m_data->scaleData[ scaleId ];
+	QwtPolarPlotScaleData& d = m_data->scaleData[ scaleId ];
 
 	double minValue = d.minValue;
 	double maxValue = d.maxValue;
@@ -58586,50 +58605,50 @@ QwtPolarItem* QwtPolarPlot::infoToItem(const QVariant& itemInfo) const
 
 static inline bool isClose(double value1, double value2)
 {
-    return qAbs(value1 - value2) < DBL_EPSILON;
+	return qAbs(value1 - value2) < DBL_EPSILON;
 }
 
 namespace
 {
-class AxisData
+class QwtPolarGrid_AxisData
 {
 public:
-    AxisData() : isVisible(false), scaleDraw(NULL)
+	QwtPolarGrid_AxisData() : isVisible(false), scaleDraw(NULL)
 	{
-    }
+	}
 
-    ~AxisData()
-    {
-        delete scaleDraw;
-    }
+	~QwtPolarGrid_AxisData()
+	{
+		delete scaleDraw;
+	}
 
-    bool isVisible;
-    mutable QwtAbstractScaleDraw* scaleDraw;
-    QPen pen;
-    QFont font;
+	bool isVisible;
+	mutable QwtAbstractScaleDraw* scaleDraw;
+	QPen pen;
+	QFont font;
 };
 
-class GridData
+class QwtPolarGrid_GridData
 {
 public:
-    GridData() : isVisible(true), isMinorVisible(false)
+	QwtPolarGrid_GridData() : isVisible(true), isMinorVisible(false)
 	{
-    }
+	}
 
-    bool isVisible;
-    bool isMinorVisible;
-    QwtScaleDiv scaleDiv;
+	bool isVisible;
+	bool isMinorVisible;
+	QwtScaleDiv scaleDiv;
 
-    QPen majorPen;
-    QPen minorPen;
+	QPen majorPen;
+	QPen minorPen;
 };
 }
 
 class QwtPolarGrid::PrivateData
 {
 public:
-    GridData gridData[ QwtPolar::ScaleCount ];
-    AxisData axisData[ QwtPolar::AxesCount ];
+	QwtPolarGrid_GridData gridData[ QwtPolar::ScaleCount ];
+	QwtPolarGrid_AxisData axisData[ QwtPolar::AxesCount ];
 	QwtPolarGrid::DisplayFlags displayFlags;
 	QwtPolarGrid::GridAttributes attributes;
 };
@@ -58645,50 +58664,50 @@ QwtPolarGrid::QwtPolarGrid() : QwtPolarItem(QwtText("Grid"))
 {
 	m_data = new PrivateData;
 
-    for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
-        AxisData& axis = m_data->axisData[ axisId ];
-        switch (axisId) {
-        case QwtPolar::AxisAzimuth: {
-            axis.scaleDraw = new QwtRoundScaleDraw;
-            axis.scaleDraw->setTickLength(QwtScaleDiv::MinorTick, 2);
-            axis.scaleDraw->setTickLength(QwtScaleDiv::MediumTick, 2);
-            axis.scaleDraw->setTickLength(QwtScaleDiv::MajorTick, 4);
-            axis.isVisible = true;
-            break;
-        }
-        case QwtPolar::AxisLeft: {
-            QwtScaleDraw* scaleDraw = new QwtScaleDraw;
-            scaleDraw->setAlignment(QwtScaleDraw::BottomScale);
+	for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
+		QwtPolarGrid_AxisData& axis = m_data->axisData[ axisId ];
+		switch (axisId) {
+		case QwtPolar::AxisAzimuth: {
+			axis.scaleDraw = new QwtRoundScaleDraw;
+			axis.scaleDraw->setTickLength(QwtScaleDiv::MinorTick, 2);
+			axis.scaleDraw->setTickLength(QwtScaleDiv::MediumTick, 2);
+			axis.scaleDraw->setTickLength(QwtScaleDiv::MajorTick, 4);
+			axis.isVisible = true;
+			break;
+		}
+		case QwtPolar::AxisLeft: {
+			QwtScaleDraw* scaleDraw = new QwtScaleDraw;
+			scaleDraw->setAlignment(QwtScaleDraw::BottomScale);
 
-            axis.scaleDraw = scaleDraw;
-            axis.isVisible = false;
-            break;
-        }
-        case QwtPolar::AxisRight: {
-            QwtScaleDraw* scaleDraw = new QwtScaleDraw;
-            scaleDraw->setAlignment(QwtScaleDraw::BottomScale);
+			axis.scaleDraw = scaleDraw;
+			axis.isVisible = false;
+			break;
+		}
+		case QwtPolar::AxisRight: {
+			QwtScaleDraw* scaleDraw = new QwtScaleDraw;
+			scaleDraw->setAlignment(QwtScaleDraw::BottomScale);
 
-            axis.scaleDraw = scaleDraw;
-            axis.isVisible = true;
-            break;
-        }
-        case QwtPolar::AxisTop: {
-            QwtScaleDraw* scaleDraw = new QwtScaleDraw;
-            scaleDraw->setAlignment(QwtScaleDraw::LeftScale);
+			axis.scaleDraw = scaleDraw;
+			axis.isVisible = true;
+			break;
+		}
+		case QwtPolar::AxisTop: {
+			QwtScaleDraw* scaleDraw = new QwtScaleDraw;
+			scaleDraw->setAlignment(QwtScaleDraw::LeftScale);
 
-            axis.scaleDraw = scaleDraw;
-            axis.isVisible = false;
-            break;
-        }
-        case QwtPolar::AxisBottom: {
-            QwtScaleDraw* scaleDraw = new QwtScaleDraw;
-            scaleDraw->setAlignment(QwtScaleDraw::LeftScale);
+			axis.scaleDraw = scaleDraw;
+			axis.isVisible = false;
+			break;
+		}
+		case QwtPolar::AxisBottom: {
+			QwtScaleDraw* scaleDraw = new QwtScaleDraw;
+			scaleDraw->setAlignment(QwtScaleDraw::LeftScale);
 
-            axis.scaleDraw = scaleDraw;
-            axis.isVisible = true;
-            break;
-        }
-        default:;
+			axis.scaleDraw = scaleDraw;
+			axis.isVisible = true;
+			break;
+		}
+		default:;
 		}
 	}
 
@@ -58701,8 +58720,8 @@ QwtPolarGrid::QwtPolarGrid() : QwtPolarItem(QwtText("Grid"))
 	m_data->displayFlags |= SmartScaleDraw;
 	m_data->displayFlags |= ClipGridLines;
 
-    setZ(10.0);
-    setRenderHint(RenderAntialiased, true);
+	setZ(10.0);
+	setRenderHint(RenderAntialiased, true);
 }
 
 //! Destructor
@@ -58725,8 +58744,8 @@ int QwtPolarGrid::rtti() const
  */
 void QwtPolarGrid::setDisplayFlag(DisplayFlag flag, bool on)
 {
-    if (((m_data->displayFlags & flag) != 0) != on) {
-        if (on)
+	if (((m_data->displayFlags & flag) != 0) != on) {
+		if (on)
 			m_data->displayFlags |= flag;
 		else
 			m_data->displayFlags &= ~flag;
@@ -58741,7 +58760,7 @@ void QwtPolarGrid::setDisplayFlag(DisplayFlag flag, bool on)
  */
 bool QwtPolarGrid::testDisplayFlag(DisplayFlag flag) const
 {
-    return (m_data->displayFlags & flag);
+	return (m_data->displayFlags & flag);
 }
 
 /*!
@@ -58755,10 +58774,10 @@ bool QwtPolarGrid::testDisplayFlag(DisplayFlag flag) const
  */
 void QwtPolarGrid::setGridAttribute(GridAttribute attribute, bool on)
 {
-    if (bool(m_data->attributes & attribute) == on)
+	if (bool(m_data->attributes & attribute) == on)
 		return;
 
-    if (on)
+	if (on)
 		m_data->attributes |= attribute;
 	else
 		m_data->attributes &= ~attribute;
@@ -58785,11 +58804,11 @@ bool QwtPolarGrid::testGridAttribute(GridAttribute attribute) const
  */
 void QwtPolarGrid::setAxisPen(int axisId, const QPen& pen)
 {
-    if (axisId < 0 || axisId >= QwtPolar::AxesCount)
+	if (axisId < 0 || axisId >= QwtPolar::AxesCount)
 		return;
 
-    AxisData& axisData = m_data->axisData[ axisId ];
-    if (axisData.pen != pen) {
+	QwtPolarGrid_AxisData& axisData = m_data->axisData[ axisId ];
+	if (axisData.pen != pen) {
 		axisData.pen = pen;
 		itemChanged();
 	}
@@ -58803,11 +58822,11 @@ void QwtPolarGrid::setAxisPen(int axisId, const QPen& pen)
  */
 void QwtPolarGrid::showGrid(int scaleId, bool show)
 {
-    if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
+	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return;
 
-    GridData& grid = m_data->gridData[ scaleId ];
-    if (grid.isVisible != show) {
+	QwtPolarGrid_GridData& grid = m_data->gridData[ scaleId ];
+	if (grid.isVisible != show) {
 		grid.isVisible = show;
 		itemChanged();
 	}
@@ -58820,10 +58839,10 @@ void QwtPolarGrid::showGrid(int scaleId, bool show)
  */
 bool QwtPolarGrid::isGridVisible(int scaleId) const
 {
-    if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
+	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return false;
 
-    return m_data->gridData[ scaleId ].isVisible;
+	return m_data->gridData[ scaleId ].isVisible;
 }
 
 /*!
@@ -58838,11 +58857,11 @@ bool QwtPolarGrid::isGridVisible(int scaleId) const
  */
 void QwtPolarGrid::showMinorGrid(int scaleId, bool show)
 {
-    if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
+	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return;
 
-    GridData& grid = m_data->gridData[ scaleId ];
-    if (grid.isMinorVisible != show) {
+	QwtPolarGrid_GridData& grid = m_data->gridData[ scaleId ];
+	if (grid.isMinorVisible != show) {
 		grid.isMinorVisible = show;
 		itemChanged();
 	}
@@ -58855,10 +58874,10 @@ void QwtPolarGrid::showMinorGrid(int scaleId, bool show)
  */
 bool QwtPolarGrid::isMinorGridVisible(int scaleId) const
 {
-    if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
+	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return false;
 
-    return m_data->gridData[ scaleId ].isMinorVisible;
+	return m_data->gridData[ scaleId ].isMinorVisible;
 }
 
 /*!
@@ -58871,11 +58890,11 @@ bool QwtPolarGrid::isMinorGridVisible(int scaleId) const
  */
 void QwtPolarGrid::showAxis(int axisId, bool show)
 {
-    if (axisId < 0 || axisId >= QwtPolar::AxesCount)
+	if (axisId < 0 || axisId >= QwtPolar::AxesCount)
 		return;
 
-    AxisData& axisData = m_data->axisData[ axisId ];
-    if (axisData.isVisible != show) {
+	QwtPolarGrid_AxisData& axisData = m_data->axisData[ axisId ];
+	if (axisData.isVisible != show) {
 		axisData.isVisible = show;
 		itemChanged();
 	}
@@ -58889,10 +58908,10 @@ void QwtPolarGrid::showAxis(int axisId, bool show)
  */
 bool QwtPolarGrid::isAxisVisible(int axisId) const
 {
-    if (axisId < 0 || axisId >= QwtPolar::AxesCount)
+	if (axisId < 0 || axisId >= QwtPolar::AxesCount)
 		return false;
 
-    return m_data->axisData[ axisId ].isVisible;
+	return m_data->axisData[ axisId ].isVisible;
 }
 
 /*!
@@ -58905,22 +58924,22 @@ void QwtPolarGrid::setPen(const QPen& pen)
 {
 	bool isChanged = false;
 
-    for (int scaleId = 0; scaleId < QwtPolar::ScaleCount; scaleId++) {
-        GridData& grid = m_data->gridData[ scaleId ];
-        if (grid.majorPen != pen || grid.minorPen != pen) {
+	for (int scaleId = 0; scaleId < QwtPolar::ScaleCount; scaleId++) {
+		QwtPolarGrid_GridData& grid = m_data->gridData[ scaleId ];
+		if (grid.majorPen != pen || grid.minorPen != pen) {
 			grid.majorPen = pen;
 			grid.minorPen = pen;
-            isChanged     = true;
+			isChanged     = true;
 		}
 	}
-    for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
-        AxisData& axis = m_data->axisData[ axisId ];
-        if (axis.pen != pen) {
-            axis.pen  = pen;
+	for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
+		QwtPolarGrid_AxisData& axis = m_data->axisData[ axisId ];
+		if (axis.pen != pen) {
+			axis.pen  = pen;
 			isChanged = true;
 		}
 	}
-    if (isChanged)
+	if (isChanged)
 		itemChanged();
 }
 
@@ -58933,14 +58952,14 @@ void QwtPolarGrid::setPen(const QPen& pen)
 void QwtPolarGrid::setFont(const QFont& font)
 {
 	bool isChanged = false;
-    for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
-        AxisData& axis = m_data->axisData[ axisId ];
-        if (axis.font != font) {
+	for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
+		QwtPolarGrid_AxisData& axis = m_data->axisData[ axisId ];
+		if (axis.font != font) {
 			axis.font = font;
 			isChanged = true;
 		}
 	}
-    if (isChanged)
+	if (isChanged)
 		itemChanged();
 }
 
@@ -58954,14 +58973,14 @@ void QwtPolarGrid::setMajorGridPen(const QPen& pen)
 {
 	bool isChanged = false;
 
-    for (int scaleId = 0; scaleId < QwtPolar::ScaleCount; scaleId++) {
-        GridData& grid = m_data->gridData[ scaleId ];
-        if (grid.majorPen != pen) {
+	for (int scaleId = 0; scaleId < QwtPolar::ScaleCount; scaleId++) {
+		QwtPolarGrid_GridData& grid = m_data->gridData[ scaleId ];
+		if (grid.majorPen != pen) {
 			grid.majorPen = pen;
-            isChanged     = true;
+			isChanged     = true;
 		}
 	}
-    if (isChanged)
+	if (isChanged)
 		itemChanged();
 }
 
@@ -58974,11 +58993,11 @@ void QwtPolarGrid::setMajorGridPen(const QPen& pen)
  */
 void QwtPolarGrid::setMajorGridPen(int scaleId, const QPen& pen)
 {
-    if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
+	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return;
 
-    GridData& grid = m_data->gridData[ scaleId ];
-    if (grid.majorPen != pen) {
+	QwtPolarGrid_GridData& grid = m_data->gridData[ scaleId ];
+	if (grid.majorPen != pen) {
 		grid.majorPen = pen;
 		itemChanged();
 	}
@@ -58991,10 +59010,10 @@ void QwtPolarGrid::setMajorGridPen(int scaleId, const QPen& pen)
  */
 QPen QwtPolarGrid::majorGridPen(int scaleId) const
 {
-    if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
+	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return QPen();
 
-    const GridData& grid = m_data->gridData[ scaleId ];
+	const QwtPolarGrid_GridData& grid = m_data->gridData[ scaleId ];
 	return grid.majorPen;
 }
 
@@ -59008,14 +59027,14 @@ void QwtPolarGrid::setMinorGridPen(const QPen& pen)
 {
 	bool isChanged = false;
 
-    for (int scaleId = 0; scaleId < QwtPolar::ScaleCount; scaleId++) {
-        GridData& grid = m_data->gridData[ scaleId ];
-        if (grid.minorPen != pen) {
+	for (int scaleId = 0; scaleId < QwtPolar::ScaleCount; scaleId++) {
+		QwtPolarGrid_GridData& grid = m_data->gridData[ scaleId ];
+		if (grid.minorPen != pen) {
 			grid.minorPen = pen;
-            isChanged     = true;
+			isChanged     = true;
 		}
 	}
-    if (isChanged)
+	if (isChanged)
 		itemChanged();
 }
 
@@ -59028,11 +59047,11 @@ void QwtPolarGrid::setMinorGridPen(const QPen& pen)
  */
 void QwtPolarGrid::setMinorGridPen(int scaleId, const QPen& pen)
 {
-    if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
+	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return;
 
-    GridData& grid = m_data->gridData[ scaleId ];
-    if (grid.minorPen != pen) {
+	QwtPolarGrid_GridData& grid = m_data->gridData[ scaleId ];
+	if (grid.minorPen != pen) {
 		grid.minorPen = pen;
 		itemChanged();
 	}
@@ -59044,10 +59063,10 @@ void QwtPolarGrid::setMinorGridPen(int scaleId, const QPen& pen)
  */
 QPen QwtPolarGrid::minorGridPen(int scaleId) const
 {
-    if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
+	if (scaleId < 0 || scaleId >= QwtPolar::ScaleCount)
 		return QPen();
 
-    const GridData& grid = m_data->gridData[ scaleId ];
+	const QwtPolarGrid_GridData& grid = m_data->gridData[ scaleId ];
 	return grid.minorPen;
 }
 
@@ -59059,10 +59078,10 @@ QPen QwtPolarGrid::minorGridPen(int scaleId) const
  */
 QPen QwtPolarGrid::axisPen(int axisId) const
 {
-    if (axisId < 0 || axisId >= QwtPolar::AxesCount)
+	if (axisId < 0 || axisId >= QwtPolar::AxesCount)
 		return QPen();
 
-    return m_data->axisData[ axisId ].pen;
+	return m_data->axisData[ axisId ].pen;
 }
 
 /*!
@@ -59073,11 +59092,11 @@ QPen QwtPolarGrid::axisPen(int axisId) const
  */
 void QwtPolarGrid::setAxisFont(int axisId, const QFont& font)
 {
-    if (axisId < 0 || axisId >= QwtPolar::AxesCount)
+	if (axisId < 0 || axisId >= QwtPolar::AxesCount)
 		return;
 
-    AxisData& axisData = m_data->axisData[ axisId ];
-    if (axisData.font != font) {
+	QwtPolarGrid_AxisData& axisData = m_data->axisData[ axisId ];
+	if (axisData.font != font) {
 		axisData.font = font;
 		itemChanged();
 	}
@@ -59089,10 +59108,10 @@ void QwtPolarGrid::setAxisFont(int axisId, const QFont& font)
  */
 QFont QwtPolarGrid::axisFont(int axisId) const
 {
-    if (axisId < 0 || axisId >= QwtPolar::AxesCount)
+	if (axisId < 0 || axisId >= QwtPolar::AxesCount)
 		return QFont();
 
-    return m_data->axisData[ axisId ].font;
+	return m_data->axisData[ axisId ].font;
 }
 
 /*!
@@ -59112,73 +59131,73 @@ void QwtPolarGrid::draw(QPainter* painter,
                         double radius,
                         const QRectF& canvasRect) const
 {
-    updateScaleDraws(azimuthMap, radialMap, pole, radius);
+	updateScaleDraws(azimuthMap, radialMap, pole, radius);
 
 	painter->save();
 
-    if (testDisplayFlag(ClipAxisBackground)) {
-        QRegion clipRegion(canvasRect.toRect());
-        for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
-            const AxisData& axis = m_data->axisData[ axisId ];
-            if (axisId != QwtPolar::AxisAzimuth && axis.isVisible) {
-                QwtScaleDraw* scaleDraw = static_cast< QwtScaleDraw* >(axis.scaleDraw);
-                if (scaleDraw->hasComponent(QwtScaleDraw::Labels)) {
-                    const QList< double >& ticks = scaleDraw->scaleDiv().ticks(QwtScaleDiv::MajorTick);
-                    for (int i = 0; i < int(ticks.size()); i++) {
-                        if (!scaleDraw->scaleDiv().contains(ticks[ i ]))
+	if (testDisplayFlag(ClipAxisBackground)) {
+		QRegion clipRegion(canvasRect.toRect());
+		for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
+			const QwtPolarGrid_AxisData& axis = m_data->axisData[ axisId ];
+			if (axisId != QwtPolar::AxisAzimuth && axis.isVisible) {
+				QwtScaleDraw* scaleDraw = static_cast< QwtScaleDraw* >(axis.scaleDraw);
+				if (scaleDraw->hasComponent(QwtScaleDraw::Labels)) {
+					const QList< double >& ticks = scaleDraw->scaleDiv().ticks(QwtScaleDiv::MajorTick);
+					for (int i = 0; i < int(ticks.size()); i++) {
+						if (!scaleDraw->scaleDiv().contains(ticks[ i ]))
 							continue;
 
-                        QRect labelRect = scaleDraw->boundingLabelRect(axis.font, ticks[ i ]);
+						QRect labelRect = scaleDraw->boundingLabelRect(axis.font, ticks[ i ]);
 
 						const int margin = 2;
-                        labelRect.adjust(-margin, -margin, margin, margin);
+						labelRect.adjust(-margin, -margin, margin, margin);
 
-                        if (labelRect.isValid())
-                            clipRegion -= QRegion(labelRect);
+						if (labelRect.isValid())
+							clipRegion -= QRegion(labelRect);
 					}
 				}
 			}
 		}
-        painter->setClipRegion(clipRegion);
+		painter->setClipRegion(clipRegion);
 	}
 
 	//  draw radial grid
 
-    const GridData& radialGrid = m_data->gridData[ QwtPolar::Radius ];
-    if (radialGrid.isVisible && radialGrid.isMinorVisible) {
-        painter->setPen(radialGrid.minorPen);
+	const QwtPolarGrid_GridData& radialGrid = m_data->gridData[ QwtPolar::Radius ];
+	if (radialGrid.isVisible && radialGrid.isMinorVisible) {
+		painter->setPen(radialGrid.minorPen);
 
-        drawCircles(painter, canvasRect, pole, radialMap, radialGrid.scaleDiv.ticks(QwtScaleDiv::MinorTick));
-        drawCircles(painter, canvasRect, pole, radialMap, radialGrid.scaleDiv.ticks(QwtScaleDiv::MediumTick));
+		drawCircles(painter, canvasRect, pole, radialMap, radialGrid.scaleDiv.ticks(QwtScaleDiv::MinorTick));
+		drawCircles(painter, canvasRect, pole, radialMap, radialGrid.scaleDiv.ticks(QwtScaleDiv::MediumTick));
 	}
-    if (radialGrid.isVisible) {
-        painter->setPen(radialGrid.majorPen);
+	if (radialGrid.isVisible) {
+		painter->setPen(radialGrid.majorPen);
 
-        drawCircles(painter, canvasRect, pole, radialMap, radialGrid.scaleDiv.ticks(QwtScaleDiv::MajorTick));
+		drawCircles(painter, canvasRect, pole, radialMap, radialGrid.scaleDiv.ticks(QwtScaleDiv::MajorTick));
 	}
 
 	// draw azimuth grid
 
-    const GridData& azimuthGrid = m_data->gridData[ QwtPolar::Azimuth ];
+	const QwtPolarGrid_GridData& azimuthGrid = m_data->gridData[ QwtPolar::Azimuth ];
 
-    if (azimuthGrid.isVisible && azimuthGrid.isMinorVisible) {
-        painter->setPen(azimuthGrid.minorPen);
+	if (azimuthGrid.isVisible && azimuthGrid.isMinorVisible) {
+		painter->setPen(azimuthGrid.minorPen);
 
-        drawRays(painter, canvasRect, pole, radius, azimuthMap, azimuthGrid.scaleDiv.ticks(QwtScaleDiv::MinorTick));
-        drawRays(painter, canvasRect, pole, radius, azimuthMap, azimuthGrid.scaleDiv.ticks(QwtScaleDiv::MediumTick));
+		drawRays(painter, canvasRect, pole, radius, azimuthMap, azimuthGrid.scaleDiv.ticks(QwtScaleDiv::MinorTick));
+		drawRays(painter, canvasRect, pole, radius, azimuthMap, azimuthGrid.scaleDiv.ticks(QwtScaleDiv::MediumTick));
 	}
-    if (azimuthGrid.isVisible) {
-        painter->setPen(azimuthGrid.majorPen);
+	if (azimuthGrid.isVisible) {
+		painter->setPen(azimuthGrid.majorPen);
 
-        drawRays(painter, canvasRect, pole, radius, azimuthMap, azimuthGrid.scaleDiv.ticks(QwtScaleDiv::MajorTick));
+		drawRays(painter, canvasRect, pole, radius, azimuthMap, azimuthGrid.scaleDiv.ticks(QwtScaleDiv::MajorTick));
 	}
 	painter->restore();
 
-    for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
-        const AxisData& axis = m_data->axisData[ axisId ];
-        if (axis.isVisible) {
+	for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
+		const QwtPolarGrid_AxisData& axis = m_data->axisData[ axisId ];
+		if (axis.isVisible) {
 			painter->save();
-            drawAxis(painter, axisId);
+			drawAxis(painter, axisId);
 			painter->restore();
 		}
 	}
@@ -59201,47 +59220,47 @@ void QwtPolarGrid::drawRays(QPainter* painter,
                             const QwtScaleMap& azimuthMap,
                             const QList< double >& values) const
 {
-    for (int i = 0; i < int(values.size()); i++) {
-        double azimuth = azimuthMap.transform(values[ i ]);
-        azimuth        = ::fmod(azimuth, 2 * M_PI);
+	for (int i = 0; i < int(values.size()); i++) {
+		double azimuth = azimuthMap.transform(values[ i ]);
+		azimuth        = ::fmod(azimuth, 2 * M_PI);
 
 		bool skipLine = false;
-        if (testDisplayFlag(SmartScaleDraw)) {
-            const QwtAbstractScaleDraw::ScaleComponent bone = QwtAbstractScaleDraw::Backbone;
-            if (isClose(azimuth, 0.0)) {
-                const AxisData& axis = m_data->axisData[ QwtPolar::AxisRight ];
-                if (axis.isVisible && axis.scaleDraw->hasComponent(bone))
+		if (testDisplayFlag(SmartScaleDraw)) {
+			const QwtAbstractScaleDraw::ScaleComponent bone = QwtAbstractScaleDraw::Backbone;
+			if (isClose(azimuth, 0.0)) {
+				const QwtPolarGrid_AxisData& axis = m_data->axisData[ QwtPolar::AxisRight ];
+				if (axis.isVisible && axis.scaleDraw->hasComponent(bone))
 					skipLine = true;
-            } else if (isClose(azimuth, M_PI / 2)) {
-                const AxisData& axis = m_data->axisData[ QwtPolar::AxisTop ];
-                if (axis.isVisible && axis.scaleDraw->hasComponent(bone))
+			} else if (isClose(azimuth, M_PI / 2)) {
+				const QwtPolarGrid_AxisData& axis = m_data->axisData[ QwtPolar::AxisTop ];
+				if (axis.isVisible && axis.scaleDraw->hasComponent(bone))
 					skipLine = true;
-            } else if (isClose(azimuth, M_PI)) {
-                const AxisData& axis = m_data->axisData[ QwtPolar::AxisLeft ];
-                if (axis.isVisible && axis.scaleDraw->hasComponent(bone))
+			} else if (isClose(azimuth, M_PI)) {
+				const QwtPolarGrid_AxisData& axis = m_data->axisData[ QwtPolar::AxisLeft ];
+				if (axis.isVisible && axis.scaleDraw->hasComponent(bone))
 					skipLine = true;
-            } else if (isClose(azimuth, 3 * M_PI / 2.0)) {
-                const AxisData& axis = m_data->axisData[ QwtPolar::AxisBottom ];
-                if (axis.isVisible && axis.scaleDraw->hasComponent(bone))
+			} else if (isClose(azimuth, 3 * M_PI / 2.0)) {
+				const QwtPolarGrid_AxisData& axis = m_data->axisData[ QwtPolar::AxisBottom ];
+				if (axis.isVisible && axis.scaleDraw->hasComponent(bone))
 					skipLine = true;
 			}
 		}
-        if (!skipLine) {
-            const QPointF pos = qwtPolar2Pos(pole, radius, azimuth);
+		if (!skipLine) {
+			const QPointF pos = qwtPolar2Pos(pole, radius, azimuth);
 
 			/*
                 Qt4 is horrible slow, when painting primitives,
                 with coordinates far outside the visible area.
 			 */
 
-            QPolygonF polygon(2);
-            polygon[ 0 ] = pole.toPoint();
-            polygon[ 1 ] = pos.toPoint();
+			QPolygonF polygon(2);
+			polygon[ 0 ] = pole.toPoint();
+			polygon[ 1 ] = pos.toPoint();
 
-            if (testDisplayFlag(ClipGridLines))
-                QwtClipper::clipPolygonF(canvasRect, polygon);
+			if (testDisplayFlag(ClipGridLines))
+				QwtClipper::clipPolygonF(canvasRect, polygon);
 
-            QwtPainter::drawPolyline(painter, polygon);
+			QwtPainter::drawPolyline(painter, polygon);
 		}
 	}
 }
@@ -59261,56 +59280,56 @@ void QwtPolarGrid::drawCircles(QPainter* painter,
                                const QwtScaleMap& radialMap,
                                const QList< double >& values) const
 {
-    for (int i = 0; i < int(values.size()); i++) {
-        const double val = values[ i ];
+	for (int i = 0; i < int(values.size()); i++) {
+		const double val = values[ i ];
 
-        const GridData& gridData = m_data->gridData[ QwtPolar::Radius ];
+		const QwtPolarGrid_GridData& gridData = m_data->gridData[ QwtPolar::Radius ];
 
 		bool skipLine = false;
-        if (testDisplayFlag(SmartScaleDraw)) {
-            const AxisData& axis = m_data->axisData[ QwtPolar::AxisAzimuth ];
-            if (axis.isVisible && axis.scaleDraw->hasComponent(QwtAbstractScaleDraw::Backbone)) {
-                if (isClose(val, gridData.scaleDiv.upperBound()))
+		if (testDisplayFlag(SmartScaleDraw)) {
+			const QwtPolarGrid_AxisData& axis = m_data->axisData[ QwtPolar::AxisAzimuth ];
+			if (axis.isVisible && axis.scaleDraw->hasComponent(QwtAbstractScaleDraw::Backbone)) {
+				if (isClose(val, gridData.scaleDiv.upperBound()))
 					skipLine = true;
 			}
 		}
 
-        if (isClose(val, gridData.scaleDiv.lowerBound()))
+		if (isClose(val, gridData.scaleDiv.lowerBound()))
 			skipLine = true;
 
-        if (!skipLine) {
-            const double radius = radialMap.transform(val);
+		if (!skipLine) {
+			const double radius = radialMap.transform(val);
 
-            QRectF outerRect(0, 0, 2 * radius, 2 * radius);
-            outerRect.moveCenter(pole);
+			QRectF outerRect(0, 0, 2 * radius, 2 * radius);
+			outerRect.moveCenter(pole);
 
-            if (testDisplayFlag(ClipGridLines)) {
+			if (testDisplayFlag(ClipGridLines)) {
 				/*
                     Qt4 is horrible slow, when painting primitives,
                     with coordinates far outside the visible area.
                     We need to clip.
 				 */
 
-                const QVector< QwtInterval > angles = QwtClipper::clipCircle(canvasRect, pole, radius);
+				const QVector< QwtInterval > angles = QwtClipper::clipCircle(canvasRect, pole, radius);
 
-                for (int j = 0; j < angles.size(); j++) {
-                    const QwtInterval intv = angles[ j ];
+				for (int j = 0; j < angles.size(); j++) {
+					const QwtInterval intv = angles[ j ];
 
-                    if (intv.minValue() == 0 && intv.maxValue() == 2 * M_PI) {
-                        QwtPainter::drawEllipse(painter, outerRect);
-                    } else {
-                        const double from = qwtDegrees(intv.minValue());
-                        const double to   = qwtDegrees(intv.maxValue());
+					if (intv.minValue() == 0 && intv.maxValue() == 2 * M_PI) {
+						QwtPainter::drawEllipse(painter, outerRect);
+					} else {
+						const double from = qwtDegrees(intv.minValue());
+						const double to   = qwtDegrees(intv.maxValue());
 
 						double span = to - from;
-                        if (span < 0.0)
+						if (span < 0.0)
 							span += 360.0;
 
-                        painter->drawArc(outerRect, qRound(from * 16), qRound(span * 16));
+						painter->drawArc(outerRect, qRound(from * 16), qRound(span * 16));
 					}
 				}
-            } else {
-                QwtPainter::drawEllipse(painter, outerRect);
+			} else {
+				QwtPainter::drawEllipse(painter, outerRect);
 			}
 		}
 	}
@@ -59324,19 +59343,19 @@ void QwtPolarGrid::drawCircles(QPainter* painter,
  */
 void QwtPolarGrid::drawAxis(QPainter* painter, int axisId) const
 {
-    if (axisId < 0 || axisId >= QwtPolar::AxesCount)
+	if (axisId < 0 || axisId >= QwtPolar::AxesCount)
 		return;
 
-    AxisData& axis = m_data->axisData[ axisId ];
+	QwtPolarGrid_AxisData& axis = m_data->axisData[ axisId ];
 
-    painter->setPen(axis.pen);
-    painter->setFont(axis.font);
+	painter->setPen(axis.pen);
+	painter->setFont(axis.font);
 
 	QPalette pal;
-    pal.setColor(QPalette::WindowText, axis.pen.color());
-    pal.setColor(QPalette::Text, axis.pen.color());
+	pal.setColor(QPalette::WindowText, axis.pen.color());
+	pal.setColor(QPalette::Text, axis.pen.color());
 
-    axis.scaleDraw->draw(painter, pal);
+	axis.scaleDraw->draw(painter, pal);
 }
 
 /*!
@@ -59356,62 +59375,62 @@ void QwtPolarGrid::updateScaleDraws(const QwtScaleMap& azimuthMap,
 {
 	const QPoint p = pole.toPoint();
 
-    const QwtInterval interval = m_data->gridData[ QwtPolar::ScaleRadius ].scaleDiv.interval();
+	const QwtInterval interval = m_data->gridData[ QwtPolar::ScaleRadius ].scaleDiv.interval();
 
-    const int min = radialMap.transform(interval.minValue());
-    const int max = radialMap.transform(interval.maxValue());
-    const int l   = max - min;
+	const int min = radialMap.transform(interval.minValue());
+	const int max = radialMap.transform(interval.maxValue());
+	const int l   = max - min;
 
-    for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
-        AxisData& axis = m_data->axisData[ axisId ];
+	for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
+		QwtPolarGrid_AxisData& axis = m_data->axisData[ axisId ];
 
-        if (axisId == QwtPolar::AxisAzimuth) {
-            QwtRoundScaleDraw* scaleDraw = static_cast< QwtRoundScaleDraw* >(axis.scaleDraw);
+		if (axisId == QwtPolar::AxisAzimuth) {
+			QwtRoundScaleDraw* scaleDraw = static_cast< QwtRoundScaleDraw* >(axis.scaleDraw);
 
-            scaleDraw->setRadius(qRound(radius));
-            scaleDraw->moveCenter(p);
+			scaleDraw->setRadius(qRound(radius));
+			scaleDraw->moveCenter(p);
 
-            double from = ::fmod(90.0 - qwtDegrees(azimuthMap.p1()), 360.0);
-            if (from < 0.0)
+			double from = ::fmod(90.0 - qwtDegrees(azimuthMap.p1()), 360.0);
+			if (from < 0.0)
 				from += 360.0;
 
-            scaleDraw->setAngleRange(from, from - 360.0);
+			scaleDraw->setAngleRange(from, from - 360.0);
 
 			const QwtTransform* transform = azimuthMap.transformation();
-            if (transform)
-                scaleDraw->setTransformation(transform->copy());
+			if (transform)
+				scaleDraw->setTransformation(transform->copy());
 			else
-                scaleDraw->setTransformation(NULL);
-        } else {
-            QwtScaleDraw* scaleDraw = static_cast< QwtScaleDraw* >(axis.scaleDraw);
+				scaleDraw->setTransformation(NULL);
+		} else {
+			QwtScaleDraw* scaleDraw = static_cast< QwtScaleDraw* >(axis.scaleDraw);
 
-            switch (axisId) {
-            case QwtPolar::AxisLeft: {
-                scaleDraw->move(p.x() - min, p.y());
-                scaleDraw->setLength(-l);
-                break;
-            }
-            case QwtPolar::AxisRight: {
-                scaleDraw->move(p.x() + min, p.y());
-                scaleDraw->setLength(l);
-                break;
-            }
-            case QwtPolar::AxisTop: {
-                scaleDraw->move(p.x(), p.y() - max);
-                scaleDraw->setLength(l);
-                break;
-            }
-            case QwtPolar::AxisBottom: {
-                scaleDraw->move(p.x(), p.y() + max);
-                scaleDraw->setLength(-l);
-                break;
-            }
+			switch (axisId) {
+			case QwtPolar::AxisLeft: {
+				scaleDraw->move(p.x() - min, p.y());
+				scaleDraw->setLength(-l);
+				break;
+			}
+			case QwtPolar::AxisRight: {
+				scaleDraw->move(p.x() + min, p.y());
+				scaleDraw->setLength(l);
+				break;
+			}
+			case QwtPolar::AxisTop: {
+				scaleDraw->move(p.x(), p.y() - max);
+				scaleDraw->setLength(l);
+				break;
+			}
+			case QwtPolar::AxisBottom: {
+				scaleDraw->move(p.x(), p.y() + max);
+				scaleDraw->setLength(-l);
+				break;
+			}
 			}
 			const QwtTransform* transform = radialMap.transformation();
-            if (transform)
-                scaleDraw->setTransformation(transform->copy());
+			if (transform)
+				scaleDraw->setTransformation(transform->copy());
 			else
-                scaleDraw->setTransformation(NULL);
+				scaleDraw->setTransformation(NULL);
 		}
 	}
 }
@@ -59435,69 +59454,69 @@ void QwtPolarGrid::updateScaleDiv(const QwtScaleDiv& azimuthScaleDiv,
                                   const QwtScaleDiv& radialScaleDiv,
                                   const QwtInterval& interval)
 {
-    GridData& radialGrid = m_data->gridData[ QwtPolar::Radius ];
+	QwtPolarGrid_GridData& radialGrid = m_data->gridData[ QwtPolar::Radius ];
 
 	const QwtPolarPlot* plt = plot();
-    if (plt && testGridAttribute(AutoScaling)) {
-        const QwtScaleEngine* se = plt->scaleEngine(QwtPolar::Radius);
-        radialGrid.scaleDiv      = se->divideScale(interval.minValue(),
+	if (plt && testGridAttribute(AutoScaling)) {
+		const QwtScaleEngine* se = plt->scaleEngine(QwtPolar::Radius);
+		radialGrid.scaleDiv      = se->divideScale(interval.minValue(),
                                               interval.maxValue(),
                                               plt->scaleMaxMajor(QwtPolar::Radius),
                                               plt->scaleMaxMinor(QwtPolar::Radius),
                                               0);
-    } else {
-        if (radialGrid.scaleDiv != radialScaleDiv)
+	} else {
+		if (radialGrid.scaleDiv != radialScaleDiv)
 			radialGrid.scaleDiv = radialScaleDiv;
 	}
 
-    GridData& azimuthGrid = m_data->gridData[ QwtPolar::Azimuth ];
-    if (azimuthGrid.scaleDiv != azimuthScaleDiv) {
+	QwtPolarGrid_GridData& azimuthGrid = m_data->gridData[ QwtPolar::Azimuth ];
+	if (azimuthGrid.scaleDiv != azimuthScaleDiv) {
 		azimuthGrid.scaleDiv = azimuthScaleDiv;
 	}
 
 	bool hasOrigin = false;
-    for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
-        AxisData& axis = m_data->axisData[ axisId ];
-        if (axis.isVisible && axis.scaleDraw) {
-            if (axisId == QwtPolar::AxisAzimuth) {
-                axis.scaleDraw->setScaleDiv(azimuthGrid.scaleDiv);
-                if (testDisplayFlag(SmartScaleDraw)) {
-                    axis.scaleDraw->enableComponent(QwtAbstractScaleDraw::Ticks, !azimuthGrid.isVisible);
+	for (int axisId = 0; axisId < QwtPolar::AxesCount; axisId++) {
+		QwtPolarGrid_AxisData& axis = m_data->axisData[ axisId ];
+		if (axis.isVisible && axis.scaleDraw) {
+			if (axisId == QwtPolar::AxisAzimuth) {
+				axis.scaleDraw->setScaleDiv(azimuthGrid.scaleDiv);
+				if (testDisplayFlag(SmartScaleDraw)) {
+					axis.scaleDraw->enableComponent(QwtAbstractScaleDraw::Ticks, !azimuthGrid.isVisible);
 				}
-            } else {
+			} else {
 				QwtScaleDiv sd = radialGrid.scaleDiv;
 
-                QList< double > ticks = sd.ticks(QwtScaleDiv::MajorTick);
+				QList< double > ticks = sd.ticks(QwtScaleDiv::MajorTick);
 
-                if (testDisplayFlag(SmartOriginLabel)) {
+				if (testDisplayFlag(SmartOriginLabel)) {
 					bool skipOrigin = hasOrigin;
-                    if (!skipOrigin) {
-                        if (axisId == QwtPolar::AxisLeft || axisId == QwtPolar::AxisRight) {
-                            if (m_data->axisData[ QwtPolar::AxisBottom ].isVisible)
+					if (!skipOrigin) {
+						if (axisId == QwtPolar::AxisLeft || axisId == QwtPolar::AxisRight) {
+							if (m_data->axisData[ QwtPolar::AxisBottom ].isVisible)
 								skipOrigin = true;
-                        } else {
-                            if (m_data->axisData[ QwtPolar::AxisLeft ].isVisible)
+						} else {
+							if (m_data->axisData[ QwtPolar::AxisLeft ].isVisible)
 								skipOrigin = true;
 						}
 					}
-                    if (ticks.size() > 0 && ticks.first() == sd.lowerBound()) {
-                        if (skipOrigin)
+					if (ticks.size() > 0 && ticks.first() == sd.lowerBound()) {
+						if (skipOrigin)
 							ticks.removeFirst();
 						else
 							hasOrigin = true;
 					}
 				}
 
-                if (testDisplayFlag(HideMaxRadiusLabel)) {
-                    if (ticks.size() > 0 && ticks.last() == sd.upperBound())
+				if (testDisplayFlag(HideMaxRadiusLabel)) {
+					if (ticks.size() > 0 && ticks.last() == sd.upperBound())
 						ticks.removeLast();
 				}
 
-                sd.setTicks(QwtScaleDiv::MajorTick, ticks);
-                axis.scaleDraw->setScaleDiv(sd);
+				sd.setTicks(QwtScaleDiv::MajorTick, ticks);
+				axis.scaleDraw->setScaleDiv(sd);
 
-                if (testDisplayFlag(SmartScaleDraw)) {
-                    axis.scaleDraw->enableComponent(QwtAbstractScaleDraw::Ticks, !radialGrid.isVisible);
+				if (testDisplayFlag(SmartScaleDraw)) {
+					axis.scaleDraw->enableComponent(QwtAbstractScaleDraw::Ticks, !radialGrid.isVisible);
 				}
 			}
 		}
@@ -59510,9 +59529,9 @@ void QwtPolarGrid::updateScaleDiv(const QwtScaleDiv& azimuthScaleDiv,
  */
 int QwtPolarGrid::marginHint() const
 {
-    const AxisData& axis = m_data->axisData[ QwtPolar::AxisAzimuth ];
-    if (axis.isVisible) {
-        const int extent = axis.scaleDraw->extent(axis.font);
+	const QwtPolarGrid_AxisData& axis = m_data->axisData[ QwtPolar::AxisAzimuth ];
+	if (axis.isVisible) {
+		const int extent = axis.scaleDraw->extent(axis.font);
 		return extent;
 	}
 
@@ -59528,8 +59547,8 @@ int QwtPolarGrid::marginHint() const
  */
 const QwtScaleDraw* QwtPolarGrid::scaleDraw(int axisId) const
 {
-    if (axisId >= QwtPolar::AxisLeft && axisId <= QwtPolar::AxisBottom)
-        return static_cast< QwtScaleDraw* >(m_data->axisData[ axisId ].scaleDraw);
+	if (axisId >= QwtPolar::AxisLeft && axisId <= QwtPolar::AxisBottom)
+		return static_cast< QwtScaleDraw* >(m_data->axisData[ axisId ].scaleDraw);
 
 	return NULL;
 }
@@ -59543,8 +59562,8 @@ const QwtScaleDraw* QwtPolarGrid::scaleDraw(int axisId) const
  */
 QwtScaleDraw* QwtPolarGrid::scaleDraw(int axisId)
 {
-    if (axisId >= QwtPolar::AxisLeft && axisId <= QwtPolar::AxisBottom)
-        return static_cast< QwtScaleDraw* >(m_data->axisData[ axisId ].scaleDraw);
+	if (axisId >= QwtPolar::AxisLeft && axisId <= QwtPolar::AxisBottom)
+		return static_cast< QwtScaleDraw* >(m_data->axisData[ axisId ].scaleDraw);
 
 	return NULL;
 }
@@ -59559,11 +59578,11 @@ QwtScaleDraw* QwtPolarGrid::scaleDraw(int axisId)
  */
 void QwtPolarGrid::setScaleDraw(int axisId, QwtScaleDraw* scaleDraw)
 {
-    if (axisId < QwtPolar::AxisLeft || axisId > QwtPolar::AxisBottom)
+	if (axisId < QwtPolar::AxisLeft || axisId > QwtPolar::AxisBottom)
 		return;
 
-    AxisData& axisData = m_data->axisData[ axisId ];
-    if (axisData.scaleDraw != scaleDraw) {
+	QwtPolarGrid_AxisData& axisData = m_data->axisData[ axisId ];
+	if (axisData.scaleDraw != scaleDraw) {
 		delete axisData.scaleDraw;
 		axisData.scaleDraw = scaleDraw;
 		itemChanged();
@@ -59576,7 +59595,7 @@ void QwtPolarGrid::setScaleDraw(int axisId, QwtScaleDraw* scaleDraw)
  */
 const QwtRoundScaleDraw* QwtPolarGrid::azimuthScaleDraw() const
 {
-    return static_cast< QwtRoundScaleDraw* >(m_data->axisData[ QwtPolar::AxisAzimuth ].scaleDraw);
+	return static_cast< QwtRoundScaleDraw* >(m_data->axisData[ QwtPolar::AxisAzimuth ].scaleDraw);
 }
 
 /*!
@@ -59585,7 +59604,7 @@ const QwtRoundScaleDraw* QwtPolarGrid::azimuthScaleDraw() const
  */
 QwtRoundScaleDraw* QwtPolarGrid::azimuthScaleDraw()
 {
-    return static_cast< QwtRoundScaleDraw* >(m_data->axisData[ QwtPolar::AxisAzimuth ].scaleDraw);
+	return static_cast< QwtRoundScaleDraw* >(m_data->axisData[ QwtPolar::AxisAzimuth ].scaleDraw);
 }
 
 /*!
@@ -59596,8 +59615,8 @@ QwtRoundScaleDraw* QwtPolarGrid::azimuthScaleDraw()
  */
 void QwtPolarGrid::setAzimuthScaleDraw(QwtRoundScaleDraw* scaleDraw)
 {
-    AxisData& axisData = m_data->axisData[ QwtPolar::AxisAzimuth ];
-    if (axisData.scaleDraw != scaleDraw) {
+	QwtPolarGrid_AxisData& axisData = m_data->axisData[ QwtPolar::AxisAzimuth ];
+	if (axisData.scaleDraw != scaleDraw) {
 		delete axisData.scaleDraw;
 		axisData.scaleDraw = scaleDraw;
 		itemChanged();
@@ -60047,13 +60066,6 @@ void QwtPolarLayout::activate(const QwtPolarPlot* plot, const QRectF& boundingRe
 #if QWT_PDF_WRITER
 #include <qpdfwriter.h>
 #endif
-
-static inline double qwtDistance(const QPointF& p1, const QPointF& p2)
-{
-	double dx = p2.x() - p1.x();
-	double dy = p2.y() - p1.y();
-	return qSqrt(dx * dx + dy * dy);
-}
 
 class QwtPolarRenderer::PrivateData
 {

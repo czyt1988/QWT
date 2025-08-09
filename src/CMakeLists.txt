@@ -110,6 +110,7 @@ set(QWT_HEADER_BASE
         qwt_spline_polynomial.h
         qwt_symbol.h
         qwt_system_clock.h
+        qwt_stylesheet_recorder.h
         qwt_text_engine.h
         qwt_text_label.h
         qwt_text.h
@@ -156,6 +157,7 @@ set(QWT_SOURCE_BASE
         qwt_spline_polynomial.cpp
         qwt_symbol.cpp
         qwt_system_clock.cpp
+        qwt_stylesheet_recorder.cpp
         qwt_text_engine.cpp
         qwt_text_label.cpp
         qwt_text.cpp
