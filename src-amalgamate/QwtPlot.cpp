@@ -38493,8 +38493,8 @@ void QwtPlotAbstractBarChart::getCanvasMarginHint(const QwtScaleMap& xMap,
 
         hint = 0.5 * sampleWidthP;
         hint += qMax(m_data->margin, 0);
-	}
     }
+	}
 
     if (orientation() == Qt::Vertical) {
 		left = right = hint;
@@ -42709,7 +42709,7 @@ void QwtPlotMarker::drawLabel(QPainter* painter, const QRectF& canvasRect, const
             symbolOff = m_data->symbol->size() + QSizeF(1, 1);
             symbolOff /= 2;
 		}
-	}
+    }
     }
 
 	qreal pw2 = m_data->pen.widthF() / 2.0;
@@ -46631,7 +46631,7 @@ static QPainterPath qwtTransformPath(const QwtScaleMap& xMap, const QwtScaleMap&
             if (doAlign) {
                 x = qRound(x);
                 y = qRound(y);
-			}
+            }
 
             shape.moveTo(x, y);
             break;
@@ -48874,9 +48874,9 @@ void QwtPlotTradingCurve::drawSymbols(QPainter* painter,
                     painter->setBrush(m_data->symbolBrush[ brushIndex ]);
                     drawUserSymbol(painter, m_data->symbolStyle, translatedSample, orient, inverted, symbolWidth);
 				}
+			}
             }
-            }
-		}
+        }
 	}
 }
 

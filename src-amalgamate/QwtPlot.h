@@ -12,8 +12,8 @@
 
 // QWT_VERSION is (major << 16) + (minor << 8) + patch.
 
-#define QWT_VERSION 0x060200
-#define QWT_VERSION_STR "6.2.0"
+#define QWT_VERSION 0x070000
+#define QWT_VERSION_STR "7.0.0"
 
 #if defined(_MSC_VER) /* MSVC Compiler */
 /* template-class specialization 'identifier' is already instantiated */
@@ -7118,7 +7118,7 @@ class QWT_EXPORT QwtThermo : public QwtAbstractScale
     Q_PROPERTY(double value READ value WRITE setValue USER true)
 
 public:
-	/*!
+    /*!
 	   Position of the scale
 	   \sa setScalePosition(), setOrientation()
 	 */
@@ -10070,7 +10070,7 @@ class QWT_EXPORT QwtDial : public QwtAbstractSlider
     Q_PROPERTY(double maxScaleArc READ maxScaleArc WRITE setMaxScaleArc)
 
 public:
-	/*!
+    /*!
         \brief Frame shadow
 
          Unfortunately it is not possible to use QFrame::Shadow
@@ -11605,7 +11605,7 @@ class QWT_EXPORT QwtPlotCanvas : public QFrame, public QwtPlotAbstractCanvas
     Q_PROPERTY(double borderRadius READ borderRadius WRITE setBorderRadius)
 
 public:
-	/*!
+    /*!
 	   \brief Paint attributes
 
 	   The default setting enables BackingStore and Opaque.
@@ -13433,7 +13433,7 @@ public:
     virtual QwtGraphic legendIcon(int index, const QSizeF&) const QWT_OVERRIDE;
 
 protected:
-	void init();
+    void init();
 
     virtual void drawTube(QPainter*,
                           const QwtScaleMap& xMap,
@@ -13615,7 +13615,7 @@ protected:
     virtual void drawLabel(QPainter*, const QRectF&, const QPointF&) const;
 
 private:
-    class PrivateData;
+	class PrivateData;
 	PrivateData* m_data;
 };
 
@@ -15427,7 +15427,7 @@ public:
     virtual QwtGraphic legendIcon(int index, const QSizeF&) const QWT_OVERRIDE;
 
 protected:
-	void init();
+    void init();
 
     virtual void drawCurve(QPainter*,
                            int style,
