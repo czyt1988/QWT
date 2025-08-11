@@ -97,6 +97,7 @@ QwtPlotCanvas::QwtPlotCanvas(QwtPlot* plot) : QFrame(plot), QwtPlotAbstractCanva
 ```
 
 `QwtPlotLayout`初始化调整如下
+
 ```cpp
 QwtPlotLayout::QwtPlotLayout()
 {
@@ -104,6 +105,8 @@ QwtPlotLayout::QwtPlotLayout()
     setCanvasMargin(-1);
 ...
 }
+```
+
 - 去除QWT_MOC_INCLUDE
 
 ## tag:???（还未发布） | version:7.0.0
