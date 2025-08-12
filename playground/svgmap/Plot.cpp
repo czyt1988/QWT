@@ -20,23 +20,20 @@
 #include <QSvgRenderer>
 #include <QFileDialog>
 
-Plot::Plot( QWidget* parent )
-    : QwtPlot( parent )
-    , m_mapItem( NULL )
-    , m_mapRect( 0.0, 0.0, 100.0, 100.0 ) // something
+Plot::Plot(QWidget* parent) : QwtPlot(parent), m_mapItem(NULL), m_mapRect(0.0, 0.0, 100.0, 100.0)  // something
 {
 #if DEBUG_SCALE
     QwtPlotGrid* grid = new QwtPlotGrid();
-    grid->attach( this );
+    grid->attach(this);
 #else
     /*
        m_mapRect is only a reference for zooming, but
        the ranges are nothing useful for the user. So we
        hide the axes.
      */
-    plotLayout()->setCanvasMargin( 0 );
-    for ( int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++ )
-        setAxisVisible( axisPos, false );
+    plotLayout()->setCanvasMargin(0);
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++)
+        setAxisVisible(axisPos, false);
 #endif
 
     /*
@@ -47,11 +44,11 @@ Plot::Plot( QWidget* parent )
        Right Mouse Button: Reset to initial
      */
 
-    ( void )new QwtPlotPanner( canvas() );
-    ( void )new QwtPlotMagnifier( canvas() );
+    (void)new QwtPlotPanner(canvas());
+    (void)new QwtPlotMagnifier(canvas());
 
-    canvas()->setFocusPolicy( Qt::WheelFocus );
-    setCanvasBackground( Qt::white );
+    canvas()->setFocusPolicy(Qt::WheelFocus);
+    setCanvasBackground(Qt::white);
 
     rescale();
 }
@@ -61,34 +58,33 @@ Plot::Plot( QWidget* parent )
 void Plot::loadSVG()
 {
     QString dir;
-    const QString fileName = QFileDialog::getOpenFileName( NULL,
-        "Load a Scaleable Vector Graphic (SVG) Map",
-        dir, "SVG Files (*.svg)" );
+    const QString fileName = QFileDialog::getOpenFileName(NULL,
+                                                          "Load a Scaleable Vector Graphic (SVG) Map",
+                                                          dir,
+                                                          "SVG Files (*.svg)");
 
-    if ( !fileName.isEmpty() )
-        loadSVG( fileName );
+    if (!fileName.isEmpty())
+        loadSVG(fileName);
 }
 
 #endif
 
-void Plot::loadSVG( const QString& fileName )
+void Plot::loadSVG(const QString& fileName)
 {
-    if ( m_mapItem == NULL )
-    {
+    if (m_mapItem == NULL) {
         m_mapItem = new QwtPlotGraphicItem();
-        m_mapItem->attach( this );
+        m_mapItem->attach(this);
     }
 
     QwtGraphic graphic;
 
     QSvgRenderer renderer;
-    if ( renderer.load( fileName ) )
-    {
-        QPainter p( &graphic );
-        renderer.render( &p );
+    if (renderer.load(fileName)) {
+        QPainter p(&graphic);
+        renderer.render(&p);
     }
 
-    m_mapItem->setGraphic( m_mapRect, graphic );
+    m_mapItem->setGraphic(m_mapRect, graphic);
 
     rescale();
     replot();
@@ -96,8 +92,6 @@ void Plot::loadSVG( const QString& fileName )
 
 void Plot::rescale()
 {
-    setAxisScale( QwtAxis::XBottom, m_mapRect.left(), m_mapRect.right() );
-    setAxisScale( QwtAxis::YLeft, m_mapRect.top(), m_mapRect.bottom() );
+    setAxisScale(QwtAxis::XBottom, m_mapRect.left(), m_mapRect.right());
+    setAxisScale(QwtAxis::YLeft, m_mapRect.top(), m_mapRect.bottom());
 }
-
-#include "moc_Plot.cpp"
