@@ -26,7 +26,8 @@ contains(QWT_CONFIG, QwtPlot) {
         scatterplot \
         spectrogram \
         rasterview \
-        tvplot 
+        tvplot \
+        figure
 
     contains(QWT_CONFIG, QwtWidgets) {
 

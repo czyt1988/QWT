@@ -116,6 +116,8 @@ set(QWT_HEADER_BASE
         qwt_text.h
         qwt_transform.h
         qwt_widget_overlay.h
+        qwt_figure_layout.h
+        qwt_figure.h
 )
 set(QWT_SOURCE_BASE
         qwt.cpp
@@ -163,6 +165,8 @@ set(QWT_SOURCE_BASE
         qwt_text.cpp
         qwt_transform.cpp
         qwt_widget_overlay.cpp
+        qwt_figure_layout.cpp
+        qwt_figure.cpp
 )
 
 set(QWT_HEADER_FILES ${QWT_HEADER_BASE})

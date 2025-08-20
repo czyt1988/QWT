@@ -138,6 +138,8 @@
 #include "../../src/qwt_polar_grid.cpp"
 #include "../../src/qwt_polar_layout.cpp"
 #include "../../src/qwt_polar_renderer.cpp"
+#include "../../src/qwt_figure_layout.cpp"
+#include "../../src/qwt_figure.cpp"
 #ifdef _MSC_VER
 #pragma warning (pop)
 #pragma pop_macro ("_CRT_SECURE_NO_WARNINGS")

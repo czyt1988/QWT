@@ -133,3 +133,5 @@
 #include "../../src/qwt_polar_plot.h"
 #include "../../src/qwt_polar_grid.h"
 #include "../../src/qwt_polar_layout.h"
+#include "../../src/qwt_figure_layout.h"
+#include "../../src/qwt_figure.h"

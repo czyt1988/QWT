@@ -70,10 +70,10 @@ Programs must identify their use of Qwt:
 - [x] CMake支持 
 - [ ] 支持Qt6
 - [ ] C++11优化
-- [ ] 合并为单一文件，简化引入
+- [x] 合并为单一文件，简化引入
 - [ ] 优化超大规模数据的渲染
 - [ ] 提供一些集成的交互方法，让使用更简单
-- [ ] 美化控件
+- [x] 美化控件
 
 # 构建
 
@@ -111,65 +111,23 @@ target_link_libraries(YOUR_APP_NAME
 
 # changelog
 
+详细的日志请参阅[CHANGES.MD](./CHANGES.md)
+
+## tag:v7.0.1
+
+- 增加`QwtFigure`类，`QwtFigure`用于管理多个QwtPlot，实现类似Matplotlib的Figure功能，支持网格化布局
+- 增加figure例子,演示`QwtFigure`类的使用
+
 ## tag:v7.0.0
 
 - 把整个工程合并为QwtPlot.h和QwtPlot.cpp，直接可以引入，文件位于src-amalgamate
-- 例子增加staticExample
+- 增加staticExample例子,演示如何静态引入
 - 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
 - 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
 - `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
 - `Qwt`的初始化参数进行了调整，让默认绘图更符合当前绘图的审美
-
-`QwtPlotCanvas`初始化如下：
-```cpp
-QwtPlotCanvas::QwtPlotCanvas(QwtPlot* plot) : QFrame(plot), QwtPlotAbstractCanvas(this)
-{
-    ...
-
-    setLineWidth(0);
-    setFrameShadow(QFrame::Plain);
-    setFrameShape(QFrame::Box);
-}
-```
-
-`QwtPlotLayout`初始化调整如下
-
-```cpp
-QwtPlotLayout::QwtPlotLayout()
-{
-...
-    setCanvasMargin(-1);
-...
-}
-```
-
 - 去除QWT_MOC_INCLUDE
 - 调整了一些类的实现，以便能合并到一个文件中
-
-
-
-## tag:v0.0.4 | version:6.2.0
-
-- 添加 CMake 支持
-
-# The Qwt Widget Library
-
-this is fork from qwt lib
-
-add the cmake ,can build with qt5 and qt6
-
-Perhaps some improvements will also be submitted to this hub
-
-----------------------
-
-      Qwt is an extension to the libraries of the Qt Project.  
-
-      The Qwt library contains widgets and components which are 
-      primarily useful for technical and scientifical purposes.
-      It includes a 2-D plotting widget, different kinds of sliders, 
-      and much more.
-
-      Qwt is hosted at http://qwt.sf.net
 
 # Copyright
 
