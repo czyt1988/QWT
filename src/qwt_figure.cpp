@@ -1,16 +1,24 @@
 ﻿#include "qwt_figure.h"
 // Qt
 #include <QPainter>
+#include <QPointer>
 #include <QPaintEvent>
 #include <QResizeEvent>
 #include <QApplication>
 #include <QGuiApplication>
 #include <QScreen>
 #include <QWidgetItem>
-
+#include <QMap>
+#include <QDebug>
 // qwt
 #include "qwt_figure_layout.h"
+#include "qwt_scale_engine.h"
+#include "qwt_scale_widget.h"
+#include "qwt_plot_layout.h"
 #include "qwt_plot.h"
+#include "qwt_plot_canvas.h"
+#include "qwt_plot_transparent_canvas.h"
+#include "qwt_plot_parasite_layout.h"
 
 #ifndef QWTFIGURE_SAFEGET_LAY
 #define QWTFIGURE_SAFEGET_LAY(lay)                                                                                     \
@@ -32,17 +40,43 @@ class QwtFigure::PrivateData
 {
 public:
     PrivateData(QwtFigure* p);
+    // 初始化寄生轴的属性
+    void initParasiteAxes(QwtPlot* parasitePlot);
 
 public:
     QwtFigure* q_ptr { nullptr };
-    QBrush faceBrush { Qt::white };    ///< Background color of the figure / 图形背景颜色
-    QColor edgeColor { Qt::black };    ///< Border color of the figure / 图形边框颜色
-    int edgeLineWidth { 0 };           ///< Border line width / 边框线宽
-    QwtPlot* currentAxes { nullptr };  ///< Current active axes / 当前活动坐标轴
+    QBrush faceBrush { Qt::white };                     ///< Background color of the figure / 图形背景颜色
+    QColor edgeColor { Qt::black };                     ///< Border color of the figure / 图形边框颜色
+    int edgeLineWidth { 0 };                            ///< Border line width / 边框线宽
+    QwtPlot* currentAxes { nullptr };                   ///< Current active axes / 当前活动坐标轴
+    QMap< QwtPlot*, QList< QwtPlot* > > m_parasiteMap;  ///< 宿主轴到寄生轴的映射
 };
 
 QwtFigure::PrivateData::PrivateData(QwtFigure* p) : q_ptr(p)
 {
+}
+
+void QwtFigure::PrivateData::initParasiteAxes(QwtPlot* parasitePlot)
+{
+
+    // 确保禁用不透明绘制属性
+    parasitePlot->setAttribute(Qt::WA_OpaquePaintEvent, false);
+
+    // 禁用样式背景
+    parasitePlot->setAttribute(Qt::WA_StyledBackground, false);
+
+    // 禁用自动填充背景
+    parasitePlot->setAutoFillBackground(false);
+
+    // 设置透明背景
+    QPalette palette = parasitePlot->palette();
+    palette.setColor(QPalette::Window, Qt::transparent);
+    parasitePlot->setPalette(palette);
+    QwtPlotTransparentCanvas* canvas = new QwtPlotTransparentCanvas(parasitePlot);
+    parasitePlot->setCanvas(canvas);
+
+    // 调整布局边距
+    parasitePlot->setPlotLayout(new QwtPlotParasiteLayout());
 }
 
 //----------------------------------------------------
@@ -643,6 +677,163 @@ int QwtFigure::edgeLineWidth() const
 }
 
 /**
+ * @brief Create parasite axes for a host plot/为宿主绘图创建寄生轴
+ *
+ * This method creates a parasite axes that shares the same plotting area as the host plot
+ * but with independent axis scaling and labeling. The parasite axes will be positioned
+ * exactly on top of the host plot and will automatically synchronize its geometry.
+ *
+ * 此方法创建一个寄生轴，它与宿主绘图共享相同的绘图区域，但具有独立的轴缩放和标签。
+ * 寄生轴将精确定位在宿主绘图之上，并自动同步其几何形状。
+ *
+ * @param hostPlot Pointer to the host QwtPlot/指向宿主QwtPlot的指针
+ * @param enableAxis The axis position to enable on the parasite axes/在寄生轴上启用的轴位置
+ * @param shareX If true, share X-axis scale with host plot/如果为true，与宿主绘图共享X轴刻度
+ * @param shareY If true, share Y-axis scale with host plot/如果为true，与宿主绘图共享Y轴刻度
+ * @return Pointer to the created parasite QwtPlot/指向创建的寄生QwtPlot的指针
+ * @retval nullptr if hostPlot is invalid or not in the figure/如果hostPlot无效或不在图形中则返回nullptr
+ *
+ * @note The parasite axes will have a transparent background and only the specified axis will be visible.
+ *       /寄生轴将具有透明背景，只有指定的轴可见。
+ * @note The parasite axes will automatically be deleted when the host plot is removed from the figure.
+ *       /当宿主绘图从图形中移除时，寄生轴将自动被删除。
+ * @note Parasitic axes are not stored in QwtFigureLayout, but are separately controlled by QwtFigure for layout
+ * management /寄生轴不会存入QwtFigureLayout中，单独由QwtFigure进行布局控制
+ *
+ * @example
+ * @code
+ * // Create a host plot
+ * // 创建宿主绘图
+ * QwtPlot* hostPlot = new QwtPlot(figure);
+ * figure->addAxes(hostPlot, 0.1, 0.1, 0.8, 0.8);
+ *
+ * // Create parasite axes with YRight axis enabled and sharing Y-axis scale
+ * // 创建寄生轴，启用YRight轴并共享X轴刻度
+ * QwtPlot* parasiteYRight = figure->createParasiteAxes(hostPlot, QwtAxis::YRight, true, false);
+ *
+ * // Add curves to both plots
+ * // 向两个绘图添加曲线
+ * QwtPlotCurve* curve1 = new QwtPlotCurve("Host Curve");
+ * curve1->setSamples(xData, yData1);
+ * curve1->attach(hostPlot);
+ *
+ * QwtPlotCurve* curve2 = new QwtPlotCurve("Parasite Curve");
+ * curve2->setSamples(xData, yData2);
+ * curve2->attach(parasiteYRight);
+ *
+ * // Set different axis titles
+ * // 设置不同的轴标题
+ * hostPlot->setAxisTitle(QwtAxis::YLeft, "Primary Y");
+ * parasiteYRight->setAxisTitle(QwtAxis::YRight, "Secondary Y");
+ * @endcode
+ *
+ * @see getParasiteAxes()
+ */
+QwtPlot* QwtFigure::createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enableAxis, bool shareX, bool shareY)
+{
+    if (!hostPlot || !hasAxes(hostPlot)) {
+        qWarning() << "Invalid host plot or host plot not in figure";
+        return nullptr;
+    }
+
+    // 创建寄生轴
+    QwtPlot* parasitePlot = new QwtPlot(this);
+    m_data->initParasiteAxes(parasitePlot);
+
+    // 共享轴数据
+    if (shareX) {
+        QwtScaleWidget* hostXTop                = hostPlot->axisWidget(QwtAxis::XTop);
+        QwtScaleWidget* hostXBottom             = hostPlot->axisWidget(QwtAxis::XBottom);
+        QPointer< QwtPlot > hostPlotPointer     = hostPlot;
+        QPointer< QwtPlot > parasitePlotPointer = parasitePlot;
+        if (hostXTop) {
+            connect(hostXTop, &QwtScaleWidget::scaleDivChanged, this, [ hostPlotPointer, parasitePlotPointer ]() {
+                if (parasitePlotPointer) {
+                    parasitePlotPointer->syncAxis(QwtAxis::XTop, hostPlotPointer.data());
+                }
+            });
+        }
+        if (hostXBottom) {
+            connect(hostXBottom, &QwtScaleWidget::scaleDivChanged, this, [ hostPlotPointer, parasitePlotPointer ]() {
+                if (parasitePlotPointer) {
+                    parasitePlotPointer->syncAxis(QwtAxis::XBottom, hostPlotPointer.data());
+                }
+            });
+        }
+    }
+
+    if (shareY) { }
+
+    // 根据位置设置轴可见性
+    switch (enableAxis) {
+    case QwtAxis::XTop:
+        parasitePlot->enableAxis(QwtAxis::XTop, true);
+        parasitePlot->enableAxis(QwtAxis::XBottom, false);
+        parasitePlot->enableAxis(QwtAxis::YLeft, false);
+        parasitePlot->enableAxis(QwtAxis::YRight, false);
+        break;
+    case QwtAxis::YRight:
+        parasitePlot->enableAxis(QwtAxis::XTop, false);
+        parasitePlot->enableAxis(QwtAxis::XBottom, false);
+        parasitePlot->enableAxis(QwtAxis::YLeft, false);
+        parasitePlot->enableAxis(QwtAxis::YRight, true);
+        break;
+    case QwtAxis::XBottom:
+        parasitePlot->enableAxis(QwtAxis::XTop, false);
+        parasitePlot->enableAxis(QwtAxis::XBottom, true);
+        parasitePlot->enableAxis(QwtAxis::YLeft, false);
+        parasitePlot->enableAxis(QwtAxis::YRight, false);
+        break;
+    case QwtAxis::YLeft:
+        parasitePlot->enableAxis(QwtAxis::XTop, false);
+        parasitePlot->enableAxis(QwtAxis::XBottom, false);
+        parasitePlot->enableAxis(QwtAxis::YLeft, true);
+        parasitePlot->enableAxis(QwtAxis::YRight, false);
+
+        break;
+    default:
+        break;
+    }
+    // 宿主轴添加寄生轴信息
+    hostPlot->addParasitePlot(parasitePlot);
+
+    // 获取宿主轴的归一化矩形
+    QRectF normRect = axesNormRect(hostPlot);
+
+    // 添加寄生轴到相同位置
+    addAxes(parasitePlot, normRect);
+
+    // figure也存储寄生关系
+    m_data->m_parasiteMap[ hostPlot ].append(parasitePlot);
+
+    // 提升寄生轴到顶层以确保正确绘制
+    parasitePlot->raise();
+
+    return parasitePlot;
+}
+
+/**
+ * @brief Get all parasite axes for a host plot/获取宿主绘图的所有寄生轴
+ *
+ * This method returns a list of all parasite axes associated with the specified host plot.
+ *
+ * 此方法返回与指定宿主绘图关联的所有寄生轴的列表。
+ *
+ * @param hostPlot Pointer to the host QwtPlot/指向宿主QwtPlot的指针
+ * @return List of parasite QwtPlot pointers/寄生QwtPlot指针列表
+ * @retval Empty list if hostPlot is invalid or has no parasite axes/如果hostPlot无效或没有寄生轴则返回空列表
+ *
+ * @see createParasiteAxes()
+ */
+QList< QwtPlot* > QwtFigure::getParasiteAxes(QwtPlot* hostPlot) const
+{
+    if (!hostPlot) {
+        return QList< QwtPlot* >();
+    }
+    return hostPlot->parasitePlots();
+}
+
+/**
  * @brief Save the figure to a QPixmap with specified DPI/使用指定DPI将图形保存为QPixmap
  *
  * This method renders the figure to a QPixmap with the specified DPI.
@@ -927,4 +1118,24 @@ void QwtFigure::paintEvent(QPaintEvent* event)
     }
 
     QFrame::paintEvent(event);
+}
+
+void QwtFigure::resizeEvent(QResizeEvent* event)
+{
+    QFrame::resizeEvent(event);
+    // 同步所有寄生轴的位置
+    const QList< QwtPlot* > allHostPlots = allAxes();
+    for (QwtPlot* hostPlot : allHostPlots) {
+        if (!hostPlot) {
+            continue;
+        }
+        if (!hostPlot->isHostPlot()) {
+            continue;
+        }
+        // 同步所有寄生轴的位置
+        const QList< QwtPlot* > parasitePlots = hostPlot->parasitePlots();
+        for (QwtPlot* pplot : parasitePlots) {
+            pplot->setGeometry(hostPlot->geometry());
+        }
+    }
 }

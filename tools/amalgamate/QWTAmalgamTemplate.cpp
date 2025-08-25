@@ -89,6 +89,7 @@
 #include "../../src/qwt_plot_dict.cpp"
 #include "../../src/qwt_plot_abstract_canvas.cpp"
 #include "../../src/qwt_plot_canvas.cpp"
+#include "../../src/qwt_plot_transparent_canvas.cpp"
 #include "../../src/qwt_plot_glcanvas.cpp"
 #include "../../src/qwt_plot_opengl_canvas.cpp"
 #include "../../src/qwt_plot_item.cpp"
@@ -132,7 +133,9 @@
 // plot widget
 #include "../../src/qwt_plot.cpp"
 #include "../../src/qwt_plot_axis.cpp"
+#include "../../src/qwt_plot_layout_engine.cpp"
 #include "../../src/qwt_plot_layout.cpp"
+#include "../../src/qwt_plot_parasite_layout.cpp"
 #include "../../src/qwt_plot_rescaler.cpp"
 #include "../../src/qwt_polar_plot.cpp"
 #include "../../src/qwt_polar_grid.cpp"

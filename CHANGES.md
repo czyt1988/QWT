@@ -1,3 +1,14 @@
+## tag:v7.0.2
+
+- 抽取出`QwtPlotLayoutEngine`类
+- 增加`QwtPlotParasiteLayout`类，用于实现寄生轴的布局
+- 增加`QwtPlotTransparentCanvas`类，用于实现一个完全透明的画布
+- `QwtFigure`类实现寄生轴功能
+- `QwtScaleWidget`添加了`setEdgeMargin`和`edgeMargin`方法，可以实现刻度和绘图边缘的距离设置
+- 调整了`QwtScaleWidget`的布局方案，能支持`edgeMargin`
+- 例子增加parasitePlot演示如何使用寄生轴
+
+
 ## tag:v7.0.1
 
 - 增加`QwtFigure`类，`QwtFigure`用于管理多个QwtPlot，实现类似Matplotlib的Figure功能，支持网格化布局

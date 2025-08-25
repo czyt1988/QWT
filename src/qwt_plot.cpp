@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -18,6 +18,7 @@
 #include "qwt_legend_data.h"
 #include "qwt_plot_canvas.h"
 #include "qwt_math.h"
+#include "qwt_interval.h"
 
 #include <qpainter.h>
 #include <qpointer.h>
@@ -90,6 +91,9 @@ public:
     QwtPlotLayout* layout;
 
     bool autoReplot;
+
+    QPointer< QwtPlot > hostPlot;
+    QList< QPointer< QwtPlot > > parasitePlots;
 };
 
 /*!
@@ -116,7 +120,13 @@ QwtPlot::~QwtPlot()
 {
     setAutoReplot(false);
     detachItems(QwtPlotItem::Rtti_PlotItem, autoDelete());
-
+    // qwt7.0 宿主销毁，寄生也要随之销毁
+    for (QwtPlot* parasitePlot : qAsConst(m_data->parasitePlots)) {
+        if (parasitePlot) {
+            parasitePlot->hide();
+            parasitePlot->deleteLater();
+        }
+    }
     delete m_data->layout;
     deleteAxesData();
     delete m_data;
@@ -992,6 +1002,229 @@ void QwtPlot::updateLegendItems(const QVariant& itemInfo, const QList< QwtLegend
                 item->updateLegend(plotItem, legendData);
         }
     }
+}
+
+/**
+ * @brief Add a parasite plot to this host plot/向此宿主绘图添加寄生绘图
+ *
+ * This method establishes a parasite relationship where the specified plot will
+ * be treated as a parasite of this host plot. The parasite plot will automatically
+ * synchronize its geometry with the host plot.
+ *
+ * 此方法建立一个寄生关系，指定的绘图将被视为此宿主绘图的寄生绘图。
+ * 寄生绘图将自动同步其几何形状与宿主绘图。
+ *
+ * @param parasite Pointer to the parasite QwtPlot/指向寄生QwtPlot的指针
+ *
+ * @note This method is typically called internally by QwtFigure::createParasiteAxes().
+ *       此方法通常由QwtFigure::createParasiteAxes()内部调用。
+ * @note The parasite plot should have a transparent background to avoid obscuring the host plot.
+ *       寄生绘图应具有透明背景以避免遮挡宿主绘图。
+ *
+ * @example
+ * @code
+ * // Manually create a parasite relationship
+ * // 手动创建寄生关系
+ * QwtPlot* hostPlot = new QwtPlot;
+ * QwtPlot* parasitePlot = new QwtPlot;
+ *
+ * // Configure parasite plot
+ * // 配置寄生绘图
+ * parasitePlot->setAutoFillBackground(false);
+ * parasitePlot->canvas()->setAutoFillBackground(false);
+ * parasitePlot->enableAxis(QwtAxis::YRight, true);
+ *
+ * // Add parasite to host
+ * // 将寄生绘图添加到宿主
+ * hostPlot->addParasitePlot(parasitePlot);
+ * @endcode
+ *
+ * @see removeParasitePlot(), parasitePlots()
+ */
+void QwtPlot::addParasitePlot(QwtPlot* parasite)
+{
+    if (!parasite) {
+        return;
+    }
+    if (!m_data->parasitePlots.contains(parasite)) {
+        m_data->parasitePlots.append(parasite);
+        parasite->setHostPlot(this);
+    }
+}
+
+/**
+ * @brief Remove a parasite plot from this host plot/从此宿主绘图移除寄生绘图
+ *
+ * This method removes the parasite relationship between this host plot and the specified plot.
+ *
+ * 此方法移除此宿主绘图与指定绘图之间的寄生关系。
+ *
+ * @param parasite Pointer to the parasite QwtPlot to remove/要移除的寄生QwtPlot指针
+ *
+ * @note This method does not delete the parasite plot, it only removes the relationship.
+ *       此方法不会删除寄生绘图，仅移除关系。
+ *
+ * @example
+ * @code
+ * // Remove a parasite plot
+ * // 移除寄生绘图
+ * hostPlot->removeParasitePlot(parasitePlot);
+ *
+ * // Now the plot is independent and can be used elsewhere
+ * // 现在该绘图是独立的，可以在其他地方使用
+ * @endcode
+ *
+ * @see addParasitePlot(), parasitePlots()
+ */
+void QwtPlot::removeParasitePlot(QwtPlot* parasite)
+{
+    if (!parasite) {
+        return;
+    }
+    m_data->parasitePlots.removeAll(parasite);
+    parasite->setHostPlot(nullptr);
+}
+
+/**
+ * @brief Get all parasite plots associated with this host plot/获取与此宿主绘图关联的所有寄生绘图
+ *
+ * This method returns a list of all parasite plots that are associated with this host plot.
+ *
+ * 此方法返回与此宿主绘图关联的所有寄生绘图的列表。
+ *
+ * @return List of parasite QwtPlot pointers/寄生QwtPlot指针列表
+ *
+ * @example
+ * @code
+ * // Get all parasite plots
+ * // 获取所有寄生绘图
+ * const QList<QwtPlot*> parasites = hostPlot->parasitePlots();
+ *
+ * // Perform an operation on all parasite plots
+ * // 对所有寄生绘图执行操作
+ * for (QwtPlot* parasite : parasites) {
+ *     parasite->replot();
+ * }
+ * @endcode
+ *
+ * @see addParasitePlot(), removeParasitePlot()
+ */
+QList< QwtPlot* > QwtPlot::parasitePlots() const
+{
+    QList< QwtPlot* > ret;
+    for (const auto& p : qAsConst(m_data->parasitePlots)) {
+        ret.append(p.data());
+    }
+    return ret;
+}
+
+/**
+ * @brief Set the host plot for this parasite plot/设置此寄生绘图的宿主绘图
+ *
+ * This method establishes this plot as a parasite of the specified host plot.
+ * The plot will automatically synchronize its geometry with the host plot.
+ *
+ * 此方法将此绘图设置为指定宿主绘图的寄生绘图。
+ * 该绘图将自动同步其几何形状与宿主绘图。
+ *
+ * @param host Pointer to the host QwtPlot/指向宿主QwtPlot的指针
+ *
+ * @note This method is typically called internally by QwtPlot::addParasitePlot().
+ *       此方法通常由QwtPlot::addParasitePlot()内部调用。
+ *
+ *
+ * @see hostPlot()
+ */
+void QwtPlot::setHostPlot(QwtPlot* host)
+{
+    m_data->hostPlot = host;
+}
+
+/**
+ * @brief Get the host plot for this parasite plot/获取此寄生绘图的宿主绘图
+ *
+ * This method returns the host plot of this parasite plot, or nullptr if this plot is not a parasite.
+ *
+ * 此方法返回此寄生绘图的宿主绘图，如果此绘图不是寄生绘图则返回nullptr。
+ *
+ * @return Pointer to the host QwtPlot/指向宿主QwtPlot的指针
+ * @retval nullptr if this plot is not a parasite plot/如果此绘图不是寄生绘图则返回nullptr
+ *
+ * @see setHostPlot(), isParasitePlot()
+ */
+QwtPlot* QwtPlot::hostPlot() const
+{
+    return m_data->hostPlot.data();
+}
+
+/**
+ * @brief Check if this plot is a parasite plot/检查此绘图是否为寄生绘图
+ *
+ * This method returns true if this plot is a parasite of another plot.
+ *
+ * 如果此绘图是另一个绘图的寄生绘图，则此方法返回true。
+ *
+ * @return true if this plot is a parasite plot/如果此绘图是寄生绘图则返回true
+ * @return false if this plot is not a parasite plot/如果此绘图不是寄生绘图则返回false
+ *
+ * @see isHostPlot(), hostPlot()
+ */
+bool QwtPlot::isParasitePlot() const
+{
+    return (m_data->hostPlot != nullptr);
+}
+
+/**
+ * @brief Check if this plot is a host plot/检查此绘图是否为宿主绘图
+ *
+ * This method returns true if this plot has one or more parasite plots.
+ *
+ * 如果此绘图有一个或多个寄生绘图，则此方法返回true。
+ *
+ * @return true if this plot has parasite plots/如果此绘图有寄生绘图则返回true
+ * @return false if this plot has no parasite plots/如果此绘图没有寄生绘图则返回false
+ *
+ * @see isParasitePlot(), parasitePlots()
+ */
+bool QwtPlot::isHostPlot() const
+{
+    return (m_data->hostPlot == nullptr);
+}
+
+/**
+ * @brief set Background Color/设置背景颜色
+ * @param c
+ */
+void QwtPlot::setBackgroundColor(const QColor& c)
+{
+    QPalette p = palette();
+    p.setColor(QPalette::Window, c);
+    setPalette(p);
+
+    setAutoFillBackground(true);
+}
+
+/**
+ * @brief Background Color/背景颜色
+ * @return
+ */
+QColor QwtPlot::backgroundColor() const
+{
+    return palette().color(QPalette::Window);
+}
+
+/**
+ * @brief 同步plot绘图对应的坐标轴范围到此绘图
+ * @param axis
+ * @param plot
+ */
+void QwtPlot::syncAxis(QwtAxisId axis, const QwtPlot* plot)
+{
+    if (!plot) {
+        return;
+    }
+    QwtInterval inv = plot->axisInterval(axis);
+    setAxisScale(axis, inv.minValue(), inv.maxValue(), plot->axisStepSize(axis));
 }
 
 /*!

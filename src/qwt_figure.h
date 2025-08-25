@@ -5,9 +5,12 @@
 
 // Qt
 #include <QFrame>
+class QResizeEvent;
 class QPaintEvent;
+
 // qwt
 #include "qwt_global.h"
+#include "qwt_axis.h"
 class QwtPlot;
 
 /**
@@ -109,7 +112,7 @@ public:
     // Update layout parameters/更新布局参数
     void adjustLayout(qreal left, qreal bottom, qreal right, qreal top);
 
-    // Get all axes (plots) in the figure/获取图形中的所有坐标轴（绘图）
+    // Get all axes (plots) in the figure（not contain parasite axes）/获取图形中的所有坐标轴（绘图）(不包含寄生轴)
     QList< QwtPlot* > allAxes() const;
 
     // Check if the figure has any axes/检查图形是否有任意绘图
@@ -149,6 +152,12 @@ public:
     // Set/Get the edge line width of the figure/设置图形的边缘线宽
     void setEdgeLineWidth(int width);
     int edgeLineWidth() const;
+
+    // Parasite Axes
+    // Create parasite axes for a host plot/为宿主绘图创建寄生轴
+    QwtPlot* createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enableAxis, bool shareX = true, bool shareY = false);
+    // Get all parasite axes for a host plot/获取宿主绘图的所有寄生轴
+    QList< QwtPlot* > getParasiteAxes(QwtPlot* hostPlot) const;
 
     // Save methods / 保存方法
     // Save the figure to a QPixmap with specified DPI/使用指定DPI将图形保存为QPixmap
@@ -190,6 +199,7 @@ Q_SIGNALS:
 
 protected:
     void paintEvent(QPaintEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
     class PrivateData;

@@ -168,6 +168,8 @@ void QwtPlotCanvas::paintEvent(QPaintEvent* event)
         QPixmap& bs = *m_data->backingStore;
         if (bs.size() != size() * QwtPainter::devicePixelRatio(&bs)) {
             bs = QwtPainter::backingStore(this, size());
+            // 先初始化为完全透明
+            bs.fill(Qt::transparent);
 
             if (testAttribute(Qt::WA_StyledBackground)) {
                 QPainter p(&bs);
@@ -187,7 +189,6 @@ void QwtPlotCanvas::paintEvent(QPaintEvent* event)
                     drawBorder(&p);
             }
         }
-
         painter.drawPixmap(0, 0, *m_data->backingStore);
     } else {
         if (testAttribute(Qt::WA_StyledBackground)) {

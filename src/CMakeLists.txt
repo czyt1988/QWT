@@ -198,7 +198,9 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_multi_barchart.h
         qwt_plot_intervalcurve.h
         qwt_plot_tradingcurve.h
+        qwt_plot_layout_engine.h
         qwt_plot_layout.h
+        qwt_plot_parasite_layout.h
         qwt_plot_marker.h
         qwt_plot_zoneitem.h
         qwt_plot_textlabel.h
@@ -212,6 +214,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_vectorfield.h
         qwt_plot_abstract_canvas.h
         qwt_plot_canvas.h
+        qwt_plot_transparent_canvas.h
         qwt_plot_panner.h
         qwt_plot_picker.h
         qwt_plot_zoomer.h
@@ -263,9 +266,12 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_vectorfield.cpp
         qwt_plot_marker.cpp
         qwt_plot_textlabel.cpp
+        qwt_plot_layout_engine.cpp
         qwt_plot_layout.cpp
+        qwt_plot_parasite_layout.cpp
         qwt_plot_abstract_canvas.cpp
         qwt_plot_canvas.cpp
+        qwt_plot_transparent_canvas.cpp
         qwt_plot_panner.cpp
         qwt_plot_rasteritem.cpp
         qwt_plot_picker.cpp

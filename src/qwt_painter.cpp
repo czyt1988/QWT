@@ -1651,6 +1651,5 @@ QPixmap QwtPainter::backingStore(QWidget* widget, const QSize& size)
 #else
     Q_UNUSED(widget)
 #endif
-
     return pm;
 }

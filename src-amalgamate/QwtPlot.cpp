@@ -3808,8 +3808,8 @@ double QwtMatrixRasterData::value(double x, double y) const
             col = m_data->numColumns - 1;
 
         value = m_data->value(row, col);
-    }
 	}
+    }
 
 	return value;
 }
@@ -14388,8 +14388,8 @@ inline void drawBackbone(QPainter* painter, const QwtScaleDraw* scaleDraw)
         QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
 
         break;
-	}
     }
+	}
 }
 
 inline void drawTick(QPainter* painter, const QwtScaleDraw* scaleDraw, qreal tickPos, qreal tickLength)
@@ -14450,8 +14450,8 @@ inline void drawTick(QPainter* painter, const QwtScaleDraw* scaleDraw, qreal tic
         QwtPainter::drawLine(painter, tickPos, y2 + 1, tickPos, y1 + 1 - off);
 
         break;
-    }
 	}
+    }
 }
 }
 
@@ -15013,7 +15013,7 @@ QTransform QwtScaleDraw::labelTransformation(const QPointF& pos, const QSizeF& s
             break;
         }
 		}
-	}
+    }
 
 	double x, y;
 
@@ -16618,7 +16618,7 @@ int QwtScaleWidget::margin() const
  */
 int QwtScaleWidget::spacing() const
 {
-	return m_data->spacing;
+    return m_data->spacing;
 }
 
 /*!
@@ -16964,7 +16964,7 @@ int QwtScaleWidget::dimForLength(int length, const QFont& scaleFont) const
 {
 	const int extent = qwtCeil(m_data->scaleDraw->extent(scaleFont));
 
-	int dim = m_data->margin + extent + 1;
+    int dim = m_data->margin + extent + 1;
 
 	if (!m_data->title.isEmpty())
 		dim += titleHeightForWidth(length) + m_data->spacing;
@@ -19684,8 +19684,8 @@ static inline void qwtDrawTriangleSymbols(QPainter* painter,
             trianglePoints[ 2 ].ry() = y1;
 
             break;
-        }
 		}
+        }
         QwtPainter::drawPolygon(painter, triangle);
 	}
 }
@@ -23415,8 +23415,8 @@ double slopeBoundary(int boundaryCondition, double boundaryValue, const QPointF&
     }
     default: {
         m = dy / dx;  // something
-    }
 	}
+    }
 
     return m;
 }
@@ -26406,8 +26406,8 @@ uint QwtSplineLocal::locality() const
     case PChip: {
         // polynomials: 1 left, 1 right
         return 1;
-	}
     }
+	}
 
 	return QwtSplineC1::locality();
 }
@@ -26955,13 +26955,13 @@ static double qwtDivideScale(double intervalSize, int numSteps, QwtDate::Interva
         stepSize = qwtDivideInterval(intervalSize, numSteps, limits, sizeof(limits) / sizeof(int));
 
         break;
-    }
+	}
     case QwtDate::Year:
     case QwtDate::Millisecond:
     default: {
         stepSize = QwtScaleArithmetic::divideInterval(intervalSize, numSteps, 10);
     }
-	}
+    }
 
 	return stepSize;
 }
@@ -27837,8 +27837,8 @@ QDateTime QwtDateScaleEngine::alignDate(const QDateTime& dateTime, double stepSi
         }
 
         break;
-    }
 	}
+    }
 
     if (dateTime.timeSpec() == Qt::OffsetFromUTC) {
 #if QT_VERSION >= 0x050200
@@ -55564,7 +55564,7 @@ int LayoutHintData::alignedSize(const QwtAxisId axisId) const
 
 namespace
 {
-class LayoutEngine
+class QwtPlotLayoutEngine
 {
 public:
 	struct Dimensions
@@ -55636,7 +55636,7 @@ public:
 		int m_dimAxes[ QwtAxis::AxisPositions ];
 	};
 
-	LayoutEngine() : m_legendPos(QwtPlot::BottomLegend), m_legendRatio(1.0), m_spacing(5)
+	QwtPlotLayoutEngine() : m_legendPos(QwtPlot::BottomLegend), m_legendRatio(1.0), m_spacing(5)
 	{
 	}
 
@@ -55709,10 +55709,10 @@ private:
 };
 }
 
-QRectF LayoutEngine::layoutLegend(QwtPlotLayout::Options options,
-                                  const LayoutData::LegendData& legendData,
-                                  const QRectF& rect,
-                                  const QSize& legendHint) const
+QRectF QwtPlotLayoutEngine::layoutLegend(QwtPlotLayout::Options options,
+                                         const LayoutData::LegendData& legendData,
+                                         const QRectF& rect,
+                                         const QSize& legendHint) const
 {
 	int dim;
 	if (m_legendPos == QwtPlot::LeftLegend || m_legendPos == QwtPlot::RightLegend) {
@@ -55759,7 +55759,7 @@ QRectF LayoutEngine::layoutLegend(QwtPlotLayout::Options options,
 	return legendRect;
 }
 
-QRectF LayoutEngine::alignLegend(const QSize& legendHint, const QRectF& canvasRect, const QRectF& legendRect) const
+QRectF QwtPlotLayoutEngine::alignLegend(const QSize& legendHint, const QRectF& canvasRect, const QRectF& legendRect) const
 {
 	QRectF alignedRect = legendRect;
 
@@ -55778,11 +55778,11 @@ QRectF LayoutEngine::alignLegend(const QSize& legendHint, const QRectF& canvasRe
 	return alignedRect;
 }
 
-int LayoutEngine::heightForWidth(LayoutData::Label labelType,
-                                 const LayoutData& layoutData,
-                                 QwtPlotLayout::Options options,
-                                 double width,
-                                 int axesWidth) const
+int QwtPlotLayoutEngine::heightForWidth(LayoutData::Label labelType,
+                                        const LayoutData& layoutData,
+                                        QwtPlotLayout::Options options,
+                                        double width,
+                                        int axesWidth) const
 {
 	const LayoutData::LabelData& labelData = layoutData.labelData[ labelType ];
 
@@ -55803,9 +55803,9 @@ int LayoutEngine::heightForWidth(LayoutData::Label labelType,
 	return d;
 }
 
-LayoutEngine::Dimensions LayoutEngine::layoutDimensions(QwtPlotLayout::Options options,
-                                                        const LayoutData& layoutData,
-                                                        const QRectF& rect) const
+QwtPlotLayoutEngine::Dimensions QwtPlotLayoutEngine::layoutDimensions(QwtPlotLayout::Options options,
+                                                                      const LayoutData& layoutData,
+                                                                      const QRectF& rect) const
 {
 	using namespace QwtAxis;
 
@@ -55916,10 +55916,10 @@ LayoutEngine::Dimensions LayoutEngine::layoutDimensions(QwtPlotLayout::Options o
 	return dimensions;
 }
 
-void LayoutEngine::alignScales(QwtPlotLayout::Options options,
-                               const LayoutData& layoutData,
-                               QRectF& canvasRect,
-                               QRectF scaleRect[ QwtAxis::AxisPositions ]) const
+void QwtPlotLayoutEngine::alignScales(QwtPlotLayout::Options options,
+                                      const LayoutData& layoutData,
+                                      QRectF& canvasRect,
+                                      QRectF scaleRect[ QwtAxis::AxisPositions ]) const
 {
 	using namespace QwtAxis;
 
@@ -56132,7 +56132,7 @@ public:
 	QRectF scaleRects[ QwtAxis::AxisPositions ];
 	QRectF canvasRect;
 
-	LayoutEngine engine;
+	QwtPlotLayoutEngine engine;
 };
 
 /*!
@@ -56180,7 +56180,7 @@ void QwtPlotLayout::setCanvasMargin(int margin, int axisPos)
 	if (margin < -1)
 		margin = -1;
 
-	LayoutEngine& engine = m_data->engine;
+	QwtPlotLayoutEngine& engine = m_data->engine;
 
 	if (axisPos == -1) {
 		for (axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++)
@@ -56294,7 +56294,7 @@ void QwtPlotLayout::setLegendPosition(QwtPlot::LegendPosition pos, double ratio)
 	if (ratio > 1.0)
 		ratio = 1.0;
 
-	LayoutEngine& engine = m_data->engine;
+	QwtPlotLayoutEngine& engine = m_data->engine;
 
 	switch (pos) {
 	case QwtPlot::TopLegend:
@@ -56558,7 +56558,7 @@ QSize QwtPlotLayout::minimumSizeHint(const QwtPlot* plot) const
 
 	const QwtAbstractLegend* legend = plot->legend();
 	if (legend && !legend->isEmpty()) {
-		const LayoutEngine& engine = m_data->engine;
+		const QwtPlotLayoutEngine& engine = m_data->engine;
 
 		if (engine.legendPos() == QwtPlot::LeftLegend || engine.legendPos() == QwtPlot::RightLegend) {
 			int legendW = legend->sizeHint().width();
@@ -56670,7 +56670,7 @@ void QwtPlotLayout::activate(const QwtPlot* plot, const QRectF& plotRect, Option
 
 	using namespace QwtAxis;
 
-	const LayoutEngine::Dimensions dimensions = m_data->engine.layoutDimensions(options, layoutData, rect);
+	const QwtPlotLayoutEngine::Dimensions dimensions = m_data->engine.layoutDimensions(options, layoutData, rect);
 
 	if (dimensions.dimTitle > 0) {
 		QRectF& labelRect = m_data->titleRect;

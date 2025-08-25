@@ -86,6 +86,7 @@
 // plot items
 #include "../../src/qwt_plot_abstract_canvas.h"
 #include "../../src/qwt_plot_canvas.h"
+#include "../../src/qwt_plot_transparent_canvas.h"
 #include "../../src/qwt_plot_glcanvas.h"
 #include "../../src/qwt_plot_opengl_canvas.h"
 #include "../../src/qwt_plot_item.h"
@@ -128,7 +129,9 @@
 #include "../../src/qwt_polar_spectrogram.h"
 // plot widget
 #include "../../src/qwt_plot.h"
+#include "../../src/qwt_plot_layout_engine.h"
 #include "../../src/qwt_plot_layout.h"
+#include "../../src/qwt_plot_parasite_layout.h"
 #include "../../src/qwt_plot_rescaler.h"
 #include "../../src/qwt_polar_plot.h"
 #include "../../src/qwt_polar_grid.h"
