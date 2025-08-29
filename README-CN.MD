@@ -12,7 +12,7 @@ Qt 生态里能画图的库不多，主流的为`QCustomPlot`、`Qwt`、`Qt Char
 
 因此，如果你的项目需要商业用途，那么你只有`Qwt`和`KDChart3.0`两种选择，但`Qwt`作者停止更新，我个人更喜欢`Qwt`，因为`Qwt`的架构更符合软件工程原则，其大规模渲染性能更优，像`QCustomPlot`的优势是交互功能开箱即用，例如鼠标缩放，坐标轴缩放，而`Qwt`需要较多的代码来实现，但`Qwt`有着更精细的控制能力，因此在我的项目需要绘图的时候，我会选择`Qwt`，并根据我的需求添加一些自己需要的功能，改进、优化它，因此，就有了此项目。
 
-# Qwt7.0
+# Qwt 7.0
 
 我在`Qwt`最后版本上进行了维护，后续我将我需要的功能添加进去，同时逐步修改、优化一些已有的功能，例如它默认的老旧样式
 
@@ -80,47 +80,99 @@ target_link_libraries(YOU_APP_TARGET
 
 ## 美化了风格
 
-原有的Qwt样式使用的是很老旧的浮雕风，和现代审美不符，为此我针对性的优化，qwt6.3的效果如下：
+原有的Qwt样式使用的是很老旧的浮雕风，和现代审美不符，为此我针对性的优化，主要去除了默认的凹陷风格，坐标轴紧贴绘图不进行分离，总体视觉更符合现代风格
 
-![qwt6.3效果](docs/picture/bode-old.png)
-
-优化后的效果如下：
-
-![qwt7.0效果](docs/screenshots/bode.png)
-
-主要去除了默认的凹陷风格，坐标轴紧贴绘图不进行分离，总体视觉更符合现代风格
+具体可见屏幕快照
 
 ## 增加了Figure绘图容器
 
 类似Python的matplotlib，Qwt提供了Figure绘图容器，可以很方便的进行多个绘图布局
 
-![qwt_figure](./pic/qwt_figure.png)
-
 通过新增的`QwtFigure`类，可以很方便的进行多个绘图布局,支持网格布局（类似matplotlib的subplot）
 
-# 待办事项
+## 支持多坐标轴
 
-## `QwtFigure`增加寄生轴功能
+增加了类似matplotlib的寄生轴功能，支持任意多个坐标轴显示
 
-科学绘图经常要求多个坐标轴，例如：一个绘图区域，有多个Y轴，共享一个X轴，或者多个X轴，共享一个Y轴，目前就算`QCustomPlot`也只能实现同一个方向2个坐标轴，而不能无限多，为此，将参考matplotlib的实现，实现一个寄生轴功能，可以增加多个坐标轴
+![parasite plot](docs/screenshots/parasite-plot.png) 
 
-## 优化超大规模数据的渲染
+# 构建
 
-针对超大规模数据，Qwt的并没有做渲染优化，虽然现在对于百万数据性能尚可，但300万以上还是能感觉到有一定卡顿，后续将采取抽稀算法，优化超大规模数据的渲染，尽量能实现千万至亿级数据的快速渲染
+## 静态构建
 
-## 添加一些集成的交互方法
+此项目把原Qwt整个工程合并为QwtPlot.h和QwtPlot.cpp，直接引入项目即可
 
-提供一些开箱即用的交互方法，例如数据拾取，数据标尺，也同时参考EChart的一些效果进行集成
+QwtPlot依赖Core Gui Widgets Svg Concurrent OpenGL PrintSupport这几个模块，需要引入工程
 
+cmake示例：
+
+```cmake
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} 5.8 COMPONENTS Core Gui Widgets Svg Concurrent OpenGL PrintSupport REQUIRED)
+
+
+add_executable(YOUR_APP_NAME
+    main.cpp
+    QwtPlot.h
+    QwtPlot.cpp
+)
+
+target_link_libraries(YOUR_APP_NAME 
+    PUBLIC
+    Qt${QT_VERSION_MAJOR}::Core 
+    Qt${QT_VERSION_MAJOR}::Gui 
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Svg
+    Qt${QT_VERSION_MAJOR}::Concurrent
+    Qt${QT_VERSION_MAJOR}::OpenGL
+    Qt${QT_VERSION_MAJOR}::PrintSupport
+    )
+```
 
 # changelog
 
 详细的日志请参阅[CHANGES.MD](./CHANGES.md)
 
+## tag:v7.0.1
+
+- 增加`QwtFigure`类，`QwtFigure`用于管理多个QwtPlot，实现类似Matplotlib的Figure功能，支持网格化布局
+- 增加figure例子,演示`QwtFigure`类的使用
+
+## tag:v7.0.0
+
+- 把整个工程合并为QwtPlot.h和QwtPlot.cpp，直接可以引入，文件位于src-amalgamate
+- 增加staticExample例子,演示如何静态引入
+- 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
+- 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
+- `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
+- `Qwt`的初始化参数进行了调整，让默认绘图更符合当前绘图的审美
+- 去除QWT_MOC_INCLUDE
+- 调整了一些类的实现，以便能合并到一个文件中
+
+# Copyright
+
+---------
+
+    Qwt Widget Library 
+    Copyright (C) 1997   Josef Wilgen
+    Copyright (C) 2002   Uwe Rathmann
+
+    Qwt is published under the Qwt License, Version 1.0.
+    You should have received a copy of this licence in the file
+    COPYING.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+
+----------------------
 
 # 绘图展示
 
 ## 基本图表
+
+![Figure Widget](docs/screenshots/qwt_figure.png)
+
 
 ![Simple Plot](docs/screenshots/simpleplot.png)  
 `examples/simpleplot`  
@@ -200,6 +252,9 @@ target_link_libraries(YOU_APP_TARGET
 
 ![SVG Map](docs/screenshots/svgmap.png)  
 `playground/svgmap`  
+
+![parasite plot](docs/screenshots/parasite-plot.png)  
+`examples/parasitePlot`  
 
 ## 动态演示
 

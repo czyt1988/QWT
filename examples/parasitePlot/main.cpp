@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 
 	// 创建主窗口
 	QMainWindow mainWindow;
-	mainWindow.setWindowTitle("QwtFigure Layout Example");
+    mainWindow.setWindowTitle("Qwt Parasite Plot Example");
 	mainWindow.resize(1200, 800);
 
 	// 创建中央部件
@@ -86,8 +86,8 @@ int main(int argc, char* argv[])
 
 	QPushButton* saveButton = new QPushButton("Save Figure (300 DPI)");
 	QObject::connect(saveButton, &QPushButton::clicked, [ figure ]() {
-		figure->saveFig("qwt_figure_example.png", 300);
-		qDebug() << "Figure saved as 'qwt_figure_example.png' with 300 DPI";
+        figure->saveFig("qwt_parasite_example.png", 300);
+        qDebug() << "Figure saved as 'qwt_parasite_example.png' with 300 DPI";
 	});
 
 	QPushButton* clearButton = new QPushButton("Clear All");
@@ -135,9 +135,9 @@ void createParasitePlot(QwtFigure* figure)
     //! 给宿主绘图添加曲线
     QwtPlotCurve* hostCurve = new QwtPlotCurve("Host Sine Wave");
     hostCurve->setSamples(generateSampleData(100, 1.2, 0.8));
-    hostCurve->setPen(Qt::darkCyan, 0.5);
+    hostCurve->setPen(QColor(31, 119, 180), 1.5);
     hostCurve->attach(hostPlot);
-
+    hostCurve->setRenderHint(QwtPlotItem::RenderAntialiased, true);
     //! 把主绘图添加到figure中
     figure->addAxes(hostPlot, 1, 1, 0, 0);  //  填满整个figure
 
@@ -164,7 +164,12 @@ void createParasitePlot(QwtFigure* figure)
     parasitePlot->setAxisTitle(QwtAxis::XBottom, "X2 Bottom Axis");
     parasitePlot->setAxisTitle(QwtAxis::XTop, "X2 Top Axis");
     //! 用于宿主坐标的曲线
+    QColor curColor             = QColor(255, 127, 14);
     QwtPlotCurve* parasiteCurve = new QwtPlotCurve("Sine Wave 6");
     parasiteCurve->setSamples(generateSampleData(100, 2000, 2.3));
     parasiteCurve->attach(parasitePlot);
+    parasiteCurve->setPen(curColor, 1.5);
+    parasiteCurve->setRenderHint(QwtPlotItem::RenderAntialiased, true);
+    //! 为了区分宿主轴，给宿主轴的坐标也增加颜色
+    parasitePlot->axisWidget(QwtAxis::YLeft)->setScaleColor(curColor);
 }

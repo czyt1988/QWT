@@ -134,6 +134,14 @@ public:
 
 	QRectF colorBarRect(const QRectF&) const;
 
+    // font color of the coordinate axis/设置坐标轴的字体颜色
+    void setTextColor(const QColor& c);
+    QColor textColor() const;
+
+    // color of the coordinate axis/坐标轴的颜色
+    void setScaleColor(const QColor& c);
+    QColor scaleColor() const;
+
 protected:
 	virtual void paintEvent(QPaintEvent*) QWT_OVERRIDE;
 	virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;

@@ -398,7 +398,9 @@ int QwtScaleWidget::spacing() const
 }
 
 /**
- * @brief 设置坐标轴和绘图边缘的空白偏移距离，它和margin刚好相反，margin是和绘图的偏移，这个是和绘图边缘的偏移
+ * @brief 设置坐标轴和绘图边缘的空白偏移距离
+ *
+ * edgeMargin和margin刚好相反，margin是和绘图的偏移，edgeMargin是和绘图边缘的偏移
  * @param offset
  */
 void QwtScaleWidget::setEdgeMargin(int offset)
@@ -436,6 +438,48 @@ int QwtScaleWidget::edgeMargin() const
     return m_data->edgeMargin;
 }
 
+/**
+ * @brief Set the font color of the coordinate axis/设置坐标轴的字体颜色
+ * @param c
+ */
+void QwtScaleWidget::setTextColor(const QColor& c)
+{
+    // 绘制标题时是通过QPalette::Text获取颜色
+    // painter->setPen(palette().color(QPalette::Text));
+    QPalette p = palette();
+    p.setColor(QPalette::Text, c);
+    setPalette(p);
+}
+
+/**
+ * @brief font color of the coordinate axis/坐标轴的字体颜色
+ * @return
+ */
+QColor QwtScaleWidget::textColor() const
+{
+    return palette().color(QPalette::Text);
+}
+
+/**
+ * @brief set color of the coordinate axis/设置坐标轴的颜色
+ * @param c
+ */
+void QwtScaleWidget::setScaleColor(const QColor& c)
+{
+    // QPalette::WindowText
+    QPalette p = palette();
+    p.setColor(QPalette::WindowText, c);
+    setPalette(p);
+}
+
+/**
+ * @brief color of the coordinate axis/坐标轴的颜色
+ * @return
+ */
+QColor QwtScaleWidget::scaleColor() const
+{
+    return palette().color(QPalette::WindowText);
+}
 /*!
    \brief paintEvent
  */
@@ -608,8 +652,8 @@ void QwtScaleWidget::layoutScale(bool update_geometry)
 
 #if 1
 		/*
-			for some reason updateGeometry does not send a LayoutRequest event
-			when the parent is not visible and has no layout
+            for some reason updateGeometry does not send a LayoutRequest event
+            when the parent is not visible and has no layout
 		 */
 
 		if (QWidget* w = parentWidget()) {
@@ -639,8 +683,12 @@ void QwtScaleWidget::drawColorBar(QPainter* painter, const QRectF& rect) const
 
 	const QwtScaleDraw* sd = m_data->scaleDraw;
 
-	QwtPainter::drawColorBar(
-		painter, *m_data->colorBar.colorMap, m_data->colorBar.interval.normalized(), sd->scaleMap(), sd->orientation(), rect);
+    QwtPainter::drawColorBar(painter,
+                             *m_data->colorBar.colorMap,
+                             m_data->colorBar.interval.normalized(),
+                             sd->scaleMap(),
+                             sd->orientation(),
+                             rect);
 }
 
 /*!
