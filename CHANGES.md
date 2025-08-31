@@ -6,8 +6,9 @@
 - `QwtFigure`类实现寄生轴功能
 - `QwtScaleWidget`添加了`setEdgeMargin`和`edgeMargin`方法，可以实现刻度和绘图边缘的距离设置
 - 调整了`QwtScaleWidget`的布局方案，能支持`edgeMargin`
-- 例子增加parasitePlot演示如何使用寄生轴
-
+- 例子增加`parasitePlot`演示如何使用寄生轴
+- `QwtPlot`增加`rescaleAxes`,`syncAxis`等方法，用于实现快速调整坐标轴
+- 针对nan和inf值的异常处理
 
 ## tag:v7.0.1
 

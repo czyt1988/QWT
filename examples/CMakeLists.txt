@@ -29,5 +29,7 @@ add_subdirectory(splineeditor)
 add_subdirectory(stockchart)
 add_subdirectory(sysinfo)
 add_subdirectory(tvplot)
-# 静态编译示例
-add_subdirectory(staticExample)
+if(QWT_CONFIG_BUILD_STATIC_EXAMPLE)
+    # 静态编译示例
+    add_subdirectory(staticExample)
+endif()

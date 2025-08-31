@@ -35,7 +35,7 @@ set(CMAKE_RELWITHDEBINFO_POSTFIX "rd" CACHE STRING "add a postfix, usually empty
 set(CMAKE_MINSIZEREL_POSTFIX "s" CACHE STRING "add a postfix, usually empty on windows")
 
 # c++标准，要求为17
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 # 强制要求
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -49,6 +49,7 @@ option(QWT_CONFIG_QWTSVG "If you want to display svg images on the plot canvas, 
 option(QWT_CONFIG_QWTOPENGL "If you want to use a OpenGL plot canvas" ON)
 option(QWT_CONFIG_BUILD_EXAMPLE "build examples" ON)
 option(QWT_CONFIG_BUILD_PLAYGROUND "build playground" ON)
+option(QWT_CONFIG_BUILD_STATIC_EXAMPLE "build static example,Building the static examples will take a relatively long compilation time." OFF)
 ########################################################
 # MSVC设置
 ########################################################

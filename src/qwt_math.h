@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -9,11 +9,14 @@
 
 #ifndef QWT_MATH_H
 #define QWT_MATH_H
-
-#include "qwt_global.h"
-
+// stl
+#include <iterator>
+#include <type_traits>
+// qt
 #include <QPointF>
 #include <QtMath>
+// qwt
+#include "qwt_global.h"
 /*
    Microsoft says:
 
@@ -171,64 +174,64 @@ QWT_EXPORT quint32 qwtRand();
  */
 inline int qwtFuzzyCompare(double value1, double value2, double intervalSize)
 {
-    const double eps = qAbs(1.0e-6 * intervalSize);
+	const double eps = qAbs(1.0e-6 * intervalSize);
 
-    if (value2 - value1 > eps)
-        return -1;
+	if (value2 - value1 > eps)
+		return -1;
 
-    if (value1 - value2 > eps)
-        return 1;
+	if (value1 - value2 > eps)
+		return 1;
 
-    return 0;
+	return 0;
 }
 
 //! Return the sign
 inline int qwtSign(double x)
 {
-    if (x > 0.0)
-        return 1;
-    else if (x < 0.0)
-        return (-1);
-    else
-        return 0;
+	if (x > 0.0)
+		return 1;
+	else if (x < 0.0)
+		return (-1);
+	else
+		return 0;
 }
 
 //! Return the square of a number
 inline double qwtSqr(double x)
 {
-    return x * x;
+	return x * x;
 }
 
 //! Approximation of arc tangent ( error below 0,005 radians )
 inline double qwtFastAtan(double x)
 {
-    if (x < -1.0)
-        return -M_PI_2 - x / (x * x + 0.28);
+	if (x < -1.0)
+		return -M_PI_2 - x / (x * x + 0.28);
 
-    if (x > 1.0)
-        return M_PI_2 - x / (x * x + 0.28);
+	if (x > 1.0)
+		return M_PI_2 - x / (x * x + 0.28);
 
-    return x / (1.0 + x * x * 0.28);
+	return x / (1.0 + x * x * 0.28);
 }
 
 //! Approximation of arc tangent ( error below 0,005 radians )
 inline double qwtFastAtan2(double y, double x)
 {
-    if (x > 0)
-        return qwtFastAtan(y / x);
+	if (x > 0)
+		return qwtFastAtan(y / x);
 
-    if (x < 0) {
-        const double d = qwtFastAtan(y / x);
-        return (y >= 0) ? d + M_PI : d - M_PI;
-    }
+	if (x < 0) {
+		const double d = qwtFastAtan(y / x);
+		return (y >= 0) ? d + M_PI : d - M_PI;
+	}
 
-    if (y < 0.0)
-        return -M_PI_2;
+	if (y < 0.0)
+		return -M_PI_2;
 
-    if (y > 0.0)
-        return M_PI_2;
+	if (y > 0.0)
+		return M_PI_2;
 
-    return 0.0;
+	return 0.0;
 }
 
 /* !
@@ -265,8 +268,8 @@ inline double qwtDegrees(double degrees)
  */
 inline int qwtCeil(qreal value)
 {
-    using std::ceil;
-    return int(ceil(value));
+	using std::ceil;
+	return int(ceil(value));
 }
 /*!
     The same as qFloor, but avoids including qmath.h
@@ -274,8 +277,8 @@ inline int qwtCeil(qreal value)
  */
 inline int qwtFloor(qreal value)
 {
-    using std::floor;
-    return int(floor(value));
+	using std::floor;
+	return int(floor(value));
 }
 
 /**
@@ -302,16 +305,16 @@ inline int qwtFloor(qreal value)
  */
 inline int qwtVerifyRange(int size, int& i1, int& i2)
 {
-    if (size < 1)
-        return 0;
+	if (size < 1)
+		return 0;
 
-    i1 = qBound(0, i1, size - 1);
-    i2 = qBound(0, i2, size - 1);
+	i1 = qBound(0, i1, size - 1);
+	i2 = qBound(0, i2, size - 1);
 
-    if (i1 > i2)
-        qSwap(i1, i2);
+	if (i1 > i2)
+		qSwap(i1, i2);
 
-    return (i2 - i1 + 1);
+	return (i2 - i1 + 1);
 }
 
 /**
@@ -322,8 +325,169 @@ inline int qwtVerifyRange(int size, int& i1, int& i2)
  */
 inline double qwtDistance(const QPointF& p1, const QPointF& p2)
 {
-    double dx = p2.x() - p1.x();
-    double dy = p2.y() - p1.y();
-    return qSqrt(dx * dx + dy * dy);
+	double dx = p2.x() - p1.x();
+	double dy = p2.y() - p1.y();
+	return qSqrt(dx * dx + dy * dy);
+}
+
+/**
+ * @brief 检查浮点数值是否为NaN或无穷大/Check if floating point value is NaN or infinity
+ *
+ * This function checks whether a floating point value is either NaN (Not a Number)
+ * or infinite (positive or negative infinity). It uses std::isfinite() for the check.
+ *
+ * 此函数检查浮点数值是否为NaN（非数字）或无穷大（正无穷大或负无穷大）。
+ * 它使用std::isfinite()进行检查。
+ *
+ * @tparam T Floating point type (float, double, long double)/浮点数类型（float, double, long double）
+ * @param value The value to check/要检查的值
+ * @return true if value is NaN or infinite/如果值是NaN或无穷大返回true
+ * @return false if value is finite/如果值是有限数返回false
+ *
+ * @note This overload is enabled only for floating point types/此重载仅对浮点数类型启用
+ * @see std::isfinite()
+ *
+ * @par Example/示例:
+ * @code
+ * double nan_val = std::numeric_limits<double>::quiet_NaN();
+ * double inf_val = std::numeric_limits<double>::infinity();
+ * double finite_val = 3.14;
+ *
+ * bool is_nan_invalid = qwt_is_nan_or_inf(nan_val);     // true
+ * bool is_inf_invalid = qwt_is_nan_or_inf(inf_val);     // true
+ * bool is_finite_valid = qwt_is_nan_or_inf(finite_val); // false
+ * @endcode
+ */
+template< typename T >
+inline typename std::enable_if< std::is_floating_point< T >::value, bool >::type qwt_is_nan_or_inf(const T& value)
+{
+    return !std::isfinite(value);
+}
+
+/**
+ * @brief 检查QPointF点是否包含NaN或无穷大坐标/Check if QPointF contains NaN or infinite coordinates
+ *
+ * This function checks whether either the x or y coordinate of a QPointF
+ * is NaN (Not a Number) or infinite. Both coordinates are checked.
+ *
+ * 此函数检查QPointF的x或y坐标是否为NaN（非数字）或无穷大。两个坐标都会被检查。
+ *
+ * @param point The QPointF to check/要检查的QPointF
+ * @return true if either x or y coordinate is NaN or infinite/如果x或y坐标是NaN或无穷大返回true
+ * @return false if both coordinates are finite/如果两个坐标都是有限数返回false
+ *
+ * @par Example/示例:
+ * @code
+ * QPointF valid_point(1.0, 2.0);
+ * QPointF nan_point(std::numeric_limits<qreal>::quiet_NaN(), 3.0);
+ * QPointF inf_point(4.0, std::numeric_limits<qreal>::infinity());
+ *
+ * bool valid_result = qwt_is_nan_or_inf(valid_point); // false
+ * bool nan_result = qwt_is_nan_or_inf(nan_point);     // true
+ * bool inf_result = qwt_is_nan_or_inf(inf_point);     // true
+ * @endcode
+ */
+inline bool qwt_is_nan_or_inf(const QPointF& point)
+{
+    return !std::isfinite(point.x()) || !std::isfinite(point.y());
+}
+
+// 默认检查函数 - 用于其他类型
+template< typename T >
+typename std::enable_if< !std::is_floating_point< T >::value && !std::is_same< T, QPointF >::value,
+						 bool >::type inline qwt_is_nan_or_inf(const T& /*value*/)
+{
+	return false;
+}
+
+/**
+ * @brief 检查指定迭代器范围内是否存在NaN或Inf值。
+ *
+ * 检查迭代器范围[first, last)内的元素是否包含NaN或无穷大值。
+ * 支持浮点数类型、QPointF等类型。
+ *
+ * @tparam InputIt 输入迭代器类型
+ * @param first 范围的起始迭代器
+ * @param last 范围的结束迭代器
+ * @return 如果范围内存在至少一个NaN或Inf值，返回true；否则返回false
+ *
+ * @par Example 使用示例:
+ * @code
+ * // 检查浮点数数组
+ * std::vector<double> data = {1.0, std::numeric_limits<double>::quiet_NaN(), 3.0};
+ * bool result = qwtContainsNanOrInf(data.begin(), data.end()); // 返回true
+ *
+ * // 检查QPointF数组
+ * QVector<QPointF> points;
+ * points << QPointF(1.0, 2.0) << QPointF(std::numeric_limits<qreal>::infinity(), 3.0);
+ * bool result2 = qwtContainsNanOrInf(points.begin(), points.end()); // 返回true
+ * @endcode
+ */
+template< typename InputIt >
+inline bool qwtContainsNanOrInf(InputIt first, InputIt last)
+{
+	// 使用迭代器遍历，对每个元素调用适当的 qwt_is_nan_or_inf 函数
+	for (InputIt it = first; it != last; ++it) {
+		if (qwt_is_nan_or_inf(*it)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * @brief 就地清理数组，移除NaN和Inf值/In-place clean array, removing NaN and Inf values
+ *
+ * Alternative implementation using manual loop for maximum control.
+ * 适用于需要最大控制权的替代实现。
+ *
+ * @tparam Container 容器类型/Container type
+ * @param container 要清理的容器/Container to clean
+ *
+ * @par Example/示例:
+ * @code
+ * std::vector<float> data = {1.0f, std::numeric_limits<float>::quiet_NaN(), 3.0f};
+ * qwtRemoveNanOrInf(data);
+ * // data 现在包含 {1.0f, 3.0f}
+ * @endcode
+ */
+template< typename Container >
+inline std::size_t qwtRemoveNanOrInf(Container& container)
+{
+	// 使用 std::remove_if 算法将需要保留的元素移动到容器前部
+	auto new_end = std::remove_if(container.begin(), container.end(), [](const typename Container::value_type& value) {
+		return qwt_is_nan_or_inf(value);
+	});
+
+	// 计算被删除的元素数量
+	std::size_t removed_count = std::distance(new_end, container.end());
+
+	// 实际删除不需要的元素
+	if (removed_count > 0) {
+		container.erase(new_end, container.end());
+	}
+
+	return removed_count;
+}
+
+/**
+ * @brief 从容器中删除所有 NaN 或 Inf 值（返回新容器）
+ * @tparam Container 容器类型
+ * @param container 要处理的容器
+ * @return 返回不包含 NaN 或 Inf 值的新容器
+ */
+template< typename Container >
+inline Container qwtRemoveNanOrInfCopy(const Container& container)
+{
+	Container result;
+	result.reserve(container.size());  // 预分配空间以提高效率
+
+	// 只复制不是 NaN 或 Inf 的元素
+	std::copy_if(container.begin(),
+				 container.end(),
+				 std::back_inserter(result),
+				 [](const typename Container::value_type& value) { return !qwt_is_nan_or_inf(value); });
+
+	return result;
 }
 #endif
