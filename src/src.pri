@@ -26,6 +26,7 @@ HEADERS += \
     qwt_math.h \
     qwt_magnifier.h \
     qwt_null_paintdevice.h \
+    qwt_stylesheet_recorder.h \
     qwt_painter.h \
     qwt_painter_command.h \
     qwt_panner.h \
@@ -72,6 +73,7 @@ SOURCES += \
     qwt_math.cpp \
     qwt_magnifier.cpp \
     qwt_null_paintdevice.cpp \
+    qwt_stylesheet_recorder.cpp \
     qwt_painter.cpp \
     qwt_painter_command.cpp \
     qwt_panner.cpp \
@@ -99,6 +101,7 @@ SOURCES += \
     qwt_text.cpp \
     qwt_transform.cpp \
     qwt_widget_overlay.cpp
+    
 
  
 contains(QWT_CONFIG, QwtPlot) {
@@ -156,7 +159,9 @@ contains(QWT_CONFIG, QwtPlot) {
         qwt_series_data.h \
         qwt_series_store.h \
         qwt_point_data.h \
-        qwt_scale_widget.h 
+        qwt_scale_widget.h \
+        qwt_figure_layout.h \
+        qwt_figure.h
 
     SOURCES += \
         qwt_curve_fitter.cpp \
@@ -207,7 +212,9 @@ contains(QWT_CONFIG, QwtPlot) {
         qwt_sampling_thread.cpp \
         qwt_series_data.cpp \
         qwt_point_data.cpp \
-        qwt_scale_widget.cpp
+        qwt_scale_widget.cpp \
+        qwt_figure_layout.cpp \
+        qwt_figure.cpp
 
     contains(QWT_CONFIG, QwtOpenGL) {
 

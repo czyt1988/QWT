@@ -110,11 +110,14 @@ set(QWT_HEADER_BASE
         qwt_spline_polynomial.h
         qwt_symbol.h
         qwt_system_clock.h
+        qwt_stylesheet_recorder.h
         qwt_text_engine.h
         qwt_text_label.h
         qwt_text.h
         qwt_transform.h
         qwt_widget_overlay.h
+        qwt_figure_layout.h
+        qwt_figure.h
 )
 set(QWT_SOURCE_BASE
         qwt.cpp
@@ -156,11 +159,14 @@ set(QWT_SOURCE_BASE
         qwt_spline_polynomial.cpp
         qwt_symbol.cpp
         qwt_system_clock.cpp
+        qwt_stylesheet_recorder.cpp
         qwt_text_engine.cpp
         qwt_text_label.cpp
         qwt_text.cpp
         qwt_transform.cpp
         qwt_widget_overlay.cpp
+        qwt_figure_layout.cpp
+        qwt_figure.cpp
 )
 
 set(QWT_HEADER_FILES ${QWT_HEADER_BASE})
@@ -192,7 +198,9 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_multi_barchart.h
         qwt_plot_intervalcurve.h
         qwt_plot_tradingcurve.h
+        qwt_plot_layout_engine.h
         qwt_plot_layout.h
+        qwt_plot_parasite_layout.h
         qwt_plot_marker.h
         qwt_plot_zoneitem.h
         qwt_plot_textlabel.h
@@ -206,6 +214,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_vectorfield.h
         qwt_plot_abstract_canvas.h
         qwt_plot_canvas.h
+        qwt_plot_transparent_canvas.h
         qwt_plot_panner.h
         qwt_plot_picker.h
         qwt_plot_zoomer.h
@@ -257,9 +266,12 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_vectorfield.cpp
         qwt_plot_marker.cpp
         qwt_plot_textlabel.cpp
+        qwt_plot_layout_engine.cpp
         qwt_plot_layout.cpp
+        qwt_plot_parasite_layout.cpp
         qwt_plot_abstract_canvas.cpp
         qwt_plot_canvas.cpp
+        qwt_plot_transparent_canvas.cpp
         qwt_plot_panner.cpp
         qwt_plot_rasteritem.cpp
         qwt_plot_picker.cpp

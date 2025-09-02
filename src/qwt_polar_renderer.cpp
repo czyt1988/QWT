@@ -13,6 +13,7 @@
 #include "qwt_dyngrid_layout.h"
 #include "qwt_text_label.h"
 #include "qwt_text.h"
+#include "qwt_math.h"
 
 #include <qpainter.h>
 #include <qprinter.h>
@@ -63,13 +64,6 @@
 #if QWT_PDF_WRITER
 #include <qpdfwriter.h>
 #endif
-
-static inline double qwtDistance(const QPointF& p1, const QPointF& p2)
-{
-    double dx = p2.x() - p1.x();
-    double dy = p2.y() - p1.y();
-    return qSqrt(dx * dx + dy * dy);
-}
 
 class QwtPolarRenderer::PrivateData
 {

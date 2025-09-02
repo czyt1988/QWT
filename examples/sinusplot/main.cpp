@@ -27,102 +27,99 @@
 
 namespace
 {
-    class FunctionData : public QwtSyntheticPointData
+class FunctionData : public QwtSyntheticPointData
+{
+public:
+    FunctionData(double (*fy)(double)) : QwtSyntheticPointData(100), m_y(fy)
     {
-      public:
-        FunctionData( double( *fy )( double ) )
-            : QwtSyntheticPointData( 100 ),
-            m_y( fy )
-        {
-        }
+    }
 
-        virtual double y( double x ) const QWT_OVERRIDE
-        {
-            return m_y( x );
-        }
-
-      private:
-        double ( * m_y )( double );
-    };
-
-    class ArrowSymbol : public QwtSymbol
+    virtual double y(double x) const QWT_OVERRIDE
     {
-      public:
-        ArrowSymbol()
-        {
-            QPen pen( Qt::black, 0 );
-            pen.setJoinStyle( Qt::MiterJoin );
+        return m_y(x);
+    }
 
-            setPen( pen );
-            setBrush( Qt::red );
+private:
+    double (*m_y)(double);
+};
 
-            QPainterPath path;
-            path.moveTo( 0, 8 );
-            path.lineTo( 0, 5 );
-            path.lineTo( -3, 5 );
-            path.lineTo( 0, 0 );
-            path.lineTo( 3, 5 );
-            path.lineTo( 0, 5 );
-
-            QTransform transform;
-            transform.rotate( -30.0 );
-            path = transform.map( path );
-
-            setPath( path );
-            setPinPoint( QPointF( 0, 0 ) );
-
-            setSize( 10, 14 );
-        }
-    };
-
-    class Plot : public QwtPlot
+class ArrowSymbol : public QwtSymbol
+{
+public:
+    ArrowSymbol()
     {
-      public:
-        Plot( QWidget* parent = NULL );
+        QPen pen(Qt::black, 0);
+        pen.setJoinStyle(Qt::MiterJoin);
 
-      protected:
-        virtual void resizeEvent( QResizeEvent* ) QWT_OVERRIDE;
+        setPen(pen);
+        setBrush(Qt::red);
 
-      private:
-        void populate();
-        void updateGradient();
-    };
+        QPainterPath path;
+        path.moveTo(0, 8);
+        path.lineTo(0, 5);
+        path.lineTo(-3, 5);
+        path.lineTo(0, 0);
+        path.lineTo(3, 5);
+        path.lineTo(0, 5);
+
+        QTransform transform;
+        transform.rotate(-30.0);
+        path = transform.map(path);
+
+        setPath(path);
+        setPinPoint(QPointF(0, 0));
+
+        setSize(10, 14);
+    }
+};
+
+class Plot : public QwtPlot
+{
+public:
+    Plot(QWidget* parent = NULL);
+
+protected:
+    virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
+
+private:
+    void populate();
+    void updateGradient();
+};
 }
 
-Plot::Plot( QWidget* parent )
-    : QwtPlot( parent )
+Plot::Plot(QWidget* parent) : QwtPlot(parent)
 {
-    setAutoFillBackground( true );
-    setPalette( QPalette( QColor( 165, 193, 228 ) ) );
+    setAutoFillBackground(true);
+    setPalette(QPalette(QColor(165, 193, 228)));
     updateGradient();
 
-    setTitle( "A Simple QwtPlot Demonstration" );
-    insertLegend( new QwtLegend(), QwtPlot::RightLegend );
+    setTitle("A Simple QwtPlot Demonstration");
+    insertLegend(new QwtLegend(), QwtPlot::RightLegend);
 
     // axes
-    setAxisTitle( QwtAxis::XBottom, "x -->" );
-    setAxisScale( QwtAxis::XBottom, 0.0, 10.0 );
+    setAxisTitle(QwtAxis::XBottom, "x -->");
+    setAxisScale(QwtAxis::XBottom, 0.0, 10.0);
 
-    setAxisTitle( QwtAxis::YLeft, "y -->" );
-    setAxisScale( QwtAxis::YLeft, -1.0, 1.0 );
+    setAxisTitle(QwtAxis::YLeft, "y -->");
+    setAxisScale(QwtAxis::YLeft, -1.0, 1.0);
 
     // canvas
     QwtPlotCanvas* canvas = new QwtPlotCanvas();
-    canvas->setLineWidth( 1 );
-    canvas->setFrameStyle( QFrame::Box | QFrame::Plain );
-    canvas->setBorderRadius( 15 );
+    canvas->setLineWidth(1);
+    canvas->setFrameStyle(QFrame::Box | QFrame::Plain);
+    // canvas->setBorderRadius( 15 );
 
-    QPalette canvasPalette( Qt::white );
-    canvasPalette.setColor( QPalette::WindowText, QColor( 133, 190, 232 ) );
-    canvas->setPalette( canvasPalette );
+    QPalette canvasPalette(Qt::white);
+    canvasPalette.setColor(QPalette::WindowText, QColor(133, 190, 232));
+    canvas->setPalette(canvasPalette);
 
-    setCanvas( canvas );
+    setCanvas(canvas);
 
     // panning with the left mouse button
-    ( void ) new QwtPlotPanner( canvas );
+    (void)new QwtPlotPanner(canvas);
 
     // zoom in/out with the wheel
-    ( void ) new QwtPlotMagnifier( canvas );
+    (void)new QwtPlotMagnifier(canvas);
 
     populate();
 }
@@ -130,81 +127,81 @@ Plot::Plot( QWidget* parent )
 void Plot::populate()
 {
     // Insert new curves
-    QwtPlotCurve* cSin = new QwtPlotCurve( "y = sin(x)" );
-    cSin->setRenderHint( QwtPlotItem::RenderAntialiased );
-    cSin->setLegendAttribute( QwtPlotCurve::LegendShowLine, true );
-    cSin->setPen( Qt::red );
-    cSin->attach( this );
+    QwtPlotCurve* cSin = new QwtPlotCurve("y = sin(x)");
+    cSin->setRenderHint(QwtPlotItem::RenderAntialiased);
+    cSin->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+    cSin->setPen(Qt::red);
+    cSin->attach(this);
 
-    QwtPlotCurve* cCos = new QwtPlotCurve( "y = cos(x)" );
-    cCos->setRenderHint( QwtPlotItem::RenderAntialiased );
-    cCos->setLegendAttribute( QwtPlotCurve::LegendShowLine, true );
-    cCos->setPen( Qt::blue );
-    cCos->attach( this );
+    QwtPlotCurve* cCos = new QwtPlotCurve("y = cos(x)");
+    cCos->setRenderHint(QwtPlotItem::RenderAntialiased);
+    cCos->setLegendAttribute(QwtPlotCurve::LegendShowLine, true);
+    cCos->setPen(Qt::blue);
+    cCos->attach(this);
 
     // Create sin and cos data
-    cSin->setData( new FunctionData( std::sin ) );
-    cCos->setData( new FunctionData( std::cos ) );
+    cSin->setData(new FunctionData(std::sin));
+    cCos->setData(new FunctionData(std::cos));
 
     // Insert markers
 
     //  ...a horizontal line at y = 0...
     QwtPlotMarker* mY = new QwtPlotMarker();
-    mY->setLabel( QString::fromLatin1( "y = 0" ) );
-    mY->setLabelAlignment( Qt::AlignRight | Qt::AlignTop );
-    mY->setLineStyle( QwtPlotMarker::HLine );
-    mY->setYValue( 0.0 );
-    mY->attach( this );
+    mY->setLabel(QString::fromLatin1("y = 0"));
+    mY->setLabelAlignment(Qt::AlignRight | Qt::AlignTop);
+    mY->setLineStyle(QwtPlotMarker::HLine);
+    mY->setYValue(0.0);
+    mY->attach(this);
 
     //  ...a vertical line at x = 2 * pi
     QwtPlotMarker* mX = new QwtPlotMarker();
-    mX->setLabel( QString::fromLatin1( "x = 2 pi" ) );
-    mX->setLabelAlignment( Qt::AlignLeft | Qt::AlignBottom );
-    mX->setLabelOrientation( Qt::Vertical );
-    mX->setLineStyle( QwtPlotMarker::VLine );
-    mX->setLinePen( Qt::black, 0, Qt::DashDotLine );
-    mX->setXValue( 2.0 * M_PI );
-    mX->attach( this );
+    mX->setLabel(QString::fromLatin1("x = 2 pi"));
+    mX->setLabelAlignment(Qt::AlignLeft | Qt::AlignBottom);
+    mX->setLabelOrientation(Qt::Vertical);
+    mX->setLineStyle(QwtPlotMarker::VLine);
+    mX->setLinePen(Qt::black, 0, Qt::DashDotLine);
+    mX->setXValue(2.0 * M_PI);
+    mX->attach(this);
 
     const double x = 7.7;
 
     // an arrow at a specific position
-    QwtPlotMarker* mPos = new QwtPlotMarker( "Marker" );
-    mPos->setRenderHint( QwtPlotItem::RenderAntialiased, true );
-    mPos->setItemAttribute( QwtPlotItem::Legend, true );
-    mPos->setSymbol( new ArrowSymbol() );
-    mPos->setValue( QPointF( x, std::sin( x ) ) );
-    mPos->setLabel( QString( "x = %1" ).arg( x ) );
-    mPos->setLabelAlignment( Qt::AlignRight | Qt::AlignBottom );
-    mPos->attach( this );
+    QwtPlotMarker* mPos = new QwtPlotMarker("Marker");
+    mPos->setRenderHint(QwtPlotItem::RenderAntialiased, true);
+    mPos->setItemAttribute(QwtPlotItem::Legend, true);
+    mPos->setSymbol(new ArrowSymbol());
+    mPos->setValue(QPointF(x, std::sin(x)));
+    mPos->setLabel(QString("x = %1").arg(x));
+    mPos->setLabelAlignment(Qt::AlignRight | Qt::AlignBottom);
+    mPos->attach(this);
 }
 
 void Plot::updateGradient()
 {
     QPalette pal = palette();
 
-    const QColor buttonColor = pal.color( QPalette::Button );
+    const QColor buttonColor = pal.color(QPalette::Button);
 
-    QLinearGradient gradient( rect().topLeft(), rect().bottomLeft() );
-    gradient.setColorAt( 0.0, Qt::white );
-    gradient.setColorAt( 0.7, buttonColor );
-    gradient.setColorAt( 1.0, buttonColor );
+    QLinearGradient gradient(rect().topLeft(), rect().bottomLeft());
+    gradient.setColorAt(0.0, Qt::white);
+    gradient.setColorAt(0.7, buttonColor);
+    gradient.setColorAt(1.0, buttonColor);
 
-    pal.setBrush( QPalette::Window, gradient );
-    setPalette( pal );
+    pal.setBrush(QPalette::Window, gradient);
+    setPalette(pal);
 }
 
-void Plot::resizeEvent( QResizeEvent* event )
+void Plot::resizeEvent(QResizeEvent* event)
 {
-    QwtPlot::resizeEvent( event );
+    QwtPlot::resizeEvent(event);
 
     // Qt 4.7.1: QGradient::StretchToDeviceMode is buggy on X11
     updateGradient();
 }
 
-int main( int argc, char* argv[] )
+int main(int argc, char* argv[])
 {
-    QApplication app( argc, argv );
+    QApplication app(argc, argv);
 
     Plot* plot = new Plot();
 
@@ -214,11 +211,11 @@ int main( int argc, char* argv[] )
 
     QWidget window;
 
-    QHBoxLayout* layout = new QHBoxLayout( &window );
-    layout->setContentsMargins( 0, 0, 0, 0 );
-    layout->addWidget( plot );
+    QHBoxLayout* layout = new QHBoxLayout(&window);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(plot);
 
-    window.resize( 600, 400 );
+    window.resize(600, 400);
     window.show();
 
     return app.exec();

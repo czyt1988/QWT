@@ -1,139 +1,153 @@
-在 2D 曲线高效渲染领域，`QWT` 凭借其友好的开源协议，成为 Qt 框架下的优质之选（相比之下，QCustomPlot 采用 GPL 协议，具有一定的传染性）。然而，随着 `Qwt` 项目进入停更状态，原 `QWT` 已无法满足我的一些需求，例如缺乏 `CMake` 支持。鉴于此，我决定对原始 `QWT` 项目进行维护更新，并将其开源，以更好地适配我的开发场景。
+# 概述
 
-目前，我已发布 tag v0.0.4 版本，为原始 `QWT` 项目引入了 `CMake` 支持。若您仅需为 `QWT` 添加 `CMake` 支持，可直接下载该版本。从 tag v0.0.4 后续版本开始，我将基于自身需求对原 `QWT` 源码进行针对性修改，包括功能拓展与接口优化，同时延续原 `QWT` 的版本号序列（从 6.2 版本起延续原有编号体系）。此项目从 7.0 版本起步，需特别提醒的是，7.0 及后续版本在某些接口上与 `QWT` 6.2.0 存在不兼容之处，请使用者留意。
+Qt 生态里能画图的库不多，主流的为`QCustomPlot`、`Qwt`、`Qt Charts`和`KDChart`，Qt6.8之后把原来的 `Qt Charts`（2D） 与 Qt DataVisualization（3D） 合并为统一的Qt Graphs模块（注意不是Qt Graphics），底层全部基于 Qt Quick Scene Graph（QSG）+ Qt Quick 3D，彻底放弃了老旧的 Graphics-View/QPainter 管线，不过Qt Graphs 须通过 QQuickWidget 或 QQuickWindow 嵌入，必须带 QML runtime，C++支持不足，[论坛吐槽不少](https://forum.qt.io/topic/159224/qt-graphs-building-2d-plot-using-c-only),虽然Qt Graphs 是 Qt 官方“大一统”的未来，但这个未来可能3年内不会到来，且不支持win7等老系统，对嵌入式也不友好，因此，`QCustomPlot`、`Qwt`、`Qt Charts`和`KDChart`还会是最近几年绘图控件的选项。
 
-# 为何选用`QWT`而不是`QCustomPlot`
+这几个控件`QCustomPlot`最简单、美观，推广度最高，只要引入`qcustomplot.h`头文件，`qcustomplot.cpp`源文件，就可以直接使用（[官方文档](https://www.qcustomplot.com/index.php/documentation)），也支持Qt6，然而`QCustomPlot`最大的问题是其开源协议为`GPL`，有传染性，如果你使用了`QCustomPlot`，意味着你的软件也要成为`GPL`，这对商业非常不友好。
 
-## Qwt有着友好的开源协议
+`Qwt`是老牌的绘图控件（[官方文档](https://qwt.sourceforge.io/index.html)），有着不错的性能，但部署难，让很多人望而怯步。它的协议为`LGPL`，商业相对友好。
 
-`QCustomPlot`采用`GPL 协议`，如果你的项目使用了`QCustomPlot`,你的项目也应`GPL 协议`
+`Qt Charts`是Qt官方的绘图控件（[官方文档](https://doc.qt.io/qt-5/qtcharts-index.html)），效率不高(可以说很低)，不适合做科学计算，同时，Qt Charts 没有 LGPL 选项，开源版是GPLv3，只要你在项目中使用了Qt Charts，就必须 把整个项目以 GPLv3 协议开源。
 
-而`Qwt`的许可证是**LGPL（GNU Lesser General Public License）v2.1**，同时附加了3个条款：
+`KDChart`是KDAB的绘图控件（[官方文档](https://www.kdab.com/software-technologies/developer-tools/kd-chart/)），`KDChart3.0`起是MIT协议，对商业非常友好，但渲染效果一般，一股excel2003的风格，但`KDChart`有甘特图，这是上面3款都没有的。
 
-### Qwt的附加条款1——**静态链接例外**
+因此，如果你的项目需要商业用途，那么你只有`Qwt`和`KDChart3.0`两种选择，但`Qwt`作者停止更新，我个人更喜欢`Qwt`，因为`Qwt`的架构更符合软件工程原则，其大规模渲染性能更优，像`QCustomPlot`的优势是交互功能开箱即用，例如鼠标缩放，坐标轴缩放，而`Qwt`需要较多的代码来实现，但`Qwt`有着更精细的控制能力，因此在我的项目需要绘图的时候，我会选择`Qwt`，并根据我的需求添加一些自己需要的功能，改进、优化它，因此，就有了此项目。
 
-```plaintext
-Static linking of applications and widgets to the Qwt library does not constitute a derivative work
-and does not require the author to provide source code for the application or widget.
-```
+# Qwt 7.0
 
-- ✅ **允许行为**：
-  - 商业软件**静态链接** Qwt 库
-  - 无需公开**自有代码**的源代码
-  - 无需提供 Qwt 的源代码（前提是使用官方未修改版本）
+我在`Qwt`最后版本上进行了维护，后续我将我需要的功能添加进去，同时逐步修改、优化一些已有的功能，例如它默认的老旧样式
 
-- ⚠️ **限制条件**：
-  ```plaintext
-  If you link to a modified version of Qwt, 
-  then the changes to Qwt must be provided under the terms of the LGPL
-  ```
-  - 若修改了 Qwt 源代码，**必须公开修改部分的源代码**
+项目地址为：
 
-### Qwt的附加条款2——**继承派生例外**
+[Github：https://github.com/czyt1988/QWT](https://github.com/czyt1988/QWT)
 
-```plaintext
-Widgets that are subclassed from Qwt widgets do not constitute a derivative work.
-```
+[Gitee：https://gitee.com/czyt1988/QWT](https://gitee.com/czyt1988/QWT)
 
-- ✅ **允许行为**：
-  - 从 Qwt 组件派生子类（如继承 `QwtPlot`）
-  - 派生类**不被视为衍生作品**
-  - 无需遵循 LGPL 的源代码公开要求
-
-### Qwt的附加条款3——**标识要求**
-
-```plaintext
-Programs must identify their use of Qwt:
-"[program/widget] is based in part on the work of the Qwt project (http://qwt.sf.net)"
-```
-
-- 📌 **必须遵守**：
-  - 在软件文档或"关于"页面添加声明：`本软件使用了Qwt项目 (http://qwt.sf.net) 的部分成果`
-
-从上面可看出，Qwt的协议是非常友好的
-
-## `Qwt`有着更抽象的封装，和更高的自由度
-
-`Qwt`的架构更符合软件工程原则，但`QCustomPlot`的简约设计在快速开发中则是更胜一筹的
-
-`QCustomPlot`单头文件和cpp文件实现（qcustomplot.h + qcustomplot.cpp），零依赖，高度集成，降低学习曲线，这样导致内部耦合度较高，扩展性受限
-
-`Qwt`设计更加模块化（Plot, Scale, Curve 等独立组件），遵循经典的 MVC 模式，职责分离清晰，但是组件众多导致初始化复杂
-
-`QCustomPlot`的优势是交互功能开箱即用，例如鼠标缩放，坐标轴缩放，而`Qwt`需要较多的代码来实现，但`Qwt`有着更精细的控制能力
-
-从性能看，`Qwt`理论上是比`QCustomPlot`更有优势的，但`QCustomPlot`做了大数据点的抽稀处理，`Qwt`这方面没有处理，导致超大规模渲染上比`QCustomPlot`弱一点，这正是我想对其进行改进的原因
-
----
-# 目标
+下面是我的目标以及目前我已经完成的一些工作：
 
 - [x] CMake支持 
 - [ ] 支持Qt6
 - [ ] C++11优化
-- [ ] 合并为单一文件，简化引入
+- [x] 合并为单一文件，简化引入
 - [ ] 优化超大规模数据的渲染
 - [ ] 提供一些集成的交互方法，让使用更简单
-- [ ] 美化控件
+- [x] 美化控件
+- [x] 提供Figure实现绘图的布局
+- [ ] 增加寄生轴的支持，实现n个坐标轴
+
+总之，我将继续维护`Qwt`，让其成为一个协议友好，性能优越，方便使用的Qt绘图库
+
+# Qwt7.0的新特性
+
+## Cmake支持
+
+Qwt7.0已经支持`CMake`，并且未来将考虑抛弃`QMake`
+
+安装Qwt后，你的项目只需如下即可引入Qwt，免去以往繁琐的配置和预定义宏：
+
+```cmake
+target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
+```
+
+## 单一头文件和源文件
+
+参考`QCustomPlot`，我把原`Qwt`整个工程合并为`QwtPlot.h`和`QwtPlot.cpp`，只要把这两个文件引入项目即可使用：
+
+cmake示例：
+
+```cmake
+# QwtPlot依赖Core Gui Widgets Svg Concurrent OpenGL PrintSupport这几个模块，需要引入工程
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} 5.8 COMPONENTS Core Gui Widgets Svg Concurrent OpenGL PrintSupport REQUIRED)
+
+
+add_executable(YOU_APP_TARGET
+    main.cpp
+    QwtPlot.h
+    QwtPlot.cpp
+)
+
+target_link_libraries(YOU_APP_TARGET 
+    PUBLIC
+    Qt${QT_VERSION_MAJOR}::Core 
+    Qt${QT_VERSION_MAJOR}::Gui 
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Svg
+    Qt${QT_VERSION_MAJOR}::Concurrent
+    Qt${QT_VERSION_MAJOR}::OpenGL
+    Qt${QT_VERSION_MAJOR}::PrintSupport
+    )
+```
+
+## 美化了风格
+
+原有的Qwt样式使用的是很老旧的浮雕风，和现代审美不符，为此我针对性的优化，主要去除了默认的凹陷风格，坐标轴紧贴绘图不进行分离，总体视觉更符合现代风格
+
+具体可见屏幕快照
+
+## 增加了Figure绘图容器
+
+类似Python的matplotlib，Qwt提供了Figure绘图容器，可以很方便的进行多个绘图布局
+
+通过新增的`QwtFigure`类，可以很方便的进行多个绘图布局,支持网格布局（类似matplotlib的subplot）
+
+## 支持多坐标轴
+
+增加了类似matplotlib的寄生轴功能，支持任意多个坐标轴显示
+
+![parasite plot](docs/screenshots/parasite-plot.png) 
+
+# 构建
+
+## 静态构建
+
+此项目把原Qwt整个工程合并为QwtPlot.h和QwtPlot.cpp，直接引入项目即可
+
+QwtPlot依赖Core Gui Widgets Svg Concurrent OpenGL PrintSupport这几个模块，需要引入工程
+
+cmake示例：
+
+```cmake
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} 5.8 COMPONENTS Core Gui Widgets Svg Concurrent OpenGL PrintSupport REQUIRED)
+
+
+add_executable(YOUR_APP_NAME
+    main.cpp
+    QwtPlot.h
+    QwtPlot.cpp
+)
+
+target_link_libraries(YOUR_APP_NAME 
+    PUBLIC
+    Qt${QT_VERSION_MAJOR}::Core 
+    Qt${QT_VERSION_MAJOR}::Gui 
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Svg
+    Qt${QT_VERSION_MAJOR}::Concurrent
+    Qt${QT_VERSION_MAJOR}::OpenGL
+    Qt${QT_VERSION_MAJOR}::PrintSupport
+    )
+```
 
 # changelog
 
-## tag:???（还未发布） | version:7.0.0
+详细的日志请参阅[CHANGES.MD](./CHANGES.md)
 
+## tag:v7.0.1
+
+- 增加`QwtFigure`类，`QwtFigure`用于管理多个QwtPlot，实现类似Matplotlib的Figure功能，支持网格化布局
+- 增加figure例子,演示`QwtFigure`类的使用
+
+## tag:v7.0.0
+
+- 把整个工程合并为QwtPlot.h和QwtPlot.cpp，直接可以引入，文件位于src-amalgamate
+- 增加staticExample例子,演示如何静态引入
 - 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
 - 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
 - `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
 - `Qwt`的初始化参数进行了调整，让默认绘图更符合当前绘图的审美
-
-`QwtPlotCanvas`初始化如下：
-```cpp
-QwtPlotCanvas::QwtPlotCanvas(QwtPlot* plot) : QFrame(plot), QwtPlotAbstractCanvas(this)
-{
-    ...
-
-    setLineWidth(0);
-    setFrameShadow(QFrame::Plain);
-    setFrameShape(QFrame::Box);
-}
-```
-
-`QwtPlotLayout`初始化调整如下
-```cpp
-QwtPlotLayout::QwtPlotLayout()
-{
-...
-    setCanvasMargin(-1);
-...
-}
 - 去除QWT_MOC_INCLUDE
-
-## tag:???（还未发布） | version:7.0.0
-
-- 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
-- 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
-- `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
-
-## tag:v0.0.4 | version:6.2.0
-
-- 添加 CMake 支持
-
-# The Qwt Widget Library
-
-this is fork from qwt lib
-
-add the cmake ,can build with qt5 and qt6
-
-Perhaps some improvements will also be submitted to this hub
-
-----------------------
-
-      Qwt is an extension to the libraries of the Qt Project.  
-
-      The Qwt library contains widgets and components which are 
-      primarily useful for technical and scientifical purposes.
-      It includes a 2-D plotting widget, different kinds of sliders, 
-      and much more.
-
-      Qwt is hosted at http://qwt.sf.net
+- 调整了一些类的实现，以便能合并到一个文件中
 
 # Copyright
 
@@ -156,6 +170,9 @@ Perhaps some improvements will also be submitted to this hub
 # 绘图展示
 
 ## 基本图表
+
+![Figure Widget](docs/screenshots/qwt_figure.png)
+
 
 ![Simple Plot](docs/screenshots/simpleplot.png)  
 `examples/simpleplot`  
@@ -235,6 +252,9 @@ Perhaps some improvements will also be submitted to this hub
 
 ![SVG Map](docs/screenshots/svgmap.png)  
 `playground/svgmap`  
+
+![parasite plot](docs/screenshots/parasite-plot.png)  
+`examples/parasitePlot`  
 
 ## 动态演示
 

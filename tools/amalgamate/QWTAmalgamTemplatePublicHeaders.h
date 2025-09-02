@@ -24,6 +24,7 @@
 #include "../../src/qwt_point_polar.h"
 #include "../../src/qwt_clipper.h"
 #include "../../src/qwt_null_paintdevice.h"
+#include "../../src/qwt_stylesheet_recorder.h"
 #include "../../src/qwt_painter_command.h"
 #include "../../src/qwt_graphic.h"
 #include "../../src/qwt_event_pattern.h"
@@ -85,6 +86,7 @@
 // plot items
 #include "../../src/qwt_plot_abstract_canvas.h"
 #include "../../src/qwt_plot_canvas.h"
+#include "../../src/qwt_plot_transparent_canvas.h"
 #include "../../src/qwt_plot_glcanvas.h"
 #include "../../src/qwt_plot_opengl_canvas.h"
 #include "../../src/qwt_plot_item.h"
@@ -127,8 +129,12 @@
 #include "../../src/qwt_polar_spectrogram.h"
 // plot widget
 #include "../../src/qwt_plot.h"
+#include "../../src/qwt_plot_layout_engine.h"
 #include "../../src/qwt_plot_layout.h"
+#include "../../src/qwt_plot_parasite_layout.h"
 #include "../../src/qwt_plot_rescaler.h"
 #include "../../src/qwt_polar_plot.h"
 #include "../../src/qwt_polar_grid.h"
 #include "../../src/qwt_polar_layout.h"
+#include "../../src/qwt_figure_layout.h"
+#include "../../src/qwt_figure.h"

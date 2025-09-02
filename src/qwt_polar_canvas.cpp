@@ -19,40 +19,6 @@
 #include <qx11info_x11.h>
 #endif
 
-static inline void qwtDrawStyledBackground(QWidget* widget, QPainter* painter)
-{
-    QStyleOption opt;
-    opt.initFrom(widget);
-    widget->style()->drawPrimitive(QStyle::PE_Widget, &opt, painter, widget);
-}
-
-static QWidget* qwtBackgroundWidget(QWidget* w)
-{
-    if (w->parentWidget() == NULL)
-        return w;
-
-    if (w->autoFillBackground()) {
-        const QBrush brush = w->palette().brush(w->backgroundRole());
-        if (brush.color().alpha() > 0)
-            return w;
-    }
-
-    if (w->testAttribute(Qt::WA_StyledBackground)) {
-        QImage image(1, 1, QImage::Format_ARGB32);
-        image.fill(Qt::transparent);
-
-        QPainter painter(&image);
-        painter.translate(-w->rect().center());
-        qwtDrawStyledBackground(w, &painter);
-        painter.end();
-
-        if (qAlpha(image.pixel(0, 0)) != 0)
-            return w;
-    }
-
-    return qwtBackgroundWidget(w->parentWidget());
-}
-
 class QwtPolarCanvas::PrivateData
 {
 public:
@@ -190,13 +156,13 @@ void QwtPolarCanvas::paintEvent(QPaintEvent* event)
 
             if (testAttribute(Qt::WA_StyledBackground)) {
                 p.begin(&bs);
-                qwtDrawStyledBackground(this, &p);
+                QwtPainter::drawStyledBackground(this, &p);
             } else {
                 if (autoFillBackground()) {
                     p.begin(&bs);
                     p.fillRect(rect(), palette().brush(backgroundRole()));
                 } else {
-                    QWidget* bgWidget = qwtBackgroundWidget(plot());
+                    QWidget* bgWidget = QwtPainter::findBackgroundWidget(plot());
 
                     QwtPainter::fillPixmap(bgWidget, bs, mapTo(bgWidget, rect().topLeft()));
 
@@ -212,7 +178,7 @@ void QwtPolarCanvas::paintEvent(QPaintEvent* event)
 
         painter.drawPixmap(0, 0, *m_data->backingStore);
     } else {
-        qwtDrawStyledBackground(this, &painter);
+        QwtPainter::drawStyledBackground(this, &painter);
 
         plot()->drawCanvas(&painter, contentsRect());
 

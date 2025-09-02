@@ -13,106 +13,94 @@
 
 namespace
 {
-    class TransformData : public QwtSyntheticPointData
+class TransformData : public QwtSyntheticPointData
+{
+public:
+    TransformData(QwtTransform* transform) : QwtSyntheticPointData(200), m_transform(transform)
     {
-      public:
-        TransformData( QwtTransform* transform )
-            : QwtSyntheticPointData( 200 )
-            , m_transform( transform )
-        {
-        }
+    }
 
-        virtual ~TransformData()
-        {
-            delete m_transform;
-        }
+    virtual ~TransformData()
+    {
+        delete m_transform;
+    }
 
-        const QwtTransform* transform() const
-        {
-            return m_transform;
-        }
+    const QwtTransform* transform() const
+    {
+        return m_transform;
+    }
 
-        virtual double y( double x ) const QWT_OVERRIDE
-        {
-            const double min = 10.0;
-            const double max = 1000.0;
+    virtual double y(double x) const QWT_OVERRIDE
+    {
+        const double min = 10.0;
+        const double max = 1000.0;
 
-            const double value = min + x * ( max - min );
+        const double value = min + x * (max - min);
 
-            const double s1 = m_transform->transform( min );
-            const double s2 = m_transform->transform( max );
-            const double s = m_transform->transform( value );
+        const double s1 = m_transform->transform(min);
+        const double s2 = m_transform->transform(max);
+        const double s  = m_transform->transform(value);
 
-            return ( s - s1 ) / ( s2 - s1 );
-        }
+        return (s - s1) / (s2 - s1);
+    }
 
-      private:
-        const QwtTransform* m_transform;
-    };
+private:
+    const QwtTransform* m_transform;
+};
 }
 
-TransformPlot::TransformPlot( QWidget* parent )
-    : QwtPlot( parent )
+TransformPlot::TransformPlot(QWidget* parent) : QwtPlot(parent)
 {
-    setTitle( "Transformations" );
-    setCanvasBackground( Qt::white );
+    setTitle("Transformations");
+    setCanvasBackground(Qt::white);
 
-    setAxisScale( QwtAxis::XBottom, 0.0, 1.0 );
-    setAxisScale( QwtAxis::YLeft, 0.0, 1.0 );
+    setAxisScale(QwtAxis::XBottom, 0.0, 1.0);
+    setAxisScale(QwtAxis::YLeft, 0.0, 1.0);
 
     QwtLegend* legend = new QwtLegend();
-    legend->setDefaultItemMode( QwtLegendData::Checkable );
-    insertLegend( legend, QwtPlot::RightLegend );
+    legend->setDefaultItemMode(QwtLegendData::Checkable);
+    insertLegend(legend, QwtPlot::RightLegend);
 
-    connect( legend, SIGNAL(checked(const QVariant&,bool,int)),
-        this, SLOT(legendChecked(const QVariant&,bool)) );
+    connect(legend, SIGNAL(checked(const QVariant&, bool, int)), this, SLOT(legendChecked(const QVariant&, bool)));
 }
 
-void TransformPlot::insertTransformation(
-    const QString& title, const QColor& color, QwtTransform* transform )
+void TransformPlot::insertTransformation(const QString& title, const QColor& color, QwtTransform* transform)
 {
-    QwtPlotCurve* curve = new QwtPlotCurve( title );
-    curve->setRenderHint( QwtPlotItem::RenderAntialiased, true );
-    curve->setPen( color, 2 );
-    curve->setData( new TransformData( transform ) );
-    curve->attach( this );
+    QwtPlotCurve* curve = new QwtPlotCurve(title);
+    curve->setRenderHint(QwtPlotItem::RenderAntialiased, true);
+    curve->setPen(color, 2);
+    curve->setData(new TransformData(transform));
+    curve->attach(this);
 }
 
-void TransformPlot::legendChecked( const QVariant& itemInfo, bool on )
+void TransformPlot::legendChecked(const QVariant& itemInfo, bool on)
 {
-    QwtPlotItem* plotItem = infoToItem( itemInfo );
+    QwtPlotItem* plotItem = infoToItem(itemInfo);
 
-    setLegendChecked( plotItem );
+    setLegendChecked(plotItem);
 
-    if ( on && plotItem->rtti() == QwtPlotItem::Rtti_PlotCurve )
-    {
-        QwtPlotCurve* curve = static_cast< QwtPlotCurve* >( plotItem );
-        TransformData* curveData = static_cast< TransformData* >( curve->data() );
+    if (on && plotItem->rtti() == QwtPlotItem::Rtti_PlotCurve) {
+        QwtPlotCurve* curve      = static_cast< QwtPlotCurve* >(plotItem);
+        TransformData* curveData = static_cast< TransformData* >(curve->data());
 
-        Q_EMIT selected( curveData->transform()->copy() );
+        Q_EMIT selected(curveData->transform()->copy());
     }
 }
 
-void TransformPlot::setLegendChecked( QwtPlotItem* plotItem )
+void TransformPlot::setLegendChecked(QwtPlotItem* plotItem)
 {
     const QwtPlotItemList items = itemList();
-    for ( int i = 0; i < items.size(); i++ )
-    {
+    for (int i = 0; i < items.size(); i++) {
         QwtPlotItem* item = items[ i ];
-        if ( item->testItemAttribute( QwtPlotItem::Legend ) )
-        {
-            QwtLegend* lgd = qobject_cast< QwtLegend* >( legend() );
+        if (item->testItemAttribute(QwtPlotItem::Legend)) {
+            QwtLegend* lgd = qobject_cast< QwtLegend* >(legend());
 
-            QwtLegendLabel* label = qobject_cast< QwtLegendLabel* >(
-                lgd->legendWidget( itemToInfo( item ) ) );
-            if ( label )
-            {
-                lgd->blockSignals( true );
-                label->setChecked( item == plotItem );
-                lgd->blockSignals( false );
+            QwtLegendLabel* label = qobject_cast< QwtLegendLabel* >(lgd->legendWidget(itemToInfo(item)));
+            if (label) {
+                lgd->blockSignals(true);
+                label->setChecked(item == plotItem);
+                lgd->blockSignals(false);
             }
         }
     }
 }
-
-#include "moc_TransformPlot.cpp"

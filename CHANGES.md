@@ -1,4 +1,59 @@
-Qwt 7.0.0
+## tag:v7.0.2
+
+- 抽取出`QwtPlotLayoutEngine`类
+- 增加`QwtPlotParasiteLayout`类，用于实现寄生轴的布局
+- 增加`QwtPlotTransparentCanvas`类，用于实现一个完全透明的画布
+- `QwtFigure`类实现寄生轴功能
+- `QwtScaleWidget`添加了`setEdgeMargin`和`edgeMargin`方法，可以实现刻度和绘图边缘的距离设置
+- 调整了`QwtScaleWidget`的布局方案，能支持`edgeMargin`
+- 例子增加`parasitePlot`演示如何使用寄生轴
+- `QwtPlot`增加`rescaleAxes`,`syncAxis`等方法，用于实现快速调整坐标轴
+- 针对nan和inf值的异常处理
+
+## tag:v7.0.1
+
+- 增加`QwtFigure`类，`QwtFigure`用于管理多个QwtPlot，实现类似Matplotlib的Figure功能，支持网格化布局
+
+`QwtFigure`类的效果如下：
+
+![figure](docs/screenshots/qwt_figure.png)
+
+- example增加figure例子，用于演示`QwtFigure`的使用
+
+## tag:v7.0.0
+
+- 把整个工程合并为QwtPlot.h和QwtPlot.cpp，直接可以引入，文件位于src-amalgamate
+- 例子增加staticExample
+- 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
+- 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
+- `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
+- `Qwt`的初始化参数进行了调整，让默认绘图更符合当前绘图的审美
+
+`QwtPlotCanvas`初始化如下：
+```cpp
+QwtPlotCanvas::QwtPlotCanvas(QwtPlot* plot) : QFrame(plot), QwtPlotAbstractCanvas(this)
+{
+    ...
+
+    setLineWidth(0);
+    setFrameShadow(QFrame::Plain);
+    setFrameShape(QFrame::Box);
+}
+```
+
+`QwtPlotLayout`初始化调整如下
+
+```cpp
+QwtPlotLayout::QwtPlotLayout()
+{
+...
+    setCanvasMargin(-1);
+...
+}
+```
+
+- 去除QWT_MOC_INCLUDE
+- 调整了一些类的实现，以便能合并到一个文件中
 
 ------
 

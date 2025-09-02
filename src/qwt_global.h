@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -11,28 +11,28 @@
 #define QWT_GLOBAL_H
 
 #include <qglobal.h>
-
+#include <memory>
 // QWT_VERSION is (major << 16) + (minor << 8) + patch.
 
-#define QWT_VERSION       0x060200
-#define QWT_VERSION_STR   "6.2.0"
+#define QWT_VERSION 0x070000
+#define QWT_VERSION_STR "7.0.0"
 
-#if defined( _MSC_VER ) /* MSVC Compiler */
+#if defined(_MSC_VER) /* MSVC Compiler */
 /* template-class specialization 'identifier' is already instantiated */
-#pragma warning(disable: 4660)
+#pragma warning(disable : 4660)
 /* inherits via dominance */
-#pragma warning(disable: 4250)
-#endif // _MSC_VER
+#pragma warning(disable : 4250)
+#endif  // _MSC_VER
 
 #ifdef QWT_DLL
 
-#if defined( QWT_MAKEDLL )     // create a Qwt DLL library
+#if defined(QWT_MAKEDLL)  // create a Qwt DLL library
 #define QWT_EXPORT Q_DECL_EXPORT
-#else                        // use a Qwt DLL library
+#else  // use a Qwt DLL library
 #define QWT_EXPORT Q_DECL_IMPORT
 #endif
 
-#endif // QWT_DLL
+#endif  // QWT_DLL
 
 #ifndef QWT_EXPORT
 #define QWT_EXPORT
@@ -55,6 +55,96 @@
 
 #ifndef QWT_FINAL
 #define QWT_FINAL
+#endif
+
+#ifndef QWT_DEBUG_DRAW
+#define QWT_DEBUG_DRAW 1
+#endif
+
+#ifndef QWT_DEBUG_PRINT
+#define QWT_DEBUG_PRINT 1
+#endif
+/**
+ * @def QWT_DECLARE_PRIVATE
+ * @brief 模仿Q_DECLARE_PRIVATE，但不用前置声明而是作为一个内部类
+ *
+ * 例如:
+ *
+ * @code
+ * //header
+ * class A
+ * {
+ *  QWT_DECLARE_PRIVATE(A)
+ * };
+ * @endcode
+ *
+ * 其展开效果为：
+ *
+ * @code
+ * class A{
+ *  class PrivateData;
+ *  friend class A::PrivateData;
+ *  std::unique_ptr< PrivateData > d_ptr;
+ * }
+ * @endcode
+ *
+ * 这样前置声明了一个内部类PrivateData，在cpp文件中建立这个内部类的实现
+ *
+ * @code
+ * //cpp
+ * class A::PrivateData{
+ *  QWT_DECLARE_PUBLIC(A)
+ *  PrivateData(A* p):q_ptr(p){
+ *  }
+ * };
+ *
+ * A::A():d_ptr(new PrivateData(this)){
+ * }
+ * @endcode
+ *
+ */
+#ifndef QWT_DECLARE_PRIVATE
+#define QWT_DECLARE_PRIVATE(classname)                                                                                 \
+	class PrivateData;                                                                                                 \
+	friend class classname::PrivateData;                                                                               \
+	std::unique_ptr< PrivateData > d_ptr;                                                                              \
+	inline PrivateData* d_func()                                                                                       \
+	{                                                                                                                  \
+		return (d_ptr.get());                                                                                          \
+	}                                                                                                                  \
+	inline const PrivateData* d_func() const                                                                           \
+	{                                                                                                                  \
+		return (d_ptr.get());                                                                                          \
+	}
+#endif
+
+/**
+ * @def QWT_DECLARE_PUBLIC
+ * @brief 模仿Q_DECLARE_PUBLIC
+ *
+ * 配套QWT_DECLARE_PRIVATE使用
+ */
+#ifndef QWT_DECLARE_PUBLIC
+#define QWT_DECLARE_PUBLIC(classname)                                                                                  \
+	friend class classname;                                                                                            \
+	classname* q_ptr { nullptr };                                                                                      \
+	inline classname* q_func()                                                                                         \
+	{                                                                                                                  \
+		return (static_cast< classname* >(q_ptr));                                                                     \
+	}                                                                                                                  \
+	inline const classname* q_func() const                                                                             \
+	{                                                                                                                  \
+		return (static_cast< const classname* >(q_ptr));                                                               \
+	}
+#endif
+
+/**
+ * @def  QWT_PIMPL_CONSTRUCT
+ *
+ * 配套QWT_DECLARE_PRIVATE使用,在构造函数中构建privatedata
+ */
+#ifndef QWT_PIMPL_CONSTRUCT
+#define QWT_PIMPL_CONSTRUCT d_ptr(std::make_unique< PrivateData >(this))
 #endif
 
 #endif
