@@ -1018,7 +1018,6 @@ void QwtPlot::updateLegendItems(const QVariant& itemInfo, const QList< QwtLegend
  * @note The parasite plot should have a transparent background to avoid obscuring the host plot.
  *       寄生绘图应具有透明背景以避免遮挡宿主绘图。
  *
- * @example
  * @code
  * // Manually create a parasite relationship
  * // 手动创建寄生关系
@@ -1061,7 +1060,6 @@ void QwtPlot::addParasitePlot(QwtPlot* parasite)
  * @note This method does not delete the parasite plot, it only removes the relationship.
  *       此方法不会删除寄生绘图，仅移除关系。
  *
- * @example
  * @code
  * // Remove a parasite plot
  * // 移除寄生绘图
@@ -1091,7 +1089,6 @@ void QwtPlot::removeParasitePlot(QwtPlot* parasite)
  *
  * @return List of parasite QwtPlot pointers/寄生QwtPlot指针列表
  *
- * @example
  * @code
  * // Get all parasite plots
  * // 获取所有寄生绘图
@@ -1240,14 +1237,14 @@ void QwtPlot::syncAxis(QwtAxisId axis, const QwtPlot* plot)
  * @param yAxis The y-axis to rescale (default: QwtPlot::yLeft)/需要重新缩放的y轴（默认：QwtPlot::yLeft）
  *
  *
- * @example Basic usage/基本用法
+ * Basic usage/基本用法
  * @code
  * // Rescale to fit all visible items with default 5% margin
  * // 重新缩放以适应所有可见项，默认5%边距
  * rescaleAxes();
  * @endcode
  *
- * @example  Custom margin/自定义边距
+ * Custom margin/自定义边距
  * @code
  * // Rescale with 10% margin around data
  * // 使用10%边距重新缩放
@@ -1320,7 +1317,6 @@ void QwtPlot::rescaleAxes(bool onlyVisibleItems, double marginPercent, QwtAxisId
  * @note This method deletes the previous scale engine automatically. Data <= 0 will cause undefined behavior.
  *       此方法会自动删除先前的刻度引擎。数据 ≤ 0 将导致未定义行为。
  *
- * @example
  * @code
  * // Set Y axis to logarithmic scale
  * // 将 Y 轴设置为对数刻度
@@ -1356,7 +1352,6 @@ void QwtPlot::setAxisToLogScale(QwtAxisId axisId)
  * @param axisId Axis identifier, e.g., QwtPlot::xBottom, QwtPlot::yLeft / 坐标轴标识符，如 QwtPlot::xBottom、QwtPlot::yLeft
  * @param timeSpec Time zone specification, defaults to Qt::LocalTime / 时区规范，默认为 Qt::LocalTime
  *
- * @example
  * @code
  * // Set X axis to UTC date-time scale
  * // 将 X 轴设置为 UTC 日期-时间刻度
@@ -1404,7 +1399,6 @@ void QwtPlot::setAxisToDateTime(QwtAxisId axisId, Qt::TimeSpec timeSpec)
  * @note Previous scale engine and draw are deleted automatically.
  *       先前的刻度引擎和绘制器将被自动删除。
  *
- * @example
  * @code
  * // Switch back to linear scale after using log scale
  * // 在使用对数刻度后切换回线性刻度
