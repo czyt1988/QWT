@@ -236,15 +236,28 @@ public:
 	virtual QwtPlotItem* infoToItem(const QVariant&) const;
 
 	// add since v7.1.0
+
+	// Add a parasite plot to this host plot/向此宿主绘图添加寄生绘图
 	void addParasitePlot(QwtPlot* parasite);
+
+	// Remove a parasite plot from this host plot/从此宿主绘图移除寄生绘图
 	void removeParasitePlot(QwtPlot* parasite);
+
+	// Get all parasite plots associated with this host plot/获取与此宿主绘图关联的所有寄生绘图
 	QList< QwtPlot* > parasitePlots() const;
 
+	// Set the host plot for this parasite plot/设置此寄生绘图的宿主绘图
 	void setHostPlot(QwtPlot* host);
+
+	// Get the host plot for this parasite plot/获取此寄生绘图的宿主绘图
 	QwtPlot* hostPlot() const;
 
+	// Check if this plot is a parasite plot/检查此绘图是否为寄生绘图
 	bool isParasitePlot() const;
+
+	// Check if this plot is a host plot/检查此绘图是否为宿主绘图
 	bool isHostPlot() const;
+
 	// set Background Color/设置背景颜色
 	void setBackgroundColor(const QColor& c);
 	QColor backgroundColor() const;
@@ -257,6 +270,15 @@ public:
 					 double marginPercent  = 0.05,
 					 QwtAxisId xAxis       = QwtPlot::xBottom,
 					 QwtAxisId yAxis       = QwtPlot::yLeft);
+
+	// Set the specified axis to logarithmic scale / 将指定坐标轴设置为对数刻度
+	void setAxisToLogScale(QwtAxisId axisId);
+
+	// Set the specified axis to date-time scale / 将指定坐标轴设置为日期-时间刻度
+	void setAxisToDateTime(QwtAxisId axisId, Qt::TimeSpec timeSpec = Qt::LocalTime);
+
+	// Restore the specified axis to linear scale / 将指定坐标轴恢复为线性刻度
+	void setAxisToLinearScale(QwtAxisId axisId);
 #if QWT_AXIS_COMPAT
 	enum Axis
 	{

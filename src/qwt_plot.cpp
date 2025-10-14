@@ -19,7 +19,8 @@
 #include "qwt_plot_canvas.h"
 #include "qwt_math.h"
 #include "qwt_interval.h"
-
+#include "qwt_date_scale_engine.h"
+#include "qwt_date_scale_draw.h"
 #include <qpainter.h>
 #include <qpointer.h>
 #include <qapplication.h>
@@ -1017,7 +1018,6 @@ void QwtPlot::updateLegendItems(const QVariant& itemInfo, const QList< QwtLegend
  * @note The parasite plot should have a transparent background to avoid obscuring the host plot.
  *       寄生绘图应具有透明背景以避免遮挡宿主绘图。
  *
- * @example
  * @code
  * // Manually create a parasite relationship
  * // 手动创建寄生关系
@@ -1060,7 +1060,6 @@ void QwtPlot::addParasitePlot(QwtPlot* parasite)
  * @note This method does not delete the parasite plot, it only removes the relationship.
  *       此方法不会删除寄生绘图，仅移除关系。
  *
- * @example
  * @code
  * // Remove a parasite plot
  * // 移除寄生绘图
@@ -1090,7 +1089,6 @@ void QwtPlot::removeParasitePlot(QwtPlot* parasite)
  *
  * @return List of parasite QwtPlot pointers/寄生QwtPlot指针列表
  *
- * @example
  * @code
  * // Get all parasite plots
  * // 获取所有寄生绘图
@@ -1239,14 +1237,14 @@ void QwtPlot::syncAxis(QwtAxisId axis, const QwtPlot* plot)
  * @param yAxis The y-axis to rescale (default: QwtPlot::yLeft)/需要重新缩放的y轴（默认：QwtPlot::yLeft）
  *
  *
- * @example Basic usage/基本用法
+ * Basic usage/基本用法
  * @code
  * // Rescale to fit all visible items with default 5% margin
  * // 重新缩放以适应所有可见项，默认5%边距
  * rescaleAxes();
  * @endcode
  *
- * @example  Custom margin/自定义边距
+ * Custom margin/自定义边距
  * @code
  * // Rescale with 10% margin around data
  * // 使用10%边距重新缩放
@@ -1304,6 +1302,120 @@ void QwtPlot::rescaleAxes(bool onlyVisibleItems, double marginPercent, QwtAxisId
 			setAxisScale(yAxis, minY - yMargin, maxY + yMargin);
 		}
 	}
+}
+
+/**
+ * @brief Set the specified axis to logarithmic scale / 将指定坐标轴设置为对数刻度
+ *
+ * This method replaces the current scale engine of the axis with QwtLogScaleEngine,
+ * enabling logarithmic scaling. All data values must be greater than zero.
+ *
+ * 此方法将坐标轴当前的刻度引擎替换为 QwtLogScaleEngine，启用对数刻度。所有数据值必须大于零。
+ *
+ * @param axisId Axis identifier, e.g., QwtPlot::xBottom, QwtPlot::yLeft / 坐标轴标识符，如 QwtPlot::xBottom、QwtPlot::yLeft
+ *
+ * @note This method deletes the previous scale engine automatically. Data <= 0 will cause undefined behavior.
+ *       此方法会自动删除先前的刻度引擎。数据 ≤ 0 将导致未定义行为。
+ *
+ * @code
+ * // Set Y axis to logarithmic scale
+ * // 将 Y 轴设置为对数刻度
+ * plot->setAxisToLogScale(QwtPlot::yLeft);
+ *
+ * QVector<double> x = {1, 10, 100, 1000};
+ * QVector<double> y = {1, 100, 10000, 1e6};
+ * QwtPlotCurve *curve = new QwtPlotCurve();
+ * curve->setSamples(x, y);
+ * curve->attach(plot);
+ * plot->replot();
+ * @endcode
+ *
+ * @see setAxisToDateTime(), setAxisToLinearScale(), QwtLogScaleEngine
+ */
+void QwtPlot::setAxisToLogScale(QwtAxisId axisId)
+{
+	if (!isAxisValid(axisId)) {
+		return;
+	}
+	// setAxisScaleEngine会自动删除旧的 ScaleEngine
+	setAxisScaleEngine(axisId, new QwtLogScaleEngine());
+}
+
+/**
+ * @brief Set the specified axis to date-time scale / 将指定坐标轴设置为日期-时间刻度
+ *
+ * This method configures the axis to display date-time formatted labels using QwtDateScaleEngine
+ * and QwtDateScaleDraw. Data should be provided as milliseconds since epoch (QDateTime::toMSecsSinceEpoch).
+ *
+ * 此方法使用 QwtDateScaleEngine 和 QwtDateScaleDraw 配置坐标轴以显示日期-时间格式的标签。数据应以自纪元以来的毫秒数提供（QDateTime::toMSecsSinceEpoch）。
+ *
+ * @param axisId Axis identifier, e.g., QwtPlot::xBottom, QwtPlot::yLeft / 坐标轴标识符，如 QwtPlot::xBottom、QwtPlot::yLeft
+ * @param timeSpec Time zone specification, defaults to Qt::LocalTime / 时区规范，默认为 Qt::LocalTime
+ *
+ * @code
+ * // Set X axis to UTC date-time scale
+ * // 将 X 轴设置为 UTC 日期-时间刻度
+ * plot->setAxisToDateTime(QwtPlot::xBottom, Qt::UTC);
+ *
+ * QDateTime start = QDateTime::currentDateTime().addSecs(-3600);
+ * QVector<double> timestamps, values;
+ * for (int i = 0; i < 60; ++i) {
+ *     timestamps << start.addSecs(i * 60).toMSecsSinceEpoch(); // per minute / 每分钟
+ *     values << 1.0 + qAbs(qSin(i * 0.2)) * 100;
+ * }
+ *
+ * QwtPlotCurve *curve = new QwtPlotCurve("Data");
+ * curve->setSamples(timestamps, values);
+ * curve->attach(plot);
+ * plot->setAxisScale(QwtPlot::xBottom, timestamps.first(), timestamps.last());
+ * plot->updateAxes();
+ * plot->replot();
+ * @endcode
+ *
+ * @see setAxisToLogScale(), setAxisToLinearScale(), QwtDateScaleEngine, QDateTime::toMSecsSinceEpoch()
+ */
+void QwtPlot::setAxisToDateTime(QwtAxisId axisId, Qt::TimeSpec timeSpec)
+{
+	if (!isAxisValid(axisId)) {
+		return;
+	}
+	QwtDateScaleEngine* dateEngine = new QwtDateScaleEngine(timeSpec);
+	QwtDateScaleDraw* dateDraw     = new QwtDateScaleDraw(timeSpec);
+	// Set the scale draw and engine
+	setAxisScaleDraw(axisId, dateDraw);
+	setAxisScaleEngine(axisId, dateEngine);
+}
+
+/**
+ * @brief Restore the specified axis to linear scale / 将指定坐标轴恢复为线性刻度
+ *
+ * This method replaces the current scale engine and draw with default linear versions.
+ * Useful to revert from logarithmic or date-time scales.
+ *
+ * 此方法将当前刻度引擎和绘制器替换为默认的线性版本。适用于从对数或日期-时间刻度恢复。
+ *
+ * @param axisId Axis identifier, e.g., QwtPlot::xBottom, QwtPlot::yLeft / 坐标轴标识符，如 QwtPlot::xBottom、QwtPlot::yLeft
+ *
+ * @note Previous scale engine and draw are deleted automatically.
+ *       先前的刻度引擎和绘制器将被自动删除。
+ *
+ * @code
+ * // Switch back to linear scale after using log scale
+ * // 在使用对数刻度后切换回线性刻度
+ * plot->setAxisToLinearScale(QwtPlot::yLeft);
+ * plot->updateAxes();
+ * plot->replot();
+ * @endcode
+ *
+ * @see setAxisToLogScale(), setAxisToDateTime(), QwtLinearScaleEngine
+ */
+void QwtPlot::setAxisToLinearScale(QwtAxisId axisId)
+{
+	if (!isAxisValid(axisId)) {
+		return;
+	}
+	setAxisScaleEngine(axisId, new QwtLinearScaleEngine());
+	setAxisScaleDraw(axisId, new QwtScaleDraw());  // 恢复默认绘制器
 }
 
 /*!

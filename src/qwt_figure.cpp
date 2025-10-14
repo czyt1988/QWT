@@ -700,7 +700,6 @@ int QwtFigure::edgeLineWidth() const
  * @note Parasitic axes are not stored in QwtFigureLayout, but are separately controlled by QwtFigure for layout
  * management /寄生轴不会存入QwtFigureLayout中，单独由QwtFigure进行布局控制
  *
- * @example
  * @code
  * // Create a host plot
  * // 创建宿主绘图
@@ -1083,7 +1082,6 @@ QwtPlot* QwtFigure::gca() const
  * @return Normalized coordinates [left, top, width, height] in range [0,1], or invalid QRectF if not found
  *         归一化坐标 [左, 上, 宽, 高]，范围 [0,1]，如果未找到则返回无效QRectF
  *
- * @example
  * @code
  * // Get the normalized position of a widget
  * // 获取窗口部件的归一化位置

@@ -178,7 +178,6 @@ void QwtFigureLayout::setGeometry(const QRect& rect)
  * @param rect Normalized coordinates [left, top, width, height] in range [0,1]
  *              归一化坐标 [左, 上, 宽, 高]，范围 [0,1]
  *
- * @example
  * @code
  * // Add a widget that occupies the top-left quarter of the figure
  * // 添加一个占据图形左上角四分之一的窗口部件
@@ -186,7 +185,6 @@ void QwtFigureLayout::setGeometry(const QRect& rect)
  * layout->addAxes(widget, QRectF(0.0, 0.0, 0.5, 0.5));
  * @endcode
  *
- * @example
  * @code
  * // Add a widget that occupies the bottom-right quarter of the figure
  * // 添加一个占据图形右下角四分之一的窗口部件
@@ -228,7 +226,6 @@ void QwtFigureLayout::addAxes(QWidget* widget, const QRectF& rect)
  *       and the sum of top + height should not exceed 1.
  *       所有参数必须在[0,1]范围内。左+宽不应超过1，上+高不应超过1。
  *
- * @example
  * @code
  * // Add a widget that occupies the top-left quarter of the figure
  * // 添加一个占据图形左上角四分之一的窗口部件
@@ -236,7 +233,6 @@ void QwtFigureLayout::addAxes(QWidget* widget, const QRectF& rect)
  * layout->addAxes(widget, 0.0, 0.0, 0.5, 0.5);
  * @endcode
  *
- * @example
  * @code
  * // Add a widget that occupies the center of the figure
  * // 添加一个占据图形中心的窗口部件
@@ -269,7 +265,6 @@ void QwtFigureLayout::addAxes(QWidget* widget, qreal left, qreal top, qreal widt
  * @param colSpan Number of columns to span (default: 1) / 跨列数（默认：1）
  * @param wspace Horizontal space between subplots [0,1] / 子图之间的水平间距 [0,1]
  * @param hspace Vertical space between subplots [0,1] / 子图之间的垂直间距 [0,1]
- * @example
  * @code
  * // Create a 2x2 grid and add widgets
  * // 创建一个2x2网格并添加窗口部件
@@ -383,14 +378,12 @@ void QwtFigureLayout::addAxes(QWidget* widget, int rowCnt, int colCnt, int row, 
  * @param right Right margin [0,1] / 右边距 [0,1]
  * @param top Top margin [0,1] / 上边距 [0,1]
  *
- * @example
  * @code
  * // Adjust layout with generous margins and spacing
  * // 调整布局，使用较大的边距和间距
  * layout->adjustLayout(0.1, 0.1, 0.1, 0.1);
  * @endcode
  *
- * @example
  * @code
  * // Adjust layout with minimal margins and spacing
  * // 调整布局，使用最小的边距和间距
@@ -434,7 +427,6 @@ void QwtFigureLayout::adjustLayout(qreal left, qreal bottom, qreal right, qreal 
  * @return Normalized coordinates [left, top, width, height] in range [0,1], or invalid QRectF if not found
  *         归一化坐标 [左, 上, 宽, 高]，范围 [0,1]，如果未找到则返回无效QRectF
  *
- * @example
  * @code
  * // Get the normalized position of a widget
  * // 获取窗口部件的归一化位置
@@ -478,14 +470,11 @@ QRectF QwtFigureLayout::widgetNormRect(QWidget* widget) const
  * @return Normalized coordinates [left, top, width, height] in range [0,1]
  *         归一化坐标 [左, 上, 宽, 高]，范围 [0,1]
  *
- * @example
  * @code
  * // Get the normalized rectangle for the top-left cell in a 2x2 grid
  * // 获取2x2网格中左上角单元格的归一化矩形
  * QRectF rect = layout->calcGridRect(2, 2, 0, 0);
  * @endcode
- *
- * @example
  *
  * @code
  * // Get the normalized rectangle for a cell spanning two columns
