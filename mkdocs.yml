@@ -1,12 +1,16 @@
-site_name: QWT
+site_name: QWT - Qt绘图库
 site_author: 'Chen ZongYan'
-site_description: 'Qt plotting library'
+site_url: https://czyt1988.github.io/QWT/zh/  
+repo_url: https://github.com/czyt1988/QWT  
 
 # 多语言站点信息
 extra:
   site_name:
-    zh: QWT
-    en: QWT
+    zh: QWT - Qt绘图库
+    en: QWT - Qt Plotting Library
+  site_description: 
+    zh: QWT是一个功能强大的Qt绘图库，提供丰富的科学和工程图表绘制功能
+    en: QWT is a powerful Qt plotting library that provides rich scientific and engineering chart drawing capabilities
     
 # 主题
 theme:
