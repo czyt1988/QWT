@@ -12,6 +12,7 @@
 // stl
 #include <iterator>
 #include <type_traits>
+#include <algorithm>
 // qt
 #include <QPointF>
 #include <QtMath>
@@ -395,7 +396,7 @@ inline bool qwt_is_nan_or_inf(const QPointF& point)
 // 默认检查函数 - 用于其他类型
 template< typename T >
 typename std::enable_if< !std::is_floating_point< T >::value && !std::is_same< T, QPointF >::value,
-						 bool >::type inline qwt_is_nan_or_inf(const T& /*value*/)
+                         bool >::type inline qwt_is_nan_or_inf(const T& /*value*/)
 {
 	return false;
 }
@@ -484,9 +485,9 @@ inline Container qwtRemoveNanOrInfCopy(const Container& container)
 
 	// 只复制不是 NaN 或 Inf 的元素
 	std::copy_if(container.begin(),
-				 container.end(),
-				 std::back_inserter(result),
-				 [](const typename Container::value_type& value) { return !qwt_is_nan_or_inf(value); });
+                 container.end(),
+                 std::back_inserter(result),
+                 [](const typename Container::value_type& value) { return !qwt_is_nan_or_inf(value); });
 
 	return result;
 }
