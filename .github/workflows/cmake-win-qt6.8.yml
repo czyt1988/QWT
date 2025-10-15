@@ -1,0 +1,38 @@
+name: CMake-Windows-Qt6.8LTS
+
+on: [pull_request,push]
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
+
+jobs:
+  MSVC:
+    name: windows-${{ matrix.win_version }}-Qt-${{ matrix.qt_version }}-shared-${{ matrix.shared }}
+    runs-on: windows-${{ matrix.win_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        win_version: [latest]
+        qt_version: [6.8.*]
+        shared: [ON]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+            version: ${{ matrix.qt_version }}
+            cache: 'false'
+            cache-key-prefix: ${{ runner.os }}-Qt-Cache-${{ matrix.qt_version }}
+            dir: ${{ github.workspace }}/Qt
+            host: 'windows'
+            arch: 'win64_msvc2022_64'
+
+      - name: Configure CMake
+        run: cmake -DCMAKE_BUILD_TYPE="${{env.BUILD_TYPE}}" -DBUILD_SHARED_LIBS=${{ matrix.shared }} -DQWT_CONFIG_BUILD_EXAMPLE=OFF -DQWT_CONFIG_BUILD_PLAYGROUND=OFF -DQWT_CONFIG_BUILD_STATIC_EXAMPLE=OFF -B "${{github.workspace}}/build"
+
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}

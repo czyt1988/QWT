@@ -14,8 +14,8 @@
 #include <memory>
 // QWT_VERSION is (major << 16) + (minor << 8) + patch.
 
-#define QWT_VERSION 0x070000
-#define QWT_VERSION_STR "7.0.0"
+#define QWT_VERSION 0x070001
+#define QWT_VERSION_STR "7.0.1"
 
 #if defined(_MSC_VER) /* MSVC Compiler */
 /* template-class specialization 'identifier' is already instantiated */
