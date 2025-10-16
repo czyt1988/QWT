@@ -31,7 +31,7 @@ jobs:
         run: |
           cd docs
           cd doxygen-doc-file
-          doxygen Doxyfile-wiki-cn
+          doxygen Doxyfile
 
       - name: Setup Python
         uses: actions/setup-python@v4
