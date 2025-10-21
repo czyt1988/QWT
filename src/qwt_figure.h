@@ -183,12 +183,14 @@ Q_SIGNALS:
     /**
      * @brief Signal emitted when axes are added to the figure/当坐标轴添加到图形时发出的信号
      * @param newAxes Pointer to the newly added QwtPlot / 指向新添加的QwtPlot的指针
+     * @note 寄生轴的添加也会触发此信号
      */
     void axesAdded(QwtPlot* newAxes);
 
     /**
      * @brief Signal emitted when axes are removed from the figure/当坐标轴从图形中移除时发出的信号
      * @param removedAxes Pointer to the removed QwtPlot / 指向被移除的QwtPlot的指针
+     * @note 寄生轴的移除也会触发此信号
      */
     void axesRemoved(QwtPlot* removedAxes);
 
@@ -196,6 +198,14 @@ Q_SIGNALS:
      * @brief Signal emitted when the figure is cleared/当图形被清除时发出的信号
      */
     void figureCleared();
+
+    /**
+     * @brief 当前激活的坐标系发生了改变的信号
+     * @param current
+     * @note 寄生轴不能作为当前axes
+     * @note 此信号会携带空指针，说明没有设置任何有效的激活坐标系
+     */
+    void currentAxesChanged(QwtPlot* current);
 
 protected:
     void paintEvent(QPaintEvent* event) override;

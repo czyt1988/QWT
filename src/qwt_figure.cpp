@@ -48,7 +48,7 @@ public:
     QBrush faceBrush { Qt::white };                     ///< Background color of the figure / 图形背景颜色
     QColor edgeColor { Qt::black };                     ///< Border color of the figure / 图形边框颜色
     int edgeLineWidth { 0 };                            ///< Border line width / 边框线宽
-    QwtPlot* currentAxes { nullptr };                   ///< Current active axes / 当前活动坐标轴
+    QPointer< QwtPlot > currentAxes;                    ///< Current active axes / 当前活动坐标轴
     QMap< QwtPlot*, QList< QwtPlot* > > m_parasiteMap;  ///< 宿主轴到寄生轴的映射
 };
 
@@ -119,15 +119,12 @@ QwtFigure::~QwtFigure()
  * QwtPlot* plot = new QwtPlot;
  * figure.addAxes(plot, QRectF(0.0, 0.5, 0.5, 0.5));
  * @endcode
+ *
+ * @note 此函数会发射@ref axesAdded 信号，此信号发射后发射@ref currentAxesChanged 信号
  */
 void QwtFigure::addAxes(QwtPlot* plot, const QRectF& rect)
 {
-    QWTFIGURE_SAFEGET_LAY(lay)
-    if (plot && plot->parentWidget() != this) {
-        plot->setParent(this);
-    }
-    lay->addAxes(plot, rect);
-    m_data->currentAxes = plot;
+    addAxes(plot, rect.x(), rect.y(), rect.width(), rect.height());
 }
 
 void QwtFigure::addAxes(QwtPlot* plot, qreal left, qreal top, qreal width, qreal height)
@@ -137,7 +134,8 @@ void QwtFigure::addAxes(QwtPlot* plot, qreal left, qreal top, qreal width, qreal
         plot->setParent(this);
     }
     lay->addAxes(plot, left, top, width, height);
-    m_data->currentAxes = plot;
+    Q_EMIT axesAdded(plot);
+    setCurrentAxes(plot);
 }
 
 /**
@@ -171,6 +169,8 @@ void QwtFigure::addAxes(QwtPlot* plot, qreal left, qreal top, qreal width, qreal
  * QwtPlot* bottomLeftPlot = new QwtPlot;
  * figure.addAxes(bottomLeftPlot, 2, 2, 1, 0);
  * @endcode
+ *
+ * @note 此函数会发射@ref axesAdded 信号，此信号发射后发射@ref currentAxesChanged 信号
  */
 void QwtFigure::addAxes(QwtPlot* plot, int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace)
 {
@@ -179,7 +179,8 @@ void QwtFigure::addAxes(QwtPlot* plot, int rowCnt, int colCnt, int row, int col,
         plot->setParent(this);
     }
     lay->addAxes(plot, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
-    m_data->currentAxes = plot;
+    Q_EMIT axesAdded(plot);
+    setCurrentAxes(plot);
 }
 
 /**
@@ -303,7 +304,7 @@ bool QwtFigure::hasAxes() const
 bool QwtFigure::hasAxes(QwtPlot* plot) const
 {
     QLayout* lay = layout();
-    if (!lay) {
+    if (!lay || !plot) {
         return false;
     }
 
@@ -323,9 +324,9 @@ bool QwtFigure::hasAxes(QwtPlot* plot) const
 /**
  * @brief Remove a specific axes (plot) from the figure/从图形中移除特定的坐标轴（绘图）
  *
- * This method removes the specified QwtPlot from the figure and deletes it.
+ * This method removes the specified QwtPlot from the figure.
  *
- * 此方法从图形中移除指定的QwtPlot并删除它。
+ * 此方法从图形中移除指定的QwtPlot。
  *
  * @param plot QwtPlot to remove / 要移除的QwtPlot
  *
@@ -337,20 +338,23 @@ bool QwtFigure::hasAxes(QwtPlot* plot) const
  * // 从图形中移除特定的绘图
  * QwtPlot* plotToRemove = figure.getAllAxes().first();
  * figure.removeAxes(plotToRemove);
- * //plotToRemove deleted
+ * // 你需要手动删除它
+ * plotToRemove->deletelater();
  * @endcode
  */
 void QwtFigure::removeAxes(QwtPlot* plot)
 {
-    if (takeAxes(plot)) {
-        plot->deleteLater();
-    }
+    takeAxes(plot);
 }
 
 /**
  * @brief Take a specific axes (plot) from the figure without deleting it/从图形中取出特定的坐标轴（绘图）但不删除它
  * @param plot Pointer to the QwtPlot to take / 要取出的QwtPlot指针
  * @return Pointer to the taken QwtPlot, or nullptr if not found / 取出的QwtPlot指针，如果未找到则返回nullptr
+ *
+ * @note 如果当前的绘图是选择的激活坐标系，在移除时，会先发射@ref currentAxesChanged 信号，再发射@ref axesRemoved 信号
+ *
+ * @note 如果只有一个绘图，在移除后，整个figure没有绘图的情况下，也会发射@ref currentAxesChanged 信号，信号携带的内容为nullptr
  */
 bool QwtFigure::takeAxes(QwtPlot* plot)
 {
@@ -362,7 +366,7 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
     bool isRemove = false;
     // Check if the plot to remove is the current axes
     // 检查要移除的绘图是否是当前坐标轴
-    bool removingCurrent = (plot == m_data->currentAxes);
+    bool removingCurrent = (plot == currentAxes());
     QLayout* lay         = layout();
     if (lay) {
         for (int i = 0; i < lay->count(); ++i) {
@@ -383,13 +387,19 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
         }
         if (removingCurrent) {
             // 说明移除了当前axes，需要更新currentAxes
-            for (int i = 0; i < lay->count(); ++i) {
-                QLayoutItem* item = lay->itemAt(i);
-                if (!item) {
-                    continue;
-                }
-                if (QwtPlot* w = qobject_cast< QwtPlot* >(item->widget())) {
-                    m_data->currentAxes = w;
+            const int count = lay->count();
+            if (count == 0) {
+                // 如果figure已经清空，也发射currentAxesChanged，携带nullptr
+                setCurrentAxes(nullptr);
+            } else {
+                for (int i = 0; i < count; ++i) {
+                    QLayoutItem* item = lay->itemAt(i);
+                    if (!item) {
+                        continue;
+                    }
+                    if (QwtPlot* w = qobject_cast< QwtPlot* >(item->widget())) {
+                        setCurrentAxes(w);
+                    }
                 }
             }
         }
@@ -407,6 +417,14 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
  *
  * 此方法从图形中移除所有QwtPlot对象并删除它们。
  *
+ * @note 此方法在移除过程中会发射@ref axesRemoved 信号，
+ * axesRemoved携带的绘图指针不应该被保存
+ *
+ * @note 此方法还会发射2个信号，先发射@ref currentAxesChanged 信号，此信号参数会携带nullptr，
+ * 最后发射@ref figureCleared 信号
+ *
+ * @note 此方法会删除已经持有的所有plot窗口
+ *
  * @code
  * // Clear all plots from the figure
  * // 清除图形中的所有绘图
@@ -422,16 +440,19 @@ void QwtFigure::clear()
         for (int i = 0; i < lay->count(); ++i) {
             QLayoutItem* item = lay->itemAt(i);
             if (item) {
+                lay->removeItem(item);
+                if (QwtPlot* plot = qobject_cast< QwtPlot* >(item->widget())) {
+                    Q_EMIT axesRemoved(plot);
+                }
                 if (QWidget* w = item->widget()) {
                     w->deleteLater();
                 }
-                lay->removeItem(item);
                 delete item;
                 ++cnt;
             }
         }
     }
-    m_data->currentAxes = nullptr;
+    setCurrentAxes(nullptr);
     if (cnt > 0) {
         Q_EMIT figureCleared();
     }
@@ -1016,8 +1037,10 @@ bool QwtFigure::saveFig(const QString& filename, int dpi) const
  */
 void QwtFigure::setCurrentAxes(QwtPlot* plot)
 {
-    if (plot && hasAxes(plot)) {
+    // 允许设置为 nullptr，或仅当 plot 属于本 figure 管理时才设置
+    if (plot == nullptr || hasAxes(plot)) {
         m_data->currentAxes = plot;
+        Q_EMIT currentAxesChanged(plot);
     }
 }
 
