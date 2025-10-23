@@ -9,7 +9,7 @@
 #define QWT_GLOBAL_H
 
 #include <qglobal.h>
-
+#include <memory>
 // QWT_VERSION is (major << 16) + (minor << 8) + patch.
 
 #define QWT_VERSION 0x070001
@@ -53,6 +53,96 @@
 
 #ifndef QWT_FINAL
 #define QWT_FINAL
+#endif
+
+#ifndef QWT_DEBUG_DRAW
+#define QWT_DEBUG_DRAW 1
+#endif
+
+#ifndef QWT_DEBUG_PRINT
+#define QWT_DEBUG_PRINT 1
+#endif
+/**
+ * @def QWT_DECLARE_PRIVATE
+ * @brief 模仿Q_DECLARE_PRIVATE，但不用前置声明而是作为一个内部类
+ *
+ * 例如:
+ *
+ * @code
+ * //header
+ * class A
+ * {
+ *  QWT_DECLARE_PRIVATE(A)
+ * };
+ * @endcode
+ *
+ * 其展开效果为：
+ *
+ * @code
+ * class A{
+ *  class PrivateData;
+ *  friend class A::PrivateData;
+ *  std::unique_ptr< PrivateData > d_ptr;
+ * }
+ * @endcode
+ *
+ * 这样前置声明了一个内部类PrivateData，在cpp文件中建立这个内部类的实现
+ *
+ * @code
+ * //cpp
+ * class A::PrivateData{
+ *  QWT_DECLARE_PUBLIC(A)
+ *  PrivateData(A* p):q_ptr(p){
+ *  }
+ * };
+ *
+ * A::A():d_ptr(new PrivateData(this)){
+ * }
+ * @endcode
+ *
+ */
+#ifndef QWT_DECLARE_PRIVATE
+#define QWT_DECLARE_PRIVATE(classname)                                                                                 \
+	class PrivateData;                                                                                                 \
+	friend class classname::PrivateData;                                                                               \
+	std::unique_ptr< PrivateData > d_ptr;                                                                              \
+	inline PrivateData* d_func()                                                                                       \
+	{                                                                                                                  \
+		return (d_ptr.get());                                                                                          \
+	}                                                                                                                  \
+	inline const PrivateData* d_func() const                                                                           \
+	{                                                                                                                  \
+		return (d_ptr.get());                                                                                          \
+	}
+#endif
+
+/**
+ * @def QWT_DECLARE_PUBLIC
+ * @brief 模仿Q_DECLARE_PUBLIC
+ *
+ * 配套QWT_DECLARE_PRIVATE使用
+ */
+#ifndef QWT_DECLARE_PUBLIC
+#define QWT_DECLARE_PUBLIC(classname)                                                                                  \
+	friend class classname;                                                                                            \
+	classname* q_ptr { nullptr };                                                                                      \
+	inline classname* q_func()                                                                                         \
+	{                                                                                                                  \
+		return (static_cast< classname* >(q_ptr));                                                                     \
+	}                                                                                                                  \
+	inline const classname* q_func() const                                                                             \
+	{                                                                                                                  \
+		return (static_cast< const classname* >(q_ptr));                                                               \
+	}
+#endif
+
+/**
+ * @def  QWT_PIMPL_CONSTRUCT
+ *
+ * 配套QWT_DECLARE_PRIVATE使用,在构造函数中构建privatedata
+ */
+#ifndef QWT_PIMPL_CONSTRUCT
+#define QWT_PIMPL_CONSTRUCT d_ptr(std::make_unique< PrivateData >(this))
 #endif
 
 #endif
@@ -159,9 +249,15 @@ enum Scale
 /*** Start of inlined file: qwt_math.h ***/
 #ifndef QWT_MATH_H
 #define QWT_MATH_H
-
+// stl
+#include <iterator>
+#include <type_traits>
+#include <algorithm>
+// qt
 #include <QPointF>
 #include <QtMath>
+// qwt
+
 /*
    Microsoft says:
 
@@ -473,6 +569,167 @@ inline double qwtDistance(const QPointF& p1, const QPointF& p2)
 	double dx = p2.x() - p1.x();
 	double dy = p2.y() - p1.y();
 	return qSqrt(dx * dx + dy * dy);
+}
+
+/**
+ * @brief 检查浮点数值是否为NaN或无穷大/Check if floating point value is NaN or infinity
+ *
+ * This function checks whether a floating point value is either NaN (Not a Number)
+ * or infinite (positive or negative infinity). It uses std::isfinite() for the check.
+ *
+ * 此函数检查浮点数值是否为NaN（非数字）或无穷大（正无穷大或负无穷大）。
+ * 它使用std::isfinite()进行检查。
+ *
+ * @tparam T Floating point type (float, double, long double)/浮点数类型（float, double, long double）
+ * @param value The value to check/要检查的值
+ * @return true if value is NaN or infinite/如果值是NaN或无穷大返回true
+ * @return false if value is finite/如果值是有限数返回false
+ *
+ * @note This overload is enabled only for floating point types/此重载仅对浮点数类型启用
+ * @see std::isfinite()
+ *
+ * @par Example/示例:
+ * @code
+ * double nan_val = std::numeric_limits<double>::quiet_NaN();
+ * double inf_val = std::numeric_limits<double>::infinity();
+ * double finite_val = 3.14;
+ *
+ * bool is_nan_invalid = qwt_is_nan_or_inf(nan_val);     // true
+ * bool is_inf_invalid = qwt_is_nan_or_inf(inf_val);     // true
+ * bool is_finite_valid = qwt_is_nan_or_inf(finite_val); // false
+ * @endcode
+ */
+template< typename T >
+inline typename std::enable_if< std::is_floating_point< T >::value, bool >::type qwt_is_nan_or_inf(const T& value)
+{
+	return !std::isfinite(value);
+}
+
+/**
+ * @brief 检查QPointF点是否包含NaN或无穷大坐标/Check if QPointF contains NaN or infinite coordinates
+ *
+ * This function checks whether either the x or y coordinate of a QPointF
+ * is NaN (Not a Number) or infinite. Both coordinates are checked.
+ *
+ * 此函数检查QPointF的x或y坐标是否为NaN（非数字）或无穷大。两个坐标都会被检查。
+ *
+ * @param point The QPointF to check/要检查的QPointF
+ * @return true if either x or y coordinate is NaN or infinite/如果x或y坐标是NaN或无穷大返回true
+ * @return false if both coordinates are finite/如果两个坐标都是有限数返回false
+ *
+ * @par Example/示例:
+ * @code
+ * QPointF valid_point(1.0, 2.0);
+ * QPointF nan_point(std::numeric_limits<qreal>::quiet_NaN(), 3.0);
+ * QPointF inf_point(4.0, std::numeric_limits<qreal>::infinity());
+ *
+ * bool valid_result = qwt_is_nan_or_inf(valid_point); // false
+ * bool nan_result = qwt_is_nan_or_inf(nan_point);     // true
+ * bool inf_result = qwt_is_nan_or_inf(inf_point);     // true
+ * @endcode
+ */
+inline bool qwt_is_nan_or_inf(const QPointF& point)
+{
+	return !std::isfinite(point.x()) || !std::isfinite(point.y());
+}
+
+// 默认检查函数 - 用于其他类型
+template< typename T >
+typename std::enable_if< !std::is_floating_point< T >::value && !std::is_same< T, QPointF >::value,
+                         bool >::type inline qwt_is_nan_or_inf(const T& /*value*/)
+{
+	return false;
+}
+
+/**
+ * @brief 检查指定迭代器范围内是否存在NaN或Inf值。
+ *
+ * 检查迭代器范围[first, last)内的元素是否包含NaN或无穷大值。
+ * 支持浮点数类型、QPointF等类型。
+ *
+ * @tparam InputIt 输入迭代器类型
+ * @param first 范围的起始迭代器
+ * @param last 范围的结束迭代器
+ * @return 如果范围内存在至少一个NaN或Inf值，返回true；否则返回false
+ *
+ * @par Example 使用示例:
+ * @code
+ * // 检查浮点数数组
+ * std::vector<double> data = {1.0, std::numeric_limits<double>::quiet_NaN(), 3.0};
+ * bool result = qwtContainsNanOrInf(data.begin(), data.end()); // 返回true
+ *
+ * // 检查QPointF数组
+ * QVector<QPointF> points;
+ * points << QPointF(1.0, 2.0) << QPointF(std::numeric_limits<qreal>::infinity(), 3.0);
+ * bool result2 = qwtContainsNanOrInf(points.begin(), points.end()); // 返回true
+ * @endcode
+ */
+template< typename InputIt >
+inline bool qwtContainsNanOrInf(InputIt first, InputIt last)
+{
+	// 使用迭代器遍历，对每个元素调用适当的 qwt_is_nan_or_inf 函数
+	for (InputIt it = first; it != last; ++it) {
+		if (qwt_is_nan_or_inf(*it)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * @brief 就地清理数组，移除NaN和Inf值/In-place clean array, removing NaN and Inf values
+ *
+ * Alternative implementation using manual loop for maximum control.
+ * 适用于需要最大控制权的替代实现。
+ *
+ * @tparam Container 容器类型/Container type
+ * @param container 要清理的容器/Container to clean
+ *
+ * @par Example/示例:
+ * @code
+ * std::vector<float> data = {1.0f, std::numeric_limits<float>::quiet_NaN(), 3.0f};
+ * qwtRemoveNanOrInf(data);
+ * // data 现在包含 {1.0f, 3.0f}
+ * @endcode
+ */
+template< typename Container >
+inline std::size_t qwtRemoveNanOrInf(Container& container)
+{
+	// 使用 std::remove_if 算法将需要保留的元素移动到容器前部
+	auto new_end = std::remove_if(container.begin(), container.end(), [](const typename Container::value_type& value) {
+		return qwt_is_nan_or_inf(value);
+	});
+
+	// 计算被删除的元素数量
+	std::size_t removed_count = std::distance(new_end, container.end());
+
+	// 实际删除不需要的元素
+	if (removed_count > 0) {
+		container.erase(new_end, container.end());
+	}
+
+	return removed_count;
+}
+
+/**
+ * @brief 从容器中删除所有 NaN 或 Inf 值（返回新容器）
+ * @tparam Container 容器类型
+ * @param container 要处理的容器
+ * @return 返回不包含 NaN 或 Inf 值的新容器
+ */
+template< typename Container >
+inline Container qwtRemoveNanOrInfCopy(const Container& container)
+{
+	Container result;
+	result.reserve(container.size());  // 预分配空间以提高效率
+
+	// 只复制不是 NaN 或 Inf 的元素
+	std::copy_if(container.begin(),
+                 container.end(),
+                 std::back_inserter(result),
+                 [](const typename Container::value_type& value) { return !qwt_is_nan_or_inf(value); });
+
+	return result;
 }
 #endif
 
@@ -5598,13 +5855,9 @@ private:
 /*** Start of inlined file: qwt_abstract_legend.h ***/
 #ifndef QWT_ABSTRACT_LEGEND_H
 #define QWT_ABSTRACT_LEGEND_H
-
-#include <qframe.h>
-
-class QwtLegendData;
-template< typename T >
-class QList;
-class QVariant;
+#include <QFrame>
+#include <QVariant>
+#include <QList>
 
 /*!
    \brief Abstract base class for legend widgets
@@ -5622,36 +5875,36 @@ class QVariant;
  */
 class QWT_EXPORT QwtAbstractLegend : public QFrame
 {
-	Q_OBJECT
+    Q_OBJECT
 
 public:
     explicit QwtAbstractLegend(QWidget* parent = NULL);
-	virtual ~QwtAbstractLegend();
+    virtual ~QwtAbstractLegend();
 
-	/*!
-	   Render the legend into a given rectangle.
+    /*!
+       Render the legend into a given rectangle.
 
-	   \param painter Painter
-	   \param rect Bounding rectangle
-	   \param fillBackground When true, fill rect with the widget background
+       \param painter Painter
+       \param rect Bounding rectangle
+       \param fillBackground When true, fill rect with the widget background
 
-	   \sa renderLegend() is used by QwtPlotRenderer
-	 */
+       \sa renderLegend() is used by QwtPlotRenderer
+     */
     virtual void renderLegend(QPainter* painter, const QRectF& rect, bool fillBackground) const = 0;
 
-	//! \return True, when no plot item is inserted
-	virtual bool isEmpty() const = 0;
+    //! \return True, when no plot item is inserted
+    virtual bool isEmpty() const = 0;
 
     virtual int scrollExtent(Qt::Orientation) const;
 
 public Q_SLOTS:
 
-	/*!
-	   \brief Update the entries for a plot item
+    /*!
+       \brief Update the entries for a plot item
 
-	   \param itemInfo Info about an item
-	   \param data List of legend entry attributes for the  item
-	 */
+       \param itemInfo Info about an item
+       \param data List of legend entry attributes for the  item
+     */
     virtual void updateLegend(const QVariant& itemInfo, const QList< QwtLegendData >& data) = 0;
 };
 
@@ -6695,11 +6948,26 @@ class QwtTransform;
 class QwtScaleDiv;
 class QwtColorMap;
 
-/*!
-   \brief A Widget which contains a scale
-
-   This Widget can be used to decorate composite widgets with
-   a scale.
+/**
+ *  @brief A Widget which contains a scale
+ *
+ *  This Widget can be used to decorate composite widgets with
+ *  a scale.
+ *
+ * │<----------------------------- plot yleft edge
+ * │      │       │      │tick ┌       ┌-----------------------------------
+ * │      │       │      │label│       |
+ * │edge  │YLeft  │space │ 6  -│margin │
+ * │margin│Title  │      │     │       │
+ * │      │       │      │ 5  -│       │
+ * │      │       │      │     │       │
+ * │      │       │      │ 4  -│       │ plot cavans
+ * │      │       │      │     │       │
+ * │      │       │      │ 3  -│       │
+ * │      │       │      │     │       │
+ * │      │       │      │ 2  -│       │
+ * │      │       │      │     │       │
+ * │      │       │      │ 1  -│       |_________________________________
  */
 
 class QWT_EXPORT QwtScaleWidget : public QWidget
@@ -6717,10 +6985,10 @@ public:
 		TitleInverted = 1
 	};
 
-    Q_DECLARE_FLAGS(LayoutFlags, LayoutFlag)
+	Q_DECLARE_FLAGS(LayoutFlags, LayoutFlag)
 
-    explicit QwtScaleWidget(QWidget* parent = NULL);
-    explicit QwtScaleWidget(QwtScaleDraw::Alignment, QWidget* parent = NULL);
+	explicit QwtScaleWidget(QWidget* parent = NULL);
+	explicit QwtScaleWidget(QwtScaleDraw::Alignment, QWidget* parent = NULL);
 	virtual ~QwtScaleWidget();
 
 Q_SIGNALS:
@@ -6728,45 +6996,50 @@ Q_SIGNALS:
 	void scaleDivChanged();
 
 public:
-    void setTitle(const QString& title);
-    void setTitle(const QwtText& title);
+	void setTitle(const QString& title);
+	void setTitle(const QwtText& title);
 	QwtText title() const;
 
-    void setLayoutFlag(LayoutFlag, bool on);
-    bool testLayoutFlag(LayoutFlag) const;
+	void setLayoutFlag(LayoutFlag, bool on);
+	bool testLayoutFlag(LayoutFlag) const;
 
-    void setBorderDist(int dist1, int dist2);
+	void setBorderDist(int dist1, int dist2);
 	int startBorderDist() const;
 	int endBorderDist() const;
 
-    void getBorderDistHint(int& start, int& end) const;
+	void getBorderDistHint(int& start, int& end) const;
 
-    void getMinBorderDist(int& start, int& end) const;
-    void setMinBorderDist(int start, int end);
+	void getMinBorderDist(int& start, int& end) const;
+	void setMinBorderDist(int start, int end);
 
-    void setMargin(int);
+	void setMargin(int);
 	int margin() const;
 
-    void setSpacing(int);
+	void setSpacing(int);
 	int spacing() const;
 
-    void setScaleDiv(const QwtScaleDiv&);
-    void setTransformation(QwtTransform*);
+	// 坐标轴和绘图边距的偏移，这个值实际和contentMargin类似，但qwt的contentMargin只用于minimumSizeHint
+	// 对于寄生轴，需要宿主轴有很大的空白位能让寄生轴显示，这个edgeOffset主要就是让坐标轴留出一个空白位
+	void setEdgeMargin(int offset);
+	int edgeMargin() const;
 
-    void setScaleDraw(QwtScaleDraw*);
+	void setScaleDiv(const QwtScaleDiv&);
+	void setTransformation(QwtTransform*);
+
+	void setScaleDraw(QwtScaleDraw*);
 	const QwtScaleDraw* scaleDraw() const;
 	QwtScaleDraw* scaleDraw();
 
-    void setLabelAlignment(Qt::Alignment);
-    void setLabelRotation(double rotation);
+	void setLabelAlignment(Qt::Alignment);
+	void setLabelRotation(double rotation);
 
-    void setColorBarEnabled(bool);
+	void setColorBarEnabled(bool);
 	bool isColorBarEnabled() const;
 
-    void setColorBarWidth(int);
+	void setColorBarWidth(int);
 	int colorBarWidth() const;
 
-    void setColorMap(const QwtInterval&, QwtColorMap*);
+	void setColorMap(const QwtInterval&, QwtColorMap*);
 
 	QwtInterval colorBarInterval() const;
 	const QwtColorMap* colorMap() const;
@@ -6774,29 +7047,37 @@ public:
 	virtual QSize sizeHint() const QWT_OVERRIDE;
 	virtual QSize minimumSizeHint() const QWT_OVERRIDE;
 
-    int titleHeightForWidth(int width) const;
-    int dimForLength(int length, const QFont& scaleFont) const;
+	int titleHeightForWidth(int width) const;
+	int dimForLength(int length, const QFont& scaleFont) const;
 
-    void drawColorBar(QPainter*, const QRectF&) const;
-    void drawTitle(QPainter*, QwtScaleDraw::Alignment, const QRectF& rect) const;
+	void drawColorBar(QPainter*, const QRectF&) const;
+	void drawTitle(QPainter*, QwtScaleDraw::Alignment, const QRectF& rect) const;
 
-    void setAlignment(QwtScaleDraw::Alignment);
+	void setAlignment(QwtScaleDraw::Alignment);
 	QwtScaleDraw::Alignment alignment() const;
 
-    QRectF colorBarRect(const QRectF&) const;
+	QRectF colorBarRect(const QRectF&) const;
+
+	// font color of the coordinate axis/设置坐标轴的字体颜色
+	void setTextColor(const QColor& c);
+	QColor textColor() const;
+
+	// color of the coordinate axis/坐标轴的颜色
+	void setScaleColor(const QColor& c);
+	QColor scaleColor() const;
 
 protected:
-    virtual void paintEvent(QPaintEvent*) QWT_OVERRIDE;
-    virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
-    virtual void changeEvent(QEvent*) QWT_OVERRIDE;
+	virtual void paintEvent(QPaintEvent*) QWT_OVERRIDE;
+	virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
+	virtual void changeEvent(QEvent*) QWT_OVERRIDE;
 
-    void draw(QPainter*) const;
+	void draw(QPainter*) const;
 
 	void scaleChange();
-    void layoutScale(bool update_geometry = true);
+	void layoutScale(bool update_geometry = true);
 
 private:
-    void initScale(QwtScaleDraw::Alignment);
+	void initScale(QwtScaleDraw::Alignment);
 
 	class PrivateData;
 	PrivateData* m_data;
@@ -10070,7 +10351,7 @@ class QWT_EXPORT QwtDial : public QwtAbstractSlider
     Q_PROPERTY(double maxScaleArc READ maxScaleArc WRITE setMaxScaleArc)
 
 public:
-    /*!
+	/*!
         \brief Frame shadow
 
          Unfortunately it is not possible to use QFrame::Shadow
@@ -11704,6 +11985,31 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(QwtPlotCanvas::PaintAttributes)
 #endif
 
 /*** End of inlined file: qwt_plot_canvas.h ***/
+
+/*** Start of inlined file: qwt_plot_transparent_canvas.h ***/
+#ifndef QWT_PLOT_TRANSPARENT_CANVAS_H
+#define QWT_PLOT_TRANSPARENT_CANVAS_H
+
+#include <qframe.h>
+
+class QWT_EXPORT QwtPlotTransparentCanvas : public QFrame, public QwtPlotAbstractCanvas
+{
+	Q_OBJECT
+public:
+	explicit QwtPlotTransparentCanvas(QwtPlot* plot = nullptr);
+	virtual ~QwtPlotTransparentCanvas();
+
+	virtual void replot();
+
+protected:
+	virtual void paintEvent(QPaintEvent* event) override;
+	virtual void drawBorder(QPainter* painter) override;
+	virtual QPainterPath borderPath(const QRect& rect) const;
+};
+
+#endif  // QWT_PLOT_TRANSPARENT_CANVAS_H
+
+/*** End of inlined file: qwt_plot_transparent_canvas.h ***/
 
 /*** Start of inlined file: qwt_plot_glcanvas.h ***/
 #ifndef QWT_PLOT_GLCANVAS_H
@@ -13615,7 +13921,7 @@ protected:
     virtual void drawLabel(QPainter*, const QRectF&, const QPointF&) const;
 
 private:
-    class PrivateData;
+	class PrivateData;
 	PrivateData* m_data;
 };
 
@@ -14652,7 +14958,7 @@ public:
     virtual QwtGraphic legendIcon(int index, const QSizeF&) const QWT_OVERRIDE;
 
 protected:
-	void init();
+    void init();
 
     virtual void drawSymbols(QPainter*,
                              const QwtScaleMap& xMap,
@@ -15881,9 +16187,9 @@ class QWT_EXPORT QwtPlot : public QFrame, public QwtPlotDict
 {
 	Q_OBJECT
 
-    Q_PROPERTY(QBrush canvasBackground READ canvasBackground WRITE setCanvasBackground)
+	Q_PROPERTY(QBrush canvasBackground READ canvasBackground WRITE setCanvasBackground)
 
-    Q_PROPERTY(bool autoReplot READ autoReplot WRITE setAutoReplot)
+	Q_PROPERTY(bool autoReplot READ autoReplot WRITE setAutoReplot)
 
 public:
 	/*!
@@ -15906,25 +16212,25 @@ public:
 		TopLegend
 	};
 
-    explicit QwtPlot(QWidget* = NULL);
-    explicit QwtPlot(const QwtText& title, QWidget* = NULL);
+	explicit QwtPlot(QWidget* = NULL);
+	explicit QwtPlot(const QwtText& title, QWidget* = NULL);
 
 	virtual ~QwtPlot();
 
-    void setAutoReplot(bool = true);
+	void setAutoReplot(bool = true);
 	bool autoReplot() const;
 
 	// Layout
 
-    void setPlotLayout(QwtPlotLayout*);
+	void setPlotLayout(QwtPlotLayout*);
 
 	QwtPlotLayout* plotLayout();
 	const QwtPlotLayout* plotLayout() const;
 
 	// Title
 
-    void setTitle(const QString&);
-    void setTitle(const QwtText&);
+	void setTitle(const QString&);
+	void setTitle(const QwtText&);
 	QwtText title() const;
 
 	QwtTextLabel* titleLabel();
@@ -15932,8 +16238,8 @@ public:
 
 	// Footer
 
-    void setFooter(const QString&);
-    void setFooter(const QwtText&);
+	void setFooter(const QString&);
+	void setFooter(const QwtText&);
 	QwtText footer() const;
 
 	QwtTextLabel* footerLabel();
@@ -15941,74 +16247,74 @@ public:
 
 	// Canvas
 
-    void setCanvas(QWidget*);
+	void setCanvas(QWidget*);
 
 	QWidget* canvas();
 	const QWidget* canvas() const;
 
-    void setCanvasBackground(const QBrush&);
+	void setCanvasBackground(const QBrush&);
 	QBrush canvasBackground() const;
 
-    virtual QwtScaleMap canvasMap(QwtAxisId) const;
+	virtual QwtScaleMap canvasMap(QwtAxisId) const;
 
-    double invTransform(QwtAxisId, double pos) const;
-    double transform(QwtAxisId, double value) const;
+	double invTransform(QwtAxisId, double pos) const;
+	double transform(QwtAxisId, double value) const;
 
 	// Axes
 
-    bool isAxisValid(QwtAxisId) const;
+	bool isAxisValid(QwtAxisId) const;
 
-    void setAxisVisible(QwtAxisId, bool on = true);
-    bool isAxisVisible(QwtAxisId) const;
+	void setAxisVisible(QwtAxisId, bool on = true);
+	bool isAxisVisible(QwtAxisId) const;
 
 	// Axes data
 
-    QwtScaleEngine* axisScaleEngine(QwtAxisId);
-    const QwtScaleEngine* axisScaleEngine(QwtAxisId) const;
-    void setAxisScaleEngine(QwtAxisId, QwtScaleEngine*);
+	QwtScaleEngine* axisScaleEngine(QwtAxisId);
+	const QwtScaleEngine* axisScaleEngine(QwtAxisId) const;
+	void setAxisScaleEngine(QwtAxisId, QwtScaleEngine*);
 
-    void setAxisAutoScale(QwtAxisId, bool on = true);
-    bool axisAutoScale(QwtAxisId) const;
+	void setAxisAutoScale(QwtAxisId, bool on = true);
+	bool axisAutoScale(QwtAxisId) const;
 
-    void setAxisFont(QwtAxisId, const QFont&);
-    QFont axisFont(QwtAxisId) const;
+	void setAxisFont(QwtAxisId, const QFont&);
+	QFont axisFont(QwtAxisId) const;
 
-    void setAxisScale(QwtAxisId, double min, double max, double stepSize = 0);
-    void setAxisScaleDiv(QwtAxisId, const QwtScaleDiv&);
-    void setAxisScaleDraw(QwtAxisId, QwtScaleDraw*);
+	void setAxisScale(QwtAxisId, double min, double max, double stepSize = 0);
+	void setAxisScaleDiv(QwtAxisId, const QwtScaleDiv&);
+	void setAxisScaleDraw(QwtAxisId, QwtScaleDraw*);
 
-    double axisStepSize(QwtAxisId) const;
-    QwtInterval axisInterval(QwtAxisId) const;
-    const QwtScaleDiv& axisScaleDiv(QwtAxisId) const;
+	double axisStepSize(QwtAxisId) const;
+	QwtInterval axisInterval(QwtAxisId) const;
+	const QwtScaleDiv& axisScaleDiv(QwtAxisId) const;
 
-    const QwtScaleDraw* axisScaleDraw(QwtAxisId) const;
-    QwtScaleDraw* axisScaleDraw(QwtAxisId);
+	const QwtScaleDraw* axisScaleDraw(QwtAxisId) const;
+	QwtScaleDraw* axisScaleDraw(QwtAxisId);
 
-    const QwtScaleWidget* axisWidget(QwtAxisId) const;
-    QwtScaleWidget* axisWidget(QwtAxisId);
+	const QwtScaleWidget* axisWidget(QwtAxisId) const;
+	QwtScaleWidget* axisWidget(QwtAxisId);
 
-    void setAxisLabelAlignment(QwtAxisId, Qt::Alignment);
-    void setAxisLabelRotation(QwtAxisId, double rotation);
+	void setAxisLabelAlignment(QwtAxisId, Qt::Alignment);
+	void setAxisLabelRotation(QwtAxisId, double rotation);
 
-    void setAxisTitle(QwtAxisId, const QString&);
-    void setAxisTitle(QwtAxisId, const QwtText&);
-    QwtText axisTitle(QwtAxisId) const;
+	void setAxisTitle(QwtAxisId, const QString&);
+	void setAxisTitle(QwtAxisId, const QwtText&);
+	QwtText axisTitle(QwtAxisId) const;
 
-    void setAxisMaxMinor(QwtAxisId, int maxMinor);
-    int axisMaxMinor(QwtAxisId) const;
+	void setAxisMaxMinor(QwtAxisId, int maxMinor);
+	int axisMaxMinor(QwtAxisId) const;
 
-    void setAxisMaxMajor(QwtAxisId, int maxMajor);
-    int axisMaxMajor(QwtAxisId) const;
+	void setAxisMaxMajor(QwtAxisId, int maxMajor);
+	int axisMaxMajor(QwtAxisId) const;
 
 	// Legend
 
-    void insertLegend(QwtAbstractLegend*, LegendPosition = QwtPlot::RightLegend, double ratio = -1.0);
+	void insertLegend(QwtAbstractLegend*, LegendPosition = QwtPlot::RightLegend, double ratio = -1.0);
 
 	QwtAbstractLegend* legend();
 	const QwtAbstractLegend* legend() const;
 
 	void updateLegend();
-    void updateLegend(const QwtPlotItem*);
+	void updateLegend(const QwtPlotItem*);
 
 	// Misc
 
@@ -16016,26 +16322,70 @@ public:
 	virtual QSize minimumSizeHint() const QWT_OVERRIDE;
 
 	virtual void updateLayout();
-    virtual void drawCanvas(QPainter*);
+	virtual void drawCanvas(QPainter*);
 
 	void updateAxes();
 	void updateCanvasMargins();
 
-    virtual void getCanvasMarginsHint(const QwtScaleMap maps[],
+	virtual void getCanvasMarginsHint(const QwtScaleMap maps[],
                                       const QRectF& canvasRect,
                                       double& left,
                                       double& top,
                                       double& right,
                                       double& bottom) const;
 
-    virtual bool event(QEvent*) QWT_OVERRIDE;
-    virtual bool eventFilter(QObject*, QEvent*) QWT_OVERRIDE;
+	virtual bool event(QEvent*) QWT_OVERRIDE;
+	virtual bool eventFilter(QObject*, QEvent*) QWT_OVERRIDE;
 
-    virtual void drawItems(QPainter*, const QRectF&, const QwtScaleMap maps[ QwtAxis::AxisPositions ]) const;
+	virtual void drawItems(QPainter*, const QRectF&, const QwtScaleMap maps[ QwtAxis::AxisPositions ]) const;
 
-    virtual QVariant itemToInfo(QwtPlotItem*) const;
-    virtual QwtPlotItem* infoToItem(const QVariant&) const;
+	virtual QVariant itemToInfo(QwtPlotItem*) const;
+	virtual QwtPlotItem* infoToItem(const QVariant&) const;
 
+	// add since v7.1.0
+
+	// Add a parasite plot to this host plot/向此宿主绘图添加寄生绘图
+	void addParasitePlot(QwtPlot* parasite);
+
+	// Remove a parasite plot from this host plot/从此宿主绘图移除寄生绘图
+	void removeParasitePlot(QwtPlot* parasite);
+
+	// Get all parasite plots associated with this host plot/获取与此宿主绘图关联的所有寄生绘图
+	QList< QwtPlot* > parasitePlots() const;
+
+	// Set the host plot for this parasite plot/设置此寄生绘图的宿主绘图
+	void setHostPlot(QwtPlot* host);
+
+	// Get the host plot for this parasite plot/获取此寄生绘图的宿主绘图
+	QwtPlot* hostPlot() const;
+
+	// Check if this plot is a parasite plot/检查此绘图是否为寄生绘图
+	bool isParasitePlot() const;
+
+	// Check if this plot is a host plot/检查此绘图是否为宿主绘图
+	bool isHostPlot() const;
+
+	// set Background Color/设置背景颜色
+	void setBackgroundColor(const QColor& c);
+	QColor backgroundColor() const;
+
+	// Synchronize the axis ranges of the corresponding plot/同步plot对应的坐标轴范围
+	void syncAxis(QwtAxisId axis, const QwtPlot* plot);
+
+	// Rescale the axes to encompass the full range of all data items./重新缩放坐标轴以适应所有数据项的范围
+	void rescaleAxes(bool onlyVisibleItems = true,
+                     double marginPercent  = 0.05,
+                     QwtAxisId xAxis       = QwtPlot::xBottom,
+                     QwtAxisId yAxis       = QwtPlot::yLeft);
+
+	// Set the specified axis to logarithmic scale / 将指定坐标轴设置为对数刻度
+	void setAxisToLogScale(QwtAxisId axisId);
+
+	// Set the specified axis to date-time scale / 将指定坐标轴设置为日期-时间刻度
+	void setAxisToDateTime(QwtAxisId axisId, Qt::TimeSpec timeSpec = Qt::LocalTime);
+
+	// Restore the specified axis to linear scale / 将指定坐标轴恢复为线性刻度
+	void setAxisToLinearScale(QwtAxisId axisId);
 #if QWT_AXIS_COMPAT
     enum Axis { yLeft   = QwtAxis::YLeft,
                 yRight  = QwtAxis::YRight,
@@ -16044,14 +16394,14 @@ public:
 
                 axisCnt = QwtAxis::AxisPositions };
 
-    void enableAxis(int axisId, bool on = true)
+	void enableAxis(int axisId, bool on = true)
 	{
-        setAxisVisible(axisId, on);
+		setAxisVisible(axisId, on);
 	}
 
-    bool axisEnabled(int axisId) const
+	bool axisEnabled(int axisId) const
 	{
-        return isAxisVisible(axisId);
+		return isAxisVisible(axisId);
 	}
 #endif
 
@@ -16062,7 +16412,7 @@ Q_SIGNALS:
 	   \param plotItem Plot item
 	   \param on Attached/Detached
 	 */
-    void itemAttached(QwtPlotItem* plotItem, bool on);
+	void itemAttached(QwtPlotItem* plotItem, bool on);
 
 	/*!
 	   A signal with the attributes how to update
@@ -16074,27 +16424,27 @@ Q_SIGNALS:
 
 	   \sa itemToInfo(), infoToItem(), QwtAbstractLegend::updateLegend()
 	 */
-    void legendDataChanged(const QVariant& itemInfo, const QList< QwtLegendData >& data);
+	void legendDataChanged(const QVariant& itemInfo, const QList< QwtLegendData >& data);
 
 public Q_SLOTS:
 	virtual void replot();
 	void autoRefresh();
 
 protected:
-    virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
+	virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
 
 private Q_SLOTS:
-    void updateLegendItems(const QVariant& itemInfo, const QList< QwtLegendData >& legendData);
+	void updateLegendItems(const QVariant& itemInfo, const QList< QwtLegendData >& legendData);
 
 private:
 	friend class QwtPlotItem;
-    void attachItem(QwtPlotItem*, bool);
+	void attachItem(QwtPlotItem*, bool);
 
 	void initAxesData();
 	void deleteAxesData();
 	void updateScaleDiv();
 
-    void initPlot(const QwtText& title);
+	void initPlot(const QwtText& title);
 
 	class ScaleData;
 	ScaleData* m_scaleData;
@@ -16107,10 +16457,167 @@ private:
 
 /*** End of inlined file: qwt_plot.h ***/
 
+/*** Start of inlined file: qwt_plot_layout_engine.h ***/
+#ifndef QWTPLOTLAYOUTENGINE_H
+#define QWTPLOTLAYOUTENGINE_H
+#include <QRectF>
+#include <QFont>
+class QWidget;
+// qwt
+
+class QwtAbstractLegend;
+class QwtTextLabel;
+class QwtScaleWidget;
+/**
+ * @brief The QwtPlotLayoutEngine class
+ *
+ * 原来的QwtPlotLayout里的私有类，原来此类写在qwt_plot_layout.cpp中，class LayoutEngine，由于其它布局会用到，把它提取为公共类
+ */
+class QWT_EXPORT QwtPlotLayoutEngine
+{
+public:
+	struct Dimensions
+	{
+		Dimensions();
+		int dimAxis(QwtAxisId axisId) const;
+		void setDimAxis(QwtAxisId axisId, int dim);
+		int dimAxes(int axisPos) const;
+		int dimYAxes() const;
+		int dimXAxes() const;
+		QRectF centered(const QRectF& rect, const QRectF& labelRect) const;
+		QRectF innerRect(const QRectF& rect) const;
+		int dimTitle;
+		int dimFooter;
+
+	private:
+		int m_dimAxes[ QwtAxis::AxisPositions ];
+	};
+
+	class LayoutData
+	{
+	public:
+		struct LegendData
+		{
+			void init(const QwtAbstractLegend* legend);
+			QSize legendHint(const QwtAbstractLegend* legend, const QRectF& rect) const;
+			int frameWidth;
+			int hScrollExtent;
+			int vScrollExtent;
+			QSize hint;
+		};
+
+		struct LabelData
+		{
+			void init(const QwtTextLabel* label);
+			QwtText text;
+			int frameWidth;
+		};
+
+		struct ScaleData
+		{
+			void init(const QwtScaleWidget* axisWidget);
+			void reset();
+			bool isVisible;
+			const QwtScaleWidget* scaleWidget;
+			QFont scaleFont;
+			int start;
+			int end;
+			int baseLineOffset;
+			double tickOffset;
+			int dimWithoutTitle;
+			int edgeMargin;
+		};
+
+		struct CanvasData
+		{
+			void init(const QWidget* canvas);
+			int contentsMargins[ QwtAxis::AxisPositions ];
+		};
+
+	public:
+		enum Label
+		{
+			Title,
+			Footer,
+
+			NumLabels
+		};
+
+		LayoutData(const QwtPlot* plot);
+		bool hasSymmetricYAxes() const;
+		ScaleData& axisData(QwtAxisId axisId);
+		const ScaleData& axisData(QwtAxisId axisId) const;
+		double tickOffset(int axisPos) const;
+
+		LegendData legendData;
+		LabelData labelData[ NumLabels ];
+		CanvasData canvasData;
+
+	private:
+		ScaleData m_scaleData[ QwtAxis::AxisPositions ];
+	};
+
+public:
+	QwtPlotLayoutEngine();
+
+	QRectF layoutLegend(int plotLayoutOptions,
+                        const LayoutData::LegendData& legendData,
+                        const QRectF& rect,
+                        const QSize& legendHint) const;
+
+	QRectF alignLegend(const QSize& legendHint, const QRectF& canvasRect, const QRectF& legendRect) const;
+
+	void alignScales(int plotLayoutOptions,
+                     const LayoutData& layoutData,
+                     QRectF& canvasRect,
+                     QRectF scaleRect[ QwtAxis::AxisPositions ]) const;
+	void alignScalesToCanvas(int plotLayoutOptions,
+                             const LayoutData& layoutData,
+                             const QRectF& canvasRect,
+                             QRectF scaleRect[ QwtAxis::AxisPositions ]) const;
+
+	Dimensions layoutDimensions(int plotLayoutOptions, const LayoutData& layoutData, const QRectF& rect) const;
+
+	void setSpacing(unsigned int spacing);
+	unsigned int spacing() const;
+
+	void setAlignCanvas(int axisPos, bool on);
+	bool alignCanvas(int axisPos) const;
+
+	void setCanvasMargin(int axisPos, int margin);
+	int canvasMargin(int axisPos) const;
+
+	void setLegendPos(QwtPlot::LegendPosition pos);
+	QwtPlot::LegendPosition legendPos() const;
+
+	void setLegendRatio(double ratio);
+	double legendRatio() const;
+
+private:
+	int heightForWidth(LayoutData::Label labelType,
+                       const LayoutData& layoutData,
+                       int plotLayoutOptions,
+                       double width,
+                       int axesWidth) const;
+
+	QwtPlot::LegendPosition m_legendPos;
+	double m_legendRatio;
+
+	unsigned int m_canvasMargin[ QwtAxis::AxisPositions ] = { 0, 0, 0, 0 };
+	bool m_alignCanvas[ QwtAxis::AxisPositions ];
+
+	unsigned int m_spacing;
+};
+
+#endif  // QWTPLOTLAYOUTENGINE_H
+
+/*** End of inlined file: qwt_plot_layout_engine.h ***/
+
 /*** Start of inlined file: qwt_plot_layout.h ***/
 #ifndef QWT_PLOT_LAYOUT_H
 #define QWT_PLOT_LAYOUT_H
 
+class QwtPlotLayoutEngine;
 /*!
    \brief Layout engine for QwtPlot.
 
@@ -16152,47 +16659,49 @@ public:
 		IgnoreFooter = 0x20
 	};
 
-    Q_DECLARE_FLAGS(Options, Option)
+	Q_DECLARE_FLAGS(Options, Option)
 
 	explicit QwtPlotLayout();
 	virtual ~QwtPlotLayout();
 
-    void setCanvasMargin(int margin, int axis = -1);
-    int canvasMargin(int axisId) const;
+	void setCanvasMargin(int margin, int axis = -1);
+	int canvasMargin(int axisId) const;
 
-    void setAlignCanvasToScales(bool);
+	void setAlignCanvasToScales(bool);
 
-    void setAlignCanvasToScale(int axisId, bool);
-    bool alignCanvasToScale(int axisId) const;
+	void setAlignCanvasToScale(int axisId, bool);
+	bool alignCanvasToScale(int axisId) const;
 
-    void setSpacing(int);
+	void setSpacing(int);
 	int spacing() const;
 
-    void setLegendPosition(QwtPlot::LegendPosition pos, double ratio);
-    void setLegendPosition(QwtPlot::LegendPosition pos);
+	void setLegendPosition(QwtPlot::LegendPosition pos, double ratio);
+	void setLegendPosition(QwtPlot::LegendPosition pos);
 	QwtPlot::LegendPosition legendPosition() const;
 
-    void setLegendRatio(double ratio);
+	void setLegendRatio(double ratio);
 	double legendRatio() const;
 
-    virtual QSize minimumSizeHint(const QwtPlot*) const;
+	virtual QSize minimumSizeHint(const QwtPlot*) const;
 
-    virtual void activate(const QwtPlot*, const QRectF& plotRect, Options options = Options());
+	virtual void activate(const QwtPlot*, const QRectF& plotRect, Options options = Options());
 
 	virtual void invalidate();
 
 	QRectF titleRect() const;
 	QRectF footerRect() const;
 	QRectF legendRect() const;
-    QRectF scaleRect(QwtAxisId) const;
+	QRectF scaleRect(QwtAxisId) const;
 	QRectF canvasRect() const;
 
 protected:
-    void setTitleRect(const QRectF&);
-    void setFooterRect(const QRectF&);
-    void setLegendRect(const QRectF&);
-    void setScaleRect(QwtAxisId, const QRectF&);
-    void setCanvasRect(const QRectF&);
+	void setTitleRect(const QRectF&);
+	void setFooterRect(const QRectF&);
+	void setLegendRect(const QRectF&);
+	void setScaleRect(QwtAxisId, const QRectF&);
+	void setCanvasRect(const QRectF&);
+
+	QwtPlotLayoutEngine* layoutEngine();
 
 private:
 	Q_DISABLE_COPY(QwtPlotLayout)
@@ -16206,6 +16715,24 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(QwtPlotLayout::Options)
 #endif
 
 /*** End of inlined file: qwt_plot_layout.h ***/
+
+/*** Start of inlined file: qwt_plot_parasite_layout.h ***/
+#ifndef QWTPLOTPARASITELAYOUT_H
+#define QWTPLOTPARASITELAYOUT_H
+
+class QWT_EXPORT QwtPlotParasiteLayout : public QwtPlotLayout
+{
+public:
+	QwtPlotParasiteLayout();
+	~QwtPlotParasiteLayout();
+	virtual void activate(const QwtPlot* plot, const QRectF& plotRect, Options options = Options()) override;
+
+	virtual QSize minimumSizeHint(const QwtPlot* plot) const override;
+};
+
+#endif  // QWTPLOTPARASITELAYOUT_H
+
+/*** End of inlined file: qwt_plot_parasite_layout.h ***/
 
 /*** Start of inlined file: qwt_plot_rescaler.h ***/
 #ifndef QWT_PLOT_RESCALER_H
@@ -16873,7 +17400,9 @@ private:
 
 // Qt
 #include <QFrame>
+class QResizeEvent;
 class QPaintEvent;
+
 // qwt
 
 class QwtPlot;
@@ -16977,7 +17506,7 @@ public:
 	// Update layout parameters/更新布局参数
 	void adjustLayout(qreal left, qreal bottom, qreal right, qreal top);
 
-	// Get all axes (plots) in the figure/获取图形中的所有坐标轴（绘图）
+	// Get all axes (plots) in the figure（not contain parasite axes）/获取图形中的所有坐标轴（绘图）(不包含寄生轴)
 	QList< QwtPlot* > allAxes() const;
 
 	// Check if the figure has any axes/检查图形是否有任意绘图
@@ -17017,6 +17546,12 @@ public:
 	// Set/Get the edge line width of the figure/设置图形的边缘线宽
 	void setEdgeLineWidth(int width);
 	int edgeLineWidth() const;
+
+	// Parasite Axes
+	// Create parasite axes for a host plot/为宿主绘图创建寄生轴
+	QwtPlot* createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enableAxis, bool shareX = true, bool shareY = false);
+	// Get all parasite axes for a host plot/获取宿主绘图的所有寄生轴
+	QList< QwtPlot* > getParasiteAxes(QwtPlot* hostPlot) const;
 
 	// Save methods / 保存方法
 	// Save the figure to a QPixmap with specified DPI/使用指定DPI将图形保存为QPixmap
@@ -17058,6 +17593,7 @@ Q_SIGNALS:
 
 protected:
 	void paintEvent(QPaintEvent* event) override;
+	void resizeEvent(QResizeEvent* event) override;
 
 private:
 	class PrivateData;

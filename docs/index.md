@@ -1,3 +1,9 @@
+---
+title: QWT概述
+description: QWT 是一个基于 Qt 的高性能绘图库，支持 Qt6，采用 LGPL 协议，适用于科学计算和工程应用中的数据可视化。提供现代化 UI 设计和丰富的图表类型。
+keywords: [QWT,Qt 绘图库,科学图表,数据可视化,Qt6,LGPL 协议,C++ 绘图,工程绘图,实时数据可视化,Qt 图表组件]
+---
+
 # 概述
 
 Qt 生态里能画图的库不多，主流的为`QCustomPlot`、`Qwt`、`Qt Charts`和`KDChart`，Qt6.8之后把原来的 `Qt Charts`（2D） 与 Qt DataVisualization（3D） 合并为统一的Qt Graphs模块（注意不是Qt Graphics），底层全部基于 Qt Quick Scene Graph（QSG）+ Qt Quick 3D，彻底放弃了老旧的 Graphics-View/QPainter 管线，不过Qt Graphs 须通过 QQuickWidget 或 QQuickWindow 嵌入，必须带 QML runtime，C++支持不足，[论坛吐槽不少](https://forum.qt.io/topic/159224/qt-graphs-building-2d-plot-using-c-only),虽然Qt Graphs 是 Qt 官方“大一统”的未来，但这个未来可能3年内不会到来，且不支持win7等老系统，对嵌入式也不友好，因此，`QCustomPlot`、`Qwt`、`Qt Charts`和`KDChart`还会是最近几年绘图控件的选项。
@@ -11,8 +17,6 @@ Qt 生态里能画图的库不多，主流的为`QCustomPlot`、`Qwt`、`Qt Char
 `KDChart`是KDAB的绘图控件（[官方文档](https://www.kdab.com/software-technologies/developer-tools/kd-chart/)），`KDChart3.0`起是MIT协议，对商业非常友好，但渲染效果一般，一股excel2003的风格，但`KDChart`有甘特图，这是上面3款都没有的。
 
 因此，如果你的项目需要商业用途，那么你只有`Qwt`和`KDChart3.0`两种选择，但`Qwt`作者停止更新，我个人更喜欢`Qwt`，因为`Qwt`的架构更符合软件工程原则，其大规模渲染性能更优，像`QCustomPlot`的优势是交互功能开箱即用，例如鼠标缩放，坐标轴缩放，而`Qwt`需要较多的代码来实现，但`Qwt`有着更精细的控制能力，因此在我的项目需要绘图的时候，我会选择`Qwt`，并根据我的需求添加一些自己需要的功能，改进、优化它，因此，就有了此项目。
-
-项目文档：[https://czyt1988.github.io/QWT/zh/](https://czyt1988.github.io/QWT/zh/)
 
 ## Qwt 7.0
 
@@ -52,7 +56,7 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 
 ### 单一头文件和源文件
 
-参考`QCustomPlot`，我把原`Qwt`整个工程合并为`QwtPlot.h`和`QwtPlot.cpp`，只要把这两个文件引入项目即可使用：
+参考`QCustomPlot`，我把原`Qwt`整个工程合并为`QwtPlot.h`和`QwtPlot.cpp`，只要把这两个文件引入项目即可使用
 
 
 ### 美化了风格
@@ -71,28 +75,8 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 
 增加了类似matplotlib的寄生轴功能，支持任意多个坐标轴显示
 
-![parasite plot](./docs/assets/screenshots/parasite-plot.png) 
+![parasite plot](assets/screenshots/parasite-plot.png) 
 
-
-## changelog
-
-详细的日志请参阅[CHANGES.MD](./CHANGES.md)
-
-### tag:v7.0.1
-
-- 增加`QwtFigure`类，`QwtFigure`用于管理多个QwtPlot，实现类似Matplotlib的Figure功能，支持网格化布局
-- 增加figure例子,演示`QwtFigure`类的使用
-
-### tag:v7.0.0
-
-- 把整个工程合并为QwtPlot.h和QwtPlot.cpp，直接可以引入，文件位于src-amalgamate
-- 增加staticExample例子,演示如何静态引入
-- 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
-- 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
-- `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
-- `Qwt`的初始化参数进行了调整，让默认绘图更符合当前绘图的审美
-- 去除QWT_MOC_INCLUDE
-- 调整了一些类的实现，以便能合并到一个文件中
 
 ## Copyright
 
@@ -114,141 +98,167 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 
 ## 绘图展示
 
-项目文档：[https://czyt1988.github.io/QWT/zh/](https://czyt1988.github.io/QWT/zh/)
-
 ### 基本图表
 
-![Figure Widget](./docs/assets/screenshots/qwt_figure.png)
+<div class="grid cards" markdown>
 
+- ![Figure Widget](assets/screenshots/qwt_figure.png)
+  `examples/figure`
 
-![Simple Plot](./docs/assets/screenshots/simpleplot.png)  
-`examples/simpleplot`  
+- ![Simple Plot](assets/screenshots/simpleplot.png)  
+   `examples/simpleplot`  
 
-![Bar Chart - Grouped](./docs/assets/screenshots/BarChart-grouped.png)  
-`examples/barchart`  
+- ![Bar Chart - Grouped](assets/screenshots/BarChart-grouped.png)  
+  `examples/barchart`  
 
-![Bar Chart - Stacked](./docs/assets/screenshots/BarChart-stacked.png)  
-`examples/barchart`  
+- ![Bar Chart - Stacked](assets/screenshots/BarChart-stacked.png)  
+  `examples/barchart`  
 
-![Scatter Plot](./docs/assets/screenshots/scatterplot.png)  
-`examples/scatterplot`  
+- ![Scatter Plot](assets/screenshots/scatterplot.png)  
+  `examples/scatterplot`  
 
-![Curve Demo](./docs/assets/screenshots/curvedemo.png)  
-`examples/curvedemo`  
+- ![Curve Demo](assets/screenshots/curvedemo.png)  
+  `examples/curvedemo`  
+
+</div>
 
 ### 实时可视化
 
-![CPU Monitor](./docs/assets/screenshots/cpuplot.png)  
-`examples/cpuplot`  
+<div class="grid cards" markdown>
 
-![Real-Time Plot](./docs/assets/screenshots/realtime.png)  
-`examples/realtime`  
+- ![CPU Monitor](assets/screenshots/cpuplot.png)  
+  `examples/cpuplot`  
 
-![Oscilloscope](./docs/assets/screenshots/oscilloscope.png)  
-`examples/oscilloscope`  
+- ![Real-Time Plot](assets/screenshots/realtime.png)  
+  `examples/realtime`  
+
+- ![Oscilloscope](assets/screenshots/oscilloscope.png)  
+  `examples/oscilloscope`  
+
+</div>
 
 ### 高级图表
 
-![Polar Demo](./docs/assets/screenshots/polardemo.png)  
-`examples/polardemo`  
+<div class="grid cards" markdown>
 
-![Spectrogram](./docs/assets/screenshots/spectrogram.png)  
-`examples/spectrogram`  
+- ![Polar Demo](assets/screenshots/polardemo.png)  
+  `examples/polardemo`  
 
-![Contour Spectrogram](./docs/assets/screenshots/spectrogram-contour.png)  
-`examples/spectrogram`  
+- ![Spectrogram](assets/screenshots/spectrogram.png)  
+  `examples/spectrogram`  
 
-![Vector Field](./docs/assets/screenshots/vectorfield.png)  
-`playground/vectorfield`  
+- ![Contour Spectrogram](assets/screenshots/spectrogram-contour.png)  
+  `examples/spectrogram`  
 
-![Stock Chart](./docs/assets/screenshots/stockchart.png)  
-`examples/stockchart`  
+- ![Vector Field](assets/screenshots/vectorfield.png)  
+  `playground/vectorfield`  
 
-![Bode Plot](./docs/assets/screenshots/bode.png)  
-`examples/bode`  
+- ![Stock Chart](assets/screenshots/stockchart.png)  
+  `examples/stockchart`  
 
-![Tube Display](./docs/assets/screenshots/friedberg-tube.png)  
-`examples/friedberg`  
+- ![Bode Plot](assets/screenshots/bode.png)  
+  `examples/bode`  
 
-![plot matrix](./docs/assets/screenshots/plotmatrix.png)  
-`playground/plotmatrix`  
+- ![Tube Display](assets/screenshots/friedberg-tube.png)  
+  `examples/friedberg`  
 
-![Scale Engine](./docs/assets/screenshots/scaleengine.png)  
-`playground/scaleengine`  
+- ![plot matrix](assets/screenshots/plotmatrix.png)  
+  `playground/plotmatrix`  
 
-![Rescaler](./docs/assets/screenshots/rescaler.png)  
-`playground/rescaler`  
+- ![Scale Engine](assets/screenshots/scaleengine.png)  
+  `playground/scaleengine`  
 
-![Graphics Scale](./docs/assets/screenshots/graphicscale.png)  
-`playground/graphicscale`  
+- ![Rescaler](assets/screenshots/rescaler.png)  
+  `playground/rescaler`  
 
-![Spline Editor](./docs/assets/screenshots/splineeditor.png)  
-`examples/splineeditor`  
+- ![Graphics Scale](assets/screenshots/graphicscale.png)  
+  `playground/graphicscale`  
 
-![System Info](./docs/assets/screenshots/sysinfo.png)  
-`examples/sysinfo`  
+- ![Spline Editor](assets/screenshots/splineeditor.png)  
+  `examples/splineeditor`  
 
-![Distro Watch](./docs/assets/screenshots/distrowatch.png)  
-`examples/distrowatch`  
+- ![System Info](assets/screenshots/sysinfo.png)  
+  `examples/sysinfo`  
 
-![Raster View 1](./docs/assets/screenshots/rasterview-1.png)  
-`examples/rasterview`  
+- ![Distro Watch](assets/screenshots/distrowatch.png)  
+  `examples/distrowatch`  
 
-![Raster View 2](./docs/assets/screenshots/rasterview-2.png)  
-`examples/rasterview`  
+- ![Raster View 1](assets/screenshots/rasterview-1.png)  
+  `examples/rasterview`  
 
-![SVG Map](./docs/assets/screenshots/svgmap.png)  
-`playground/svgmap`  
+- ![Raster View 2](assets/screenshots/rasterview-2.png)  
+  `examples/rasterview`  
 
-![parasite plot](./docs/assets/screenshots/parasite-plot.png)  
-`examples/parasitePlot`  
+- ![SVG Map](assets/screenshots/svgmap.png)  
+  `playground/svgmap`  
+
+- ![parasite plot](assets/screenshots/parasite-plot.png)  
+  `examples/parasitePlot`  
+
+</div>
 
 ### 动态演示
 
-![Animated Demo](./docs/assets/screenshots/animated.png)  
-`examples/animated`  
+<div class="grid cards" markdown>
 
-![Curve Tracker](./docs/assets/screenshots/curvetracker.png)  
-`playground/curvetracker`  
+- ![Animated Demo](assets/screenshots/animated.png)  
+  `examples/animated`  
 
-![Refresh Test](./docs/assets/screenshots/refreshtest.png)  
-`examples/refreshtest`  
+- ![Curve Tracker](assets/screenshots/curvetracker.png)  
+  `playground/curvetracker`  
+
+- ![Refresh Test](assets/screenshots/refreshtest.png)  
+  `examples/refreshtest`  
+
+</div>
 
 ### 样式与符号
 
-![Legends Demo](./docs/assets/screenshots/legends.png)  
-`examples/legends`  
+<div class="grid cards" markdown>
 
-![Symbols Demo](./docs/assets/screenshots/symbols.png)  
-`playground/symbols`  
+- ![Legends Demo](assets/screenshots/legends.png)  
+  `examples/legends`  
 
-![Shape Rendering](./docs/assets/screenshots/shapes.png)  
-`playground/shapes`  
+- ![Symbols Demo](assets/screenshots/symbols.png)  
+  `playground/symbols`  
+
+- ![Shape Rendering](assets/screenshots/shapes.png)  
+  `playground/shapes`  
+
+</div>
 
 ### 控件窗口
 
-![Dial Controls](./docs/assets/screenshots/controls-dial.png)  
-`examples/controls`  
+<div class="grid cards" markdown>
 
-![Knob Controls](./docs/assets/screenshots/controls-knob.png)  
-`examples/controls`  
+- ![Dial Controls](assets/screenshots/controls-dial.png)  
+  `examples/controls`  
 
-![Slider Controls](./docs/assets/screenshots/controls-sliders.png)  
-`examples/controls`  
+- ![Knob Controls](assets/screenshots/controls-knob.png)  
+  `examples/controls`  
 
-![Wheel & Thermo](./docs/assets/screenshots/controls-wheel-thermo.png)  
-`examples/controls`  
+- ![Slider Controls](assets/screenshots/controls-sliders.png)  
+  `examples/controls`  
 
-![Radio Buttons](./docs/assets/screenshots/radio.png)  
-`examples/radio`  
+- ![Wheel & Thermo](assets/screenshots/controls-wheel-thermo.png)  
+  `examples/controls`  
 
-![Time Scale Demo](./docs/assets/screenshots/timescale.png)  
-`playground/timescale`  
+- ![Radio Buttons](assets/screenshots/radio.png)  
+  `examples/radio`  
+
+- ![Time Scale Demo](assets/screenshots/timescale.png)  
+  `playground/timescale`  
+
+</div>
 
 ### 仪表盘
 
-![Compass Dial](./docs/assets/screenshots/dials-compass.png)  
-`examples/dials`  
+<div class="grid cards" markdown>
 
-![Cockpit Dials](./docs/assets/screenshots/dials-cockpit.png)  
-`examples/dials`  
+- ![Compass Dial](assets/screenshots/dials-compass.png)  
+  `examples/dials`  
+
+- ![Cockpit Dials](assets/screenshots/dials-cockpit.png)  
+  `examples/dials`  
+
+</div>

@@ -64,14 +64,14 @@ endif()
 ########################################################
 # 安装路径设置
 ########################################################
-set(DA_MIN_QT_VERSION 5.14)
+set(QWT_MIN_QT_VERSION 5.14)
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
 if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
-    set(DA_PLATFORM_NAME "x86")
+    set(QWT_PLATFORM_NAME "x86")
 else()
-    set(DA_PLATFORM_NAME "x64")
+    set(QWT_PLATFORM_NAME "x64")
 endif()
-set(DA_BIN_DIR_NAME bin_qt${QT_VERSION}_${CMAKE_BUILD_TYPE}_${DA_PLATFORM_NAME})
+set(QWT_BIN_DIR_NAME bin_qt${QT_VERSION}_${CMAKE_BUILD_TYPE}_${DA_PLATFORM_NAME})
 
 
 ##################################

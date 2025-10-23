@@ -27,7 +27,9 @@ Because the `Qwt` author has ceased maintenance, I personally prefer `Qwt`: its 
 `QCustomPlot` delivers out-of-the-box interactive features such as mouse zooming and axis scaling, whereas `Qwt` requires more code to achieve the same, yet it offers finer-grained control.  
 When my own projects need plotting I therefore choose `Qwt`, enhancing and optimizing it with the features I need—hence this project.
 
-# Qwt7.0
+**docment**：[https://czyt1988.github.io/QWT/zh/](https://czyt1988.github.io/QWT/zh/)
+
+## Qwt7.0
 
 I have taken over maintenance of the final official `Qwt` release, adding the features I need while gradually refining existing ones, e.g., its outdated default styling.
 
@@ -39,20 +41,20 @@ Project repositories:
 Goals and current progress:
 
 - [x] CMake support  
-- [ ] Qt 6 support  
+- [x] Qt 6 support  
 - [ ] C++11 modernization  
 - [x] Merged into single header/source for easier inclusion  
 - [ ] Optimize rendering for ultra-large data sets  
 - [ ] Provide integrated interaction helpers for simpler usage  
 - [x] Modernized visual style  
 - [x] Figure class for layout management  
-- [ ] Add parasite-axis support for unlimited axes
+- [x] Add parasite-axis support for unlimited axes
 
 In short, I will keep maintaining `Qwt` so it becomes a license-friendly, high-performance, and easy-to-use Qt plotting library.
 
-# New Features in Qwt7.0
+## New Features in Qwt7.0
 
-## CMake Support
+### CMake Support
 
 Qwt7.0 now supports **CMake**; `qmake` may be dropped in the future.  
 After installing Qwt you can simply link it in your project:
@@ -61,7 +63,7 @@ After installing Qwt you can simply link it in your project:
 target_link_libraries(${YOUR_APP_TARGET} PUBLIC qwt::qwt)
 ```
 
-## Single Header & Source File
+### Single Header & Source File
 
 Following the example of `QCustomPlot`, I have merged the entire `Qwt` library into `QwtPlot.h` and `QwtPlot.cpp`.  
 Drop these two files into your project and you are ready to go.
@@ -91,177 +93,162 @@ target_link_libraries(YOUR_APP_TARGET
 )
 ```
 
-## Modernized Visual Style
+### Modernized Visual Style
 
 The original Qwt style used an outdated beveled look inconsistent with modern aesthetics.  
 I therefore redesigned it.  
 Qwt 6.3:
 
-![qwt6.3 effect](docs/picture/bode-old.png)
+![qwt6.3 effect](./docs/assets/picture/bode-old.png)
 
 Qwt 7.0:
 
-![qwt7.0 effect](docs/screenshots/bode.png)
+![qwt7.0 effect](./docs/assets/screenshots/bode.png)
 
 Key changes: removed the default sunken style, placed axes flush against the plot area, overall appearance now aligns with contemporary design.
 
-## Added Figure Container
+### Added Figure Container
 
 Inspired by Python’s matplotlib, Qwt now provides a Figure container for effortless multi-plot layouts:
 
-![qwt_figure](./pic/qwt_figure.png)
+![qwt_figure](./docs/assets/screenshots/qwt_figure.png)
 
 The new `QwtFigure` class supports grid layouts (similar to matplotlib’s subplot).
 
-# To-Do List
 
-## Parasite-Axis Support in `QwtFigure`
-
-Scientific plotting often requires multiple axes, e.g., multiple Y axes sharing one X axis, or vice versa.  
-Currently even `QCustomPlot` only supports two axes in the same direction; we will implement parasite axes to allow an arbitrary number, following matplotlib’s approach.
-
-## Optimize Rendering for Ultra-Large Data Sets
-
-Qwt performs acceptably up to a few million points, but begins to stutter beyond 3 million.  
-We will introduce a decimation algorithm to handle tens or even hundreds of millions of points efficiently.
-
-## Integrated Interaction Helpers
-
-Provide out-of-the-box helpers such as data picking and rulers, and incorporate effects inspired by ECharts.
-
-# Changelog
+## Changelog
 
 See [CHANGES.MD](./CHANGES.md) for detailed logs.
 
-# Gallery
+## Gallery
 
-## Basic Charts
+### Basic Charts
 
-![Simple Plot](docs/screenshots/simpleplot.png)  
+![Simple Plot](./docs/assets/screenshots/simpleplot.png)  
 `examples/simpleplot`
 
-![Bar Chart - Grouped](docs/screenshots/BarChart-grouped.png)  
+![Bar Chart - Grouped](./docs/assets/screenshots/BarChart-grouped.png)  
 `examples/barchart`
 
-![Bar Chart - Stacked](docs/screenshots/BarChart-stacked.png)  
+![Bar Chart - Stacked](./docs/assets/screenshots/BarChart-stacked.png)  
 `examples/barchart`
 
-![Scatter Plot](docs/screenshots/scatterplot.png)  
+![Scatter Plot](./docs/assets/screenshots/scatterplot.png)  
 `examples/scatterplot`
 
-![Curve Demo](docs/screenshots/curvedemo.png)  
+![Curve Demo](./docs/assets/screenshots/curvedemo.png)  
 `examples/curvedemo`
 
-## Real-Time Visualization
+### Real-Time Visualization
 
-![CPU Monitor](docs/screenshots/cpuplot.png)  
+![CPU Monitor](./docs/assets/screenshots/cpuplot.png)  
 `examples/cpuplot`
 
-![Real-Time Plot](docs/screenshots/realtime.png)  
+![Real-Time Plot](./docs/assets/screenshots/realtime.png)  
 `examples/realtime`
 
-![Oscilloscope](docs/screenshots/oscilloscope.png)  
+![Oscilloscope](./docs/assets/screenshots/oscilloscope.png)  
 `examples/oscilloscope`
 
-## Advanced Charts
+### Advanced Charts
 
-![Polar Demo](docs/screenshots/polardemo.png)  
+![Polar Demo](./docs/assets/screenshots/polardemo.png)  
 `examples/polardemo`
 
-![Spectrogram](docs/screenshots/spectrogram.png)  
+![Spectrogram](./docs/assets/screenshots/spectrogram.png)  
 `examples/spectrogram`
 
-![Contour Spectrogram](docs/screenshots/spectrogram-contour.png)  
+![Contour Spectrogram](./docs/assets/screenshots/spectrogram-contour.png)  
 `examples/spectrogram`
 
-![Vector Field](docs/screenshots/vectorfield.png)  
+![Vector Field](./docs/assets/screenshots/vectorfield.png)  
 `playground/vectorfield`
 
-![Stock Chart](docs/screenshots/stockchart.png)  
+![Stock Chart](./docs/assets/screenshots/stockchart.png)  
 `examples/stockchart`
 
-![Bode Plot](docs/screenshots/bode.png)  
+![Bode Plot](./docs/assets/screenshots/bode.png)  
 `examples/bode`
 
-![Tube Display](docs/screenshots/friedberg-tube.png)  
+![Tube Display](./docs/assets/screenshots/friedberg-tube.png)  
 `examples/friedberg`
 
-![plot matrix](docs/screenshots/plotmatrix.png)  
+![plot matrix](./docs/assets/screenshots/plotmatrix.png)  
 `playground/plotmatrix`
 
-![Scale Engine](docs/screenshots/scaleengine.png)  
+![Scale Engine](./docs/assets/screenshots/scaleengine.png)  
 `playground/scaleengine`
 
-![Rescaler](docs/screenshots/rescaler.png)  
+![Rescaler](./docs/assets/screenshots/rescaler.png)  
 `playground/rescaler`
 
-![Graphics Scale](docs/screenshots/graphicscale.png)  
+![Graphics Scale](./docs/assets/screenshots/graphicscale.png)  
 `playground/graphicscale`
 
-![Spline Editor](docs/screenshots/splineeditor.png)  
+![Spline Editor](./docs/assets/screenshots/splineeditor.png)  
 `examples/splineeditor`
 
-![System Info](docs/screenshots/sysinfo.png)  
+![System Info](./docs/assets/screenshots/sysinfo.png)  
 `examples/sysinfo`
 
-![Distro Watch](docs/screenshots/distrowatch.png)  
+![Distro Watch](./docs/assets/screenshots/distrowatch.png)  
 `examples/distrowatch`
 
-![Raster View 1](docs/screenshots/rasterview-1.png)  
+![Raster View 1](./docs/assets/screenshots/rasterview-1.png)  
 `examples/rasterview`
 
-![Raster View 2](docs/screenshots/rasterview-2.png)  
+![Raster View 2](./docs/assets/screenshots/rasterview-2.png)  
 `examples/rasterview`
 
-![SVG Map](docs/screenshots/svgmap.png)  
+![SVG Map](./docs/assets/screenshots/svgmap.png)  
 `playground/svgmap`
 
-## Animated Demos
+### Animated Demos
 
-![Animated Demo](docs/screenshots/animated.png)  
+![Animated Demo](./docs/assets/screenshots/animated.png)  
 `examples/animated`
 
-![Curve Tracker](docs/screenshots/curvetracker.png)  
+![Curve Tracker](./docs/assets/screenshots/curvetracker.png)  
 `playground/curvetracker`
 
-![Refresh Test](docs/screenshots/refreshtest.png)  
+![Refresh Test](./docs/assets/screenshots/refreshtest.png)  
 `examples/refreshtest`
 
-## Styles & Symbols
+### Styles & Symbols
 
-![Legends Demo](docs/screenshots/legends.png)  
+![Legends Demo](./docs/assets/screenshots/legends.png)  
 `examples/legends`
 
-![Symbols Demo](docs/screenshots/symbols.png)  
+![Symbols Demo](./docs/assets/screenshots/symbols.png)  
 `playground/symbols`
 
-![Shape Rendering](docs/screenshots/shapes.png)  
+![Shape Rendering](./docs/assets/screenshots/shapes.png)  
 `playground/shapes`
 
-## Control Widgets
+### Control Widgets
 
-![Dial Controls](docs/screenshots/controls-dial.png)  
+![Dial Controls](./docs/assets/screenshots/controls-dial.png)  
 `examples/controls`
 
-![Knob Controls](docs/screenshots/controls-knob.png)  
+![Knob Controls](./docs/assets/screenshots/controls-knob.png)  
 `examples/controls`
 
-![Slider Controls](docs/screenshots/controls-sliders.png)  
+![Slider Controls](./docs/assets/screenshots/controls-sliders.png)  
 `examples/controls`
 
-![Wheel & Thermo](docs/screenshots/controls-wheel-thermo.png)  
+![Wheel & Thermo](./docs/assets/screenshots/controls-wheel-thermo.png)  
 `examples/controls`
 
-![Radio Buttons](docs/screenshots/radio.png)  
+![Radio Buttons](./docs/assets/screenshots/radio.png)  
 `examples/radio`
 
-![Time Scale Demo](docs/screenshots/timescale.png)  
+![Time Scale Demo](./docs/assets/screenshots/timescale.png)  
 `playground/timescale`
 
-## Instrument Panels
+### Instrument Panels
 
-![Compass Dial](docs/screenshots/dials-compass.png)  
+![Compass Dial](./docs/assets/screenshots/dials-compass.png)  
 `examples/dials`
 
-![Cockpit Dials](docs/screenshots/dials-cockpit.png)  
+![Cockpit Dials](./docs/assets/screenshots/dials-cockpit.png)  
 `examples/dials`
