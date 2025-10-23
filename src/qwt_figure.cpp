@@ -218,7 +218,7 @@ void QwtFigure::adjustLayout(qreal left, qreal bottom, qreal right, qreal top)
  *
  * 此方法返回添加到图形中的所有QwtPlot对象的列表。
  *
- * @return List of all QwtPlot objects / 所有QwtPlot对象的列表
+ * @return List of all QwtPlot objects / 所有QwtPlot对象的列表(不包含寄生轴)
  *
  * @code
  * // Get all plots and update their titles
@@ -355,6 +355,8 @@ void QwtFigure::removeAxes(QwtPlot* plot)
  * @note 如果当前的绘图是选择的激活坐标系，在移除时，会先发射@ref currentAxesChanged 信号，再发射@ref axesRemoved 信号
  *
  * @note 如果只有一个绘图，在移除后，整个figure没有绘图的情况下，也会发射@ref currentAxesChanged 信号，信号携带的内容为nullptr
+ *
+ * @note 如果一个绘图有寄生轴，再takeAxes后，它的寄生轴会设置为隐藏，并把parent widget设置为nullptr
  */
 bool QwtFigure::takeAxes(QwtPlot* plot)
 {
@@ -405,6 +407,12 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
         }
     }
     if (isRemove) {
+        // 处理寄生轴
+        const QList< QwtPlot* > parasites = plot->parasitePlots();
+        for (QwtPlot* para : parasites) {
+            para->setParent(nullptr);
+            para->hide();
+        }
         Q_EMIT axesRemoved(plot);
     }
     return isRemove;
@@ -748,6 +756,8 @@ int QwtFigure::edgeLineWidth() const
  * @endcode
  *
  * @see getParasiteAxes()
+ *
+ * @note 寄生轴必须有figure来管理，这是因为寄生轴仅仅是绘图区域和宿主重叠，坐标窗口的位置都和宿主不一样
  */
 QwtPlot* QwtFigure::createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enableAxis, bool shareX, bool shareY)
 {
