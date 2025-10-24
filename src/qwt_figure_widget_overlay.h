@@ -10,6 +10,11 @@ class QKeyEvent;
 class QwtFigure;
 class QwtPlot;
 
+/**
+ * @brief The QwtFigureWidgetOverlay class
+ *
+ * @note QwtFigureWidgetOverlay并不会直接改变尺寸，因此尺寸的改变主要在管理窗口中执行，这是为了能让它有更大的自由度，例如需要做回退功能
+ */
 class QWT_EXPORT QwtFigureWidgetOverlay : public QwtWidgetOverlay
 {
     Q_OBJECT

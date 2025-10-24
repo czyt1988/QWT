@@ -54,6 +54,9 @@ public:
     // Get the normalized rectangle for a widget/获取窗口部件的归一化矩形
     QRectF widgetNormRect(QWidget* widget) const;
 
+    // 计算rect相对于parentRect的归一化坐标
+    static QRectF calcNormRect(const QRect& parentRect, const QRect& rect);
+
 protected:
     // calc the normalized rectangle for a grid cell/获取网格单元格的归一化矩形
     QRectF calcGridRect(int rowCnt,

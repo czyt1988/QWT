@@ -70,6 +70,7 @@ set(CMAKE_AUTOMOC_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/moc)
 ########################################################
 set(QWT_HEADER_BASE
         qwt.h
+        qwt_version_info.h
         qwt_abstract_scale_draw.h
         qwt_bezier.h
         qwt_clipper.h
