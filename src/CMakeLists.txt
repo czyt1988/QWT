@@ -5,10 +5,7 @@ cmake_minimum_required(VERSION 3.5)
 
 set(QWT_LIB_NAME "qwt")
 set(QWT_LIB_DESCRIPTION "QWT | Qt Widgets for Technical Applications")
-set(QWT_LIB_VERSION_MAJOR 6)
-set(QWT_LIB_VERSION_MINOR 2)
-set(QWT_LIB_VERSION_PATCH 0)
-set(QWT_LIB_VERSION "${QWT_LIB_VERSION_MAJOR}.${QWT_LIB_VERSION_MINOR}.${QWT_LIB_VERSION_PATCH}")
+set(QWT_LIB_VERSION "${QWT_VERSION}")
 
 message("")
 message("${QWT_LIB_NAME}${QWT_LIB_VERSION} | ${QWT_LIB_DESCRIPTION}")
@@ -45,7 +42,8 @@ endif()
 ########################################################
 # Qt
 ########################################################
-set(QWT_MIN_QT_VERSION 5.6)
+# Qt 5.12 或更高版本有完善的 C++17 支持
+set(QWT_MIN_QT_VERSION 5.12)
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
 
 find_package(Qt${QT_VERSION_MAJOR} ${QWT_MIN_QT_VERSION} COMPONENTS
@@ -86,6 +84,8 @@ set(QWT_HEADER_BASE
         qwt_interval.h
         qwt_interval_symbol.h
         qwt_math.h
+        qwt_algorithm.hpp
+        qwt_qt5qt6_compat.hpp
         qwt_magnifier.h
         qwt_null_paintdevice.h
         qwt_painter.h
@@ -118,6 +118,7 @@ set(QWT_HEADER_BASE
         qwt_widget_overlay.h
         qwt_figure_layout.h
         qwt_figure.h
+        qwt_figure_widget_overlay.h
 )
 set(QWT_SOURCE_BASE
         qwt.cpp
@@ -167,6 +168,7 @@ set(QWT_SOURCE_BASE
         qwt_widget_overlay.cpp
         qwt_figure_layout.cpp
         qwt_figure.cpp
+        qwt_figure_widget_overlay.cpp
 )
 
 set(QWT_HEADER_FILES ${QWT_HEADER_BASE})
@@ -474,6 +476,14 @@ target_include_directories(${QWT_LIB_NAME} PUBLIC
 
 
 ########################################################
+# 自动化生成配置头文件
+########################################################
+configure_file (
+  "${CMAKE_CURRENT_LIST_DIR}/qwt_version_info.h.in"
+  "${CMAKE_CURRENT_LIST_DIR}/qwt_version_info.h"
+)
+
+########################################################
 # 安装
 ########################################################
 include(CMakePackageConfigHelpers)
@@ -481,7 +491,7 @@ include(GNUInstallDirs)
 
 message(STATUS "${QWT_LIB_NAME} install dir is : ${CMAKE_INSTALL_PREFIX}")
 
-# DALibConfig.cmake.in中，会让此变量和“${PACKAGE_PREFIX_DIR}/”进行拼接，也就是${PACKAGE_PREFIX_DIR}/@QWT_LIB_INCLUDE_INSTALL_DIR@
+
 # PACKAGE_PREFIX_DIR = ${CMAKE_CURRENT_LIST_DIR}/../..
 # 最终变为${CMAKE_CURRENT_LIST_DIR}/../../include/qwt
 set(QWT_LIB_INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR}/${QWT_LIB_NAME})

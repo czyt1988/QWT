@@ -1,6 +1,6 @@
 site_name: QWT - Qt绘图库
 site_author: 'Chen ZongYan'
-site_url: https://czyt1988.github.io/QWT/zh/  
+site_url: https://czyt1988.github.io/QWT  
 repo_url: https://github.com/czyt1988/QWT  
 
 # 多语言站点信息
@@ -56,14 +56,12 @@ plugins:
                 - 构建说明: zh/build-guide/build-instructions.md
             - 使用指南: 
                 - 引入qwt: zh/use-guide/import-qwt.md
+                - QwtFigure绘图容器: zh/use-guide/figure-widget.md
+                - 多坐标轴的创建: zh/use-guide/parasite-axes.md
             - API文档: 
                 - API文档首页: doxygen/index.html
                 - 类列表: doxygen/annotated.html
                 - 类索引: doxygen/classes.html
-  # 需要版本切换再打开下面
-  # - git-revision-date
-  # - mike:                       
-  #    version_selector: true
   # 需要导出pdf再打开下面
   # - with-pdf:
   #      # 启用整站 PDF 导出

@@ -1,8 +1,10 @@
 ﻿// 通用定义
+#include "../../src/qwt_version_info.h"
 #include "../../src/qwt_global.h"
 #include "../../src/qwt.h"
 #include "../../src/qwt_polar.h"
 #include "../../src/qwt_math.h"
+#include "../../src/qwt_algorithm.hpp"
 #include "../../src/qwt_interval.h"
 #include "../../src/qwt_color_map.h"
 #include "../../src/qwt_pixel_matrix.h"
@@ -10,6 +12,7 @@
 #include "../../src/qwt_scale_map.h"
 #include "../../src/qwt_dyngrid_layout.h"
 #include "../../src/qwt_weeding_curve_fitter.h"
+#include "../../src/qwt_qt5qt6_compat.hpp"
 #include "../../src/qwt_samples.h"
 #include "../../src/qwt_point_3d.h"
 #include "../../src/qwt_series_data.h"
@@ -138,3 +141,4 @@
 #include "../../src/qwt_polar_layout.h"
 #include "../../src/qwt_figure_layout.h"
 #include "../../src/qwt_figure.h"
+#include "../../src/qwt_figure_widget_overlay.h"

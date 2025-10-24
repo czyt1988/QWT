@@ -38,13 +38,13 @@
 
 class QwtFigure::PrivateData
 {
+    QWT_DECLARE_PUBLIC(QwtFigure)
 public:
     PrivateData(QwtFigure* p);
     // 初始化寄生轴的属性
     void initParasiteAxes(QwtPlot* parasitePlot);
 
 public:
-    QwtFigure* q_ptr { nullptr };
     QBrush faceBrush { Qt::white };                     ///< Background color of the figure / 图形背景颜色
     QColor edgeColor { Qt::black };                     ///< Border color of the figure / 图形边框颜色
     int edgeLineWidth { 0 };                            ///< Border line width / 边框线宽
@@ -89,8 +89,7 @@ void QwtFigure::PrivateData::initParasiteAxes(QwtPlot* parasitePlot)
  * @param parent Parent widget / 父窗口部件
  * @param f Window flags / 窗口标志
  */
-QwtFigure::QwtFigure(QWidget* parent, Qt::WindowFlags f)
-    : QFrame(parent, f), m_data(std::make_unique< QwtFigure::PrivateData >(this))
+QwtFigure::QwtFigure(QWidget* parent, Qt::WindowFlags f) : QFrame(parent, f), QWT_PIMPL_CONSTRUCT
 {
     setLayout(new QwtFigureLayout());
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -212,13 +211,15 @@ void QwtFigure::adjustLayout(qreal left, qreal bottom, qreal right, qreal top)
 }
 
 /**
- * @brief Get all axes (plots) in the figure/获取图形中的所有坐标轴（绘图）
+ * @brief Get all axes (plots) in the figure（not contain parasite axes）/获取图形中的所有坐标轴（绘图）(不包含寄生轴)
  *
- * This method returns a list of all QwtPlot objects added to the figure.
+ * This method returns a list of all QwtPlot objects added to the figure.（not contain parasite axes）
  *
- * 此方法返回添加到图形中的所有QwtPlot对象的列表。
+ * 此方法返回添加到图形中的所有QwtPlot对象的列表。(不包含寄生轴)
  *
  * @return List of all QwtPlot objects / 所有QwtPlot对象的列表(不包含寄生轴)
+ *
+ * @note 此方法获取的绘图不包含寄生轴
  *
  * @code
  * // Get all plots and update their titles
@@ -238,7 +239,9 @@ QList< QwtPlot* > QwtFigure::allAxes() const
             QLayoutItem* item = lay->itemAt(i);
             if (item && item->widget()) {
                 if (QwtPlot* plot = qobject_cast< QwtPlot* >(item->widget())) {
-                    plots.append(plot);
+                    if (plot->isHostPlot()) {
+                        plots.append(plot);
+                    }
                 }
             }
         }
@@ -1130,6 +1133,24 @@ QRectF QwtFigure::axesNormRect(QwtPlot* plot) const
 {
     QWTFIGURE_SAFEGET_LAY_RET(lay, QRect())
     return lay->widgetNormRect(plot);
+}
+
+/**
+ * @brief Get the normalized rectangle for a widget/获取窗口的归一化矩形
+ *
+ * This method returns the normalized coordinates [0,1] for the specified axes
+ * in the figure. If the widget is not found in the figure, an invalid QRectF is returned.
+ *
+ * 此方法返回布局中指定坐标系的归一化坐标[0,1]。如果在绘图中未找到该窗口，则返回无效的QRectF。
+ *
+ * @param widget Widget to query / 要查询的窗口
+ * @return Normalized coordinates [left, top, width, height] in range [0,1], or invalid QRectF if not found
+ *         归一化坐标 [左, 上, 宽, 高]，范围 [0,1]，如果未找到则返回无效QRectF
+ */
+QRectF QwtFigure::widgetNormRect(QWidget* w) const
+{
+    QWTFIGURE_SAFEGET_LAY_RET(lay, QRect())
+    return lay->widgetNormRect(w);
 }
 
 void QwtFigure::paintEvent(QPaintEvent* event)

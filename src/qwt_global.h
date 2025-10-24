@@ -12,10 +12,7 @@
 
 #include <qglobal.h>
 #include <memory>
-// QWT_VERSION is (major << 16) + (minor << 8) + patch.
-
-#define QWT_VERSION 0x070001
-#define QWT_VERSION_STR "7.0.1"
+#include "qwt_version_info.h"
 
 #if defined(_MSC_VER) /* MSVC Compiler */
 /* template-class specialization 'identifier' is already instantiated */
@@ -84,7 +81,7 @@
  * class A{
  *  class PrivateData;
  *  friend class A::PrivateData;
- *  std::unique_ptr< PrivateData > d_ptr;
+ *  std::unique_ptr< PrivateData > m_data;
  * }
  * @endcode
  *
@@ -94,11 +91,11 @@
  * //cpp
  * class A::PrivateData{
  *  QWT_DECLARE_PUBLIC(A)
- *  PrivateData(A* p):q_ptr(p){
+ *  PrivateData(A* p):m_data(p){
  *  }
  * };
  *
- * A::A():d_ptr(new PrivateData(this)){
+ * A::A():m_data(new PrivateData(this)){
  * }
  * @endcode
  *
@@ -107,14 +104,14 @@
 #define QWT_DECLARE_PRIVATE(classname)                                                                                 \
 	class PrivateData;                                                                                                 \
 	friend class classname::PrivateData;                                                                               \
-	std::unique_ptr< PrivateData > d_ptr;                                                                              \
+    std::unique_ptr< PrivateData > m_data;                                                                             \
 	inline PrivateData* d_func()                                                                                       \
 	{                                                                                                                  \
-		return (d_ptr.get());                                                                                          \
+        return (m_data.get());                                                                                         \
 	}                                                                                                                  \
 	inline const PrivateData* d_func() const                                                                           \
 	{                                                                                                                  \
-		return (d_ptr.get());                                                                                          \
+        return (m_data.get());                                                                                         \
 	}
 #endif
 
@@ -144,7 +141,7 @@
  * 配套QWT_DECLARE_PRIVATE使用,在构造函数中构建privatedata
  */
 #ifndef QWT_PIMPL_CONSTRUCT
-#define QWT_PIMPL_CONSTRUCT d_ptr(std::make_unique< PrivateData >(this))
+#define QWT_PIMPL_CONSTRUCT m_data(std::make_unique< PrivateData >(this))
 #endif
 
 #endif

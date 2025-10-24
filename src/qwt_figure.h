@@ -89,6 +89,7 @@ class QwtPlot;
 class QWT_EXPORT QwtFigure : public QFrame
 {
     Q_OBJECT
+    QWT_DECLARE_PRIVATE(QwtFigure)
 public:
     QwtFigure(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
     virtual ~QwtFigure();
@@ -179,6 +180,8 @@ public:
 
     // Get the normalized rectangle for a axes/获取绘图的归一化矩形
     QRectF axesNormRect(QwtPlot* plot) const;
+    // Get the normalized rectangle for a child widget/获取子窗口的的归一化矩形
+    QRectF widgetNormRect(QWidget* w) const;
 Q_SIGNALS:
     /**
      * @brief Signal emitted when axes are added to the figure/当坐标轴添加到图形时发出的信号
@@ -210,10 +213,6 @@ Q_SIGNALS:
 protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
-
-private:
-    class PrivateData;
-    std::unique_ptr< PrivateData > m_data;
 };
 
 #endif  // QWT_FIGURE_H
