@@ -335,7 +335,7 @@ void QwtFigureLayout::addAxes(QWidget* widget, qreal left, qreal top, qreal widt
  * // +-------------------+-------------------+
  * @endcode
  */
-void QwtFigureLayout::addAxes(QWidget* widget, int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace)
+void QwtFigureLayout::addGridAxes(QWidget* widget, int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace)
 {
 	if (!widget) {
 		qWarning() << "QwtFigureLayout::addToGrid get a null widget";

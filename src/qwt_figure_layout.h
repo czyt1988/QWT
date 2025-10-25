@@ -39,15 +39,15 @@ public:
     void addAxes(QWidget* widget, qreal left, qreal top, qreal width, qreal height);
 
     // Add a widget by grid layout/添加窗口部件到网格布局
-    void addAxes(QWidget* widget,
-                 int rowCnt,
-                 int colCnt,
-                 int row,
-                 int col,
-                 int rowSpan  = 1,
-                 int colSpan  = 1,
-                 qreal wspace = 0.0,
-                 qreal hspace = 0.0);
+    void addGridAxes(QWidget* widget,
+                     int rowCnt,
+                     int colCnt,
+                     int row,
+                     int col,
+                     int rowSpan  = 1,
+                     int colSpan  = 1,
+                     qreal wspace = 0.0,
+                     qreal hspace = 0.0);
 
     // 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
     void setAxesNormPos(QWidget* widget, const QRectF& rect);

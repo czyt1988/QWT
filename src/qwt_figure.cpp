@@ -149,7 +149,7 @@ void QwtFigure::addWidget(QWidget* widget, int rowCnt, int colCnt, int row, int 
     if (widget && widget->parentWidget() != this) {
         widget->setParent(this);
     }
-    lay->addAxes(widget, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
+    lay->addGridAxes(widget, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
 }
 
 /**
@@ -234,7 +234,7 @@ void QwtFigure::addAxes(QwtPlot* plot, qreal left, qreal top, qreal width, qreal
  *
  * @note 此函数会发射@ref axesAdded 信号，此信号发射后发射@ref currentAxesChanged 信号
  */
-void QwtFigure::addAxes(QwtPlot* plot, int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace)
+void QwtFigure::addGridAxes(QwtPlot* plot, int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace)
 {
     addWidget(plot, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
     Q_EMIT axesAdded(plot);
@@ -516,26 +516,34 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
 void QwtFigure::clear()
 {
     // Remove from layout
-    QLayout* lay = layout();
-    int cnt      = 0;
+    QLayout* lay  = layout();
+    int removeCnt = 0;
     if (lay) {
-        for (int i = 0; i < lay->count(); ++i) {
+        // lay->count()不能放到for循环里面，每次循环会变化
+        const int itemCnt = lay->count();
+        // 先删除窗口，最后再统一删除item，这个循环里面不能调用removeItem，否则每次都改变队列大小，就不能正常遍历
+        for (int i = 0; i < itemCnt; ++i) {
             QLayoutItem* item = lay->itemAt(i);
             if (item) {
-                lay->removeItem(item);
                 if (QwtPlot* plot = qobject_cast< QwtPlot* >(item->widget())) {
                     Q_EMIT axesRemoved(plot);
                 }
                 if (QWidget* w = item->widget()) {
+                    w->hide();
                     w->deleteLater();
                 }
-                delete item;
-                ++cnt;
+                ++removeCnt;
             }
+        }
+        // 最后再统一删除item
+        for (int i = 0; i < itemCnt; ++i) {
+            QLayoutItem* item = lay->itemAt(i);
+            lay->removeItem(item);
+            delete item;
         }
     }
     setCurrentAxes(nullptr);
-    if (cnt > 0) {
+    if (removeCnt > 0) {
         Q_EMIT figureCleared();
     }
 }

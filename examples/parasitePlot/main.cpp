@@ -139,7 +139,7 @@ void createParasitePlot(QwtFigure* figure)
     hostCurve->attach(hostPlot);
     hostCurve->setRenderHint(QwtPlotItem::RenderAntialiased, true);
     //! 把主绘图添加到figure中
-    figure->addAxes(hostPlot, 1, 1, 0, 0);  //  填满整个figure
+    figure->addGridAxes(hostPlot, 1, 1, 0, 0);  //  填满整个figure
 
     //! 添加宿主坐标系
     QwtPlot* parasitePlot = figure->createParasiteAxes(hostPlot, QwtAxis::YLeft);

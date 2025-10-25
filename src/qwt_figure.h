@@ -111,15 +111,15 @@ public:
     void addAxes(QwtPlot* plot, qreal left, qreal top, qreal width, qreal height);
 
     // Add a plot by grid layout/添加窗口部件到网格布局
-    void addAxes(QwtPlot* plot,
-                 int rowCnt,
-                 int colCnt,
-                 int row,
-                 int col,
-                 int rowSpan  = 1,
-                 int colSpan  = 1,
-                 qreal wspace = 0.0,
-                 qreal hspace = 0.0);
+    void addGridAxes(QwtPlot* plot,
+                     int rowCnt,
+                     int colCnt,
+                     int row,
+                     int col,
+                     int rowSpan  = 1,
+                     int colSpan  = 1,
+                     qreal wspace = 0.0,
+                     qreal hspace = 0.0);
 
     // 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
     void setWidgetNormPos(QWidget* widget, const QRectF& rect);

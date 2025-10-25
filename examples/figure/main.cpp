@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
 	curve3->setRenderHint(QwtPlotItem::RenderAntialiased, true);
 	curve3->attach(plot3);
 	setupPlotStyle(plot3, "Grid Layout (3x2, Cell 1,0) sample with nan and inf", Qt::green);
-	figure->addAxes(plot3, 3, 2, 1, 0);  // 3x2网格，第1行第0列（0base）
+    figure->addGridAxes(plot3, 3, 2, 1, 0);  // 3x2网格，第1行第0列（0base）
 	plot3->rescaleAxes();
 	qDebug() << "plot3 norm rect =" << figure->axesNormRect(plot3);
 
@@ -152,7 +152,7 @@ int main(int argc, char* argv[])
 	curve4->setRenderHint(QwtPlotItem::RenderAntialiased, true);
 	curve4->attach(plot4);
 	setupPlotStyle(plot4, "Grid Layout (3x2, Cell 1,1)", Qt::magenta);
-	figure->addAxes(plot4, 3, 2, 1, 1);  // 2x2网格，第1行第1列（0base）
+    figure->addGridAxes(plot4, 3, 2, 1, 1);  // 2x2网格，第1行第1列（0base）
 	plot4->rescaleAxes();
 	qDebug() << "plot4 norm rect =" << figure->axesNormRect(plot4);
 
@@ -214,7 +214,7 @@ void createGrid32_parasitePlot(QwtFigure* figure)
 	hostCurve->attach(hostPlot);
 
 	//! 把主绘图添加到figure中
-	figure->addAxes(hostPlot, 3, 2, 2, 0, 1, 2);  // 3x2网格，第2行第0列，跨2列
+    figure->addGridAxes(hostPlot, 3, 2, 2, 0, 1, 2);  // 3x2网格，第2行第0列，跨2列
 
 	//! 添加宿主坐标系
 	QwtPlot* parasitePlot = figure->createParasiteAxes(hostPlot, QwtAxis::YLeft);
