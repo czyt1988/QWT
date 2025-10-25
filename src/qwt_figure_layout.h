@@ -18,6 +18,7 @@
 class QWT_EXPORT QwtFigureLayout : public QLayout
 {
     Q_OBJECT
+    QWT_DECLARE_PRIVATE(QwtFigureLayout)
 public:
     QwtFigureLayout();
     explicit QwtFigureLayout(QWidget* parent);
@@ -48,6 +49,9 @@ public:
                  qreal wspace = 0.0,
                  qreal hspace = 0.0);
 
+    // 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
+    void setAxesNormPos(QWidget* widget, const QRectF& rect);
+
     // Update layout parameters/更新布局参数
     void adjustLayout(qreal left, qreal bottom, qreal right, qreal top);
 
@@ -67,10 +71,6 @@ protected:
                         int colSpan  = 1,
                         qreal wspace = 0.0,
                         qreal hspace = 0.0) const;
-
-private:
-    class PrivateData;
-    std::unique_ptr< PrivateData > m_data;
 };
 
 #endif  // QWT_FIGURE_LAYOUT_H

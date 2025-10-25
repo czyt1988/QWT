@@ -93,6 +93,17 @@ class QWT_EXPORT QwtFigure : public QFrame
 public:
     QwtFigure(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
     virtual ~QwtFigure();
+    // Add a widget with normalized coordinates/使用归一化坐标添加widget
+    void addWidget(QWidget* widget, qreal left, qreal top, qreal width, qreal height);
+    void addWidget(QWidget* widget,
+                   int rowCnt,
+                   int colCnt,
+                   int row,
+                   int col,
+                   int rowSpan  = 1,
+                   int colSpan  = 1,
+                   qreal wspace = 0.0,
+                   qreal hspace = 0.0);
     // Add a plot with normalized coordinates/使用归一化坐标添加绘图
     void addAxes(QwtPlot* plot, const QRectF& rect);
 
@@ -109,6 +120,9 @@ public:
                  int colSpan  = 1,
                  qreal wspace = 0.0,
                  qreal hspace = 0.0);
+
+    // 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
+    void setWidgetNormPos(QWidget* widget, const QRectF& rect);
 
     // Update layout parameters/更新布局参数
     void adjustLayout(qreal left, qreal bottom, qreal right, qreal top);
@@ -182,6 +196,8 @@ public:
     QRectF axesNormRect(QwtPlot* plot) const;
     // Get the normalized rectangle for a child widget/获取子窗口的的归一化矩形
     QRectF widgetNormRect(QWidget* w) const;
+    // 获取在此坐标下的绘图，如果此坐标下没有，则返回nullptr，存在寄生轴情况只返回宿主轴
+    QwtPlot* plotUnderPos(const QPoint& pos) const;
 Q_SIGNALS:
     /**
      * @brief Signal emitted when axes are added to the figure/当坐标轴添加到图形时发出的信号

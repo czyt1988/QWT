@@ -63928,6 +63928,7 @@ bool QwtPolarRenderer::exportTo(QwtPolarPlot* plot, const QString& documentName,
 #endif
 class QwtFigureLayout::PrivateData
 {
+	QWT_DECLARE_PUBLIC(QwtFigureLayout)
 public:
 	PrivateData(QwtFigureLayout* p) : q_ptr(p)
 	{
@@ -63945,7 +63946,6 @@ public:
 	};
 
 public:
-	QwtFigureLayout* q_ptr { nullptr };
 	QList< LayoutItem > m_items;  ///< List of layout items / 布局项列表
 
 	// Layout parameters with default values / 布局参数（带默认值）
@@ -63955,12 +63955,14 @@ public:
 	qreal m_top { 0.02 };     ///< Top margin / 上边距
 };
 
-QwtFigureLayout::QwtFigureLayout() : QLayout(), m_data(std::make_unique< QwtFigureLayout::PrivateData >(this))
+//----------------------------------------------------
+// QwtFigureLayout
+//----------------------------------------------------
+QwtFigureLayout::QwtFigureLayout() : QLayout(), QWT_PIMPL_CONSTRUCT
 {
 }
 
-QwtFigureLayout::QwtFigureLayout(QWidget* parent)
-	: QLayout(parent), m_data(std::make_unique< QwtFigureLayout::PrivateData >(this))
+QwtFigureLayout::QwtFigureLayout(QWidget* parent) : QLayout(parent), QWT_PIMPL_CONSTRUCT
 {
 }
 
@@ -64055,10 +64057,10 @@ void QwtFigureLayout::setGeometry(const QRect& rect)
 		// Apply margins to both grid-based and normalized coordinate-based items
 		// 将归一化坐标转换为实际像素，使用Qt的左上角坐标系
 		// 对基于网格和基于归一化坐标的项应用边距
-		const qreal actualLeft   = startX + normRect.left() * availableWidth;
-		const qreal actualTop    = startY + normRect.top() * availableHeight;
-		const qreal actualWidth  = normRect.width() * availableWidth;
-		const qreal actualHeight = normRect.height() * availableHeight;
+		const qreal actualLeft   = startX + qRound(normRect.left() * availableWidth);
+		const qreal actualTop    = startY + qRound(normRect.top() * availableHeight);
+		const qreal actualWidth  = qRound(normRect.width() * availableWidth);
+		const qreal actualHeight = qRound(normRect.height() * availableHeight);
 
 		// Ensure the rect is within valid bounds
 		QRect actualRect(qMax(0.0, actualLeft),
@@ -64281,6 +64283,22 @@ void QwtFigureLayout::addAxes(QWidget* widget, int rowCnt, int colCnt, int row, 
 }
 
 /**
+ * @brief 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
+ *
+ * @note 此函数不会自动刷新窗口位置，需要用户手动刷新
+ * @param widget
+ * @param rect
+ */
+void QwtFigureLayout::setAxesNormPos(QWidget* widget, const QRectF& rect)
+{
+	for (QwtFigureLayout::PrivateData::LayoutItem& i : m_data->m_items) {
+		if (i.item->widget() == widget) {
+			i.normRect = rect;
+		}
+	}
+}
+
+/**
  * @brief Update layout parameters/更新布局参数
  *
  * This method adjusts the layout parameters similar to matplotlib's subplots_adjust function.
@@ -64374,6 +64392,42 @@ QRectF QwtFigureLayout::widgetNormRect(QWidget* widget) const
 }
 
 /**
+ * @brief 计算rect相对于parentRect的归一化坐标
+ * @param parentRect 父矩形（像素坐标）
+ * @param rect 子矩形（像素坐标，相对于parentRect）
+ * @return 归一化坐标QRectF（left, top, width, height均在[0,1]范围）
+ */
+QRectF QwtFigureLayout::calcNormRect(const QRect& parentRect, const QRect& rect)
+{
+	// 处理父矩形为空的边界情况（避免除零）
+	if (parentRect.isEmpty()) {
+		return QRectF();
+	}
+
+	// 提取父矩形的宽高（确保为正数，避免异常值）
+	const int parentWidth  = qMax(parentRect.width(), 1);  // 最小为1，防止除零
+	const int parentHeight = qMax(parentRect.height(), 1);
+
+	// 计算归一化坐标（使用double确保精度）
+	const double left   = static_cast< double >(rect.x()) / parentWidth;
+	const double top    = static_cast< double >(rect.y()) / parentHeight;
+	const double width  = static_cast< double >(rect.width()) / parentWidth;
+	const double height = static_cast< double >(rect.height()) / parentHeight;
+
+	// 优化精度：四舍五入到小数点后6位（兼顾精度和浮点数表示稳定性）
+	const double precision = 1e-6;
+	auto roundToPrecision  = [ precision ](double value) { return qRound(value / precision) * precision; };
+
+	// 确保归一化坐标在[0,1]范围内（处理可能的边界误差）
+	const double clampedLeft   = qBound(0.0, roundToPrecision(left), 1.0);
+	const double clampedTop    = qBound(0.0, roundToPrecision(top), 1.0);
+	const double clampedWidth  = qBound(0.0, roundToPrecision(width), 1.0 - clampedLeft);
+	const double clampedHeight = qBound(0.0, roundToPrecision(height), 1.0 - clampedTop);
+
+	return QRectF(clampedLeft, clampedTop, clampedWidth, clampedHeight);
+}
+
+/**
  * @brief calc the normalized rectangle for a grid cell/获取网格单元格的归一化矩形
  *
  * This method calculates the normalized coordinates for a specific grid cell
@@ -64402,8 +64456,7 @@ QRectF QwtFigureLayout::widgetNormRect(QWidget* widget) const
  * QRectF rect = layout->calcGridRect(3, 3, 1, 0, 1, 2);
  * @endcode
  */
-QRectF
-QwtFigureLayout::calcGridRect(int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace) const
+QRectF QwtFigureLayout::calcGridRect(int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace) const
 {
 	if (rowCnt <= 0 || colCnt <= 0 || row < 0 || col < 0 || rowSpan <= 0 || colSpan <= 0 || row + rowSpan > rowCnt
 		|| col + colSpan > colCnt) {
@@ -64479,17 +64532,17 @@ QwtFigureLayout::calcGridRect(int rowCnt, int colCnt, int row, int col, int rowS
 
 class QwtFigure::PrivateData
 {
+	QWT_DECLARE_PUBLIC(QwtFigure)
 public:
 	PrivateData(QwtFigure* p);
 	// 初始化寄生轴的属性
 	void initParasiteAxes(QwtPlot* parasitePlot);
 
 public:
-	QwtFigure* q_ptr { nullptr };
 	QBrush faceBrush { Qt::white };                     ///< Background color of the figure / 图形背景颜色
 	QColor edgeColor { Qt::black };                     ///< Border color of the figure / 图形边框颜色
 	int edgeLineWidth { 0 };                            ///< Border line width / 边框线宽
-	QwtPlot* currentAxes { nullptr };                   ///< Current active axes / 当前活动坐标轴
+	QPointer< QwtPlot > currentAxes;                    ///< Current active axes / 当前活动坐标轴
 	QMap< QwtPlot*, QList< QwtPlot* > > m_parasiteMap;  ///< 宿主轴到寄生轴的映射
 };
 
@@ -64530,8 +64583,7 @@ void QwtFigure::PrivateData::initParasiteAxes(QwtPlot* parasitePlot)
  * @param parent Parent widget / 父窗口部件
  * @param f Window flags / 窗口标志
  */
-QwtFigure::QwtFigure(QWidget* parent, Qt::WindowFlags f)
-	: QFrame(parent, f), m_data(std::make_unique< QwtFigure::PrivateData >(this))
+QwtFigure::QwtFigure(QWidget* parent, Qt::WindowFlags f) : QFrame(parent, f), QWT_PIMPL_CONSTRUCT
 {
 	setLayout(new QwtFigureLayout());
 	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -64539,6 +64591,59 @@ QwtFigure::QwtFigure(QWidget* parent, Qt::WindowFlags f)
 
 QwtFigure::~QwtFigure()
 {
+}
+
+/**
+ * @brief Add a widget with normalized coordinates/使用归一化坐标添加窗口
+ * @param widget QWidget to add / 要添加的QWidget
+ * @param left Normalized coordinates left in range [0,1]
+ * @param top Normalized coordinates top in range [0,1]
+ * @param width Normalized coordinates width in range [0,1]
+ * @param height Normalized coordinates height in range [0,1]
+ *
+ * @note 即使添加的窗口是qwtplot,此函数也不会发射@ref axesAdded 信号，因此，如果你需要添加QwtPlot窗口，
+ * 你应该使用@ref addAxes 函数,此函数是为了在figure窗口添加除QwtPlot以外的窗口使用的
+ *
+ * @sa addAxes
+ */
+void QwtFigure::addWidget(QWidget* widget, qreal left, qreal top, qreal width, qreal height)
+{
+	QWTFIGURE_SAFEGET_LAY(lay)
+	if (widget && widget->parentWidget() != this) {
+		widget->setParent(this);
+	}
+	lay->addAxes(widget, left, top, width, height);
+}
+
+/**
+ * @brief Add a widget by grid layout/添加窗口部件到网格布局
+ *
+ * This method adds a widget to the grid layout at the specified position with optional row and column spans.
+ *
+ * 此方法将widget添加到网格布局中的指定位置，可选择跨行和跨列。
+ *
+ * @param plot widget to add / 要添加的widget
+ * @param rowCnt Number of rows in the grid / 网格行数
+ * @param colCnt Number of columns in the grid / 网格列数
+ * @param row Grid row position (0-based) / 网格行位置（从0开始）
+ * @param col Grid column position (0-based) / 网格列位置（从0开始）
+ * @param rowSpan Number of rows to span (default: 1) / 跨行数（默认：1）
+ * @param colSpan Number of columns to span (default: 1) / 跨列数（默认：1）
+ * @param wspace Horizontal space between subplots [0,1] / 子图之间的水平间距 [0,1]
+ * @param hspace Vertical space between subplots [0,1] / 子图之间的垂直间距 [0,1]
+ *
+ * @note 即使添加的窗口是qwtplot,此函数也不会发射@ref axesAdded 信号，因此，如果你需要添加QwtPlot窗口，
+ * 你应该使用@ref addAxes 函数,此函数是为了在figure窗口添加除QwtPlot以外的窗口使用的
+ *
+ * @sa addAxes
+ */
+void QwtFigure::addWidget(QWidget* widget, int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace)
+{
+	QWTFIGURE_SAFEGET_LAY(lay)
+	if (widget && widget->parentWidget() != this) {
+		widget->setParent(this);
+	}
+	lay->addAxes(widget, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
 }
 
 /**
@@ -64560,25 +64665,33 @@ QwtFigure::~QwtFigure()
  * QwtPlot* plot = new QwtPlot;
  * figure.addAxes(plot, QRectF(0.0, 0.5, 0.5, 0.5));
  * @endcode
+ *
+ * @note 此函数会发射@ref axesAdded 信号，此信号发射后发射@ref currentAxesChanged 信号
  */
 void QwtFigure::addAxes(QwtPlot* plot, const QRectF& rect)
 {
-	QWTFIGURE_SAFEGET_LAY(lay)
-	if (plot && plot->parentWidget() != this) {
-		plot->setParent(this);
-	}
-	lay->addAxes(plot, rect);
-	m_data->currentAxes = plot;
+	addAxes(plot, rect.x(), rect.y(), rect.width(), rect.height());
 }
 
+/**
+ * @brief Add a plot with normalized coordinates/使用归一化坐标添加绘图
+ *
+ * This method adds a QwtPlot to the figure using normalized coordinates in the range [0,1].
+ * The coordinates are specified as [left, bottom, width, height].
+ *
+ * @param plot QwtPlot to add / 要添加的QwtPlot
+ * @param left Normalized coordinates left in range [0,1]
+ * @param top Normalized coordinates top in range [0,1]
+ * @param width Normalized coordinates width in range [0,1]
+ * @param height Normalized coordinates height in range [0,1]
+ *
+ * @note 此函数会发射@ref axesAdded 信号，此信号发射后发射@ref currentAxesChanged 信号
+ */
 void QwtFigure::addAxes(QwtPlot* plot, qreal left, qreal top, qreal width, qreal height)
 {
-	QWTFIGURE_SAFEGET_LAY(lay)
-	if (plot && plot->parentWidget() != this) {
-		plot->setParent(this);
-	}
-	lay->addAxes(plot, left, top, width, height);
-	m_data->currentAxes = plot;
+	addWidget(plot, left, top, width, height);
+	Q_EMIT axesAdded(plot);
+	setCurrentAxes(plot);
 }
 
 /**
@@ -64612,15 +64725,26 @@ void QwtFigure::addAxes(QwtPlot* plot, qreal left, qreal top, qreal width, qreal
  * QwtPlot* bottomLeftPlot = new QwtPlot;
  * figure.addAxes(bottomLeftPlot, 2, 2, 1, 0);
  * @endcode
+ *
+ * @note 此函数会发射@ref axesAdded 信号，此信号发射后发射@ref currentAxesChanged 信号
  */
 void QwtFigure::addAxes(QwtPlot* plot, int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace)
 {
+	addWidget(plot, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
+	Q_EMIT axesAdded(plot);
+	setCurrentAxes(plot);
+}
+
+/**
+ * @brief 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
+ * @param widget
+ * @param rect
+ */
+void QwtFigure::setWidgetNormPos(QWidget* widget, const QRectF& rect)
+{
 	QWTFIGURE_SAFEGET_LAY(lay)
-	if (plot && plot->parentWidget() != this) {
-		plot->setParent(this);
-	}
-	lay->addAxes(plot, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
-	m_data->currentAxes = plot;
+	lay->setAxesNormPos(widget, rect);
+	lay->invalidate();
 }
 
 /**
@@ -64652,13 +64776,15 @@ void QwtFigure::adjustLayout(qreal left, qreal bottom, qreal right, qreal top)
 }
 
 /**
- * @brief Get all axes (plots) in the figure/获取图形中的所有坐标轴（绘图）
+ * @brief Get all axes (plots) in the figure（not contain parasite axes）/获取图形中的所有坐标轴（绘图）(不包含寄生轴)
  *
- * This method returns a list of all QwtPlot objects added to the figure.
+ * This method returns a list of all QwtPlot objects added to the figure.（not contain parasite axes）
  *
- * 此方法返回添加到图形中的所有QwtPlot对象的列表。
+ * 此方法返回添加到图形中的所有QwtPlot对象的列表。(不包含寄生轴)
  *
- * @return List of all QwtPlot objects / 所有QwtPlot对象的列表
+ * @return List of all QwtPlot objects / 所有QwtPlot对象的列表(不包含寄生轴)
+ *
+ * @note 此方法获取的绘图不包含寄生轴
  *
  * @code
  * // Get all plots and update their titles
@@ -64678,7 +64804,9 @@ QList< QwtPlot* > QwtFigure::allAxes() const
 			QLayoutItem* item = lay->itemAt(i);
 			if (item && item->widget()) {
 				if (QwtPlot* plot = qobject_cast< QwtPlot* >(item->widget())) {
-					plots.append(plot);
+					if (plot->isHostPlot()) {
+						plots.append(plot);
+					}
 				}
 			}
 		}
@@ -64744,7 +64872,7 @@ bool QwtFigure::hasAxes() const
 bool QwtFigure::hasAxes(QwtPlot* plot) const
 {
 	QLayout* lay = layout();
-	if (!lay) {
+	if (!lay || !plot) {
 		return false;
 	}
 
@@ -64764,9 +64892,9 @@ bool QwtFigure::hasAxes(QwtPlot* plot) const
 /**
  * @brief Remove a specific axes (plot) from the figure/从图形中移除特定的坐标轴（绘图）
  *
- * This method removes the specified QwtPlot from the figure and deletes it.
+ * This method removes the specified QwtPlot from the figure.
  *
- * 此方法从图形中移除指定的QwtPlot并删除它。
+ * 此方法从图形中移除指定的QwtPlot。
  *
  * @param plot QwtPlot to remove / 要移除的QwtPlot
  *
@@ -64778,20 +64906,25 @@ bool QwtFigure::hasAxes(QwtPlot* plot) const
  * // 从图形中移除特定的绘图
  * QwtPlot* plotToRemove = figure.getAllAxes().first();
  * figure.removeAxes(plotToRemove);
- * //plotToRemove deleted
+ * // 你需要手动删除它
+ * plotToRemove->deletelater();
  * @endcode
  */
 void QwtFigure::removeAxes(QwtPlot* plot)
 {
-	if (takeAxes(plot)) {
-		plot->deleteLater();
-	}
+	takeAxes(plot);
 }
 
 /**
  * @brief Take a specific axes (plot) from the figure without deleting it/从图形中取出特定的坐标轴（绘图）但不删除它
  * @param plot Pointer to the QwtPlot to take / 要取出的QwtPlot指针
  * @return Pointer to the taken QwtPlot, or nullptr if not found / 取出的QwtPlot指针，如果未找到则返回nullptr
+ *
+ * @note 如果当前的绘图是选择的激活坐标系，在移除时，会先发射@ref currentAxesChanged 信号，再发射@ref axesRemoved 信号
+ *
+ * @note 如果只有一个绘图，在移除后，整个figure没有绘图的情况下，也会发射@ref currentAxesChanged 信号，信号携带的内容为nullptr
+ *
+ * @note 如果一个绘图有寄生轴，再takeAxes后，它的寄生轴会设置为隐藏，并把parent widget设置为nullptr
  */
 bool QwtFigure::takeAxes(QwtPlot* plot)
 {
@@ -64803,7 +64936,7 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
 	bool isRemove = false;
 	// Check if the plot to remove is the current axes
 	// 检查要移除的绘图是否是当前坐标轴
-	bool removingCurrent = (plot == m_data->currentAxes);
+	bool removingCurrent = (plot == currentAxes());
 	QLayout* lay         = layout();
 	if (lay) {
 		for (int i = 0; i < lay->count(); ++i) {
@@ -64824,18 +64957,30 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
 		}
 		if (removingCurrent) {
 			// 说明移除了当前axes，需要更新currentAxes
-			for (int i = 0; i < lay->count(); ++i) {
-				QLayoutItem* item = lay->itemAt(i);
-				if (!item) {
-					continue;
-				}
-				if (QwtPlot* w = qobject_cast< QwtPlot* >(item->widget())) {
-					m_data->currentAxes = w;
+			const int count = lay->count();
+			if (count == 0) {
+				// 如果figure已经清空，也发射currentAxesChanged，携带nullptr
+				setCurrentAxes(nullptr);
+			} else {
+				for (int i = 0; i < count; ++i) {
+					QLayoutItem* item = lay->itemAt(i);
+					if (!item) {
+						continue;
+					}
+					if (QwtPlot* w = qobject_cast< QwtPlot* >(item->widget())) {
+						setCurrentAxes(w);
+					}
 				}
 			}
 		}
 	}
 	if (isRemove) {
+		// 处理寄生轴
+		const QList< QwtPlot* > parasites = plot->parasitePlots();
+		for (QwtPlot* para : parasites) {
+			para->setParent(nullptr);
+			para->hide();
+		}
 		Q_EMIT axesRemoved(plot);
 	}
 	return isRemove;
@@ -64847,6 +64992,14 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
  * This method removes all QwtPlot objects from the figure and deletes them.
  *
  * 此方法从图形中移除所有QwtPlot对象并删除它们。
+ *
+ * @note 此方法在移除过程中会发射@ref axesRemoved 信号，
+ * axesRemoved携带的绘图指针不应该被保存
+ *
+ * @note 此方法还会发射2个信号，先发射@ref currentAxesChanged 信号，此信号参数会携带nullptr，
+ * 最后发射@ref figureCleared 信号
+ *
+ * @note 此方法会删除已经持有的所有plot窗口
  *
  * @code
  * // Clear all plots from the figure
@@ -64863,16 +65016,19 @@ void QwtFigure::clear()
 		for (int i = 0; i < lay->count(); ++i) {
 			QLayoutItem* item = lay->itemAt(i);
 			if (item) {
+				lay->removeItem(item);
+				if (QwtPlot* plot = qobject_cast< QwtPlot* >(item->widget())) {
+					Q_EMIT axesRemoved(plot);
+				}
 				if (QWidget* w = item->widget()) {
 					w->deleteLater();
 				}
-				lay->removeItem(item);
 				delete item;
 				++cnt;
 			}
 		}
 	}
-	m_data->currentAxes = nullptr;
+	setCurrentAxes(nullptr);
 	if (cnt > 0) {
 		Q_EMIT figureCleared();
 	}
@@ -65168,6 +65324,8 @@ int QwtFigure::edgeLineWidth() const
  * @endcode
  *
  * @see getParasiteAxes()
+ *
+ * @note 寄生轴必须有figure来管理，这是因为寄生轴仅仅是绘图区域和宿主重叠，坐标窗口的位置都和宿主不一样
  */
 QwtPlot* QwtFigure::createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enableAxis, bool shareX, bool shareY)
 {
@@ -65457,8 +65615,10 @@ bool QwtFigure::saveFig(const QString& filename, int dpi) const
  */
 void QwtFigure::setCurrentAxes(QwtPlot* plot)
 {
-	if (plot && hasAxes(plot)) {
+	// 允许设置为 nullptr，或仅当 plot 属于本 figure 管理时才设置
+	if (plot == nullptr || hasAxes(plot)) {
 		m_data->currentAxes = plot;
+		Q_EMIT currentAxesChanged(plot);
 	}
 }
 
@@ -65540,6 +65700,48 @@ QRectF QwtFigure::axesNormRect(QwtPlot* plot) const
 	return lay->widgetNormRect(plot);
 }
 
+/**
+ * @brief Get the normalized rectangle for a widget/获取窗口的归一化矩形
+ *
+ * This method returns the normalized coordinates [0,1] for the specified axes
+ * in the figure. If the widget is not found in the figure, an invalid QRectF is returned.
+ *
+ * 此方法返回布局中指定坐标系的归一化坐标[0,1]。如果在绘图中未找到该窗口，则返回无效的QRectF。
+ *
+ * @param widget Widget to query / 要查询的窗口
+ * @return Normalized coordinates [left, top, width, height] in range [0,1], or invalid QRectF if not found
+ *         归一化坐标 [左, 上, 宽, 高]，范围 [0,1]，如果未找到则返回无效QRectF
+ */
+QRectF QwtFigure::widgetNormRect(QWidget* w) const
+{
+	QWTFIGURE_SAFEGET_LAY_RET(lay, QRect())
+	return lay->widgetNormRect(w);
+}
+
+/**
+ * @brief 获取在此坐标下的绘图，如果此坐标下没有，则返回nullptr，存在寄生轴情况只返回宿主轴
+ * @note 隐藏的窗口不会获取到
+ * @param pos 坐标
+ * @return 如果此坐标下没有，则返回nullptr
+ */
+QwtPlot* QwtFigure::plotUnderPos(const QPoint& pos) const
+{
+	const QList< QwtPlot* > result = findChildren< QwtPlot* >(QString(), Qt::FindDirectChildrenOnly);
+	if (result.empty()) {
+		return nullptr;
+	}
+	for (QwtPlot* plot : result) {
+		if (!(plot->isVisibleTo(this))) {
+			continue;
+		}
+		// 判断子窗口的区域是否包含转换后的点
+		if (plot->geometry().contains(pos)) {
+			return plot;
+		}
+	}
+	return nullptr;
+}
+
 void QwtFigure::paintEvent(QPaintEvent* event)
 {
 	QPainter painter(this);
@@ -65580,6 +65782,593 @@ void QwtFigure::resizeEvent(QResizeEvent* event)
 }
 
 /*** End of inlined file: qwt_figure.cpp ***/
+
+
+/*** Start of inlined file: qwt_figure_widget_overlay.cpp ***/
+#include <QKeyEvent>
+#include <QMouseEvent>
+#include <QHash>
+#include <QCoreApplication>
+#include <QDebug>
+#include <QPainter>
+// std
+#include <algorithm>
+// qwt
+
+class QwtFigureWidgetOverlay::PrivateData
+{
+	QWT_DECLARE_PUBLIC(QwtFigureWidgetOverlay)
+public:
+	PrivateData(QwtFigureWidgetOverlay* p);
+
+public:
+	QPoint mLastMousePressPos { 0, 0 };      ///< 记录最后一次窗口移动的坐标
+	QBrush mContorlPointBrush { Qt::blue };  ///< 绘制chart2d在编辑模式下控制点的画刷
+	QPen mBorderPen { Qt::blue };            ///< 绘制chart2d在编辑模式下的画笔
+	bool mIsStartResize { false };           ///< 标定开始进行缩放
+	QWidget* mActiveWidget { nullptr };      /// 标定当前激活的窗口，如果没有就为nullptr
+	QRect mOldGeometry;                      ///< 保存旧的窗口位置，用于redo/undo
+	QSize mControlPointSize { 8, 8 };        ///< 控制点大小
+	QwtFigureWidgetOverlay::ControlType mControlType { QwtFigureWidgetOverlay::OutSide };  ///< 记录当前缩放窗口的位置情况
+
+	bool mFigOldMouseTracking { false };  /// 记录原来fig是否设置了mousetrack
+	bool mFigOldHasHoverAttr { false };   ///< 记录原来的figure是否含有Hover属性
+	bool mShowPrecentText { true };       ///< 显示占比文字
+};
+
+QwtFigureWidgetOverlay::PrivateData::PrivateData(QwtFigureWidgetOverlay* p) : q_ptr(p)
+{
+}
+
+//----------------------------------------------------
+// QwtFigureWidgetOverlay
+//----------------------------------------------------
+
+QwtFigureWidgetOverlay::QwtFigureWidgetOverlay(QwtFigure* fig) : QwtWidgetOverlay(fig), QWT_PIMPL_CONSTRUCT
+{
+}
+
+QwtFigureWidgetOverlay::~QwtFigureWidgetOverlay()
+{
+}
+
+QwtFigure* QwtFigureWidgetOverlay::figure() const
+{
+	return static_cast< QwtFigure* >(parent());
+}
+
+/**
+ * @brief根据范围获取鼠标图标
+ * @param rr
+ * @return 鼠标图标
+ */
+Qt::CursorShape QwtFigureWidgetOverlay::controlTypeToCursor(QwtFigureWidgetOverlay::ControlType rr)
+{
+	switch (rr) {
+	case ControlLineTop:
+	case ControlLineBottom:
+		return (Qt::SizeVerCursor);
+
+	case ControlLineLeft:
+	case ControlLineRight:
+		return (Qt::SizeHorCursor);
+
+	case ControlPointTopLeft:
+	case ControlPointBottomRight:
+		return (Qt::SizeFDiagCursor);
+
+	case ControlPointTopRight:
+	case ControlPointBottomLeft:
+		return (Qt::SizeBDiagCursor);
+
+	case Inner:
+		return (Qt::SizeAllCursor);
+
+	default:
+		break;
+	}
+	return (Qt::ArrowCursor);
+}
+
+/**
+ * @brief 根据点和矩形的关系，返回图标的样式
+ * @param pos 点
+ * @param region 矩形区域
+ * @param err 允许误差
+ * @return
+ */
+QwtFigureWidgetOverlay::ControlType QwtFigureWidgetOverlay::getPositionControlType(const QPoint& pos,
+																				   const QRect& region,
+																				   int err)
+{
+	if (!region.adjusted(-err, -err, err, err).contains(pos)) {
+		return (OutSide);
+	}
+	if (pos.x() < (region.left() + err)) {
+		if (pos.y() < region.top() + err) {
+			return (ControlPointTopLeft);
+		} else if (pos.y() > region.bottom() - err) {
+			return (ControlPointBottomLeft);
+		}
+		return (ControlLineLeft);
+	} else if (pos.x() > (region.right() - err)) {
+		if (pos.y() < region.top() + err) {
+			return (ControlPointTopRight);
+		} else if (pos.y() > region.bottom() - err) {
+			return (ControlPointBottomRight);
+		}
+		return (ControlLineRight);
+	} else if (pos.y() < (region.top() + err)) {
+		if (pos.x() < region.left() + err) {
+			return (ControlPointTopLeft);
+		} else if (pos.x() > region.right() - err) {
+			return (ControlPointTopRight);
+		}
+		return (ControlLineTop);
+	} else if (pos.y() > region.bottom() - err) {
+		if (pos.x() < region.left() + err) {
+			return (ControlPointBottomLeft);
+		} else if (pos.x() > region.right() - err) {
+			return (ControlPointBottomRight);
+		}
+		return (ControlLineBottom);
+	}
+	return (Inner);
+}
+
+/**
+ * @brief 判断点是否在矩形区域的边缘
+ * @param pos 点
+ * @param region 矩形区域
+ * @param err 允许误差
+ * @return  如果符合边缘条件，返回true
+ */
+bool QwtFigureWidgetOverlay::isPointInRectEdget(const QPoint& pos, const QRect& region, int err)
+{
+	if (!region.adjusted(-err, -err, err, err).contains(pos)) {
+		return (false);
+	}
+	if ((pos.x() < (region.left() - err)) && (pos.x() < (region.left() + err))) {
+		return (true);
+	} else if ((pos.x() > (region.right() - err)) && (pos.x() < (region.right() + err))) {
+		return (true);
+	} else if ((pos.y() > (region.top() - err)) && (pos.y() < (region.top() + err))) {
+		return (true);
+	} else if ((pos.y() > region.bottom() - err) && (pos.y() < region.bottom() + err)) {
+		return (true);
+	}
+	return (false);
+}
+
+/**
+ * @brief 判断当前是否有激活的窗口
+ * @return
+ */
+bool QwtFigureWidgetOverlay::isHaveActiveWidget() const
+{
+	return (m_data->mActiveWidget != nullptr);
+}
+
+/**
+ * @brief 设置边框的画笔
+ * @param p
+ */
+void QwtFigureWidgetOverlay::setBorderPen(const QPen& p)
+{
+	m_data->mBorderPen = p;
+}
+
+/**
+ * @brief 边框的画笔
+ * @param p
+ */
+QPen QwtFigureWidgetOverlay::borderPen() const
+{
+	return m_data->mBorderPen;
+}
+
+/**
+ * @brief 设置控制点的填充
+ * @param b
+ */
+void QwtFigureWidgetOverlay::setControlPointBrush(const QBrush& b)
+{
+	m_data->mContorlPointBrush = b;
+}
+
+/**
+ * @brief 控制点的填充
+ * @param b
+ */
+QBrush QwtFigureWidgetOverlay::controlPointBrush() const
+{
+	return m_data->mContorlPointBrush;
+}
+
+/**
+ * @brief 设置控制点尺寸
+ * @param c
+ */
+void QwtFigureWidgetOverlay::setControlPointSize(const QSize& c)
+{
+	m_data->mControlPointSize = c;
+}
+
+/**
+ * @brief 控制点尺寸
+ * @default 8*8
+ * @return
+ */
+QSize QwtFigureWidgetOverlay::controlPointSize() const
+{
+	return m_data->mControlPointSize;
+}
+
+/**
+ * @brief 选择下一个窗口作为激活窗体
+ * @param forward
+ */
+void QwtFigureWidgetOverlay::selectNextWidget(bool forward)
+{
+	QList< QWidget* > ws = figure()->findChildren< QWidget* >("", Qt::FindDirectChildrenOnly);
+	ws.removeAll(this);
+	if (ws.isEmpty()) {
+		setActiveWidget(nullptr);
+		return;
+	}
+	// 删除寄生轴
+	auto it = std::remove_if(ws.begin(), ws.end(), [](QWidget* w) -> bool {
+		if (QwtPlot* plot = qobject_cast< QwtPlot* >(w)) {
+			if (plot->isParasitePlot()) {
+				return true;
+			}
+		}
+		return false;
+	});
+	if (it != ws.end()) {
+		ws.erase(it, ws.end());  // 删除末尾的“无效”元素,也就是寄生轴都删除
+	}
+	// 这时ws都是可选中的窗口
+	auto nextIt = qwtSelectNextIterator(ws.begin(), ws.end(), currentActiveWidget(), forward);
+	setActiveWidget((nextIt != ws.end()) ? *nextIt : nullptr);
+}
+
+/**
+ * @brief 选择下一个绘图作为激活窗体
+ * @param forward
+ */
+void QwtFigureWidgetOverlay::selectNextPlot(bool forward)
+{
+	// 此函数不会返回寄生轴
+	QList< QwtPlot* > ws = figure()->allAxes();
+	if (ws.isEmpty()) {
+		setActiveWidget(nullptr);
+		return;
+	}
+	// 转换当前元素类型并获取下一个迭代器
+	QwtPlot* current = qobject_cast< QwtPlot* >(currentActiveWidget());
+	auto nextIt      = qwtSelectNextIterator(ws.begin(), ws.end(), current, forward);
+	setActiveWidget((nextIt != ws.end()) ? *nextIt : nullptr);
+}
+
+/**
+ * @brief 获取当前激活的窗体
+ * @return
+ */
+QWidget* QwtFigureWidgetOverlay::currentActiveWidget() const
+{
+	return m_data->mActiveWidget;
+}
+
+/**
+ * @brief 获取当前激活的绘图
+ * @return
+ */
+QwtPlot* QwtFigureWidgetOverlay::currentActivePlot() const
+{
+	return qobject_cast< QwtPlot* >(m_data->mActiveWidget);
+}
+
+/**
+ * @brief 显示占比数值
+ * @param on
+ */
+void QwtFigureWidgetOverlay::showPercentText(bool on)
+{
+	m_data->mShowPrecentText = on;
+	updateOverlay();
+}
+
+/**
+ * @brief 设置当前激活的窗口
+ * @param w 如果w和当前的activePlot一样，不做任何动作
+ * @note 此函数会发射信号activeWidgetChanged
+ * @sa activeWidgetChanged
+ */
+void QwtFigureWidgetOverlay::setActiveWidget(QWidget* w)
+{
+	QWidget* oldact = currentActiveWidget();
+	if (w == oldact) {
+		// 避免嵌套
+		return;
+	}
+	m_data->mActiveWidget = w;
+	updateOverlay();
+	Q_EMIT activeWidgetChanged(oldact, w);
+}
+
+void QwtFigureWidgetOverlay::drawOverlay(QPainter* p) const
+{
+	if (isHaveActiveWidget()) {
+		// 对于激活的窗口，绘制到四周的距离提示线
+		p->save();
+		drawActiveWidget(p, currentActiveWidget());
+		p->restore();
+	}
+}
+
+QRegion QwtFigureWidgetOverlay::maskHint() const
+{
+	return (figure()->rect());
+}
+
+/**
+ * @brief DAFigureWidgetChartRubberbandEditOverlay::eventFilter
+ *
+ * 注意，鼠标移动事件在setMouseTracking(true)后，button永远是NoButton,需要配合press事件才能判断
+ * @param obj
+ * @param event
+ * @return
+ */
+bool QwtFigureWidgetOverlay::eventFilter(QObject* obj, QEvent* event)
+{
+	if (isHaveActiveWidget()) {
+		if (obj == figure()) {
+			// 捕获DAChartWidget和DAFigure都是无法捕获正常鼠标移动的事件
+			switch (event->type()) {
+			case QEvent::MouseButtonPress: {
+				QMouseEvent* me = static_cast< QMouseEvent* >(event);
+				return (onMousePressedEvent(me));
+			}
+
+			case QEvent::MouseButtonRelease: {
+				QMouseEvent* me = static_cast< QMouseEvent* >(event);
+				return (onMouseReleaseEvent(me));
+			}
+
+			case QEvent::KeyPress: {
+				QKeyEvent* ke = static_cast< QKeyEvent* >(event);
+				return (onKeyPressedEvent(ke));
+			}
+
+			case QEvent::HoverMove: {
+				QHoverEvent* e = static_cast< QHoverEvent* >(event);
+				return (onHoverMoveEvent(e));
+			}
+			default:
+				break;
+			}
+		}
+	}
+
+	// QwtWidgetOverlay也继承了eventFilter
+	return (QwtWidgetOverlay::eventFilter(obj, event));
+}
+
+void QwtFigureWidgetOverlay::drawActiveWidget(QPainter* painter, QWidget* activeW) const
+{
+	const QRect& chartRect      = activeW->frameGeometry();
+	const QRectF& normalPercent = figure()->widgetNormRect(activeW);
+	painter->setBrush(Qt::NoBrush);
+	painter->setPen(m_data->mBorderPen);
+	QRect edgetRect = chartRect.adjusted(-1, -1, 1, 1);
+
+	// 绘制矩形边框
+	painter->drawRect(edgetRect);
+	// 绘制边框到figure四周
+	QPen linePen(m_data->mBorderPen);
+
+	linePen.setStyle(Qt::DotLine);
+	painter->setPen(linePen);
+	QPoint center = chartRect.center();
+
+	painter->drawLine(center.x(), 0, center.x(), chartRect.top());            // top
+	painter->drawLine(center.x(), chartRect.bottom(), center.x(), height());  // bottom
+	painter->drawLine(0, center.y(), chartRect.left(), center.y());           // left
+	painter->drawLine(chartRect.right(), center.y(), width(), center.y());    // right
+	// 绘制顶部数据
+	QFontMetrics fm = painter->fontMetrics();
+	// top text
+	QString percentText = QString::number(normalPercent.y() * 100, 'g', 2) + "%";
+	QRectF textRect     = fm.boundingRect(percentText);
+	textRect.moveTopLeft(QPoint(center.x(), 0));
+	painter->drawText(textRect, Qt::AlignCenter, percentText);
+	// left
+	percentText = QString::number(normalPercent.x() * 100, 'g', 2) + "%";
+	textRect    = fm.boundingRect(percentText);
+	textRect.moveBottomLeft(QPoint(0, center.y()));
+	painter->drawText(textRect, Qt::AlignCenter, percentText);
+
+	//    painter->drawText(QPointF(0, chartRect.y()), QString::number(percent.x(), 'g', 2));
+	// 绘制四个角落
+	painter->setPen(Qt::NoPen);
+	painter->setBrush(m_data->mContorlPointBrush);
+	QRect connerRect(0, 0, m_data->mControlPointSize.width(), m_data->mControlPointSize.height());
+	QPoint offset = QPoint(m_data->mControlPointSize.width() / 2, m_data->mControlPointSize.height() / 2);
+	connerRect.moveTo(edgetRect.topLeft() - offset);
+	painter->drawRect(connerRect);
+	connerRect.moveTo(edgetRect.topRight() - offset);
+	painter->drawRect(connerRect);
+	connerRect.moveTo(edgetRect.bottomLeft() - offset);
+	painter->drawRect(connerRect);
+	connerRect.moveTo(edgetRect.bottomRight() - offset);
+	painter->drawRect(connerRect);
+}
+
+bool QwtFigureWidgetOverlay::onMouseReleaseEvent(QMouseEvent* me)
+{
+	if (Qt::LeftButton == me->button()) {
+		if (m_data->mIsStartResize) {
+			m_data->mIsStartResize = false;
+			if (m_data->mActiveWidget) {
+				QRect newGeometry = m_data->mActiveWidget->geometry();
+				Q_EMIT widgetGeometryChanged(m_data->mActiveWidget, m_data->mOldGeometry, newGeometry);
+				return (true);  // 这里把消息截取不传递下去
+			}
+		}
+	}
+	return (true);  // 托管所有的鼠标事件
+}
+
+bool QwtFigureWidgetOverlay::onMousePressedEvent(QMouseEvent* me)
+{
+	if (Qt::LeftButton == me->button()) {
+		// 左键点击
+		QList< QwtPlot* > orderws = figure()->allAxes();
+		for (auto ite = orderws.begin(); ite != orderws.end(); ++ite) {
+			// 点击到了其他窗体
+			if ((*ite)->geometry().contains(qwt::compat::eventPos(me))) {
+				setActiveWidget(*ite);
+			}
+		}
+		ControlType ct = getPositionControlType(qwt::compat::eventPos(me), m_data->mActiveWidget->frameGeometry(), 4);
+		if (OutSide == ct) {
+			// 如果点击了外部，那么久尝试变更激活窗口
+			QList< QwtPlot* > ws = figure()->allAxes();
+			for (QWidget* w : qAsConst(ws)) {
+				if (w->frameGeometry().contains(qwt::compat::eventPos(me), true)) {
+					if (m_data->mActiveWidget != w) {
+						setActiveWidget(w);
+						updateOverlay();
+						return (true);  // 这里把消息截取不传递下去
+					}
+				}
+			}
+		} else {
+			// 点击了其他区域，就执行变换
+			m_data->mOldGeometry       = m_data->mActiveWidget->geometry();
+			m_data->mLastMousePressPos = qwt::compat::eventPos(me);
+			m_data->mIsStartResize     = true;
+			m_data->mControlType       = ct;
+			return (true);  // 这里把消息截取不传递下去
+		}
+
+		// 没有点击到任何的地方就
+	}
+	return (true);  // 托管所有的鼠标事件
+}
+
+bool QwtFigureWidgetOverlay::onHoverMoveEvent(QHoverEvent* me)
+{
+	//! 注意，不要在onMouseMoveEvent进行处理，因为鼠标移动到子窗体后，
+	//! onMouseMoveEvent不会触发，但onHoverMoveEvent还会继续触发
+	QWidget* activeW = m_data->mActiveWidget;
+	if (activeW) {
+		if (m_data->mIsStartResize) {
+			// 开始resize（鼠标按下左键后触发为true）
+			QRect geoRect = m_data->mOldGeometry;
+			switch (m_data->mControlType) {
+			case ControlLineTop: {
+				QPoint offset = qwt::compat::eventPos(me) - m_data->mLastMousePressPos;
+				geoRect.adjust(0, offset.y(), 0, 0);
+				activeW->setGeometry(geoRect);
+				break;
+			}
+
+			case ControlLineBottom: {
+				int resultY = qwt::compat::eventY(me);
+				geoRect.adjust(0, 0, 0, resultY - geoRect.bottom());
+				activeW->setGeometry(geoRect);
+				break;
+			}
+
+			case ControlLineLeft: {
+				int resultX = qwt::compat::eventX(me);
+				geoRect.adjust(resultX - geoRect.left(), 0, 0, 0);
+				activeW->setGeometry(geoRect);
+				break;
+			}
+
+			case ControlLineRight: {
+				int resultX = qwt::compat::eventX(me);
+				geoRect.adjust(0, 0, resultX - geoRect.right(), 0);
+				activeW->setGeometry(geoRect);
+				break;
+			}
+
+			case ControlPointTopLeft: {
+				geoRect.adjust(qwt::compat::eventX(me) - geoRect.left(), qwt::compat::eventY(me) - geoRect.top(), 0, 0);
+				activeW->setGeometry(geoRect);
+				break;
+			}
+
+			case ControlPointTopRight: {
+				geoRect.adjust(0, qwt::compat::eventY(me) - geoRect.top(), qwt::compat::eventX(me) - geoRect.right(), 0);
+				activeW->setGeometry(geoRect);
+				break;
+			}
+
+			case ControlPointBottomLeft: {
+				geoRect.adjust(qwt::compat::eventX(me) - geoRect.left(), 0, 0, qwt::compat::eventY(me) - geoRect.bottom());
+				activeW->setGeometry(geoRect);
+				break;
+			}
+
+			case ControlPointBottomRight: {
+				geoRect.adjust(0, 0, qwt::compat::eventX(me) - geoRect.right(), qwt::compat::eventY(me) - geoRect.bottom());
+				activeW->setGeometry(geoRect);
+				break;
+			}
+
+			case Inner: {
+				QPoint offset = qwt::compat::eventPos(me) - m_data->mLastMousePressPos;
+				geoRect.moveTo(m_data->mOldGeometry.topLeft() + offset);
+				activeW->setGeometry(geoRect);
+				break;
+			}
+
+			default:
+				return (false);
+			}
+			updateOverlay();
+			return (true);  // 这里把消息截取不传递下去
+		} else {
+			ControlType ct = getPositionControlType(qwt::compat::eventPos(me), activeW->frameGeometry(), 4);
+			if (m_data->mControlType != ct) {
+				// 说明控制点变更
+				Qt::CursorShape cur = controlTypeToCursor(ct);
+				figure()->setCursor(cur);
+				m_data->mControlType = ct;
+			}
+		}
+	}
+	return (true);  // 托管所有的鼠标事件
+}
+
+bool QwtFigureWidgetOverlay::onKeyPressedEvent(QKeyEvent* ke)
+{
+	switch (ke->key()) {
+	case Qt::Key_Return: {
+		selectNextWidget(true);
+	} break;
+
+	case Qt::Key_Up:
+	case Qt::Key_Left:
+		selectNextWidget(true);
+		break;
+
+	case Qt::Key_Right:
+	case Qt::Key_Down:
+		selectNextWidget(false);
+		break;
+
+	default:
+		return (false);
+	}
+	return (true);  // 这里把消息截取不传递下去
+}
+
+/*** End of inlined file: qwt_figure_widget_overlay.cpp ***/
 
 #ifdef _MSC_VER
 #pragma warning (pop)

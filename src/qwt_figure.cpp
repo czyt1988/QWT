@@ -100,6 +100,59 @@ QwtFigure::~QwtFigure()
 }
 
 /**
+ * @brief Add a widget with normalized coordinates/使用归一化坐标添加窗口
+ * @param widget QWidget to add / 要添加的QWidget
+ * @param left Normalized coordinates left in range [0,1]
+ * @param top Normalized coordinates top in range [0,1]
+ * @param width Normalized coordinates width in range [0,1]
+ * @param height Normalized coordinates height in range [0,1]
+ *
+ * @note 即使添加的窗口是qwtplot,此函数也不会发射@ref axesAdded 信号，因此，如果你需要添加QwtPlot窗口，
+ * 你应该使用@ref addAxes 函数,此函数是为了在figure窗口添加除QwtPlot以外的窗口使用的
+ *
+ * @sa addAxes
+ */
+void QwtFigure::addWidget(QWidget* widget, qreal left, qreal top, qreal width, qreal height)
+{
+    QWTFIGURE_SAFEGET_LAY(lay)
+    if (widget && widget->parentWidget() != this) {
+        widget->setParent(this);
+    }
+    lay->addAxes(widget, left, top, width, height);
+}
+
+/**
+ * @brief Add a widget by grid layout/添加窗口部件到网格布局
+ *
+ * This method adds a widget to the grid layout at the specified position with optional row and column spans.
+ *
+ * 此方法将widget添加到网格布局中的指定位置，可选择跨行和跨列。
+ *
+ * @param plot widget to add / 要添加的widget
+ * @param rowCnt Number of rows in the grid / 网格行数
+ * @param colCnt Number of columns in the grid / 网格列数
+ * @param row Grid row position (0-based) / 网格行位置（从0开始）
+ * @param col Grid column position (0-based) / 网格列位置（从0开始）
+ * @param rowSpan Number of rows to span (default: 1) / 跨行数（默认：1）
+ * @param colSpan Number of columns to span (default: 1) / 跨列数（默认：1）
+ * @param wspace Horizontal space between subplots [0,1] / 子图之间的水平间距 [0,1]
+ * @param hspace Vertical space between subplots [0,1] / 子图之间的垂直间距 [0,1]
+ *
+ * @note 即使添加的窗口是qwtplot,此函数也不会发射@ref axesAdded 信号，因此，如果你需要添加QwtPlot窗口，
+ * 你应该使用@ref addAxes 函数,此函数是为了在figure窗口添加除QwtPlot以外的窗口使用的
+ *
+ * @sa addAxes
+ */
+void QwtFigure::addWidget(QWidget* widget, int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace)
+{
+    QWTFIGURE_SAFEGET_LAY(lay)
+    if (widget && widget->parentWidget() != this) {
+        widget->setParent(this);
+    }
+    lay->addAxes(widget, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
+}
+
+/**
  * @brief Add a plot with normalized coordinates/使用归一化坐标添加绘图
  *
  * This method adds a QwtPlot to the figure using normalized coordinates in the range [0,1].
@@ -126,13 +179,23 @@ void QwtFigure::addAxes(QwtPlot* plot, const QRectF& rect)
     addAxes(plot, rect.x(), rect.y(), rect.width(), rect.height());
 }
 
+/**
+ * @brief Add a plot with normalized coordinates/使用归一化坐标添加绘图
+ *
+ * This method adds a QwtPlot to the figure using normalized coordinates in the range [0,1].
+ * The coordinates are specified as [left, bottom, width, height].
+ *
+ * @param plot QwtPlot to add / 要添加的QwtPlot
+ * @param left Normalized coordinates left in range [0,1]
+ * @param top Normalized coordinates top in range [0,1]
+ * @param width Normalized coordinates width in range [0,1]
+ * @param height Normalized coordinates height in range [0,1]
+ *
+ * @note 此函数会发射@ref axesAdded 信号，此信号发射后发射@ref currentAxesChanged 信号
+ */
 void QwtFigure::addAxes(QwtPlot* plot, qreal left, qreal top, qreal width, qreal height)
 {
-    QWTFIGURE_SAFEGET_LAY(lay)
-    if (plot && plot->parentWidget() != this) {
-        plot->setParent(this);
-    }
-    lay->addAxes(plot, left, top, width, height);
+    addWidget(plot, left, top, width, height);
     Q_EMIT axesAdded(plot);
     setCurrentAxes(plot);
 }
@@ -173,13 +236,21 @@ void QwtFigure::addAxes(QwtPlot* plot, qreal left, qreal top, qreal width, qreal
  */
 void QwtFigure::addAxes(QwtPlot* plot, int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace)
 {
-    QWTFIGURE_SAFEGET_LAY(lay)
-    if (plot && plot->parentWidget() != this) {
-        plot->setParent(this);
-    }
-    lay->addAxes(plot, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
+    addWidget(plot, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
     Q_EMIT axesAdded(plot);
     setCurrentAxes(plot);
+}
+
+/**
+ * @brief 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
+ * @param widget
+ * @param rect
+ */
+void QwtFigure::setWidgetNormPos(QWidget* widget, const QRectF& rect)
+{
+    QWTFIGURE_SAFEGET_LAY(lay)
+    lay->setAxesNormPos(widget, rect);
+    lay->invalidate();
 }
 
 /**
@@ -1151,6 +1222,30 @@ QRectF QwtFigure::widgetNormRect(QWidget* w) const
 {
     QWTFIGURE_SAFEGET_LAY_RET(lay, QRect())
     return lay->widgetNormRect(w);
+}
+
+/**
+ * @brief 获取在此坐标下的绘图，如果此坐标下没有，则返回nullptr，存在寄生轴情况只返回宿主轴
+ * @note 隐藏的窗口不会获取到
+ * @param pos 坐标
+ * @return 如果此坐标下没有，则返回nullptr
+ */
+QwtPlot* QwtFigure::plotUnderPos(const QPoint& pos) const
+{
+    const QList< QwtPlot* > result = findChildren< QwtPlot* >(QString(), Qt::FindDirectChildrenOnly);
+    if (result.empty()) {
+        return nullptr;
+    }
+    for (QwtPlot* plot : result) {
+        if (!(plot->isVisibleTo(this))) {
+            continue;
+        }
+        // 判断子窗口的区域是否包含转换后的点
+        if (plot->geometry().contains(pos)) {
+            return plot;
+        }
+    }
+    return nullptr;
 }
 
 void QwtFigure::paintEvent(QPaintEvent* event)

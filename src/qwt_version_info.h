@@ -27,7 +27,7 @@
  * @def 版本号（字符串）
  */
 #ifndef QWT_VERSION_STR
-/* #undef QWT_VERSION_STR */
+#define QWT_VERSION_STR "7.0.3"
 #endif
 
 #endif // QWT_VERSION_INFO_H

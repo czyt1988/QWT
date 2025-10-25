@@ -4,16 +4,49 @@
 /*** Start of inlined file: QWTAmalgamTemplatePublicHeaders.h ***/
 // 通用定义
 
+/*** Start of inlined file: qwt_version_info.h ***/
+#ifndef QWT_VERSION_INFO_H
+#define QWT_VERSION_INFO_H
+/**
+ * @file 此文件由cmake根据qwt_version_info.h.in自动生成，任何在此文件上的改动都将覆写
+ */
+
+/**
+ * @def qwt的数字版本 {MAJ}.MIN.PAT
+ */
+#ifndef QWT_VERSION_MAJ
+#define QWT_VERSION_MAJ 7
+#endif
+/**
+ * @def qwt的数字版本 MAJ.{MIN}.PAT
+ */
+#ifndef QWT_VERSION_MIN
+#define QWT_VERSION_MIN 0
+#endif
+/**
+ * @def qwt的数字版本 MAJ.MIN.{PAT}
+ */
+#ifndef QWT_VERSION_PAT
+#define QWT_VERSION_PAT 3
+#endif
+
+/**
+ * @def 版本号（字符串）
+ */
+#ifndef QWT_VERSION_STR
+#define QWT_VERSION_STR "7.0.3"
+#endif
+
+#endif  // QWT_VERSION_INFO_H
+
+/*** End of inlined file: qwt_version_info.h ***/
+
 /*** Start of inlined file: qwt_global.h ***/
 #ifndef QWT_GLOBAL_H
 #define QWT_GLOBAL_H
 
 #include <qglobal.h>
 #include <memory>
-// QWT_VERSION is (major << 16) + (minor << 8) + patch.
-
-#define QWT_VERSION 0x070001
-#define QWT_VERSION_STR "7.0.1"
 
 #if defined(_MSC_VER) /* MSVC Compiler */
 /* template-class specialization 'identifier' is already instantiated */
@@ -82,7 +115,7 @@
  * class A{
  *  class PrivateData;
  *  friend class A::PrivateData;
- *  std::unique_ptr< PrivateData > d_ptr;
+ *  std::unique_ptr< PrivateData > m_data;
  * }
  * @endcode
  *
@@ -92,11 +125,11 @@
  * //cpp
  * class A::PrivateData{
  *  QWT_DECLARE_PUBLIC(A)
- *  PrivateData(A* p):q_ptr(p){
+ *  PrivateData(A* p):m_data(p){
  *  }
  * };
  *
- * A::A():d_ptr(new PrivateData(this)){
+ * A::A():m_data(new PrivateData(this)){
  * }
  * @endcode
  *
@@ -105,14 +138,14 @@
 #define QWT_DECLARE_PRIVATE(classname)                                                                                 \
 	class PrivateData;                                                                                                 \
 	friend class classname::PrivateData;                                                                               \
-	std::unique_ptr< PrivateData > d_ptr;                                                                              \
+	std::unique_ptr< PrivateData > m_data;                                                                             \
 	inline PrivateData* d_func()                                                                                       \
 	{                                                                                                                  \
-		return (d_ptr.get());                                                                                          \
+		return (m_data.get());                                                                                         \
 	}                                                                                                                  \
 	inline const PrivateData* d_func() const                                                                           \
 	{                                                                                                                  \
-		return (d_ptr.get());                                                                                          \
+		return (m_data.get());                                                                                         \
 	}
 #endif
 
@@ -142,7 +175,7 @@
  * 配套QWT_DECLARE_PRIVATE使用,在构造函数中构建privatedata
  */
 #ifndef QWT_PIMPL_CONSTRUCT
-#define QWT_PIMPL_CONSTRUCT d_ptr(std::make_unique< PrivateData >(this))
+#define QWT_PIMPL_CONSTRUCT m_data(std::make_unique< PrivateData >(this))
 #endif
 
 #endif
@@ -734,6 +767,142 @@ inline Container qwtRemoveNanOrInfCopy(const Container& container)
 #endif
 
 /*** End of inlined file: qwt_math.h ***/
+
+/*** Start of inlined file: qwt_algorithm.hpp ***/
+#ifndef QWT_ALGORITHM_HPP
+#define QWT_ALGORITHM_HPP
+#include <algorithm>  // std::find
+#include <iterator>   // std::prev
+
+/**
+ * @brief 从迭代器范围中查找下一个元素的迭代器（支持循环切换）
+ *
+ * 该函数在给定的迭代器范围 [begin, end) 中，根据当前元素和方向（向前/向后）查找下一个元素的迭代器。
+ * 若当前元素不在范围内，默认从第一个元素开始计算；若范围为空，返回 end 迭代器。
+ * 支持双向迭代器（如 QList、std::vector、std::list 等容器的迭代器），适用于循环切换场景（如轮询选择元素）。
+ *
+ * @tparam Iter 迭代器类型，需满足双向迭代器要求（支持 ++、--、* 操作及相等比较）
+ * @param begin 范围的起始迭代器（包含）
+ * @param end   范围的结束迭代器（不包含）
+ * @param current 当前元素，函数将从该元素开始计算下一个元素
+ * @param forward 方向标志：true 表示向前（++），false 表示向后（--）
+ * @return Iter 下一个元素的迭代器；若范围为空，返回 end
+ *
+ * @note 1. 若 current 不在 [begin, end) 范围内，默认从第一个元素（begin）开始计算
+ *       2. 当向前切换到 end 时，自动循环到 begin；当向后切换到 begin 时，自动循环到 end 的前一个元素
+ *       3. 要求元素类型支持 == 比较（用于 std::find 查找 current）
+ *
+ * 示例1：使用 std::vector 循环切换
+ * @code
+ * #include <vector>
+ * #include <iostream>
+ *
+ * int main() {
+ *     std::vector<int> nums = {10, 20, 30, 40};
+ *     int current = 20;
+ *
+ *     // 向前切换：20 → 30
+ *     auto it = qwtSelectNextIterator(nums.begin(), nums.end(), current, true);
+ *     std::cout << *it; // 输出：30
+ *
+ *     // 向后切换：20 → 10
+ *     it = qwtSelectNextIterator(nums.begin(), nums.end(), current, false);
+ *     std::cout << *it; // 输出：10
+ *     return 0;
+ * }
+ * @endcode
+ *
+ * 示例2：循环到首尾边界
+ * @code
+ * #include <QList>
+ * #include <QDebug>
+ *
+ * int main() {
+ *     QList<QString> strs = {"A", "B", "C"};
+ *     QString current = "C";
+ *
+ *     // 向前切换：C → A（到达 end 后循环到 begin）
+ *     auto it = qwtSelectNextIterator(strs.begin(), strs.end(), current, true);
+ *     qDebug() << *it; // 输出："A"
+ *
+ *     current = "A";
+ *     // 向后切换：A → C（到达 begin 后循环到 end 前一个）
+ *     it = qwtSelectNextIterator(strs.begin(), strs.end(), current, false);
+ *     qDebug() << *it; // 输出："C"
+ *     return 0;
+ * }
+ * @endcode
+ *
+ * 示例3：当前元素不在范围内
+ * @code
+ * #include <std::list>
+ * #include <iostream>
+ *
+ * int main() {
+ *     std::list<double> vals = {1.5, 2.5, 3.5};
+ *     double current = 99.9; // 不在范围内
+ *
+ *     // 默认从第一个元素（1.5）开始向前切换 → 2.5
+ *     auto it = qwtSelectNextIterator(vals.begin(), vals.end(), current, true);
+ *     std::cout << *it; // 输出：2.5
+ *     return 0;
+ * }
+ * @endcode
+ *
+ * 示例4：空范围处理
+ * @code
+ * #include <vector>
+ * #include <iostream>
+ *
+ * int main() {
+ *     std::vector<char> empty;
+ *     char current = 'a';
+ *
+ *     // 空范围返回 end
+ *     auto it = qwtSelectNextIterator(empty.begin(), empty.end(), current, true);
+ *     if (it == empty.end()) {
+ *         std::cout << "范围为空"; // 输出：范围为空
+ *     }
+ *     return 0;
+ * }
+ * @endcode
+ */
+template< typename Iter >
+Iter qwtSelectNextIterator(Iter begin, Iter end, typename std::iterator_traits< Iter >::value_type current, bool forward)
+{
+	// 空范围直接返回 end
+	if (begin == end) {
+		return end;
+	}
+
+	// 查找当前元素在范围内的位置
+	Iter ite = std::find(begin, end, current);
+
+	// 若当前元素不在范围内，默认从第一个元素开始
+	if (ite == end) {
+		ite = begin;
+	}
+
+	// 根据方向计算下一个迭代器
+	if (forward) {
+		++ite;
+		if (ite == end) {  // 到达末尾，循环到开头
+			ite = begin;
+		}
+	} else {
+		if (ite != begin) {  // 未到开头，向前移动
+			--ite;
+		} else {  // 已在开头，循环到末尾
+			ite = std::prev(end);
+		}
+	}
+
+	return ite;
+}
+
+#endif  // QWT_ALGORITHM_HPP
+
+/*** End of inlined file: qwt_algorithm.hpp ***/
 
 /*** Start of inlined file: qwt_interval.h ***/
 #ifndef QWT_INTERVAL_H
@@ -1893,6 +2062,110 @@ private:
 #endif
 
 /*** End of inlined file: qwt_weeding_curve_fitter.h ***/
+
+/*** Start of inlined file: qwt_qt5qt6_compat.hpp ***/
+#ifndef QWT_QT5QT6_COMPAT_HPP
+#define QWT_QT5QT6_COMPAT_HPP
+#include <QtCore/QtGlobal>
+#include <QtCore/QObject>
+#include <QtGui/QMouseEvent>
+#include <QtGui/QKeyEvent>
+#include <QtGui/QFontMetrics>
+#include <QtGui/QFontMetricsF>
+
+namespace qwt
+{
+
+/**
+ * @brief 处理Qt5与Qt6中的差异
+ *
+ */
+namespace compat
+{
+
+/**
+ * @brief 获取事件的位置（QPoint）
+ * @tparam EventType 事件类型（需支持pos()或position()方法）
+ * @param event 事件指针
+ * @return 事件位置的QPoint表示
+ */
+template< typename EventType >
+inline QPoint eventPos(EventType* event)
+{
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+	return event->pos();
+#else
+	return event->position().toPoint();
+#endif
+}
+
+/**
+ * @brief 获取事件的x坐标
+ * @tparam EventType 事件类型
+ * @param event 事件指针
+ * @return x坐标（整数）
+ */
+template< typename EventType >
+inline int eventX(EventType* event)
+{
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+	return event->pos().x();
+#else
+	return static_cast< int >(event->position().x());
+#endif
+}
+
+/**
+ * @brief 获取事件的y坐标
+ * @tparam EventType 事件类型
+ * @param event 事件指针
+ * @return y坐标（整数）
+ */
+template< typename EventType >
+inline int eventY(EventType* event)
+{
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+	return event->pos().y();
+#else
+	return static_cast< int >(event->position().y());
+#endif
+}
+
+/**
+ * @brief 计算字符串的水平宽度（整数版本）
+ * @param fm QFontMetrics对象
+ * @param str 目标字符串
+ * @return 宽度（整数）
+ */
+inline int horizontalAdvance(const QFontMetrics& fm, const QString& str)
+{
+#if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
+	return fm.width(str);
+#else
+	return fm.horizontalAdvance(str);
+#endif
+}
+
+/**
+ * @brief 计算字符串的水平宽度（浮点数版本）
+ * @param fm QFontMetricsF对象
+ * @param str 目标字符串
+ * @return 宽度（浮点数）
+ */
+inline qreal horizontalAdvanceF(const QFontMetricsF& fm, const QString& str)
+{
+#if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
+	return fm.width(str);
+#else
+	return fm.horizontalAdvance(str);
+#endif
+}
+
+}  // namespace   compat
+}  // namespace   qwt
+#endif  // QWT_QT5QT6_COMPAT_HPP
+
+/*** End of inlined file: qwt_qt5qt6_compat.hpp ***/
 
 /*** Start of inlined file: qwt_samples.h ***/
 #ifndef QWT_SAMPLES_H
@@ -13739,7 +14012,7 @@ public:
     virtual QwtGraphic legendIcon(int index, const QSizeF&) const QWT_OVERRIDE;
 
 protected:
-	void init();
+    void init();
 
     virtual void drawTube(QPainter*,
                           const QwtScaleMap& xMap,
@@ -13921,7 +14194,7 @@ protected:
     virtual void drawLabel(QPainter*, const QRectF&, const QPointF&) const;
 
 private:
-	class PrivateData;
+    class PrivateData;
 	PrivateData* m_data;
 };
 
@@ -14958,7 +15231,7 @@ public:
     virtual QwtGraphic legendIcon(int index, const QSizeF&) const QWT_OVERRIDE;
 
 protected:
-    void init();
+	void init();
 
     virtual void drawSymbols(QPainter*,
                              const QwtScaleMap& xMap,
@@ -17336,6 +17609,7 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(QwtPolarLayout::Options)
 class QWT_EXPORT QwtFigureLayout : public QLayout
 {
 	Q_OBJECT
+	QWT_DECLARE_PRIVATE(QwtFigureLayout)
 public:
 	QwtFigureLayout();
 	explicit QwtFigureLayout(QWidget* parent);
@@ -17366,11 +17640,17 @@ public:
                  qreal wspace = 0.0,
                  qreal hspace = 0.0);
 
+	// 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
+	void setAxesNormPos(QWidget* widget, const QRectF& rect);
+
 	// Update layout parameters/更新布局参数
 	void adjustLayout(qreal left, qreal bottom, qreal right, qreal top);
 
 	// Get the normalized rectangle for a widget/获取窗口部件的归一化矩形
 	QRectF widgetNormRect(QWidget* widget) const;
+
+	// 计算rect相对于parentRect的归一化坐标
+	static QRectF calcNormRect(const QRect& parentRect, const QRect& rect);
 
 protected:
 	// calc the normalized rectangle for a grid cell/获取网格单元格的归一化矩形
@@ -17382,10 +17662,6 @@ protected:
                         int colSpan  = 1,
                         qreal wspace = 0.0,
                         qreal hspace = 0.0) const;
-
-private:
-	class PrivateData;
-	std::unique_ptr< PrivateData > m_data;
 };
 
 #endif  // QWT_FIGURE_LAYOUT_H
@@ -17483,9 +17759,21 @@ class QwtPlot;
 class QWT_EXPORT QwtFigure : public QFrame
 {
 	Q_OBJECT
+	QWT_DECLARE_PRIVATE(QwtFigure)
 public:
 	QwtFigure(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
 	virtual ~QwtFigure();
+	// Add a widget with normalized coordinates/使用归一化坐标添加widget
+	void addWidget(QWidget* widget, qreal left, qreal top, qreal width, qreal height);
+	void addWidget(QWidget* widget,
+                   int rowCnt,
+                   int colCnt,
+                   int row,
+                   int col,
+                   int rowSpan  = 1,
+                   int colSpan  = 1,
+                   qreal wspace = 0.0,
+                   qreal hspace = 0.0);
 	// Add a plot with normalized coordinates/使用归一化坐标添加绘图
 	void addAxes(QwtPlot* plot, const QRectF& rect);
 
@@ -17502,6 +17790,9 @@ public:
                  int colSpan  = 1,
                  qreal wspace = 0.0,
                  qreal hspace = 0.0);
+
+	// 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
+	void setWidgetNormPos(QWidget* widget, const QRectF& rect);
 
 	// Update layout parameters/更新布局参数
 	void adjustLayout(qreal left, qreal bottom, qreal right, qreal top);
@@ -17573,16 +17864,22 @@ public:
 
 	// Get the normalized rectangle for a axes/获取绘图的归一化矩形
 	QRectF axesNormRect(QwtPlot* plot) const;
+	// Get the normalized rectangle for a child widget/获取子窗口的的归一化矩形
+	QRectF widgetNormRect(QWidget* w) const;
+	// 获取在此坐标下的绘图，如果此坐标下没有，则返回nullptr，存在寄生轴情况只返回宿主轴
+	QwtPlot* plotUnderPos(const QPoint& pos) const;
 Q_SIGNALS:
 	/**
 	 * @brief Signal emitted when axes are added to the figure/当坐标轴添加到图形时发出的信号
 	 * @param newAxes Pointer to the newly added QwtPlot / 指向新添加的QwtPlot的指针
+	 * @note 寄生轴的添加也会触发此信号
 	 */
 	void axesAdded(QwtPlot* newAxes);
 
 	/**
 	 * @brief Signal emitted when axes are removed from the figure/当坐标轴从图形中移除时发出的信号
 	 * @param removedAxes Pointer to the removed QwtPlot / 指向被移除的QwtPlot的指针
+	 * @note 寄生轴的移除也会触发此信号
 	 */
 	void axesRemoved(QwtPlot* removedAxes);
 
@@ -17591,18 +17888,129 @@ Q_SIGNALS:
 	 */
 	void figureCleared();
 
+	/**
+	 * @brief 当前激活的坐标系发生了改变的信号
+	 * @param current
+	 * @note 寄生轴不能作为当前axes
+	 * @note 此信号会携带空指针，说明没有设置任何有效的激活坐标系
+	 */
+	void currentAxesChanged(QwtPlot* current);
+
 protected:
 	void paintEvent(QPaintEvent* event) override;
 	void resizeEvent(QResizeEvent* event) override;
-
-private:
-	class PrivateData;
-	std::unique_ptr< PrivateData > m_data;
 };
 
 #endif  // QWT_FIGURE_H
 
 /*** End of inlined file: qwt_figure.h ***/
+
+/*** Start of inlined file: qwt_figure_widget_overlay.h ***/
+#ifndef QWTFIGUREWIDGETOVERLAY_H
+#define QWTFIGUREWIDGETOVERLAY_H
+
+// Qt
+class QEvent;
+class QMouseEvent;
+class QHoverEvent;
+class QKeyEvent;
+// Qwt
+class QwtFigure;
+class QwtPlot;
+
+/**
+ * @brief The QwtFigureWidgetOverlay class
+ *
+ * @note QwtFigureWidgetOverlay并不会直接改变尺寸，因此尺寸的改变主要在管理窗口中执行，这是为了能让它有更大的自由度，例如需要做回退功能
+ */
+class QWT_EXPORT QwtFigureWidgetOverlay : public QwtWidgetOverlay
+{
+	Q_OBJECT
+	QWT_DECLARE_PRIVATE(QwtFigureWidgetOverlay)
+public:
+	/**
+	 * @brief 用于标记矩形的区域
+	 */
+	enum ControlType
+	{
+		ControlLineTop,
+		ControlLineBottom,
+		ControlLineLeft,
+		ControlLineRight,
+		ControlPointTopLeft,
+		ControlPointTopRight,
+		ControlPointBottomLeft,
+		ControlPointBottomRight,
+		Inner,
+		OutSide
+	};
+	Q_ENUM(ControlType)
+public:
+	explicit QwtFigureWidgetOverlay(QwtFigure* fig);
+	~QwtFigureWidgetOverlay();
+	QwtFigure* figure() const;
+
+public:
+	// 根据点和矩形的关系，返回图标的样式
+	static Qt::CursorShape controlTypeToCursor(ControlType rr);
+	static ControlType getPositionControlType(const QPoint& pos, const QRect& region, int err = 1);
+	static bool isPointInRectEdget(const QPoint& pos, const QRect& region, int err = 1);
+	// 判断当前是否有激活的窗口
+	bool isHaveActiveWidget() const;
+	// 设置边框的画笔
+	void setBorderPen(const QPen& p);
+	QPen borderPen() const;
+	// 控制点的填充
+	void setControlPointBrush(const QBrush& b);
+	QBrush controlPointBrush() const;
+	// 控制点尺寸
+	void setControlPointSize(const QSize& c);
+	QSize controlPointSize() const;
+	// 选择下一个窗口作为激活窗体
+	void selectNextWidget(bool forward = true);
+	// 选择下一个绘图作为激活窗体
+	void selectNextPlot(bool forward = true);
+	// 获取当前激活的窗口
+	QWidget* currentActiveWidget() const;
+	QwtPlot* currentActivePlot() const;
+	// 显示占比数值
+	void showPercentText(bool on = true);
+public Q_SLOTS:
+	// 改变激活窗口
+	void setActiveWidget(QWidget* w);
+
+protected:
+	virtual void drawOverlay(QPainter* p) const override;
+	virtual QRegion maskHint() const override;
+	virtual bool eventFilter(QObject* obj, QEvent* event) override;
+	// 绘制
+	virtual void drawActiveWidget(QPainter* painter, QWidget* activeW) const;
+Q_SIGNALS:
+
+	/**
+	 * @brief 绘图尺寸发生改变信号
+	 * @param w 窗口
+	 * @param oldGeometry 旧的位置
+	 * @param newGeometry 新的位置
+	 */
+	void widgetGeometryChanged(QWidget* w, const QRect& oldGeometry, const QRect& newGeometry);
+	/**
+	 * @brief 激活窗口发生变化的信号
+	 * @param oldActive 如果之前没有激活窗口，此指针有可能是nullptr
+	 * @param newActive 如果没有新的激活窗口，此指针有可能是nullptr
+	 */
+	void activeWidgetChanged(QWidget* oldActive, QWidget* newActive);
+
+private:
+	bool onMouseReleaseEvent(QMouseEvent* me);
+	bool onMousePressedEvent(QMouseEvent* me);
+	bool onHoverMoveEvent(QHoverEvent* me);
+	bool onKeyPressedEvent(QKeyEvent* ke);
+};
+
+#endif  // QWTFIGUREWIDGETOVERLAY_H
+
+/*** End of inlined file: qwt_figure_widget_overlay.h ***/
 
 /*** End of inlined file: QWTAmalgamTemplatePublicHeaders.h ***/
 

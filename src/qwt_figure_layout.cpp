@@ -8,6 +8,7 @@
 #endif
 class QwtFigureLayout::PrivateData
 {
+    QWT_DECLARE_PUBLIC(QwtFigureLayout)
 public:
 	PrivateData(QwtFigureLayout* p) : q_ptr(p)
 	{
@@ -25,7 +26,6 @@ public:
 	};
 
 public:
-	QwtFigureLayout* q_ptr { nullptr };
 	QList< LayoutItem > m_items;  ///< List of layout items / 布局项列表
 
 	// Layout parameters with default values / 布局参数（带默认值）
@@ -35,12 +35,14 @@ public:
 	qreal m_top { 0.02 };     ///< Top margin / 上边距
 };
 
-QwtFigureLayout::QwtFigureLayout() : QLayout(), m_data(std::make_unique< QwtFigureLayout::PrivateData >(this))
+//----------------------------------------------------
+// QwtFigureLayout
+//----------------------------------------------------
+QwtFigureLayout::QwtFigureLayout() : QLayout(), QWT_PIMPL_CONSTRUCT
 {
 }
 
-QwtFigureLayout::QwtFigureLayout(QWidget* parent)
-    : QLayout(parent), m_data(std::make_unique< QwtFigureLayout::PrivateData >(this))
+QwtFigureLayout::QwtFigureLayout(QWidget* parent) : QLayout(parent), QWT_PIMPL_CONSTRUCT
 {
 }
 
@@ -357,7 +359,23 @@ void QwtFigureLayout::addAxes(QWidget* widget, int rowCnt, int colCnt, int row, 
 	QwtFigureLayout::PrivateData::LayoutItem li;
 	li.item     = item;
 	li.normRect = normRect;
-	m_data->m_items.append(li);
+    m_data->m_items.append(li);
+}
+
+/**
+ * @brief 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
+ *
+ * @note 此函数不会自动刷新窗口位置，需要用户手动刷新
+ * @param widget
+ * @param rect
+ */
+void QwtFigureLayout::setAxesNormPos(QWidget* widget, const QRectF& rect)
+{
+    for (QwtFigureLayout::PrivateData::LayoutItem& i : m_data->m_items) {
+        if (i.item->widget() == widget) {
+            i.normRect = rect;
+        }
+    }
 }
 
 /**
