@@ -52,14 +52,13 @@ public:
     // 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
     void setAxesNormPos(QWidget* widget, const QRectF& rect);
 
-    // Update layout parameters/更新布局参数
-    void adjustLayout(qreal left, qreal bottom, qreal right, qreal top);
-
     // Get the normalized rectangle for a widget/获取窗口部件的归一化矩形
     QRectF widgetNormRect(QWidget* widget) const;
 
     // 计算rect相对于parentRect的归一化坐标
     static QRectF calcNormRect(const QRect& parentRect, const QRect& rect);
+    // 计算正规矩形
+    QRect calcActualRect(const QRect& parentRect, const QRectF& normRect);
 
 protected:
     // calc the normalized rectangle for a grid cell/获取网格单元格的归一化矩形

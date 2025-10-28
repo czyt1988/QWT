@@ -254,39 +254,13 @@ void QwtFigure::setWidgetNormPos(QWidget* widget, const QRectF& rect)
 }
 
 /**
- * @brief Update layout parameters/更新布局参数
- *
- * This method adjusts the layout parameters similar to matplotlib's subplots_adjust function.
- *
- * 此方法调整布局参数，类似于matplotlib的subplots_adjust函数。
- *
- * @param left Left margin [0,1] / 左边距 [0,1]
- * @param bottom Bottom margin [0,1] / 底边距 [0,1]
- * @param right Right margin [0,1] / 右边距 [0,1]
- * @param top Top margin [0,1] / 上边距 [0,1]
- *
- * @code
- * // Adjust layout with generous margins and spacing
- * // 调整布局，使用较大的边距和间距
- * figure.adjustLayout(0.1, 0.1, 0.9, 0.9, 0.2, 0.2);
- *
- * // Adjust layout with minimal margins and spacing
- * // 调整布局，使用最小的边距和间距
- * figure.adjustLayout(0.05, 0.05, 0.95, 0.95, 0.05, 0.05);
- * @endcode
- */
-void QwtFigure::adjustLayout(qreal left, qreal bottom, qreal right, qreal top)
-{
-    QWTFIGURE_SAFEGET_LAY(lay)
-    lay->adjustLayout(left, bottom, right, top);
-}
-
-/**
  * @brief Get all axes (plots) in the figure（not contain parasite axes）/获取图形中的所有坐标轴（绘图）(不包含寄生轴)
  *
  * This method returns a list of all QwtPlot objects added to the figure.（not contain parasite axes）
  *
  * 此方法返回添加到图形中的所有QwtPlot对象的列表。(不包含寄生轴)
+ *
+ * @param byZOrder 是否按zorder排序，如果按zorder排序，按按 z 序从高到低排序
  *
  * @return List of all QwtPlot objects / 所有QwtPlot对象的列表(不包含寄生轴)
  *
@@ -301,7 +275,7 @@ void QwtFigure::adjustLayout(qreal left, qreal bottom, qreal right, qreal top)
  * }
  * @endcode
  */
-QList< QwtPlot* > QwtFigure::allAxes() const
+QList< QwtPlot* > QwtFigure::allAxes(bool byZOrder) const
 {
     QList< QwtPlot* > plots;
     QLayout* lay = layout();
@@ -317,7 +291,25 @@ QList< QwtPlot* > QwtFigure::allAxes() const
             }
         }
     }
-    return plots;
+    if (!byZOrder || plots.isEmpty()) {
+        return plots;  // 原顺序直接返回
+    }
+
+    /* 按 z-order 从高到低重新排（children() 越靠后 z 越高） */
+    const QObjectList& oc = children();
+    QList< QwtPlot* > zOrdered;
+    zOrdered.reserve(plots.size());
+
+    // 倒序扫一次，命中就搬
+    for (auto it = oc.crbegin(); it != oc.crend(); ++it) {
+        if (QwtPlot* p = qobject_cast< QwtPlot* >(*it)) {
+            if (plots.contains(p)) {  // 只有 O(n) 小列表查找
+                zOrdered.append(p);
+            }
+        }
+    }
+
+    return zOrdered;  // 已经是从顶到底
 }
 
 /**
@@ -1254,6 +1246,27 @@ QwtPlot* QwtFigure::plotUnderPos(const QPoint& pos) const
         }
     }
     return nullptr;
+}
+
+/**
+ * @brief 通过真实的窗口坐标计算归一化坐标
+ * @param geoRect 真实窗口坐标，就是子窗口的geometry()
+ * @return
+ */
+QRectF QwtFigure::calcNormRect(const QRect& geoRect) const
+{
+    return QwtFigureLayout::calcNormRect(rect(), geoRect);
+}
+
+/**
+ * @brief 通过正则矩形计算真实矩形
+ * @param normRect
+ * @return
+ */
+QRect QwtFigure::calcActualRect(const QRectF& normRect)
+{
+    QWTFIGURE_SAFEGET_LAY_RET(lay, QRect())
+    return lay->calcActualRect(rect(), normRect);
 }
 
 void QwtFigure::paintEvent(QPaintEvent* event)

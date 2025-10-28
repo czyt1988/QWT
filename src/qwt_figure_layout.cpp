@@ -27,12 +27,6 @@ public:
 
 public:
 	QList< LayoutItem > m_items;  ///< List of layout items / 布局项列表
-
-	// Layout parameters with default values / 布局参数（带默认值）
-	qreal m_left { 0.02 };    ///< Left margin / 左边距
-	qreal m_bottom { 0.02 };  ///< Bottom margin / 底边距
-	qreal m_right { 0.02 };   ///< Right margin / 右边距
-	qreal m_top { 0.02 };     ///< Top margin / 上边距
 };
 
 //----------------------------------------------------
@@ -107,21 +101,10 @@ QSize QwtFigureLayout::minimumSize() const
 void QwtFigureLayout::setGeometry(const QRect& rect)
 {
 	QLayout::setGeometry(rect);
-
-	const int width  = rect.width();
-	const int height = rect.height();
-
-	// Skip layout if geometry is invalid
-	if (width <= 0 || height <= 0) {
-		return;
-	}
-
-	// Calculate available space after applying margins
-	// 计算应用边距后的可用空间
-	const qreal availableWidth  = width * (1.0 - m_data->m_left - m_data->m_right);
-	const qreal availableHeight = height * (1.0 - m_data->m_bottom - m_data->m_top);
-	const qreal startX          = width * m_data->m_left;
-	const qreal startY          = height * m_data->m_top;
+    // Skip layout if geometry is invalid
+    if (!rect.isValid()) {
+        return;
+    }
 #if QWTFIGURELAYOUT_DEBUG_PRINT && QWT_DEBUG_DRAW
 	qDebug() << "QwtFigureLayout setGeometry(rect=" << rect << "),left=" << m_data->m_left
              << ",right=" << m_data->m_right << ",bottom=" << m_data->m_bottom << ",top=" << m_data->m_top;
@@ -130,24 +113,12 @@ void QwtFigureLayout::setGeometry(const QRect& rect)
 		if (!item.item || !item.item->widget() || !item.item->widget()->isVisibleTo(item.item->widget()->parentWidget())) {
 			continue;
 		}
-
-		QRectF normRect = item.normRect;
-
 		// Convert normalized coordinates to actual pixels using Qt's top-left coordinate system
 		// Apply margins to both grid-based and normalized coordinate-based items
 		// 将归一化坐标转换为实际像素，使用Qt的左上角坐标系
 		// 对基于网格和基于归一化坐标的项应用边距
-        const qreal actualLeft   = startX + qRound(normRect.left() * availableWidth);
-        const qreal actualTop    = startY + qRound(normRect.top() * availableHeight);
-        const qreal actualWidth  = qRound(normRect.width() * availableWidth);
-        const qreal actualHeight = qRound(normRect.height() * availableHeight);
 
-		// Ensure the rect is within valid bounds
-		QRect actualRect(qMax(0.0, actualLeft),
-                         qMax(0.0, actualTop),
-                         qMin(actualWidth, width - actualLeft),
-                         qMin(actualHeight, height - actualTop));
-
+        QRect actualRect = calcActualRect(rect, item.normRect);
 		item.item->setGeometry(actualRect);
 #if QWTFIGURELAYOUT_DEBUG_PRINT && QWT_DEBUG_DRAW
 		qDebug() << "normRect=" << normRect << ",actualRect=" << actualRect;
@@ -335,7 +306,15 @@ void QwtFigureLayout::addAxes(QWidget* widget, qreal left, qreal top, qreal widt
  * // +-------------------+-------------------+
  * @endcode
  */
-void QwtFigureLayout::addGridAxes(QWidget* widget, int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace)
+void QwtFigureLayout::addGridAxes(QWidget* widget,
+                                  int rowCnt,
+                                  int colCnt,
+                                  int row,
+                                  int col,
+                                  int rowSpan,
+                                  int colSpan,
+                                  qreal wspace,
+                                  qreal hspace)
 {
 	if (!widget) {
 		qWarning() << "QwtFigureLayout::addToGrid get a null widget";
@@ -376,61 +355,6 @@ void QwtFigureLayout::setAxesNormPos(QWidget* widget, const QRectF& rect)
             i.normRect = rect;
         }
     }
-}
-
-/**
- * @brief Update layout parameters/更新布局参数
- *
- * This method adjusts the layout parameters similar to matplotlib's subplots_adjust function.
- * It allows fine-tuning the spacing between subplots and the margins around the figure.
- *
- * 此方法调整布局参数，类似于matplotlib的subplots_adjust函数。
- * 它允许微调子图之间的间距和图形周围的边距。
- *
- * @note All parameters must be in the range [0,1]. The sum of left + right should be less than 1,
- *       and the sum of bottom + top should be less than 1 to ensure visible content.
- *       所有参数必须在[0,1]范围内。左+右应小于1，下+上应小于1以确保内容可见。
- *
- * @param left Left margin [0,1] / 左边距 [0,1]
- * @param bottom Bottom margin [0,1] / 底边距 [0,1]
- * @param right Right margin [0,1] / 右边距 [0,1]
- * @param top Top margin [0,1] / 上边距 [0,1]
- *
- * @code
- * // Adjust layout with generous margins and spacing
- * // 调整布局，使用较大的边距和间距
- * layout->adjustLayout(0.1, 0.1, 0.1, 0.1);
- * @endcode
- *
- * @code
- * // Adjust layout with minimal margins and spacing
- * // 调整布局，使用最小的边距和间距
- * layout->adjustLayout(0.05, 0.05, 0.05, 0.05);
- * @endcode
- */
-void QwtFigureLayout::adjustLayout(qreal left, qreal bottom, qreal right, qreal top)
-{
-	// Validate parameters
-	if (left < 0.0 || left > 1.0 || bottom < 0.0 || bottom > 1.0 || right < 0.0 || right > 1.0 || top < 0.0 || top > 1.0) {
-		qWarning() << "All layout parameters must be in range [0,1]";
-		return;
-	}
-
-	if (left + right >= 1.0) {
-		qWarning() << "Left + right margins should be less than 1.0 to have visible content";
-	}
-
-	if (bottom + top >= 1.0) {
-		qWarning() << "Bottom + top margins should be less than 1.0 to have visible content";
-	}
-
-	m_data->m_left   = left;
-	m_data->m_bottom = bottom;
-	m_data->m_right  = right;
-	m_data->m_top    = top;
-
-	// Invalidate the layout to trigger recalculation
-	invalidate();
 }
 
 /**
@@ -505,6 +429,28 @@ QRectF QwtFigureLayout::calcNormRect(const QRect& parentRect, const QRect& rect)
     const double clampedHeight = qBound(0.0, roundToPrecision(height), 1.0 - clampedTop);
 
     return QRectF(clampedLeft, clampedTop, clampedWidth, clampedHeight);
+}
+
+/**
+ * @brief 通过归一化矩形计算真实矩形
+ * @param parentRect 父窗口大小
+ * @param normRect 归一化矩形
+ * @return
+ */
+QRect QwtFigureLayout::calcActualRect(const QRect& parentRect, const QRectF& normRect)
+{
+    const qreal availableWidth  = parentRect.width();
+    const qreal availableHeight = parentRect.height();
+    const qreal actualLeft      = qRound(normRect.left() * availableWidth);
+    const qreal actualTop       = qRound(normRect.top() * availableHeight);
+    const qreal actualWidth     = qRound(normRect.width() * availableWidth);
+    const qreal actualHeight    = qRound(normRect.height() * availableHeight);
+
+    // Ensure the rect is within valid bounds
+    return QRect(qMax(0.0, actualLeft),
+                 qMax(0.0, actualTop),
+                 qMin(actualWidth, availableWidth - actualLeft),
+                 qMin(actualHeight, availableHeight - actualTop));
 }
 
 /**

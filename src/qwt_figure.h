@@ -124,11 +124,8 @@ public:
     // 改变已经添加的窗口的位置占比,如果窗口还没添加，此函数无效
     void setWidgetNormPos(QWidget* widget, const QRectF& rect);
 
-    // Update layout parameters/更新布局参数
-    void adjustLayout(qreal left, qreal bottom, qreal right, qreal top);
-
     // Get all axes (plots) in the figure（not contain parasite axes）/获取图形中的所有坐标轴（绘图）(不包含寄生轴)
-    QList< QwtPlot* > allAxes() const;
+    QList< QwtPlot* > allAxes(bool byZOrder = false) const;
 
     // Check if the figure has any axes/检查图形是否有任意绘图
     bool hasAxes() const;
@@ -198,6 +195,10 @@ public:
     QRectF widgetNormRect(QWidget* w) const;
     // 获取在此坐标下的绘图，如果此坐标下没有，则返回nullptr，存在寄生轴情况只返回宿主轴
     QwtPlot* plotUnderPos(const QPoint& pos) const;
+    // 通过真实位置计算归一化坐标
+    QRectF calcNormRect(const QRect& geoRect) const;
+    // 计算正规矩形
+    QRect calcActualRect(const QRectF& normRect);
 Q_SIGNALS:
     /**
      * @brief Signal emitted when axes are added to the figure/当坐标轴添加到图形时发出的信号

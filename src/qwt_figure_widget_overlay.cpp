@@ -13,6 +13,10 @@
 #include "qwt_plot.h"
 #include "qwt_qt5qt6_compat.hpp"
 
+#ifndef QwtFigureWidgetOverlay_DEBUG_PRINT
+#define QwtFigureWidgetOverlay_DEBUG_PRINT 1
+#endif
+
 class QwtFigureWidgetOverlay::PrivateData
 {
     QWT_DECLARE_PUBLIC(QwtFigureWidgetOverlay)
@@ -25,7 +29,8 @@ public:
     QPen mBorderPen { Qt::blue };            ///< 绘制chart2d在编辑模式下的画笔
     bool mIsStartResize { false };           ///< 标定开始进行缩放
     QWidget* mActiveWidget { nullptr };      /// 标定当前激活的窗口，如果没有就为nullptr
-    QRect mOldGeometry;                      ///< 保存旧的窗口位置，用于redo/undo
+    QRectF mOldNormRect;                     ///< 保存旧的窗口位置，用于redo/undo
+    QRectF mWillSetNormRect;                 ///< 将要设置的正则尺寸
     QSize mControlPointSize { 8, 8 };        ///< 控制点大小
     QwtFigureWidgetOverlay::ControlType mControlType { QwtFigureWidgetOverlay::OutSide };  ///< 记录当前缩放窗口的位置情况
 
@@ -42,12 +47,48 @@ QwtFigureWidgetOverlay::PrivateData::PrivateData(QwtFigureWidgetOverlay* p) : q_
 // QwtFigureWidgetOverlay
 //----------------------------------------------------
 
+/**
+ * @brief QwtFigureWidgetOverlay的构造函数
+ *
+ * @note 构造函数不允许传入nullptr
+ * @param fig
+ */
 QwtFigureWidgetOverlay::QwtFigureWidgetOverlay(QwtFigure* fig) : QwtWidgetOverlay(fig), QWT_PIMPL_CONSTRUCT
 {
+    Q_ASSERT(fig);
+    // 由于QwtWidgetOverlay是对鼠标隐藏的，因此不能直接使用mouseEvent，直接捕获QwtFigure的event
+    //  QwtWidgetOverlay已经install了，因此无需再fig->installEventFilter(this);
+    m_data->mFigOldMouseTracking = fig->hasMouseTracking();
+    if (!m_data->mFigOldMouseTracking) {
+        fig->setMouseTracking(true);
+    }
+    m_data->mFigOldHasHoverAttr = fig->testAttribute(Qt::WA_Hover);
+    if (!m_data->mFigOldHasHoverAttr) {
+        fig->setAttribute(Qt::WA_Hover, true);
+    }
+
+    QwtPlot* gca = fig->currentAxes();
+    if (gca) {
+        setActiveWidget(gca);
+    } else {
+        selectNextPlot();
+        if (!currentActiveWidget()) {
+            selectNextWidget();
+        }
+    }
 }
 
 QwtFigureWidgetOverlay::~QwtFigureWidgetOverlay()
 {
+    QwtFigure* fig = figure();
+    Q_ASSERT(fig);
+    // 如果fig原来没有mousetrack，设置回去
+    if (!m_data->mFigOldMouseTracking) {
+        fig->setMouseTracking(false);
+    }
+    if (!m_data->mFigOldHasHoverAttr) {
+        fig->setAttribute(Qt::WA_Hover, false);
+    }
 }
 
 QwtFigure* QwtFigureWidgetOverlay::figure() const
@@ -320,7 +361,12 @@ void QwtFigureWidgetOverlay::drawOverlay(QPainter* p) const
     if (isHaveActiveWidget()) {
         // 对于激活的窗口，绘制到四周的距离提示线
         p->save();
-        drawActiveWidget(p, currentActiveWidget());
+        if (m_data->mIsStartResize) {
+            // 在resize状态，绘制控制线
+            drawResizeingControlLine(p, m_data->mWillSetNormRect);
+        } else {
+            drawActiveWidget(p, currentActiveWidget());
+        }
         p->restore();
     }
 }
@@ -358,7 +404,10 @@ bool QwtFigureWidgetOverlay::eventFilter(QObject* obj, QEvent* event)
                 QKeyEvent* ke = static_cast< QKeyEvent* >(event);
                 return (onKeyPressedEvent(ke));
             }
-
+            case QEvent::MouseMove: {
+                QMouseEvent* e = static_cast< QMouseEvent* >(event);
+                return (onMouseMoveEvent(e));
+            }
             case QEvent::HoverMove: {
                 QHoverEvent* e = static_cast< QHoverEvent* >(event);
                 return (onHoverMoveEvent(e));
@@ -377,9 +426,20 @@ void QwtFigureWidgetOverlay::drawActiveWidget(QPainter* painter, QWidget* active
 {
     const QRect& chartRect      = activeW->frameGeometry();
     const QRectF& normalPercent = figure()->widgetNormRect(activeW);
+    drawControlLine(painter, chartRect, normalPercent);
+}
+
+void QwtFigureWidgetOverlay::drawResizeingControlLine(QPainter* painter, const QRectF& willSetNormRect) const
+{
+    QRect actualRect = figure()->calcActualRect(willSetNormRect);
+    drawControlLine(painter, actualRect, willSetNormRect);
+}
+
+void QwtFigureWidgetOverlay::drawControlLine(QPainter* painter, const QRect& actualRect, const QRectF& normRect) const
+{
     painter->setBrush(Qt::NoBrush);
     painter->setPen(m_data->mBorderPen);
-    QRect edgetRect = chartRect.adjusted(-1, -1, 1, 1);
+    QRect edgetRect = actualRect.adjusted(-1, -1, 1, 1);
 
     // 绘制矩形边框
     painter->drawRect(edgetRect);
@@ -388,26 +448,26 @@ void QwtFigureWidgetOverlay::drawActiveWidget(QPainter* painter, QWidget* active
 
     linePen.setStyle(Qt::DotLine);
     painter->setPen(linePen);
-    QPoint center = chartRect.center();
+    QPoint center = actualRect.center();
 
-    painter->drawLine(center.x(), 0, center.x(), chartRect.top());            // top
-    painter->drawLine(center.x(), chartRect.bottom(), center.x(), height());  // bottom
-    painter->drawLine(0, center.y(), chartRect.left(), center.y());           // left
-    painter->drawLine(chartRect.right(), center.y(), width(), center.y());    // right
+    painter->drawLine(center.x(), 0, center.x(), actualRect.top());            // top
+    painter->drawLine(center.x(), actualRect.bottom(), center.x(), height());  // bottom
+    painter->drawLine(0, center.y(), actualRect.left(), center.y());           // left
+    painter->drawLine(actualRect.right(), center.y(), width(), center.y());    // right
     // 绘制顶部数据
     QFontMetrics fm = painter->fontMetrics();
     // top text
-    QString percentText = QString::number(normalPercent.y() * 100, 'g', 2) + "%";
+    QString percentText = QString::number(normRect.y() * 100, 'g', 2) + "%";
     QRectF textRect     = fm.boundingRect(percentText);
     textRect.moveTopLeft(QPoint(center.x(), 0));
     painter->drawText(textRect, Qt::AlignCenter, percentText);
     // left
-    percentText = QString::number(normalPercent.x() * 100, 'g', 2) + "%";
+    percentText = QString::number(normRect.x() * 100, 'g', 2) + "%";
     textRect    = fm.boundingRect(percentText);
     textRect.moveBottomLeft(QPoint(0, center.y()));
     painter->drawText(textRect, Qt::AlignCenter, percentText);
 
-    //    painter->drawText(QPointF(0, chartRect.y()), QString::number(percent.x(), 'g', 2));
+    //    painter->drawText(QPointF(0, actualRect.y()), QString::number(percent.x(), 'g', 2));
     // 绘制四个角落
     painter->setPen(Qt::NoPen);
     painter->setBrush(m_data->mContorlPointBrush);
@@ -423,14 +483,25 @@ void QwtFigureWidgetOverlay::drawActiveWidget(QPainter* painter, QWidget* active
     painter->drawRect(connerRect);
 }
 
+bool QwtFigureWidgetOverlay::onMouseMoveEvent(QMouseEvent* me)
+{
+    if (m_data->mActiveWidget) {
+        if (m_data->mIsStartResize) { }
+    }
+    return (true);  // 托管所有的鼠标事件
+}
+
 bool QwtFigureWidgetOverlay::onMouseReleaseEvent(QMouseEvent* me)
 {
     if (Qt::LeftButton == me->button()) {
         if (m_data->mIsStartResize) {
             m_data->mIsStartResize = false;
             if (m_data->mActiveWidget) {
-                QRect newGeometry = m_data->mActiveWidget->geometry();
-                Q_EMIT widgetGeometryChanged(m_data->mActiveWidget, m_data->mOldGeometry, newGeometry);
+                QwtFigure* fig = figure();
+                Q_ASSERT(fig);
+                // QRect newGeometry = m_data->mActiveWidget->geometry();
+                fig->setWidgetNormPos(m_data->mActiveWidget, m_data->mWillSetNormRect);
+                // Q_EMIT widgetGeometryChanged(m_data->mActiveWidget, m_data->mOldGeometry, newGeometry);
                 return (true);  // 这里把消息截取不传递下去
             }
         }
@@ -440,40 +511,60 @@ bool QwtFigureWidgetOverlay::onMouseReleaseEvent(QMouseEvent* me)
 
 bool QwtFigureWidgetOverlay::onMousePressedEvent(QMouseEvent* me)
 {
-    if (Qt::LeftButton == me->button()) {
-        // 左键点击
-        QList< QwtPlot* > orderws = figure()->allAxes();
-        for (auto ite = orderws.begin(); ite != orderws.end(); ++ite) {
-            // 点击到了其他窗体
-            if ((*ite)->geometry().contains(qwt::compat::eventPos(me))) {
-                setActiveWidget(*ite);
-            }
-        }
-        ControlType ct = getPositionControlType(qwt::compat::eventPos(me), m_data->mActiveWidget->frameGeometry(), 4);
-        if (OutSide == ct) {
-            // 如果点击了外部，那么久尝试变更激活窗口
-            QList< QwtPlot* > ws = figure()->allAxes();
-            for (QWidget* w : qAsConst(ws)) {
-                if (w->frameGeometry().contains(qwt::compat::eventPos(me), true)) {
-                    if (m_data->mActiveWidget != w) {
-                        setActiveWidget(w);
-                        updateOverlay();
-                        return (true);  // 这里把消息截取不传递下去
-                    }
-                }
-            }
-        } else {
-            // 点击了其他区域，就执行变换
-            m_data->mOldGeometry       = m_data->mActiveWidget->geometry();
-            m_data->mLastMousePressPos = qwt::compat::eventPos(me);
-            m_data->mIsStartResize     = true;
-            m_data->mControlType       = ct;
-            return (true);  // 这里把消息截取不传递下去
-        }
-
-        // 没有点击到任何的地方就
+    if (me->button() != Qt::LeftButton) {  // 只关心左键
+        return false;
     }
-    return (true);  // 托管所有的鼠标事件
+
+    // 左键点击
+    const QList< QwtPlot* > plots = figure()->allAxes(true);  // 传入true，按z序列最高到低排序
+    if (plots.empty()) {
+        return false;
+    }
+
+    // 注意，hitplot有可能是nullptr，因为点击变换边缘时，会判断为外围
+    QWidget* hitPlot  = nullptr;
+    const QPoint gPos = qwt::compat::eventPos(me);
+    for (QWidget* w : plots) {
+        if (w->frameGeometry().contains(gPos, true)) {
+            hitPlot = w;
+            break;
+        }
+    }
+
+    // 如果还没激活任何窗口，或者点到新窗口，直接切换激活
+    // 注意，这里不能直接判断有hitPlot就切换activeWidget，因为实际在变换的时候，点击的位置会找active的外围一点
+    // 通过getPositionControlType可以真实反映出是否超过了activeWidget的变换范围
+    if (!m_data->mActiveWidget) {
+        if (hitPlot) {
+            setActiveWidget(hitPlot);
+            updateOverlay();
+            return true;
+        }
+        return false;
+    }
+
+    // 有激活窗口，判断点击位置
+    ControlType ct = getPositionControlType(qwt::compat::eventPos(me), m_data->mActiveWidget->frameGeometry(), 4);
+    if (OutSide == ct) {
+        // 点击在空白处
+        if (hitPlot) {
+            setActiveWidget(hitPlot);
+            updateOverlay();
+            return true;
+        }
+        return false;
+    }
+    // 点击了变换区域，就执行变换
+    QwtFigure* fig = figure();
+    Q_ASSERT(fig);
+    m_data->mOldNormRect       = fig->widgetNormRect(m_data->mActiveWidget);
+    m_data->mLastMousePressPos = qwt::compat::eventPos(me);
+    m_data->mIsStartResize     = true;
+    m_data->mControlType       = ct;
+#if QwtFigureWidgetOverlay_DEBUG_PRINT
+    qDebug() << "QwtFigureWidgetOverlay::start resize";
+#endif
+    return (true);  // 这里把消息截取不传递下去
 }
 
 bool QwtFigureWidgetOverlay::onHoverMoveEvent(QHoverEvent* me)
@@ -481,85 +572,138 @@ bool QwtFigureWidgetOverlay::onHoverMoveEvent(QHoverEvent* me)
     //! 注意，不要在onMouseMoveEvent进行处理，因为鼠标移动到子窗体后，
     //! onMouseMoveEvent不会触发，但onHoverMoveEvent还会继续触发
     QWidget* activeW = m_data->mActiveWidget;
-    if (activeW) {
-        if (m_data->mIsStartResize) {
-            // 开始resize（鼠标按下左键后触发为true）
-            QRect geoRect = m_data->mOldGeometry;
-            switch (m_data->mControlType) {
-            case ControlLineTop: {
-                QPoint offset = qwt::compat::eventPos(me) - m_data->mLastMousePressPos;
-                geoRect.adjust(0, offset.y(), 0, 0);
-                activeW->setGeometry(geoRect);
-                break;
-            }
+    if (!activeW) {
+        return false;
+    }
+    QwtFigure* fig = figure();
+    Q_ASSERT(fig);
 
-            case ControlLineBottom: {
-                int resultY = qwt::compat::eventY(me);
-                geoRect.adjust(0, 0, 0, resultY - geoRect.bottom());
-                activeW->setGeometry(geoRect);
-                break;
-            }
+    if (m_data->mIsStartResize) {
+        // 开始resize（鼠标按下左键后触发为true）
+        const QRectF& oldNormRect = m_data->mOldNormRect;
+        QPoint offset             = qwt::compat::eventPos(me) - m_data->mLastMousePressPos;
+        switch (m_data->mControlType) {
+        case ControlLineTop: {
+            //  计算offset.y()占高度比例
+            qreal dh = static_cast< qreal >(offset.y()) / fig->height();
+            // 要使用figure计算归一化坐标
+            QRectF normRect = oldNormRect;
+            normRect.setY(oldNormRect.y() + dh);
+            normRect.setHeight(oldNormRect.height() - dh);
+#if QwtFigureWidgetOverlay_DEBUG_PRINT
+            qDebug() << "QwtFigureWidgetOverlay::onHoverMoveEvent ControlLineTop,offset=" << offset
+                     << ",old normRect= " << oldNormRect << ",will set=" << normRect << ",dh=" << dh
+                     << ",figure rect=" << fig->rect();
+#endif
+            m_data->mWillSetNormRect = normRect;
+            break;
+        }
 
-            case ControlLineLeft: {
-                int resultX = qwt::compat::eventX(me);
-                geoRect.adjust(resultX - geoRect.left(), 0, 0, 0);
-                activeW->setGeometry(geoRect);
-                break;
-            }
+        case ControlLineBottom: {
+            //  计算offset.y()占高度比例
+            qreal dh = static_cast< qreal >(offset.y()) / fig->height();
+            // 要使用figure计算归一化坐标
+            QRectF normRect = oldNormRect;
+            normRect.setHeight(oldNormRect.height() + dh);
+            m_data->mWillSetNormRect = normRect;
+            break;
+        }
 
-            case ControlLineRight: {
-                int resultX = qwt::compat::eventX(me);
-                geoRect.adjust(0, 0, resultX - geoRect.right(), 0);
-                activeW->setGeometry(geoRect);
-                break;
-            }
+        case ControlLineLeft: {
+            //  计算offset.x()占宽度比例
+            qreal dw        = static_cast< qreal >(offset.x()) / fig->width();
+            QRectF normRect = oldNormRect;
+            normRect.setX(oldNormRect.x() + dw);
+            normRect.setWidth(oldNormRect.width() - dw);
+            m_data->mWillSetNormRect = normRect;
+            break;
+        }
 
-            case ControlPointTopLeft: {
-                geoRect.adjust(qwt::compat::eventX(me) - geoRect.left(), qwt::compat::eventY(me) - geoRect.top(), 0, 0);
-                activeW->setGeometry(geoRect);
-                break;
-            }
+        case ControlLineRight: {
+            //  计算offset.x()占宽度比例
+            qreal dw        = static_cast< qreal >(offset.x()) / fig->width();
+            QRectF normRect = oldNormRect;
+            normRect.setWidth(oldNormRect.width() + dw);
+            m_data->mWillSetNormRect = normRect;
+            break;
+        }
 
-            case ControlPointTopRight: {
-                geoRect.adjust(0, qwt::compat::eventY(me) - geoRect.top(), qwt::compat::eventX(me) - geoRect.right(), 0);
-                activeW->setGeometry(geoRect);
-                break;
-            }
+        case ControlPointTopLeft: {
+            qreal dh = static_cast< qreal >(offset.y()) / fig->height();
+            qreal dw = static_cast< qreal >(offset.x()) / fig->width();
 
-            case ControlPointBottomLeft: {
-                geoRect.adjust(qwt::compat::eventX(me) - geoRect.left(), 0, 0, qwt::compat::eventY(me) - geoRect.bottom());
-                activeW->setGeometry(geoRect);
-                break;
-            }
+            QRectF normRect = oldNormRect;
+            normRect.setX(oldNormRect.x() + dw);
+            normRect.setY(oldNormRect.y() + dh);
+            normRect.setWidth(oldNormRect.width() - dw);
+            normRect.setHeight(oldNormRect.height() - dh);
 
-            case ControlPointBottomRight: {
-                geoRect.adjust(0, 0, qwt::compat::eventX(me) - geoRect.right(), qwt::compat::eventY(me) - geoRect.bottom());
-                activeW->setGeometry(geoRect);
-                break;
-            }
+            m_data->mWillSetNormRect = normRect;
+            break;
+        }
 
-            case Inner: {
-                QPoint offset = qwt::compat::eventPos(me) - m_data->mLastMousePressPos;
-                geoRect.moveTo(m_data->mOldGeometry.topLeft() + offset);
-                activeW->setGeometry(geoRect);
-                break;
-            }
+        case ControlPointTopRight: {
+            qreal dh = static_cast< qreal >(offset.y()) / fig->height();
+            qreal dw = static_cast< qreal >(offset.x()) / fig->width();
 
-            default:
-                return (false);
-            }
-            updateOverlay();
-            return (true);  // 这里把消息截取不传递下去
-        } else {
-            ControlType ct = getPositionControlType(qwt::compat::eventPos(me), activeW->frameGeometry(), 4);
-            if (m_data->mControlType != ct) {
-                // 说明控制点变更
-                Qt::CursorShape cur = controlTypeToCursor(ct);
-                figure()->setCursor(cur);
-                m_data->mControlType = ct;
-            }
+            QRectF normRect = oldNormRect;
+            normRect.setY(oldNormRect.y() + dh);
+            normRect.setWidth(oldNormRect.width() + dw);
+            normRect.setHeight(oldNormRect.height() - dh);
+
+            m_data->mWillSetNormRect = normRect;
+            break;
+        }
+
+        case ControlPointBottomLeft: {
+            qreal dh = static_cast< qreal >(offset.y()) / fig->height();
+            qreal dw = static_cast< qreal >(offset.x()) / fig->width();
+
+            QRectF normRect = oldNormRect;
+            normRect.setX(oldNormRect.x() + dw);
+            normRect.setWidth(oldNormRect.width() - dw);
+            normRect.setHeight(oldNormRect.height() + dh);
+
+            m_data->mWillSetNormRect = normRect;
+            break;
+        }
+
+        case ControlPointBottomRight: {
+            qreal dh = static_cast< qreal >(offset.y()) / fig->height();
+            qreal dw = static_cast< qreal >(offset.x()) / fig->width();
+
+            QRectF normRect = oldNormRect;
+            normRect.setWidth(oldNormRect.width() + dw);
+            normRect.setHeight(oldNormRect.height() + dh);
+
+            m_data->mWillSetNormRect = normRect;
+            break;
+        }
+
+        case Inner: {
+            qreal dh = static_cast< qreal >(offset.y()) / fig->height();
+            qreal dw = static_cast< qreal >(offset.x()) / fig->width();
+
+            QRectF normRect          = oldNormRect.adjusted(dw, dh, dw, dh);
+            m_data->mWillSetNormRect = normRect;
+            break;
+        }
+
+        default:
+            return (false);
+        }
+        updateOverlay();
+        return (true);  // 这里把消息截取不传递下去
+    } else {
+        ControlType ct = getPositionControlType(qwt::compat::eventPos(me), activeW->frameGeometry(), 4);
+        if (m_data->mControlType != ct) {
+            // 说明控制点变更
+            Qt::CursorShape cur = controlTypeToCursor(ct);
+            figure()->setCursor(cur);
+            m_data->mControlType = ct;
         }
     }
+
     return (true);  // 托管所有的鼠标事件
 }
 

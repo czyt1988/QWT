@@ -38,6 +38,7 @@ public:
     };
     Q_ENUM(ControlType)
 public:
+    // 构造函数不允许传入nullptr
     explicit QwtFigureWidgetOverlay(QwtFigure* fig);
     ~QwtFigureWidgetOverlay();
     QwtFigure* figure() const;
@@ -77,6 +78,11 @@ protected:
     virtual bool eventFilter(QObject* obj, QEvent* event) override;
     // 绘制
     virtual void drawActiveWidget(QPainter* painter, QWidget* activeW) const;
+    //
+    virtual void drawResizeingControlLine(QPainter* painter, const QRectF& willSetNormRect) const;
+
+    //
+    void drawControlLine(QPainter* painter, const QRect& actualRect, const QRectF& normRect) const;
 Q_SIGNALS:
 
     /**
@@ -94,6 +100,7 @@ Q_SIGNALS:
     void activeWidgetChanged(QWidget* oldActive, QWidget* newActive);
 
 private:
+    bool onMouseMoveEvent(QMouseEvent* me);
     bool onMouseReleaseEvent(QMouseEvent* me);
     bool onMousePressedEvent(QMouseEvent* me);
     bool onHoverMoveEvent(QHoverEvent* me);
