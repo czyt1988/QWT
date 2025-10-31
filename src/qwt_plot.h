@@ -86,9 +86,9 @@ class QWT_EXPORT QwtPlot : public QFrame, public QwtPlotDict
 
 public:
 	/*!
-		Position of the legend, relative to the canvas.
+        Position of the legend, relative to the canvas.
 
-		\sa insertLegend()
+        \sa insertLegend()
 	 */
 	enum LegendPosition
 	{
@@ -221,11 +221,11 @@ public:
 	void updateCanvasMargins();
 
 	virtual void getCanvasMarginsHint(const QwtScaleMap maps[],
-									  const QRectF& canvasRect,
-									  double& left,
-									  double& top,
-									  double& right,
-									  double& bottom) const;
+                                      const QRectF& canvasRect,
+                                      double& left,
+                                      double& top,
+                                      double& right,
+                                      double& bottom) const;
 
 	virtual bool event(QEvent*) QWT_OVERRIDE;
 	virtual bool eventFilter(QObject*, QEvent*) QWT_OVERRIDE;
@@ -237,8 +237,8 @@ public:
 
 	// add since v7.1.0
 
-	// Add a parasite plot to this host plot/向此宿主绘图添加寄生绘图
-	void addParasitePlot(QwtPlot* parasite);
+    // 创建一个基于此轴为宿主的寄生轴
+    QwtPlot* createParasitePlot(QwtAxis::Position enableAxis, bool shareX = true, bool shareY = false);
 
 	// Remove a parasite plot from this host plot/从此宿主绘图移除寄生绘图
 	void removeParasitePlot(QwtPlot* parasite);
@@ -267,9 +267,9 @@ public:
 
 	// Rescale the axes to encompass the full range of all data items./重新缩放坐标轴以适应所有数据项的范围
 	void rescaleAxes(bool onlyVisibleItems = true,
-					 double marginPercent  = 0.05,
-					 QwtAxisId xAxis       = QwtPlot::xBottom,
-					 QwtAxisId yAxis       = QwtPlot::yLeft);
+                     double marginPercent  = 0.05,
+                     QwtAxisId xAxis       = QwtPlot::xBottom,
+                     QwtAxisId yAxis       = QwtPlot::yLeft);
 
 	// Set the specified axis to logarithmic scale / 将指定坐标轴设置为对数刻度
 	void setAxisToLogScale(QwtAxisId axisId);
@@ -279,6 +279,9 @@ public:
 
 	// Restore the specified axis to linear scale / 将指定坐标轴恢复为线性刻度
 	void setAxisToLinearScale(QwtAxisId axisId);
+
+    // 让寄生轴和宿主轴对齐
+    void alignToHost();
 #if QWT_AXIS_COMPAT
 	enum Axis
 	{
@@ -316,7 +319,7 @@ Q_SIGNALS:
 
 	   \param itemInfo Info about a plot item, build from itemToInfo()
 	   \param data Attributes of the entries ( usually <= 1 ) for
-				  the plot item.
+                  the plot item.
 
 	   \sa itemToInfo(), infoToItem(), QwtAbstractLegend::updateLegend()
 	 */
@@ -328,7 +331,10 @@ public Q_SLOTS:
 
 protected:
 	virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
-
+    // Add a parasite plot to this host plot/向此宿主绘图添加寄生绘图
+    void addParasitePlot(QwtPlot* parasite);
+    // 初始化寄生轴的基本属性
+    void initParasiteAxes(QwtPlot* parasitePlot) const;
 private Q_SLOTS:
 	void updateLegendItems(const QVariant& itemInfo, const QList< QwtLegendData >& legendData);
 

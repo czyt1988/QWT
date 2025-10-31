@@ -229,7 +229,6 @@ Q_SIGNALS:
 
 protected:
     void paintEvent(QPaintEvent* event) override;
-    void resizeEvent(QResizeEvent* event) override;
 };
 
 #endif  // QWT_FIGURE_H

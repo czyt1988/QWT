@@ -9,6 +9,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPushButton>
+#include <QToolButton>
 #include <QDebug>
 #include "qwt_math.h"
 #include "qwt_plot.h"
@@ -16,6 +17,7 @@
 #include "qwt_plot_grid.h"
 #include "qwt_scale_widget.h"
 #include "qwt_figure.h"
+#include "qwt_figure_widget_overlay.h"
 
 // 生成示例数据
 QVector< QPointF > generateSampleData(int count = 100, double amplitude = 1.0, double frequency = 1.0)
@@ -172,8 +174,27 @@ int main(int argc, char* argv[])
 		qDebug() << "All plots cleared";
 	});
 
+    QPushButton* resizeButton = new QPushButton("Resize");
+    resizeButton->setCheckable(true);
+    QwtFigureWidgetOverlay* overlay = nullptr;
+    QObject::connect(resizeButton, &QPushButton::clicked, [ figure, &overlay ](bool on) {
+        if (on) {
+            overlay = new QwtFigureWidgetOverlay(figure);
+            overlay->show();
+            overlay->raise();
+        } else {
+            if (overlay) {
+                overlay->hide();
+                overlay->deleteLater();
+                overlay = nullptr;
+            }
+        }
+        qDebug() << "enable figure overlay:" << on;
+    });
+
 	buttonLayout->addWidget(saveButton);
 	buttonLayout->addWidget(clearButton);
+    buttonLayout->addWidget(resizeButton);
 	buttonLayout->addStretch();
 
 	// 添加布局

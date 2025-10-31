@@ -24,14 +24,15 @@ public:
     PrivateData(QwtFigureWidgetOverlay* p);
 
 public:
-    QPoint mLastMousePressPos { 0, 0 };      ///< 记录最后一次窗口移动的坐标
-    QBrush mContorlPointBrush { Qt::blue };  ///< 绘制chart2d在编辑模式下控制点的画刷
-    QPen mBorderPen { Qt::blue };            ///< 绘制chart2d在编辑模式下的画笔
-    bool mIsStartResize { false };           ///< 标定开始进行缩放
-    QWidget* mActiveWidget { nullptr };      /// 标定当前激活的窗口，如果没有就为nullptr
-    QRectF mOldNormRect;                     ///< 保存旧的窗口位置，用于redo/undo
-    QRectF mWillSetNormRect;                 ///< 将要设置的正则尺寸
-    QSize mControlPointSize { 8, 8 };        ///< 控制点大小
+    QwtFigureWidgetOverlay::BuiltInFunctions mFuntion;  ///< 内置功能
+    QPoint mLastMousePressPos { 0, 0 };                 ///< 记录最后一次窗口移动的坐标
+    QBrush mContorlPointBrush { Qt::blue };             ///< 绘制chart2d在编辑模式下控制点的画刷
+    QPen mBorderPen { Qt::blue };                       ///< 绘制chart2d在编辑模式下的画笔
+    bool mIsStartResize { false };                      ///< 标定开始进行缩放
+    QWidget* mActiveWidget { nullptr };                 /// 标定当前激活的窗口，如果没有就为nullptr
+    QRectF mOldNormRect;                                ///< 保存旧的窗口位置，用于redo/undo
+    QRectF mWillSetNormRect;                            ///< 将要设置的正则尺寸
+    QSize mControlPointSize { 8, 8 };                   ///< 控制点大小
     QwtFigureWidgetOverlay::ControlType mControlType { QwtFigureWidgetOverlay::OutSide };  ///< 记录当前缩放窗口的位置情况
 
     bool mFigOldMouseTracking { false };  /// 记录原来fig是否设置了mousetrack
@@ -41,6 +42,8 @@ public:
 
 QwtFigureWidgetOverlay::PrivateData::PrivateData(QwtFigureWidgetOverlay* p) : q_ptr(p)
 {
+    mFuntion.setFlag(FunSelectCurrentPlot, true);
+    mFuntion.setFlag(FunResizePlot, true);
 }
 
 //----------------------------------------------------
@@ -197,6 +200,27 @@ bool QwtFigureWidgetOverlay::isPointInRectEdget(const QPoint& pos, const QRect& 
         return (true);
     }
     return (false);
+}
+
+/**
+ * @brief 设置内置功能的开关
+ * @param flag
+ * @param on
+ * @sa QwtFigureWidgetOverlay::BuiltInFunctionsFlag
+ */
+void QwtFigureWidgetOverlay::setBuiltInFunctionsEnable(BuiltInFunctionsFlag flag, bool on)
+{
+    m_data->mFuntion.setFlag(flag, on);
+}
+
+/**
+ * @brief 判断当前的功能开关
+ * @param flag
+ * @return
+ */
+bool QwtFigureWidgetOverlay::testBuiltInFunctions(BuiltInFunctionsFlag flag) const
+{
+    return m_data->mFuntion.testFlag(flag);
 }
 
 /**
@@ -422,6 +446,13 @@ bool QwtFigureWidgetOverlay::eventFilter(QObject* obj, QEvent* event)
     return (QwtWidgetOverlay::eventFilter(obj, event));
 }
 
+/**
+ * @brief 绘制激活的窗口
+ *
+ * 通过继承此函数可改变绘制的方式，默认绘制会调用@ref drawControlLine 函数
+ * @param painter
+ * @param activeW
+ */
 void QwtFigureWidgetOverlay::drawActiveWidget(QPainter* painter, QWidget* activeW) const
 {
     const QRect& chartRect      = activeW->frameGeometry();
@@ -429,12 +460,25 @@ void QwtFigureWidgetOverlay::drawActiveWidget(QPainter* painter, QWidget* active
     drawControlLine(painter, chartRect, normalPercent);
 }
 
+/**
+ * @brief 绘制resize变换的橡皮筋控制线
+ *
+ * 通过继承此函数可改变绘制的方式，默认绘制会调用@ref drawControlLine 函数
+ * @param painter
+ * @param willSetNormRect
+ */
 void QwtFigureWidgetOverlay::drawResizeingControlLine(QPainter* painter, const QRectF& willSetNormRect) const
 {
     QRect actualRect = figure()->calcActualRect(willSetNormRect);
     drawControlLine(painter, actualRect, willSetNormRect);
 }
 
+/**
+ * @brief 绘制控制线
+ * @param painter
+ * @param actualRect 真实尺寸
+ * @param normRect 归一化尺寸
+ */
 void QwtFigureWidgetOverlay::drawControlLine(QPainter* painter, const QRect& actualRect, const QRectF& normRect) const
 {
     painter->setBrush(Qt::NoBrush);
@@ -485,6 +529,7 @@ void QwtFigureWidgetOverlay::drawControlLine(QPainter* painter, const QRect& act
 
 bool QwtFigureWidgetOverlay::onMouseMoveEvent(QMouseEvent* me)
 {
+    Q_UNUSED(me);
     if (m_data->mActiveWidget) {
         if (m_data->mIsStartResize) { }
     }
@@ -494,6 +539,10 @@ bool QwtFigureWidgetOverlay::onMouseMoveEvent(QMouseEvent* me)
 bool QwtFigureWidgetOverlay::onMouseReleaseEvent(QMouseEvent* me)
 {
     if (Qt::LeftButton == me->button()) {
+        if (!m_data->mWillSetNormRect.isValid()) {
+            // 这种就是点击一下
+            return (true);  // 托管所有的鼠标事件
+        }
         if (m_data->mIsStartResize) {
             m_data->mIsStartResize = false;
             if (m_data->mActiveWidget) {
@@ -561,6 +610,7 @@ bool QwtFigureWidgetOverlay::onMousePressedEvent(QMouseEvent* me)
     m_data->mLastMousePressPos = qwt::compat::eventPos(me);
     m_data->mIsStartResize     = true;
     m_data->mControlType       = ct;
+    m_data->mWillSetNormRect   = QRectF();
 #if QwtFigureWidgetOverlay_DEBUG_PRINT
     qDebug() << "QwtFigureWidgetOverlay::start resize";
 #endif
