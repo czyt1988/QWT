@@ -10,23 +10,23 @@ class QwtFigureLayout::PrivateData
 {
     QWT_DECLARE_PUBLIC(QwtFigureLayout)
 public:
-	PrivateData(QwtFigureLayout* p) : q_ptr(p)
-	{
-	}
+    PrivateData(QwtFigureLayout* p) : q_ptr(p)
+    {
+    }
 
-	/**
-	 * @brief Item wrapper containing layout information
-	 *
-	 * 包含布局信息的项包装器
-	 */
-	struct LayoutItem
-	{
-		QLayoutItem* item { nullptr };  ///< Pointer to the layout item / 指向布局项的指针
-		QRectF normRect;                ///< Normalized coordinates [0,1] / 归一化坐标 [0,1]
-	};
+    /**
+     * @brief Item wrapper containing layout information
+     *
+     * 包含布局信息的项包装器
+     */
+    struct LayoutItem
+    {
+        QLayoutItem* item { nullptr };  ///< Pointer to the layout item / 指向布局项的指针
+        QRectF normRect;                ///< Normalized coordinates [0,1] / 归一化坐标 [0,1]
+    };
 
 public:
-	QList< LayoutItem > m_items;  ///< List of layout items / 布局项列表
+    QList< LayoutItem > m_items;  ///< List of layout items / 布局项列表
 };
 
 //----------------------------------------------------
@@ -42,88 +42,89 @@ QwtFigureLayout::QwtFigureLayout(QWidget* parent) : QLayout(parent), QWT_PIMPL_C
 
 QwtFigureLayout::~QwtFigureLayout()
 {
-	while (!m_data->m_items.isEmpty()) {
-		QwtFigureLayout::PrivateData::LayoutItem item = m_data->m_items.takeFirst();
-		delete item.item;
-	}
+    while (!m_data->m_items.isEmpty()) {
+        QwtFigureLayout::PrivateData::LayoutItem item = m_data->m_items.takeFirst();
+        delete item.item;
+    }
 }
 
 void QwtFigureLayout::addItem(QLayoutItem* item)
 {
-	if (!item) {
-		qWarning() << "Attempted to add null item to QwtFigureLayout";
-		return;
-	}
-	QwtFigureLayout::PrivateData::LayoutItem li;
-	li.item     = item;
-	li.normRect = QRectF(0, 0, 1, 1);  // Default full size / 默认全尺寸
-	m_data->m_items.append(li);
+    if (!item) {
+        qWarning() << "Attempted to add null item to QwtFigureLayout";
+        return;
+    }
+    QwtFigureLayout::PrivateData::LayoutItem li;
+    li.item     = item;
+    li.normRect = QRectF(0, 0, 1, 1);  // Default full size / 默认全尺寸
+    m_data->m_items.append(li);
 }
 
 QLayoutItem* QwtFigureLayout::itemAt(int index) const
 {
-	if (index < 0 || index >= m_data->m_items.size()) {
-		return nullptr;
-	}
-	return m_data->m_items[ index ].item;
+    if (index < 0 || index >= m_data->m_items.size()) {
+        return nullptr;
+    }
+    return m_data->m_items[ index ].item;
 }
 
 QLayoutItem* QwtFigureLayout::takeAt(int index)
 {
-	if (index < 0 || index >= m_data->m_items.size()) {
-		return nullptr;
-	}
-	QwtFigureLayout::PrivateData::LayoutItem li = m_data->m_items.takeAt(index);
-	QLayoutItem* item                           = li.item;
-	return item;
+    if (index < 0 || index >= m_data->m_items.size()) {
+        return nullptr;
+    }
+    QwtFigureLayout::PrivateData::LayoutItem li = m_data->m_items.takeAt(index);
+    QLayoutItem* item                           = li.item;
+    return item;
 }
 
 int QwtFigureLayout::count() const
 {
-	return m_data->m_items.size();
+    return m_data->m_items.size();
 }
 
 QSize QwtFigureLayout::sizeHint() const
 {
-	return minimumSize();
+    return minimumSize();
 }
 
 QSize QwtFigureLayout::minimumSize() const
 {
-	QSize size;
-	for (const auto& item : qAsConst(m_data->m_items)) {
-		if (item.item && item.item->widget())
-			size = size.expandedTo(item.item->minimumSize());
-	}
-	return size;
+    QSize size;
+    for (const auto& item : qAsConst(m_data->m_items)) {
+        if (item.item && item.item->widget())
+            size = size.expandedTo(item.item->minimumSize());
+    }
+    return size;
 }
 
 void QwtFigureLayout::setGeometry(const QRect& rect)
 {
-	QLayout::setGeometry(rect);
+    QLayout::setGeometry(rect);
     // Skip layout if geometry is invalid
     if (!rect.isValid()) {
         return;
     }
 #if QWTFIGURELAYOUT_DEBUG_PRINT && QWT_DEBUG_DRAW
-	qDebug() << "QwtFigureLayout setGeometry(rect=" << rect << "),left=" << m_data->m_left
+    qDebug() << "QwtFigureLayout setGeometry(rect=" << rect << "),left=" << m_data->m_left
              << ",right=" << m_data->m_right << ",bottom=" << m_data->m_bottom << ",top=" << m_data->m_top;
 #endif
-	for (const auto& item : qAsConst(m_data->m_items)) {
-		if (!item.item || !item.item->widget() || !item.item->widget()->isVisibleTo(item.item->widget()->parentWidget())) {
-			continue;
-		}
-		// Convert normalized coordinates to actual pixels using Qt's top-left coordinate system
-		// Apply margins to both grid-based and normalized coordinate-based items
-		// 将归一化坐标转换为实际像素，使用Qt的左上角坐标系
-		// 对基于网格和基于归一化坐标的项应用边距
+    for (const auto& item : qAsConst(m_data->m_items)) {
+        if (!item.item || !item.item->widget() || !item.item->widget()->isVisibleTo(item.item->widget()->parentWidget())) {
+            continue;
+        }
+        // Convert normalized coordinates to actual pixels using Qt's top-left coordinate system
+        // Apply margins to both grid-based and normalized coordinate-based items
+        // 将归一化坐标转换为实际像素，使用Qt的左上角坐标系
+        // 对基于网格和基于归一化坐标的项应用边距
 
         QRect actualRect = calcActualRect(rect, item.normRect);
-		item.item->setGeometry(actualRect);
+        item.item->setGeometry(actualRect);
+
 #if QWTFIGURELAYOUT_DEBUG_PRINT && QWT_DEBUG_DRAW
-		qDebug() << "normRect=" << normRect << ",actualRect=" << actualRect;
+        qDebug() << "normRect=" << item.normRect << ",actualRect=" << actualRect;
 #endif
-	}
+    }
 }
 
 /**
@@ -167,16 +168,16 @@ void QwtFigureLayout::setGeometry(const QRect& rect)
  */
 void QwtFigureLayout::addAxes(QWidget* widget, const QRectF& rect)
 {
-	if (!widget) {
-		qWarning() << "Attempted to add null widget to QwtFigureLayout";
-		return;
-	}
+    if (!widget) {
+        qWarning() << "Attempted to add null widget to QwtFigureLayout";
+        return;
+    }
 
-	QLayoutItem* item = new QWidgetItem(widget);
-	QwtFigureLayout::PrivateData::LayoutItem li;
-	li.item     = item;
-	li.normRect = rect;
-	m_data->m_items.append(li);
+    QLayoutItem* item = new QWidgetItem(widget);
+    QwtFigureLayout::PrivateData::LayoutItem li;
+    li.item     = item;
+    li.normRect = rect;
+    m_data->m_items.append(li);
 }
 
 /**
@@ -316,28 +317,28 @@ void QwtFigureLayout::addGridAxes(QWidget* widget,
                                   qreal wspace,
                                   qreal hspace)
 {
-	if (!widget) {
-		qWarning() << "QwtFigureLayout::addToGrid get a null widget";
-		return;
-	}
-	if (row < 0 || col < 0 || rowSpan <= 0 || colSpan <= 0 || rowCnt <= 0 || colCnt <= 0) {
-		qWarning()
+    if (!widget) {
+        qWarning() << "QwtFigureLayout::addToGrid get a null widget";
+        return;
+    }
+    if (row < 0 || col < 0 || rowSpan <= 0 || colSpan <= 0 || rowCnt <= 0 || colCnt <= 0) {
+        qWarning()
             << "QwtFigureLayout::addToGrid Grid row, column, rowSpan, colSpan, rowCnt and colCnt should be positive.";
-		return;
-	}
+        return;
+    }
 
-	if (row + rowSpan > rowCnt || col + colSpan > colCnt) {
-		qWarning() << "QwtFigureLayout::addToGrid Grid position and span exceed grid dimensions.";
-		return;
-	}
+    if (row + rowSpan > rowCnt || col + colSpan > colCnt) {
+        qWarning() << "QwtFigureLayout::addToGrid Grid position and span exceed grid dimensions.";
+        return;
+    }
 
-	// Calculate normalized coordinates
-	QRectF normRect = calcGridRect(rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
+    // Calculate normalized coordinates
+    QRectF normRect = calcGridRect(rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
 
-	QLayoutItem* item = new QWidgetItem(widget);
-	QwtFigureLayout::PrivateData::LayoutItem li;
-	li.item     = item;
-	li.normRect = normRect;
+    QLayoutItem* item = new QWidgetItem(widget);
+    QwtFigureLayout::PrivateData::LayoutItem li;
+    li.item     = item;
+    li.normRect = normRect;
     m_data->m_items.append(li);
 }
 
@@ -382,16 +383,16 @@ void QwtFigureLayout::setAxesNormPos(QWidget* widget, const QRectF& rect)
  */
 QRectF QwtFigureLayout::widgetNormRect(QWidget* widget) const
 {
-	if (!widget) {
-		qWarning() << "QwtFigureLayout::getAxesNormRect: null widget provided";
-		return QRectF();
-	}
+    if (!widget) {
+        qWarning() << "QwtFigureLayout::getAxesNormRect: null widget provided";
+        return QRectF();
+    }
 
-	for (const auto& item : qAsConst(m_data->m_items)) {
-		if (item.item && item.item->widget() == widget) {
-			return item.normRect;
-		}
-	}
+    for (const auto& item : qAsConst(m_data->m_items)) {
+        if (item.item && item.item->widget() == widget) {
+            return item.normRect;
+        }
+    }
     return QRectF();  // Return invalid rect
 }
 
@@ -482,43 +483,44 @@ QRect QwtFigureLayout::calcActualRect(const QRect& parentRect, const QRectF& nor
  * QRectF rect = layout->calcGridRect(3, 3, 1, 0, 1, 2);
  * @endcode
  */
-QRectF QwtFigureLayout::calcGridRect(int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace) const
+QRectF
+QwtFigureLayout::calcGridRect(int rowCnt, int colCnt, int row, int col, int rowSpan, int colSpan, qreal wspace, qreal hspace) const
 {
-	if (rowCnt <= 0 || colCnt <= 0 || row < 0 || col < 0 || rowSpan <= 0 || colSpan <= 0 || row + rowSpan > rowCnt
+    if (rowCnt <= 0 || colCnt <= 0 || row < 0 || col < 0 || rowSpan <= 0 || colSpan <= 0 || row + rowSpan > rowCnt
         || col + colSpan > colCnt) {
-		qWarning() << "QwtFigureLayout::getGridRect Invalid grid parameters";
-		return QRectF(0, 0, 1, 1);  // Return default full size
-	}
+        qWarning() << "QwtFigureLayout::getGridRect Invalid grid parameters";
+        return QRectF(0, 0, 1, 1);  // Return default full size
+    }
 
-	// Calculate cell dimensions without considering margins
-	// 不考虑边距计算单元格尺寸
-	const qreal totalWidth  = 1.0;
-	const qreal totalHeight = 1.0;
+    // Calculate cell dimensions without considering margins
+    // 不考虑边距计算单元格尺寸
+    const qreal totalWidth  = 1.0;
+    const qreal totalHeight = 1.0;
 
-	// Calculate cell dimensions
-	const qreal availableWidth  = totalWidth - (colCnt - 1) * wspace;
-	const qreal availableHeight = totalHeight - (rowCnt - 1) * hspace;
+    // Calculate cell dimensions
+    const qreal availableWidth  = totalWidth - (colCnt - 1) * wspace;
+    const qreal availableHeight = totalHeight - (rowCnt - 1) * hspace;
 
-	if (availableWidth <= 0 || availableHeight <= 0) {
-		qWarning() << "Not enough space for grid cells after applying spacing";
-		return QRectF(0, 0, 1, 1);  // Return default full size
-	}
+    if (availableWidth <= 0 || availableHeight <= 0) {
+        qWarning() << "Not enough space for grid cells after applying spacing";
+        return QRectF(0, 0, 1, 1);  // Return default full size
+    }
 
-	const qreal cellWidth  = availableWidth / colCnt;
-	const qreal cellHeight = availableHeight / rowCnt;
+    const qreal cellWidth  = availableWidth / colCnt;
+    const qreal cellHeight = availableHeight / rowCnt;
 
-	// Calculate position in normalized coordinates using Qt's top-left coordinate system
-	QRectF rect;
-	rect.setLeft(col * (cellWidth + wspace));
-	rect.setTop(row * (cellHeight + hspace));
-	rect.setWidth(colSpan * cellWidth + (colSpan - 1) * wspace);
-	rect.setHeight(rowSpan * cellHeight + (rowSpan - 1) * hspace);
+    // Calculate position in normalized coordinates using Qt's top-left coordinate system
+    QRectF rect;
+    rect.setLeft(col * (cellWidth + wspace));
+    rect.setTop(row * (cellHeight + hspace));
+    rect.setWidth(colSpan * cellWidth + (colSpan - 1) * wspace);
+    rect.setHeight(rowSpan * cellHeight + (rowSpan - 1) * hspace);
 
-	// Ensure the rect is within valid bounds
-	rect.setLeft(qMax(0.0, rect.left()));
-	rect.setTop(qMax(0.0, rect.top()));
-	rect.setWidth(qMin(rect.width(), 1.0 - rect.left()));
-	rect.setHeight(qMin(rect.height(), 1.0 - rect.top()));
+    // Ensure the rect is within valid bounds
+    rect.setLeft(qMax(0.0, rect.left()));
+    rect.setTop(qMax(0.0, rect.top()));
+    rect.setWidth(qMin(rect.width(), 1.0 - rect.left()));
+    rect.setHeight(qMin(rect.height(), 1.0 - rect.top()));
 
-	return rect;
+    return rect;
 }

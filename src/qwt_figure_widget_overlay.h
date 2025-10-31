@@ -1,4 +1,4 @@
-#ifndef QWTFIGUREWIDGETOVERLAY_H
+﻿#ifndef QWTFIGUREWIDGETOVERLAY_H
 #define QWTFIGUREWIDGETOVERLAY_H
 #include "qwt_widget_overlay.h"
 // Qt
@@ -11,7 +11,9 @@ class QwtFigure;
 class QwtPlot;
 
 /**
- * @brief The QwtFigureWidgetOverlay class
+ * @brief The QwtFigureWidgetOverlay是针对QwtFigure的操作蒙版
+ *
+ * 此类提供了figure窗口子对象调整大小的功能，以及改变当前绘图的功能，你可以通过继承此类实现耕地的操作
  *
  * @note QwtFigureWidgetOverlay并不会直接改变尺寸，因此尺寸的改变主要在管理窗口中执行，这是为了能让它有更大的自由度，例如需要做回退功能
  */
@@ -37,6 +39,19 @@ public:
         OutSide
     };
     Q_ENUM(ControlType)
+
+    /**
+     * @brief 内置的功能
+     */
+    enum BuiltInFunctionsFlag
+    {
+        FunSelectCurrentPlot = 1,  ///< 此功能开启，可以改变选中的当前绘图
+        FunResizePlot        = 2   ///< 此功能开启，可以改变绘图的尺寸
+    };
+    Q_ENUM(BuiltInFunctionsFlag)
+    Q_DECLARE_FLAGS(BuiltInFunctions, BuiltInFunctionsFlag)
+    Q_FLAG(BuiltInFunctions)
+
 public:
     // 构造函数不允许传入nullptr
     explicit QwtFigureWidgetOverlay(QwtFigure* fig);
@@ -48,6 +63,9 @@ public:
     static Qt::CursorShape controlTypeToCursor(ControlType rr);
     static ControlType getPositionControlType(const QPoint& pos, const QRect& region, int err = 1);
     static bool isPointInRectEdget(const QPoint& pos, const QRect& region, int err = 1);
+    // 设置内置功能的开关
+    void setBuiltInFunctionsEnable(BuiltInFunctionsFlag flag, bool on = true);
+    bool testBuiltInFunctions(BuiltInFunctionsFlag flag) const;
     // 判断当前是否有激活的窗口
     bool isHaveActiveWidget() const;
     // 设置边框的画笔
@@ -68,6 +86,7 @@ public:
     QwtPlot* currentActivePlot() const;
     // 显示占比数值
     void showPercentText(bool on = true);
+
 public Q_SLOTS:
     // 改变激活窗口
     void setActiveWidget(QWidget* w);
@@ -76,13 +95,12 @@ protected:
     virtual void drawOverlay(QPainter* p) const override;
     virtual QRegion maskHint() const override;
     virtual bool eventFilter(QObject* obj, QEvent* event) override;
-    // 绘制
+    // 绘制激活的窗口
     virtual void drawActiveWidget(QPainter* painter, QWidget* activeW) const;
-    //
+    // 绘制resize变换的橡皮筋控制线
     virtual void drawResizeingControlLine(QPainter* painter, const QRectF& willSetNormRect) const;
-
-    //
-    void drawControlLine(QPainter* painter, const QRect& actualRect, const QRectF& normRect) const;
+    // 绘制控制线
+    virtual void drawControlLine(QPainter* painter, const QRect& actualRect, const QRectF& normRect) const;
 Q_SIGNALS:
 
     /**
@@ -91,7 +109,7 @@ Q_SIGNALS:
      * @param oldGeometry 旧的位置
      * @param newGeometry 新的位置
      */
-    void widgetGeometryChanged(QWidget* w, const QRect& oldGeometry, const QRect& newGeometry);
+    void widgetNormGeometryChanged(QWidget* w, const QRectF& oldNormGeo, const QRectF& newNormGeo);
     /**
      * @brief 激活窗口发生变化的信号
      * @param oldActive 如果之前没有激活窗口，此指针有可能是nullptr

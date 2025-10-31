@@ -232,23 +232,6 @@ QwtScaleDraw::Alignment QwtScaleWidget::alignment() const
 }
 
 /*!
-   Specify distances of the scale's endpoints from the
-   widget's borders. The actual borders will never be less
-   than minimum border distance.
-   \param dist1 Left or top Distance
-   \param dist2 Right or bottom distance
-   \sa borderDist()
- */
-void QwtScaleWidget::setBorderDist(int dist1, int dist2)
-{
-    if (dist1 != m_data->borderDist[ 0 ] || dist2 != m_data->borderDist[ 1 ]) {
-        m_data->borderDist[ 0 ] = dist1;
-        m_data->borderDist[ 1 ] = dist2;
-        layoutScale();
-    }
-}
-
-/*!
    \brief Specify the margin to the colorBar/base line.
    \param margin Margin
    \sa margin()
@@ -359,24 +342,6 @@ QwtScaleDraw* QwtScaleWidget::scaleDraw()
 QwtText QwtScaleWidget::title() const
 {
     return m_data->title;
-}
-
-/*!
-    \return start border distance
-    \sa setBorderDist()
- */
-int QwtScaleWidget::startBorderDist() const
-{
-    return m_data->borderDist[ 0 ];
-}
-
-/*!
-    \return end border distance
-    \sa setBorderDist()
- */
-int QwtScaleWidget::endBorderDist() const
-{
-    return m_data->borderDist[ 1 ];
 }
 
 /*!
@@ -683,8 +648,12 @@ void QwtScaleWidget::drawColorBar(QPainter* painter, const QRectF& rect) const
 
     const QwtScaleDraw* sd = m_data->scaleDraw;
 
-    QwtPainter::drawColorBar(
-        painter, *m_data->colorBar.colorMap, m_data->colorBar.interval.normalized(), sd->scaleMap(), sd->orientation(), rect);
+    QwtPainter::drawColorBar(painter,
+                             *m_data->colorBar.colorMap,
+                             m_data->colorBar.interval.normalized(),
+                             sd->scaleMap(),
+                             sd->orientation(),
+                             rect);
 }
 
 /*!
@@ -840,22 +809,60 @@ int QwtScaleWidget::dimForLength(int length, const QFont& scaleFont) const
 }
 
 /*!
-   \brief Calculate a hint for the border distances.
+   Specify distances of the scale's endpoints from the
+   widget's borders. The actual borders will never be less
+   than minimum border distance.
+   \param dist1 Left or top Distance
+   \param dist2 Right or bottom distance
+   \sa borderDist()
+ */
+void QwtScaleWidget::setBorderDist(int dist1, int dist2)
+{
+    if (dist1 != m_data->borderDist[ 0 ] || dist2 != m_data->borderDist[ 1 ]) {
+        m_data->borderDist[ 0 ] = dist1;
+        m_data->borderDist[ 1 ] = dist2;
+        layoutScale();
+    }
+}
 
-   This member function calculates the distance
-   of the scale's endpoints from the widget borders which
-   is required for the mark labels to fit into the widget.
-   The maximum of this distance an the minimum border distance
-   is returned.
+/*!
+    \return start border distance
+    \sa setBorderDist()
+ */
+int QwtScaleWidget::startBorderDist() const
+{
+    return m_data->borderDist[ 0 ];
+}
 
-   \param start Return parameter for the border width at
-               the beginning of the scale
-   \param end Return parameter for the border width at the
-             end of the scale
+/*!
+    \return end border distance
+    \sa setBorderDist()
+ */
+int QwtScaleWidget::endBorderDist() const
+{
+    return m_data->borderDist[ 1 ];
+}
 
-   \warning
-   <ul> <li>The minimum border distance depends on the font.</ul>
-   \sa setMinBorderDist(), getMinBorderDist(), setBorderDist()
+/**
+ * @brief Calculate a hint for the border distances./计算边框距离的“建议值”
+ *
+ * This member function calculates the distance
+ * of the scale's endpoints from the widget borders which
+ * is required for the mark labels to fit into the widget.
+ * The maximum of this distance an the minimum border distance
+ * is returned.
+ *
+ * 本函数根据刻度标记文字的大小，计算刻度两端与控件边框之间所需的距离，以确保文字完整显示。
+ * 最终返回该距离与最小边框距离中的较大值。
+ *
+ * @param start Return parameter for the border width at
+ *             the beginning of the scale/刻度起始端与边框的宽度
+ * @param end Return parameter for the border width at the
+ *           end of the scale/刻度末端与边框的宽度
+ *
+ * @warning
+ * <ul> <li>The minimum border distance depends on the font./最小边框距离与当前字体有关。</ul>
+ * @sa setMinBorderDist(), getMinBorderDist(), setBorderDist()
  */
 void QwtScaleWidget::getBorderDistHint(int& start, int& end) const
 {
@@ -868,20 +875,44 @@ void QwtScaleWidget::getBorderDistHint(int& start, int& end) const
         end = m_data->minBorderDist[ 1 ];
 }
 
-/*!
-   Set a minimum value for the distances of the scale's endpoints from
-   the widget borders. This is useful to avoid that the scales
-   are "jumping", when the tick labels or their positions change
-   often.
-
-   \param start Minimum for the start border
-   \param end Minimum for the end border
-   \sa getMinBorderDist(), getBorderDistHint()
+/**
+ * Set a minimum value for the distances of the scale's endpoints from
+ * the widget borders. This is useful to avoid that the scales
+ * are "jumping", when the tick labels or their positions change
+ * often.
+ *
+ * 设置刻度两端与控件边框的最小距离。当刻度标签或其位置频繁变化时，可避免刻度出现“跳动”现象。
+ *
+ * @param start Minimum for the start border/起始端最小边距
+ * @param end Minimum for the end border/末端最小边距
+ * @sa getMinBorderDist(), getBorderDistHint(), startMinBorderDist(), endMinBorderDist()
  */
 void QwtScaleWidget::setMinBorderDist(int start, int end)
 {
     m_data->minBorderDist[ 0 ] = start;
     m_data->minBorderDist[ 1 ] = end;
+}
+
+/**
+ * @brief minimum value for the distances of the scale's endpoints from
+ *   the widget borders.(Left or top Distance)
+ *
+ * @sa getMinBorderDist(), getBorderDistHint()
+ */
+int QwtScaleWidget::startMinBorderDist() const
+{
+    return m_data->minBorderDist[ 0 ];
+}
+
+/**
+ * @brief  minimum value for the distances of the scale's endpoints from
+ *   the widget borders.(Right or bottom distance)
+ *
+ * @return
+ */
+int QwtScaleWidget::endMinBorderDist() const
+{
+    return m_data->minBorderDist[ 1 ];
 }
 
 /*!

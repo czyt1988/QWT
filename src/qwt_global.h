@@ -102,17 +102,17 @@
  */
 #ifndef QWT_DECLARE_PRIVATE
 #define QWT_DECLARE_PRIVATE(classname)                                                                                 \
-	class PrivateData;                                                                                                 \
-	friend class classname::PrivateData;                                                                               \
+    class PrivateData;                                                                                                 \
+    friend class classname::PrivateData;                                                                               \
     std::unique_ptr< PrivateData > m_data;                                                                             \
-	inline PrivateData* d_func()                                                                                       \
-	{                                                                                                                  \
+    inline PrivateData* d_func()                                                                                       \
+    {                                                                                                                  \
         return (m_data.get());                                                                                         \
-	}                                                                                                                  \
-	inline const PrivateData* d_func() const                                                                           \
-	{                                                                                                                  \
+    }                                                                                                                  \
+    inline const PrivateData* d_func() const                                                                           \
+    {                                                                                                                  \
         return (m_data.get());                                                                                         \
-	}
+    }
 #endif
 
 /**
@@ -123,16 +123,16 @@
  */
 #ifndef QWT_DECLARE_PUBLIC
 #define QWT_DECLARE_PUBLIC(classname)                                                                                  \
-	friend class classname;                                                                                            \
-	classname* q_ptr { nullptr };                                                                                      \
-	inline classname* q_func()                                                                                         \
-	{                                                                                                                  \
-		return (static_cast< classname* >(q_ptr));                                                                     \
-	}                                                                                                                  \
-	inline const classname* q_func() const                                                                             \
-	{                                                                                                                  \
-		return (static_cast< const classname* >(q_ptr));                                                               \
-	}
+    friend class classname;                                                                                            \
+    classname* q_ptr { nullptr };                                                                                      \
+    inline classname* q_func()                                                                                         \
+    {                                                                                                                  \
+        return (static_cast< classname* >(q_ptr));                                                                     \
+    }                                                                                                                  \
+    inline const classname* q_func() const                                                                             \
+    {                                                                                                                  \
+        return (static_cast< const classname* >(q_ptr));                                                               \
+    }
 #endif
 
 /**
@@ -142,6 +142,38 @@
  */
 #ifndef QWT_PIMPL_CONSTRUCT
 #define QWT_PIMPL_CONSTRUCT m_data(std::make_unique< PrivateData >(this))
+#endif
+
+/**
+ *@def QWT_D
+ *@brief impl获取指针，参考Q_D
+ */
+#ifndef QWT_D
+#define QWT_D(pointerName) PrivateData* pointerName = d_func()
+#endif
+
+/**
+ *@def QWT_DC
+ *@brief impl获取指针，参考Q_D
+ */
+#ifndef QWT_DC
+#define QWT_DC(pointerName) const PrivateData* pointerName = d_func()
+#endif
+
+/**
+ *@def QWT_Q
+ *@brief impl获取指针，参考Q_Q
+ */
+#ifndef QWT_Q
+#define QWT_Q(classname, pointerName) classname* pointerName = q_func()
+#endif
+
+/**
+ *@def QWT_QC
+ *@brief impl获取指针，参考Q_Q
+ */
+#ifndef QWT_QC
+#define QWT_QC(classname, pointerName) const classname* pointerName = q_func()
 #endif
 
 #endif

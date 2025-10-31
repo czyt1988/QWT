@@ -18,7 +18,7 @@
 #include "qwt_plot.h"
 #include "qwt_plot_canvas.h"
 #include "qwt_plot_transparent_canvas.h"
-#include "qwt_plot_parasite_layout.h"
+#include "qwt_parasite_plot_layout.h"
 
 #ifndef QWTFIGURE_SAFEGET_LAY
 #define QWTFIGURE_SAFEGET_LAY(lay)                                                                                     \
@@ -41,42 +41,16 @@ class QwtFigure::PrivateData
     QWT_DECLARE_PUBLIC(QwtFigure)
 public:
     PrivateData(QwtFigure* p);
-    // 初始化寄生轴的属性
-    void initParasiteAxes(QwtPlot* parasitePlot);
 
 public:
-    QBrush faceBrush { Qt::white };                     ///< Background color of the figure / 图形背景颜色
-    QColor edgeColor { Qt::black };                     ///< Border color of the figure / 图形边框颜色
-    int edgeLineWidth { 0 };                            ///< Border line width / 边框线宽
-    QPointer< QwtPlot > currentAxes;                    ///< Current active axes / 当前活动坐标轴
-    QMap< QwtPlot*, QList< QwtPlot* > > m_parasiteMap;  ///< 宿主轴到寄生轴的映射
+    QBrush faceBrush { Qt::white };   ///< Background color of the figure / 图形背景颜色
+    QColor edgeColor { Qt::black };   ///< Border color of the figure / 图形边框颜色
+    int edgeLineWidth { 0 };          ///< Border line width / 边框线宽
+    QPointer< QwtPlot > currentAxes;  ///< Current active axes / 当前活动坐标轴
 };
 
 QwtFigure::PrivateData::PrivateData(QwtFigure* p) : q_ptr(p)
 {
-}
-
-void QwtFigure::PrivateData::initParasiteAxes(QwtPlot* parasitePlot)
-{
-
-    // 确保禁用不透明绘制属性
-    parasitePlot->setAttribute(Qt::WA_OpaquePaintEvent, false);
-
-    // 禁用样式背景
-    parasitePlot->setAttribute(Qt::WA_StyledBackground, false);
-
-    // 禁用自动填充背景
-    parasitePlot->setAutoFillBackground(false);
-
-    // 设置透明背景
-    QPalette palette = parasitePlot->palette();
-    palette.setColor(QPalette::Window, Qt::transparent);
-    parasitePlot->setPalette(palette);
-    QwtPlotTransparentCanvas* canvas = new QwtPlotTransparentCanvas(parasitePlot);
-    parasitePlot->setCanvas(canvas);
-
-    // 调整布局边距
-    parasitePlot->setPlotLayout(new QwtPlotParasiteLayout());
 }
 
 //----------------------------------------------------
@@ -833,85 +807,18 @@ int QwtFigure::edgeLineWidth() const
  *
  * @note 寄生轴必须有figure来管理，这是因为寄生轴仅仅是绘图区域和宿主重叠，坐标窗口的位置都和宿主不一样
  */
-QwtPlot* QwtFigure::createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enableAxis, bool shareX, bool shareY)
+QwtPlot* QwtFigure::createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enableAxis)
 {
     if (!hostPlot || !hasAxes(hostPlot)) {
         qWarning() << "Invalid host plot or host plot not in figure";
         return nullptr;
     }
-
+    if (hostPlot->isParasitePlot()) {
+        // 不是宿主，切换为宿主
+        hostPlot = hostPlot->hostPlot();
+    }
     // 创建寄生轴
-    QwtPlot* parasitePlot = new QwtPlot(this);
-    m_data->initParasiteAxes(parasitePlot);
-
-    // 共享轴数据
-    if (shareX) {
-        QwtScaleWidget* hostXTop                = hostPlot->axisWidget(QwtAxis::XTop);
-        QwtScaleWidget* hostXBottom             = hostPlot->axisWidget(QwtAxis::XBottom);
-        QPointer< QwtPlot > hostPlotPointer     = hostPlot;
-        QPointer< QwtPlot > parasitePlotPointer = parasitePlot;
-        if (hostXTop) {
-            connect(hostXTop, &QwtScaleWidget::scaleDivChanged, this, [ hostPlotPointer, parasitePlotPointer ]() {
-                if (parasitePlotPointer) {
-                    parasitePlotPointer->syncAxis(QwtAxis::XTop, hostPlotPointer.data());
-                }
-            });
-        }
-        if (hostXBottom) {
-            connect(hostXBottom, &QwtScaleWidget::scaleDivChanged, this, [ hostPlotPointer, parasitePlotPointer ]() {
-                if (parasitePlotPointer) {
-                    parasitePlotPointer->syncAxis(QwtAxis::XBottom, hostPlotPointer.data());
-                }
-            });
-        }
-    }
-
-    if (shareY) { }
-
-    // 根据位置设置轴可见性
-    switch (enableAxis) {
-    case QwtAxis::XTop:
-        parasitePlot->enableAxis(QwtAxis::XTop, true);
-        parasitePlot->enableAxis(QwtAxis::XBottom, false);
-        parasitePlot->enableAxis(QwtAxis::YLeft, false);
-        parasitePlot->enableAxis(QwtAxis::YRight, false);
-        break;
-    case QwtAxis::YRight:
-        parasitePlot->enableAxis(QwtAxis::XTop, false);
-        parasitePlot->enableAxis(QwtAxis::XBottom, false);
-        parasitePlot->enableAxis(QwtAxis::YLeft, false);
-        parasitePlot->enableAxis(QwtAxis::YRight, true);
-        break;
-    case QwtAxis::XBottom:
-        parasitePlot->enableAxis(QwtAxis::XTop, false);
-        parasitePlot->enableAxis(QwtAxis::XBottom, true);
-        parasitePlot->enableAxis(QwtAxis::YLeft, false);
-        parasitePlot->enableAxis(QwtAxis::YRight, false);
-        break;
-    case QwtAxis::YLeft:
-        parasitePlot->enableAxis(QwtAxis::XTop, false);
-        parasitePlot->enableAxis(QwtAxis::XBottom, false);
-        parasitePlot->enableAxis(QwtAxis::YLeft, true);
-        parasitePlot->enableAxis(QwtAxis::YRight, false);
-
-        break;
-    default:
-        break;
-    }
-    // 宿主轴添加寄生轴信息
-    hostPlot->addParasitePlot(parasitePlot);
-
-    // 获取宿主轴的归一化矩形
-    QRectF normRect = axesNormRect(hostPlot);
-
-    // 添加寄生轴到相同位置
-    addAxes(parasitePlot, normRect);
-
-    // figure也存储寄生关系
-    m_data->m_parasiteMap[ hostPlot ].append(parasitePlot);
-
-    // 提升寄生轴到顶层以确保正确绘制
-    parasitePlot->raise();
+    QwtPlot* parasitePlot = hostPlot->createParasitePlot(enableAxis);
 
     return parasitePlot;
 }
@@ -1286,24 +1193,4 @@ void QwtFigure::paintEvent(QPaintEvent* event)
     }
 
     QFrame::paintEvent(event);
-}
-
-void QwtFigure::resizeEvent(QResizeEvent* event)
-{
-    QFrame::resizeEvent(event);
-    // 同步所有寄生轴的位置
-    const QList< QwtPlot* > allHostPlots = allAxes();
-    for (QwtPlot* hostPlot : allHostPlots) {
-        if (!hostPlot) {
-            continue;
-        }
-        if (!hostPlot->isHostPlot()) {
-            continue;
-        }
-        // 同步所有寄生轴的位置
-        const QList< QwtPlot* > parasitePlots = hostPlot->parasitePlots();
-        for (QwtPlot* pplot : parasitePlots) {
-            pplot->setGeometry(hostPlot->geometry());
-        }
-    }
 }

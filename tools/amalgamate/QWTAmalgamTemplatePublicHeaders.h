@@ -134,7 +134,7 @@
 #include "../../src/qwt_plot.h"
 #include "../../src/qwt_plot_layout_engine.h"
 #include "../../src/qwt_plot_layout.h"
-#include "../../src/qwt_plot_parasite_layout.h"
+#include "../../src/qwt_parasite_plot_layout.h"
 #include "../../src/qwt_plot_rescaler.h"
 #include "../../src/qwt_polar_plot.h"
 #include "../../src/qwt_polar_grid.h"

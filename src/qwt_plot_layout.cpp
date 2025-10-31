@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -274,21 +274,29 @@ void QwtPlotLayout::setAlignCanvasToScales(bool on)
 }
 
 /*!
-   Change the align-canvas-to-axis-scales setting. The canvas may:
-
-   - extend beyond the axis scale ends to maximize its size,
-   - align with the axis scale ends to control its size.
-
-   The axisId parameter is somehow confusing as it identifies a border
-   of the plot and not the axes, that are aligned. F.e when QwtAxis::YLeft
-   is set, the left end of the the x-axes ( QwtAxis::XTop, QwtAxis::XBottom )
-   is aligned.
-
-   \param axisId Axis index
-   \param on New align-canvas-to-axis-scales setting
-
-   \sa setCanvasMargin(), alignCanvasToScale(), setAlignCanvasToScales()
-   \warning In case of on == true canvasMargin() will have no effect
+ *  Change the align-canvas-to-axis-scales setting. The canvas may:
+ *
+ *  - extend beyond the axis scale ends to maximize its size,
+ *  - align with the axis scale ends to control its size.
+ *
+ *  The axisId parameter is somehow confusing as it identifies a border
+ *  of the plot and not the axes, that are aligned. F.e when QwtAxis::YLeft
+ *  is set, the left end of the the x-axes ( QwtAxis::XTop, QwtAxis::XBottom )
+ *  is aligned.
+ *
+ *  设置画布是否与坐标轴刻度对齐。画布有两种表现方式：
+ *
+ *  - 延伸：画布可超出轴刻度端点，以最大化绘图区域；
+ *  - 对齐：画布严格对齐轴刻度端点，以便精确控制大小。
+ *
+ *  【注意】参数 axisId 实际指代的是“绘图边框”，而非被对齐的轴本身。例如传入 QwtAxis::YLeft 时，真正被对齐的是两条 X 轴
+ *  （QwtAxis::XTop 与 QwtAxis::XBottom）的左端。
+ *
+ *  @param axisId Axis index
+ *  @param on New align-canvas-to-axis-scales setting
+ *
+ *  @sa setCanvasMargin(), alignCanvasToScale(), setAlignCanvasToScales()
+ *  @warning In case of on == true canvasMargin() will have no effect
  */
 void QwtPlotLayout::setAlignCanvasToScale(int axisPos, bool on)
 {
@@ -654,20 +662,30 @@ QSize QwtPlotLayout::minimumSizeHint(const QwtPlot* plot) const
     return QSize(w, h);
 }
 
-/*!
-   \brief Recalculate the geometry of all components.
-
-   \param plot Plot to be layout
-   \param plotRect Rectangle where to place the components
-   \param options Layout options
-
-   \sa invalidate(), titleRect(), footerRect()
-      legendRect(), scaleRect(), canvasRect()
+/**
+ * @brief Recalculate the geometry of all components./根据给定的外框矩形，重新计算并记录 QwtPlot
+ * 内所有子部件（标题、页脚、图例、4 条轴、画布）的几何位置。
+ * @param plot Plot to be layout/待布局的 plot 对象
+ * @param plotRect Rectangle where to place the components/外部可用矩形（逻辑坐标，单位是像素）
+ * @param options Layout options/布局选项，例如是否忽略图例、是否忽略某条轴等
+ *
+ * 结果全部写入 m_data->xxxRect，外部可通过 titleRect()/footerRect()/legendRect()/canvasRect()/scaleRect() 直接读取。
+ *
+ * @sa invalidate(), titleRect(), footerRect(), legendRect(), scaleRect(), canvasRect()
  */
 void QwtPlotLayout::activate(const QwtPlot* plot, const QRectF& plotRect, Options options)
 {
     invalidate();
+    doActivate(plot, plotRect, options);
+}
 
+/**
+ * @brief QwtPlotLayout::activate的具体实现
+ * @param plotRect
+ * @param options
+ */
+void QwtPlotLayout::doActivate(const QwtPlot* plot, const QRectF& plotRect, Options options)
+{
     QRectF rect(plotRect);  // undistributed rest of the plot rect
 
     // We extract all layout relevant parameters from the widgets,
@@ -677,14 +695,16 @@ void QwtPlotLayout::activate(const QwtPlot* plot, const QRectF& plotRect, Option
     QwtPlotLayoutEngine::LayoutData layoutData(plot);
 
     QSize legendHint;
-
+    // 先处理图例 —— 如果存在、非空、且选项允许
     if (!(options & IgnoreLegend) && plot->legend() && !plot->legend()->isEmpty()) {
+
+        // 让图例根据自身内容计算一个理想大小
         legendHint = layoutData.legendData.legendHint(plot->legend(), rect);
 
         m_data->legendRect = m_data->engine.layoutLegend(options, layoutData.legendData, rect, legendHint);
 
         // subtract m_data->legendRect from rect
-
+        // 从剩余矩形里“抠掉”图例区域
         const QRegion region(rect.toRect());
         rect = region.subtracted(m_data->legendRect.toRect()).boundingRect();
 

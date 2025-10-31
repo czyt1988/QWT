@@ -87,6 +87,8 @@ public:
 
     void getMinBorderDist(int& start, int& end) const;
     void setMinBorderDist(int start, int end);
+    int startMinBorderDist() const;
+    int endMinBorderDist() const;
 
     void setMargin(int);
     int margin() const;

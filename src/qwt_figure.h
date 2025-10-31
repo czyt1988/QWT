@@ -167,7 +167,7 @@ public:
 
     // Parasite Axes
     // Create parasite axes for a host plot/为宿主绘图创建寄生轴
-    QwtPlot* createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enableAxis, bool shareX = true, bool shareY = false);
+    QwtPlot* createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enableAxis);
     // Get all parasite axes for a host plot/获取宿主绘图的所有寄生轴
     QList< QwtPlot* > getParasiteAxes(QwtPlot* hostPlot) const;
 
@@ -229,7 +229,6 @@ Q_SIGNALS:
 
 protected:
     void paintEvent(QPaintEvent* event) override;
-    void resizeEvent(QResizeEvent* event) override;
 };
 
 #endif  // QWT_FIGURE_H

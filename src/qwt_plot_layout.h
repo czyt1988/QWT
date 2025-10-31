@@ -80,7 +80,7 @@ public:
 
     virtual QSize minimumSizeHint(const QwtPlot*) const;
 
-    virtual void activate(const QwtPlot*, const QRectF& plotRect, Options options = Options());
+    virtual void activate(const QwtPlot* plot, const QRectF& plotRect, Options options = Options());
 
     virtual void invalidate();
 
@@ -98,6 +98,8 @@ protected:
     void setCanvasRect(const QRectF&);
 
     QwtPlotLayoutEngine* layoutEngine();
+
+    void doActivate(const QwtPlot* plot, const QRectF& plotRect, Options options = Options());
 
 private:
     Q_DISABLE_COPY(QwtPlotLayout)

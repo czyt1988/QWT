@@ -78,275 +78,302 @@ class QList;
 
 class QWT_EXPORT QwtPlot : public QFrame, public QwtPlotDict
 {
-	Q_OBJECT
+    Q_OBJECT
 
-	Q_PROPERTY(QBrush canvasBackground READ canvasBackground WRITE setCanvasBackground)
+    Q_PROPERTY(QBrush canvasBackground READ canvasBackground WRITE setCanvasBackground)
 
-	Q_PROPERTY(bool autoReplot READ autoReplot WRITE setAutoReplot)
+    Q_PROPERTY(bool autoReplot READ autoReplot WRITE setAutoReplot)
 
+    QWT_DECLARE_PRIVATE(QwtPlot)
 public:
-	/*!
-		Position of the legend, relative to the canvas.
+    /*!
+        Position of the legend, relative to the canvas.
 
-		\sa insertLegend()
-	 */
-	enum LegendPosition
-	{
-		//! The legend will be left from the QwtAxis::YLeft axis.
-		LeftLegend,
+        \sa insertLegend()
+     */
+    enum LegendPosition
+    {
+        //! The legend will be left from the QwtAxis::YLeft axis.
+        LeftLegend,
 
-		//! The legend will be right from the QwtAxis::YRight axis.
-		RightLegend,
+        //! The legend will be right from the QwtAxis::YRight axis.
+        RightLegend,
 
-		//! The legend will be below the footer
-		BottomLegend,
+        //! The legend will be below the footer
+        BottomLegend,
 
-		//! The legend will be above the title
-		TopLegend
-	};
+        //! The legend will be above the title
+        TopLegend
+    };
 
-	explicit QwtPlot(QWidget* = NULL);
-	explicit QwtPlot(const QwtText& title, QWidget* = NULL);
+    explicit QwtPlot(QWidget* = NULL);
+    explicit QwtPlot(const QwtText& title, QWidget* = NULL);
 
-	virtual ~QwtPlot();
+    virtual ~QwtPlot();
 
-	void setAutoReplot(bool = true);
-	bool autoReplot() const;
+    void setAutoReplot(bool = true);
+    bool autoReplot() const;
 
-	// Layout
+    // Layout
 
-	void setPlotLayout(QwtPlotLayout*);
+    void setPlotLayout(QwtPlotLayout*);
 
-	QwtPlotLayout* plotLayout();
-	const QwtPlotLayout* plotLayout() const;
+    QwtPlotLayout* plotLayout();
+    const QwtPlotLayout* plotLayout() const;
 
-	// Title
+    // Title
 
-	void setTitle(const QString&);
-	void setTitle(const QwtText&);
-	QwtText title() const;
+    void setTitle(const QString&);
+    void setTitle(const QwtText&);
+    QwtText title() const;
 
-	QwtTextLabel* titleLabel();
-	const QwtTextLabel* titleLabel() const;
+    QwtTextLabel* titleLabel();
+    const QwtTextLabel* titleLabel() const;
 
-	// Footer
+    // Footer
 
-	void setFooter(const QString&);
-	void setFooter(const QwtText&);
-	QwtText footer() const;
+    void setFooter(const QString&);
+    void setFooter(const QwtText&);
+    QwtText footer() const;
 
-	QwtTextLabel* footerLabel();
-	const QwtTextLabel* footerLabel() const;
+    QwtTextLabel* footerLabel();
+    const QwtTextLabel* footerLabel() const;
 
-	// Canvas
+    // Canvas
 
-	void setCanvas(QWidget*);
+    void setCanvas(QWidget*);
 
-	QWidget* canvas();
-	const QWidget* canvas() const;
+    QWidget* canvas();
+    const QWidget* canvas() const;
 
-	void setCanvasBackground(const QBrush&);
-	QBrush canvasBackground() const;
+    void setCanvasBackground(const QBrush&);
+    QBrush canvasBackground() const;
 
-	virtual QwtScaleMap canvasMap(QwtAxisId) const;
+    virtual QwtScaleMap canvasMap(QwtAxisId) const;
 
-	double invTransform(QwtAxisId, double pos) const;
-	double transform(QwtAxisId, double value) const;
+    double invTransform(QwtAxisId, double pos) const;
+    double transform(QwtAxisId, double value) const;
 
-	// Axes
+    // Axes
 
-	bool isAxisValid(QwtAxisId) const;
+    bool isAxisValid(QwtAxisId) const;
 
-	void setAxisVisible(QwtAxisId, bool on = true);
-	bool isAxisVisible(QwtAxisId) const;
+    void setAxisVisible(QwtAxisId, bool on = true);
+    bool isAxisVisible(QwtAxisId) const;
 
-	// Axes data
+    // Axes data
 
-	QwtScaleEngine* axisScaleEngine(QwtAxisId);
-	const QwtScaleEngine* axisScaleEngine(QwtAxisId) const;
-	void setAxisScaleEngine(QwtAxisId, QwtScaleEngine*);
+    QwtScaleEngine* axisScaleEngine(QwtAxisId);
+    const QwtScaleEngine* axisScaleEngine(QwtAxisId) const;
+    void setAxisScaleEngine(QwtAxisId, QwtScaleEngine*);
 
-	void setAxisAutoScale(QwtAxisId, bool on = true);
-	bool axisAutoScale(QwtAxisId) const;
+    void setAxisAutoScale(QwtAxisId, bool on = true);
+    bool axisAutoScale(QwtAxisId) const;
 
-	void setAxisFont(QwtAxisId, const QFont&);
-	QFont axisFont(QwtAxisId) const;
+    void setAxisFont(QwtAxisId, const QFont&);
+    QFont axisFont(QwtAxisId) const;
 
-	void setAxisScale(QwtAxisId, double min, double max, double stepSize = 0);
-	void setAxisScaleDiv(QwtAxisId, const QwtScaleDiv&);
-	void setAxisScaleDraw(QwtAxisId, QwtScaleDraw*);
+    void setAxisScale(QwtAxisId, double min, double max, double stepSize = 0);
+    void setAxisScaleDiv(QwtAxisId, const QwtScaleDiv&);
+    void setAxisScaleDraw(QwtAxisId, QwtScaleDraw*);
 
-	double axisStepSize(QwtAxisId) const;
-	QwtInterval axisInterval(QwtAxisId) const;
-	const QwtScaleDiv& axisScaleDiv(QwtAxisId) const;
+    double axisStepSize(QwtAxisId) const;
+    QwtInterval axisInterval(QwtAxisId) const;
+    const QwtScaleDiv& axisScaleDiv(QwtAxisId) const;
 
-	const QwtScaleDraw* axisScaleDraw(QwtAxisId) const;
-	QwtScaleDraw* axisScaleDraw(QwtAxisId);
+    const QwtScaleDraw* axisScaleDraw(QwtAxisId) const;
+    QwtScaleDraw* axisScaleDraw(QwtAxisId);
 
-	const QwtScaleWidget* axisWidget(QwtAxisId) const;
-	QwtScaleWidget* axisWidget(QwtAxisId);
+    const QwtScaleWidget* axisWidget(QwtAxisId) const;
+    QwtScaleWidget* axisWidget(QwtAxisId);
 
-	void setAxisLabelAlignment(QwtAxisId, Qt::Alignment);
-	void setAxisLabelRotation(QwtAxisId, double rotation);
+    // 获取一个有效的x轴，有效的定义顺序：1.可见、2.XBottom优先、3.指针有效，因此如果xBotton和xTop都可见时，先放回xBottom
+    QwtAxisId validXAxisId() const;
+    QwtAxisId validYAxisId() const;
 
-	void setAxisTitle(QwtAxisId, const QString&);
-	void setAxisTitle(QwtAxisId, const QwtText&);
-	QwtText axisTitle(QwtAxisId) const;
+    void setAxisLabelAlignment(QwtAxisId, Qt::Alignment);
+    void setAxisLabelRotation(QwtAxisId, double rotation);
 
-	void setAxisMaxMinor(QwtAxisId, int maxMinor);
-	int axisMaxMinor(QwtAxisId) const;
+    void setAxisTitle(QwtAxisId, const QString&);
+    void setAxisTitle(QwtAxisId, const QwtText&);
+    QwtText axisTitle(QwtAxisId) const;
 
-	void setAxisMaxMajor(QwtAxisId, int maxMajor);
-	int axisMaxMajor(QwtAxisId) const;
+    void setAxisMaxMinor(QwtAxisId, int maxMinor);
+    int axisMaxMinor(QwtAxisId) const;
 
-	// Legend
+    void setAxisMaxMajor(QwtAxisId, int maxMajor);
+    int axisMaxMajor(QwtAxisId) const;
 
-	void insertLegend(QwtAbstractLegend*, LegendPosition = QwtPlot::RightLegend, double ratio = -1.0);
+    // Legend
 
-	QwtAbstractLegend* legend();
-	const QwtAbstractLegend* legend() const;
+    void insertLegend(QwtAbstractLegend*, LegendPosition = QwtPlot::RightLegend, double ratio = -1.0);
 
-	void updateLegend();
-	void updateLegend(const QwtPlotItem*);
+    QwtAbstractLegend* legend();
+    const QwtAbstractLegend* legend() const;
 
-	// Misc
+    void updateLegend();
+    void updateLegend(const QwtPlotItem*);
 
-	virtual QSize sizeHint() const QWT_OVERRIDE;
-	virtual QSize minimumSizeHint() const QWT_OVERRIDE;
+    // Misc
 
-	virtual void updateLayout();
-	virtual void drawCanvas(QPainter*);
+    virtual QSize sizeHint() const QWT_OVERRIDE;
+    virtual QSize minimumSizeHint() const QWT_OVERRIDE;
 
-	void updateAxes();
-	void updateCanvasMargins();
+    virtual void updateLayout();
+    virtual void drawCanvas(QPainter*);
 
-	virtual void getCanvasMarginsHint(const QwtScaleMap maps[],
-									  const QRectF& canvasRect,
-									  double& left,
-									  double& top,
-									  double& right,
-									  double& bottom) const;
+    void updateAxes();
+    void updateCanvasMargins();
 
-	virtual bool event(QEvent*) QWT_OVERRIDE;
-	virtual bool eventFilter(QObject*, QEvent*) QWT_OVERRIDE;
+    virtual void getCanvasMarginsHint(const QwtScaleMap maps[],
+                                      const QRectF& canvasRect,
+                                      double& left,
+                                      double& top,
+                                      double& right,
+                                      double& bottom) const;
 
-	virtual void drawItems(QPainter*, const QRectF&, const QwtScaleMap maps[ QwtAxis::AxisPositions ]) const;
+    virtual bool event(QEvent*) QWT_OVERRIDE;
+    virtual bool eventFilter(QObject*, QEvent*) QWT_OVERRIDE;
 
-	virtual QVariant itemToInfo(QwtPlotItem*) const;
-	virtual QwtPlotItem* infoToItem(const QVariant&) const;
+    virtual void drawItems(QPainter*, const QRectF&, const QwtScaleMap maps[ QwtAxis::AxisPositions ]) const;
 
-	// add since v7.1.0
+    virtual QVariant itemToInfo(QwtPlotItem*) const;
+    virtual QwtPlotItem* infoToItem(const QVariant&) const;
 
-	// Add a parasite plot to this host plot/向此宿主绘图添加寄生绘图
-	void addParasitePlot(QwtPlot* parasite);
+    // add since v7.1.0
 
-	// Remove a parasite plot from this host plot/从此宿主绘图移除寄生绘图
-	void removeParasitePlot(QwtPlot* parasite);
+    // 创建一个基于此轴为宿主的寄生轴
+    QwtPlot* createParasitePlot(QwtAxis::Position enableAxis);
 
-	// Get all parasite plots associated with this host plot/获取与此宿主绘图关联的所有寄生绘图
-	QList< QwtPlot* > parasitePlots() const;
+    // 设置寄生轴共享宿主的轴是哪些，此函数仅针对寄生轴有效
+    void setParasiteShareAxis(QwtAxisId axisId, bool isShare = true);
 
-	// Set the host plot for this parasite plot/设置此寄生绘图的宿主绘图
-	void setHostPlot(QwtPlot* host);
+    // 获取寄生轴是和宿主轴的哪些轴共享，此函数仅针对寄生轴有效
+    bool isParasiteShareAxis(QwtAxisId axisId) const;
+    // Remove a parasite plot from this host plot/从此宿主绘图移除寄生绘图
+    void removeParasitePlot(QwtPlot* parasite);
 
-	// Get the host plot for this parasite plot/获取此寄生绘图的宿主绘图
-	QwtPlot* hostPlot() const;
+    // Get all parasite plots associated with this host plot/获取与此宿主绘图关联的所有寄生绘图
+    QList< QwtPlot* > parasitePlots() const;
 
-	// Check if this plot is a parasite plot/检查此绘图是否为寄生绘图
-	bool isParasitePlot() const;
+    // 获取第n个宿主轴
+    QwtPlot* parasitePlotAt(int index) const;
 
-	// Check if this plot is a host plot/检查此绘图是否为宿主绘图
-	bool isHostPlot() const;
+    // Set the host plot for this parasite plot/设置此寄生绘图的宿主绘图
+    void setHostPlot(QwtPlot* host);
 
-	// set Background Color/设置背景颜色
-	void setBackgroundColor(const QColor& c);
-	QColor backgroundColor() const;
+    // Get the host plot for this parasite plot/获取此寄生绘图的宿主绘图
+    QwtPlot* hostPlot() const;
 
-	// Synchronize the axis ranges of the corresponding plot/同步plot对应的坐标轴范围
-	void syncAxis(QwtAxisId axis, const QwtPlot* plot);
+    // Check if this plot is a parasite plot/检查此绘图是否为寄生绘图
+    bool isParasitePlot() const;
 
-	// Rescale the axes to encompass the full range of all data items./重新缩放坐标轴以适应所有数据项的范围
-	void rescaleAxes(bool onlyVisibleItems = true,
-					 double marginPercent  = 0.05,
-					 QwtAxisId xAxis       = QwtPlot::xBottom,
-					 QwtAxisId yAxis       = QwtPlot::yLeft);
+    // Check if this plot is a host plot/检查此绘图是否为宿主绘图
+    bool isHostPlot() const;
 
-	// Set the specified axis to logarithmic scale / 将指定坐标轴设置为对数刻度
-	void setAxisToLogScale(QwtAxisId axisId);
+    // set Background Color/设置背景颜色
+    void setBackgroundColor(const QColor& c);
+    QColor backgroundColor() const;
 
-	// Set the specified axis to date-time scale / 将指定坐标轴设置为日期-时间刻度
-	void setAxisToDateTime(QwtAxisId axisId, Qt::TimeSpec timeSpec = Qt::LocalTime);
+    // Synchronize the axis ranges of the corresponding plot/同步plot对应的坐标轴范围
+    void syncAxis(QwtAxisId axis, const QwtPlot* plot);
+    // Rescale the axes to encompass the full range of all data items./重新缩放坐标轴以适应所有数据项的范围
+    void rescaleAxes(bool onlyVisibleItems = true,
+                     double marginPercent  = 0.05,
+                     QwtAxisId xAxis       = QwtPlot::xBottom,
+                     QwtAxisId yAxis       = QwtPlot::yLeft);
 
-	// Restore the specified axis to linear scale / 将指定坐标轴恢复为线性刻度
-	void setAxisToLinearScale(QwtAxisId axisId);
+    // Set the specified axis to logarithmic scale / 将指定坐标轴设置为对数刻度
+    void setAxisToLogScale(QwtAxisId axisId);
+
+    // Set the specified axis to date-time scale / 将指定坐标轴设置为日期-时间刻度
+    void setAxisToDateTime(QwtAxisId axisId, Qt::TimeSpec timeSpec = Qt::LocalTime);
+
+    // Restore the specified axis to linear scale / 将指定坐标轴恢复为线性刻度
+    void setAxisToLinearScale(QwtAxisId axisId);
+
+    // 让寄生轴和宿主轴对齐
+    void alignToHost();
+
+    // 寄生轴的索引（层级），所谓寄生轴层级，默认是寄生轴的添加顺序，第一个添加的寄生轴为0层，第二个添加的寄生轴为1层，寄生轴层级越高，轴越靠绘图的边界
+    int parasitePlotIndex(QwtPlot* parasite) const;
+
+    // 获取宿主轴的个数
+    int parasitePlotCount() const;
+
+    // 更新宿主轴和寄生轴的偏移
+    void updateAxisEdgeMargin(QwtAxisId axisId);
+    void updateAxisEdgeMargin();
 #if QWT_AXIS_COMPAT
-	enum Axis
-	{
-		yLeft   = QwtAxis::YLeft,
-		yRight  = QwtAxis::YRight,
-		xBottom = QwtAxis::XBottom,
-		xTop    = QwtAxis::XTop,
+    enum Axis
+    {
+        yLeft   = QwtAxis::YLeft,
+        yRight  = QwtAxis::YRight,
+        xBottom = QwtAxis::XBottom,
+        xTop    = QwtAxis::XTop,
 
-		axisCnt = QwtAxis::AxisPositions
-	};
+        axisCnt = QwtAxis::AxisPositions
+    };
 
-	void enableAxis(int axisId, bool on = true)
-	{
-		setAxisVisible(axisId, on);
-	}
+    void enableAxis(int axisId, bool on = true)
+    {
+        setAxisVisible(axisId, on);
+    }
 
-	bool axisEnabled(int axisId) const
-	{
-		return isAxisVisible(axisId);
-	}
+    bool axisEnabled(int axisId) const
+    {
+        return isAxisVisible(axisId);
+    }
 #endif
 
 Q_SIGNALS:
-	/*!
-	   A signal indicating, that an item has been attached/detached
+    /*!
+       A signal indicating, that an item has been attached/detached
 
-	   \param plotItem Plot item
-	   \param on Attached/Detached
-	 */
-	void itemAttached(QwtPlotItem* plotItem, bool on);
+       \param plotItem Plot item
+       \param on Attached/Detached
+     */
+    void itemAttached(QwtPlotItem* plotItem, bool on);
 
-	/*!
-	   A signal with the attributes how to update
-	   the legend entries for a plot item.
+    /*!
+       A signal with the attributes how to update
+       the legend entries for a plot item.
 
-	   \param itemInfo Info about a plot item, build from itemToInfo()
-	   \param data Attributes of the entries ( usually <= 1 ) for
-				  the plot item.
+       \param itemInfo Info about a plot item, build from itemToInfo()
+       \param data Attributes of the entries ( usually <= 1 ) for
+                  the plot item.
 
-	   \sa itemToInfo(), infoToItem(), QwtAbstractLegend::updateLegend()
-	 */
-	void legendDataChanged(const QVariant& itemInfo, const QList< QwtLegendData >& data);
+       \sa itemToInfo(), infoToItem(), QwtAbstractLegend::updateLegend()
+     */
+    void legendDataChanged(const QVariant& itemInfo, const QList< QwtLegendData >& data);
 
 public Q_SLOTS:
-	virtual void replot();
-	void autoRefresh();
+    virtual void replot();
+    void autoRefresh();
 
 protected:
-	virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
-
+    virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
+    // Add a parasite plot to this host plot/向此宿主绘图添加寄生绘图
+    void addParasitePlot(QwtPlot* parasite);
+    // 初始化寄生轴的基本属性
+    void initParasiteAxes(QwtPlot* parasitePlot) const;
+    // updateLayout的具体实现
+    void doLayout();
 private Q_SLOTS:
-	void updateLegendItems(const QVariant& itemInfo, const QList< QwtLegendData >& legendData);
+    void updateLegendItems(const QVariant& itemInfo, const QList< QwtLegendData >& legendData);
 
 private:
-	friend class QwtPlotItem;
-	void attachItem(QwtPlotItem*, bool);
+    friend class QwtPlotItem;
+    void attachItem(QwtPlotItem*, bool);
 
-	void initAxesData();
-	void deleteAxesData();
-	void updateScaleDiv();
+    void initAxesData();
+    void deleteAxesData();
+    void updateScaleDiv();
 
-	void initPlot(const QwtText& title);
+    void initPlot(const QwtText& title);
 
-	class ScaleData;
-	ScaleData* m_scaleData;
-
-	class PrivateData;
-	PrivateData* m_data;
+    class ScaleData;
+    ScaleData* m_scaleData;
 };
 
 #endif
