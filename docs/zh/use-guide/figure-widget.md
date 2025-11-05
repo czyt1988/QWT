@@ -203,6 +203,10 @@ QwtFigureWidgetOverlay* overlay = new QwtFigureWidgetOverlay(figure);
 overlay->show();
 ```
 
+其效果如下图所示：
+
+![qwt_figure_overlay](../../assets/screenshots/figure-widget-overlay.gif)
+
 可以根据需要启用或禁用特定功能：
 
 ```cpp
