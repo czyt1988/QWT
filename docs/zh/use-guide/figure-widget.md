@@ -105,6 +105,52 @@ parasiteYRight->setAxisTitle(QwtAxis::YRight, "Secondary Y");
 
 寄生绘图的详细使用方法请参考：[寄生绘图](parasite-axes.md)
 
+下面是使用QwtFigure的较为完整的演示：
+
+```cpp
+// 创建 QwtFigure
+QwtFigure* figure = new QwtFigure();
+figure->setSizeInches(8, 6);      // 设置图形尺寸为8x6英寸
+figure->setFaceColor(Qt::white);  // 设置背景颜色
+
+// 示例1: 使用归一化坐标添加绘图
+QwtPlot* plot1       = new QwtPlot();
+...
+figure->addAxes(plot1, 0.0, 0.0, 0.5, 0.3333333);  // 左上角
+
+QwtPlot* plot2       = new QwtPlot();
+...
+figure->addAxes(plot2, 0.5, 0.0, 0.5, 0.33333333);  // 右上角
+
+// 示例2: 使用网格布局添加绘图
+QwtPlot* plot3       = new QwtPlot();
+...
+figure->addGridAxes(plot3, 3, 2, 1, 0);  // 3x2网格，第1行第0列（0base）
+
+QwtPlot* plot4       = new QwtPlot();
+...
+figure->addGridAxes(plot4, 3, 2, 1, 1);  // 2x2网格，第1行第1列（0base）
+
+// 示例3: 多坐标轴创建
+//! 创建宿主绘图
+QwtPlot* hostPlot = new QwtPlot();
+hostPlot->setCanvasBackground(Qt::white);
+...
+//! 把主绘图添加到figure中
+figure->addGridAxes(hostPlot, 3, 2, 2, 0, 1, 2);  // 3x2网格，第2行第0列，跨2列
+
+//! 添加宿主坐标系
+QwtPlot* parasitePlot = figure->createParasiteAxes(hostPlot, QwtAxis::YLeft);
+//! 宿主坐标轴的其他设置
+
+//! 最后窗口显示前执行以下宿主绘图的replot，刷新坐标轴
+QMetaObject::invokeMethod(hostPlot, &QwtPlot::replot, Qt::QueuedConnection);
+```
+
+上面例子的效果如下图：
+
+![qwt_figure](../../assets/screenshots/qwt_figure.png)
+
 ### 图形导出
 
 ```cpp

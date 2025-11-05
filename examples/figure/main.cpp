@@ -240,12 +240,6 @@ void createGrid32_parasitePlot(QwtFigure* figure)
     //! 添加宿主坐标系
     QwtPlot* parasitePlot = figure->createParasiteAxes(hostPlot, QwtAxis::YLeft);
 
-    //! 为了让宿主坐标显示出来，主坐标的左边要预留空白，通过setEdgeMargin设置坐标轴和绘图边缘的空白
-    // hostPlot->axisWidget(QwtAxis::YLeft)->setEdgeMargin(80);
-
-    //! 宿主坐标轴和画布偏移60像素，避免和主坐标轴重合
-    // parasitePlot->axisWidget(QwtAxis::YLeft)->setMargin(60);
-
     //! 宿主坐标轴的其他设置
     parasitePlot->setAxisTitle(QwtPlot::yLeft, "Y2 Axis");
 
