@@ -1,6 +1,6 @@
 # QwtFigure绘图容器窗口
 
-`QwtFigure`是一个类似 `matplotlib` 的 `Figure` 类的容器，用于组织和管理多个 `QwtPlot` 绘图组件。它提供了灵活的布局选项，包括**归一化坐标定位**和**网格布局**，支持创建**寄生轴（任意多个x轴和y轴）**。
+`QwtFigure`是一个类似 `matplotlib` 的 `Figure` 类的容器，用于组织和管理多个 `QwtPlot` 绘图组件。它提供了灵活的布局选项，包括**归一化坐标定位**和**网格布局**，支持创建**寄生绘图（任意多个x轴和y轴）**。
 
 ## 主要功能特性
 
@@ -9,9 +9,9 @@
 - **归一化坐标布局**：使用 `[0,1]` 范围内的坐标系统进行相对位置控制
 - **网格布局**：支持行列式的网格排列方式，方便创建规整的多图组合
 
-### 2. 寄生轴支持
+### 2. 寄生绘图支持
 
-- 可以为宿主绘图创建共享绘图区域但拥有独立坐标轴的寄生轴
+- 可以为宿主绘图创建共享绘图区域但拥有独立坐标轴的寄生绘图
 - 适用于在同一绘图区域内展示不同量级的数据
 
 ### 3. 图形导出功能
@@ -79,27 +79,31 @@ figure->setEdgeColor(Qt::black);
 figure->setEdgeLineWidth(2);
 ```
 
-### 寄生轴使用
+### 寄生绘图使用
+
+寄生绘图（parasite axes命名参考`matplotlib`）可以创建多个具有独立坐标轴的绘图，适用于在同一绘图区域内展示不同量级或单位数据。常用双y轴，多y轴等特殊的绘图场景
+
+寄生绘图创建示例代码如下：
 
 ```cpp
 // 创建宿主绘图
 QwtPlot* hostPlot = new QwtPlot(figure);
 figure->addAxes(hostPlot, 0.1, 0.1, 0.8, 0.8);
 
-// 创建寄生轴，启用YRight轴并共享X轴刻度
-QwtPlot* parasiteYRight = figure->createParasiteAxes(hostPlot, QwtAxis::YRight, true, false);
+// 创建寄生绘图，默认显示在YRight轴并
+QwtPlot* parasiteYRight = figure->createParasiteAxes(hostPlot, QwtAxis::YRight);
 
 // 分别设置轴标题
 hostPlot->setAxisTitle(QwtAxis::YLeft, "Primary Y");
 parasiteYRight->setAxisTitle(QwtAxis::YRight, "Secondary Y");
 ```
 
-!!! warning "寄生轴注意事项"
-    - 寄生轴不能作为当前激活的坐标轴
-    - 寄生轴会随着宿主轴的移除而被自动隐藏
-    - 如果宿主绘图销毁，寄生轴会跟随销毁
+!!! warning "寄生绘图注意事项"
+    - 寄生绘图不能作为当前激活的坐标轴
+    - 寄生绘图会随着宿主轴的移除而被自动隐藏
+    - 如果宿主绘图销毁，寄生绘图会跟随销毁
 
-寄生轴的详细使用方法请参考：[寄生轴](parasite-axes.md)
+寄生绘图的详细使用方法请参考：[寄生绘图](parasite-axes.md)
 
 ### 图形导出
 
@@ -110,5 +114,9 @@ figure->saveFig("figure.png", 300); // 300 DPI
 // 获取 QPixmap
 QPixmap pixmap = figure->saveFig(300);
 ```
+
+
+!!! example "寄生绘图示例"
+    完整的示例代码可参阅`examples/figure`
 
 

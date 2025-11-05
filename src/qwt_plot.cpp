@@ -29,6 +29,10 @@
 #include <qapplication.h>
 #include <qcoreevent.h>
 
+#ifndef QwtPlot_DEBUG_PRINT
+#define QwtPlot_DEBUG_PRINT 0
+#endif
+
 static inline void qwtEnableLegendItems(QwtPlot* plot, bool on)
 {
     // gcc seems to have problems with const char sig[] in combination with certain options
@@ -256,6 +260,12 @@ bool QwtPlot::event(QEvent* event)
         break;
     case QEvent::PolishRequest:
         replot();
+        break;
+    case QEvent::Polish:
+        // 这个是为了在界面还没显示出来就开始添加寄生轴，让第一次界面显示时刷新位置偏移
+        if (isHostPlot()) {
+            updateAxisEdgeMargin();
+        }
         break;
     default:;
     }
@@ -528,6 +538,9 @@ QSize QwtPlot::minimumSizeHint() const
 void QwtPlot::resizeEvent(QResizeEvent* e)
 {
     QFrame::resizeEvent(e);
+    if (isHostPlot()) {
+        updateAxisEdgeMargin();
+    }
     updateLayout();
 }
 
@@ -571,14 +584,6 @@ void QwtPlot::replot()
  */
 void QwtPlot::updateLayout()
 {
-    //    if (!isHostPlot()) {
-    //        // 对于寄生轴，无需任何动作,原因是宿主轴的doLayout会调用寄生轴的doLayout，因此寄生轴不需要执行
-    //        qDebug() << "is parasite plot ,ignore updatelayout";
-    //        return;
-    //    }
-    static uint32_t s_c = 0;
-    ++s_c;
-    qDebug() << "[" << s_c << "]updateLayout";
     doLayout();
 }
 
@@ -595,10 +600,16 @@ void QwtPlot::doLayout()
     QwtPlotLayout* layout = m_data->layout;
     if (isHostPlot()) {
         layout->activate(this, contentsRect());
+#if QwtPlot_DEBUG_PRINT
+        qDebug() << "host plot do layout:" << contentsRect();
+#endif
     } else {
         if (QwtPlot* host = hostPlot()) {
             layout->activate(this, host->contentsRect());
         }
+#if QwtPlot_DEBUG_PRINT
+        qDebug() << "parasite plot do layout:" << hostPlot()->contentsRect();
+#endif
     }
 
     const QRect titleRect  = layout->titleRect().toRect();
@@ -665,11 +676,6 @@ void QwtPlot::doLayout()
         for (QwtPlot* p : allparasites) {
             p->setGeometry(QRect(0, 0, width(), height()));
         }
-        static int s_c = 0;
-        ++s_c;
-        qDebug() << "{ " << s_c << "host call updateAxisEdgeMargin";
-        updateAxisEdgeMargin();
-        qDebug() << "} " << s_c << "end host call updateAxisEdgeMargin";
     }
 }
 
@@ -1069,13 +1075,18 @@ void QwtPlot::updateLegendItems(const QVariant& itemInfo, const QList< QwtLegend
  * 寄生轴将精确定位在宿主绘图之上，并自动同步其几何形状。
  *
  * @param enableAxis The axis position to enable on the parasite axes/在寄生轴上启用的轴位置
- * @param shareX If true, share X-axis scale with host plot/如果为true，与宿主绘图共享X轴刻度
- * @param shareY If true, share Y-axis scale with host plot/如果为true，与宿主绘图共享Y轴刻度
  * @return Pointer to the created parasite QwtPlot/指向创建的寄生QwtPlot的指针
  * @retval nullptr if hostPlot is invalid or not in the figure/如果hostPlot无效或不在图形中则返回nullptr
+ *
+ * @note 一个绘图不会既是寄生绘图也是宿主绘图的情况，也就是说，
+ * 如果绘图是寄生绘图，那么他自身不允许再创建寄生绘图，寄生绘图调用次函数将返回nullptr
  */
 QwtPlot* QwtPlot::createParasitePlot(QwtAxis::Position enableAxis)
 {
+    if (isParasitePlot()) {
+        qWarning() << "can not create parasite plot on parasite plot";
+        return nullptr;
+    }
     QwtPlot* parasitePlot = new QwtPlot(this);
     initParasiteAxes(parasitePlot);
 
@@ -1212,6 +1223,7 @@ void QwtPlot::addParasitePlot(QwtPlot* parasite)
         parasite->setHostPlot(this);
     }
     // 设置后对寄生轴要进行一次布局
+    updateAxisEdgeMargin();
     updateLayout();
 }
 
@@ -1271,6 +1283,8 @@ void QwtPlot::removeParasitePlot(QwtPlot* parasite)
     }
     m_data->parasitePlots.removeAll(parasite);
     parasite->setHostPlot(nullptr);
+    updateAxisEdgeMargin();
+    updateLayout();
 }
 
 /**
@@ -1313,6 +1327,23 @@ QList< QwtPlot* > QwtPlot::parasitePlots() const
 QwtPlot* QwtPlot::parasitePlotAt(int index) const
 {
     return m_data->parasitePlots.value(index, nullptr);
+}
+
+/**
+ * @brief 寄生轴的索引（层级）
+ *
+ * 所谓寄生轴层级，默认是寄生轴的添加顺序，第一个添加的寄生轴为0层，第二个添加的寄生轴为1层，寄生轴层级越高，轴越靠绘图的边界
+ * @param parasite 寄生轴
+ * @return 如果为-1，说明是无效索引
+ * @note 如果传入的寄生轴不是此绘图的寄生轴，返回-1
+ * @note 此函数仅对宿主轴有效，如果是寄生轴调用，也将返回-1
+ */
+int QwtPlot::parasitePlotIndex(QwtPlot* parasite) const
+{
+    if (!isHostPlot()) {
+        return -1;
+    }
+    return m_data->parasitePlots.indexOf(parasite);
 }
 
 /**
@@ -1378,6 +1409,10 @@ bool QwtPlot::isParasitePlot() const
  * This method returns true if this plot has one or more parasite plots.
  *
  * 如果此绘图有一个或多个寄生绘图，则此方法返回true。
+ *
+ * 只有此绘图持有寄生绘图才会认为是宿主绘图
+ *
+ * @note 一个绘图不会出现既是寄生绘图也是宿主绘图的情况，也就是宿主自身不允许寄生在其它绘图上
  *
  * @return true if this plot has parasite plots/如果此绘图有寄生绘图则返回true
  * @return false if this plot has no parasite plots/如果此绘图没有寄生绘图则返回false
@@ -1649,23 +1684,7 @@ void QwtPlot::alignToHost()
             scaleWidget->setBorderDist(start, end);
         }
     }
-}
-
-/**
- * @brief 寄生轴的索引（层级）
- *
- * 所谓寄生轴层级，默认是寄生轴的添加顺序，第一个添加的寄生轴为0层，第二个添加的寄生轴为1层，寄生轴层级越高，轴越靠绘图的边界
- * @param parasite 寄生轴
- * @return 如果为-1，说明是无效索引
- * @note 如果传入的寄生轴不是此绘图的寄生轴，返回-1
- * @note 此函数仅对宿主轴有效，如果是寄生轴调用，也将返回-1
- */
-int QwtPlot::parasitePlotIndex(QwtPlot* parasite) const
-{
-    if (!isHostPlot()) {
-        return -1;
-    }
-    return m_data->parasitePlots.indexOf(parasite);
+    updateAxisEdgeMargin();
 }
 
 /**
@@ -1678,119 +1697,153 @@ int QwtPlot::parasitePlotCount() const
 }
 
 /**
- * @brief 更新宿主轴/寄生轴的偏移
+ * @brief 根据层级顺序重新计算并下发所有层（宿主+寄生）轴的 edgeMargin 与 margin
  *
- * 此函数会更新当前绘图的edge偏移
+ * 在 Qwt 多轴体系里，宿主 plot 可以挂载任意数量的寄生 plot，每个寄生 plot
+ * 与宿主的画布位置时一样的，但拥有自己独立的坐标轴。为了避免轴层之间重叠，
+ * 需要为每条轴动态计算两个偏移量：
  *
- * 寄生轴要能正常显示，必须结合edgeMargin和Margin两个设置
+ * 1. edgeMargin —— 当前轴到画布边框的距离，由“层级比它高的所有轴”的理论尺寸累加而成。
+ * 2. margin —— 当前轴到绘图区的距离，由“层级比它低的所有轴”的理论尺寸累加而成。
  *
- * edgeMargin控制坐标轴离边框的距离，例如yleft轴，会在正常预估尺寸上再变宽edgeMargin，这样yleft就会预留左边一个空白区域，
- * 这个空白区域是给寄生轴显示的，但寄生轴的尺寸是和宿主一致的，要让寄生轴显示，需要给寄生轴一个margin，让寄生轴坐标和画布偏移一段距离，
- * 这样才能正确显示一个 寄生轴
+ * 这里定义的层级规则：
+ * - 宿主始终处于第 0 层（最底层）；
+ * - 寄生 plot 按挂载顺序依次构成第 1、2、3... 层，数字越大越靠近画布外侧。
  *
- * 此函数的作用就估算edgeMargin和Margin
+ * 计算流程：
+ * 1. 收集宿主及所有可见寄生轴的“净”矩形（已剔除旧的 edgeMargin 与 margin）；
+ * 2. 对每i层：
+ *    - margin     = 0 ~ i-1 层净矩形尺寸之和；
+ *    - edgeMargin = i+1 ~ 末层净矩形尺寸之和；
+ * 3. 将新值下发给对应轴的 QwtScaleWidget；
+ * 4. 宿主的 margin 予以保留（不覆盖用户可能手工设置的值）。
  *
+ * 注意：
+ * - 若当前轴不可见或寄生 plot 未使用 QwtParasitePlotLayout，则自动跳过；
+ * - 函数内部所有矩形尺寸均按轴方向取宽或高：
+ *   Y 轴（YLeft/YRight）取 width，X 轴（XBottom/XTop）取 height。
  *
+ * @param axisId 要处理的轴 ID
  *
- * @param axisId 轴id
+ * @note 本函数仅修改几何偏移，不会触发布局或重绘；调用方可在必要时
+ *       随后调用 hostPlot->updateLayout()。
+ *
+ * @see QwtPlot::updateAxisEdgeMargin(), QwtScaleWidget::setEdgeMargin(), QwtScaleWidget::setMargin(),
+ *      QwtParasitePlotLayout::parasiteScaleRect()
+ *
+ * @since 7.0.4
  */
 void QwtPlot::updateAxisEdgeMargin(QwtAxisId axisId)
 {
-    qDebug() << "updateAxisEdgeMargin(" << axisId;
-    QList< QwtPlot* > parasites;
-    QwtPlot* host { nullptr };
-    if (!isHostPlot()) {
-        host      = hostPlot();
-        parasites = host->parasitePlots();
-    } else {
-        host      = this;
-        parasites = parasitePlots();
+    // --------------- 1. 收集本次需要处理的所有 plot（含宿主） ---------------
+    QwtPlot* host = isHostPlot() ? this : hostPlot();
+    if (!host) {
+        return;
     }
-    if (parasites.empty()) {
+    if (host->parasitePlotCount() == 0) {
+        // 没有寄生绘图不需要处理
+        return;
+    }
+    struct AxisLayer
+    {
+        QwtPlot* plot = nullptr;
+        QRectF scaleRect;  // 已去掉旧 edgeMargin/margin 的“净”矩形
+    };
+    const auto shrinkRect = [](QRectF r, int delta, QwtAxisId id) -> QRectF {
+        if (delta == 0)
+            return r;
+        switch (id) {
+        case QwtAxis::YLeft:
+            r.adjust(0, 0, -delta, 0);
+            break;
+        case QwtAxis::YRight:
+            r.adjust(delta, 0, 0, 0);
+            break;
+        case QwtAxis::XBottom:
+            r.adjust(0, delta, 0, 0);
+            break;
+        case QwtAxis::XTop:
+            r.adjust(0, 0, 0, -delta);
+            break;
+        default:
+            break;
+        }
+        return r;
+    };
+
+    const QList< QwtPlot* > parasites = host->parasitePlots();
+    QVector< AxisLayer > layers;
+    layers.reserve(1 + host->parasitePlots().size());
+    // 宿主总是第 0 层
+    QRectF hostScaleRect = host->plotLayout()->scaleRect(axisId);
+    // 宿主的矩形修正，宿主只修正edgeMargin作为原始矩形
+    hostScaleRect = shrinkRect(hostScaleRect, host->axisWidget(axisId)->edgeMargin(), axisId);
+    layers.append({ host, hostScaleRect });
+    // 寄生轴按加入顺序构成 1,2,… 层
+    for (QwtPlot* p : parasites) {
+        if (!p || !p->isAxisVisible(axisId)) {
+            continue;
+        }
+        QwtParasitePlotLayout* play = dynamic_cast< QwtParasitePlotLayout* >(p->plotLayout());
+        if (!play)
+            continue;
+
+        QRectF r          = play->parasiteScaleRect(axisId);
+        const int oldEdge = p->axisWidget(axisId)->edgeMargin();
+        const int oldMarg = p->axisWidget(axisId)->margin();
+        r                 = shrinkRect(r, oldEdge + oldMarg, axisId);
+
+        layers.append({ p, r });
+    }
+    if (layers.isEmpty()) {
         return;
     }
 
-    // 从最顶层的寄生轴开始，逐个设置
-    int edgeMarginHint = 0;
-    for (auto i = parasites.rbegin(); i != parasites.rend(); ++i) {
-        QwtPlot* p = *i;
-        if (!p) {
-            continue;
-        }
+    for (int i = 0; i < layers.size(); ++i) {
+#if QwtPlot_DEBUG_PRINT
+        qDebug() << "   layers[" << i << "] scaleRect=" << layers[ i ].scaleRect;
+#endif
+    }
 
-        if (!p->isAxisVisible(axisId)) {
-            // 不可见就不处理
-            continue;
+    // --------------- 2. 计算每层的新 edgeMargin / margin ---------------
+    const auto accumulateSize = [ & ](int low, int high) -> int {
+        int sum = 0;
+        for (int i = low; i < high; ++i) {
+            const QRectF& rc = layers[ i ].scaleRect;
+            sum += QwtAxis::isYAxis(axisId) ? rc.width() : rc.height();
         }
-        // 从倒数第二个可见的开始，要把前一个偏移量设置进去
-        if (edgeMarginHint != 0) {
-            // 说明这时不是倒数第一个
-            p->axisWidget(axisId)->setEdgeMargin(edgeMarginHint);
-            qDebug() << "parasites->axisWidget(" << axisId << ")->setEdgeMargin(" << edgeMarginHint << ")";
-        }
+        return sum;
+    };
 
-        int edgeMargin = p->axisWidget(axisId)->edgeMargin();
-        int margin     = p->axisWidget(axisId)->margin();
-        if (QwtParasitePlotLayout* play = dynamic_cast< QwtParasitePlotLayout* >(p->plotLayout())) {
-            const QRectF axisRect = play->parasiteScaleRect(axisId);
-            // 要减去edgeMargin
-            if (QwtAxis::isYAxis(axisId)) {
-                edgeMarginHint += qMax(0.0, (axisRect.width() - edgeMargin - margin));
-            } else {
-                edgeMarginHint += qMax(0.0, (axisRect.height() - edgeMargin - margin));
-            }
-            //
-            if (QwtAxis::YLeft == axisId)
-                qDebug() << "edgeMarginHint=" << edgeMarginHint << ",axisRect=" << axisRect
-                         << ",edgeMargin=" << edgeMargin << ",margin=" << margin;
+    for (int i = 0; i < layers.size(); ++i) {
+        const int margin     = accumulateSize(0, i);                  // 比我低的层
+        const int edgeMargin = accumulateSize(i + 1, layers.size());  // 比我高的层
+
+        QwtScaleWidget* axisWidget = layers[ i ].plot->axisWidget(axisId);
+        axisWidget->setEdgeMargin(edgeMargin);
+        if (i != 0) {  // 宿主不强制设 margin，保留用户值
+            axisWidget->setMargin(margin);
         }
+#if QwtPlot_DEBUG_PRINT
+        qDebug() << "    [" << i << "]setEdgeMargin(" << edgeMargin << ")";
+        qDebug() << "    [" << i << "]setMargin(" << margin << ")";
+#endif
     }
-    // 开始计算margin
-    int parasiteMargin     = 0;
-    const QRectF scaleRect = host->plotLayout()->scaleRect(axisId);
-    if (QwtAxis::isYAxis(axisId)) {
-        parasiteMargin += (scaleRect.width() - host->axisWidget(axisId)->edgeMargin());
-    } else {
-        parasiteMargin += (scaleRect.height() - host->axisWidget(axisId)->edgeMargin());
-    }
-    for (auto i = parasites.begin(); i != parasites.end(); ++i) {
-        QwtPlot* p = *i;
-        if (!p) {
-            continue;
-        }
-        if (!p->isAxisVisible(axisId)) {
-            // 不可见就不处理
-            continue;
-        }
-        // 设置margin
-        p->axisWidget(axisId)->setMargin(parasiteMargin);
-        // 累加margin
-        if (QwtParasitePlotLayout* play = dynamic_cast< QwtParasitePlotLayout* >(p->plotLayout())) {
-            const QRectF axisRect = play->parasiteScaleRect(axisId);
-            // 要减去edgeMargin
-            int edgeMargin = p->axisWidget(axisId)->edgeMargin();
-            int margin     = p->axisWidget(axisId)->margin();
-            if (QwtAxis::isYAxis(axisId)) {
-                parasiteMargin += qMax(0.0, (axisRect.width() - edgeMargin - margin));
-            } else {
-                parasiteMargin += qMax(0.0, (axisRect.height() - edgeMargin - margin));
-            }
-        }
-        if (QwtAxis::YLeft == axisId)
-            qDebug() << "parasites->axisWidget(" << axisId << ")->setMargin(" << p->axisWidget(axisId)->margin()
-                     << "),new margin = " << parasiteMargin;
-    }
-    // 这里要处理最后一个
-    if (parasites.size() != 1) {
-        if (parasites.last()->isAxisVisible(axisId)) {
-            parasites.last()->axisWidget(axisId)->setMargin(parasiteMargin);
-        }
-    }
-    // 最后宿主要设置最终的偏移
-    host->axisWidget(axisId)->setEdgeMargin(edgeMarginHint);
-    qDebug() << "host->axisWidget(" << axisId << ")->setEdgeMargin(" << edgeMarginHint << ")";
 }
 
+/**
+ * @brief 批量更新所有轴位置的边缘偏移
+ *
+ * 对当前绘图实例的所有轴位置（YLeft、YRight、XBottom、XTop）依次调用
+ * updateAxisEdgeMargin(QwtAxisId)，自动完成宿主与所有寄生轴的 edgeMargin
+ * 与 margin 同步，保证多轴场景下各层轴之间不重叠且绘图区对齐。
+ *
+ * 典型调用时机：
+ * - 寄生 plot 挂载或移除后；
+ * - 轴可见性、标签字体、刻度长度等影响尺寸的属性变更后；
+ * - 宿主或寄生轴数据范围变化导致轴标签宽度/高度显著改变时。
+ * @see updateAxisEdgeMargin(QwtAxisId)
+ */
 void QwtPlot::updateAxisEdgeMargin()
 {
     for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; ++axisPos) {

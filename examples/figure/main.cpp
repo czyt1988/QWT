@@ -11,6 +11,7 @@
 #include <QPushButton>
 #include <QToolButton>
 #include <QDebug>
+#include <QMetaObject>
 #include "qwt_math.h"
 #include "qwt_plot.h"
 #include "qwt_plot_curve.h"
@@ -111,7 +112,7 @@ int main(int argc, char* argv[])
     figure->setFaceColor(Qt::white);  // 设置背景颜色
 
     // 示例1: 使用归一化坐标添加绘图
-#if 0
+
     QwtPlot* plot1       = new QwtPlot();
     QwtPlotCurve* curve1 = new QwtPlotCurve("Sine Wave 1");
     curve1->setSamples(generateSampleData(100, 1.0, 1.0));
@@ -157,7 +158,7 @@ int main(int argc, char* argv[])
     figure->addGridAxes(plot4, 3, 2, 1, 1);  // 2x2网格，第1行第1列（0base）
     plot4->rescaleAxes();
     qDebug() << "plot4 norm rect =" << figure->axesNormRect(plot4);
-#endif
+
     createGrid32_parasitePlot(figure);
     // 添加控制按钮
     QHBoxLayout* buttonLayout = new QHBoxLayout();
@@ -204,7 +205,6 @@ int main(int argc, char* argv[])
     // 设置中央部件
     mainWindow.setCentralWidget(centralWidget);
     mainWindow.show();
-
     return app.exec();
 }
 
@@ -253,4 +253,6 @@ void createGrid32_parasitePlot(QwtFigure* figure)
     QwtPlotCurve* parasiteCurve = new QwtPlotCurve("Sine Wave 6");
     parasiteCurve->setSamples(generateSampleData(100, 2000, 2.3));
     parasiteCurve->attach(parasitePlot);
+
+    QMetaObject::invokeMethod(hostPlot, &QwtPlot::replot, Qt::QueuedConnection);
 }

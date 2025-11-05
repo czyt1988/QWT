@@ -259,8 +259,8 @@ public:
     // 获取第n个宿主轴
     QwtPlot* parasitePlotAt(int index) const;
 
-    // Set the host plot for this parasite plot/设置此寄生绘图的宿主绘图
-    void setHostPlot(QwtPlot* host);
+    // 寄生轴的索引（层级），所谓寄生轴层级，默认是寄生轴的添加顺序，第一个添加的寄生轴为0层，第二个添加的寄生轴为1层，寄生轴层级越高，轴越靠绘图的边界
+    int parasitePlotIndex(QwtPlot* parasite) const;
 
     // Get the host plot for this parasite plot/获取此寄生绘图的宿主绘图
     QwtPlot* hostPlot() const;
@@ -294,9 +294,6 @@ public:
 
     // 让寄生轴和宿主轴对齐
     void alignToHost();
-
-    // 寄生轴的索引（层级），所谓寄生轴层级，默认是寄生轴的添加顺序，第一个添加的寄生轴为0层，第二个添加的寄生轴为1层，寄生轴层级越高，轴越靠绘图的边界
-    int parasitePlotIndex(QwtPlot* parasite) const;
 
     // 获取宿主轴的个数
     int parasitePlotCount() const;
@@ -359,6 +356,9 @@ protected:
     void initParasiteAxes(QwtPlot* parasitePlot) const;
     // updateLayout的具体实现
     void doLayout();
+    // Set the host plot for this parasite plot/设置此寄生绘图的宿主绘图
+    void setHostPlot(QwtPlot* host);
+
 private Q_SLOTS:
     void updateLegendItems(const QVariant& itemInfo, const QList< QwtLegendData >& legendData);
 

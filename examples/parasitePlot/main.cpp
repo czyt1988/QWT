@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
     QWidget* centralWidget  = new QWidget(&mainWindow);
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
 
-    // 创建 QwtFigure
+    // 创建宿主绘图
     QwtPlot* hostPlot = new QwtPlot(centralWidget);
     //! 设置宿主绘图坐标轴标题
     hostPlot->setTitle("Mult Axes Plot");
@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
     parasitePlot->axisWidget(QwtAxis::XTop)->setScaleColor(curColor);
 
     ////////////////////////////////////////////////////////
-    //! 添加寄生坐标系
+    //! 添加第二个寄生坐标系
     ////////////////////////////////////////////////////////
     QwtPlot* parasitePlot2 = hostPlot->createParasitePlot(QwtAxis::YLeft);
     //! 设置寄生轴2坐标的显示和共享的轴
@@ -148,6 +148,9 @@ int main(int argc, char* argv[])
     parasitePlot2->axisWidget(QwtAxis::YLeft)->setScaleColor(curColor2);
     parasitePlot2->axisWidget(QwtAxis::YRight)->setScaleColor(curColor2);
     parasitePlot2->axisWidget(QwtAxis::XBottom)->setScaleColor(curColor2);
+
+    // 通过invokeMethod把replot投递到消息队列，让其最后执行
+    QMetaObject::invokeMethod(hostPlot, &QwtPlot::replot, Qt::QueuedConnection);
     // 添加布局
     mainLayout->addWidget(hostPlot);
 

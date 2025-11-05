@@ -11,7 +11,7 @@ class QWT_EXPORT QwtPlotTransparentCanvas : public QFrame, public QwtPlotAbstrac
 public:
     explicit QwtPlotTransparentCanvas(QwtPlot* plot = nullptr);
     virtual ~QwtPlotTransparentCanvas();
-
+public Q_SLOTS:
     virtual void replot();
 
 protected:

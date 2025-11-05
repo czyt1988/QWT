@@ -767,4 +767,7 @@ void QwtPlot::updateAxes()
             item->updateScaleDiv(axisScaleDiv(item->xAxis()), axisScaleDiv(item->yAxis()));
         }
     }
+    if (isHostPlot()) {
+        updateAxisEdgeMargin();
+    }
 }
