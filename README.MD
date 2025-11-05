@@ -115,6 +115,11 @@ Inspired by Python’s matplotlib, Qwt now provides a Figure container for effor
 
 The new `QwtFigure` class supports grid layouts (similar to matplotlib’s subplot).
 
+### Added Parasite Axes
+
+Qwt7 now supports **parasite axes**, allowing multiple plots to share the same axes.
+
+![Parasite Axes](./docs/assets/screenshots/parasite-plot.png)
 
 ## Changelog
 
