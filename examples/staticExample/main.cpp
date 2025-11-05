@@ -139,10 +139,7 @@ int main(int argc, char* argv[])
     curve5->setSamples(generateSampleData(100, 1.2, 0.8));
     curve5->attach(plot5);
     setupPlotStyle(plot5, "Grid Layout (2x2, Cell 1,0-1)", Qt::darkCyan);
-    figure->addAxes(plot5, 2, 2, 1, 0, 1, 2);  // 2x2网格，第1行，跨2列
-
-    // 示例3: 调整布局参数
-    figure->adjustLayout(0.1, 0.1, 0.05, 0.05);
+    figure->addGridAxes(plot5, 2, 2, 1, 0, 1, 2);  // 2x2网格，第1行，跨2列
 
     // 添加控制按钮
     QHBoxLayout* buttonLayout = new QHBoxLayout();

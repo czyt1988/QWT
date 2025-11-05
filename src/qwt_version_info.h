@@ -20,14 +20,14 @@
  * @def qwt的数字版本 MAJ.MIN.{PAT}
  */
 #ifndef QWT_VERSION_PAT
-#define QWT_VERSION_PAT 3
+#define QWT_VERSION_PAT 4
 #endif
 
 /**
  * @def 版本号（字符串）
  */
 #ifndef QWT_VERSION_STR
-#define QWT_VERSION_STR "7.0.3"
+#define QWT_VERSION_STR "7.0.4"
 #endif
 
 #endif // QWT_VERSION_INFO_H

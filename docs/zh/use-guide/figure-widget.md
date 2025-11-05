@@ -115,6 +115,80 @@ figure->saveFig("figure.png", 300); // 300 DPI
 QPixmap pixmap = figure->saveFig(300);
 ```
 
+## figure操作蒙版
+
+`QwtFigureWidgetOverlay`是一个专门针对`QwtFigure`设计的操作蒙版类，它继承自`QwtWidgetOverlay`。这个类提供了在运行时对 `QwtFigure` 中的子绘图组件进行交互式操作的功能，包括调整绘图组件的大小和选择当前激活的绘图。
+
+### 主要功能
+
+1. **绘图组件大小调整**：用户可以通过鼠标拖拽来调整 `QwtFigure` 中子绘图组件的尺寸和位置
+2. **当前绘图选择**：支持通过鼠标点击或键盘快捷键来选择当前激活的绘图组件
+3. **可视化反馈**：在操作过程中提供清晰的视觉反馈，包括边框、控制点和尺寸信息显示
+
+可以通过 `BuiltInFunctionsFlag` 枚举来控制蒙版的不同功能：
+
+```cpp
+enum BuiltInFunctionsFlag
+{
+    FunSelectCurrentPlot = 1,  // 选择当前绘图功能
+    FunResizePlot        = 2   // 调整绘图大小功能
+};
+```
+
+使用 `setBuiltInFunctionsEnable()` 方法可以动态启用或禁用这些功能。
+
+蒙版提供了下面这些方法来自定义其外观：
+
+- `setBorderPen()` - 设置边框画笔
+- `setControlPointBrush()` - 设置控制点填充
+- `setControlPointSize()` - 设置控制点尺寸
+- `showPercentText()` - 控制是否显示尺寸百分比文本
+
+### 使用方法
+
+要使用 `QwtFigureWidgetOverlay`，只需创建其实例并将其附加到目标 `QwtFigure` 上：
+
+```cpp
+QwtFigure* figure = new QwtFigure();
+// ... 添加一些绘图组件到figure ...
+
+// 创建并显示操作蒙版
+QwtFigureWidgetOverlay* overlay = new QwtFigureWidgetOverlay(figure);
+overlay->show();
+```
+
+可以根据需要启用或禁用特定功能：
+
+```cpp
+// 禁用尺寸调整功能，只保留选择功能
+overlay->setBuiltInFunctionsEnable(QwtFigureWidgetOverlay::FunResizePlot, false);
+
+// 或者禁用选择功能，只保留尺寸调整功能
+overlay->setBuiltInFunctionsEnable(QwtFigureWidgetOverlay::FunSelectCurrentPlot, false);
+```
+
+可以自定义蒙版的外观以匹配应用程序的整体风格：
+
+```cpp
+// 设置边框颜色和样式
+overlay->setBorderPen(QPen(Qt::red, 2, Qt::DashLine));
+
+// 设置控制点的颜色和样式
+overlay->setControlPointBrush(QBrush(Qt::green));
+
+// 设置控制点大小
+overlay->setControlPointSize(QSize(10, 10));
+
+// 隐藏百分比文本显示
+overlay->showPercentText(false);
+```
+
+`QwtFigureWidgetOverlay` 提供了几个有用的信号来响应用户操作：
+
+- `widgetNormGeometryChanged()` - 当绘图组件的归一化几何尺寸发生变化时发出
+- `activeWidgetChanged()` - 当前激活的组件发生变化时发出
+
+这个操作蒙版为用户提供了一种直观、交互式的方式来管理和调整 `QwtFigure` 中的多个绘图组件，提升用户体验和操作效率
 
 !!! example "寄生绘图示例"
     完整的示例代码可参阅`examples/figure`

@@ -6,7 +6,8 @@
 class QwtGridRasterData::PrivateData
 {
 public:
-    using GridData = QwtGridData< double, QVector >;
+    using GridData =
+        QwtGridData< double, QVector< double >, QVector< double >, QVector< double >, QVector< QVector< double > > >;
 
 public:
     PrivateData() : resampleMode(QwtGridRasterData::NearestNeighbour)

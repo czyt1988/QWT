@@ -68,7 +68,8 @@
  * };
  *
  * // Create an instance with bicubic interpolation
- * QwtGridData<double, QVector> gridData(xAxis, yAxis, data, QwtGridData<double, QVector>::BicubicInterpolation);
+ * using QwtQVectorGridData = QwtGridData< double, QVector< double >, QVector< double >, QVector< double >, QVector<
+ * QVector< double > > >; QwtQVectorGridData gridData(xAxis, yAxis, data, QwtQVectorGridData::BicubicInterpolation);
  *
  * // Query the value at (1.5, 1.5)
  * double value = gridData(1.5, 1.5);
@@ -82,19 +83,19 @@
  * @tparam DataContainer The container type for the entire data matrix (default: same as XContainer).
  */
 template< typename T,
-          template< typename > class XContainer    = std::vector,
-          template< typename > class YContainer    = XContainer,
-          template< typename > class DataColumn    = XContainer,
-          template< typename > class DataContainer = XContainer >
+          typename XContainer    = std::vector< T >,
+          typename YContainer    = std::vector< T >,
+          typename DataColumn    = std::vector< T >,
+          typename DataContainer = std::vector< DataColumn > >
 class QwtGridData
 {
 public:
-    using value_type       = T;                ///< @brief Type of the stored values / 存储值的类型
-    using x_container_type = XContainer< T >;  ///< @brief Type of the x-axis container / x 轴容器的类型
-    using y_container_type = YContainer< T >;  ///< @brief Type of the y-axis container / y 轴容器的类型
-    using data_column_type = DataColumn< T >;  ///< @brief Type of a single column in the data matrix / 数据矩阵中单列的类型
-    using data_container_type = DataContainer< data_column_type >;  ///< @brief Type of the data matrix / 数据矩阵的类型
-    using size_type = typename DataColumn< T >::size_type;
+    using value_type       = T;           ///< @brief Type of the stored values / 存储值的类型
+    using x_container_type = XContainer;  ///< @brief Type of the x-axis container / x 轴容器的类型
+    using y_container_type = YContainer;  ///< @brief Type of the y-axis container / y 轴容器的类型
+    using data_column_type = DataColumn;  ///< @brief Type of a single column in the data matrix / 数据矩阵中单列的类型
+    using data_container_type = DataContainer;  ///< @brief Type of the data matrix / 数据矩阵的类型
+    using size_type           = typename DataColumn::size_type;
     /**
      * @brief Enumeration for resampling methods.
      *
@@ -137,9 +138,9 @@ public:
      * @param data The 2D data matrix. / 二维数据矩阵。
      * @param mode The resampling mode to use. / 要使用的抽样方法。
      */
-    QwtGridData(const XContainer< T >& xAxis,
-                const YContainer< T >& yAxis,
-                const DataContainer< DataColumn< T > >& data,
+    QwtGridData(const x_container_type& xAxis,
+                const y_container_type& yAxis,
+                const data_container_type& data,
                 ResampleMode mode = NearestNeighbour)
         : m_xAxis(xAxis), m_yAxis(yAxis), m_data(data), m_mode(mode)
     {
@@ -178,7 +179,7 @@ public:
      * @param yAxis The y-axis values. / y 轴值。
      * @param data The 2D data matrix. / 二维数据矩阵。
      */
-    void setValue(const XContainer< T >& xAxis, const YContainer< T >& yAxis, const DataContainer< DataColumn< T > >& data)
+    void setValue(const x_container_type& xAxis, const y_container_type& yAxis, const data_container_type& data)
     {
         m_xAxis = xAxis;
         m_yAxis = yAxis;
@@ -328,7 +329,7 @@ public:
      *
      * @return The x-axis values. / x 轴值。
      */
-    const XContainer< T >& xAxis() const
+    const x_container_type& xAxis() const
     {
         return m_xAxis;
     }
@@ -340,7 +341,7 @@ public:
      *
      * @return The y-axis values. / y 轴值。
      */
-    const YContainer< T >& yAxis() const
+    const y_container_type& yAxis() const
     {
         return m_yAxis;
     }
@@ -352,7 +353,7 @@ public:
      *
      * @return The data matrix. / 数据矩阵。
      */
-    const DataContainer< DataColumn< T > >& data() const
+    const data_container_type& data() const
     {
         return m_data;
     }
@@ -672,8 +673,8 @@ protected:
     }
 
 private:
-    XContainer< T > m_xAxis;  ///< @brief x-axis values / x 轴值
-    YContainer< T > m_yAxis;  ///< @brief y-axis values / y 轴值
+    x_container_type m_xAxis;  ///< @brief x-axis values / x 轴值
+    y_container_type m_yAxis;  ///< @brief y-axis values / y 轴值
     /**
      * @brief The 2D data matrix / 二维数据矩阵
      *
@@ -690,7 +691,7 @@ private:
      *      ↑          ↑      ↑       ↑
      *  xAxis[0]   xAxis[1]  ...   xAxis[m]
      */
-    DataContainer< data_column_type > m_data;
+    data_container_type m_data;
     ResampleMode m_mode;                                     ///< @brief Current resampling mode / 当前抽样方法
     T m_xMin, m_xMax, m_yMin, m_yMax, m_dataMin, m_dataMax;  ///< @brief Bounds of the grid / 网格的边界
 };
