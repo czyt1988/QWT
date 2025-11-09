@@ -25,22 +25,22 @@ class QRectF;
  */
 class QWT_EXPORT QwtScaleMap
 {
-  public:
+public:
     QwtScaleMap();
-    QwtScaleMap( const QwtScaleMap& );
+    QwtScaleMap(const QwtScaleMap&);
 
     ~QwtScaleMap();
 
-    QwtScaleMap& operator=( const QwtScaleMap& );
+    QwtScaleMap& operator=(const QwtScaleMap&);
 
-    void setTransformation( QwtTransform* );
+    void setTransformation(QwtTransform*);
     const QwtTransform* transformation() const;
 
-    void setPaintInterval( double p1, double p2 );
-    void setScaleInterval( double s1, double s2 );
+    void setPaintInterval(double p1, double p2);
+    void setScaleInterval(double s1, double s2);
 
-    double transform( double s ) const;
-    double invTransform( double p ) const;
+    double transform(double s) const;
+    double invTransform(double p) const;
 
     double p1() const;
     double p2() const;
@@ -51,27 +51,23 @@ class QWT_EXPORT QwtScaleMap
     double pDist() const;
     double sDist() const;
 
-    static QRectF transform( const QwtScaleMap&,
-        const QwtScaleMap&, const QRectF& );
+    static QRectF transform(const QwtScaleMap&, const QwtScaleMap&, const QRectF&);
 
-    static QRectF invTransform( const QwtScaleMap&,
-        const QwtScaleMap&, const QRectF& );
+    static QRectF invTransform(const QwtScaleMap&, const QwtScaleMap&, const QRectF&);
 
-    static QPointF transform( const QwtScaleMap&,
-        const QwtScaleMap&, const QPointF& );
+    static QPointF transform(const QwtScaleMap&, const QwtScaleMap&, const QPointF&);
 
-    static QPointF invTransform( const QwtScaleMap&,
-        const QwtScaleMap&, const QPointF& );
+    static QPointF invTransform(const QwtScaleMap&, const QwtScaleMap&, const QPointF&);
 
     bool isInverting() const;
 
-  private:
+private:
     void updateFactor();
 
-    double m_s1, m_s2;     // scale interval boundaries
-    double m_p1, m_p2;     // paint device interval boundaries
+    double m_s1, m_s2;  // scale interval boundaries
+    double m_p1, m_p2;  // paint device interval boundaries
 
-    double m_cnv;       // conversion factor
+    double m_cnv;  // conversion factor
     double m_ts1;
 
     QwtTransform* m_transform;
@@ -114,7 +110,7 @@ inline double QwtScaleMap::p2() const
  */
 inline double QwtScaleMap::pDist() const
 {
-    return qAbs( m_p2 - m_p1 );
+    return qAbs(m_p2 - m_p1);
 }
 
 /*!
@@ -122,7 +118,7 @@ inline double QwtScaleMap::pDist() const
  */
 inline double QwtScaleMap::sDist() const
 {
-    return qAbs( m_s2 - m_s1 );
+    return qAbs(m_s2 - m_s1);
 }
 
 /*!
@@ -134,12 +130,12 @@ inline double QwtScaleMap::sDist() const
 
    \sa invTransform()
  */
-inline double QwtScaleMap::transform( double s ) const
+inline double QwtScaleMap::transform(double s) const
 {
-    if ( m_transform )
-        s = m_transform->transform( s );
+    if (m_transform)
+        s = m_transform->transform(s);
 
-    return m_p1 + ( s - m_ts1 ) * m_cnv;
+    return m_p1 + (s - m_ts1) * m_cnv;
 }
 
 /*!
@@ -151,11 +147,11 @@ inline double QwtScaleMap::transform( double s ) const
 
    \sa transform()
  */
-inline double QwtScaleMap::invTransform( double p ) const
+inline double QwtScaleMap::invTransform(double p) const
 {
-    double s = m_ts1 + ( p - m_p1 ) / m_cnv;
-    if ( m_transform )
-        s = m_transform->invTransform( s );
+    double s = m_ts1 + (p - m_p1) / m_cnv;
+    if (m_transform)
+        s = m_transform->invTransform(s);
 
     return s;
 }
@@ -163,11 +159,11 @@ inline double QwtScaleMap::invTransform( double p ) const
 //! \return True, when ( p1() < p2() ) != ( s1() < s2() )
 inline bool QwtScaleMap::isInverting() const
 {
-    return ( ( m_p1 < m_p2 ) != ( m_s1 < m_s2 ) );
+    return ((m_p1 < m_p2) != (m_s1 < m_s2));
 }
 
 #ifndef QT_NO_DEBUG_STREAM
-QWT_EXPORT QDebug operator<<( QDebug, const QwtScaleMap& );
+QWT_EXPORT QDebug operator<<(QDebug, const QwtScaleMap&);
 #endif
 
 #endif

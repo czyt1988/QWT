@@ -16,77 +16,72 @@
 
 class QPalette;
 
-/*!
-   \brief A class which draws a scale inside the plot canvas
-
-   QwtPlotScaleItem can be used to draw an axis inside the plot canvas.
-   It might by synchronized to one of the axis of the plot, but can
-   also display its own ticks and labels.
-
-   It is allowed to synchronize the scale item with a disabled axis.
-   In plots with vertical and horizontal scale items, it might be
-   necessary to remove ticks at the intersections, by overloading
-   updateScaleDiv().
-
-   The scale might be at a specific position (f.e 0.0) or it might be
-   aligned to a canvas border.
-
-   \par Example
-    The following example shows how to replace the left axis, by a scale item
-    at the x position 0.0.
-    \code
-      QwtPlotScaleItem *scaleItem = new QwtPlotScaleItem( QwtScaleDraw::RightScale, 0.0 );
-      scaleItem->setFont( plot->axisWidget( QwtAxis::YLeft )->font() );
-      scaleItem->attach(plot);
-
-      plot->setAxisVisible( QwtAxis::YLeft, false );
-    \endcode
+/**
+ * @brief A class which draws a scale inside the plot canvas/在绘图画布内绘制刻度的类
+ *
+ * QwtPlotScaleItem can be used to draw an axis inside the plot canvas. It might by synchronized to one of the axis of the plot, but can also display its own ticks and labels.
+ *
+ * QwtPlotScaleItem 可用于在绘图画布内绘制一条坐标轴。它可以与绘图的某一轴同步，也可以显示自己的刻度和标签。
+ *
+ * It is allowed to synchronize the scale item with a disabled axis. In plots with vertical and horizontal scale items,
+ * it might be necessary to remove ticks at the intersections, by overloading updateScaleDiv().
+ *
+ * 允许将刻度项与禁用的轴同步。在同时存在垂直和水平刻度项的绘图中，可能需要通过重载 updateScaleDiv() 方法来移除交叉点处的刻度。
+ *
+ * The scale might be at a specific position (f.e 0.0) or it might be aligned to a canvas border.
+ *
+ * 刻度可以位于特定位置（例如 0.0），也可以与画布边缘对齐。
+ *
+ * @par Example
+ * The following example shows how to replace the left axis, by a scale item at the x position 0.0.
+ * 以下示例展示了如何用 x 位置为 0.0 处的刻度项替换左轴。
+ * @code
+ *   QwtPlotScaleItem *scaleItem = new QwtPlotScaleItem( QwtScaleDraw::RightScale, 0.0 );
+ *   scaleItem->setFont( plot->axisWidget( QwtAxis::YLeft )->font() );
+ *   scaleItem->attach(plot);
+ *
+ *   plot->setAxisVisible( QwtAxis::YLeft, false );
+ * @endcode
  */
-
 class QWT_EXPORT QwtPlotScaleItem : public QwtPlotItem
 {
-  public:
-    explicit QwtPlotScaleItem(
-        QwtScaleDraw::Alignment = QwtScaleDraw::BottomScale,
-        const double pos = 0.0 );
+public:
+    explicit QwtPlotScaleItem(QwtScaleDraw::Alignment = QwtScaleDraw::BottomScale, const double pos = 0.0);
 
     virtual ~QwtPlotScaleItem();
 
     virtual int rtti() const QWT_OVERRIDE;
 
-    void setScaleDiv( const QwtScaleDiv& );
+    void setScaleDiv(const QwtScaleDiv&);
     const QwtScaleDiv& scaleDiv() const;
 
-    void setScaleDivFromAxis( bool on );
+    void setScaleDivFromAxis(bool on);
     bool isScaleDivFromAxis() const;
 
-    void setPalette( const QPalette& );
+    void setPalette(const QPalette&);
     QPalette palette() const;
 
-    void setFont( const QFont& );
+    void setFont(const QFont&);
     QFont font() const;
 
-    void setScaleDraw( QwtScaleDraw* );
+    void setScaleDraw(QwtScaleDraw*);
 
     const QwtScaleDraw* scaleDraw() const;
     QwtScaleDraw* scaleDraw();
 
-    void setPosition( double pos );
+    void setPosition(double pos);
     double position() const;
 
-    void setBorderDistance( int );
+    void setBorderDistance(int);
     int borderDistance() const;
 
-    void setAlignment( QwtScaleDraw::Alignment );
+    void setAlignment(QwtScaleDraw::Alignment);
 
-    virtual void draw( QPainter*,
-        const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QRectF& canvasRect ) const QWT_OVERRIDE;
+    virtual void draw(QPainter*, const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QRectF& canvasRect) const QWT_OVERRIDE;
 
-    virtual void updateScaleDiv(
-        const QwtScaleDiv&, const QwtScaleDiv& ) QWT_OVERRIDE;
+    virtual void updateScaleDiv(const QwtScaleDiv&, const QwtScaleDiv&) QWT_OVERRIDE;
 
-  private:
+private:
     class PrivateData;
     PrivateData* m_data;
 };

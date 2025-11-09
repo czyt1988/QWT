@@ -8,6 +8,9 @@
  *****************************************************************************/
 #include <QDebug>
 #include <QtMath>
+// stl
+#include <algorithm>
+// qwt
 #include "qwt_plot.h"
 #include "qwt_plot_dict.h"
 #include "qwt_plot_layout.h"
@@ -24,6 +27,8 @@
 #include "qwt_date_scale_draw.h"
 #include "qwt_plot_transparent_canvas.h"
 #include "qwt_parasite_plot_layout.h"
+#include "qwt_plot_scale_event_dispatcher.h"
+// qt
 #include <qpainter.h>
 #include <qpointer.h>
 #include <qapplication.h>
@@ -99,12 +104,11 @@ public:
     QPointer< QWidget > canvas;
     QPointer< QwtAbstractLegend > legend;
     QwtPlotLayout* layout;
+    QwtPlotScaleEventDispatcher* scaleEventDispatcher { nullptr };
 
     bool autoReplot;
 
-    QPointer< QwtPlot > hostPlot;
-    QList< QPointer< QwtPlot > > parasitePlots;
-
+    bool isParasitePlot { false };                                ///< 标记这个绘图是寄生绘图
     QMetaObject::Connection shareConn[ QwtAxis::AxisPositions ];  // 记录寄生轴和宿主轴坐标同步的信号槽，仅仅针对寄生轴有用
 };
 
@@ -140,13 +144,6 @@ QwtPlot::~QwtPlot()
 {
     setAutoReplot(false);
     detachItems(QwtPlotItem::Rtti_PlotItem, autoDelete());
-    // qwt7.0 宿主销毁，寄生也要随之销毁
-    for (QwtPlot* parasitePlot : qAsConst(m_data->parasitePlots)) {
-        if (parasitePlot) {
-            parasitePlot->hide();
-            parasitePlot->deleteLater();
-        }
-    }
     delete m_data->layout;
     deleteAxesData();
 }
@@ -202,6 +199,8 @@ void QwtPlot::initPlot(const QwtText& title)
         qwtSetTabOrder(focusChain[ i ], focusChain[ i + 1 ], false);
 
     qwtEnableLegendItems(this, true);
+    // 默认安装一个事件转发器
+    setupScaleEventDispatcher(new QwtPlotScaleEventDispatcher(this, this));
 }
 
 /*!
@@ -574,8 +573,18 @@ void QwtPlot::replot()
             m_data->canvas->update(m_data->canvas->contentsRect());
         }
     }
-
     setAutoReplot(doAutoReplot);
+}
+
+/**
+ * @brief 重绘所有绘图
+ */
+void QwtPlot::replotAll()
+{
+    const QList< QwtPlot* > allPlot = plotList();
+    for (QwtPlot* plot : allPlot) {
+        plot->replot();
+    }
 }
 
 /*!
@@ -710,13 +719,8 @@ void QwtPlot::getCanvasMarginsHint(const QwtScaleMap maps[],
             using namespace QwtAxis;
 
             double m[ AxisPositions ];
-            item->getCanvasMarginHint(maps[ item->xAxis() ],
-                                      maps[ item->yAxis() ],
-                                      canvasRect,
-                                      m[ YLeft ],
-                                      m[ XTop ],
-                                      m[ YRight ],
-                                      m[ XBottom ]);
+            item->getCanvasMarginHint(
+                maps[ item->xAxis() ], maps[ item->yAxis() ], canvasRect, m[ YLeft ], m[ XTop ], m[ YRight ], m[ XBottom ]);
 
             left   = qwtMaxF(left, m[ YLeft ]);
             top    = qwtMaxF(top, m[ XTop ]);
@@ -743,7 +747,8 @@ void QwtPlot::updateCanvasMargins()
         maps[ axisId ] = canvasMap(axisId);
 
     double margins[ AxisPositions ];
-    getCanvasMarginsHint(maps, canvas()->contentsRect(), margins[ YLeft ], margins[ XTop ], margins[ YRight ], margins[ XBottom ]);
+    getCanvasMarginsHint(
+        maps, canvas()->contentsRect(), margins[ YLeft ], margins[ XTop ], margins[ YRight ], margins[ XBottom ]);
 
     bool doUpdate = false;
     for (int axisPos = 0; axisPos < AxisPositions; axisPos++) {
@@ -1218,10 +1223,9 @@ void QwtPlot::addParasitePlot(QwtPlot* parasite)
     if (parasite->parentWidget() != this) {
         parasite->setParent(this);
     }
-    if (!m_data->parasitePlots.contains(parasite)) {
-        m_data->parasitePlots.append(parasite);
-        parasite->setHostPlot(this);
-    }
+    // 设定为寄生绘图
+    parasite->m_data->isParasitePlot = true;
+
     // 设置后对寄生轴要进行一次布局
     updateAxisEdgeMargin();
     updateLayout();
@@ -1281,8 +1285,8 @@ void QwtPlot::removeParasitePlot(QwtPlot* parasite)
     if (!parasite) {
         return;
     }
-    m_data->parasitePlots.removeAll(parasite);
-    parasite->setHostPlot(nullptr);
+    // 移除时，把绘图的寄生标记设置为false；
+    parasite->m_data->isParasitePlot = false;
     updateAxisEdgeMargin();
     updateLayout();
 }
@@ -1312,11 +1316,33 @@ void QwtPlot::removeParasitePlot(QwtPlot* parasite)
  */
 QList< QwtPlot* > QwtPlot::parasitePlots() const
 {
-    QList< QwtPlot* > ret;
-    for (const auto& p : qAsConst(m_data->parasitePlots)) {
-        ret.append(p.data());
+    return findChildren< QwtPlot* >(QString(), Qt::FindDirectChildrenOnly);
+}
+
+/**
+ * @brief 返回所有绘图,包含宿主绘图
+ *
+ * descending=false,增序返回，宿主绘图在第一个，层级越低越靠前，如果descending=true，那么降序返回，宿主在最末端
+ * @param descending
+ * @return
+ */
+QList< QwtPlot* > QwtPlot::plotList(bool descending) const
+{
+    QList< QwtPlot* > plotsByOrder;
+    QwtPlot* host = hostPlot();
+    if (!host) {
+        // 说明bindedPlot是宿主
+        QwtPlot* that = const_cast< QwtPlot* >(this);
+        plotsByOrder.append(that);
+        host = that;
+    } else {
+        plotsByOrder.append(host);
     }
-    return ret;
+    plotsByOrder += host->parasitePlots();
+    if (descending) {
+        std::reverse(plotsByOrder.begin(), plotsByOrder.end());
+    }
+    return plotsByOrder;
 }
 
 /**
@@ -1326,7 +1352,8 @@ QList< QwtPlot* > QwtPlot::parasitePlots() const
  */
 QwtPlot* QwtPlot::parasitePlotAt(int index) const
 {
-    return m_data->parasitePlots.value(index, nullptr);
+    const QList< QwtPlot* > ps = parasitePlots();
+    return ps.value(index, nullptr);
 }
 
 /**
@@ -1340,33 +1367,8 @@ QwtPlot* QwtPlot::parasitePlotAt(int index) const
  */
 int QwtPlot::parasitePlotIndex(QwtPlot* parasite) const
 {
-    if (!isHostPlot()) {
-        return -1;
-    }
-    return m_data->parasitePlots.indexOf(parasite);
-}
-
-/**
- * @brief Set the host plot for this parasite plot/设置此寄生绘图的宿主绘图
- *
- * This method establishes this plot as a parasite of the specified host plot.
- * The plot will automatically synchronize its geometry with the host plot.
- *
- * 此方法将此绘图设置为指定宿主绘图的寄生绘图。
- * 该绘图将自动同步其几何形状与宿主绘图。
- *
- * @param host Pointer to the host QwtPlot/指向宿主QwtPlot的指针
- *
- * @note This method is typically called internally by QwtPlot::addParasitePlot().
- *       此方法通常由QwtPlot::addParasitePlot()内部调用。
- *
- *
- * @see hostPlot()
- */
-void QwtPlot::setHostPlot(QwtPlot* host)
-{
-    m_data->hostPlot = host;
-    host->installEventFilter(this);  // 绑定宿主的resize事件，让宿主变换位置时同步移动寄生图
+    const QList< QwtPlot* > ps = parasitePlots();
+    return ps.indexOf(parasite);
 }
 
 /**
@@ -1383,7 +1385,10 @@ void QwtPlot::setHostPlot(QwtPlot* host)
  */
 QwtPlot* QwtPlot::hostPlot() const
 {
-    return m_data->hostPlot.data();
+    if (isParasitePlot()) {
+        return qobject_cast< QwtPlot* >(parentWidget());
+    }
+    return nullptr;
 }
 
 /**
@@ -1400,7 +1405,7 @@ QwtPlot* QwtPlot::hostPlot() const
  */
 bool QwtPlot::isParasitePlot() const
 {
-    return (m_data->hostPlot != nullptr);
+    return (m_data->isParasitePlot);
 }
 
 /**
@@ -1421,7 +1426,7 @@ bool QwtPlot::isParasitePlot() const
  */
 bool QwtPlot::isHostPlot() const
 {
-    return (m_data->hostPlot == nullptr);
+    return !(m_data->isParasitePlot);
 }
 
 /**
@@ -1693,7 +1698,8 @@ void QwtPlot::alignToHost()
  */
 int QwtPlot::parasitePlotCount() const
 {
-    return m_data->parasitePlots.size();
+    const QList< QwtPlot* > ps = parasitePlots();
+    return ps.size();
 }
 
 /**
@@ -1933,4 +1939,40 @@ QwtPlotItem* QwtPlot::infoToItem(const QVariant& itemInfo) const
         return qvariant_cast< QwtPlotItem* >(itemInfo);
 
     return NULL;
+}
+
+/**
+ * @brief 设置坐标轴事件是否可用
+ *
+ * 坐标轴事件是坐标轴内置的几个事件动作，主要是点击移动坐标轴，鼠标滚轮缩放等功能
+ *
+ * @param on
+ */
+void QwtPlot::setEnableScaleBuildinActions(bool on)
+{
+    m_data->scaleEventDispatcher->setEnable(on);
+}
+
+/**
+ * @brief 判断坐标轴缩放事件
+ * @return
+ */
+bool QwtPlot::isEnableScaleBuildinActions() const
+{
+    return m_data->scaleEventDispatcher->isEnable();
+}
+
+/**
+ * @brief 安装坐标轴事件转发器
+ * @param dispatcher
+ */
+void QwtPlot::setupScaleEventDispatcher(QwtPlotScaleEventDispatcher* dispatcher)
+{
+    if (m_data->scaleEventDispatcher) {
+        removeEventFilter(m_data->scaleEventDispatcher);
+    }
+    m_data->scaleEventDispatcher = dispatcher;
+    if (dispatcher) {
+        installEventFilter(dispatcher);
+    }
 }

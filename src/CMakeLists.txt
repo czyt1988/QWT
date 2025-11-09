@@ -204,6 +204,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_layout_engine.h
         qwt_plot_layout.h
         qwt_parasite_plot_layout.h
+        qwt_plot_scale_event_dispatcher.h
         qwt_plot_marker.h
         qwt_plot_zoneitem.h
         qwt_plot_textlabel.h
@@ -272,6 +273,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_layout_engine.cpp
         qwt_plot_layout.cpp
         qwt_parasite_plot_layout.cpp
+        qwt_plot_scale_event_dispatcher.cpp
         qwt_plot_abstract_canvas.cpp
         qwt_plot_canvas.cpp
         qwt_plot_transparent_canvas.cpp

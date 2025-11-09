@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.5)
 ########################################################
 set(QWT_VERSION_MAJOR 7)
 set(QWT_VERSION_MINOR 0)
-set(QWT_VERSION_PATCH 4)
+set(QWT_VERSION_PATCH 5)
 set(QWT_VERSION "${QWT_VERSION_MAJOR}.${QWT_VERSION_MINOR}.${QWT_VERSION_PATCH}")
 message(STATUS "QWT Version is ${QWT_VERSION}")
 
@@ -64,7 +64,7 @@ endif()
 ########################################################
 # 安装路径设置
 ########################################################
-set(QWT_MIN_QT_VERSION 5.14)
+set(QWT_MIN_QT_VERSION 5.10)
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
 if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
     set(QWT_PLATFORM_NAME "x86")

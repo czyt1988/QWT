@@ -26,6 +26,8 @@ class QwtScaleDraw;
 class QwtTextLabel;
 class QwtInterval;
 class QwtText;
+class QwtPlotScaleEventDispatcher;
+
 template< typename T >
 class QList;
 
@@ -188,8 +190,8 @@ public:
     QwtScaleWidget* axisWidget(QwtAxisId);
 
     // 获取一个有效的x轴，有效的定义顺序：1.可见、2.XBottom优先、3.指针有效，因此如果xBotton和xTop都可见时，先放回xBottom
-    QwtAxisId validXAxisId() const;
-    QwtAxisId validYAxisId() const;
+    QwtAxisId visibleXAxisId() const;
+    QwtAxisId visibleYAxisId() const;
 
     void setAxisLabelAlignment(QwtAxisId, Qt::Alignment);
     void setAxisLabelRotation(QwtAxisId, double rotation);
@@ -255,7 +257,8 @@ public:
 
     // Get all parasite plots associated with this host plot/获取与此宿主绘图关联的所有寄生绘图
     QList< QwtPlot* > parasitePlots() const;
-
+    // 返回所有绘图,包含宿主绘图，descending=false,增序返回，宿主绘图在第一个，层级越低越靠前，如果descending=true，那么降序返回，宿主在最末端
+    QList< QwtPlot* > plotList(bool descending = true) const;
     // 获取第n个宿主轴
     QwtPlot* parasitePlotAt(int index) const;
 
@@ -301,6 +304,13 @@ public:
     // 更新宿主轴和寄生轴的偏移
     void updateAxisEdgeMargin(QwtAxisId axisId);
     void updateAxisEdgeMargin();
+    // 更新绘图上的items，让其适配scaleDiv的范围
+    void updateItemsToScaleDiv();
+    // 坐标轴事件使能
+    void setEnableScaleBuildinActions(bool on);
+    bool isEnableScaleBuildinActions() const;
+    // 设置坐标轴事件转发器，这个是实现坐标轴事件的主要管理类
+    void setupScaleEventDispatcher(QwtPlotScaleEventDispatcher* dispatcher);
 #if QWT_AXIS_COMPAT
     enum Axis
     {
@@ -347,6 +357,8 @@ Q_SIGNALS:
 public Q_SLOTS:
     virtual void replot();
     void autoRefresh();
+    // 重绘所有绘图，包括寄生绘图或者宿主绘图
+    virtual void replotAll();
 
 protected:
     virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
@@ -356,11 +368,12 @@ protected:
     void initParasiteAxes(QwtPlot* parasitePlot) const;
     // updateLayout的具体实现
     void doLayout();
-    // Set the host plot for this parasite plot/设置此寄生绘图的宿主绘图
-    void setHostPlot(QwtPlot* host);
-
 private Q_SLOTS:
     void updateLegendItems(const QVariant& itemInfo, const QList< QwtLegendData >& legendData);
+    void yLeftRequestScaleRangeUpdate(double min, double max);
+    void yRightRequestScaleRangeUpdate(double min, double max);
+    void xBottomRequestScaleRangeUpdate(double min, double max);
+    void xTopRequestScaleRangeUpdate(double min, double max);
 
 private:
     friend class QwtPlotItem;
@@ -368,7 +381,6 @@ private:
 
     void initAxesData();
     void deleteAxesData();
-    void updateScaleDiv();
 
     void initPlot(const QwtText& title);
 

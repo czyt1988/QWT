@@ -23,7 +23,8 @@ class QwtLegendData;
 class QRectF;
 class QPainter;
 class QString;
-template< typename T > class QList;
+template< typename T >
+class QList;
 
 /*!
    \brief Base class for items on the plot canvas
@@ -65,7 +66,7 @@ template< typename T > class QList;
 
 class QWT_EXPORT QwtPlotItem
 {
-  public:
+public:
     /*!
         \brief Runtime type information
 
@@ -164,40 +165,41 @@ class QWT_EXPORT QwtPlotItem
         Margins = 0x04
     };
 
-    Q_DECLARE_FLAGS( ItemAttributes, ItemAttribute )
+    Q_DECLARE_FLAGS(ItemAttributes, ItemAttribute)
 
-    /*!
-       \brief Plot Item Interests
-
-       Plot items might depend on the situation of the corresponding
-       plot widget. By enabling an interest the plot item will be
-       notified, when the corresponding attribute of the plot widgets
-       has changed.
-
-       \sa setItemAttribute(), testItemAttribute(), ItemInterest
+    /**
+     * @brief Plot Item Interests/绘图项关注的事件类型
+     *
+     * Plot items might depend on the situation of the corresponding plot widget. By enabling an interest the plot item
+     * will be notified, when the corresponding attribute of the plot widgets has changed.
+     *
+     * 绘图项可能依赖于对应绘图部件的状态。通过启用某个关注事件，当绘图部件的对应属性发生变化时，绘图项将收到通知。
+     *
+     * @sa setItemAttribute(), testItemAttribute(), ItemInterest
      */
     enum ItemInterest
     {
         /*!
-           The item is interested in updates of the scales
+           The item is interested in updates of the scales/该绘图项关注刻度的更新
            \sa updateScaleDiv()
          */
         ScaleInterest = 0x01,
 
         /*!
-           The item is interested in updates of the legend ( of other items )
-           This flag is intended for items, that want to implement a legend
-           for displaying entries of other plot item.
+           The item is interested in updates of the legend ( of other items )/该绘图项关注图例的更新（其他项的图例）
+           This flag is intended for items, that want to implement a legend for displaying entries of other plot item.
 
-           \note If the plot item wants to be represented on a legend
-                 enable QwtPlotItem::Legend instead.
+           此标志适用于那些希望实现图例以显示其他绘图项条目的绘图项。
+
+           \note If the plot item wants to be represented on a legend enable QwtPlotItem::Legend instead.
+           \note 若绘图项自身希望在图例中显示，请启用 QwtPlotItem::Legend 标志。
 
            \sa updateLegend()
          */
         LegendInterest = 0x02
     };
 
-    Q_DECLARE_FLAGS( ItemInterests, ItemInterest )
+    Q_DECLARE_FLAGS(ItemInterests, ItemInterest)
 
     //! Render hints
     enum RenderHint
@@ -206,54 +208,54 @@ class QWT_EXPORT QwtPlotItem
         RenderAntialiased = 0x1
     };
 
-    Q_DECLARE_FLAGS( RenderHints, RenderHint )
+    Q_DECLARE_FLAGS(RenderHints, RenderHint)
 
     explicit QwtPlotItem();
-    explicit QwtPlotItem( const QString& title );
-    explicit QwtPlotItem( const QwtText& title );
+    explicit QwtPlotItem(const QString& title);
+    explicit QwtPlotItem(const QwtText& title);
 
     virtual ~QwtPlotItem();
 
-    void attach( QwtPlot* plot );
+    void attach(QwtPlot* plot);
     void detach();
 
     QwtPlot* plot() const;
 
-    void setTitle( const QString& title );
-    void setTitle( const QwtText& title );
+    void setTitle(const QString& title);
+    void setTitle(const QwtText& title);
     const QwtText& title() const;
 
     virtual int rtti() const;
 
-    void setItemAttribute( ItemAttribute, bool on = true );
-    bool testItemAttribute( ItemAttribute ) const;
+    void setItemAttribute(ItemAttribute, bool on = true);
+    bool testItemAttribute(ItemAttribute) const;
 
-    void setItemInterest( ItemInterest, bool on = true );
-    bool testItemInterest( ItemInterest ) const;
+    void setItemInterest(ItemInterest, bool on = true);
+    bool testItemInterest(ItemInterest) const;
 
-    void setRenderHint( RenderHint, bool on = true );
-    bool testRenderHint( RenderHint ) const;
+    void setRenderHint(RenderHint, bool on = true);
+    bool testRenderHint(RenderHint) const;
 
-    void setRenderThreadCount( uint numThreads );
+    void setRenderThreadCount(uint numThreads);
     uint renderThreadCount() const;
 
-    void setLegendIconSize( const QSize& );
+    void setLegendIconSize(const QSize&);
     QSize legendIconSize() const;
 
     double z() const;
-    void setZ( double z );
+    void setZ(double z);
 
     void show();
     void hide();
-    virtual void setVisible( bool );
-    bool isVisible () const;
+    virtual void setVisible(bool);
+    bool isVisible() const;
 
-    void setAxes( QwtAxisId xAxis, QwtAxisId yAxis );
+    void setAxes(QwtAxisId xAxis, QwtAxisId yAxis);
 
-    void setXAxis( QwtAxisId );
+    void setXAxis(QwtAxisId);
     QwtAxisId xAxis() const;
 
-    void setYAxis( QwtAxisId );
+    void setYAxis(QwtAxisId);
     QwtAxisId yAxis() const;
 
     virtual void itemChanged();
@@ -267,44 +269,43 @@ class QWT_EXPORT QwtPlotItem
        \param yMap Maps y-values into pixel coordinates.
        \param canvasRect Contents rect of the canvas in painter coordinates
      */
-    virtual void draw( QPainter* painter,
-        const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QRectF& canvasRect ) const = 0;
+    virtual void draw(QPainter* painter, const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QRectF& canvasRect) const = 0;
 
     virtual QRectF boundingRect() const;
 
-    virtual void getCanvasMarginHint(
-        const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QRectF& canvasRect,
-        double& left, double& top, double& right, double& bottom) const;
+    virtual void getCanvasMarginHint(const QwtScaleMap& xMap,
+                                     const QwtScaleMap& yMap,
+                                     const QRectF& canvasRect,
+                                     double& left,
+                                     double& top,
+                                     double& right,
+                                     double& bottom) const;
 
-    virtual void updateScaleDiv(
-        const QwtScaleDiv&, const QwtScaleDiv& );
+    virtual void updateScaleDiv(const QwtScaleDiv&, const QwtScaleDiv&);
 
-    virtual void updateLegend( const QwtPlotItem*,
-        const QList< QwtLegendData >& );
+    virtual void updateLegend(const QwtPlotItem*, const QList< QwtLegendData >&);
 
-    QRectF scaleRect( const QwtScaleMap&, const QwtScaleMap& ) const;
-    QRectF paintRect( const QwtScaleMap&, const QwtScaleMap& ) const;
+    QRectF scaleRect(const QwtScaleMap&, const QwtScaleMap&) const;
+    QRectF paintRect(const QwtScaleMap&, const QwtScaleMap&) const;
 
     virtual QList< QwtLegendData > legendData() const;
 
-    virtual QwtGraphic legendIcon( int index, const QSizeF& ) const;
+    virtual QwtGraphic legendIcon(int index, const QSizeF&) const;
 
-  protected:
-    QwtGraphic defaultIcon( const QBrush&, const QSizeF& ) const;
+protected:
+    QwtGraphic defaultIcon(const QBrush&, const QSizeF&) const;
 
-  private:
+private:
     Q_DISABLE_COPY(QwtPlotItem)
 
     class PrivateData;
     PrivateData* m_data;
 };
 
-Q_DECLARE_OPERATORS_FOR_FLAGS( QwtPlotItem::ItemAttributes )
-Q_DECLARE_OPERATORS_FOR_FLAGS( QwtPlotItem::ItemInterests )
-Q_DECLARE_OPERATORS_FOR_FLAGS( QwtPlotItem::RenderHints )
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtPlotItem::ItemAttributes)
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtPlotItem::ItemInterests)
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtPlotItem::RenderHints)
 
-Q_DECLARE_METATYPE( QwtPlotItem* )
+Q_DECLARE_METATYPE(QwtPlotItem*)
 
 #endif

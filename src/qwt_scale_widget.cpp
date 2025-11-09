@@ -23,43 +23,49 @@
 #include <qstyleoption.h>
 #include <qapplication.h>
 #include <qmargins.h>
+#include <QDebug>
 
 #ifndef QWTSCALEWIDGET_DEBUG_DRAW
 #define QWTSCALEWIDGET_DEBUG_DRAW 0
 #endif
 class QwtScaleWidget::PrivateData
 {
+    QWT_DECLARE_PUBLIC(QwtScaleWidget)
 public:
-    PrivateData() : scaleDraw(NULL)
+    PrivateData(QwtScaleWidget* p) : q_ptr(p)
     {
-        colorBar.colorMap = NULL;
     }
 
     ~PrivateData()
     {
-        delete scaleDraw;
-        delete colorBar.colorMap;
     }
 
-    QwtScaleDraw* scaleDraw;
+    std::unique_ptr< QwtScaleDraw > scaleDraw;
 
     int borderDist[ 2 ];
     int minBorderDist[ 2 ];
-    int scaleLength;
-    int margin;
-    int edgeMargin;
-    int titleOffset;
-    int spacing;
+    int scaleLength { 0 };
+    int margin { 0 };
+    int edgeMargin { 0 };
+    int titleOffset { 0 };
+    int spacing { 2 };
     QwtText title;
 
     QwtScaleWidget::LayoutFlags layoutFlags;
 
+    // 内置动作新增的 交互相关成员
+    bool isSelected { false };
+
+    double zoomFactor { 1.2 };  ///< 缩放系数
+    QwtScaleWidget::BuiltinActionsFlags builtinActions { QwtScaleWidget::ActionAll };
+    QColor selectionColor { Qt::blue };
+
     struct t_colorBar
     {
-        bool isEnabled;
-        int width;
+        bool isEnabled { false };
+        int width { 10 };
         QwtInterval interval;
-        QwtColorMap* colorMap;
+        std::unique_ptr< QwtColorMap > colorMap;
     } colorBar;
 };
 
@@ -67,7 +73,7 @@ public:
    \brief Create a scale with the position QwtScaleWidget::Left
    \param parent Parent widget
  */
-QwtScaleWidget::QwtScaleWidget(QWidget* parent) : QWidget(parent)
+QwtScaleWidget::QwtScaleWidget(QWidget* parent) : QWidget(parent), QWT_PIMPL_CONSTRUCT
 {
     initScale(QwtScaleDraw::LeftScale);
 }
@@ -77,7 +83,7 @@ QwtScaleWidget::QwtScaleWidget(QWidget* parent) : QWidget(parent)
    \param align Alignment.
    \param parent Parent widget
  */
-QwtScaleWidget::QwtScaleWidget(QwtScaleDraw::Alignment align, QWidget* parent) : QWidget(parent)
+QwtScaleWidget::QwtScaleWidget(QwtScaleDraw::Alignment align, QWidget* parent) : QWidget(parent), QWT_PIMPL_CONSTRUCT
 {
     initScale(align);
 }
@@ -85,47 +91,148 @@ QwtScaleWidget::QwtScaleWidget(QwtScaleDraw::Alignment align, QWidget* parent) :
 //! Destructor
 QwtScaleWidget::~QwtScaleWidget()
 {
-    delete m_data;
 }
 
 //! Initialize the scale
 void QwtScaleWidget::initScale(QwtScaleDraw::Alignment align)
 {
-    m_data = new PrivateData;
-
+    QWT_D(d);
     if (align == QwtScaleDraw::RightScale)
-        m_data->layoutFlags |= TitleInverted;
+        d->layoutFlags |= TitleInverted;
 
-    m_data->borderDist[ 0 ]    = 0;
-    m_data->borderDist[ 1 ]    = 0;
-    m_data->minBorderDist[ 0 ] = 0;
-    m_data->minBorderDist[ 1 ] = 0;
-    m_data->margin             = 0;
-    m_data->edgeMargin         = 0;
-    m_data->titleOffset        = 0;
-    m_data->spacing            = 2;
+    d->borderDist[ 0 ]    = 0;
+    d->borderDist[ 1 ]    = 0;
+    d->minBorderDist[ 0 ] = 0;
+    d->minBorderDist[ 1 ] = 0;
 
-    m_data->scaleDraw = new QwtScaleDraw;
-    m_data->scaleDraw->setAlignment(align);
-    m_data->scaleDraw->setLength(10);
+    d->scaleDraw = qwt_make_unique< QwtScaleDraw >();
+    d->scaleDraw->setAlignment(align);
+    d->scaleDraw->setLength(10);
 
-    m_data->scaleDraw->setScaleDiv(QwtLinearScaleEngine().divideScale(0.0, 100.0, 10, 5));
+    d->scaleDraw->setScaleDiv(QwtLinearScaleEngine().divideScale(0.0, 100.0, 10, 5));
 
-    m_data->colorBar.colorMap  = new QwtLinearColorMap();
-    m_data->colorBar.isEnabled = false;
-    m_data->colorBar.width     = 10;
+    d->colorBar.colorMap = qwt_make_unique< QwtLinearColorMap >();
 
     const int flags = Qt::AlignHCenter | Qt::TextExpandTabs | Qt::TextWordWrap;
-    m_data->title.setRenderFlags(flags);
-    m_data->title.setFont(font());
+    d->title.setRenderFlags(flags);
+    d->title.setFont(font());
 
     QSizePolicy policy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
-    if (m_data->scaleDraw->orientation() == Qt::Vertical)
+    if (d->scaleDraw->orientation() == Qt::Vertical)
         policy.transpose();
 
     setSizePolicy(policy);
 
     setAttribute(Qt::WA_WState_OwnSizePolicy, false);
+}
+
+void QwtScaleWidget::doZoom(double factor, const QPoint& centerPos)
+{
+    const QwtScaleDiv& currentDiv = m_data->scaleDraw->scaleDiv();
+    const double centerValue      = mapPosToScaleValue(centerPos);
+    const double currentWidth     = currentDiv.upperBound() - currentDiv.lowerBound();
+    const double newWidth         = currentWidth / factor;
+
+    // 防止过度缩放
+    if (newWidth < 1e-8 || newWidth > 1e8) {
+        return;
+    }
+
+    const double newLower = centerValue - (centerValue - currentDiv.lowerBound()) / factor;
+    const double newUpper = centerValue + (currentDiv.upperBound() - centerValue) / factor;
+
+    Q_EMIT requestScaleRangeUpdate(newLower, newUpper);
+}
+
+/**
+ * @brief 按照像素移动坐标轴
+ * @param deltaPixels 移动的像素
+ * @note 此函数会发射@ref requestScaleRangeUpdate 信号请求绘图的改变
+ */
+void QwtScaleWidget::panScale(int deltaPixels)
+{
+    const QwtScaleDraw* sd = m_data->scaleDraw.get();
+    if (!sd) {
+        return;
+    }
+    // 对于垂直轴，需要考虑坐标方向
+    // 数学坐标系：向上移动应该是正值，但屏幕坐标系向下移动是正值
+    // 所以需要取反
+    // 水平轴向右移动，实际是刻度在减，也是负值，因此这里都是负值
+    const double valueDist        = mapLengthToScaleValue(-deltaPixels);
+    const QwtScaleDiv& currentDiv = sd->scaleDiv();
+    Q_EMIT requestScaleRangeUpdate(currentDiv.lowerBound() + valueDist, currentDiv.upperBound() + valueDist);
+}
+
+/**
+ * @brief 坐标轴放大
+ * @param centerPos
+ */
+void QwtScaleWidget::zoomIn(const QPoint& centerPos)
+{
+    doZoom(m_data->zoomFactor, centerPos);
+}
+
+/**
+ * @brief  坐标轴缩小
+ * @param centerPos
+ */
+void QwtScaleWidget::zoomOut(const QPoint& centerPos)
+{
+    doZoom(1.0 / m_data->zoomFactor, centerPos);
+}
+
+/**
+ * @brief 把当前scalewidget窗口上的屏幕点映射到坐标轴上的值
+ * @param pos 窗口上的点
+ * @return 坐标轴上的值
+ */
+double QwtScaleWidget::mapPosToScaleValue(const QPoint& pos) const
+{
+    const QwtScaleDraw* sd = m_data->scaleDraw.get();
+    if (!sd) {
+        return 0.0;
+    }
+    const QwtScaleMap& scaleMap = sd->scaleMap();
+
+    QRectF scaleRect = contentsRect();
+    if (sd->orientation() == Qt::Vertical) {
+        scaleRect.setTop(scaleRect.top() + m_data->borderDist[ 0 ]);
+        scaleRect.setHeight(scaleRect.height() - m_data->borderDist[ 0 ] - m_data->borderDist[ 1 ]);
+        return scaleMap.invTransform(pos.y() - scaleRect.top());
+    } else {
+        scaleRect.setLeft(scaleRect.left() + m_data->borderDist[ 0 ]);
+        scaleRect.setWidth(scaleRect.width() - m_data->borderDist[ 0 ] - m_data->borderDist[ 1 ]);
+        return scaleMap.invTransform(pos.x() - scaleRect.left());
+    }
+}
+
+/**
+ * @brief 把当前scalewidget窗口上的屏幕长度映射到坐标轴上的长度值
+ * @param length 屏幕长度
+ * @return 坐标轴的长度值
+ */
+double QwtScaleWidget::mapLengthToScaleValue(double length) const
+{
+    const QwtScaleDraw* sd = m_data->scaleDraw.get();
+    if (!sd) {
+        return 0.0;
+    }
+    const QwtScaleMap& map = sd->scaleMap();
+    const double valueDist = map.invTransform(length) - map.invTransform(0);
+    return valueDist;
+}
+
+/**
+ * @brief 判断鼠标位置是否落在“纯刻度区域”
+ * @param pos 鼠标位置（相对于本 QWidget 的坐标）
+ * @return true  落在刻度上
+ *         false 落在 margin、edgeMargin、标题、colorBar 等空白处
+ */
+bool QwtScaleWidget::isOnScale(const QPoint& pos) const
+{
+    QRect cr = scaleRect();
+    return cr.contains(pos);
 }
 
 /*!
@@ -296,10 +403,10 @@ void QwtScaleWidget::setLabelRotation(double rotation)
  */
 void QwtScaleWidget::setScaleDraw(QwtScaleDraw* scaleDraw)
 {
-    if ((scaleDraw == NULL) || (scaleDraw == m_data->scaleDraw))
+    const QwtScaleDraw* sd = m_data->scaleDraw.get();
+    if ((scaleDraw == NULL) || (scaleDraw == sd)) {
         return;
-
-    const QwtScaleDraw* sd = m_data->scaleDraw;
+    }
     if (sd) {
         scaleDraw->setAlignment(sd->alignment());
         scaleDraw->setScaleDiv(sd->scaleDiv());
@@ -311,8 +418,7 @@ void QwtScaleWidget::setScaleDraw(QwtScaleDraw* scaleDraw)
         scaleDraw->setTransformation(transform);
     }
 
-    delete m_data->scaleDraw;
-    m_data->scaleDraw = scaleDraw;
+    m_data->scaleDraw.reset(scaleDraw);
 
     layoutScale();
 }
@@ -323,7 +429,7 @@ void QwtScaleWidget::setScaleDraw(QwtScaleDraw* scaleDraw)
  */
 const QwtScaleDraw* QwtScaleWidget::scaleDraw() const
 {
-    return m_data->scaleDraw;
+    return m_data->scaleDraw.get();
 }
 
 /*!
@@ -332,7 +438,7 @@ const QwtScaleDraw* QwtScaleWidget::scaleDraw() const
  */
 QwtScaleDraw* QwtScaleWidget::scaleDraw()
 {
-    return m_data->scaleDraw;
+    return m_data->scaleDraw.get();
 }
 
 /*!
@@ -536,6 +642,68 @@ QRectF QwtScaleWidget::colorBarRect(const QRectF& rect) const
     return cr;
 }
 
+/**
+ * @brief 去除了colorBar,margin,edgeMargin,BorderDistHint这些区域的矩形，也就是用来绘制刻度的区域
+ * @return
+ */
+QRect QwtScaleWidget::scaleRect() const
+{
+    if (!m_data->scaleDraw)  // 无刻度对象
+        return QRect();
+
+    /* 1. 内容区，去掉外围的 contentsMargins() */
+    QRect cr = contentsRect();
+
+    /* 2. 再去掉用户设定的 borderDist（刻度两端留空） */
+    int bd0, bd1;
+    getBorderDistHint(bd0, bd1);  // 最小必需距离
+    bd0 = qMax(bd0, m_data->borderDist[ 0 ]);
+    bd1 = qMax(bd1, m_data->borderDist[ 1 ]);
+
+    if (m_data->scaleDraw->orientation() == Qt::Vertical) {
+        cr.adjust(0, bd0, 0, -bd1);  // 上下两端
+    } else {
+        cr.adjust(bd0, 0, -bd1, 0);  // 左右两端
+    }
+
+    /* 3. 再去掉 colorBar 占用的区域（如果启用） */
+    if (m_data->colorBar.isEnabled && m_data->colorBar.width > 0 && m_data->colorBar.interval.isValid()) {
+        const int cw = m_data->colorBar.width + m_data->spacing;
+        switch (m_data->scaleDraw->alignment()) {
+        case QwtScaleDraw::LeftScale:
+            cr.adjust(0, 0, -cw, 0);  // 右边减掉
+            break;
+        case QwtScaleDraw::RightScale:
+            cr.adjust(cw, 0, 0, 0);  // 左边减掉
+            break;
+        case QwtScaleDraw::TopScale:
+            cr.adjust(0, cw, 0, 0);  // 下边减掉
+            break;
+        case QwtScaleDraw::BottomScale:
+            cr.adjust(0, 0, 0, -cw);  // 上边减掉
+            break;
+        }
+    }
+
+    /* 4. 去掉margin和edgeMargin */
+    switch (m_data->scaleDraw->alignment()) {
+    case QwtScaleDraw::LeftScale:
+        cr.adjust(m_data->edgeMargin, 0, -(m_data->margin), 0);  // 右边减掉margin,左边减掉edgeMargin
+        break;
+    case QwtScaleDraw::RightScale:
+        cr.adjust(m_data->margin, 0, -(m_data->edgeMargin), 0);  // 左边减掉margin,右边减掉edgeMargin
+        break;
+    case QwtScaleDraw::TopScale:
+        cr.adjust(0, m_data->edgeMargin, 0, -(m_data->margin));  // 下边减掉margin,上边减掉edgeMargin
+        break;
+    case QwtScaleDraw::BottomScale:
+        cr.adjust(0, m_data->margin, 0, -(m_data->edgeMargin));  // 上边减掉margin,下边减掉edgeMargin
+        break;
+    }
+
+    return cr;
+}
+
 /*!
    Change Event handler
    \param event Change event
@@ -633,6 +801,147 @@ void QwtScaleWidget::layoutScale(bool update_geometry)
     }
 }
 
+/**
+ * @brief 获取此轴窗口对应的axisID
+ * @note 注意，此函基于QwtScaleDraw的对其方式来转换，如果QwtScaleDraw的对其方式没设置，那么会返回QwtAxis::AxisPositions
+ * @return
+ */
+QwtAxisId QwtScaleWidget::axisID() const
+{
+    const QwtScaleDraw* sd = scaleDraw();
+    switch (sd->alignment()) {
+    case QwtScaleDraw::BottomScale:
+        return QwtAxis::XBottom;
+    case QwtScaleDraw::TopScale:
+        return QwtAxis::XTop;
+    case QwtScaleDraw::LeftScale:
+        return QwtAxis::YLeft;
+    case QwtScaleDraw::RightScale:
+        return QwtAxis::YRight;
+    default:
+        break;
+    }
+    return QwtAxis::AxisPositions;
+}
+
+/**
+ * @brief 是否是x坐标轴
+ * @return
+ */
+bool QwtScaleWidget::isXAxis() const
+{
+    return QwtAxis::isXAxis(axisID());
+}
+
+/**
+ * @brief 是否是y坐标轴
+ * @return
+ */
+bool QwtScaleWidget::isYAxis() const
+{
+    return QwtAxis::isYAxis(axisID());
+}
+
+/**
+ * @brief 设置内置的动作
+ * @param actions 内置动作
+ * @sa BuildinActions
+ */
+void QwtScaleWidget::setBuildinActions(BuiltinActionsFlags acts)
+{
+    if (m_data->builtinActions != acts) {
+        m_data->builtinActions = acts;
+    }
+}
+
+/**
+ * @brief 内置的动作
+ * @return
+ */
+QwtScaleWidget::BuiltinActionsFlags QwtScaleWidget::buildinActions() const
+{
+    return m_data->builtinActions;
+}
+
+/**
+ * @brief 检测内置动作是否激活
+ * @param ba
+ * @return
+ */
+bool QwtScaleWidget::testBuildinActions(QwtScaleWidget::BuiltinActions ba) const
+{
+    return m_data->builtinActions.testFlag(ba);
+}
+
+/**
+ * @brief 设置当前轴被选中
+ *
+ * 此函数会触发信号@ref selectionChanged
+ *
+ * 如果重复设置同一个状态不会重复触发信号
+ *
+ * @param selected
+ *
+ */
+void QwtScaleWidget::setSelected(bool selected)
+{
+    if (m_data->isSelected != selected) {
+        m_data->isSelected = selected;
+        update();
+        Q_EMIT selectionChanged(selected);
+    }
+}
+
+/**
+ * @brief 当前轴是否被选中
+ * @param selected
+ */
+bool QwtScaleWidget::isSelected() const
+{
+    return m_data->isSelected;
+}
+
+/**
+ * @brief 设置选中的颜色
+ * @param color
+ */
+void QwtScaleWidget::setSelectionColor(const QColor& color)
+{
+    if (m_data->selectionColor != color) {
+        m_data->selectionColor = color;
+        if (m_data->isSelected) {
+            update();
+        }
+    }
+}
+
+/**
+ * @brief 选中的颜色
+ * @return
+ */
+QColor QwtScaleWidget::selectionColor() const
+{
+    return m_data->selectionColor;
+}
+
+/**
+ * @brief 设置缩放因子(默认1.2)
+ * @param factor
+ */
+void QwtScaleWidget::setZoomFactor(double factor)
+{
+    m_data->zoomFactor = qMax(0.1, qMin(10.0, factor));
+}
+
+/**
+ * @brief 缩放因子
+ * @return
+ */
+double QwtScaleWidget::zoomFactor() const
+{
+    return m_data->zoomFactor;
+}
+
 /*!
    Draw the color bar of the scale widget
 
@@ -643,16 +952,16 @@ void QwtScaleWidget::layoutScale(bool update_geometry)
  */
 void QwtScaleWidget::drawColorBar(QPainter* painter, const QRectF& rect) const
 {
-    if (!m_data->colorBar.interval.isValid())
+    QWT_DC(d);
+    if (!d->colorBar.interval.isValid()) {
         return;
-
-    const QwtScaleDraw* sd = m_data->scaleDraw;
+    }
 
     QwtPainter::drawColorBar(painter,
-                             *m_data->colorBar.colorMap,
-                             m_data->colorBar.interval.normalized(),
-                             sd->scaleMap(),
-                             sd->orientation(),
+                             *(d->colorBar.colorMap),
+                             d->colorBar.interval.normalized(),
+                             d->scaleDraw->scaleMap(),
+                             d->scaleDraw->orientation(),
                              rect);
 }
 
@@ -942,9 +1251,9 @@ void QwtScaleWidget::getMinBorderDist(int& start, int& end) const
  */
 void QwtScaleWidget::setScaleDiv(const QwtScaleDiv& scaleDiv)
 {
-    QwtScaleDraw* sd = m_data->scaleDraw;
-    if (sd->scaleDiv() != scaleDiv) {
-        sd->setScaleDiv(scaleDiv);
+    QWT_D(d);
+    if (d->scaleDraw->scaleDiv() != scaleDiv) {
+        d->scaleDraw->setScaleDiv(scaleDiv);
         layoutScale();
 
         Q_EMIT scaleDivChanged();
@@ -1030,9 +1339,8 @@ void QwtScaleWidget::setColorMap(const QwtInterval& interval, QwtColorMap* color
 {
     m_data->colorBar.interval = interval;
 
-    if (colorMap != m_data->colorBar.colorMap) {
-        delete m_data->colorBar.colorMap;
-        m_data->colorBar.colorMap = colorMap;
+    if (colorMap != m_data->colorBar.colorMap.get()) {
+        m_data->colorBar.colorMap.reset(colorMap);
     }
 
     if (isColorBarEnabled())
@@ -1045,5 +1353,5 @@ void QwtScaleWidget::setColorMap(const QwtInterval& interval, QwtColorMap* color
  */
 const QwtColorMap* QwtScaleWidget::colorMap() const
 {
-    return m_data->colorBar.colorMap;
+    return m_data->colorBar.colorMap.get();
 }

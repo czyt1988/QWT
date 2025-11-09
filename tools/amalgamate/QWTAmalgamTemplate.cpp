@@ -136,6 +136,7 @@
 #include "../../src/qwt_plot_layout_engine.cpp"
 #include "../../src/qwt_plot_layout.cpp"
 #include "../../src/qwt_parasite_plot_layout.cpp"
+#include "../../src/qwt_plot_scale_event_dispatcher.cpp"
 #include "../../src/qwt_plot_rescaler.cpp"
 #include "../../src/qwt_polar_plot.cpp"
 #include "../../src/qwt_polar_grid.cpp"

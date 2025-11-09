@@ -12,6 +12,7 @@
 
 #include <qglobal.h>
 #include <memory>
+#include <utility>
 #include "qwt_version_info.h"
 
 #if defined(_MSC_VER) /* MSVC Compiler */
@@ -174,6 +175,39 @@
  */
 #ifndef QWT_QC
 #define QWT_QC(classname, pointerName) const classname* pointerName = q_func()
+#endif
+
+#if __cplusplus >= 201402L
+// C++14 或更高版本，使用标准库的 make_unique
+template< typename T, typename... Args >
+std::unique_ptr< T > qwt_make_unique(Args&&... args)
+{
+    return std::make_unique< T >(std::forward< Args >(args)...);
+}
+
+template< typename T >
+std::unique_ptr< T > qwt_make_unique(std::size_t size)
+{
+    return std::make_unique< T >(size);
+}
+
+#else
+// C++11 自定义实现
+
+// 基础版本 - 普通对象
+template< typename T, typename... Args >
+std::unique_ptr< T > qwt_make_unique(Args&&... args)
+{
+    return std::unique_ptr< T >(new T(std::forward< Args >(args)...));
+}
+
+// 数组特化版本 - 动态数组
+template< typename T >
+std::unique_ptr< T > qwt_make_unique(std::size_t size)
+{
+    return std::unique_ptr< T >(new typename std::remove_extent< T >::type[ size ]());
+}
+
 #endif
 
 #endif
