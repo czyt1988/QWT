@@ -1,8 +1,21 @@
+## tag:v7.0.5
+
+- `QwtScaleWidget`增加坐标轴内置动作功能，实现坐标轴的pan和zoom两种内置动作
+	- `QwtScaleWidget`增加`scaleRect`函数，可以获取坐标刻度所在矩形，也就是用来绘制刻度的区域
+	- `QwtScaleWidget`增加`QwtScaleWidget::BuiltinActions`枚举，目前包含了两个内置动作
+	- 增加`requestScaleRangeUpdate`信号，用于请求绘图刷新坐标轴范围
+	- 增加`setSelected`/`isSelected`函数，让坐标轴可选中，增加信号：`selectionChanged`
+	- 增加坐标轴动作相关的一些属性设置如：`zoomFactor`、`panScale`等函数
+- 增加`QwtPlotScaleEventDispatcher`类，实现绘图上处理坐标轴的相关事件
+- `QwtPlot`的寄生绘图相关接口进行了一定调整
+- `QwtPLot`增加`setEnableScaleBuildinActions`/`isEnableScaleBuildinActions`/`setupScaleEventDispatcher`等函数用于控制坐标轴的缩放和平移
+- `QwtPLot`增加`plotList`函数，能获取所有绘图对象，包括寄生绘图和宿主绘图
+
 ## tag:v7.0.4
 
 - 实现寄生绘图功能
 - 增加寄生绘图的例子
-- 寄生绘图可以自动调整坐标轴位置
+- `QwtPlot`添加`updateAxisEdgeMargin`函数，让寄生绘图可以自动调整坐标轴位置
 
 ## tag:v7.0.2
 

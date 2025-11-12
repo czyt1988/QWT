@@ -175,8 +175,6 @@ void QwtPlotScaleEventDispatcher::rebuildCache()
             QwtScaleWidget* scale = plot->axisWidget(axisId);
             if (scale && plot->isAxisVisible(axisId)) {
                 d->scaleCaches.append(PrivateData::ScaleCache(scale, d->bindedPlot));
-
-                qDebug() << " rebuildCache,rect=" << d->scaleCaches.last().eventRect;
             }
         }
     }

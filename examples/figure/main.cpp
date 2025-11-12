@@ -239,7 +239,7 @@ void createGrid32_parasitePlot(QwtFigure* figure)
 
     //! 添加宿主坐标系
     QwtPlot* parasitePlot = figure->createParasiteAxes(hostPlot, QwtAxis::YLeft);
-
+    parasitePlot->setParasiteShareAxis(QwtAxis::XBottom);
     //! 宿主坐标轴的其他设置
     parasitePlot->setAxisTitle(QwtPlot::yLeft, "Y2 Axis");
 
