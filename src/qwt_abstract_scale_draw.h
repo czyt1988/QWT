@@ -30,8 +30,7 @@ class QwtScaleMap;
  */
 class QWT_EXPORT QwtAbstractScaleDraw
 {
-  public:
-
+public:
     /*!
        Components of a scale
        \sa enableComponent(), hasComponent
@@ -48,34 +47,42 @@ class QWT_EXPORT QwtAbstractScaleDraw
         Labels = 0x04
     };
 
-    Q_DECLARE_FLAGS( ScaleComponents, ScaleComponent )
+    Q_DECLARE_FLAGS(ScaleComponents, ScaleComponent)
 
     QwtAbstractScaleDraw();
     virtual ~QwtAbstractScaleDraw();
 
-    void setScaleDiv( const QwtScaleDiv& );
+    void setScaleDiv(const QwtScaleDiv&);
     const QwtScaleDiv& scaleDiv() const;
 
-    void setTransformation( QwtTransform* );
+    void setTransformation(QwtTransform*);
     const QwtScaleMap& scaleMap() const;
     QwtScaleMap& scaleMap();
 
-    void enableComponent( ScaleComponent, bool enable = true );
-    bool hasComponent( ScaleComponent ) const;
+    void enableComponent(ScaleComponent, bool enable = true);
+    bool hasComponent(ScaleComponent) const;
 
-    void setTickLength( QwtScaleDiv::TickType, double length );
-    double tickLength( QwtScaleDiv::TickType ) const;
+    void setTickLength(QwtScaleDiv::TickType, double length);
+    double tickLength(QwtScaleDiv::TickType) const;
     double maxTickLength() const;
 
-    void setSpacing( double );
+    void setSpacing(double);
     double spacing() const;
 
-    void setPenWidthF( qreal width );
+    void setPenWidthF(qreal width);
     qreal penWidthF() const;
 
-    virtual void draw( QPainter*, const QPalette& ) const;
+    // 设置是否选中，选中状态的绘制会有一定差异
+    void setSelected(bool on);
+    bool isSelected() const;
 
-    virtual QwtText label( double ) const;
+    // 设置选中后画笔的宽度修正
+    void setSelectedPenWidthOffset(qreal offset = 1);
+    qreal selectedPenWidthOffset() const;
+
+    virtual void draw(QPainter*, const QPalette&) const;
+
+    virtual QwtText label(double) const;
 
     /*!
        Calculate the extent
@@ -89,14 +96,14 @@ class QWT_EXPORT QwtAbstractScaleDraw
 
        \sa setMinimumExtent(), minimumExtent()
      */
-    virtual double extent( const QFont& font ) const = 0;
+    virtual double extent(const QFont& font) const = 0;
 
-    void setMinimumExtent( double );
+    void setMinimumExtent(double);
     double minimumExtent() const;
 
     void invalidateCache();
 
-  protected:
+protected:
     /*!
        Draw a tick
 
@@ -106,7 +113,7 @@ class QWT_EXPORT QwtAbstractScaleDraw
 
        \sa drawBackbone(), drawLabel()
      */
-    virtual void drawTick( QPainter* painter, double value, double len ) const = 0;
+    virtual void drawTick(QPainter* painter, double value, double len) const = 0;
 
     /*!
        Draws the baseline of the scale
@@ -114,7 +121,7 @@ class QWT_EXPORT QwtAbstractScaleDraw
 
        \sa drawTick(), drawLabel()
      */
-    virtual void drawBackbone( QPainter* painter ) const = 0;
+    virtual void drawBackbone(QPainter* painter) const = 0;
 
     /*!
         Draws the label for a major scale tick
@@ -124,17 +131,17 @@ class QWT_EXPORT QwtAbstractScaleDraw
 
         \sa drawTick(), drawBackbone()
      */
-    virtual void drawLabel( QPainter* painter, double value ) const = 0;
+    virtual void drawLabel(QPainter* painter, double value) const = 0;
 
-    const QwtText& tickLabel( const QFont&, double value ) const;
+    const QwtText& tickLabel(const QFont&, double value) const;
 
-  private:
+private:
     Q_DISABLE_COPY(QwtAbstractScaleDraw)
 
     class PrivateData;
     PrivateData* m_data;
 };
 
-Q_DECLARE_OPERATORS_FOR_FLAGS( QwtAbstractScaleDraw::ScaleComponents )
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtAbstractScaleDraw::ScaleComponents)
 
 #endif

@@ -58,7 +58,9 @@ public:
 
     double zoomFactor { 1.2 };  ///< 缩放系数
     QwtScaleWidget::BuiltinActionsFlags builtinActions { QwtScaleWidget::ActionAll };
-    QColor selectionColor { Qt::blue };
+    QColor selectionColor { Qt::blue };     ///< 选中的颜色
+    QColor originTextColor { Qt::black };   ///< 记录原始文字颜色
+    QColor originScaleColor { Qt::black };  ///< 记录坐标轴颜色
 
     struct t_colorBar
     {
@@ -885,8 +887,19 @@ bool QwtScaleWidget::testBuildinActions(QwtScaleWidget::BuiltinActions ba) const
  */
 void QwtScaleWidget::setSelected(bool selected)
 {
-    if (m_data->isSelected != selected) {
-        m_data->isSelected = selected;
+    QWT_D(d);
+    if (d->isSelected != selected) {
+        if (!(d->isSelected)) {
+            d->originTextColor  = textColor();
+            d->originScaleColor = scaleColor();
+            setTextColor(d->selectionColor);
+            setScaleColor(d->selectionColor);
+        } else {
+            setTextColor(d->originTextColor);
+            setScaleColor(d->originScaleColor);
+        }
+        d->scaleDraw->setSelected(selected);
+        d->isSelected = selected;
         update();
         Q_EMIT selectionChanged(selected);
     }
@@ -940,6 +953,32 @@ void QwtScaleWidget::setZoomFactor(double factor)
 double QwtScaleWidget::zoomFactor() const
 {
     return m_data->zoomFactor;
+}
+
+/**
+ * @brief 设置坐标轴在选中状态下的画笔宽度附加值
+ *
+ * 当一个坐标轴（例如 X 轴或 Y 轴）被用户选中时，其绘制的画笔宽度会
+ * 在原始宽度的基础上增加这个附加值，从而实现视觉上的突出显示效果。
+ *
+ * @param offset 选中时增加的宽度值（单位：像素）。
+ *               该值应为非负数。如果为 0，则选中状态下的线宽与普通状态相同。
+ *
+ * @sa QwtScaleWidget::selectedPenWidthOffset QwtAbstractScaleDraw::setSelectedPenWidthOffset
+ */
+void QwtScaleWidget::setSelectedPenWidthOffset(qreal offset)
+{
+    m_data->scaleDraw->setSelectedPenWidthOffset(offset);
+}
+
+/**
+ * @brief 获取当前坐标轴在选中状态下的画笔宽度附加值
+ * @return  当前的宽度附加值。
+ * @sa QwtScaleWidget::setSelectedPenWidthOffset QwtAbstractScaleDraw::selectedPenWidthOffset
+ */
+qreal QwtScaleWidget::selectedPenWidthOffset() const
+{
+    return m_data->scaleDraw->selectedPenWidthOffset();
 }
 
 /*!

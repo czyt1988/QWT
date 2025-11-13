@@ -72,7 +72,11 @@ int main(int argc, char* argv[])
     mainWindow.resize(1200, 800);
 
     // 创建中央部件
-    QWidget* centralWidget  = new QWidget(&mainWindow);
+    QWidget* centralWidget = new QWidget(&mainWindow);
+    QPalette pal           = centralWidget->palette();
+    pal.setColor(QPalette::Window, Qt::white);
+    centralWidget->setPalette(pal);
+    centralWidget->setAutoFillBackground(true);
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
 
     // 创建宿主绘图

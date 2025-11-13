@@ -21,19 +21,14 @@
 
 class QwtAbstractScaleDraw::PrivateData
 {
-  public:
-    PrivateData():
-        spacing( 4.0 ),
-        penWidthF( 0.0 ),
-        minExtent( 0.0 )
+public:
+    PrivateData() : spacing(4.0), penWidthF(0.0), minExtent(0.0)
     {
-        components = QwtAbstractScaleDraw::Backbone
-            | QwtAbstractScaleDraw::Ticks
-            | QwtAbstractScaleDraw::Labels;
+        components = QwtAbstractScaleDraw::Backbone | QwtAbstractScaleDraw::Ticks | QwtAbstractScaleDraw::Labels;
 
-        tickLength[QwtScaleDiv::MinorTick] = 4.0;
-        tickLength[QwtScaleDiv::MediumTick] = 6.0;
-        tickLength[QwtScaleDiv::MajorTick] = 8.0;
+        tickLength[ QwtScaleDiv::MinorTick ]  = 4.0;
+        tickLength[ QwtScaleDiv::MediumTick ] = 6.0;
+        tickLength[ QwtScaleDiv::MajorTick ]  = 8.0;
     }
 
     ScaleComponents components;
@@ -42,8 +37,11 @@ class QwtAbstractScaleDraw::PrivateData
     QwtScaleDiv scaleDiv;
 
     double spacing;
-    double tickLength[QwtScaleDiv::NTickTypes];
-    qreal penWidthF;
+    double tickLength[ QwtScaleDiv::NTickTypes ];
+    qreal penWidthF { 0.0 };
+    qreal penWidthOffset { 1.0 };
+
+    bool isSelected { false };
 
     double minExtent;
 
@@ -76,10 +74,9 @@ QwtAbstractScaleDraw::~QwtAbstractScaleDraw()
 
    \sa hasComponent()
  */
-void QwtAbstractScaleDraw::enableComponent(
-    ScaleComponent component, bool enable )
+void QwtAbstractScaleDraw::enableComponent(ScaleComponent component, bool enable)
 {
-    if ( enable )
+    if (enable)
         m_data->components |= component;
     else
         m_data->components &= ~component;
@@ -92,19 +89,19 @@ void QwtAbstractScaleDraw::enableComponent(
    \return true, when component is enabled
    \sa enableComponent()
  */
-bool QwtAbstractScaleDraw::hasComponent( ScaleComponent component ) const
+bool QwtAbstractScaleDraw::hasComponent(ScaleComponent component) const
 {
-    return ( m_data->components & component );
+    return (m_data->components & component);
 }
 
 /*!
    Change the scale division
    \param scaleDiv New scale division
  */
-void QwtAbstractScaleDraw::setScaleDiv( const QwtScaleDiv& scaleDiv )
+void QwtAbstractScaleDraw::setScaleDiv(const QwtScaleDiv& scaleDiv)
 {
     m_data->scaleDiv = scaleDiv;
-    m_data->map.setScaleInterval( scaleDiv.lowerBound(), scaleDiv.upperBound() );
+    m_data->map.setScaleInterval(scaleDiv.lowerBound(), scaleDiv.upperBound());
     m_data->labelCache.clear();
 }
 
@@ -112,9 +109,9 @@ void QwtAbstractScaleDraw::setScaleDiv( const QwtScaleDiv& scaleDiv )
    Change the transformation of the scale
    \param transformation New scale transformation
  */
-void QwtAbstractScaleDraw::setTransformation( QwtTransform* transformation )
+void QwtAbstractScaleDraw::setTransformation(QwtTransform* transformation)
 {
-    m_data->map.setTransformation( transformation );
+    m_data->map.setTransformation(transformation);
 }
 
 //! \return Map how to translate between scale and pixel values
@@ -141,9 +138,9 @@ const QwtScaleDiv& QwtAbstractScaleDraw::scaleDiv() const
 
    \sa penWidth()
  */
-void QwtAbstractScaleDraw::setPenWidthF( qreal width )
+void QwtAbstractScaleDraw::setPenWidthF(qreal width)
 {
-    if ( width < 0.0 )
+    if (width < 0.0)
         width = 0.0;
 
     m_data->penWidthF = width;
@@ -158,6 +155,50 @@ qreal QwtAbstractScaleDraw::penWidthF() const
     return m_data->penWidthF;
 }
 
+/**
+ * @brief 设置是否选中
+ * @param on
+ */
+void QwtAbstractScaleDraw::setSelected(bool on)
+{
+    m_data->isSelected = on;
+}
+
+/**
+ * @brief 是否选中
+ * @return
+ */
+bool QwtAbstractScaleDraw::isSelected() const
+{
+    return m_data->isSelected;
+}
+
+/**
+ * @brief 设置坐标轴在选中状态下的画笔宽度附加值
+ *
+ * 当一个坐标轴（例如 X 轴或 Y 轴）被用户选中时，其绘制的画笔宽度会
+ * 在原始宽度的基础上增加这个附加值，从而实现视觉上的突出显示效果。
+ *
+ * @param offset 选中时增加的宽度值（单位：像素）。
+ *               该值应为非负数。如果为 0，则选中状态下的线宽与普通状态相同。
+ *
+ * @sa selectedPenWidthOffset()
+ */
+void QwtAbstractScaleDraw::setSelectedPenWidthOffset(qreal offset)
+{
+    m_data->penWidthOffset = offset;
+}
+
+/**
+ * @brief 获取当前坐标轴在选中状态下的画笔宽度附加值
+ * @return  当前的宽度附加值。
+ * @sa setSelectedPenWidthOffset
+ */
+qreal QwtAbstractScaleDraw::selectedPenWidthOffset() const
+{
+    return m_data->penWidthOffset;
+}
+
 /*!
    \brief Draw the scale
 
@@ -166,74 +207,72 @@ qreal QwtAbstractScaleDraw::penWidthF() const
    \param palette    Palette, text color is used for the labels,
                     foreground color for ticks and backbone
  */
-void QwtAbstractScaleDraw::draw( QPainter* painter,
-    const QPalette& palette ) const
+void QwtAbstractScaleDraw::draw(QPainter* painter, const QPalette& palette) const
 {
     painter->save();
 
     QPen pen = painter->pen();
-    pen.setWidthF( m_data->penWidthF );
+    pen.setWidthF(m_data->penWidthF);
+    if (isSelected()) {
+        if (qFuzzyIsNull(m_data->penWidthF)) {
+            // m_data->penWidthF可以为0，这时要加1
+            pen.setWidthF(1.0 + m_data->penWidthOffset);
+        } else {
+            pen.setWidthF(m_data->penWidthF + m_data->penWidthOffset);
+        }
+    }
+    painter->setPen(pen);
 
-    painter->setPen( pen );
-
-    if ( hasComponent( QwtAbstractScaleDraw::Labels ) )
-    {
+    if (hasComponent(QwtAbstractScaleDraw::Labels)) {
         painter->save();
-        painter->setPen( palette.color( QPalette::Text ) ); // ignore pen style
+        painter->setPen(palette.color(QPalette::Text));  // ignore pen style
 
-        const QList< double >& majorTicks =
-            m_data->scaleDiv.ticks( QwtScaleDiv::MajorTick );
+        const QList< double >& majorTicks = m_data->scaleDiv.ticks(QwtScaleDiv::MajorTick);
 
-        for ( int i = 0; i < majorTicks.count(); i++ )
-        {
-            const double v = majorTicks[i];
-            if ( m_data->scaleDiv.contains( v ) )
-                drawLabel( painter, v );
+        for (int i = 0; i < majorTicks.count(); i++) {
+            const double v = majorTicks[ i ];
+            if (m_data->scaleDiv.contains(v))
+                drawLabel(painter, v);
         }
 
         painter->restore();
     }
 
-    if ( hasComponent( QwtAbstractScaleDraw::Ticks ) )
-    {
+    if (hasComponent(QwtAbstractScaleDraw::Ticks)) {
         painter->save();
 
         pen = painter->pen();
-        pen.setColor( palette.color( QPalette::WindowText ) );
-        pen.setCapStyle( Qt::FlatCap );
+        pen.setColor(palette.color(QPalette::WindowText));
+        pen.setCapStyle(Qt::FlatCap);
 
-        painter->setPen( pen );
+        painter->setPen(pen);
 
-        for ( int tickType = QwtScaleDiv::MinorTick;
-            tickType < QwtScaleDiv::NTickTypes; tickType++ )
-        {
-            const double tickLen = m_data->tickLength[tickType];
-            if ( tickLen <= 0.0 )
+        for (int tickType = QwtScaleDiv::MinorTick; tickType < QwtScaleDiv::NTickTypes; tickType++) {
+            const double tickLen = m_data->tickLength[ tickType ];
+            if (tickLen <= 0.0)
                 continue;
 
-            const QList< double >& ticks = m_data->scaleDiv.ticks( tickType );
-            for ( int i = 0; i < ticks.count(); i++ )
-            {
-                const double v = ticks[i];
-                if ( m_data->scaleDiv.contains( v ) )
-                    drawTick( painter, v, tickLen );
+            const QList< double >& ticks = m_data->scaleDiv.ticks(tickType);
+            for (int i = 0; i < ticks.count(); i++) {
+                const double v = ticks[ i ];
+                if (m_data->scaleDiv.contains(v))
+                    drawTick(painter, v, tickLen);
             }
         }
 
         painter->restore();
     }
 
-    if ( hasComponent( QwtAbstractScaleDraw::Backbone ) )
-    {
+    if (hasComponent(QwtAbstractScaleDraw::Backbone)) {
         painter->save();
 
         pen = painter->pen();
-        pen.setColor( palette.color( QPalette::WindowText ) );
-        pen.setCapStyle( Qt::FlatCap );
+        pen.setColor(palette.color(QPalette::WindowText));
+        pen.setCapStyle(Qt::FlatCap);
 
-        painter->setPen( pen );
+        painter->setPen(pen);
 
-        drawBackbone( painter );
+        drawBackbone(painter);
 
         painter->restore();
     }
@@ -251,9 +290,9 @@ void QwtAbstractScaleDraw::draw( QPainter* painter,
 
    \sa spacing()
  */
-void QwtAbstractScaleDraw::setSpacing( double spacing )
+void QwtAbstractScaleDraw::setSpacing(double spacing)
 {
-    if ( spacing < 0 )
+    if (spacing < 0)
         spacing = 0;
 
     m_data->spacing = spacing;
@@ -286,9 +325,9 @@ double QwtAbstractScaleDraw::spacing() const
 
    \sa extent(), minimumExtent()
  */
-void QwtAbstractScaleDraw::setMinimumExtent( double minExtent )
+void QwtAbstractScaleDraw::setMinimumExtent(double minExtent)
 {
-    if ( minExtent < 0.0 )
+    if (minExtent < 0.0)
         minExtent = 0.0;
 
     m_data->minExtent = minExtent;
@@ -312,38 +351,33 @@ double QwtAbstractScaleDraw::minimumExtent() const
 
    \warning the length is limited to [0..1000]
  */
-void QwtAbstractScaleDraw::setTickLength(
-    QwtScaleDiv::TickType tickType, double length )
+void QwtAbstractScaleDraw::setTickLength(QwtScaleDiv::TickType tickType, double length)
 {
-    if ( tickType < QwtScaleDiv::MinorTick ||
-        tickType > QwtScaleDiv::MajorTick )
-    {
+    if (tickType < QwtScaleDiv::MinorTick || tickType > QwtScaleDiv::MajorTick) {
         return;
     }
 
-    if ( length < 0.0 )
+    if (length < 0.0)
         length = 0.0;
 
     const double maxTickLen = 1000.0;
-    if ( length > maxTickLen )
+    if (length > maxTickLen)
         length = maxTickLen;
 
-    m_data->tickLength[tickType] = length;
+    m_data->tickLength[ tickType ] = length;
 }
 
 /*!
     \return Length of the ticks
     \sa setTickLength(), maxTickLength()
  */
-double QwtAbstractScaleDraw::tickLength( QwtScaleDiv::TickType tickType ) const
+double QwtAbstractScaleDraw::tickLength(QwtScaleDiv::TickType tickType) const
 {
-    if ( tickType < QwtScaleDiv::MinorTick ||
-        tickType > QwtScaleDiv::MajorTick )
-    {
+    if (tickType < QwtScaleDiv::MinorTick || tickType > QwtScaleDiv::MajorTick) {
         return 0;
     }
 
-    return m_data->tickLength[tickType];
+    return m_data->tickLength[ tickType ];
 }
 
 /*!
@@ -355,8 +389,8 @@ double QwtAbstractScaleDraw::tickLength( QwtScaleDiv::TickType tickType ) const
 double QwtAbstractScaleDraw::maxTickLength() const
 {
     double length = 0.0;
-    for ( int i = 0; i < QwtScaleDiv::NTickTypes; i++ )
-        length = qwtMaxF( length, m_data->tickLength[i] );
+    for (int i = 0; i < QwtScaleDiv::NTickTypes; i++)
+        length = qwtMaxF(length, m_data->tickLength[ i ]);
 
     return length;
 }
@@ -372,9 +406,9 @@ double QwtAbstractScaleDraw::maxTickLength() const
    \param value Value
    \return Label string.
  */
-QwtText QwtAbstractScaleDraw::label( double value ) const
+QwtText QwtAbstractScaleDraw::label(double value) const
 {
-    return QLocale().toString( value );
+    return QLocale().toString(value);
 }
 
 /*!
@@ -390,20 +424,19 @@ QwtText QwtAbstractScaleDraw::label( double value ) const
 
    \return Tick label
  */
-const QwtText& QwtAbstractScaleDraw::tickLabel(
-    const QFont& font, double value ) const
+const QwtText& QwtAbstractScaleDraw::tickLabel(const QFont& font, double value) const
 {
-    QMap< double, QwtText >::const_iterator it1 = m_data->labelCache.constFind( value );
-    if ( it1 != m_data->labelCache.constEnd() )
+    QMap< double, QwtText >::const_iterator it1 = m_data->labelCache.constFind(value);
+    if (it1 != m_data->labelCache.constEnd())
         return *it1;
 
-    QwtText lbl = label( value );
-    lbl.setRenderFlags( 0 );
-    lbl.setLayoutAttribute( QwtText::MinimumLayout );
+    QwtText lbl = label(value);
+    lbl.setRenderFlags(0);
+    lbl.setLayoutAttribute(QwtText::MinimumLayout);
 
-    ( void )lbl.textSize( font ); // initialize the internal cache
+    (void)lbl.textSize(font);  // initialize the internal cache
 
-    QMap< double, QwtText >::iterator it2 = m_data->labelCache.insert( value, lbl );
+    QMap< double, QwtText >::iterator it2 = m_data->labelCache.insert(value, lbl);
     return *it2;
 }
 

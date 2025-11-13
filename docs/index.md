@@ -35,7 +35,7 @@ Qt 生态里能画图的库不多，主流的为`QCustomPlot`、`Qwt`、`Qt Char
 - [ ] C++11优化
 - [x] 合并为单一文件，简化引入
 - [ ] 优化超大规模数据的渲染
-- [ ] 提供一些集成的交互方法，让使用更简单
+- [x] 提供一些集成的交互方法，让使用更简单(提供了坐标轴交互、绘图窗口移动缩放等功能)
 - [x] 美化控件
 - [x] 提供Figure实现绘图的布局
 - [x] 增加寄生轴的支持，实现n个坐标轴
@@ -77,6 +77,15 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 
 ![parasite plot](assets/screenshots/parasite-plot.png) 
 
+### 增加了坐标轴交互
+
+增加坐标轴交互功能，支持在坐标轴上使用鼠标拖动、滚轮缩放等功能
+
+拖动：
+![qwt-scale-builtin-action-pan](assets/screenshots/qwt-scale-builtin-action-pan.gif)
+
+缩放：
+![qwt-scale-builtin-action-zoom](assets/screenshots/qwt-scale-builtin-action-zoom.gif)
 
 ## Copyright
 

@@ -73,26 +73,20 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 
 ![parasite plot](./docs/assets/screenshots/parasite-plot.png) 
 
+### 增加了坐标轴交互
+
+增加坐标轴交互功能，支持在坐标轴上使用鼠标拖动、滚轮缩放等功能
+
+拖动：
+![qwt-scale-builtin-action-pan](./docs/assets/screenshots/qwt-scale-builtin-action-pan.gif)
+
+缩放：
+![qwt-scale-builtin-action-zoom](./docs/assets/screenshots/qwt-scale-builtin-action-zoom.gif)
 
 ## changelog
 
 详细的日志请参阅[CHANGES.MD](./CHANGES.md)
 
-### tag:v7.0.1
-
-- 增加`QwtFigure`类，`QwtFigure`用于管理多个QwtPlot，实现类似Matplotlib的Figure功能，支持网格化布局
-- 增加figure例子,演示`QwtFigure`类的使用
-
-### tag:v7.0.0
-
-- 把整个工程合并为QwtPlot.h和QwtPlot.cpp，直接可以引入，文件位于src-amalgamate
-- 增加staticExample例子,演示如何静态引入
-- 增强`QwtPlotBarChart`的接口以支持pen和brush的设置.
-- 增加`QwtGridRasterData`类，相比`QwtMatrixRasterData`，它支持一个二维数据表，以及x,y轴进行网格插值
-- `QwtLinearColorMap`增加stopColors函数，修改`QwtLinearColorMap`的`colorStop`函数为`stopPos`
-- `Qwt`的初始化参数进行了调整，让默认绘图更符合当前绘图的审美
-- 去除QWT_MOC_INCLUDE
-- 调整了一些类的实现，以便能合并到一个文件中
 
 ## Copyright
 

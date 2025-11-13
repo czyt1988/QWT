@@ -223,6 +223,10 @@ public:
     void setZoomFactor(double factor);
     double zoomFactor() const;
 
+    // 设置选中后画笔的宽度修正
+    void setSelectedPenWidthOffset(qreal offset = 1);
+    qreal selectedPenWidthOffset() const;
+
     // 判断点是否在刻度区域
     bool isOnScale(const QPoint& pos) const;
     // 按像素移动坐标轴
