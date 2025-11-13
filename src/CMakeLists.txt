@@ -69,7 +69,6 @@ set(CMAKE_AUTOMOC_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/moc)
 # 文件加载
 ########################################################
 set(QWT_HEADER_BASE
-        qwt.h
         qwt_version_info.h
         qwt_abstract_scale_draw.h
         qwt_bezier.h
@@ -120,9 +119,9 @@ set(QWT_HEADER_BASE
         qwt_figure_layout.h
         qwt_figure.h
         qwt_figure_widget_overlay.h
+        qwt_utils.h
 )
 set(QWT_SOURCE_BASE
-        qwt.cpp
         qwt_abstract_scale_draw.cpp
         qwt_bezier.cpp
         qwt_clipper.cpp
@@ -170,6 +169,7 @@ set(QWT_SOURCE_BASE
         qwt_figure_layout.cpp
         qwt_figure.cpp
         qwt_figure_widget_overlay.cpp
+        qwt_utils.cpp
 )
 
 set(QWT_HEADER_FILES ${QWT_HEADER_BASE})
@@ -221,6 +221,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_transparent_canvas.h
         qwt_plot_panner.h
         qwt_plot_picker.h
+        qwt_plot_series_data_picker.h
         qwt_plot_zoomer.h
         qwt_plot_magnifier.h
         qwt_plot_rescaler.h
@@ -280,6 +281,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_panner.cpp
         qwt_plot_rasteritem.cpp
         qwt_plot_picker.cpp
+        qwt_plot_series_data_picker.cpp
         qwt_plot_zoomer.cpp
         qwt_plot_magnifier.cpp
         qwt_plot_rescaler.cpp

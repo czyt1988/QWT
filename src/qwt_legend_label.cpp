@@ -10,7 +10,7 @@
 #include "qwt_legend_label.h"
 #include "qwt_legend_data.h"
 #include "qwt_graphic.h"
-#include "qwt.h"
+#include "qwt_utils.h"
 
 #include <qpainter.h>
 #include <qdrawutil.h>

@@ -10,7 +10,7 @@
 #include "qwt_wheel.h"
 #include "qwt_math.h"
 #include "qwt_painter.h"
-#include "qwt.h"
+#include "qwt_utils.h"
 
 #include <qevent.h>
 #include <qdrawutil.h>

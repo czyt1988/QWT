@@ -27,14 +27,14 @@
  * @def qwt的数字版本 MAJ.MIN.{PAT}
  */
 #ifndef QWT_VERSION_PAT
-#define QWT_VERSION_PAT 5
+#define QWT_VERSION_PAT 6
 #endif
 
 /**
  * @def 版本号（字符串）
  */
 #ifndef QWT_VERSION_STR
-#define QWT_VERSION_STR "7.0.5"
+#define QWT_VERSION_STR "7.0.6"
 #endif
 
 #endif  // QWT_VERSION_INFO_H
@@ -247,25 +247,6 @@ std::unique_ptr< T > qwt_make_unique(std::size_t size)
 #endif
 
 /*** End of inlined file: qwt_global.h ***/
-
-/*** Start of inlined file: qwt.h ***/
-#ifndef QWT_H
-#define QWT_H
-
-class QSize;
-
-/*!
-   Some constants for use within Qwt.
- */
-namespace Qwt
-{
-}
-
-QWT_EXPORT QSize qwtExpandedToGlobalStrut(const QSize&);
-
-#endif
-
-/*** End of inlined file: qwt.h ***/
 
 /*** Start of inlined file: qwt_polar.h ***/
 #ifndef QWT_POLAR_H
@@ -640,8 +621,6 @@ inline int qwtFloor(qreal value)
  * 3. 如果i1 > i2，则交换两个值确保i1 <= i2
  * 4. 返回范围内的元素个数(i2 - i1 + 1)
  *
- *
- *
  */
 inline int qwtVerifyRange(int size, int& i1, int& i2)
 {
@@ -830,6 +809,7 @@ inline Container qwtRemoveNanOrInfCopy(const Container& container)
 
     return result;
 }
+
 #endif
 
 /*** End of inlined file: qwt_math.h ***/
@@ -1921,6 +1901,30 @@ QWT_EXPORT QDebug operator<<(QDebug, const QwtScaleMap&);
 
 /*** End of inlined file: qwt_scale_map.h ***/
 
+/*** Start of inlined file: qwt_utils.h ***/
+#ifndef QWT_UTILS_H
+#define QWT_UTILS_H
+
+#include <QColor>
+
+class QSize;
+class QwtPlotItem;
+
+/*!
+   Some constants for use within Qwt.
+ */
+namespace Qwt
+{
+// 获取item的颜色
+QColor QWT_EXPORT plotItemColor(QwtPlotItem* item, const QColor& defaultColor = QColor());
+}
+
+QWT_EXPORT QSize qwtExpandedToGlobalStrut(const QSize&);
+
+#endif
+
+/*** End of inlined file: qwt_utils.h ***/
+
 /*** Start of inlined file: qwt_dyngrid_layout.h ***/
 #ifndef QWT_DYNGRID_LAYOUT_H
 #define QWT_DYNGRID_LAYOUT_H
@@ -2943,19 +2947,19 @@ public:
     virtual QRectF boundingRect() const QWT_OVERRIDE;
 };
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QPointF >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QPointF >&, size_t from = 0, size_t to = 0);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtPoint3D >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtPoint3D >&, size_t from = 0, size_t to = 0);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtPointPolar >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtPointPolar >&, size_t from = 0, size_t to = 0);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtIntervalSample >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtIntervalSample >&, size_t from = 0, size_t to = 0);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtSetSample >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtSetSample >&, size_t from = 0, size_t to = 0);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtOHLCSample >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtOHLCSample >&, size_t from = 0, size_t to = 0);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >&, size_t from = 0, size_t to = 0);
 
 /**
  * Binary search for a sorted series of samples
@@ -2963,7 +2967,7 @@ QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >&, 
  * qwtUpperSampleIndex returns the index of sample that is the upper bound
  * of value. Is the the value smaller than the smallest value the return
  * value will be 0. Is the value greater or equal than the largest
- * value the return value will be -1.
+ * value the return value will be series.size().
  *
  * @par Example
  * The following example shows finds a point of curve from an x
@@ -3009,25 +3013,65 @@ QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >&, 
  * @param lessThan Compare operation
  * @note The samples must be sorted according to the order specified
  *        by the lessThan object
+ *
+ * @note qwt7开始，此函数改为size_t版本，如果没找到，将返回series.size()，类似于end迭代器
+ * @par 原本代码
+ * int版本代码如下
+ * @code
+ * template< typename T, typename LessThan >
+ * inline int qwtUpperSampleIndex(const QwtSeriesData< T >& series, double value, LessThan lessThan)
+ * {
+ *     const int indexMax = static_cast< int >(series.size()) - 1;
+ *
+ *  if (indexMax < 0 || !lessThan(value, series.sample(indexMax)))
+ *      return -1;
+ *
+ *  int indexMin = 0;
+ *  int n        = indexMax;
+ *
+ *  while (n > 0) {
+ *      const int half     = n >> 1;
+ *      const int indexMid = indexMin + half;
+ *
+ *      if (lessThan(value, series.sample(indexMid))) {
+ *          n = half;
+ *      } else {
+ *          indexMin = indexMid + 1;
+ *          n -= half + 1;
+ *      }
+ *  }
+ *
+ *  return indexMin;
+ * }
+ * @endcode
  */
 template< typename T, typename LessThan >
-inline int qwtUpperSampleIndex(const QwtSeriesData< T >& series, double value, LessThan lessThan)
+inline size_t qwtUpperSampleIndex(const QwtSeriesData< T >& series, double value, LessThan lessThan)
 {
-    const int indexMax = series.size() - 1;
+    const size_t count = series.size();
+    if (count == 0) {
+        return count;  // 返回 0 作为“未找到”的标记（因为有效索引从 0 开始，count 超出了有效范围）
+    }
 
-    if (indexMax < 0 || !lessThan(value, series.sample(indexMax)))
-        return -1;
+    const size_t indexMax = count - 1;
 
-    int indexMin = 0;
-    int n        = indexMax;
+    // 如果 value 大于等于最后一个元素，说明没有元素大于 value，返回 count
+    if (!lessThan(value, series.sample(indexMax))) {
+        return count;
+    }
+
+    size_t indexMin = 0;
+    size_t n        = indexMax;  // n 表示当前搜索区间的大小
 
     while (n > 0) {
-        const int half     = n >> 1;
-        const int indexMid = indexMin + half;
+        const size_t half     = n >> 1;
+        const size_t indexMid = indexMin + half;
 
         if (lessThan(value, series.sample(indexMid))) {
+            // 目标在左侧区间 [indexMin, indexMid]
             n = half;
         } else {
+            // 目标在右侧区间 [indexMid + 1, indexMin + n - 1]
             indexMin = indexMid + 1;
             n -= half + 1;
         }
@@ -9940,7 +9984,7 @@ public:
         \param index Index
         \return Sample at position index
      */
-    T sample(int index) const;
+    T sample(size_t index) const;
 
     /*!
        \return Number of samples of the series
@@ -10000,7 +10044,7 @@ inline const QwtSeriesData< T >* QwtSeriesStore< T >::data() const
 }
 
 template< typename T >
-inline T QwtSeriesStore< T >::sample(int index) const
+inline T QwtSeriesStore< T >::sample(size_t index) const
 {
     return m_series ? m_series->sample(index) : T();
 }
@@ -10220,7 +10264,7 @@ public:
        \return Corresponding y value
      */
     virtual double y(double x) const = 0;
-    virtual double x(uint index) const;
+    virtual double x(size_t index) const;
 
     virtual void setRectOfInterest(const QRectF&) QWT_OVERRIDE;
     QRectF rectOfInterest() const;
@@ -11531,72 +11575,105 @@ class QWheelEvent;
 class QKeyEvent;
 class QPainter;
 
-/*!
-   \brief QwtPicker provides selections on a widget
-
-   QwtPicker filters all enter, leave, mouse and keyboard events of a widget
-   and translates them into an array of selected points.
-
-   The way how the points are collected depends on type of state machine
-   that is connected to the picker. Qwt offers a couple of predefined
-   state machines for selecting:
-
-   - Nothing\n
-    QwtPickerTrackerMachine
-   - Single points\n
-    QwtPickerClickPointMachine, QwtPickerDragPointMachine
-   - Rectangles\n
-    QwtPickerClickRectMachine, QwtPickerDragRectMachine
-   - Polygons\n
-    QwtPickerPolygonMachine
-
-   While these state machines cover the most common ways to collect points
-   it is also possible to implement individual machines as well.
-
-   QwtPicker translates the picked points into a selection using the
-   adjustedPoints() method. adjustedPoints() is intended to be reimplemented
-   to fix up the selection according to application specific requirements.
-   (F.e. when an application accepts rectangles of a fixed aspect ratio only.)
-
-   Optionally QwtPicker support the process of collecting points by a
-   rubber band and tracker displaying a text for the current mouse
-   position.
-
-   \par Example
-   \code
-
-    QwtPicker *picker = new QwtPicker(widget);
-    picker->setStateMachine(new QwtPickerDragRectMachine);
-    picker->setTrackerMode(QwtPicker::ActiveOnly);
-    picker->setRubberBand(QwtPicker::RectRubberBand);
-   \endcode
-
-   The state machine triggers the following commands:
-
-   - begin()\n
-    Activate/Initialize the selection.
-   - append()\n
-    Add a new point
-   - move() \n
-    Change the position of the last point.
-   - remove()\n
-    Remove the last point.
-   - end()\n
-    Terminate the selection and call accept to validate the picked points.
-
-   The picker is active (isActive()), between begin() and end().
-   In active state the rubber band is displayed, and the tracker is visible
-   in case of trackerMode is ActiveOnly or AlwaysOn.
-
-   The cursor can be moved using the arrow keys. All selections can be aborted
-   using the abort key. (QwtEventPattern::KeyPatternCode)
-
-   \warning In case of QWidget::NoFocus the focus policy of the observed
-           widget is set to QWidget::WheelFocus and mouse tracking
-           will be manipulated while the picker is active,
-           or if trackerMode() is AlwayOn.
+/**
+ * @brief QwtPicker provides selections on a widget / QwtPicker 在一个部件（widget）上提供选择功能
+ *
+ * QwtPicker filters all enter, leave, mouse and keyboard events of a widget
+ * and translates them into an array of selected points.
+ *
+ * The way how the points are collected depends on type of state machine
+ * that is connected to the picker. Qwt offers a couple of predefined
+ * state machines for selecting:
+ *
+ * - Nothing\n
+ *   QwtPickerTrackerMachine
+ * - Single points\n
+ *   QwtPickerClickPointMachine, QwtPickerDragPointMachine
+ * - Rectangles\n
+ *   QwtPickerClickRectMachine, QwtPickerDragRectMachine
+ * - Polygons\n
+ *   QwtPickerPolygonMachine
+ *
+ * While these state machines cover the most common ways to collect points
+ * it is also possible to implement individual machines as well.
+ *
+ * QwtPicker translates the picked points into a selection using the
+ * adjustedPoints() method. adjustedPoints() is intended to be reimplemented
+ * to fix up the selection according to application specific requirements.
+ * (F.e. when an application accepts rectangles of a fixed aspect ratio only.)
+ *
+ * Optionally QwtPicker support the process of collecting points by a
+ * rubber band and tracker displaying a text for the current mouse
+ * position.
+ *
+ * ---------------------------------------------
+ *
+ * QwtPicker 会过滤一个部件（widget）的所有进入、离开、鼠标和键盘事件，并将它们转换为一个选定坐标点的数组。
+ *
+ * 收集点的方式取决于连接到选择器（picker）的状态机（state machine）类型。Qwt 提供了几个预定义的选择状态机：
+ *
+ * - 无\n
+ *   QwtPickerTrackerMachine
+ * - 单个点\n
+ *   QwtPickerClickPointMachine, QwtPickerDragPointMachine
+ * - 矩形\n
+ *   QwtPickerClickRectMachine, QwtPickerDragRectMachine
+ * - 多边形\n
+ *   QwtPickerPolygonMachine
+ *
+ * 虽然这些状态机涵盖了最常见的点收集方式，但也可以实现自定义的状态机。
+ *
+ * QwtPicker 使用 adjustedPoints() 方法将拾取的点转换为一个选择区域/集合。adjustedPoints() 方法旨在被重写，
+ * 以便根据应用程序的特定要求修正选择结果。（例如：当应用程序只接受固定宽高比的矩形时。）
+ *
+ * QwtPicker 可以选择性地通过一个橡皮筋（rubber band）和一个显示当前鼠标位置文本的追踪器（tracker）来辅助点的收集过程。
+ *
+ * @par Example
+ * @code
+ * #include <qwt_picker.h>
+ * #include <qwt_picker_machine.h>
+ *
+ * QwtPicker *picker = new QwtPicker(widget);
+ * picker->setStateMachine(new QwtPickerDragRectMachine);
+ * picker->setTrackerMode(QwtPicker::ActiveOnly);
+ * picker->setRubberBand(QwtPicker::RectRubberBand);
+ * @endcode
+ *
+ * The state machine triggers the following commands:
+ *
+ * 状态机会触发以下命令：
+ *
+ * - begin()\n
+ *   Activate/Initialize the selection. / 激活/初始化选择。
+ * - append()\n
+ *   Add a new point / 添加一个新点。
+ * - move() \n
+ *   Change the position of the last point. / 改变最后一个点的位置。
+ * - remove()\n
+ *   Remove the last point. / 移除最后一个点。
+ * - end()\n
+ *   Terminate the selection and call accept to validate the picked points. / 终止选择，并调用 accept 来验证拾取的点。
+ *
+ * The picker is active (isActive()), between begin() and end().
+ * In active state the rubber band is displayed, and the tracker is visible
+ * in case of trackerMode is ActiveOnly or AlwaysOn.
+ *
+ * 在 begin() 和 end() 之间，选择器处于活动状态（isActive()）。
+ * 在活动状态下，橡皮筋会显示。如果追踪器模式（trackerMode）是 ActiveOnly 或 AlwaysOn，追踪器也会可见。
+ *
+ * The cursor can be moved using the arrow keys. All selections can be aborted
+ * using the abort key. (QwtEventPattern::KeyPatternCode)
+ *
+ * 可以使用方向键移动光标。所有选择都可以使用取消键（abort key）来中止。(QwtEventPattern::KeyPatternCode)
+ *
+ * @warning In case of QWidget::NoFocus the focus policy of the observed
+ *          widget is set to QWidget::WheelFocus and mouse tracking
+ *          will be manipulated while the picker is active,
+ *          or if trackerMode() is AlwayOn./
+ *          如果观察的部件（widget）的焦点策略是 QWidget::NoFocus，
+ *          那么在选择器处于活动状态时，或者如果 trackerMode() 是 AlwaysOn 时，
+ *          该部件的焦点策略会被设置为 QWidget::WheelFocus，并且鼠标追踪（mouse tracking）会被操控。
  */
-
 class QWT_EXPORT QwtPicker : public QObject, public QwtEventPattern
 {
     Q_OBJECT
@@ -14564,14 +14641,15 @@ template< typename T >
 class QVector;
 #endif
 
-/*!
-   \brief QwtPlotPicker provides selections on a plot canvas
-
-   QwtPlotPicker is a QwtPicker tailored for selections on
-   a plot canvas. It is set to a x-Axis and y-Axis and
-   translates all pixel coordinates into this coordinate system.
+/**
+ *  @brief QwtPlotPicker provides selections on a plot canvas/QwtPlotPicker提供绘图画布上的选择功能
+ *
+ *  QwtPlotPicker is a QwtPicker tailored for selections on
+ *  a plot canvas. It is set to a x-Axis and y-Axis and
+ *  translates all pixel coordinates into this coordinate system.
+ *
+ *  QwtPlotPicker是一款专为绘图画布选择场景设计的 QwtPicker 类。它会绑定到一个X轴和一个Y轴，并将所有像素坐标转换为该坐标系下的坐标。
  */
-
 class QWT_EXPORT QwtPlotPicker : public QwtPicker
 {
     Q_OBJECT
@@ -14594,7 +14672,7 @@ public:
 
     QWidget* canvas();
     const QWidget* canvas() const;
-
+    /** 下面信号个人觉得没有必要在基类中 **/
 Q_SIGNALS:
 
     /*!
@@ -14658,6 +14736,117 @@ private:
 #endif
 
 /*** End of inlined file: qwt_plot_picker.h ***/
+
+/*** Start of inlined file: qwt_plot_series_data_picker.h ***/
+#ifndef QWT_PLOT_SERIES_DATA_PICKER_H
+#define QWT_PLOT_SERIES_DATA_PICKER_H
+#include <QList>
+#include <QPointF>
+
+class QwtPlot;
+class QwtPlotItem;
+/**
+ * @brief 这是一个绘图数据拾取显示类，用于显示当前的y值，或者显示最近点
+ */
+class QWT_EXPORT QwtPlotSeriesDataPicker : public QwtPlotPicker
+{
+    Q_OBJECT
+    QWT_DECLARE_PRIVATE(QwtPlotSeriesDataPicker)
+public:
+    /**
+     * @brief 拾取模式
+     */
+    enum PickSeriesMode
+    {
+        PickYValue,       ///< 拾取y值（默认）
+        PickNearestPoint  ///< 拾取最接近鼠标光标位置的点（此模式会比较耗时，曲线点非常多的时候谨慎使用）
+    };
+
+    /**
+     * @brief The TextArea enum
+     */
+    enum TextPlacement
+    {
+        TextPlaceAuto,   ///< 自动放置（pick y的时候放置在顶部，pick nearest的时候跟随鼠标）
+        TextOnTop,       ///< 放在绘图区的顶部(默认）
+        TextOnBottom,    ///< 放在绘图区的底部
+        TextFollowMouse  ///< 跟随鼠标指针
+    };
+
+    /**
+     * @brief 插值模式枚举
+     */
+    enum InterpolationMode
+    {
+        NoInterpolation,     ///< 不进行插值，使用最近的数据点
+        LinearInterpolation  ///< 线性插值，在相邻数据点之间进行插值计算
+    };
+
+public:
+    explicit QwtPlotSeriesDataPicker(QWidget* canvas);
+    ~QwtPlotSeriesDataPicker();
+
+    // 拾取模式
+    void setPickMode(PickSeriesMode mode);
+    PickSeriesMode pickMode() const;
+
+    // 设置文字显示的位置
+    void setTextArea(TextPlacement t);
+    TextPlacement textArea() const;
+
+    // 插值模式
+    void setInterpolationMode(InterpolationMode mode);
+    InterpolationMode interpolationMode() const;
+    // 判断是否插值
+    bool isInterpolation() const;
+
+    // 临近点搜索窗口大小，窗口大小决定了临近点搜索的范围，避免全曲线遍历
+    void setNearestSearchWindowSize(int windowSize);
+    int nearestSearchWindowSize() const;
+
+    // 是否绘制特征点,如果是，picker会把捕获的特征点绘制在曲线上
+    void setEnableDrawFeaturePoint(bool on = true);
+    bool isEnableDrawFeaturePoint() const;
+
+    // 设置绘制的特征点的大小
+    void setDrawFeaturePointSize(int px);
+    int drawFeaturePointSize() const;
+
+    // 设置文字的背景颜色
+    void setTextBackgroundBrush(const QBrush& br);
+    QBrush textBackgroundBrush() const;
+
+    // 文字的对其方式
+    void setTextAlignment(Qt::Alignment al);
+    Qt::Alignment textAlignment() const;
+
+    // 顶部矩形文字
+    QwtText trackerText(const QPoint& pos) const QWT_OVERRIDE;
+
+    // 让矩形在最顶部
+    QRect trackerRect(const QFont& f) const QWT_OVERRIDE;
+
+    // 绘制rubberband
+    virtual void drawRubberBand(QPainter* painter) const QWT_OVERRIDE;
+
+private:
+    // 获取绘图区域屏幕坐标pos上，的所有可拾取的y值,返回获取的个数
+    int pickYValue(const QwtPlot* plot, const QPoint& pos, bool interpolate = false);
+    // 获取绘图区域屏幕坐标pos上，可拾取的最近的一个点，(基于窗口实现快速索引)
+    int pickNearestPoint(const QwtPlot* plot, const QPoint& pos, int windowSize = -5);
+
+protected:
+    // 生成一个item的文字内容
+    virtual QString valueString(const QPointF& value, QwtPlotItem* item, size_t seriesIndex, int order) const;
+    // 绘制特征点，所谓特征点就是捕获到的点
+    virtual void drawFeaturePoints(QPainter* painter) const;
+    // 鼠标移动
+    virtual void move(const QPoint& pos) QWT_OVERRIDE;
+};
+
+#endif  // QWT_PLOT_SERIES_DATA_PICKER_H
+
+/*** End of inlined file: qwt_plot_series_data_picker.h ***/
 
 /*** Start of inlined file: qwt_plot_rasteritem.h ***/
 #ifndef QWT_PLOT_RASTERITEM_H
@@ -16828,7 +17017,7 @@ public:
 
     // 更新宿主轴和寄生轴的偏移
     void updateAxisEdgeMargin(QwtAxisId axisId);
-    void updateAxisEdgeMargin();
+
     // 更新绘图上的items，让其适配scaleDiv的范围
     void updateItemsToScaleDiv();
     // 坐标轴事件使能
@@ -16836,13 +17025,19 @@ public:
     bool isEnableScaleBuildinActions() const;
     // 设置坐标轴事件转发器，这个是实现坐标轴事件的主要管理类
     void setupScaleEventDispatcher(QwtPlotScaleEventDispatcher* dispatcher);
+    // 保存/恢复当前自动绘图设置的状态
+    void saveAutoReplotState();
+    void restoreAutoReplotState();
 #if QWT_AXIS_COMPAT
-    enum Axis { yLeft   = QwtAxis::YLeft,
-                yRight  = QwtAxis::YRight,
-                xBottom = QwtAxis::XBottom,
-                xTop    = QwtAxis::XTop,
+    enum Axis
+    {
+        yLeft   = QwtAxis::YLeft,
+        yRight  = QwtAxis::YRight,
+        xBottom = QwtAxis::XBottom,
+        xTop    = QwtAxis::XTop,
 
-                axisCnt = QwtAxis::AxisPositions };
+        axisCnt = QwtAxis::AxisPositions
+    };
 
     void enableAxis(int axisId, bool on = true)
     {
@@ -16881,6 +17076,8 @@ public Q_SLOTS:
     void autoRefresh();
     // 重绘所有绘图，包括寄生绘图或者宿主绘图
     virtual void replotAll();
+    // 更新寄生轴的坐标
+    void updateAllAxisEdgeMargin();
 
 protected:
     virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;

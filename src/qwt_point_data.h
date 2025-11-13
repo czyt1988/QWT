@@ -176,7 +176,7 @@ public:
        \return Corresponding y value
      */
     virtual double y(double x) const = 0;
-    virtual double x(uint index) const;
+    virtual double x(size_t index) const;
 
     virtual void setRectOfInterest(const QRectF&) QWT_OVERRIDE;
     QRectF rectOfInterest() const;

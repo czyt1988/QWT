@@ -83,6 +83,14 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 缩放：
 ![qwt-scale-builtin-action-zoom](./docs/assets/screenshots/qwt-scale-builtin-action-zoom.gif)
 
+### 增加了数据拾取功能
+
+增加`QwtPlotSeriesDataPicker`类，支持数据的拾取
+
+![series-data-picker-yvalue](./docs/assets/picture/series-data-picker-yvalue.gif)
+
+![series-data-picker-nearest-value](./docs/assets/picture/series-data-picker-nearest-value.gif)
+
 ## changelog
 
 详细的日志请参阅[CHANGES.MD](./CHANGES.md)

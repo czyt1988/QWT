@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -392,7 +392,7 @@ void QwtPlotZoomer::rescale()
 
     const QRectF& rect = m_data->zoomStack[ m_data->zoomRectIndex ];
     if (rect != scaleRect()) {
-        const bool doReplot = plt->autoReplot();
+        plt->saveAutoReplotState();
         plt->setAutoReplot(false);
 
         double x1 = rect.left();
@@ -409,7 +409,7 @@ void QwtPlotZoomer::rescale()
 
         plt->setAxisScale(yAxis(), y1, y2);
 
-        plt->setAutoReplot(doReplot);
+        plt->restoreAutoReplotState();
 
         plt->replot();
     }

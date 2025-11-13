@@ -59,6 +59,7 @@ plugins:
                 - QwtFigure绘图容器: zh/use-guide/figure-widget.md
                 - 多坐标轴的创建: zh/use-guide/parasite-axes.md
                 - 坐标轴交互动作: zh/use-guide/scale-builtin-action.md
+                - 绘图数据拾取: zh/use-guide/pick-value.md
             - API文档: 
                 - API文档首页: doxygen/index.html
                 - 类列表: doxygen/annotated.html

@@ -31,74 +31,105 @@ class QWheelEvent;
 class QKeyEvent;
 class QPainter;
 
-/*!
-   \brief QwtPicker provides selections on a widget
-
-   QwtPicker filters all enter, leave, mouse and keyboard events of a widget
-   and translates them into an array of selected points.
-
-   The way how the points are collected depends on type of state machine
-   that is connected to the picker. Qwt offers a couple of predefined
-   state machines for selecting:
-
-   - Nothing\n
-    QwtPickerTrackerMachine
-   - Single points\n
-    QwtPickerClickPointMachine, QwtPickerDragPointMachine
-   - Rectangles\n
-    QwtPickerClickRectMachine, QwtPickerDragRectMachine
-   - Polygons\n
-    QwtPickerPolygonMachine
-
-   While these state machines cover the most common ways to collect points
-   it is also possible to implement individual machines as well.
-
-   QwtPicker translates the picked points into a selection using the
-   adjustedPoints() method. adjustedPoints() is intended to be reimplemented
-   to fix up the selection according to application specific requirements.
-   (F.e. when an application accepts rectangles of a fixed aspect ratio only.)
-
-   Optionally QwtPicker support the process of collecting points by a
-   rubber band and tracker displaying a text for the current mouse
-   position.
-
-   \par Example
-   \code
- #include <qwt_picker.h>
- #include <qwt_picker_machine.h>
-
-    QwtPicker *picker = new QwtPicker(widget);
-    picker->setStateMachine(new QwtPickerDragRectMachine);
-    picker->setTrackerMode(QwtPicker::ActiveOnly);
-    picker->setRubberBand(QwtPicker::RectRubberBand);
-   \endcode
-
-   The state machine triggers the following commands:
-
-   - begin()\n
-    Activate/Initialize the selection.
-   - append()\n
-    Add a new point
-   - move() \n
-    Change the position of the last point.
-   - remove()\n
-    Remove the last point.
-   - end()\n
-    Terminate the selection and call accept to validate the picked points.
-
-   The picker is active (isActive()), between begin() and end().
-   In active state the rubber band is displayed, and the tracker is visible
-   in case of trackerMode is ActiveOnly or AlwaysOn.
-
-   The cursor can be moved using the arrow keys. All selections can be aborted
-   using the abort key. (QwtEventPattern::KeyPatternCode)
-
-   \warning In case of QWidget::NoFocus the focus policy of the observed
-           widget is set to QWidget::WheelFocus and mouse tracking
-           will be manipulated while the picker is active,
-           or if trackerMode() is AlwayOn.
+/**
+ * @brief QwtPicker provides selections on a widget / QwtPicker 在一个部件（widget）上提供选择功能
+ *
+ * QwtPicker filters all enter, leave, mouse and keyboard events of a widget
+ * and translates them into an array of selected points.
+ *
+ * The way how the points are collected depends on type of state machine
+ * that is connected to the picker. Qwt offers a couple of predefined
+ * state machines for selecting:
+ *
+ * - Nothing\n
+ *   QwtPickerTrackerMachine
+ * - Single points\n
+ *   QwtPickerClickPointMachine, QwtPickerDragPointMachine
+ * - Rectangles\n
+ *   QwtPickerClickRectMachine, QwtPickerDragRectMachine
+ * - Polygons\n
+ *   QwtPickerPolygonMachine
+ *
+ * While these state machines cover the most common ways to collect points
+ * it is also possible to implement individual machines as well.
+ *
+ * QwtPicker translates the picked points into a selection using the
+ * adjustedPoints() method. adjustedPoints() is intended to be reimplemented
+ * to fix up the selection according to application specific requirements.
+ * (F.e. when an application accepts rectangles of a fixed aspect ratio only.)
+ *
+ * Optionally QwtPicker support the process of collecting points by a
+ * rubber band and tracker displaying a text for the current mouse
+ * position.
+ *
+ * ---------------------------------------------
+ *
+ * QwtPicker 会过滤一个部件（widget）的所有进入、离开、鼠标和键盘事件，并将它们转换为一个选定坐标点的数组。
+ *
+ * 收集点的方式取决于连接到选择器（picker）的状态机（state machine）类型。Qwt 提供了几个预定义的选择状态机：
+ *
+ * - 无\n
+ *   QwtPickerTrackerMachine
+ * - 单个点\n
+ *   QwtPickerClickPointMachine, QwtPickerDragPointMachine
+ * - 矩形\n
+ *   QwtPickerClickRectMachine, QwtPickerDragRectMachine
+ * - 多边形\n
+ *   QwtPickerPolygonMachine
+ *
+ * 虽然这些状态机涵盖了最常见的点收集方式，但也可以实现自定义的状态机。
+ *
+ * QwtPicker 使用 adjustedPoints() 方法将拾取的点转换为一个选择区域/集合。adjustedPoints() 方法旨在被重写，
+ * 以便根据应用程序的特定要求修正选择结果。（例如：当应用程序只接受固定宽高比的矩形时。）
+ *
+ * QwtPicker 可以选择性地通过一个橡皮筋（rubber band）和一个显示当前鼠标位置文本的追踪器（tracker）来辅助点的收集过程。
+ *
+ * @par Example
+ * @code
+ * #include <qwt_picker.h>
+ * #include <qwt_picker_machine.h>
+ *
+ * QwtPicker *picker = new QwtPicker(widget);
+ * picker->setStateMachine(new QwtPickerDragRectMachine);
+ * picker->setTrackerMode(QwtPicker::ActiveOnly);
+ * picker->setRubberBand(QwtPicker::RectRubberBand);
+ * @endcode
+ *
+ * The state machine triggers the following commands:
+ *
+ * 状态机会触发以下命令：
+ *
+ * - begin()\n
+ *   Activate/Initialize the selection. / 激活/初始化选择。
+ * - append()\n
+ *   Add a new point / 添加一个新点。
+ * - move() \n
+ *   Change the position of the last point. / 改变最后一个点的位置。
+ * - remove()\n
+ *   Remove the last point. / 移除最后一个点。
+ * - end()\n
+ *   Terminate the selection and call accept to validate the picked points. / 终止选择，并调用 accept 来验证拾取的点。
+ *
+ * The picker is active (isActive()), between begin() and end().
+ * In active state the rubber band is displayed, and the tracker is visible
+ * in case of trackerMode is ActiveOnly or AlwaysOn.
+ *
+ * 在 begin() 和 end() 之间，选择器处于活动状态（isActive()）。
+ * 在活动状态下，橡皮筋会显示。如果追踪器模式（trackerMode）是 ActiveOnly 或 AlwaysOn，追踪器也会可见。
+ *
+ * The cursor can be moved using the arrow keys. All selections can be aborted
+ * using the abort key. (QwtEventPattern::KeyPatternCode)
+ *
+ * 可以使用方向键移动光标。所有选择都可以使用取消键（abort key）来中止。(QwtEventPattern::KeyPatternCode)
+ *
+ * @warning In case of QWidget::NoFocus the focus policy of the observed
+ *          widget is set to QWidget::WheelFocus and mouse tracking
+ *          will be manipulated while the picker is active,
+ *          or if trackerMode() is AlwayOn./
+ *          如果观察的部件（widget）的焦点策略是 QWidget::NoFocus，
+ *          那么在选择器处于活动状态时，或者如果 trackerMode() 是 AlwaysOn 时，
+ *          该部件的焦点策略会被设置为 QWidget::WheelFocus，并且鼠标追踪（mouse tracking）会被操控。
  */
-
 class QWT_EXPORT QwtPicker : public QObject, public QwtEventPattern
 {
     Q_OBJECT

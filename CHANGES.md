@@ -1,3 +1,9 @@
+## tag:v7.0.6
+
+- 新增`QwtPlotSeriesDataPicker`类，提供了绘图数据的拾取
+- 完善了寄生绘图的刷新机制，不会在构造时无法完全更新
+- 有些接口的索引类型由int改为size_t
+
 ## tag:v7.0.5
 
 - `QwtScaleWidget`增加坐标轴内置动作功能，实现坐标轴的pan和zoom两种内置动作

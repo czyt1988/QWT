@@ -10,8 +10,6 @@
 #pragma warning (push)
 #pragma warning (disable: 4996) // deprecated POSIX names
 #endif
-
-#include "../../src/qwt.cpp"
 #include "../../src/qwt_math.cpp"
 #include "../../src/qwt_interval.cpp"
 #include "../../src/qwt_color_map.cpp"
@@ -76,15 +74,10 @@
 #include "../../src/qwt_point_data.cpp"
 #include "../../src/qwt_point_mapper.cpp"
 #include "../../src/qwt_series_data.cpp"
-#include "../../src/qwt_dial_needle.cpp"
-#include "../../src/qwt_dial.cpp"
-#include "../../src/qwt_compass.cpp"
-#include "../../src/qwt_knob.cpp"
-#include "../../src/qwt_analog_clock.cpp"
-#include "../../src/qwt_magnifier.cpp"
 #include "../../src/qwt_picker_machine.cpp"
 #include "../../src/qwt_picker.cpp"
 #include "../../src/qwt_panner.cpp"
+#include "../../src/qwt_utils.cpp"
 // plot items
 #include "../../src/qwt_plot_dict.cpp"
 #include "../../src/qwt_plot_abstract_canvas.cpp"
@@ -108,6 +101,7 @@
 #include "../../src/qwt_plot_multi_barchart.cpp"
 #include "../../src/qwt_plot_panner.cpp"
 #include "../../src/qwt_plot_picker.cpp"
+#include "../../src/qwt_plot_series_data_picker.cpp"
 #include "../../src/qwt_plot_rasteritem.cpp"
 #include "../../src/qwt_plot_renderer.cpp"
 #include "../../src/qwt_plot_scaleitem.cpp"
@@ -145,6 +139,13 @@
 #include "../../src/qwt_figure_layout.cpp"
 #include "../../src/qwt_figure.cpp"
 #include "../../src/qwt_figure_widget_overlay.cpp"
+// control
+#include "../../src/qwt_dial_needle.cpp"
+#include "../../src/qwt_dial.cpp"
+#include "../../src/qwt_compass.cpp"
+#include "../../src/qwt_knob.cpp"
+#include "../../src/qwt_analog_clock.cpp"
+#include "../../src/qwt_magnifier.cpp"
 #ifdef _MSC_VER
 #pragma warning (pop)
 #pragma pop_macro ("_CRT_SECURE_NO_WARNINGS")

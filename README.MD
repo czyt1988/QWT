@@ -131,6 +131,15 @@ Axis interaction functionality has been added, supporting **drag-and-drop** and 
 **Zooming:**
 ![qwt-scale-builtin-action-zoom](./docs/assets/screenshots/qwt-scale-builtin-action-zoom.gif)
 
+### Added Data Picking Functionality
+
+Added the QwtPlotSeriesDataPicker class to support data picking.
+
+![series-data-picker-yvalue](./docs/assets/picture/series-data-picker-yvalue.gif)
+
+![series-data-picker-nearest-value](./docs/assets/picture/series-data-picker-nearest-value.gif)
+
+
 ## Changelog
 
 See [CHANGES.MD](./CHANGES.md) for detailed logs.

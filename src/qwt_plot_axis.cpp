@@ -854,9 +854,6 @@ void QwtPlot::updateAxes()
             item->updateScaleDiv(axisScaleDiv(item->xAxis()), axisScaleDiv(item->yAxis()));
         }
     }
-    if (isHostPlot()) {
-        updateAxisEdgeMargin();
-    }
 }
 
 /**
@@ -879,6 +876,7 @@ void QwtPlot::updateItemsToScaleDiv()
  */
 void QwtPlot::yLeftRequestScaleRangeUpdate(double min, double max)
 {
+
     setAxisScale(QwtAxis::YLeft, min, max);
     replotAll();
 }

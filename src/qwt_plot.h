@@ -303,7 +303,8 @@ public:
 
     // 更新宿主轴和寄生轴的偏移
     void updateAxisEdgeMargin(QwtAxisId axisId);
-    void updateAxisEdgeMargin();
+    // 更新寄生轴的坐标
+    void updateAllAxisEdgeMargin();
     // 更新绘图上的items，让其适配scaleDiv的范围
     void updateItemsToScaleDiv();
     // 坐标轴事件使能
@@ -311,6 +312,9 @@ public:
     bool isEnableScaleBuildinActions() const;
     // 设置坐标轴事件转发器，这个是实现坐标轴事件的主要管理类
     void setupScaleEventDispatcher(QwtPlotScaleEventDispatcher* dispatcher);
+    // 保存/恢复当前自动绘图设置的状态
+    void saveAutoReplotState();
+    void restoreAutoReplotState();
 #if QWT_AXIS_COMPAT
     enum Axis
     {
