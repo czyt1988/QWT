@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -17,10 +17,8 @@
 
    \sa setInterval(), setSize()
  */
-QwtSyntheticPointData::QwtSyntheticPointData(
-        size_t size, const QwtInterval& interval )
-    : m_size( size )
-    , m_interval( interval )
+QwtSyntheticPointData::QwtSyntheticPointData(size_t size, const QwtInterval& interval)
+    : m_size(size), m_interval(interval)
 {
 }
 
@@ -30,7 +28,7 @@ QwtSyntheticPointData::QwtSyntheticPointData(
    \param size Number of points
    \sa size(), setInterval()
  */
-void QwtSyntheticPointData::setSize( size_t size )
+void QwtSyntheticPointData::setSize(size_t size)
 {
     m_size = size;
 }
@@ -50,7 +48,7 @@ size_t QwtSyntheticPointData::size() const
    \param interval Interval
    \sa interval(), setSize()
  */
-void QwtSyntheticPointData::setInterval( const QwtInterval& interval )
+void QwtSyntheticPointData::setInterval(const QwtInterval& interval)
 {
     m_interval = interval.normalized();
 }
@@ -75,11 +73,10 @@ QwtInterval QwtSyntheticPointData::interval() const
 
    \sa rectOfInterest()
  */
-void QwtSyntheticPointData::setRectOfInterest( const QRectF& rect )
+void QwtSyntheticPointData::setRectOfInterest(const QRectF& rect)
 {
-    m_rectOfInterest = rect;
-    m_intervalOfInterest = QwtInterval(
-        rect.left(), rect.right() ).normalized();
+    m_rectOfInterest     = rect;
+    m_intervalOfInterest = QwtInterval(rect.left(), rect.right()).normalized();
 }
 
 /*!
@@ -104,13 +101,11 @@ QRectF QwtSyntheticPointData::rectOfInterest() const
  */
 QRectF QwtSyntheticPointData::boundingRect() const
 {
-    if ( m_size == 0 ||
-        !( m_interval.isValid() || m_intervalOfInterest.isValid() ) )
-    {
-        return QRectF( 1.0, 1.0, -2.0, -2.0 ); // something invalid
+    if (m_size == 0 || !(m_interval.isValid() || m_intervalOfInterest.isValid())) {
+        return QRectF(1.0, 1.0, -2.0, -2.0);  // something invalid
     }
 
-    return qwtBoundingRect( *this );
+    return qwtBoundingRect(*this);
 }
 
 /*!
@@ -122,15 +117,15 @@ QRectF QwtSyntheticPointData::boundingRect() const
    \warning For invalid indices ( index < 0 || index >= size() )
             (0, 0) is returned.
  */
-QPointF QwtSyntheticPointData::sample( size_t index ) const
+QPointF QwtSyntheticPointData::sample(size_t index) const
 {
-    if ( index >= m_size )
-        return QPointF( 0, 0 );
+    if (index >= m_size)
+        return QPointF(0, 0);
 
-    const double xValue = x( index );
-    const double yValue = y( xValue );
+    const double xValue = x(index);
+    const double yValue = y(xValue);
 
-    return QPointF( xValue, yValue );
+    return QPointF(xValue, yValue);
 }
 
 /*!
@@ -145,17 +140,16 @@ QPointF QwtSyntheticPointData::sample( size_t index ) const
 
    \sa interval(), rectOfInterest(), y()
  */
-double QwtSyntheticPointData::x( uint index ) const
+double QwtSyntheticPointData::x(size_t index) const
 {
-    const QwtInterval& interval = m_interval.isValid() ?
-        m_interval : m_intervalOfInterest;
+    const QwtInterval& interval = m_interval.isValid() ? m_interval : m_intervalOfInterest;
 
-    if ( !interval.isValid() )
+    if (!interval.isValid())
         return 0.0;
 
-    if ( m_size <= 1 )
+    if (m_size <= 1)
         return interval.minValue();
 
-    const double dx = interval.width() / ( m_size - 1 );
+    const double dx = interval.width() / (m_size - 1);
     return interval.minValue() + index * dx;
 }

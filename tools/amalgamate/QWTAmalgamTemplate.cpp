@@ -108,6 +108,7 @@
 #include "../../src/qwt_plot_multi_barchart.cpp"
 #include "../../src/qwt_plot_panner.cpp"
 #include "../../src/qwt_plot_picker.cpp"
+#include "../../src/qwt_plot_series_data_picker.cpp"
 #include "../../src/qwt_plot_rasteritem.cpp"
 #include "../../src/qwt_plot_renderer.cpp"
 #include "../../src/qwt_plot_scaleitem.cpp"

@@ -109,6 +109,7 @@
 #include "../../src/qwt_plot_multi_barchart.h"
 #include "../../src/qwt_plot_panner.h"
 #include "../../src/qwt_plot_picker.h"
+#include "../../src/qwt_plot_series_data_picker.h"
 #include "../../src/qwt_plot_rasteritem.h"
 #include "../../src/qwt_plot_scaleitem.h"
 #include "../../src/qwt_plot_shapeitem.h"

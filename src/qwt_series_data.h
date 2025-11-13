@@ -282,19 +282,19 @@ public:
     virtual QRectF boundingRect() const QWT_OVERRIDE;
 };
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QPointF >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QPointF >&, size_t from = 0, size_t to = -1);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtPoint3D >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtPoint3D >&, size_t from = 0, size_t to = -1);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtPointPolar >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtPointPolar >&, size_t from = 0, size_t to = -1);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtIntervalSample >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtIntervalSample >&, size_t from = 0, size_t to = -1);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtSetSample >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtSetSample >&, size_t from = 0, size_t to = -1);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtOHLCSample >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtOHLCSample >&, size_t from = 0, size_t to = -1);
 
-QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >&, int from = 0, int to = -1);
+QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >&, size_t from = 0, size_t to = -1);
 
 /**
  * Binary search for a sorted series of samples
@@ -303,14 +303,14 @@ QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >&, 
  * of value. Is the the value smaller than the smallest value the return
  * value will be 0. Is the value greater or equal than the largest
  * value the return value will be -1.
- * 
+ *
  * @par Example
  * The following example shows finds a point of curve from an x
  * coordinate
  * @code
  * #include <qwt_series_data.h>
  * #include <qwt_plot_curve.h>
- * 
+ *
  *   struct compareX
  *   {
  *       inline bool operator()( const double x, const QPointF &pos ) const
@@ -318,31 +318,31 @@ QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >&, 
  *           return ( x < pos.x() );
  *       }
  *   };
- * 
+ *
  *   QLineF curveLineAt( const QwtPlotCurve *curve, double x )
  *   {
  *       int index = qwtUpperSampleIndex<QPointF>(*curve->data(), x, compareX() );
- * 
+ *
  *       if ( index == -1 &&
  *           x == curve->sample( curve->dataSize() - 1 ).x() )
  *       {
  *           // the last sample is excluded from qwtUpperSampleIndex
  *           index = curve->dataSize() - 1;
  *       }
- * 
+ *
  *       QLineF line; // invalid
  *       if ( index > 0 )
  *       {
  *           line.setP1( curve->sample( index - 1 ) );
  *           line.setP2( curve->sample( index ) );
  *       }
- * 
+ *
  *       return line;
  *   }
- * 
+ *
  * @endcode
  * @endpar
- * 
+ *
  * @param series Series of samples
  * @param value Value
  * @param lessThan Compare operation

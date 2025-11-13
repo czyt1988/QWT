@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -19,31 +19,32 @@ class QPointF;
 class QRectF;
 
 #if QT_VERSION < 0x060000
-template< typename T > class QVector;
+template< typename T >
+class QVector;
 #endif
 
-/*!
-   \brief QwtPlotPicker provides selections on a plot canvas
-
-   QwtPlotPicker is a QwtPicker tailored for selections on
-   a plot canvas. It is set to a x-Axis and y-Axis and
-   translates all pixel coordinates into this coordinate system.
+/**
+ *  @brief QwtPlotPicker provides selections on a plot canvas/QwtPlotPicker提供绘图画布上的选择功能
+ *
+ *  QwtPlotPicker is a QwtPicker tailored for selections on
+ *  a plot canvas. It is set to a x-Axis and y-Axis and
+ *  translates all pixel coordinates into this coordinate system.
+ *
+ *  QwtPlotPicker是一款专为绘图画布选择场景设计的 QwtPicker 类。它会绑定到一个X轴和一个Y轴，并将所有像素坐标转换为该坐标系下的坐标。
  */
-
 class QWT_EXPORT QwtPlotPicker : public QwtPicker
 {
     Q_OBJECT
 
-  public:
-    explicit QwtPlotPicker( QWidget* canvas );
+public:
+    explicit QwtPlotPicker(QWidget* canvas);
     virtual ~QwtPlotPicker();
 
-    explicit QwtPlotPicker( QwtAxisId xAxisId, QwtAxisId yAxisId, QWidget* );
+    explicit QwtPlotPicker(QwtAxisId xAxisId, QwtAxisId yAxisId, QWidget*);
 
-    explicit QwtPlotPicker( QwtAxisId xAxisId, QwtAxisId yAxisId,
-        RubberBand rubberBand, DisplayMode trackerMode, QWidget* );
+    explicit QwtPlotPicker(QwtAxisId xAxisId, QwtAxisId yAxisId, RubberBand rubberBand, DisplayMode trackerMode, QWidget*);
 
-    virtual void setAxes( QwtAxisId xAxisId, QwtAxisId yAxisId );
+    virtual void setAxes(QwtAxisId xAxisId, QwtAxisId yAxisId);
 
     QwtAxisId xAxis() const;
     QwtAxisId yAxis() const;
@@ -54,19 +55,19 @@ class QWT_EXPORT QwtPlotPicker : public QwtPicker
     QWidget* canvas();
     const QWidget* canvas() const;
 
-  Q_SIGNALS:
+Q_SIGNALS:
 
     /*!
        A signal emitted in case of QwtPickerMachine::PointSelection.
        \param pos Selected point
      */
-    void selected( const QPointF& pos );
+    void selected(const QPointF& pos);
 
     /*!
        A signal emitted in case of QwtPickerMachine::RectSelection.
        \param rect Selected rectangle
      */
-    void selected( const QRectF& rect );
+    void selected(const QRectF& rect);
 
     /*!
        A signal emitting the selected points,
@@ -74,7 +75,7 @@ class QWT_EXPORT QwtPlotPicker : public QwtPicker
 
        \param pa Selected points
      */
-    void selected( const QVector< QPointF >& pa );
+    void selected(const QVector< QPointF >& pa);
 
     /*!
        A signal emitted when a point has been appended to the selection
@@ -82,7 +83,7 @@ class QWT_EXPORT QwtPlotPicker : public QwtPicker
        \param pos Position of the appended point.
        \sa append(). moved()
      */
-    void appended( const QPointF& pos );
+    void appended(const QPointF& pos);
 
     /*!
        A signal emitted whenever the last appended point of the
@@ -91,25 +92,25 @@ class QWT_EXPORT QwtPlotPicker : public QwtPicker
        \param pos Position of the moved last point of the selection.
        \sa move(), appended()
      */
-    void moved( const QPointF& pos );
+    void moved(const QPointF& pos);
 
-  protected:
+protected:
     QRectF scaleRect() const;
 
-    QRectF invTransform( const QRect& ) const;
-    QRect transform( const QRectF& ) const;
+    QRectF invTransform(const QRect&) const;
+    QRect transform(const QRectF&) const;
 
-    QPointF invTransform( const QPoint& ) const;
-    QPoint transform( const QPointF& ) const;
+    QPointF invTransform(const QPoint&) const;
+    QPoint transform(const QPointF&) const;
 
-    virtual QwtText trackerText( const QPoint& ) const QWT_OVERRIDE;
-    virtual QwtText trackerTextF( const QPointF& ) const;
+    virtual QwtText trackerText(const QPoint&) const QWT_OVERRIDE;
+    virtual QwtText trackerTextF(const QPointF&) const;
 
-    virtual void move( const QPoint& ) QWT_OVERRIDE;
-    virtual void append( const QPoint& ) QWT_OVERRIDE;
-    virtual bool end( bool ok = true ) QWT_OVERRIDE;
+    virtual void move(const QPoint&) QWT_OVERRIDE;
+    virtual void append(const QPoint&) QWT_OVERRIDE;
+    virtual bool end(bool ok = true) QWT_OVERRIDE;
 
-  private:
+private:
     class PrivateData;
     PrivateData* m_data;
 };

@@ -879,6 +879,7 @@ void QwtPlot::updateItemsToScaleDiv()
  */
 void QwtPlot::yLeftRequestScaleRangeUpdate(double min, double max)
 {
+
     setAxisScale(QwtAxis::YLeft, min, max);
     replotAll();
 }

@@ -311,6 +311,9 @@ public:
     bool isEnableScaleBuildinActions() const;
     // 设置坐标轴事件转发器，这个是实现坐标轴事件的主要管理类
     void setupScaleEventDispatcher(QwtPlotScaleEventDispatcher* dispatcher);
+    // 保存/恢复当前自动绘图设置的状态
+    void saveAutoReplotState();
+    void restoreAutoReplotState();
 #if QWT_AXIS_COMPAT
     enum Axis
     {

@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -549,8 +549,7 @@ void QwtPlotRescaler::updateScales(QwtInterval intervals[ QwtAxis::AxisPositions
     }
 
     QwtPlot* plt = const_cast< QwtPlot* >(plot());
-
-    const bool doReplot = plt->autoReplot();
+    plt->saveAutoReplotState();
     plt->setAutoReplot(false);
 
     for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
@@ -588,7 +587,7 @@ void QwtPlotRescaler::updateScales(QwtInterval intervals[ QwtAxis::AxisPositions
         canvas->setPaintAttribute(QwtPlotCanvas::ImmediatePaint, false);
     }
 
-    plt->setAutoReplot(doReplot);
+    plt->restoreAutoReplotState();
 
     m_data->inReplot++;
     plt->replot();

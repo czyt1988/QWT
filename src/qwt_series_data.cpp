@@ -80,20 +80,18 @@ static inline QRectF qwtBoundingRect(const QwtVectorFieldSample& sample)
  */
 
 template< class T >
-QRectF qwtBoundingRectT(const QwtSeriesData< T >& series, int from, int to)
+QRectF qwtBoundingRectT(const QwtSeriesData< T >& series, size_t from, size_t to)
 {
     QRectF boundingRect(1.0, 1.0, -2.0, -2.0);  // invalid;
-
-    if (from < 0)
-        from = 0;
-
-    if (to < 0)
+    if (to == 0) {
         to = series.size() - 1;
+    }
 
-    if (to < from)
+    if (to < from) {
         return boundingRect;
+    }
 
-    int i;
+    size_t i;
     for (i = from; i <= to; i++) {
         const QRectF rect = qwtBoundingRect(series.sample(i));
         if (rect.width() >= 0.0 && rect.height() >= 0.0) {
@@ -127,7 +125,7 @@ QRectF qwtBoundingRectT(const QwtSeriesData< T >& series, int from, int to)
 
    \return Bounding rectangle
  */
-QRectF qwtBoundingRect(const QwtSeriesData< QPointF >& series, int from, int to)
+QRectF qwtBoundingRect(const QwtSeriesData< QPointF >& series, size_t from, size_t to)
 {
     return qwtBoundingRectT< QPointF >(series, from, to);
 }
@@ -143,7 +141,7 @@ QRectF qwtBoundingRect(const QwtSeriesData< QPointF >& series, int from, int to)
 
    \return Bounding rectangle
  */
-QRectF qwtBoundingRect(const QwtSeriesData< QwtPoint3D >& series, int from, int to)
+QRectF qwtBoundingRect(const QwtSeriesData< QwtPoint3D >& series, size_t from, size_t to)
 {
     return qwtBoundingRectT< QwtPoint3D >(series, from, to);
 }
@@ -162,7 +160,7 @@ QRectF qwtBoundingRect(const QwtSeriesData< QwtPoint3D >& series, int from, int 
 
    \return Bounding rectangle
  */
-QRectF qwtBoundingRect(const QwtSeriesData< QwtPointPolar >& series, int from, int to)
+QRectF qwtBoundingRect(const QwtSeriesData< QwtPointPolar >& series, size_t from, size_t to)
 {
     return qwtBoundingRectT< QwtPointPolar >(series, from, to);
 }
@@ -178,7 +176,7 @@ QRectF qwtBoundingRect(const QwtSeriesData< QwtPointPolar >& series, int from, i
 
    \return Bounding rectangle
  */
-QRectF qwtBoundingRect(const QwtSeriesData< QwtIntervalSample >& series, int from, int to)
+QRectF qwtBoundingRect(const QwtSeriesData< QwtIntervalSample >& series, size_t from, size_t to)
 {
     return qwtBoundingRectT< QwtIntervalSample >(series, from, to);
 }
@@ -194,7 +192,7 @@ QRectF qwtBoundingRect(const QwtSeriesData< QwtIntervalSample >& series, int fro
 
    \return Bounding rectangle
  */
-QRectF qwtBoundingRect(const QwtSeriesData< QwtOHLCSample >& series, int from, int to)
+QRectF qwtBoundingRect(const QwtSeriesData< QwtOHLCSample >& series, size_t from, size_t to)
 {
     return qwtBoundingRectT< QwtOHLCSample >(series, from, to);
 }
@@ -210,7 +208,7 @@ QRectF qwtBoundingRect(const QwtSeriesData< QwtOHLCSample >& series, int from, i
 
    \return Bounding rectangle
  */
-QRectF qwtBoundingRect(const QwtSeriesData< QwtSetSample >& series, int from, int to)
+QRectF qwtBoundingRect(const QwtSeriesData< QwtSetSample >& series, size_t from, size_t to)
 {
     return qwtBoundingRectT< QwtSetSample >(series, from, to);
 }
@@ -226,7 +224,7 @@ QRectF qwtBoundingRect(const QwtSeriesData< QwtSetSample >& series, int from, in
 
    \return Bounding rectangle
  */
-QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >& series, int from, int to)
+QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >& series, size_t from, size_t to)
 {
     return qwtBoundingRectT< QwtVectorFieldSample >(series, from, to);
 }

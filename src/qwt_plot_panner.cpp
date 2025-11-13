@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -123,8 +123,8 @@ public:
 QwtPlotPanner::QwtPlotPanner(QWidget* canvas) : QwtPanner(canvas)
 {
     m_data = new PrivateData();
-
-    connect(this, SIGNAL(panned(int, int)), SLOT(moveCanvas(int, int)));
+    connect(this, &QwtPlotPanner::panned, this, &QwtPlotPanner::moveCanvas);
+    // connect(this, SIGNAL(panned(int, int)), SLOT(moveCanvas(int, int)));
 }
 
 //! Destructor
@@ -215,7 +215,7 @@ void QwtPlotPanner::moveCanvas(int dx, int dy)
     if (plot == NULL)
         return;
 
-    const bool doAutoReplot = plot->autoReplot();
+    plot->saveAutoReplotState();
     plot->setAutoReplot(false);
 
     for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
@@ -243,7 +243,7 @@ void QwtPlotPanner::moveCanvas(int dx, int dy)
         }
     }
 
-    plot->setAutoReplot(doAutoReplot);
+    plot->restoreAutoReplotState();
     plot->replot();
 }
 

@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -119,7 +119,7 @@ void QwtPlotMagnifier::rescale(double factor)
 
     bool doReplot = false;
 
-    const bool autoReplot = plt->autoReplot();
+    plt->saveAutoReplotState();
     plt->setAutoReplot(false);
 
     for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
@@ -156,7 +156,7 @@ void QwtPlotMagnifier::rescale(double factor)
         }
     }
 
-    plt->setAutoReplot(autoReplot);
+    plt->restoreAutoReplotState();
 
     if (doReplot)
         plt->replot();

@@ -107,6 +107,7 @@ public:
     QwtPlotScaleEventDispatcher* scaleEventDispatcher { nullptr };
 
     bool autoReplot;
+    bool autoReplotTemp;  ///< 用于暂存autoReplot状态
 
     bool isParasitePlot { false };                                ///< 标记这个绘图是寄生绘图
     QMetaObject::Connection shareConn[ QwtAxis::AxisPositions ];  // 记录寄生轴和宿主轴坐标同步的信号槽，仅仅针对寄生轴有用
@@ -554,7 +555,7 @@ void QwtPlot::resizeEvent(QResizeEvent* e)
  */
 void QwtPlot::replot()
 {
-    bool doAutoReplot = autoReplot();
+    saveAutoReplotState();
     setAutoReplot(false);
 
     updateAxes();
@@ -573,7 +574,7 @@ void QwtPlot::replot()
             m_data->canvas->update(m_data->canvas->contentsRect());
         }
     }
-    setAutoReplot(doAutoReplot);
+    restoreAutoReplotState();
 }
 
 /**
@@ -1975,4 +1976,20 @@ void QwtPlot::setupScaleEventDispatcher(QwtPlotScaleEventDispatcher* dispatcher)
     if (dispatcher) {
         installEventFilter(dispatcher);
     }
+}
+
+/**
+ * @brief 保存当前自动绘图设置的状态
+ */
+void QwtPlot::saveAutoReplotState()
+{
+    m_data->autoReplotTemp = m_data->autoReplot;
+}
+
+/**
+ * @brief 恢复当前自动绘图设置的状态
+ */
+void QwtPlot::restoreAutoReplotState()
+{
+    m_data->autoReplot = m_data->autoReplotTemp;
 }
