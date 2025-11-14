@@ -1,7 +1,6 @@
 ﻿// 通用定义
 #include "../../src/qwt_version_info.h"
 #include "../../src/qwt_global.h"
-#include "../../src/qwt.h"
 #include "../../src/qwt_polar.h"
 #include "../../src/qwt_math.h"
 #include "../../src/qwt_algorithm.hpp"
@@ -10,6 +9,7 @@
 #include "../../src/qwt_pixel_matrix.h"
 #include "../../src/qwt_transform.h"
 #include "../../src/qwt_scale_map.h"
+#include "../../src/qwt_utils.h"
 #include "../../src/qwt_dyngrid_layout.h"
 #include "../../src/qwt_weeding_curve_fitter.h"
 #include "../../src/qwt_qt5qt6_compat.hpp"

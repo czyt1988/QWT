@@ -13,7 +13,7 @@
 #include "qwt_scale_map.h"
 #include "qwt_round_scale_draw.h"
 #include "qwt_painter.h"
-#include "qwt.h"
+#include "qwt_utils.h"
 
 #include <qpainter.h>
 #include <qpalette.h>

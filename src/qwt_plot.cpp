@@ -1247,6 +1247,12 @@ void QwtPlot::initParasiteAxes(QwtPlot* parasitePlot) const
     // 禁用自动填充背景
     parasitePlot->setAutoFillBackground(false);
 
+    // 寄生轴绘图和canvas都对宿主透明，让鼠标事件最终都传递到宿主处理
+    parasitePlot->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    if (QWidget* c = parasitePlot->canvas()) {
+        c->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    }
+
     // 设置透明背景
     QPalette palette = parasitePlot->palette();
     palette.setColor(QPalette::Window, Qt::transparent);

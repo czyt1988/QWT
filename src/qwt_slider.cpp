@@ -12,7 +12,7 @@
 #include "qwt_scale_draw.h"
 #include "qwt_scale_map.h"
 #include "qwt_math.h"
-#include "qwt.h"
+#include "qwt_utils.h"
 
 #include <qevent.h>
 #include <qdrawutil.h>

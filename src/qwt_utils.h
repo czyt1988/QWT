@@ -7,22 +7,24 @@
  * modify it under the terms of the Qwt License, Version 1.0
  *****************************************************************************/
 
-#include "qwt.h"
-#include <qapplication.h>
+#ifndef QWT_UTILS_H
+#define QWT_UTILS_H
 
-#define QWT_GLOBAL_STRUT
+#include "qwt_global.h"
+#include <QColor>
 
-#if QT_VERSION >= 0x050000
-    #if QT_VERSION >= 0x060000 || !QT_DEPRECATED_SINCE(5, 15)
-        #undef QWT_GLOBAL_STRUT
-    #endif
-#endif
+class QSize;
+class QwtPlotItem;
 
-QSize qwtExpandedToGlobalStrut( const QSize& size )
+/*!
+   Some constants for use within Qwt.
+ */
+namespace Qwt
 {
-#ifdef QWT_GLOBAL_STRUT
-    return size.expandedTo( QApplication::globalStrut() );
-#else
-    return size;
-#endif
+// 获取item的颜色
+QColor QWT_EXPORT plotItemColor(QwtPlotItem* item, const QColor& defaultColor = QColor());
 }
+
+QWT_EXPORT QSize qwtExpandedToGlobalStrut(const QSize&);
+
+#endif

@@ -54,7 +54,7 @@ public:
 
     QWidget* canvas();
     const QWidget* canvas() const;
-
+    /** 下面信号个人觉得没有必要在基类中 **/
 Q_SIGNALS:
 
     /*!

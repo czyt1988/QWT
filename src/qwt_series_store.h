@@ -106,7 +106,7 @@ public:
         \param index Index
         \return Sample at position index
      */
-    T sample(int index) const;
+    T sample(size_t index) const;
 
     /*!
        \return Number of samples of the series
@@ -166,7 +166,7 @@ inline const QwtSeriesData< T >* QwtSeriesStore< T >::data() const
 }
 
 template< typename T >
-inline T QwtSeriesStore< T >::sample(int index) const
+inline T QwtSeriesStore< T >::sample(size_t index) const
 {
     return m_series ? m_series->sample(index) : T();
 }

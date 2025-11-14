@@ -175,64 +175,64 @@ QWT_EXPORT quint32 qwtRand();
  */
 inline int qwtFuzzyCompare(double value1, double value2, double intervalSize)
 {
-	const double eps = qAbs(1.0e-6 * intervalSize);
+    const double eps = qAbs(1.0e-6 * intervalSize);
 
-	if (value2 - value1 > eps)
-		return -1;
+    if (value2 - value1 > eps)
+        return -1;
 
-	if (value1 - value2 > eps)
-		return 1;
+    if (value1 - value2 > eps)
+        return 1;
 
-	return 0;
+    return 0;
 }
 
 //! Return the sign
 inline int qwtSign(double x)
 {
-	if (x > 0.0)
-		return 1;
-	else if (x < 0.0)
-		return (-1);
-	else
-		return 0;
+    if (x > 0.0)
+        return 1;
+    else if (x < 0.0)
+        return (-1);
+    else
+        return 0;
 }
 
 //! Return the square of a number
 inline double qwtSqr(double x)
 {
-	return x * x;
+    return x * x;
 }
 
 //! Approximation of arc tangent ( error below 0,005 radians )
 inline double qwtFastAtan(double x)
 {
-	if (x < -1.0)
-		return -M_PI_2 - x / (x * x + 0.28);
+    if (x < -1.0)
+        return -M_PI_2 - x / (x * x + 0.28);
 
-	if (x > 1.0)
-		return M_PI_2 - x / (x * x + 0.28);
+    if (x > 1.0)
+        return M_PI_2 - x / (x * x + 0.28);
 
-	return x / (1.0 + x * x * 0.28);
+    return x / (1.0 + x * x * 0.28);
 }
 
 //! Approximation of arc tangent ( error below 0,005 radians )
 inline double qwtFastAtan2(double y, double x)
 {
-	if (x > 0)
-		return qwtFastAtan(y / x);
+    if (x > 0)
+        return qwtFastAtan(y / x);
 
-	if (x < 0) {
-		const double d = qwtFastAtan(y / x);
-		return (y >= 0) ? d + M_PI : d - M_PI;
-	}
+    if (x < 0) {
+        const double d = qwtFastAtan(y / x);
+        return (y >= 0) ? d + M_PI : d - M_PI;
+    }
 
-	if (y < 0.0)
-		return -M_PI_2;
+    if (y < 0.0)
+        return -M_PI_2;
 
-	if (y > 0.0)
-		return M_PI_2;
+    if (y > 0.0)
+        return M_PI_2;
 
-	return 0.0;
+    return 0.0;
 }
 
 /* !
@@ -269,8 +269,8 @@ inline double qwtDegrees(double degrees)
  */
 inline int qwtCeil(qreal value)
 {
-	using std::ceil;
-	return int(ceil(value));
+    using std::ceil;
+    return int(ceil(value));
 }
 /*!
     The same as qFloor, but avoids including qmath.h
@@ -278,8 +278,8 @@ inline int qwtCeil(qreal value)
  */
 inline int qwtFloor(qreal value)
 {
-	using std::floor;
-	return int(floor(value));
+    using std::floor;
+    return int(floor(value));
 }
 
 /**
@@ -301,21 +301,19 @@ inline int qwtFloor(qreal value)
  * 3. 如果i1 > i2，则交换两个值确保i1 <= i2
  * 4. 返回范围内的元素个数(i2 - i1 + 1)
  *
- *
- *
  */
 inline int qwtVerifyRange(int size, int& i1, int& i2)
 {
-	if (size < 1)
-		return 0;
+    if (size < 1)
+        return 0;
 
-	i1 = qBound(0, i1, size - 1);
-	i2 = qBound(0, i2, size - 1);
+    i1 = qBound(0, i1, size - 1);
+    i2 = qBound(0, i2, size - 1);
 
-	if (i1 > i2)
-		qSwap(i1, i2);
+    if (i1 > i2)
+        qSwap(i1, i2);
 
-	return (i2 - i1 + 1);
+    return (i2 - i1 + 1);
 }
 
 /**
@@ -326,9 +324,9 @@ inline int qwtVerifyRange(int size, int& i1, int& i2)
  */
 inline double qwtDistance(const QPointF& p1, const QPointF& p2)
 {
-	double dx = p2.x() - p1.x();
-	double dy = p2.y() - p1.y();
-	return qSqrt(dx * dx + dy * dy);
+    double dx = p2.x() - p1.x();
+    double dy = p2.y() - p1.y();
+    return qSqrt(dx * dx + dy * dy);
 }
 
 /**
@@ -398,7 +396,7 @@ template< typename T >
 typename std::enable_if< !std::is_floating_point< T >::value && !std::is_same< T, QPointF >::value,
                          bool >::type inline qwt_is_nan_or_inf(const T& /*value*/)
 {
-	return false;
+    return false;
 }
 
 /**
@@ -427,13 +425,13 @@ typename std::enable_if< !std::is_floating_point< T >::value && !std::is_same< T
 template< typename InputIt >
 inline bool qwtContainsNanOrInf(InputIt first, InputIt last)
 {
-	// 使用迭代器遍历，对每个元素调用适当的 qwt_is_nan_or_inf 函数
-	for (InputIt it = first; it != last; ++it) {
-		if (qwt_is_nan_or_inf(*it)) {
-			return true;
-		}
-	}
-	return false;
+    // 使用迭代器遍历，对每个元素调用适当的 qwt_is_nan_or_inf 函数
+    for (InputIt it = first; it != last; ++it) {
+        if (qwt_is_nan_or_inf(*it)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -455,20 +453,20 @@ inline bool qwtContainsNanOrInf(InputIt first, InputIt last)
 template< typename Container >
 inline std::size_t qwtRemoveNanOrInf(Container& container)
 {
-	// 使用 std::remove_if 算法将需要保留的元素移动到容器前部
-	auto new_end = std::remove_if(container.begin(), container.end(), [](const typename Container::value_type& value) {
-		return qwt_is_nan_or_inf(value);
-	});
+    // 使用 std::remove_if 算法将需要保留的元素移动到容器前部
+    auto new_end = std::remove_if(container.begin(), container.end(), [](const typename Container::value_type& value) {
+        return qwt_is_nan_or_inf(value);
+    });
 
-	// 计算被删除的元素数量
-	std::size_t removed_count = std::distance(new_end, container.end());
+    // 计算被删除的元素数量
+    std::size_t removed_count = std::distance(new_end, container.end());
 
-	// 实际删除不需要的元素
-	if (removed_count > 0) {
-		container.erase(new_end, container.end());
-	}
+    // 实际删除不需要的元素
+    if (removed_count > 0) {
+        container.erase(new_end, container.end());
+    }
 
-	return removed_count;
+    return removed_count;
 }
 
 /**
@@ -480,15 +478,16 @@ inline std::size_t qwtRemoveNanOrInf(Container& container)
 template< typename Container >
 inline Container qwtRemoveNanOrInfCopy(const Container& container)
 {
-	Container result;
-	result.reserve(container.size());  // 预分配空间以提高效率
+    Container result;
+    result.reserve(container.size());  // 预分配空间以提高效率
 
-	// 只复制不是 NaN 或 Inf 的元素
-	std::copy_if(container.begin(),
+    // 只复制不是 NaN 或 Inf 的元素
+    std::copy_if(container.begin(),
                  container.end(),
                  std::back_inserter(result),
                  [](const typename Container::value_type& value) { return !qwt_is_nan_or_inf(value); });
 
-	return result;
+    return result;
 }
+
 #endif
