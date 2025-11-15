@@ -33,6 +33,7 @@
 #include <qpointer.h>
 #include <qapplication.h>
 #include <qcoreevent.h>
+#include <QTimer>
 
 #ifndef QwtPlot_DEBUG_PRINT
 #define QwtPlot_DEBUG_PRINT 0
@@ -260,12 +261,6 @@ bool QwtPlot::event(QEvent* event)
         break;
     case QEvent::PolishRequest:
         replot();
-        break;
-    case QEvent::Polish:
-        // 这个是为了在界面还没显示出来就开始添加寄生轴，让第一次界面显示时刷新位置偏移
-        if (isHostPlot()) {
-            updateAxisEdgeMargin();
-        }
         break;
     default:;
     }
@@ -538,10 +533,10 @@ QSize QwtPlot::minimumSizeHint() const
 void QwtPlot::resizeEvent(QResizeEvent* e)
 {
     QFrame::resizeEvent(e);
-    if (isHostPlot()) {
-        updateAxisEdgeMargin();
-    }
     updateLayout();
+    if (isHostPlot()) {
+        updateAllAxisEdgeMargin();
+    }
 }
 
 /*!
@@ -1228,7 +1223,7 @@ void QwtPlot::addParasitePlot(QwtPlot* parasite)
     parasite->m_data->isParasitePlot = true;
 
     // 设置后对寄生轴要进行一次布局
-    updateAxisEdgeMargin();
+    updateAllAxisEdgeMargin();
     updateLayout();
 }
 
@@ -1294,7 +1289,7 @@ void QwtPlot::removeParasitePlot(QwtPlot* parasite)
     }
     // 移除时，把绘图的寄生标记设置为false；
     parasite->m_data->isParasitePlot = false;
-    updateAxisEdgeMargin();
+    updateAllAxisEdgeMargin();
     updateLayout();
 }
 
@@ -1696,7 +1691,7 @@ void QwtPlot::alignToHost()
             scaleWidget->setBorderDist(start, end);
         }
     }
-    updateAxisEdgeMargin();
+    updateAllAxisEdgeMargin();
 }
 
 /**
@@ -1848,17 +1843,22 @@ void QwtPlot::updateAxisEdgeMargin(QwtAxisId axisId)
  * @brief 批量更新所有轴位置的边缘偏移
  *
  * 对当前绘图实例的所有轴位置（YLeft、YRight、XBottom、XTop）依次调用
- * updateAxisEdgeMargin(QwtAxisId)，自动完成宿主与所有寄生轴的 edgeMargin
+ * updateAllAxisEdgeMargin(QwtAxisId)，自动完成宿主与所有寄生轴的 edgeMargin
  * 与 margin 同步，保证多轴场景下各层轴之间不重叠且绘图区对齐。
  *
  * 典型调用时机：
  * - 寄生 plot 挂载或移除后；
  * - 轴可见性、标签字体、刻度长度等影响尺寸的属性变更后；
  * - 宿主或寄生轴数据范围变化导致轴标签宽度/高度显著改变时。
- * @see updateAxisEdgeMargin(QwtAxisId)
+ * @see updateAllAxisEdgeMargin(QwtAxisId)
  */
-void QwtPlot::updateAxisEdgeMargin()
+void QwtPlot::updateAllAxisEdgeMargin()
 {
+#if QwtPlot_DEBUG_PRINT
+    static size_t s_c = 0;
+    ++s_c;
+    qDebug() << "QwtPlot::updateAxisEdgeMargin:" << s_c;
+#endif
     for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; ++axisPos) {
         updateAxisEdgeMargin(axisPos);
     }

@@ -303,7 +303,7 @@ public:
 
     // 更新宿主轴和寄生轴的偏移
     void updateAxisEdgeMargin(QwtAxisId axisId);
-    void updateAxisEdgeMargin();
+
     // 更新绘图上的items，让其适配scaleDiv的范围
     void updateItemsToScaleDiv();
     // 坐标轴事件使能
@@ -362,6 +362,8 @@ public Q_SLOTS:
     void autoRefresh();
     // 重绘所有绘图，包括寄生绘图或者宿主绘图
     virtual void replotAll();
+    // 更新寄生轴的坐标
+    void updateAllAxisEdgeMargin();
 
 protected:
     virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
