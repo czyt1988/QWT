@@ -155,7 +155,7 @@ plot->axisWidget(QwtAxis::YLeft)->setEdgeMargin(100);
 
 上面这两个参数即可实现一个寄生绘图的坐标轴的正常显示
 
-`QwtPlot::updateAxisEdgeMargin`函数用于自动计算寄生绘图和宿主绘图的`margin`和`edgeMargin`,避免轴层之间重叠
+`QwtPlot::updateAxisEdgeMargin`/`QwtPlot::updateAllAxisEdgeMargin`函数用于自动计算寄生绘图和宿主绘图的`margin`和`edgeMargin`,避免轴层之间重叠
 
 大致计算过程如下：
 
@@ -167,29 +167,69 @@ plot->axisWidget(QwtAxis::YLeft)->setEdgeMargin(100);
 4. 宿主的 margin 予以保留（不覆盖用户可能手工设置的值）。
 
 !!! warning "注意"
-    `updateAxisEdgeMargin`不会改变宿主绘图的`margin`属性
+    `QwtPlot::updateAxisEdgeMargin`/`QwtPlot::updateAllAxisEdgeMargin`不会改变宿主绘图的`margin`属性
 
-在添加寄生轴后，绘图显示前，你应该手动调用`updateAxisEdgeMargin`来更新寄生绘图坐标轴的布局
+在添加寄生轴后，绘图显示前，你应该手动调用`updateAllAxisEdgeMargin`来更新寄生绘图坐标轴的布局
 
-!!! tip "提示"
-    某些情况，多坐标轴绘图在构造函数中创建，最后一次性显示，由于最后一次resize事件未能完全触发，寄生绘图坐标轴的布局可能不正确，这时你可以在绘图构造完成最后把宿主绘图的`replot`投递到消息队列中，例如：
-    ```cpp hl_lines="14"
-    int main(int argc, char* argv[])
-    {
-        QMainWindow mainWindow;
-        QWidget* centralWidget  = new QWidget(&mainWindow);
-        QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
-        // 创建宿主绘图
-        QwtPlot* hostPlot = new QwtPlot(centralWidget);
+## 寄生绘图的相关操作
+
+### 获取所有item
+
+首先对于`QwtPlotItem`的遍历，不能只处理宿主绘图，还要考虑所有的寄生绘图
+
+一般你的事件处理都会绑定宿主绘图，你能获取到宿主绘图的指针，通过`QwtPlot::plotList`函数获取这个绘图的所有图层，此函数默认按升序返回所有绘图，宿主绘图自身会在列表的第一个元素
+
+此时再通过`itemList`获取各自图层的`QwtPlotItem`列表进行处理，示例代码如下：
+
+```cpp
+const QList< QwtPlot* > plotList = plot->plotList();
+for (QwtPlot* oneplot : plotList) {
+        const QwtPlotItemList& items = oneplot->itemList();
+        for (QwtPlotItem* item : items) {
+            //do something
+        }
+}
+```
+
+!!! tips "注意"
+    任意绘图调用`QwtPlot::plotList`函数都能返回所有绘图列表，在寄生绘图调用和在宿主绘图中调用都一样
+
+### 处理坐标变换
+
+`Qwt6`提供了很多坐标转换函数，辅助绘图时进行坐标转换，由于`Qwt6`没有考虑过寄生绘图，所以之前提供的坐标转换函数的实现可能存在问题,例如：
+
+```cpp
+QRectF QwtPlotPicker::invTransform(const QRect&) const;
+QRect QwtPlotPicker::transform(const QRectF&) const;
+QPointF QwtPlotPicker::invTransform(const QPoint&) const;
+QPoint QwtPlotPicker::transform(const QPointF&) const;
+```
+
+上面这几个函数都是针对固定的x轴和y轴的坐标变换，如果存在寄生绘图，是没有对应的转换的
+
+对于存在寄生绘图的坐标变换应该避免使用固定轴的变换，而是通过`QwtPlotItem`获取对应的坐标变换对象进行处理
+
+示例代码如下：
+
+```cpp
+QPointF valuePoint;
+...
+const QList< QwtPlot* > plotList = plot->plotList();
+for (QwtPlot* oneplot : plotList) {
+    const auto items = oneplot->itemList();
+    for (auto* item : items) {
+        const QwtScaleMap xMap = oneplot->canvasMap(item->xAxis());
+        const QwtScaleMap yMap = oneplot->canvasMap(item->yAxis());
+        QPointF screenPos = QwtScaleMap::transform(xMap, yMap, valuePoint);
         ...
-        QwtPlot* parasitePlot = hostPlot->createParasitePlot(QwtAxis::YLeft);
-        ...
-        QwtPlot* parasitePlot2 = hostPlot->createParasitePlot(QwtAxis::YLeft);
-        ...
-        //通过invokeMethod把replot投递到消息队列，让其最后执行
-        QMetaObject::invokeMethod(hostPlot, &QwtPlot::replot, Qt::QueuedConnection);
     }
-    ```
+}
+```
+
+上面是把一个坐标点valuePoint，转换到各自item对应的坐标轴的屏幕坐标
+
+!!! example "坐标转换示例"
+    可以参阅`QwtPlotSeriesDataPicker`类的`pickYValue`和`pickNearestPoint`的实现，这个类主要用于拾取曲线点，是考虑了寄生绘图的情况
 
 ## 注意事项
 
@@ -203,6 +243,7 @@ plot->axisWidget(QwtAxis::YLeft)->setEdgeMargin(100);
 
 - 寄生绘图不能作为`QwtFigure`当前激活的坐标轴
 - 寄生绘图不参与`QwtFigureLayout`的布局计算
+- 寄生绘图会设置`Qt::WA_TransparentForMouseEvents`属性，也就是它不会接受任何鼠标事件，鼠标事件都会被宿主绘图处理
 - 寄生绘图的位置由宿主绘图控制
 
 

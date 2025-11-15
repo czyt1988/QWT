@@ -302,7 +302,7 @@ QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >&, 
  * qwtUpperSampleIndex returns the index of sample that is the upper bound
  * of value. Is the the value smaller than the smallest value the return
  * value will be 0. Is the value greater or equal than the largest
- * value the return value will be -1.
+ * value the return value will be series.size().
  *
  * @par Example
  * The following example shows finds a point of curve from an x
@@ -348,25 +348,65 @@ QWT_EXPORT QRectF qwtBoundingRect(const QwtSeriesData< QwtVectorFieldSample >&, 
  * @param lessThan Compare operation
  * @note The samples must be sorted according to the order specified
  *        by the lessThan object
+ *
+ * @note qwt7开始，此函数改为size_t版本，如果没找到，将返回series.size()，类似于end迭代器
+ * @par 原本代码
+ * int版本代码如下
+ * @code
+ * template< typename T, typename LessThan >
+ * inline int qwtUpperSampleIndex(const QwtSeriesData< T >& series, double value, LessThan lessThan)
+ * {
+ *     const int indexMax = static_cast< int >(series.size()) - 1;
+ *
+ *  if (indexMax < 0 || !lessThan(value, series.sample(indexMax)))
+ *      return -1;
+ *
+ *  int indexMin = 0;
+ *  int n        = indexMax;
+ *
+ *  while (n > 0) {
+ *      const int half     = n >> 1;
+ *      const int indexMid = indexMin + half;
+ *
+ *      if (lessThan(value, series.sample(indexMid))) {
+ *          n = half;
+ *      } else {
+ *          indexMin = indexMid + 1;
+ *          n -= half + 1;
+ *      }
+ *  }
+ *
+ *  return indexMin;
+ * }
+ * @endcode
  */
 template< typename T, typename LessThan >
-inline int qwtUpperSampleIndex(const QwtSeriesData< T >& series, double value, LessThan lessThan)
+inline size_t qwtUpperSampleIndex(const QwtSeriesData< T >& series, double value, LessThan lessThan)
 {
-    const int indexMax = static_cast< int >(series.size()) - 1;
+    const size_t count = series.size();
+    if (count == 0) {
+        return count;  // 返回 0 作为“未找到”的标记（因为有效索引从 0 开始，count 超出了有效范围）
+    }
 
-    if (indexMax < 0 || !lessThan(value, series.sample(indexMax)))
-        return -1;
+    const size_t indexMax = count - 1;
 
-    int indexMin = 0;
-    int n        = indexMax;
+    // 如果 value 大于等于最后一个元素，说明没有元素大于 value，返回 count
+    if (!lessThan(value, series.sample(indexMax))) {
+        return count;
+    }
+
+    size_t indexMin = 0;
+    size_t n        = indexMax;  // n 表示当前搜索区间的大小
 
     while (n > 0) {
-        const int half     = n >> 1;
-        const int indexMid = indexMin + half;
+        const size_t half     = n >> 1;
+        const size_t indexMid = indexMin + half;
 
         if (lessThan(value, series.sample(indexMid))) {
+            // 目标在左侧区间 [indexMin, indexMid]
             n = half;
         } else {
+            // 目标在右侧区间 [indexMid + 1, indexMin + n - 1]
             indexMin = indexMid + 1;
             n -= half + 1;
         }

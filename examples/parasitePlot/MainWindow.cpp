@@ -1,4 +1,4 @@
-#include "MainWindow.h"
+﻿#include "MainWindow.h"
 #include "ui_MainWindow.h"
 #include "qwt_plot_curve.h"
 #include "qwt_plot_grid.h"
@@ -150,8 +150,7 @@ QwtPlot* MainWindow::createPlot(QWidget* par)
     // 建立其他附加工具，picker要在宿主绘图的canvas那里，否则会无法捕获到事件（寄生绘图对鼠标透明）
     m_dataPicker = new QwtPlotSeriesDataPicker(hostPlot->canvas());
     m_dataPicker->setEnabled(false);
-    // 通过invokeMethod把replot投递到消息队列，让其最后执行
-    QMetaObject::invokeMethod(hostPlot, &QwtPlot::replot, Qt::QueuedConnection);
+
     return hostPlot;
 }
 

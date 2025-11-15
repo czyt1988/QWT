@@ -28,6 +28,7 @@ public:
      */
     enum TextPlacement
     {
+        TextPlaceAuto,   ///< 自动放置（pick y的时候放置在顶部，pick nearest的时候跟随鼠标）
         TextOnTop,       ///< 放在绘图区的顶部(默认）
         TextOnBottom,    ///< 放在绘图区的底部
         TextFollowMouse  ///< 跟随鼠标指针
@@ -57,21 +58,47 @@ public:
     // 插值模式
     void setInterpolationMode(InterpolationMode mode);
     InterpolationMode interpolationMode() const;
+    // 判断是否插值
+    bool isInterpolation() const;
+
+    // 是否绘制特征点,如果是，picker会把捕获的特征点绘制在曲线上
+    void setEnableDrawFeaturePoint(bool on = true);
+    bool isEnableDrawFeaturePoint() const;
+
+    // 设置绘制的特征点的大小
+    void setDrawFeaturePointSize(int px);
+    int drawFeaturePointSize() const;
+
+    // 设置文字的背景颜色
+    void setTextBackgroundBrush(const QBrush& br);
+    QBrush textBackgroundBrush() const;
+
+    // 文字的对其方式
+    void setTextAlignment(Qt::Alignment al);
+    Qt::Alignment textAlignment() const;
 
     // 顶部矩形文字
-    QwtText trackerText(const QPoint& pos) const override;
+    QwtText trackerText(const QPoint& pos) const QWT_OVERRIDE;
 
     // 让矩形在最顶部
-    QRect trackerRect(const QFont& f) const override;
+    QRect trackerRect(const QFont& f) const QWT_OVERRIDE;
 
-    // 获取绘图区域屏幕坐标pos上，的所有可拾取的y值
-    static QList< QPair< QwtPlotItem*, QPointF > > pickYValue(const QwtPlot* plot, const QPoint& pos, bool interpolate = false);
+    // 绘制rubberband
+    virtual void drawRubberBand(QPainter* painter) const QWT_OVERRIDE;
+
+private:
+    // 获取绘图区域屏幕坐标pos上，的所有可拾取的y值,返回获取的个数
+    int pickYValue(const QwtPlot* plot, const QPoint& pos, bool interpolate = false);
     // 获取绘图区域屏幕坐标pos上，可拾取的最近的一个点，(基于窗口实现快速索引)
-    static QPair< QwtPlotItem*, QPointF > pickNearestPoint(const QwtPlot* plot, const QPoint& pos, int windowSize = -1);
+    int pickNearestPoint(const QwtPlot* plot, const QPoint& pos, int windowSize = -5);
 
 protected:
     // 生成一个item的文字内容
-    virtual QString valueString(const QPointF& value, QwtPlotItem* item, int index) const;
+    virtual QString valueString(const QPointF& value, QwtPlotItem* item, size_t seriesIndex, int order) const;
+    // 绘制特征点，所谓特征点就是捕获到的点
+    virtual void drawFeaturePoints(QPainter* painter) const;
+    // 鼠标移动
+    virtual void move(const QPoint& pos) QWT_OVERRIDE;
 };
 
 #endif  // QWT_PLOT_SERIES_DATA_PICKER_H
