@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -75,7 +75,6 @@ template< typename T > class QStack;
 
    \sa QwtPlotPanner, QwtPlotMagnifier
  */
-
 class QWT_EXPORT QwtPlotZoomer : public QwtPlotPicker
 {
     Q_OBJECT
