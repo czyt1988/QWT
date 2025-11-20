@@ -193,6 +193,7 @@ int main(int argc, char* argv[])
                      &QwtFigureWidgetOverlay::widgetNormGeometryChanged,
                      [ figure ](QWidget* w, const QRectF& oldNormGeo, const QRectF& newNormGeo) {
                          Q_UNUSED(oldNormGeo);
+                         qDebug() << "setWidgetNormPos:" << newNormGeo;
                          figure->setWidgetNormPos(w, newNormGeo);
                      });
 

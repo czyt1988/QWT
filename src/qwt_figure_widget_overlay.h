@@ -95,8 +95,8 @@ public Q_SLOTS:
 protected:
     virtual void drawOverlay(QPainter* p) const override;
     virtual QRegion maskHint() const override;
-    virtual bool eventFilter(QObject* obj, QEvent* event) override;
-    // 绘制激活的窗口
+    // virtual bool eventFilter(QObject* obj, QEvent* event) override;
+    //  绘制激活的窗口
     virtual void drawActiveWidget(QPainter* painter, QWidget* activeW) const;
     // 绘制resize变换的橡皮筋控制线
     virtual void drawResizeingControlLine(QPainter* painter, const QRectF& willSetNormRect) const;
@@ -104,6 +104,12 @@ protected:
     virtual void drawControlLine(QPainter* painter, const QRect& actualRect, const QRectF& normRect) const;
     // 辅助函数，标记开始改变尺寸
     void startResize(ControlType controlType, const QPoint& pos);
+
+protected:
+    void mouseMoveEvent(QMouseEvent* me) override;
+    void mouseReleaseEvent(QMouseEvent* me) override;
+    void mousePressEvent(QMouseEvent* me) override;
+    void keyPressEvent(QKeyEvent* ke) override;
 Q_SIGNALS:
 
     /**
@@ -121,11 +127,6 @@ Q_SIGNALS:
     void activeWidgetChanged(QWidget* oldActive, QWidget* newActive);
 
 private:
-    bool onMouseMoveEvent(QMouseEvent* me);
-    bool onMouseReleaseEvent(QMouseEvent* me);
-    bool onMousePressedEvent(QMouseEvent* me);
-    bool onHoverMoveEvent(QHoverEvent* me);
-    bool onKeyPressedEvent(QKeyEvent* ke);
 };
 
 #endif  // QWTFIGUREWIDGETOVERLAY_H
