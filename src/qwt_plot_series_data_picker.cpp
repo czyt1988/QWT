@@ -10,6 +10,7 @@
 #include "qwt_plot_curve.h"
 #include "qwt_scale_map.h"
 #include "qwt_painter.h"
+#include "qwt_scale_draw.h"
 // qt
 #include <QPainter>
 #include <QtMath>
@@ -428,19 +429,24 @@ QwtText QwtPlotSeriesDataPicker::trackerText(const QPoint& pos) const
 QString QwtPlotSeriesDataPicker::valueString(const QPointF& value, QwtPlotItem* item, size_t seriesIndex, int order) const
 {
     Q_UNUSED(seriesIndex);
+    QwtPlot* plot = item ? item->plot() : nullptr;
+
     if (m_data->pickMode == PickYValue) {
         QString t;
         if (order != 0) {
             t += "<br/>";
         }
+        // 使用formatAxisValue，对于时间日期也能正确显示
         t += QString("<font color=%1>%2</font>:%3")
                  .arg(Qwt::plotItemColor(item).name())
                  .arg(item->title().text())
-                 .arg(value.y());
+                 .arg(formatAxisValue(value.y(), item->yAxis(), plot));
         return t;
     }
     // Pick Nearest Point
-    return QString("(%1 , %2)").arg(value.x()).arg(value.y());
+    return QString("(%1 , %2)")
+        .arg(formatAxisValue(value.x(), item->xAxis(), plot))
+        .arg(formatAxisValue(value.y(), item->yAxis(), plot));
 }
 
 /**
@@ -491,6 +497,24 @@ void QwtPlotSeriesDataPicker::move(const QPoint& pos)
         break;
     }
     QwtPlotPicker::move(pos);
+}
+
+QString QwtPlotSeriesDataPicker::formatAxisValue(double value, int axisId, QwtPlot* plot) const
+{
+    if (!plot) {
+        return QString::number(value);
+    }
+
+    // 获取坐标轴的刻度绘制器
+    const QwtScaleDraw* scaleDraw = plot->axisScaleDraw(axisId);
+    if (scaleDraw) {
+        // 使用坐标轴的格式化器
+        QwtText text = scaleDraw->label(value);
+        return text.text();
+    }
+
+    // 回退到默认数值显示
+    return QString::number(value);
 }
 
 /**

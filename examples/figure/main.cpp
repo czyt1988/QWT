@@ -177,21 +177,24 @@ int main(int argc, char* argv[])
 
     QPushButton* resizeButton = new QPushButton("Resize");
     resizeButton->setCheckable(true);
-    QwtFigureWidgetOverlay* overlay = nullptr;
-    QObject::connect(resizeButton, &QPushButton::clicked, [ figure, &overlay ](bool on) {
+    QwtFigureWidgetOverlay* overlay = new QwtFigureWidgetOverlay(figure);
+    QObject::connect(resizeButton, &QPushButton::clicked, [ overlay ](bool on) {
         if (on) {
-            overlay = new QwtFigureWidgetOverlay(figure);
             overlay->show();
             overlay->raise();
         } else {
             if (overlay) {
                 overlay->hide();
-                overlay->deleteLater();
-                overlay = nullptr;
             }
         }
         qDebug() << "enable figure overlay:" << on;
     });
+    QObject::connect(overlay,
+                     &QwtFigureWidgetOverlay::widgetNormGeometryChanged,
+                     [ figure ](QWidget* w, const QRectF& oldNormGeo, const QRectF& newNormGeo) {
+                         Q_UNUSED(oldNormGeo);
+                         figure->setWidgetNormPos(w, newNormGeo);
+                     });
 
     buttonLayout->addWidget(saveButton);
     buttonLayout->addWidget(clearButton);

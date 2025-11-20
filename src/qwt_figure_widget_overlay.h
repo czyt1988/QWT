@@ -57,6 +57,7 @@ public:
     explicit QwtFigureWidgetOverlay(QwtFigure* fig);
     ~QwtFigureWidgetOverlay();
     QwtFigure* figure() const;
+    void setTransparentForMouseEvents(bool on);
 
 public:
     // 根据点和矩形的关系，返回图标的样式
@@ -101,6 +102,8 @@ protected:
     virtual void drawResizeingControlLine(QPainter* painter, const QRectF& willSetNormRect) const;
     // 绘制控制线
     virtual void drawControlLine(QPainter* painter, const QRect& actualRect, const QRectF& normRect) const;
+    // 辅助函数，标记开始改变尺寸
+    void startResize(ControlType controlType, const QPoint& pos);
 Q_SIGNALS:
 
     /**

@@ -103,6 +103,8 @@ protected:
     virtual void drawFeaturePoints(QPainter* painter) const;
     // 鼠标移动
     virtual void move(const QPoint& pos) QWT_OVERRIDE;
+    // 格式化为坐标轴对应的内容，针对时间轴，value是一个大浮点数，用户需要看到的是2024-10-01这样的数字
+    QString formatAxisValue(double value, int axisId, QwtPlot* plot) const;
 };
 
 #endif  // QWT_PLOT_SERIES_DATA_PICKER_H

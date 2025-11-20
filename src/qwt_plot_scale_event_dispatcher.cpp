@@ -4,6 +4,7 @@
 #include <QMouseEvent>
 #include <QApplication>
 #include <QDebug>
+#include <QTimer>
 // qwt
 #include "qwt_plot.h"
 #include "qwt_scale_widget.h"
@@ -144,6 +145,7 @@ QwtPlotScaleEventDispatcher::QwtPlotScaleEventDispatcher(QwtPlot* plot, QObject*
     if (!plot->hasMouseTracking()) {
         plot->setMouseTracking(true);
     }
+    rebuildCache();
 }
 
 QwtPlotScaleEventDispatcher::~QwtPlotScaleEventDispatcher()
@@ -200,24 +202,20 @@ void QwtPlotScaleEventDispatcher::updateCache()
 
 bool QwtPlotScaleEventDispatcher::eventFilter(QObject* obj, QEvent* e)
 {
+    if (!m_data->isEnable) {
+        return false;
+    }
     QwtPlot* plot = qobject_cast< QwtPlot* >(obj);
     if (!plot) {
         return false;
     }
     switch (e->type()) {
     case QEvent::Resize:
-    case QEvent::Move:
-    case QEvent::Hide: {
+    case QEvent::LayoutRequest:
+    case QEvent::Polish: {
         // 处理可能影响缓存的事件
         m_data->cacheDirty = true;
         updateCache();
-        break;
-    }
-    case QEvent::Show: {
-        // 处理可能影响缓存的事件
-        m_data->cacheDirty = true;
-
-        QMetaObject::invokeMethod(this, &QwtPlotScaleEventDispatcher::updateCache, Qt::QueuedConnection);
         break;
     }
     case QEvent::MouseButtonPress:
@@ -231,7 +229,7 @@ bool QwtPlotScaleEventDispatcher::eventFilter(QObject* obj, QEvent* e)
     default:
         break;
     }
-    return false;
+    return QObject::eventFilter(obj, e);
 }
 
 bool QwtPlotScaleEventDispatcher::handleMousePress(QwtPlot* plot, QMouseEvent* e)
@@ -322,7 +320,8 @@ bool QwtPlotScaleEventDispatcher::handleMouseRelease(QwtPlot* plot, QMouseEvent*
     if (e->button() == Qt::LeftButton) {
         d->isMousePressed = false;
         // 左键：只有之前按下且在当前scale区域才处理,这里不要联合onMyScale判断，拖曳出去 绘图区域就识别不了
-        return true;
+        return targetScale
+               != nullptr;  // targetScale不为空时返回true代表截断事件，这样上层的事件才能处理，例如QwtFigureWidgetOverlay
     }
     return false;
 }

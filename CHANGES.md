@@ -3,6 +3,7 @@
 - 新增`QwtPlotSeriesDataPicker`类，提供了绘图数据的拾取
 - 完善了寄生绘图的刷新机制，不会在构造时无法完全更新
 - 有些接口的索引类型由int改为size_t
+- `QwtPlotSeriesDataPicker`支持日期坐标轴的正常显示
 
 ## tag:v7.0.5
 

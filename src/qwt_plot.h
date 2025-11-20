@@ -270,6 +270,8 @@ public:
 
     // Check if this plot is a parasite plot/检查此绘图是否为寄生绘图
     bool isParasitePlot() const;
+    // 是否是最顶部的宿主绘图，最顶部的宿主绘图坐标轴处于最外围，且一般是最后进行更新
+    bool isTopParasitePlot() const;
 
     // Check if this plot is a host plot/检查此绘图是否为宿主绘图
     bool isHostPlot() const;
@@ -387,6 +389,8 @@ private:
     void deleteAxesData();
 
     void initPlot(const QwtText& title);
+    // 最顶部的寄生绘图对宿主绘图调用updateAllAxisEdgeMargin
+    void topParasiteTriggerHostUpdateAxisMargins();
 
     class ScaleData;
     ScaleData* m_scaleData;

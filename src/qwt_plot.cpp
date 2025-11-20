@@ -205,6 +205,28 @@ void QwtPlot::initPlot(const QwtText& title)
     setupScaleEventDispatcher(new QwtPlotScaleEventDispatcher(this, this));
 }
 
+/**
+ * @brief 最顶部的寄生绘图对宿主绘图调用updateAllAxisEdgeMargin
+ *
+ * 这个函数的目的是，绘图存在寄生绘图时，由于寄生绘图属于宿主的子绘图，宿主绘图调用updateAllAxisEdgeMargin函数时，
+ * 寄生绘图的位置可能还没确定，这时，就需要最顶部的寄生绘图在某些情况调用宿主绘图的updateAllAxisEdgeMargin，
+ * 典型的应用场景是绘图第一次显示的时候就需要用到此函数
+ *
+ * @note 如果没有寄生绘图，此函数没有任何动作
+ */
+void QwtPlot::topParasiteTriggerHostUpdateAxisMargins()
+{
+    if (isParasitePlot()) {
+        // 宿主显示调用host的更新
+        if (isTopParasitePlot()) {
+            QwtPlot* host = hostPlot();
+            if (host) {
+                host->updateAllAxisEdgeMargin();
+            }
+        }
+    }
+}
+
 /*!
    \brief Set the drawing canvas of the plot widget
 
@@ -261,6 +283,7 @@ bool QwtPlot::event(QEvent* event)
         break;
     case QEvent::PolishRequest:
         replot();
+        topParasiteTriggerHostUpdateAxisMargins();
         break;
     default:;
     }
@@ -1224,7 +1247,6 @@ void QwtPlot::addParasitePlot(QwtPlot* parasite)
     parasite->m_data->isParasitePlot = true;
 
     // 设置后对寄生轴要进行一次布局
-    updateAllAxisEdgeMargin();
     updateLayout();
 }
 
@@ -1290,8 +1312,8 @@ void QwtPlot::removeParasitePlot(QwtPlot* parasite)
     }
     // 移除时，把绘图的寄生标记设置为false；
     parasite->m_data->isParasitePlot = false;
-    updateAllAxisEdgeMargin();
     updateLayout();
+    updateAllAxisEdgeMargin();
 }
 
 /**
@@ -1409,6 +1431,26 @@ QwtPlot* QwtPlot::hostPlot() const
 bool QwtPlot::isParasitePlot() const
 {
     return (m_data->isParasitePlot);
+}
+
+/**
+ * @brief 是否是最顶部的宿主绘图，最顶部的宿主绘图坐标轴处于最外围，且一般是最后进行更新
+ * @return
+ */
+bool QwtPlot::isTopParasitePlot() const
+{
+    if (!m_data->isParasitePlot) {
+        return false;
+    }
+    QwtPlot* host = hostPlot();
+    if (!host) {
+        return false;
+    }
+    auto parasites = host->parasitePlots();
+    if (parasites.empty()) {
+        return false;
+    }
+    return (parasites.back() == this);
 }
 
 /**
@@ -1862,6 +1904,10 @@ void QwtPlot::updateAllAxisEdgeMargin()
 #endif
     for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; ++axisPos) {
         updateAxisEdgeMargin(axisPos);
+    }
+    if (m_data->scaleEventDispatcher) {
+        // updateAllAxisEdgeMargin之后更新updateCache
+        m_data->scaleEventDispatcher->updateCache();
     }
 }
 
