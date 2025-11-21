@@ -107,7 +107,7 @@
 #include "../../src/qwt_plot_magnifier.h"
 #include "../../src/qwt_plot_marker.h"
 #include "../../src/qwt_plot_multi_barchart.h"
-#include "../../src/qwt_plot_panner.h"
+#include "../../src/qwt_plot_cache_panner.h"
 #include "../../src/qwt_plot_picker.h"
 #include "../../src/qwt_plot_series_data_picker.h"
 #include "../../src/qwt_plot_rasteritem.h"
@@ -128,7 +128,7 @@
 #include "../../src/qwt_polar_curve.h"
 #include "../../src/qwt_polar_magnifier.h"
 #include "../../src/qwt_polar_marker.h"
-#include "../../src/qwt_polar_panner.h"
+#include "../../src/qwt_polar_cache_panner.h"
 #include "../../src/qwt_polar_picker.h"
 #include "../../src/qwt_polar_spectrogram.h"
 // plot widget

@@ -27,13 +27,13 @@ class QwtPolarCanvas;
 
    \sa QwtPolarMagnifier
  */
-class QWT_EXPORT QwtPolarPanner : public QwtCachePanner
+class QWT_EXPORT QwtPolarCachePanner : public QwtCachePanner
 {
     Q_OBJECT
 
 public:
-    explicit QwtPolarPanner(QwtPolarCanvas*);
-    virtual ~QwtPolarPanner();
+    explicit QwtPolarCachePanner(QwtPolarCanvas*);
+    virtual ~QwtPolarCachePanner();
 
     QwtPolarPlot* plot();
     const QwtPolarPlot* plot() const;

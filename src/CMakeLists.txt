@@ -219,7 +219,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_abstract_canvas.h
         qwt_plot_canvas.h
         qwt_plot_transparent_canvas.h
-        qwt_plot_panner.h
+        qwt_plot_cache_panner.h
         qwt_plot_picker.h
         qwt_plot_series_data_picker.h
         qwt_plot_zoomer.h
@@ -278,7 +278,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_abstract_canvas.cpp
         qwt_plot_canvas.cpp
         qwt_plot_transparent_canvas.cpp
-        qwt_plot_panner.cpp
+        qwt_plot_cache_panner.cpp
         qwt_plot_rasteritem.cpp
         qwt_plot_picker.cpp
         qwt_plot_series_data_picker.cpp
@@ -338,7 +338,7 @@ if(QWT_CONFIG_QWTPOLAR)
         qwt_polar_layout.h
         qwt_polar_magnifier.h
         qwt_polar_marker.h
-        qwt_polar_panner.h
+        qwt_polar_cache_panner.h
         qwt_polar_picker.h
         qwt_polar_plot.h
         qwt_polar_renderer.h
@@ -354,7 +354,7 @@ if(QWT_CONFIG_QWTPOLAR)
         qwt_polar_layout.cpp
         qwt_polar_magnifier.cpp
         qwt_polar_marker.cpp
-        qwt_polar_panner.cpp
+        qwt_polar_cache_panner.cpp
         qwt_polar_picker.cpp
         qwt_polar_plot.cpp
         qwt_polar_renderer.cpp

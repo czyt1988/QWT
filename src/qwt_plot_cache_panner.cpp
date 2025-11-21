@@ -24,7 +24,7 @@
  *   8. Amalgamated build: single QwtPlot.h / QwtPlot.cpp pair in src-amalgamate.
  *****************************************************************************/
 
-#include "qwt_plot_panner.h"
+#include "qwt_plot_cache_panner.h"
 #include "qwt_scale_div.h"
 #include "qwt_plot.h"
 #include "qwt_scale_map.h"
@@ -116,7 +116,7 @@ static QBitmap qwtBorderMask(const QWidget* canvas, const QSize& size)
     return QBitmap::fromImage(mask);
 }
 
-class QwtPlotPanner::PrivateData
+class QwtPlotCachePanner::PrivateData
 {
 public:
     PrivateData()
@@ -137,15 +137,15 @@ public:
 
    \sa setAxisEnabled()
  */
-QwtPlotPanner::QwtPlotPanner(QWidget* canvas) : QwtCachePanner(canvas)
+QwtPlotCachePanner::QwtPlotCachePanner(QWidget* canvas) : QwtCachePanner(canvas)
 {
     m_data = new PrivateData();
-    connect(this, &QwtPlotPanner::panned, this, &QwtPlotPanner::moveCanvas);
+    connect(this, &QwtPlotCachePanner::panned, this, &QwtPlotCachePanner::moveCanvas);
     // connect(this, SIGNAL(panned(int, int)), SLOT(moveCanvas(int, int)));
 }
 
 //! Destructor
-QwtPlotPanner::~QwtPlotPanner()
+QwtPlotCachePanner::~QwtPlotCachePanner()
 {
     delete m_data;
 }
@@ -161,7 +161,7 @@ QwtPlotPanner::~QwtPlotPanner()
 
    \sa isAxisEnabled(), moveCanvas()
  */
-void QwtPlotPanner::setAxisEnabled(QwtAxisId axisId, bool on)
+void QwtPlotCachePanner::setAxisEnabled(QwtAxisId axisId, bool on)
 {
     if (QwtAxis::isValid(axisId))
         m_data->isAxisEnabled[ axisId ] = on;
@@ -175,7 +175,7 @@ void QwtPlotPanner::setAxisEnabled(QwtAxisId axisId, bool on)
 
    \sa setAxisEnabled(), moveCanvas()
  */
-bool QwtPlotPanner::isAxisEnabled(QwtAxisId axisId) const
+bool QwtPlotCachePanner::isAxisEnabled(QwtAxisId axisId) const
 {
     if (QwtAxis::isValid(axisId))
         return m_data->isAxisEnabled[ axisId ];
@@ -184,19 +184,19 @@ bool QwtPlotPanner::isAxisEnabled(QwtAxisId axisId) const
 }
 
 //! Return observed plot canvas
-QWidget* QwtPlotPanner::canvas()
+QWidget* QwtPlotCachePanner::canvas()
 {
     return parentWidget();
 }
 
 //! Return Observed plot canvas
-const QWidget* QwtPlotPanner::canvas() const
+const QWidget* QwtPlotCachePanner::canvas() const
 {
     return parentWidget();
 }
 
 //! Return plot widget, containing the observed plot canvas
-QwtPlot* QwtPlotPanner::plot()
+QwtPlot* QwtPlotCachePanner::plot()
 {
     QWidget* w = canvas();
     if (w)
@@ -206,7 +206,7 @@ QwtPlot* QwtPlotPanner::plot()
 }
 
 //! Return plot widget, containing the observed plot canvas
-const QwtPlot* QwtPlotPanner::plot() const
+const QwtPlot* QwtPlotCachePanner::plot() const
 {
     const QWidget* w = canvas();
     if (w)
@@ -223,7 +223,7 @@ const QwtPlot* QwtPlotPanner::plot() const
 
    \sa QwtPanner::panned()
  */
-void QwtPlotPanner::moveCanvas(int dx, int dy)
+void QwtPlotCachePanner::moveCanvas(int dx, int dy)
 {
     if (dx == 0 && dy == 0)
         return;
@@ -270,7 +270,7 @@ void QwtPlotPanner::moveCanvas(int dx, int dy)
    \return Mask as bitmap
    \sa QwtPlotCanvas::borderPath()
  */
-QBitmap QwtPlotPanner::contentsMask() const
+QBitmap QwtPlotCachePanner::contentsMask() const
 {
     if (canvas())
         return qwtBorderMask(canvas(), size());
@@ -281,7 +281,7 @@ QBitmap QwtPlotPanner::contentsMask() const
 /*!
    \return Pixmap with the content of the canvas
  */
-QPixmap QwtPlotPanner::grab() const
+QPixmap QwtPlotCachePanner::grab() const
 {
     const QWidget* cv = canvas();
     if (cv && cv->inherits("QGLWidget")) {

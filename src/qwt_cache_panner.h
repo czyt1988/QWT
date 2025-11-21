@@ -24,8 +24,8 @@
  *   8. Amalgamated build: single QwtPlot.h / QwtPlot.cpp pair in src-amalgamate.
  *****************************************************************************/
 
-#ifndef QWT_PANNER_H
-#define QWT_PANNER_H
+#ifndef QWT_CACHE_PANNER_H
+#define QWT_CACHE_PANNER_H
 
 #include "qwt_global.h"
 #include <qwidget.h>

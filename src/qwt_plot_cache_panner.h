@@ -24,8 +24,8 @@
  *   8. Amalgamated build: single QwtPlot.h / QwtPlot.cpp pair in src-amalgamate.
  *****************************************************************************/
 
-#ifndef QWT_PLOT_PANNER_H
-#define QWT_PLOT_PANNER_H
+#ifndef QWT_PLOT_CACHE_PANNER_H
+#define QWT_PLOT_CACHE_PANNER_H
 
 #include "qwt_global.h"
 #include "qwt_cache_panner.h"
@@ -46,13 +46,13 @@ class QwtPlot;
    \note The axes are not updated, while dragging the canvas
    \sa QwtPlotZoomer, QwtPlotMagnifier
  */
-class QWT_EXPORT QwtPlotPanner : public QwtCachePanner
+class QWT_EXPORT QwtPlotCachePanner : public QwtCachePanner
 {
     Q_OBJECT
 
 public:
-    explicit QwtPlotPanner(QWidget*);
-    virtual ~QwtPlotPanner();
+    explicit QwtPlotCachePanner(QWidget*);
+    virtual ~QwtPlotCachePanner();
 
     QWidget* canvas();
     const QWidget* canvas() const;
