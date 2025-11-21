@@ -120,6 +120,7 @@
 #include "../../src/qwt_plot_tradingcurve.h"
 #include "../../src/qwt_plot_vectorfield.h"
 #include "../../src/qwt_plot_zoneitem.h"
+#include "../../src/qwt_plot_panner.h"
 #include "../../src/qwt_plot_zoomer.h"
 // polar items
 #include "../../src/qwt_polar_canvas.h"

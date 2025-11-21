@@ -32,7 +32,8 @@ Plot::Plot(QWidget* parent) : QwtPlot(parent)
         const bool on = QwtAxis::isYAxis(axis);
 
         setAxisVisible(axis, on);
-        panner->setAxisEnabled(axis, on);
+        // panner->setAxisEnabled(axis, on);
+        panner->setOrientations(Qt::Vertical);
         magnifier->setAxisEnabled(axis, on);
     }
 

@@ -112,6 +112,7 @@
 #include "../../src/qwt_plot_textlabel.cpp"
 #include "../../src/qwt_plot_tradingcurve.cpp"
 #include "../../src/qwt_plot_vectorfield.cpp"
+#include "../../src/qwt_plot_panner.cpp"
 #include "../../src/qwt_plot_zoneitem.cpp"
 #include "../../src/qwt_plot_zoomer.cpp"
 //polar items
