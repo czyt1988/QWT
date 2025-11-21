@@ -109,17 +109,19 @@ Key changes: removed the default sunken style, placed axes flush against the plo
 
 ### Added Figure Container
 
-Inspired by Python’s matplotlib, Qwt now provides a Figure container for effortless multi-plot layouts:
+Similar to Python's matplotlib, Qwt provides a Figure plotting container that enables convenient layout of multiple plots.
 
-![qwt_figure](./docs/assets/screenshots/qwt_figure.png)
+With the newly added `QwtFigure` class, arranging multiple plots becomes effortless, supporting grid layouts (analogous to matplotlib's subplot).
 
-The new `QwtFigure` class supports grid layouts (similar to matplotlib’s subplot).
+The `QwtFigureWidgetOverlay` class has been configured synchronously, integrating several operations of `QwtFigure`—such as adjusting plot sizes and moving plots.
+
+For details, refer to the tutorial: [Figure Plotting Container](https://czyt1988.github.io/QWT/zh/use-guide/figure-widget/)
 
 ### Added Parasite Axes
 
 Qwt7 now supports **parasite axes**, allowing multiple plots to share the same axes.
 
-![Parasite Axes](./docs/assets/screenshots/parasite-plot.png)
+For details, refer to the tutorial:[Creating Multiple Coordinate Axes](https://czyt1988.github.io/QWT/zh/use-guide/parasite-axes/)
 
 ### Added Axis Interactions
 
@@ -131,6 +133,9 @@ Axis interaction functionality has been added, supporting **drag-and-drop** and 
 **Zooming:**
 ![qwt-scale-builtin-action-zoom](./docs/assets/screenshots/qwt-scale-builtin-action-zoom.gif)
 
+
+For details, refer to the tutorial:[Coordinate Axis Interactive Actions](https://czyt1988.github.io/QWT/zh/use-guide/scale-builtin-action/)
+
 ### Added Data Picking Functionality
 
 Added the QwtPlotSeriesDataPicker class to support data picking.
@@ -139,6 +144,7 @@ Added the QwtPlotSeriesDataPicker class to support data picking.
 
 ![series-data-picker-nearest-value](./docs/assets/picture/series-data-picker-nearest-value.gif)
 
+For details, refer to the tutorial:[Series Data Picker](https://czyt1988.github.io/QWT/zh/use-guide/pick-value/)
 
 ## Changelog
 

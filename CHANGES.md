@@ -1,9 +1,13 @@
 ## tag:v7.0.6
 
 - 新增`QwtPlotSeriesDataPicker`类，提供了绘图数据的拾取
+    `QwtPlotSeriesDataPicker`效果如下：
+    ![series-data-picker-yvalue](./docs/assets/picture/series-data-picker-yvalue.gif)=
+    ![series-data-picker-nearest-value](./docs/assets/picture/series-data-picker-nearest-value.gif)
 - 完善了寄生绘图的刷新机制，不会在构造时无法完全更新
 - 有些接口的索引类型由int改为size_t
 - `QwtPlotSeriesDataPicker`支持日期坐标轴的正常显示
+- 修正了`QwtFigureWidgetOverlay`的一些事件处理会和坐标轴动作冲突的问题
 
 ## tag:v7.0.5
 
@@ -45,6 +49,7 @@
 ![figure](docs/screenshots/qwt_figure.png)
 
 - example增加figure例子，用于演示`QwtFigure`的使用
+- 新增`QwtFigureWidgetOverlay`，可以实现在`QwtFigure`上面进行一些动作，目前支持拖动绘图，缩放绘图的功能
 
 ## tag:v7.0.0
 

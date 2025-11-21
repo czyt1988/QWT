@@ -70,11 +70,17 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 
 通过新增的`QwtFigure`类，可以很方便的进行多个绘图布局,支持网格布局（类似matplotlib的subplot）
 
+同步配置了`QwtFigureWidgetOverlay`类，集成了`QwtFigure`的一些操作，例如改变绘图的尺寸，移动绘图
+
+![figure-widget-overlay](./docs/assets/screenshots/figure-widget-overlay.gif)
+
+具体可参见教程：[Figure绘图容器](https://czyt1988.github.io/QWT/zh/use-guide/figure-widget/)
+
 ### 支持多坐标轴
 
 增加了类似matplotlib的寄生轴功能，支持任意多个坐标轴显示
 
-![parasite plot](./docs/assets/screenshots/parasite-plot.png) 
+具体可参见教程：[多坐标轴的创建](https://czyt1988.github.io/QWT/zh/use-guide/parasite-axes/)
 
 ### 增加了坐标轴交互
 
@@ -86,6 +92,8 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 缩放：
 ![qwt-scale-builtin-action-zoom](./docs/assets/screenshots/qwt-scale-builtin-action-zoom.gif)
 
+具体可参见教程：[坐标轴交互动作](https://czyt1988.github.io/QWT/zh/use-guide/scale-builtin-action/)
+
 ### 增加了数据拾取功能
 
 增加`QwtPlotSeriesDataPicker`类，支持数据的拾取
@@ -93,6 +101,8 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 ![series-data-picker-yvalue](./docs/assets/picture/series-data-picker-yvalue.gif)
 
 ![series-data-picker-nearest-value](./docs/assets/picture/series-data-picker-nearest-value.gif)
+
+具体可参见教程：[绘图数据拾取](https://czyt1988.github.io/QWT/zh/use-guide/pick-value/)
 
 ## changelog
 
