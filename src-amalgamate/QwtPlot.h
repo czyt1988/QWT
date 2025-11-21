@@ -1,4 +1,4 @@
-#ifndef QWTPLOT_AMALGAM_H
+﻿#ifndef QWTPLOT_AMALGAM_H
 #define QWTPLOT_AMALGAM_H
 
 /*** Start of inlined file: QWTAmalgamTemplatePublicHeaders.h ***/
@@ -14758,7 +14758,7 @@ public:
      */
     enum PickSeriesMode
     {
-        PickYValue,       ///< 拾取y值（默认）
+        PickYValue,  ///< 拾取y值（默认）
         PickNearestPoint  ///< 拾取最接近鼠标光标位置的点（此模式会比较耗时，曲线点非常多的时候谨慎使用）
     };
 
@@ -14842,6 +14842,8 @@ protected:
     virtual void drawFeaturePoints(QPainter* painter) const;
     // 鼠标移动
     virtual void move(const QPoint& pos) QWT_OVERRIDE;
+    // 格式化为坐标轴对应的内容，针对时间轴，value是一个大浮点数，用户需要看到的是2024-10-01这样的数字
+    QString formatAxisValue(double value, int axisId, QwtPlot* plot) const;
 };
 
 #endif  // QWT_PLOT_SERIES_DATA_PICKER_H
@@ -15884,7 +15886,6 @@ class QStack;
 
    \sa QwtPlotPanner, QwtPlotMagnifier
  */
-
 class QWT_EXPORT QwtPlotZoomer : public QwtPlotPicker
 {
     Q_OBJECT
@@ -16984,6 +16985,8 @@ public:
 
     // Check if this plot is a parasite plot/检查此绘图是否为寄生绘图
     bool isParasitePlot() const;
+    // 是否是最顶部的宿主绘图，最顶部的宿主绘图坐标轴处于最外围，且一般是最后进行更新
+    bool isTopParasitePlot() const;
 
     // Check if this plot is a host plot/检查此绘图是否为宿主绘图
     bool isHostPlot() const;
@@ -17017,7 +17020,8 @@ public:
 
     // 更新宿主轴和寄生轴的偏移
     void updateAxisEdgeMargin(QwtAxisId axisId);
-
+    // 更新寄生轴的坐标
+    void updateAllAxisEdgeMargin();
     // 更新绘图上的items，让其适配scaleDiv的范围
     void updateItemsToScaleDiv();
     // 坐标轴事件使能
@@ -17029,15 +17033,12 @@ public:
     void saveAutoReplotState();
     void restoreAutoReplotState();
 #if QWT_AXIS_COMPAT
-    enum Axis
-    {
-        yLeft   = QwtAxis::YLeft,
-        yRight  = QwtAxis::YRight,
-        xBottom = QwtAxis::XBottom,
-        xTop    = QwtAxis::XTop,
+    enum Axis { yLeft   = QwtAxis::YLeft,
+                yRight  = QwtAxis::YRight,
+                xBottom = QwtAxis::XBottom,
+                xTop    = QwtAxis::XTop,
 
-        axisCnt = QwtAxis::AxisPositions
-    };
+                axisCnt = QwtAxis::AxisPositions };
 
     void enableAxis(int axisId, bool on = true)
     {
@@ -17076,8 +17077,6 @@ public Q_SLOTS:
     void autoRefresh();
     // 重绘所有绘图，包括寄生绘图或者宿主绘图
     virtual void replotAll();
-    // 更新寄生轴的坐标
-    void updateAllAxisEdgeMargin();
 
 protected:
     virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
@@ -17102,6 +17101,8 @@ private:
     void deleteAxesData();
 
     void initPlot(const QwtText& title);
+    // 最顶部的寄生绘图对宿主绘图调用updateAllAxisEdgeMargin
+    void topParasiteTriggerHostUpdateAxisMargins();
 
     class ScaleData;
     ScaleData* m_scaleData;
@@ -18409,6 +18410,7 @@ public:
     explicit QwtFigureWidgetOverlay(QwtFigure* fig);
     ~QwtFigureWidgetOverlay();
     QwtFigure* figure() const;
+    void setTransparentForMouseEvents(bool on);
 
 public:
     // 根据点和矩形的关系，返回图标的样式
@@ -18446,13 +18448,20 @@ public Q_SLOTS:
 protected:
     virtual void drawOverlay(QPainter* p) const override;
     virtual QRegion maskHint() const override;
-    virtual bool eventFilter(QObject* obj, QEvent* event) override;
-    // 绘制激活的窗口
+    //  绘制激活的窗口
     virtual void drawActiveWidget(QPainter* painter, QWidget* activeW) const;
     // 绘制resize变换的橡皮筋控制线
     virtual void drawResizeingControlLine(QPainter* painter, const QRectF& willSetNormRect) const;
     // 绘制控制线
     virtual void drawControlLine(QPainter* painter, const QRect& actualRect, const QRectF& normRect) const;
+    // 辅助函数，标记开始改变尺寸
+    void startResize(ControlType controlType, const QPoint& pos);
+
+protected:
+    void mouseMoveEvent(QMouseEvent* me) override;
+    void mouseReleaseEvent(QMouseEvent* me) override;
+    void mousePressEvent(QMouseEvent* me) override;
+    void keyPressEvent(QKeyEvent* ke) override;
 Q_SIGNALS:
 
     /**
@@ -18470,11 +18479,6 @@ Q_SIGNALS:
     void activeWidgetChanged(QWidget* oldActive, QWidget* newActive);
 
 private:
-    bool onMouseMoveEvent(QMouseEvent* me);
-    bool onMouseReleaseEvent(QMouseEvent* me);
-    bool onMousePressedEvent(QMouseEvent* me);
-    bool onHoverMoveEvent(QHoverEvent* me);
-    bool onKeyPressedEvent(QKeyEvent* ke);
 };
 
 #endif  // QWTFIGUREWIDGETOVERLAY_H

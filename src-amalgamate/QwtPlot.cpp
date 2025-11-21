@@ -1,4 +1,4 @@
-
+﻿
 /*** Start of inlined file: QWTAmalgamTemplateHeaderGlue.h ***/
 // This file provides an extra level of indirection for the @remap in the template
 #include "QwtPlot.h"
@@ -481,7 +481,7 @@ private:
     class ColorStop
     {
     public:
-        ColorStop() : pos(0.0), rgb(0) { };
+        ColorStop() : pos(0.0), rgb(0) {};
 
         ColorStop(double p, const QColor& c) : pos(p), rgb(c.rgba())
         {
@@ -42313,19 +42313,24 @@ QwtText QwtPlotSeriesDataPicker::trackerText(const QPoint& pos) const
 QString QwtPlotSeriesDataPicker::valueString(const QPointF& value, QwtPlotItem* item, size_t seriesIndex, int order) const
 {
     Q_UNUSED(seriesIndex);
+    QwtPlot* plot = item ? item->plot() : nullptr;
+
     if (m_data->pickMode == PickYValue) {
         QString t;
         if (order != 0) {
             t += "<br/>";
         }
+        // 使用formatAxisValue，对于时间日期也能正确显示
         t += QString("<font color=%1>%2</font>:%3")
                  .arg(Qwt::plotItemColor(item).name())
                  .arg(item->title().text())
-                 .arg(value.y());
+                 .arg(formatAxisValue(value.y(), item->yAxis(), plot));
         return t;
     }
     // Pick Nearest Point
-    return QString("(%1 , %2)").arg(value.x()).arg(value.y());
+    return QString("(%1 , %2)")
+        .arg(formatAxisValue(value.x(), item->xAxis(), plot))
+        .arg(formatAxisValue(value.y(), item->yAxis(), plot));
 }
 
 /**
@@ -42376,6 +42381,24 @@ void QwtPlotSeriesDataPicker::move(const QPoint& pos)
         break;
     }
     QwtPlotPicker::move(pos);
+}
+
+QString QwtPlotSeriesDataPicker::formatAxisValue(double value, int axisId, QwtPlot* plot) const
+{
+    if (!plot) {
+        return QString::number(value);
+    }
+
+    // 获取坐标轴的刻度绘制器
+    const QwtScaleDraw* scaleDraw = plot->axisScaleDraw(axisId);
+    if (scaleDraw) {
+        // 使用坐标轴的格式化器
+        QwtText text = scaleDraw->label(value);
+        return text.text();
+    }
+
+    // 回退到默认数值显示
+    return QString::number(value);
 }
 
 /**
@@ -51911,6 +51934,28 @@ void QwtPlot::initPlot(const QwtText& title)
     setupScaleEventDispatcher(new QwtPlotScaleEventDispatcher(this, this));
 }
 
+/**
+ * @brief 最顶部的寄生绘图对宿主绘图调用updateAllAxisEdgeMargin
+ *
+ * 这个函数的目的是，绘图存在寄生绘图时，由于寄生绘图属于宿主的子绘图，宿主绘图调用updateAllAxisEdgeMargin函数时，
+ * 寄生绘图的位置可能还没确定，这时，就需要最顶部的寄生绘图在某些情况调用宿主绘图的updateAllAxisEdgeMargin，
+ * 典型的应用场景是绘图第一次显示的时候就需要用到此函数
+ *
+ * @note 如果没有寄生绘图，此函数没有任何动作
+ */
+void QwtPlot::topParasiteTriggerHostUpdateAxisMargins()
+{
+    if (isParasitePlot()) {
+        // 宿主显示调用host的更新
+        if (isTopParasitePlot()) {
+            QwtPlot* host = hostPlot();
+            if (host) {
+                host->updateAllAxisEdgeMargin();
+            }
+        }
+    }
+}
+
 /*!
    \brief Set the drawing canvas of the plot widget
 
@@ -51967,6 +52012,7 @@ bool QwtPlot::event(QEvent* event)
         break;
     case QEvent::PolishRequest:
         replot();
+        topParasiteTriggerHostUpdateAxisMargins();
         break;
     default:;
     }
@@ -52240,6 +52286,7 @@ void QwtPlot::resizeEvent(QResizeEvent* e)
 {
     QFrame::resizeEvent(e);
     updateLayout();
+    // updateAllAxisEdgeMargin 必须在updateLayout之后执行
     if (isHostPlot()) {
         updateAllAxisEdgeMargin();
     }
@@ -52929,7 +52976,6 @@ void QwtPlot::addParasitePlot(QwtPlot* parasite)
     parasite->m_data->isParasitePlot = true;
 
     // 设置后对寄生轴要进行一次布局
-    updateAllAxisEdgeMargin();
     updateLayout();
 }
 
@@ -52995,8 +53041,8 @@ void QwtPlot::removeParasitePlot(QwtPlot* parasite)
     }
     // 移除时，把绘图的寄生标记设置为false；
     parasite->m_data->isParasitePlot = false;
-    updateAllAxisEdgeMargin();
     updateLayout();
+    updateAllAxisEdgeMargin();
 }
 
 /**
@@ -53114,6 +53160,26 @@ QwtPlot* QwtPlot::hostPlot() const
 bool QwtPlot::isParasitePlot() const
 {
     return (m_data->isParasitePlot);
+}
+
+/**
+ * @brief 是否是最顶部的宿主绘图，最顶部的宿主绘图坐标轴处于最外围，且一般是最后进行更新
+ * @return
+ */
+bool QwtPlot::isTopParasitePlot() const
+{
+    if (!m_data->isParasitePlot) {
+        return false;
+    }
+    QwtPlot* host = hostPlot();
+    if (!host) {
+        return false;
+    }
+    auto parasites = host->parasitePlots();
+    if (parasites.empty()) {
+        return false;
+    }
+    return (parasites.back() == this);
 }
 
 /**
@@ -53567,6 +53633,10 @@ void QwtPlot::updateAllAxisEdgeMargin()
 #endif
     for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; ++axisPos) {
         updateAxisEdgeMargin(axisPos);
+    }
+    if (m_data->scaleEventDispatcher) {
+        // updateAllAxisEdgeMargin之后更新updateCache
+        m_data->scaleEventDispatcher->updateCache();
     }
 }
 
@@ -56687,6 +56757,7 @@ QRectF QwtParasitePlotLayout::parasiteScaleRect(QwtAxisId aid) const
 #include <QMouseEvent>
 #include <QApplication>
 #include <QDebug>
+#include <QTimer>
 // qwt
 
 class QwtPlotScaleEventDispatcher::PrivateData
@@ -56825,6 +56896,7 @@ QwtPlotScaleEventDispatcher::QwtPlotScaleEventDispatcher(QwtPlot* plot, QObject*
     if (!plot->hasMouseTracking()) {
         plot->setMouseTracking(true);
     }
+    rebuildCache();
 }
 
 QwtPlotScaleEventDispatcher::~QwtPlotScaleEventDispatcher()
@@ -56881,24 +56953,20 @@ void QwtPlotScaleEventDispatcher::updateCache()
 
 bool QwtPlotScaleEventDispatcher::eventFilter(QObject* obj, QEvent* e)
 {
+    if (!m_data->isEnable) {
+        return false;
+    }
     QwtPlot* plot = qobject_cast< QwtPlot* >(obj);
     if (!plot) {
         return false;
     }
     switch (e->type()) {
     case QEvent::Resize:
-    case QEvent::Move:
-    case QEvent::Hide: {
+    case QEvent::LayoutRequest:
+    case QEvent::Polish: {
         // 处理可能影响缓存的事件
         m_data->cacheDirty = true;
         updateCache();
-        break;
-    }
-    case QEvent::Show: {
-        // 处理可能影响缓存的事件
-        m_data->cacheDirty = true;
-
-        QMetaObject::invokeMethod(this, &QwtPlotScaleEventDispatcher::updateCache, Qt::QueuedConnection);
         break;
     }
     case QEvent::MouseButtonPress:
@@ -56912,7 +56980,7 @@ bool QwtPlotScaleEventDispatcher::eventFilter(QObject* obj, QEvent* e)
     default:
         break;
     }
-    return false;
+    return QObject::eventFilter(obj, e);
 }
 
 bool QwtPlotScaleEventDispatcher::handleMousePress(QwtPlot* plot, QMouseEvent* e)
@@ -57003,7 +57071,8 @@ bool QwtPlotScaleEventDispatcher::handleMouseRelease(QwtPlot* plot, QMouseEvent*
     if (e->button() == Qt::LeftButton) {
         d->isMousePressed = false;
         // 左键：只有之前按下且在当前scale区域才处理,这里不要联合onMyScale判断，拖曳出去 绘图区域就识别不了
-        return true;
+        return targetScale
+               != nullptr;  // targetScale不为空时返回true代表截断事件，这样上层的事件才能处理，例如QwtFigureWidgetOverlay
     }
     return false;
 }
@@ -62494,9 +62563,7 @@ public:
     QSize mControlPointSize { 8, 8 };                   ///< 控制点大小
     QwtFigureWidgetOverlay::ControlType mControlType { QwtFigureWidgetOverlay::OutSide };  ///< 记录当前缩放窗口的位置情况
 
-    bool mFigOldMouseTracking { false };  /// 记录原来fig是否设置了mousetrack
-    bool mFigOldHasHoverAttr { false };   ///< 记录原来的figure是否含有Hover属性
-    bool mShowPrecentText { true };       ///< 显示占比文字
+    bool mShowPrecentText { true };  ///< 显示占比文字
 };
 
 QwtFigureWidgetOverlay::PrivateData::PrivateData(QwtFigureWidgetOverlay* p) : q_ptr(p)
@@ -62518,17 +62585,6 @@ QwtFigureWidgetOverlay::PrivateData::PrivateData(QwtFigureWidgetOverlay* p) : q_
 QwtFigureWidgetOverlay::QwtFigureWidgetOverlay(QwtFigure* fig) : QwtWidgetOverlay(fig), QWT_PIMPL_CONSTRUCT
 {
     Q_ASSERT(fig);
-    QWT_D(d);
-    // 由于QwtWidgetOverlay是对鼠标隐藏的，因此不能直接使用mouseEvent，直接捕获QwtFigure的event
-    //  QwtWidgetOverlay已经install了，因此无需再fig->installEventFilter(this);
-    d->mFigOldMouseTracking = fig->hasMouseTracking();
-    if (!d->mFigOldMouseTracking) {
-        fig->setMouseTracking(true);
-    }
-    d->mFigOldHasHoverAttr = fig->testAttribute(Qt::WA_Hover);
-    if (!d->mFigOldHasHoverAttr) {
-        fig->setAttribute(Qt::WA_Hover, true);
-    }
 
     QwtPlot* gca = fig->currentAxes();
     if (gca) {
@@ -62539,24 +62595,23 @@ QwtFigureWidgetOverlay::QwtFigureWidgetOverlay(QwtFigure* fig) : QwtWidgetOverla
             selectNextWidget();
         }
     }
+    setMouseTracking(true);
+    setTransparentForMouseEvents(false);  // 这里对鼠标不透明，避免被绘图的坐标轴事件截取
+    hide();
 }
 
 QwtFigureWidgetOverlay::~QwtFigureWidgetOverlay()
 {
-    QwtFigure* fig = figure();
-    Q_ASSERT(fig);
-    // 如果fig原来没有mousetrack，设置回去
-    if (!m_data->mFigOldMouseTracking) {
-        fig->setMouseTracking(false);
-    }
-    if (!m_data->mFigOldHasHoverAttr) {
-        fig->setAttribute(Qt::WA_Hover, false);
-    }
 }
 
 QwtFigure* QwtFigureWidgetOverlay::figure() const
 {
     return static_cast< QwtFigure* >(parent());
+}
+
+void QwtFigureWidgetOverlay::setTransparentForMouseEvents(bool on)
+{
+    setAttribute(Qt::WA_TransparentForMouseEvents, on);
 }
 
 /**
@@ -62841,68 +62896,23 @@ void QwtFigureWidgetOverlay::setActiveWidget(QWidget* w)
 
 void QwtFigureWidgetOverlay::drawOverlay(QPainter* p) const
 {
-    if (isHaveActiveWidget()) {
-        // 对于激活的窗口，绘制到四周的距离提示线
-        p->save();
-        if (m_data->mIsStartResize) {
-            // 在resize状态，绘制控制线
-            drawResizeingControlLine(p, m_data->mWillSetNormRect);
-        } else {
-            drawActiveWidget(p, currentActiveWidget());
-        }
-        p->restore();
+    if (!isHaveActiveWidget()) {
+        return;
     }
+    // 对于激活的窗口，绘制到四周的距离提示线
+    p->save();
+    if (m_data->mIsStartResize) {
+        // 在resize状态，绘制控制线
+        drawResizeingControlLine(p, m_data->mWillSetNormRect);
+    } else {
+        drawActiveWidget(p, currentActiveWidget());
+    }
+    p->restore();
 }
 
 QRegion QwtFigureWidgetOverlay::maskHint() const
 {
     return (figure()->rect());
-}
-
-/**
- * @brief DAFigureWidgetChartRubberbandEditOverlay::eventFilter
- *
- * 注意，鼠标移动事件在setMouseTracking(true)后，button永远是NoButton,需要配合press事件才能判断
- * @param obj
- * @param event
- * @return
- */
-bool QwtFigureWidgetOverlay::eventFilter(QObject* obj, QEvent* event)
-{
-    if (isHaveActiveWidget()) {
-        if (obj == figure()) {
-            // 捕获DAChartWidget和DAFigure都是无法捕获正常鼠标移动的事件
-            switch (event->type()) {
-            case QEvent::MouseButtonPress: {
-                QMouseEvent* me = static_cast< QMouseEvent* >(event);
-                return (onMousePressedEvent(me));
-            }
-
-            case QEvent::MouseButtonRelease: {
-                QMouseEvent* me = static_cast< QMouseEvent* >(event);
-                return (onMouseReleaseEvent(me));
-            }
-
-            case QEvent::KeyPress: {
-                QKeyEvent* ke = static_cast< QKeyEvent* >(event);
-                return (onKeyPressedEvent(ke));
-            }
-            case QEvent::MouseMove: {
-                QMouseEvent* e = static_cast< QMouseEvent* >(event);
-                return (onMouseMoveEvent(e));
-            }
-            case QEvent::HoverMove: {
-                QHoverEvent* e = static_cast< QHoverEvent* >(event);
-                return (onHoverMoveEvent(e));
-            }
-            default:
-                break;
-            }
-        }
-    }
-
-    // QwtWidgetOverlay也继承了eventFilter
-    return (QwtWidgetOverlay::eventFilter(obj, event));
 }
 
 /**
@@ -62942,7 +62952,7 @@ void QwtFigureWidgetOverlay::drawControlLine(QPainter* painter, const QRect& act
 {
     painter->setBrush(Qt::NoBrush);
     painter->setPen(m_data->mBorderPen);
-    QRect edgetRect = actualRect.adjusted(-1, -1, 1, 1);
+    QRect edgetRect = actualRect.adjusted(1, 1, -1, -1);
 
     // 绘制矩形边框
     painter->drawRect(edgetRect);
@@ -62986,121 +62996,147 @@ void QwtFigureWidgetOverlay::drawControlLine(QPainter* painter, const QRect& act
     painter->drawRect(connerRect);
 }
 
-bool QwtFigureWidgetOverlay::onMouseMoveEvent(QMouseEvent* me)
+/**
+ * @brief 开始变换的辅助函数，此函数会记录开始变换的状态
+ * @param controlType
+ * @param pos
+ */
+void QwtFigureWidgetOverlay::startResize(QwtFigureWidgetOverlay::ControlType controlType, const QPoint& pos)
 {
-    Q_UNUSED(me);
     QWT_D(d);
-    if (d->mActiveWidget) {
-        if (d->mIsStartResize) {
-            return (true);  // 托管所有的鼠标事件
-        }
+    if (!d->mActiveWidget) {
+        return;
     }
-    return (false);
+
+    QwtFigure* fig = figure();
+    Q_ASSERT(fig);
+
+    d->mOldNormRect       = fig->widgetNormRect(d->mActiveWidget);
+    d->mLastMousePressPos = pos;
+    d->mIsStartResize     = true;
+    d->mControlType       = controlType;
+    d->mWillSetNormRect   = QRectF();
+
+    //! 捕获鼠标，确保所有鼠标事件都发送到这个窗口
+    //! 这个函数是关键，避免鼠标移动的时候被别的窗口捕获掉鼠标，导致无法接收到release事件
+    //! grabMouse可以:
+    //! - 强制所有鼠标事件（移动、点击、释放等）都发送到调用该函数的窗口部件
+    //! - 忽略鼠标的实际位置，即使鼠标移到了其他窗口或屏幕边缘
+    //! - 确保鼠标事件链的完整性
+    //! 此函数一定要releaseMouse，（releaseMouse在mouseReleaseEvent执行）
+    //!
+    //! 如果没有这个函数，鼠标移动到了底层绘图窗口或其他子窗口上，鼠标事件可能被这些窗口截获
+    //! QwtFigureWidgetOverlay收不到 mouseReleaseEvent，导致状态卡在"调整中"
+    grabMouse();
 }
 
-bool QwtFigureWidgetOverlay::onMouseReleaseEvent(QMouseEvent* me)
-{
-#if QwtFigureWidgetOverlay_DEBUG_PRINT
-    qDebug() << "QwtFigureWidgetOverlay::onMouseReleaseEvent" << me->pos();
-#endif
-    if (Qt::LeftButton == me->button()) {
-        QWT_D(d);
-        if (!d->mWillSetNormRect.isValid()) {
-            // 这种就是点击一下
-            d->mIsStartResize = false;
-            return (true);  // 托管所有的鼠标事件
-        }
-        if (d->mIsStartResize) {
-            d->mIsStartResize = false;
-            if (d->mActiveWidget) {
-                QwtFigure* fig = figure();
-                Q_ASSERT(fig);
-                // QRect newGeometry = d->mActiveWidget->geometry();
-                fig->setWidgetNormPos(d->mActiveWidget, d->mWillSetNormRect);
-#if QwtFigureWidgetOverlay_DEBUG_PRINT
-                qDebug() << "fig->setWidgetNormPos(d->mActiveWidget, " << d->mWillSetNormRect << ")";
-#endif
-                Q_EMIT widgetNormGeometryChanged(d->mActiveWidget, d->mOldNormRect, d->mWillSetNormRect);
-                return (true);  // 这里把消息截取不传递下去
-            }
-        }
-    }
-    return (true);  // 托管所有的鼠标事件
-}
-
-bool QwtFigureWidgetOverlay::onMousePressedEvent(QMouseEvent* me)
+void QwtFigureWidgetOverlay::mousePressEvent(QMouseEvent* me)
 {
     if (me->button() != Qt::LeftButton) {  // 只关心左键
-        return false;
+        QwtWidgetOverlay::mousePressEvent(me);
+        return;
     }
 
     // 左键点击
     const QList< QwtPlot* > plots = figure()->allAxes(true);  // 传入true，按z序列最高到低排序
     if (plots.empty()) {
-        return false;
+        QwtWidgetOverlay::mousePressEvent(me);
+        return;
     }
 
     // 注意，hitplot有可能是nullptr，因为点击变换边缘时，会判断为外围
-    QWidget* hitPlot  = nullptr;
-    const QPoint gPos = qwt::compat::eventPos(me);
+    const QPoint pos = qwt::compat::eventPos(me);
+    QWidget* hitPlot = nullptr;
     for (QWidget* w : plots) {
-        if (w->frameGeometry().contains(gPos, true)) {
+        if (w->frameGeometry().contains(pos, true)) {
             hitPlot = w;
             break;
         }
     }
-
+#if QwtFigureWidgetOverlay_DEBUG_PRINT
+    qDebug() << "QwtFigureWidgetOverlay::onMousePressedEvent:" << pos;
+#endif
     QWT_D(d);
+    // 重置之前的调整状态
+    if (d->mIsStartResize) {
+        d->mIsStartResize   = false;
+        d->mWillSetNormRect = QRectF();
+    }
+
     // 如果还没激活任何窗口，或者点到新窗口，直接切换激活
     // 注意，这里不能直接判断有hitPlot就切换activeWidget，因为实际在变换的时候，点击的位置会找active的外围一点
     // 通过getPositionControlType可以真实反映出是否超过了activeWidget的变换范围
+
+    // 情况1: 当前没有激活窗口
     if (!d->mActiveWidget) {
         if (hitPlot) {
+            // 点击了某个窗口，设置为激活
             setActiveWidget(hitPlot);
             updateOverlay();
-            return true;
+            me->accept();  // 我们处理了这个事件
+        } else {
+            me->ignore();  // 让事件继续传递
         }
-        return false;
+        return;
+    }
+    // 到这里，说明一定有激活的窗体
+    ControlType ct = getPositionControlType(qwt::compat::eventPos(me), d->mActiveWidget->frameGeometry(), 4);
+
+    // 情况2： 点击到了激活窗口的外围
+    if (ct == OutSide) {
+        // 点击在了激活窗体外围
+        if (hitPlot) {
+            // 点击到了其它窗体,切换激活窗体
+            setActiveWidget(hitPlot);
+        } else {
+            // 点击到了纯空白处，把鼠标事件传递下去
+            setActiveWidget(nullptr);
+        }
+        updateOverlay();
+        me->accept();
+        return;
     }
 
-    // 有激活窗口，判断点击位置
-    ControlType ct = getPositionControlType(qwt::compat::eventPos(me), d->mActiveWidget->frameGeometry(), 4);
-    if (OutSide == ct) {
-        // 点击在空白处
-        if (hitPlot) {
-            setActiveWidget(hitPlot);
-            updateOverlay();
-            return true;
-        }
-        return false;
+    // 情况3: 点击了激活窗口的内部，但hitplot也存在，这种就是点击到了图中图，激活窗口是大图，hitplot是大图里的小图
+    if (ct == Inner && hitPlot && hitPlot != d->mActiveWidget) {
+        setActiveWidget(hitPlot);
+        updateOverlay();
+        me->accept();
+        return;
     }
-    // 点击了变换区域，就执行变换
-    QwtFigure* fig = figure();
-    Q_ASSERT(fig);
-    d->mOldNormRect       = fig->widgetNormRect(d->mActiveWidget);
-    d->mLastMousePressPos = qwt::compat::eventPos(me);
-    d->mIsStartResize     = true;
-    d->mControlType       = ct;
-    d->mWillSetNormRect   = QRectF();
-    return (true);  // 这里把消息截取不传递下去
+
+    // 情况4：开始调整激活窗口的尺寸
+    if (ct != OutSide) {
+        startResize(ct, pos);
+        me->accept();
+        return;
+    }
+
+    QwtWidgetOverlay::mousePressEvent(me);
 }
 
-bool QwtFigureWidgetOverlay::onHoverMoveEvent(QHoverEvent* me)
+void QwtFigureWidgetOverlay::mouseMoveEvent(QMouseEvent* me)
 {
-    //! 注意，不要在onMouseMoveEvent进行处理，因为鼠标移动到子窗体后，
-    //! onMouseMoveEvent不会触发，但onHoverMoveEvent还会继续触发
     QWT_D(d);
+
     QWidget* activeW = d->mActiveWidget;
+
     if (!activeW) {
-        return false;
+        // 没有激活窗口，更新光标并传递事件
+        unsetCursor();
+        QwtWidgetOverlay::mouseMoveEvent(me);
+        return;
     }
-    QwtFigure* fig = figure();
-    Q_ASSERT(fig);
+
+    const QPoint pos = qwt::compat::eventPos(me);
 
     if (d->mIsStartResize) {
-        // 开始resize（鼠标按下左键后触发为true）
+        // 开始变换
+        QwtFigure* fig = figure();
+        Q_ASSERT(fig);
         const QRectF& oldNormRect = d->mOldNormRect;
-        QPoint offset             = qwt::compat::eventPos(me) - d->mLastMousePressPos;
+        QPoint offset             = pos - d->mLastMousePressPos;
+
         switch (d->mControlType) {
         case ControlLineTop: {
             //  计算offset.y()占高度比例
@@ -63200,48 +63236,83 @@ bool QwtFigureWidgetOverlay::onHoverMoveEvent(QHoverEvent* me)
 
             QRectF normRect     = oldNormRect.adjusted(dw, dh, dw, dh);
             d->mWillSetNormRect = normRect;
+            Q_EMIT widgetNormGeometryChanged(d->mActiveWidget, d->mOldNormRect, d->mWillSetNormRect);
+            // d->mOldNormRect = normRect;
             break;
         }
 
         default:
-            return (false);
+            break;
         }
+        qDebug() << "mouse move updateOverlay:offset=" << offset;
         updateOverlay();
-        return (true);  // 这里把消息截取不传递下去
     } else {
+        // 没开始变换，则更新光标
         ControlType ct = getPositionControlType(qwt::compat::eventPos(me), activeW->frameGeometry(), 4);
-        if (d->mControlType != ct) {
-            // 说明控制点变更
+
+        // 说明控制点变更
+        if (ct == OutSide) {
+            unsetCursor();
+            me->ignore();  // 让事件继续传递
+        } else {
             Qt::CursorShape cur = controlTypeToCursor(ct);
-            figure()->setCursor(cur);
-            d->mControlType = ct;
+            setCursor(cur);
+            me->accept();
         }
     }
-
-    return (true);  // 托管所有的鼠标事件
 }
 
-bool QwtFigureWidgetOverlay::onKeyPressedEvent(QKeyEvent* ke)
+void QwtFigureWidgetOverlay::mouseReleaseEvent(QMouseEvent* me)
+{
+#if QwtFigureWidgetOverlay_DEBUG_PRINT
+    qDebug() << "QwtFigureWidgetOverlay::onMouseReleaseEvent" << me->pos();
+#endif
+    QWT_D(d);
+    if (me->button() == Qt::LeftButton && d->mIsStartResize) {
+        // 结束调整尺寸操作
+        d->mIsStartResize = false;
+
+        if (d->mActiveWidget && d->mWillSetNormRect.isValid()) {
+            Q_EMIT widgetNormGeometryChanged(d->mActiveWidget, d->mOldNormRect, d->mWillSetNormRect);
+        }
+
+        d->mWillSetNormRect = QRectF();
+        updateOverlay();
+
+        //! 由于在startResize时捕获了鼠标，因此，这里必须释放鼠标
+        releaseMouse();
+        me->accept();
+        return;
+    }
+
+    // 其他情况传递给父类处理
+    QwtWidgetOverlay::mouseReleaseEvent(me);
+}
+
+void QwtFigureWidgetOverlay::keyPressEvent(QKeyEvent* ke)
 {
     switch (ke->key()) {
     case Qt::Key_Return: {
         selectNextWidget(true);
+        ke->accept();
     } break;
 
     case Qt::Key_Up:
-    case Qt::Key_Left:
+    case Qt::Key_Left: {
         selectNextWidget(true);
-        break;
+        ke->accept();
+    } break;
 
     case Qt::Key_Right:
-    case Qt::Key_Down:
+    case Qt::Key_Down: {
         selectNextWidget(false);
-        break;
+        ke->accept();
+    } break;
 
     default:
-        return (false);
+        break;
     }
-    return (true);  // 这里把消息截取不传递下去
+    QwtWidgetOverlay::keyPressEvent(ke);
 }
 
 /*** End of inlined file: qwt_figure_widget_overlay.cpp ***/

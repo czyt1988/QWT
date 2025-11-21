@@ -95,7 +95,6 @@ public Q_SLOTS:
 protected:
     virtual void drawOverlay(QPainter* p) const override;
     virtual QRegion maskHint() const override;
-    // virtual bool eventFilter(QObject* obj, QEvent* event) override;
     //  绘制激活的窗口
     virtual void drawActiveWidget(QPainter* painter, QWidget* activeW) const;
     // 绘制resize变换的橡皮筋控制线

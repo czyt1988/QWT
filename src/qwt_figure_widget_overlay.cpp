@@ -14,7 +14,7 @@
 #include "qwt_qt5qt6_compat.hpp"
 
 #ifndef QwtFigureWidgetOverlay_DEBUG_PRINT
-#define QwtFigureWidgetOverlay_DEBUG_PRINT 1
+#define QwtFigureWidgetOverlay_DEBUG_PRINT 0
 #endif
 
 class QwtFigureWidgetOverlay::PrivateData
