@@ -60,10 +60,10 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->centralwidget->setPalette(pal);
     ui->centralwidget->setAutoFillBackground(true);
     QVBoxLayout* mainLayout = new QVBoxLayout(ui->centralwidget);
-    QwtPlot* hostPlot       = createPlot(ui->centralwidget);
-    createToolBar(hostPlot);
+    m_plot                  = createPlot(ui->centralwidget);
+    createToolBar(m_plot);
     // 添加布局
-    mainLayout->addWidget(hostPlot);
+    mainLayout->addWidget(m_plot);
 }
 
 MainWindow::~MainWindow()
@@ -104,6 +104,7 @@ QwtPlot* MainWindow::createPlot(QWidget* par)
     //!  设置寄生轴1坐标的显示和共享的轴
     parasitePlot->enableAxis(QwtAxis::YRight, true);
     parasitePlot->enableAxis(QwtAxis::XTop, true);
+    // parasitePlot->enableAxis(QwtAxis::XBottom, true);
     parasitePlot->setParasiteShareAxis(QwtAxis::XBottom);
 
     //! 宿主坐标轴的其他设置
@@ -150,7 +151,9 @@ QwtPlot* MainWindow::createPlot(QWidget* par)
     // 建立其他附加工具，picker要在宿主绘图的canvas那里，否则会无法捕获到事件（寄生绘图对鼠标透明）
     m_dataPicker = new QwtPlotSeriesDataPicker(hostPlot->canvas());
     m_dataPicker->setEnabled(false);
-
+    // panner
+    m_panner = new QwtPlotPanner(hostPlot->canvas());
+    m_panner->setEnabled(false);
     return hostPlot;
 }
 
@@ -181,4 +184,8 @@ void MainWindow::createToolBar(QwtPlot* hostplot)
     group->addAction(actPickYValue);
     group->addAction(actPickNearestPoint);
     group->setExclusive(true);
+
+    QAction* actPanner = ui->toolBar->addAction("Panner");
+    actPanner->setCheckable(true);
+    connect(actPanner, &QAction::triggered, this, [ this ](bool on) { this->m_panner->setEnabled(on); });
 }

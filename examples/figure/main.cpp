@@ -1,8 +1,4 @@
-﻿/*****************************************************************************
- * Qwt Examples - Copyright (C) 2002 Uwe Rathmann
- * This file may be used under the terms of the 3-clause BSD License
- *****************************************************************************/
-#include <cmath>
+﻿#include <cmath>
 #include <limits>
 #include <QApplication>
 #include <QMainWindow>
@@ -19,14 +15,51 @@
 #include "qwt_scale_widget.h"
 #include "qwt_figure.h"
 #include "qwt_figure_widget_overlay.h"
+#include "qwt_scale_engine.h"
 
-// 生成示例数据
+// 生成示例数据（线性坐标）
 QVector< QPointF > generateSampleData(int count = 100, double amplitude = 1.0, double frequency = 1.0)
 {
     QVector< QPointF > data;
     for (int i = 0; i < count; ++i) {
         double x = i * 0.1;
         double y = amplitude * sin(frequency * x);
+        data.append(QPointF(x, y));
+    }
+    return data;
+}
+
+// 生成适合对数X轴的数据
+QVector< QPointF > generateLogXSampleData(int count = 100, double amplitude = 1.0)
+{
+    QVector< QPointF > data;
+    for (int i = 1; i <= count; ++i) {
+        double x = i * 0.1;                    // 从0.1开始，避免对数坐标的0值问题
+        double y = amplitude * sin(10.0 / x);  // 频率随x增大而减小的波形
+        data.append(QPointF(x, y));
+    }
+    return data;
+}
+
+// 生成适合对数Y轴的数据（确保所有y值为正）
+QVector< QPointF > generateLogYSampleData(int count = 100, double baseValue = 1.0)
+{
+    QVector< QPointF > data;
+    for (int i = 0; i < count; ++i) {
+        double x = i * 0.1;
+        double y = baseValue + fabs(sin(x)) * 10.0;  // 确保y值始终为正
+        data.append(QPointF(x, y));
+    }
+    return data;
+}
+
+// 生成指数增长数据（适合对数Y轴）
+QVector< QPointF > generateExponentialData(int count = 100, double base = 1.0)
+{
+    QVector< QPointF > data;
+    for (int i = 0; i < count; ++i) {
+        double x = i * 0.1;
+        double y = base * exp(0.1 * x);  // 指数增长
         data.append(QPointF(x, y));
     }
     return data;
@@ -99,7 +132,7 @@ int main(int argc, char* argv[])
 
     // 创建主窗口
     QMainWindow mainWindow;
-    mainWindow.setWindowTitle("QwtFigure Layout Example");
+    mainWindow.setWindowTitle("QwtFigure Layout Example with Log Scales");
     mainWindow.resize(1200, 800);
 
     // 创建中央部件
@@ -111,29 +144,43 @@ int main(int argc, char* argv[])
     figure->setSizeInches(8, 6);      // 设置图形尺寸为8x6英寸
     figure->setFaceColor(Qt::white);  // 设置背景颜色
 
-    // 示例1: 使用归一化坐标添加绘图
+    // 示例1: 横轴为对数轴
+    QwtPlot* plot1 = new QwtPlot();
 
-    QwtPlot* plot1       = new QwtPlot();
-    QwtPlotCurve* curve1 = new QwtPlotCurve("Sine Wave 1");
-    curve1->setSamples(generateSampleData(100, 1.0, 1.0));
+    // 设置X轴为对数坐标
+    plot1->setAxisScaleEngine(QwtPlot::xBottom, new QwtLogScaleEngine);
+
+    QwtPlotCurve* curve1 = new QwtPlotCurve("Log X Wave");
+    curve1->setSamples(generateLogXSampleData(200, 2.0));  // 使用适合对数X轴的数据
     curve1->setRenderHint(QwtPlotItem::RenderAntialiased, true);
     curve1->attach(plot1);
-    setupPlotStyle(plot1, "Normalized Coordinates (Top-Left)", Qt::blue);
+
+    setupPlotStyle(plot1, "Logarithmic X-Axis (Top-Left)", Qt::blue);
     figure->addAxes(plot1, 0.0, 0.0, 0.5, 0.3333333);  // 左上角
-    plot1->rescaleAxes();
+    plot1->setAxisAutoScale(QwtPlot::xBottom, true);
+    plot1->setAxisAutoScale(QwtPlot::yLeft, true);
+    plot1->replot();
     qDebug() << "plot1 norm rect =" << figure->axesNormRect(plot1);
 
-    QwtPlot* plot2       = new QwtPlot();
-    QwtPlotCurve* curve2 = new QwtPlotCurve("Sine Wave 2");
-    curve2->setSamples(generateSampleData(1000, 1.5, 2.0));
+    // 示例2: 纵轴为对数轴
+    QwtPlot* plot2 = new QwtPlot();
+
+    // 设置Y轴为对数坐标
+    plot2->setAxisScaleEngine(QwtPlot::yLeft, new QwtLogScaleEngine);
+
+    QwtPlotCurve* curve2 = new QwtPlotCurve("Log Y Wave");
+    curve2->setSamples(generateExponentialData(100, 0.1));  // 使用指数增长数据，适合对数Y轴
     curve2->setRenderHint(QwtPlotItem::RenderAntialiased, true);
     curve2->attach(plot2);
-    setupPlotStyle(plot2, "Normalized Coordinates (Top-Right)", Qt::red);
+
+    setupPlotStyle(plot2, "Logarithmic Y-Axis (Top-Right)", Qt::red);
     figure->addAxes(plot2, 0.5, 0.0, 0.5, 0.33333333);  // 右上角
-    plot2->rescaleAxes();
+    plot2->setAxisAutoScale(QwtPlot::xBottom, true);
+    plot2->setAxisAutoScale(QwtPlot::yLeft, true);
+    plot2->replot();
     qDebug() << "plot2 norm rect =" << figure->axesNormRect(plot2);
 
-    // 示例2: 使用网格布局添加绘图
+    // 示例3: 线性坐标（保持不变）
     QwtPlot* plot3       = new QwtPlot();
     QwtPlotCurve* curve3 = new QwtPlotCurve("Sine Wave 3");
     // 生成带nan和inf值的曲线
@@ -144,29 +191,47 @@ int main(int argc, char* argv[])
     curve3->setSamples(series);
     curve3->setRenderHint(QwtPlotItem::RenderAntialiased, true);
     curve3->attach(plot3);
-    setupPlotStyle(plot3, "Grid Layout (3x2, Cell 1,0) sample with nan and inf", Qt::green);
+    setupPlotStyle(plot3, "Linear Axes (3x2, Cell 1,0) sample with nan and inf", Qt::green);
     figure->addGridAxes(plot3, 3, 2, 1, 0);  // 3x2网格，第1行第0列（0base）
     plot3->rescaleAxes();
     qDebug() << "plot3 norm rect =" << figure->axesNormRect(plot3);
 
-    QwtPlot* plot4       = new QwtPlot();
-    QwtPlotCurve* curve4 = new QwtPlotCurve("Sine Wave 4");
-    curve4->setSamples(generateSampleData(100, 0.8, 1.5));
+    // 示例4: 双对数坐标
+    QwtPlot* plot4 = new QwtPlot();
+
+    // 设置双对数坐标
+    plot4->setAxisScaleEngine(QwtPlot::xBottom, new QwtLogScaleEngine);
+    plot4->setAxisScaleEngine(QwtPlot::yLeft, new QwtLogScaleEngine);
+
+    QwtPlotCurve* curve4 = new QwtPlotCurve("Log-Log Wave");
+
+    // 生成适合双对数坐标的数据（幂律关系）
+    QVector< QPointF > logLogData;
+    for (int i = 1; i <= 100; ++i) {
+        double x = i * 0.1;
+        double y = 0.5 * pow(x, 2.0);  // 幂律关系 y = 0.5 * x^2
+        logLogData.append(QPointF(x, y));
+    }
+
+    curve4->setSamples(logLogData);
     curve4->setRenderHint(QwtPlotItem::RenderAntialiased, true);
     curve4->attach(plot4);
-    setupPlotStyle(plot4, "Grid Layout (3x2, Cell 1,1)", Qt::magenta);
+    setupPlotStyle(plot4, "Log-Log Axes (3x2, Cell 1,1)", Qt::magenta);
     figure->addGridAxes(plot4, 3, 2, 1, 1);  // 2x2网格，第1行第1列（0base）
-    plot4->rescaleAxes();
+    plot4->setAxisAutoScale(QwtPlot::xBottom, true);
+    plot4->setAxisAutoScale(QwtPlot::yLeft, true);
+    plot4->replot();
     qDebug() << "plot4 norm rect =" << figure->axesNormRect(plot4);
 
     createGrid32_parasitePlot(figure);
+
     // 添加控制按钮
     QHBoxLayout* buttonLayout = new QHBoxLayout();
 
     QPushButton* saveButton = new QPushButton("Save Figure (300 DPI)");
     QObject::connect(saveButton, &QPushButton::clicked, [ figure ]() {
-        figure->saveFig("qwt_figure_example.png", 300);
-        qDebug() << "Figure saved as 'qwt_figure_example.png' with 300 DPI";
+        figure->saveFig("qwt_figure_log_example.png", 300);
+        qDebug() << "Figure saved as 'qwt_figure_log_example.png' with 300 DPI";
     });
 
     QPushButton* clearButton = new QPushButton("Clear All");
@@ -251,6 +316,4 @@ void createGrid32_parasitePlot(QwtFigure* figure)
     QwtPlotCurve* parasiteCurve = new QwtPlotCurve("Sine Wave 6");
     parasiteCurve->setSamples(generateSampleData(100, 2000, 2.3));
     parasiteCurve->attach(parasitePlot);
-
-    QMetaObject::invokeMethod(hostPlot, &QwtPlot::replot, Qt::QueuedConnection);
 }

@@ -5,6 +5,23 @@
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the Qwt License, Version 1.0
+ *
+ * Modified by ChenZongYan in 2024 <czy.t@163.com>
+ *   Summary of major modifications (see ChangeLog.md for full history):
+ *   1. CMake build system & C++11 throughout.
+ *   2. Core panner/ zoomer refactored:
+ *        - QwtPanner → QwtCachePanner (pixmap-cache version)
+ *        - New real-time QwtPlotPanner derived from QwtPicker.
+ *   3. Zoomer supports multi-axis.
+ *   4. Parasite-plot framework:
+ *        - QwtFigure, QwtPlotParasiteLayout, QwtPlotTransparentCanvas,
+ *        - QwtPlotScaleEventDispatcher, built-in pan/zoom on axis.
+ *   5. New picker: QwtPlotSeriesDataPicker (works with date axis).
+ *   6. Raster & color-map extensions:
+ *        - QwtGridRasterData (2-D table + interpolation)
+ *        - QwtLinearColorMap::stopColors(), stopPos() API rename.
+ *   7. Bar-chart: expose pen/brush control.
+ *   8. Amalgamated build: single QwtPlot.h / QwtPlot.cpp pair in src-amalgamate.
  *****************************************************************************/
 
 #ifndef QWT_PLOT_H
@@ -258,7 +275,7 @@ public:
     // Get all parasite plots associated with this host plot/获取与此宿主绘图关联的所有寄生绘图
     QList< QwtPlot* > parasitePlots() const;
     // 返回所有绘图,包含宿主绘图，descending=false,增序返回，宿主绘图在第一个，层级越低越靠前，如果descending=true，那么降序返回，宿主在最末端
-    QList< QwtPlot* > plotList(bool descending = true) const;
+    QList< QwtPlot* > plotList(bool descending = false) const;
     // 获取第n个宿主轴
     QwtPlot* parasitePlotAt(int index) const;
 
@@ -317,6 +334,12 @@ public:
     // 保存/恢复当前自动绘图设置的状态
     void saveAutoReplotState();
     void restoreAutoReplotState();
+    // 按像素平移指定坐标轴，注意，需要手动replot
+    void panAxis(QwtAxisId axisId, int deltaPixels);
+    // 移动canvas，移动canvas会导致所有轴都进行偏移，注意，需要手动replot
+    void panCanvas(const QPoint& offset);
+    // 对坐标轴进行缩放，注意，需要手动replot
+    void zoomAxis(QwtAxisId axisId, double factor, const QPoint& centerPosPixels);
 #if QWT_AXIS_COMPAT
     enum Axis
     {
@@ -365,6 +388,7 @@ public Q_SLOTS:
     void autoRefresh();
     // 重绘所有绘图，包括寄生绘图或者宿主绘图
     virtual void replotAll();
+    void autoRefreshAll();
 
 protected:
     virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;

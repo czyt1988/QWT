@@ -1,8 +1,23 @@
+## tag:v7.0.7
+
+- v7.0.5~v7.0.6新增的`QwtScaleWidget::panScale`函数移动到`QwtPlot`中，并改名为`panAxis`，并修复了在对数坐标轴移动异常的问题，解决对数坐标轴坐标移动问题
+- 原来`QwtPanner`类改名为`QwtCachePanner`,代表带缓存的`Panner`。Qwt6.0的Panner为了避免频繁刷新使用了一个pixmap进行缓存，因此把这类Panner统称为`CachePanner`
+	- 同步`QwtPlotPanner`类改名为`QwtPlotCachePanner`
+	- 同步`QwtPolarPanner`类改名为`QwtPolarCachePanner` 
+	
+	`QwtPlotPanner`效果如下：
+	![series-data-picker-yvalue](./docs/assets/screenshots/qwt-realtime-panner.gif)
+	
+- 重写`QwtPlotPanner`类，继承`QwtPicker`，可实现拖动过程能实时刷新，如果想要原来的带缓存的panner，可使用`CachePanner`相关类
+- `QwtPlotZoomer`支持线性坐标轴、对数坐标轴、多坐标轴的实时平移
+- `Zoomer`支持多坐标轴
+- `QwtPlotSeriesDataPicker`将直接继承`QwtPicker`，不再继承`QwtPlotPicker`
+
 ## tag:v7.0.6
 
 - 新增`QwtPlotSeriesDataPicker`类，提供了绘图数据的拾取
     `QwtPlotSeriesDataPicker`效果如下：
-    ![series-data-picker-yvalue](./docs/assets/picture/series-data-picker-yvalue.gif)=
+    ![series-data-picker-yvalue](./docs/assets/picture/series-data-picker-yvalue.gif)
     ![series-data-picker-nearest-value](./docs/assets/picture/series-data-picker-nearest-value.gif)
 - 完善了寄生绘图的刷新机制，不会在构造时无法完全更新
 - 有些接口的索引类型由int改为size_t

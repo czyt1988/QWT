@@ -5,9 +5,26 @@
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the Qwt License, Version 1.0
+ *
+ * Modified by czy in 2025 <czy.t@163.com>
+ *   Summary of major modifications (see ChangeLog.md for full history):
+ *   1. CMake build system & C++11 throughout.
+ *   2. Core panner/ zoomer refactored:
+ *        - QwtPanner → QwtCachePanner (pixmap-cache version)
+ *        - New real-time QwtPlotPanner derived from QwtPicker.
+ *   3. Zoomer supports multi-axis.
+ *   4. Parasite-plot framework:
+ *        - QwtFigure, QwtPlotParasiteLayout, QwtPlotTransparentCanvas,
+ *        - QwtPlotScaleEventDispatcher, built-in pan/zoom on axis.
+ *   5. New picker: QwtPlotSeriesDataPicker (works with date axis).
+ *   6. Raster & color-map extensions:
+ *        - QwtGridRasterData (2-D table + interpolation)
+ *        - QwtLinearColorMap::stopColors(), stopPos() API rename.
+ *   7. Bar-chart: expose pen/brush control.
+ *   8. Amalgamated build: single QwtPlot.h / QwtPlot.cpp pair in src-amalgamate.
  *****************************************************************************/
 
-#include "qwt_panner.h"
+#include "qwt_cache_panner.h"
 #include "qwt_picker.h"
 #include "qwt_painter.h"
 
@@ -31,7 +48,7 @@ static QVector< QwtPicker* > qwtActivePickers(QWidget* w)
     return pickers;
 }
 
-class QwtPanner::PrivateData
+class QwtCachePanner::PrivateData
 {
 public:
     PrivateData()
@@ -83,7 +100,7 @@ public:
 
    \param parent Parent widget to be panned
  */
-QwtPanner::QwtPanner(QWidget* parent) : QWidget(parent)
+QwtCachePanner::QwtCachePanner(QWidget* parent) : QWidget(parent)
 {
     m_data = new PrivateData();
 
@@ -96,7 +113,7 @@ QwtPanner::QwtPanner(QWidget* parent) : QWidget(parent)
 }
 
 //! Destructor
-QwtPanner::~QwtPanner()
+QwtCachePanner::~QwtCachePanner()
 {
     delete m_data;
 }
@@ -105,14 +122,14 @@ QwtPanner::~QwtPanner()
    Change the mouse button and modifiers used for panning
    The defaults are Qt::LeftButton and Qt::NoModifier
  */
-void QwtPanner::setMouseButton(Qt::MouseButton button, Qt::KeyboardModifiers modifiers)
+void QwtCachePanner::setMouseButton(Qt::MouseButton button, Qt::KeyboardModifiers modifiers)
 {
     m_data->button          = button;
     m_data->buttonModifiers = modifiers;
 }
 
 //! Get mouse button and modifiers used for panning
-void QwtPanner::getMouseButton(Qt::MouseButton& button, Qt::KeyboardModifiers& modifiers) const
+void QwtCachePanner::getMouseButton(Qt::MouseButton& button, Qt::KeyboardModifiers& modifiers) const
 {
     button    = m_data->button;
     modifiers = m_data->buttonModifiers;
@@ -125,14 +142,14 @@ void QwtPanner::getMouseButton(Qt::MouseButton& button, Qt::KeyboardModifiers& m
    \param key Key ( See Qt::Keycode )
    \param modifiers Keyboard modifiers
  */
-void QwtPanner::setAbortKey(int key, Qt::KeyboardModifiers modifiers)
+void QwtCachePanner::setAbortKey(int key, Qt::KeyboardModifiers modifiers)
 {
     m_data->abortKey          = key;
     m_data->abortKeyModifiers = modifiers;
 }
 
 //! Get the abort key and modifiers
-void QwtPanner::getAbortKey(int& key, Qt::KeyboardModifiers& modifiers) const
+void QwtCachePanner::getAbortKey(int& key, Qt::KeyboardModifiers& modifiers) const
 {
     key       = m_data->abortKey;
     modifiers = m_data->abortKeyModifiers;
@@ -147,7 +164,7 @@ void QwtPanner::getAbortKey(int& key, Qt::KeyboardModifiers& modifiers) const
    \sa setCursor()
  */
 #ifndef QT_NO_CURSOR
-void QwtPanner::setCursor(const QCursor& cursor)
+void QwtCachePanner::setCursor(const QCursor& cursor)
 {
     m_data->cursor = new QCursor(cursor);
 }
@@ -158,7 +175,7 @@ void QwtPanner::setCursor(const QCursor& cursor)
    \sa setCursor()
  */
 #ifndef QT_NO_CURSOR
-const QCursor QwtPanner::cursor() const
+const QCursor QwtCachePanner::cursor() const
 {
     if (m_data->cursor)
         return *m_data->cursor;
@@ -179,7 +196,7 @@ const QCursor QwtPanner::cursor() const
    \param on true or false
    \sa isEnabled(), eventFilter()
  */
-void QwtPanner::setEnabled(bool on)
+void QwtCachePanner::setEnabled(bool on)
 {
     if (m_data->isEnabled != on) {
         m_data->isEnabled = on;
@@ -202,13 +219,13 @@ void QwtPanner::setEnabled(bool on)
 
    /param o Orientation
  */
-void QwtPanner::setOrientations(Qt::Orientations o)
+void QwtCachePanner::setOrientations(Qt::Orientations o)
 {
     m_data->orientations = o;
 }
 
 //! Return the orientation, where panning is enabled
-Qt::Orientations QwtPanner::orientations() const
+Qt::Orientations QwtCachePanner::orientations() const
 {
     return m_data->orientations;
 }
@@ -217,7 +234,7 @@ Qt::Orientations QwtPanner::orientations() const
    \return True if an orientation is enabled
    \sa orientations(), setOrientations()
  */
-bool QwtPanner::isOrientationEnabled(Qt::Orientation o) const
+bool QwtCachePanner::isOrientationEnabled(Qt::Orientation o) const
 {
     return m_data->orientations & o;
 }
@@ -226,7 +243,7 @@ bool QwtPanner::isOrientationEnabled(Qt::Orientation o) const
    \return true when enabled, false otherwise
    \sa setEnabled, eventFilter()
  */
-bool QwtPanner::isEnabled() const
+bool QwtCachePanner::isEnabled() const
 {
     return m_data->isEnabled;
 }
@@ -239,7 +256,7 @@ bool QwtPanner::isEnabled() const
 
    \param event Paint event
  */
-void QwtPanner::paintEvent(QPaintEvent* event)
+void QwtCachePanner::paintEvent(QPaintEvent* event)
 {
     int dx = m_data->pos.x() - m_data->initialPos.x();
     int dy = m_data->pos.y() - m_data->initialPos.y();
@@ -280,7 +297,7 @@ void QwtPanner::paintEvent(QPaintEvent* event)
 
    \return An empty bitmap, indicating no mask
  */
-QBitmap QwtPanner::contentsMask() const
+QBitmap QwtCachePanner::contentsMask() const
 {
     return QBitmap();
 }
@@ -289,7 +306,7 @@ QBitmap QwtPanner::contentsMask() const
    Grab the widget into a pixmap.
    \return Grabbed pixmap
  */
-QPixmap QwtPanner::grab() const
+QPixmap QwtCachePanner::grab() const
 {
 #if QT_VERSION >= 0x050000
     return parentWidget()->grab(parentWidget()->rect());
@@ -313,7 +330,7 @@ QPixmap QwtPanner::grab() const
    \sa widgetMousePressEvent(), widgetMouseReleaseEvent(),
       widgetMouseMoveEvent()
  */
-bool QwtPanner::eventFilter(QObject* object, QEvent* event)
+bool QwtCachePanner::eventFilter(QObject* object, QEvent* event)
 {
     if (object == NULL || object != parentWidget())
         return false;
@@ -357,7 +374,7 @@ bool QwtPanner::eventFilter(QObject* object, QEvent* event)
    \sa eventFilter(), widgetMouseReleaseEvent(),
       widgetMouseMoveEvent(),
  */
-void QwtPanner::widgetMousePressEvent(QMouseEvent* mouseEvent)
+void QwtCachePanner::widgetMousePressEvent(QMouseEvent* mouseEvent)
 {
     if ((mouseEvent->button() != m_data->button) || (mouseEvent->modifiers() != m_data->buttonModifiers)) {
         return;
@@ -395,7 +412,7 @@ void QwtPanner::widgetMousePressEvent(QMouseEvent* mouseEvent)
    \param mouseEvent Mouse event
    \sa eventFilter(), widgetMousePressEvent(), widgetMouseReleaseEvent()
  */
-void QwtPanner::widgetMouseMoveEvent(QMouseEvent* mouseEvent)
+void QwtCachePanner::widgetMouseMoveEvent(QMouseEvent* mouseEvent)
 {
     if (!isVisible())
         return;
@@ -421,7 +438,7 @@ void QwtPanner::widgetMouseMoveEvent(QMouseEvent* mouseEvent)
    \sa eventFilter(), widgetMousePressEvent(),
       widgetMouseMoveEvent(),
  */
-void QwtPanner::widgetMouseReleaseEvent(QMouseEvent* mouseEvent)
+void QwtCachePanner::widgetMouseReleaseEvent(QMouseEvent* mouseEvent)
 {
     if (isVisible()) {
         hide();
@@ -451,7 +468,7 @@ void QwtPanner::widgetMouseReleaseEvent(QMouseEvent* mouseEvent)
    \param keyEvent Key event
    \sa eventFilter(), widgetKeyReleaseEvent()
  */
-void QwtPanner::widgetKeyPressEvent(QKeyEvent* keyEvent)
+void QwtCachePanner::widgetKeyPressEvent(QKeyEvent* keyEvent)
 {
     if ((keyEvent->key() == m_data->abortKey) && (keyEvent->modifiers() == m_data->abortKeyModifiers)) {
         hide();
@@ -469,13 +486,13 @@ void QwtPanner::widgetKeyPressEvent(QKeyEvent* keyEvent)
    \param keyEvent Key event
    \sa eventFilter(), widgetKeyReleaseEvent()
  */
-void QwtPanner::widgetKeyReleaseEvent(QKeyEvent* keyEvent)
+void QwtCachePanner::widgetKeyReleaseEvent(QKeyEvent* keyEvent)
 {
     Q_UNUSED(keyEvent);
 }
 
 #ifndef QT_NO_CURSOR
-void QwtPanner::showCursor(bool on)
+void QwtCachePanner::showCursor(bool on)
 {
     if (on == m_data->hasCursor)
         return;

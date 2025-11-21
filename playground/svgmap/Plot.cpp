@@ -7,7 +7,7 @@
 
 #include <QwtPlotGraphicItem>
 #include <QwtPlotLayout>
-#include <QwtPlotPanner>
+#include <QwtPlotCachePanner>
 #include <QwtPlotMagnifier>
 #include <QwtGraphic>
 
@@ -44,7 +44,7 @@ Plot::Plot(QWidget* parent) : QwtPlot(parent), m_mapItem(NULL), m_mapRect(0.0, 0
        Right Mouse Button: Reset to initial
      */
 
-    (void)new QwtPlotPanner(canvas());
+    (void)new QwtPlotCachePanner(canvas());
     (void)new QwtPlotMagnifier(canvas());
 
     canvas()->setFocusPolicy(Qt::WheelFocus);
@@ -58,10 +58,8 @@ Plot::Plot(QWidget* parent) : QwtPlot(parent), m_mapItem(NULL), m_mapRect(0.0, 0
 void Plot::loadSVG()
 {
     QString dir;
-    const QString fileName = QFileDialog::getOpenFileName(NULL,
-                                                          "Load a Scaleable Vector Graphic (SVG) Map",
-                                                          dir,
-                                                          "SVG Files (*.svg)");
+    const QString fileName =
+        QFileDialog::getOpenFileName(NULL, "Load a Scaleable Vector Graphic (SVG) Map", dir, "SVG Files (*.svg)");
 
     if (!fileName.isEmpty())
         loadSVG(fileName);

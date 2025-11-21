@@ -1,10 +1,27 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the Qwt License, Version 1.0
+ *
+ * Modified by ChenZongYan in 2024 <czy.t@163.com>
+ *   Summary of major modifications (see ChangeLog.md for full history):
+ *   1. CMake build system & C++11 throughout.
+ *   2. Core panner/ zoomer refactored:
+ *        - QwtPanner → QwtCachePanner (pixmap-cache version)
+ *        - New real-time QwtPlotPanner derived from QwtPicker.
+ *   3. Zoomer supports multi-axis.
+ *   4. Parasite-plot framework:
+ *        - QwtFigure, QwtPlotParasiteLayout, QwtPlotTransparentCanvas,
+ *        - QwtPlotScaleEventDispatcher, built-in pan/zoom on axis.
+ *   5. New picker: QwtPlotSeriesDataPicker (works with date axis).
+ *   6. Raster & color-map extensions:
+ *        - QwtGridRasterData (2-D table + interpolation)
+ *        - QwtLinearColorMap::stopColors(), stopPos() API rename.
+ *   7. Bar-chart: expose pen/brush control.
+ *   8. Amalgamated build: single QwtPlot.h / QwtPlot.cpp pair in src-amalgamate.
  *****************************************************************************/
 
 #include "qwt_scale_map.h"
@@ -176,6 +193,28 @@ QRectF QwtScaleMap::transform(const QwtScaleMap& xMap, const QwtScaleMap& yMap, 
 QPointF QwtScaleMap::invTransform(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QPointF& pos)
 {
     return QPointF(xMap.invTransform(pos.x()), yMap.invTransform(pos.y()));
+}
+
+/**
+ * @brief 是否为线性坐标轴
+ * @param axisId
+ * @return
+ */
+bool QwtScaleMap::isLinerScale(const QwtScaleMap& sm)
+{
+    // 检查变换是否为对数变换
+    const QwtTransform* transform = sm.transformation();
+    if (!transform) {
+        // 没有变换就是线性
+        return true;
+    }
+
+    if (dynamic_cast< const QwtLogTransform* >(transform) != nullptr
+        || dynamic_cast< const QwtPowerTransform* >(transform) != nullptr) {
+        return false;
+    }
+
+    return true;
 }
 
 /*!

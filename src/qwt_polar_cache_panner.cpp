@@ -6,37 +6,37 @@
  * modify it under the terms of the Qwt License, Version 1.0
  *****************************************************************************/
 
-#include "qwt_polar_panner.h"
+#include "qwt_polar_cache_panner.h"
 #include "qwt_polar_plot.h"
 #include "qwt_polar_canvas.h"
 #include "qwt_scale_div.h"
 #include "qwt_point_polar.h"
 
 //! Create a plot panner for a polar plot canvas
-QwtPolarPanner::QwtPolarPanner(QwtPolarCanvas* canvas) : QwtPanner(canvas)
+QwtPolarCachePanner::QwtPolarCachePanner(QwtPolarCanvas* canvas) : QwtCachePanner(canvas)
 {
     connect(this, SIGNAL(panned(int, int)), SLOT(movePlot(int, int)));
 }
 
 //! Destructor
-QwtPolarPanner::~QwtPolarPanner()
+QwtPolarCachePanner::~QwtPolarCachePanner()
 {
 }
 
 //! \return observed plot canvas
-QwtPolarCanvas* QwtPolarPanner::canvas()
+QwtPolarCanvas* QwtPolarCachePanner::canvas()
 {
     return qobject_cast< QwtPolarCanvas* >(parent());
 }
 
 //! \return observed plot canvas
-const QwtPolarCanvas* QwtPolarPanner::canvas() const
+const QwtPolarCanvas* QwtPolarCachePanner::canvas() const
 {
     return qobject_cast< const QwtPolarCanvas* >(parent());
 }
 
 //! \return observed plot
-QwtPolarPlot* QwtPolarPanner::plot()
+QwtPolarPlot* QwtPolarCachePanner::plot()
 {
     QwtPolarCanvas* c = canvas();
     if (c)
@@ -46,7 +46,7 @@ QwtPolarPlot* QwtPolarPanner::plot()
 }
 
 //! \return observed plot
-const QwtPolarPlot* QwtPolarPanner::plot() const
+const QwtPolarPlot* QwtPolarCachePanner::plot() const
 {
     const QwtPolarCanvas* c = canvas();
     if (c)
@@ -63,9 +63,9 @@ const QwtPolarPlot* QwtPolarPanner::plot() const
 
    \sa QwtPanner::panned(), QwtPolarPlot::zoom()
  */
-void QwtPolarPanner::movePlot(int dx, int dy)
+void QwtPolarCachePanner::movePlot(int dx, int dy)
 {
-    QwtPolarPlot* plot = QwtPolarPanner::plot();
+    QwtPolarPlot* plot = QwtPolarCachePanner::plot();
     if (plot == NULL || (dx == 0 && dy == 0))
         return;
 
@@ -96,11 +96,11 @@ void QwtPolarPanner::movePlot(int dx, int dy)
 
    \param event Mouse event
  */
-void QwtPolarPanner::widgetMousePressEvent(QMouseEvent* event)
+void QwtPolarCachePanner::widgetMousePressEvent(QMouseEvent* event)
 {
-    const QwtPolarPlot* plot = QwtPolarPanner::plot();
+    const QwtPolarPlot* plot = QwtPolarCachePanner::plot();
     if (plot) {
         if (plot->zoomFactor() < 1.0)
-            QwtPanner::widgetMousePressEvent(event);
+            QwtCachePanner::widgetMousePressEvent(event);
     }
 }

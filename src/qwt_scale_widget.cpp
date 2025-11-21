@@ -5,6 +5,23 @@
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the Qwt License, Version 1.0
+ *
+ * Modified by ChenZongYan in 2024 <czy.t@163.com>
+ *   Summary of major modifications (see ChangeLog.md for full history):
+ *   1. CMake build system & C++11 throughout.
+ *   2. Core panner/ zoomer refactored:
+ *        - QwtPanner → QwtCachePanner (pixmap-cache version)
+ *        - New real-time QwtPlotPanner derived from QwtPicker.
+ *   3. Zoomer supports multi-axis.
+ *   4. Parasite-plot framework:
+ *        - QwtFigure, QwtPlotParasiteLayout, QwtPlotTransparentCanvas,
+ *        - QwtPlotScaleEventDispatcher, built-in pan/zoom on axis.
+ *   5. New picker: QwtPlotSeriesDataPicker (works with date axis).
+ *   6. Raster & color-map extensions:
+ *        - QwtGridRasterData (2-D table + interpolation)
+ *        - QwtLinearColorMap::stopColors(), stopPos() API rename.
+ *   7. Bar-chart: expose pen/brush control.
+ *   8. Amalgamated build: single QwtPlot.h / QwtPlot.cpp pair in src-amalgamate.
  *****************************************************************************/
 
 #include "qwt_scale_widget.h"
@@ -126,103 +143,6 @@ void QwtScaleWidget::initScale(QwtScaleDraw::Alignment align)
     setSizePolicy(policy);
 
     setAttribute(Qt::WA_WState_OwnSizePolicy, false);
-}
-
-void QwtScaleWidget::doZoom(double factor, const QPoint& centerPos)
-{
-    const QwtScaleDiv& currentDiv = m_data->scaleDraw->scaleDiv();
-    const double centerValue      = mapPosToScaleValue(centerPos);
-    const double currentWidth     = currentDiv.upperBound() - currentDiv.lowerBound();
-    const double newWidth         = currentWidth / factor;
-
-    // 防止过度缩放
-    if (newWidth < 1e-8 || newWidth > 1e8) {
-        return;
-    }
-
-    const double newLower = centerValue - (centerValue - currentDiv.lowerBound()) / factor;
-    const double newUpper = centerValue + (currentDiv.upperBound() - centerValue) / factor;
-
-    Q_EMIT requestScaleRangeUpdate(newLower, newUpper);
-}
-
-/**
- * @brief 按照像素移动坐标轴
- * @param deltaPixels 移动的像素
- * @note 此函数会发射@ref requestScaleRangeUpdate 信号请求绘图的改变
- */
-void QwtScaleWidget::panScale(int deltaPixels)
-{
-    const QwtScaleDraw* sd = m_data->scaleDraw.get();
-    if (!sd) {
-        return;
-    }
-    // 对于垂直轴，需要考虑坐标方向
-    // 数学坐标系：向上移动应该是正值，但屏幕坐标系向下移动是正值
-    // 所以需要取反
-    // 水平轴向右移动，实际是刻度在减，也是负值，因此这里都是负值
-    const double valueDist        = mapLengthToScaleValue(-deltaPixels);
-    const QwtScaleDiv& currentDiv = sd->scaleDiv();
-    Q_EMIT requestScaleRangeUpdate(currentDiv.lowerBound() + valueDist, currentDiv.upperBound() + valueDist);
-}
-
-/**
- * @brief 坐标轴放大
- * @param centerPos
- */
-void QwtScaleWidget::zoomIn(const QPoint& centerPos)
-{
-    doZoom(m_data->zoomFactor, centerPos);
-}
-
-/**
- * @brief  坐标轴缩小
- * @param centerPos
- */
-void QwtScaleWidget::zoomOut(const QPoint& centerPos)
-{
-    doZoom(1.0 / m_data->zoomFactor, centerPos);
-}
-
-/**
- * @brief 把当前scalewidget窗口上的屏幕点映射到坐标轴上的值
- * @param pos 窗口上的点
- * @return 坐标轴上的值
- */
-double QwtScaleWidget::mapPosToScaleValue(const QPoint& pos) const
-{
-    const QwtScaleDraw* sd = m_data->scaleDraw.get();
-    if (!sd) {
-        return 0.0;
-    }
-    const QwtScaleMap& scaleMap = sd->scaleMap();
-
-    QRectF scaleRect = contentsRect();
-    if (sd->orientation() == Qt::Vertical) {
-        scaleRect.setTop(scaleRect.top() + m_data->borderDist[ 0 ]);
-        scaleRect.setHeight(scaleRect.height() - m_data->borderDist[ 0 ] - m_data->borderDist[ 1 ]);
-        return scaleMap.invTransform(pos.y() - scaleRect.top());
-    } else {
-        scaleRect.setLeft(scaleRect.left() + m_data->borderDist[ 0 ]);
-        scaleRect.setWidth(scaleRect.width() - m_data->borderDist[ 0 ] - m_data->borderDist[ 1 ]);
-        return scaleMap.invTransform(pos.x() - scaleRect.left());
-    }
-}
-
-/**
- * @brief 把当前scalewidget窗口上的屏幕长度映射到坐标轴上的长度值
- * @param length 屏幕长度
- * @return 坐标轴的长度值
- */
-double QwtScaleWidget::mapLengthToScaleValue(double length) const
-{
-    const QwtScaleDraw* sd = m_data->scaleDraw.get();
-    if (!sd) {
-        return 0.0;
-    }
-    const QwtScaleMap& map = sd->scaleMap();
-    const double valueDist = map.invTransform(length) - map.invTransform(0);
-    return valueDist;
 }
 
 /**

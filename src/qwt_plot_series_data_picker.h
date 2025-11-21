@@ -9,7 +9,7 @@ class QwtPlotItem;
 /**
  * @brief 这是一个绘图数据拾取显示类，用于显示当前的y值，或者显示最近点
  */
-class QWT_EXPORT QwtPlotSeriesDataPicker : public QwtPlotPicker
+class QWT_EXPORT QwtPlotSeriesDataPicker : public QwtPicker
 {
     Q_OBJECT
     QWT_DECLARE_PRIVATE(QwtPlotSeriesDataPicker)
@@ -46,6 +46,12 @@ public:
 public:
     explicit QwtPlotSeriesDataPicker(QWidget* canvas);
     ~QwtPlotSeriesDataPicker();
+
+    QwtPlot* plot();
+    const QwtPlot* plot() const;
+
+    QWidget* canvas();
+    const QWidget* canvas() const;
 
     // 拾取模式
     void setPickMode(PickSeriesMode mode);

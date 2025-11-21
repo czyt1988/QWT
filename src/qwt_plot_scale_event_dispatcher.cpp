@@ -53,16 +53,20 @@ public:
     void updateCursorForMousePress(QwtPlot* p);
     void updateCursorForHover(QwtPlot* p, bool isOnScale);
     void updateCursorForMouseRelease(QwtPlot* p, Qt::MouseButton button, bool isOnScale);
+    static QwtPlot* scalePlot(QwtScaleWidget* scaleWidget);
 
 public:
     bool isEnable { true };
-    QwtPlot* bindedPlot { nullptr };           ///< 绑定的绘图
-    QwtScaleWidget* currentScale { nullptr };  ///< 当前正在操作的 scale widget
-    QPoint lastMousePos;                       ///< 上一次鼠标位置（用于拖拽计算）
-    bool isMousePressed { false };             ///< 记录鼠标是否按下
+    QwtPlot* bindedPlot { nullptr };  ///< 绑定的绘图
+    QwtPlot* currentPlot { nullptr };
+    QwtScaleWidget* currentScale { nullptr };            ///< 当前正在操作的 scale widget
+    QwtAxisId currentAxisId { QwtAxis::AxisPositions };  ///< 当前坐标轴id
+    QPoint lastMousePos;                                 ///< 上一次鼠标位置（用于拖拽计算）
+    bool isMousePressed { false };                       ///< 记录鼠标是否按下
     // 缓存相关
     QList< ScaleCache > scaleCaches;
-    bool cacheDirty { true };  ///< 缓存是否需要重建
+    bool cacheDirty { true };   ///< 缓存是否需要重建
+    double zoomFactor { 1.5 };  ///< 缩放比例
 };
 
 QwtPlotScaleEventDispatcher::PrivateData::PrivateData(QwtPlotScaleEventDispatcher* p) : q_ptr(p)
@@ -82,7 +86,9 @@ QwtPlotScaleEventDispatcher::PrivateData::ScaleCache QwtPlotScaleEventDispatcher
 void QwtPlotScaleEventDispatcher::PrivateData::resetRecord()
 {
     currentScale   = nullptr;
+    currentPlot    = nullptr;
     isMousePressed = false;
+    currentAxisId  = QwtAxis::AxisPositions;
 }
 
 void QwtPlotScaleEventDispatcher::PrivateData::updateCursorForMousePress(QwtPlot* p)
@@ -134,6 +140,11 @@ void QwtPlotScaleEventDispatcher::PrivateData::updateCursorForMouseRelease(QwtPl
     }
 }
 
+QwtPlot* QwtPlotScaleEventDispatcher::PrivateData::scalePlot(QwtScaleWidget* scaleWidget)
+{
+    return qobject_cast< QwtPlot* >(scaleWidget->parent());
+}
+
 //----------------------------------------------------
 // QwtParasitePlotEventFilter
 //----------------------------------------------------
@@ -160,6 +171,28 @@ void QwtPlotScaleEventDispatcher::setEnable(bool on)
 bool QwtPlotScaleEventDispatcher::isEnable() const
 {
     return m_data->isEnable;
+}
+
+/**
+ * @brief 获取 QwtScaleWidget 对应的轴 ID
+ * @param plot QwtPlot 指针
+ * @param scaleWidget 要查找的 QwtScaleWidget
+ * @return 轴 ID，如果找不到返回 QwtAxis::AxisPositions
+ */
+QwtAxisId QwtPlotScaleEventDispatcher::findAxisIdByScaleWidget(const QwtPlot* plot, const QwtScaleWidget* scaleWidget)
+{
+    if (!plot || !scaleWidget) {
+        return QwtAxis::AxisPositions;
+    }
+
+    // 遍历所有可能的轴
+    for (int axis = 0; axis < QwtAxis::AxisPositions; axis++) {
+        if (plot->axisWidget(axis) == scaleWidget) {
+            return axis;
+        }
+    }
+
+    return QwtAxis::AxisPositions;  // 未找到
 }
 
 /**
@@ -232,7 +265,7 @@ bool QwtPlotScaleEventDispatcher::eventFilter(QObject* obj, QEvent* e)
     return QObject::eventFilter(obj, e);
 }
 
-bool QwtPlotScaleEventDispatcher::handleMousePress(QwtPlot* plot, QMouseEvent* e)
+bool QwtPlotScaleEventDispatcher::handleMousePress(QwtPlot* bindPlot, QMouseEvent* e)
 {
     if (e->button() != Qt::LeftButton) {
         return false;
@@ -256,19 +289,21 @@ bool QwtPlotScaleEventDispatcher::handleMousePress(QwtPlot* plot, QMouseEvent* e
         if (d->currentScale) {
             d->currentScale->setSelected(false);
         }
-        d->currentScale = targetScale;
+        d->currentScale  = targetScale;
+        d->currentPlot   = PrivateData::scalePlot(targetScale);
+        d->currentAxisId = findAxisIdByScaleWidget(d->currentPlot, targetScale);
         // 记录当前选中的内容
         d->currentScale->setSelected(true);
     }
     d->lastMousePos   = e->pos();
     d->isMousePressed = true;
 
-    d->updateCursorForMousePress(plot);
+    d->updateCursorForMousePress(bindPlot);
 
     return true;  // 我们已经处理了事件转发逻辑
 }
 
-bool QwtPlotScaleEventDispatcher::handleMouseMove(QwtPlot* plot, QMouseEvent* e)
+bool QwtPlotScaleEventDispatcher::handleMouseMove(QwtPlot* bindPlot, QMouseEvent* e)
 {
     // 检查当前绘图是否有 scale widget 应该处理此事件
     QWT_D(d);
@@ -276,34 +311,42 @@ bool QwtPlotScaleEventDispatcher::handleMouseMove(QwtPlot* plot, QMouseEvent* e)
         if (d->isMousePressed) {
             // 说明当前已经选中了一个scale,且鼠标是按下状态，这个时候处于移动过程中
             if (d->currentScale->testBuildinActions(QwtScaleWidget::ActionClickPan)) {
-                d->updateCursorForHover(plot, true);
-                handleScaleMousePan(d->currentScale, e);
-                return true;
+
+                d->updateCursorForHover(bindPlot, true);
+                const QPoint delta   = e->pos() - d->lastMousePos;
+                const int deltaPixel = QwtAxis::isYAxis(d->currentAxisId) ? delta.y() : delta.x();
+                if (deltaPixel != 0) {
+                    d->currentPlot->panAxis(d->currentAxisId, deltaPixel);
+                    // 需要手动触发重绘
+                    d->currentPlot->replotAll();
+                    d->lastMousePos = e->pos();
+                    return true;
+                }
             }
         } else {
             // 之前已经选中一个scael
             // 但没有按下
             QwtScaleWidget* targetScale = findTargetOnScale(e->pos());
             if (targetScale == d->currentScale) {
-                d->updateCursorForHover(plot, true);
+                d->updateCursorForHover(bindPlot, true);
             } else {
-                plot->unsetCursor();
+                bindPlot->unsetCursor();
             }
         }
     } else {
         // 没有选中任何scale，正常处理
-        plot->unsetCursor();
+        bindPlot->unsetCursor();
     }
     return false;
 }
 
-bool QwtPlotScaleEventDispatcher::handleMouseRelease(QwtPlot* plot, QMouseEvent* e)
+bool QwtPlotScaleEventDispatcher::handleMouseRelease(QwtPlot* bindPlot, QMouseEvent* e)
 {
     QWT_D(d);
-    Q_UNUSED(plot);
+    Q_UNUSED(bindPlot);
 
     QwtScaleWidget* targetScale = findTargetOnScale(e->pos());
-    d->updateCursorForMouseRelease(plot, e->button(), targetScale == d->currentScale);
+    d->updateCursorForMouseRelease(bindPlot, e->button(), targetScale == d->currentScale);
     if (e->button() == Qt::RightButton) {
         if (!targetScale) {
             return false;
@@ -320,57 +363,29 @@ bool QwtPlotScaleEventDispatcher::handleMouseRelease(QwtPlot* plot, QMouseEvent*
     if (e->button() == Qt::LeftButton) {
         d->isMousePressed = false;
         // 左键：只有之前按下且在当前scale区域才处理,这里不要联合onMyScale判断，拖曳出去 绘图区域就识别不了
-        return targetScale
-               != nullptr;  // targetScale不为空时返回true代表截断事件，这样上层的事件才能处理，例如QwtFigureWidgetOverlay
+        return (targetScale != nullptr);  // targetScale不为空时返回true代表截断事件，这样上层的事件才能处理，例如QwtFigureWidgetOverlay
     }
     return false;
 }
 
-bool QwtPlotScaleEventDispatcher::handleWheelEvent(QwtPlot* plot, QWheelEvent* e)
+bool QwtPlotScaleEventDispatcher::handleWheelEvent(QwtPlot* bindPlot, QWheelEvent* e)
 {
     QWT_D(d);
-    Q_UNUSED(plot);
+    Q_UNUSED(bindPlot);
     // 检查当前绘图是否有 scale widget 应该处理此事件
     QwtScaleWidget* targetScale = findTargetOnScale(e->pos());
     if (d->currentScale && d->currentScale == targetScale) {
         if (d->currentScale->testBuildinActions(QwtScaleWidget::ActionWheelZoom)) {
-            handleScaleWheelZoom(d->currentScale, e);
+            QPoint p = e->globalPosition().toPoint();
+            p        = d->currentScale->mapFromGlobal(p);
+            if (e->delta() > 0) {
+                d->currentPlot->zoomAxis(d->currentAxisId, d->zoomFactor, p);
+            } else {
+                d->currentPlot->zoomAxis(d->currentAxisId, 1.0 / d->zoomFactor, p);
+            }
+            d->currentPlot->replot();
             return true;
         }
-    }
-    return false;
-}
-
-bool QwtPlotScaleEventDispatcher::handleScaleMousePan(QwtScaleWidget* scaleWidget, QMouseEvent* e)
-{
-    QWT_D(d);
-    if (!scaleWidget) {
-        return false;
-    }
-    const QPoint delta   = e->pos() - d->lastMousePos;
-    const int deltaPixel = scaleWidget->isYAxis() ? delta.y() : delta.x();
-    if (deltaPixel != 0) {
-        scaleWidget->panScale(deltaPixel);
-        d->lastMousePos = e->pos();
-        return true;
-    }
-    return false;
-}
-
-bool QwtPlotScaleEventDispatcher::handleScaleWheelZoom(QwtScaleWidget* scaleWidget, QWheelEvent* e)
-{
-    if (!scaleWidget) {
-        return false;
-    }
-    if (scaleWidget->testBuildinActions(QwtScaleWidget::ActionWheelZoom)) {
-        QPoint p = e->globalPosition().toPoint();
-        p        = scaleWidget->mapFromGlobal(p);
-        if (e->delta() > 0) {
-            scaleWidget->zoomIn(p);
-        } else {
-            scaleWidget->zoomOut(p);
-        }
-        return true;
     }
     return false;
 }

@@ -1,40 +1,20 @@
-/******************************************************************************
- * Qwt Widget Library
- * Copyright (C) 1997   Josef Wilgen
- * Copyright (C) 2002   Uwe Rathmann
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the Qwt License, Version 1.0
- *****************************************************************************/
-
-#ifndef QWT_PLOT_PANNER_H
+﻿#ifndef QWT_PLOT_PANNER_H
 #define QWT_PLOT_PANNER_H
-
 #include "qwt_global.h"
-#include "qwt_panner.h"
-#include "qwt_axis_id.h"
+#include "qwt_picker.h"
 
+// qt
+class QWidget;
+
+// qwt
 class QwtPlot;
 
-/*!
-   \brief QwtPlotPanner provides panning of a plot canvas
-
-   QwtPlotPanner is a panner for a plot canvas, that
-   adjusts the scales of the axes after dropping
-   the canvas on its new position.
-
-   Together with QwtPlotZoomer and QwtPlotMagnifier powerful ways
-   of navigating on a QwtPlot widget can be implemented easily.
-
-   \note The axes are not updated, while dragging the canvas
-   \sa QwtPlotZoomer, QwtPlotMagnifier
- */
-class QWT_EXPORT QwtPlotPanner : public QwtPanner
+class QWT_EXPORT QwtPlotPanner : public QwtPicker
 {
     Q_OBJECT
-
-  public:
-    explicit QwtPlotPanner( QWidget* );
+    QWT_DECLARE_PRIVATE(QwtPlotPanner)
+public:
+    explicit QwtPlotPanner(QWidget* canvas);
     virtual ~QwtPlotPanner();
 
     QWidget* canvas();
@@ -43,19 +23,25 @@ class QWT_EXPORT QwtPlotPanner : public QwtPanner
     QwtPlot* plot();
     const QwtPlot* plot() const;
 
-    void setAxisEnabled( QwtAxisId axisId, bool on );
-    bool isAxisEnabled( QwtAxisId ) const;
+    void setOrientations(Qt::Orientations);
+    Qt::Orientations orientations() const;
+    bool isOrientationEnabled(Qt::Orientation) const;
 
-  public Q_SLOTS:
-    virtual void moveCanvas( int dx, int dy );
+    void setMouseButton(Qt::MouseButton button, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+    void getMouseButton(Qt::MouseButton& button, Qt::KeyboardModifiers& modifiers) const;
 
-  protected:
-    virtual QBitmap contentsMask() const QWT_OVERRIDE;
-    virtual QPixmap grab() const QWT_OVERRIDE;
+public Q_SLOTS:
+    void moveCanvas(int dx, int dy);
 
-  private:
-    class PrivateData;
-    PrivateData* m_data;
+Q_SIGNALS:
+    void panned(int dx, int dy);
+
+protected:
+    virtual void widgetMousePressEvent(QMouseEvent* mouseEvent) QWT_OVERRIDE;
+    virtual void move(const QPoint&) QWT_OVERRIDE;
+    virtual bool end(bool ok = true) QWT_OVERRIDE;
+
+private:
+    void init();
 };
-
-#endif
+#endif  // QWT_PLOT_PANNER_H

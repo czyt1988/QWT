@@ -1902,6 +1902,28 @@ QPointF QwtScaleMap::invTransform(const QwtScaleMap& xMap, const QwtScaleMap& yM
     return QPointF(xMap.invTransform(pos.x()), yMap.invTransform(pos.y()));
 }
 
+/**
+ * @brief 是否为线性坐标轴
+ * @param axisId
+ * @return
+ */
+bool QwtScaleMap::isLinerScale(const QwtScaleMap& sm)
+{
+    // 检查变换是否为对数变换
+    const QwtTransform* transform = sm.transformation();
+    if (!transform) {
+        // 没有变换就是线性
+        return true;
+    }
+
+    if (dynamic_cast< const QwtLogTransform* >(transform) != nullptr
+        || dynamic_cast< const QwtPowerTransform* >(transform) != nullptr) {
+        return false;
+    }
+
+    return true;
+}
+
 /*!
    Transform a point from scale to paint coordinates
 
@@ -16356,103 +16378,6 @@ void QwtScaleWidget::initScale(QwtScaleDraw::Alignment align)
     setSizePolicy(policy);
 
     setAttribute(Qt::WA_WState_OwnSizePolicy, false);
-}
-
-void QwtScaleWidget::doZoom(double factor, const QPoint& centerPos)
-{
-    const QwtScaleDiv& currentDiv = m_data->scaleDraw->scaleDiv();
-    const double centerValue      = mapPosToScaleValue(centerPos);
-    const double currentWidth     = currentDiv.upperBound() - currentDiv.lowerBound();
-    const double newWidth         = currentWidth / factor;
-
-    // 防止过度缩放
-    if (newWidth < 1e-8 || newWidth > 1e8) {
-        return;
-    }
-
-    const double newLower = centerValue - (centerValue - currentDiv.lowerBound()) / factor;
-    const double newUpper = centerValue + (currentDiv.upperBound() - centerValue) / factor;
-
-    Q_EMIT requestScaleRangeUpdate(newLower, newUpper);
-}
-
-/**
- * @brief 按照像素移动坐标轴
- * @param deltaPixels 移动的像素
- * @note 此函数会发射@ref requestScaleRangeUpdate 信号请求绘图的改变
- */
-void QwtScaleWidget::panScale(int deltaPixels)
-{
-    const QwtScaleDraw* sd = m_data->scaleDraw.get();
-    if (!sd) {
-        return;
-    }
-    // 对于垂直轴，需要考虑坐标方向
-    // 数学坐标系：向上移动应该是正值，但屏幕坐标系向下移动是正值
-    // 所以需要取反
-    // 水平轴向右移动，实际是刻度在减，也是负值，因此这里都是负值
-    const double valueDist        = mapLengthToScaleValue(-deltaPixels);
-    const QwtScaleDiv& currentDiv = sd->scaleDiv();
-    Q_EMIT requestScaleRangeUpdate(currentDiv.lowerBound() + valueDist, currentDiv.upperBound() + valueDist);
-}
-
-/**
- * @brief 坐标轴放大
- * @param centerPos
- */
-void QwtScaleWidget::zoomIn(const QPoint& centerPos)
-{
-    doZoom(m_data->zoomFactor, centerPos);
-}
-
-/**
- * @brief  坐标轴缩小
- * @param centerPos
- */
-void QwtScaleWidget::zoomOut(const QPoint& centerPos)
-{
-    doZoom(1.0 / m_data->zoomFactor, centerPos);
-}
-
-/**
- * @brief 把当前scalewidget窗口上的屏幕点映射到坐标轴上的值
- * @param pos 窗口上的点
- * @return 坐标轴上的值
- */
-double QwtScaleWidget::mapPosToScaleValue(const QPoint& pos) const
-{
-    const QwtScaleDraw* sd = m_data->scaleDraw.get();
-    if (!sd) {
-        return 0.0;
-    }
-    const QwtScaleMap& scaleMap = sd->scaleMap();
-
-    QRectF scaleRect = contentsRect();
-    if (sd->orientation() == Qt::Vertical) {
-        scaleRect.setTop(scaleRect.top() + m_data->borderDist[ 0 ]);
-        scaleRect.setHeight(scaleRect.height() - m_data->borderDist[ 0 ] - m_data->borderDist[ 1 ]);
-        return scaleMap.invTransform(pos.y() - scaleRect.top());
-    } else {
-        scaleRect.setLeft(scaleRect.left() + m_data->borderDist[ 0 ]);
-        scaleRect.setWidth(scaleRect.width() - m_data->borderDist[ 0 ] - m_data->borderDist[ 1 ]);
-        return scaleMap.invTransform(pos.x() - scaleRect.left());
-    }
-}
-
-/**
- * @brief 把当前scalewidget窗口上的屏幕长度映射到坐标轴上的长度值
- * @param length 屏幕长度
- * @return 坐标轴的长度值
- */
-double QwtScaleWidget::mapLengthToScaleValue(double length) const
-{
-    const QwtScaleDraw* sd = m_data->scaleDraw.get();
-    if (!sd) {
-        return 0.0;
-    }
-    const QwtScaleMap& map = sd->scaleMap();
-    const double valueDist = map.invTransform(length) - map.invTransform(0);
-    return valueDist;
 }
 
 /**
@@ -31873,7 +31798,7 @@ const QwtWidgetOverlay* QwtPicker::trackerOverlay() const
 
 /*** End of inlined file: qwt_picker.cpp ***/
 
-/*** Start of inlined file: qwt_panner.cpp ***/
+/*** Start of inlined file: qwt_cache_panner.cpp ***/
 #include <qpainter.h>
 #include <qpixmap.h>
 #include <qevent.h>
@@ -31894,7 +31819,7 @@ static QVector< QwtPicker* > qwtActivePickers(QWidget* w)
     return pickers;
 }
 
-class QwtPanner::PrivateData
+class QwtCachePanner::PrivateData
 {
 public:
     PrivateData()
@@ -31946,7 +31871,7 @@ public:
 
    \param parent Parent widget to be panned
  */
-QwtPanner::QwtPanner(QWidget* parent) : QWidget(parent)
+QwtCachePanner::QwtCachePanner(QWidget* parent) : QWidget(parent)
 {
     m_data = new PrivateData();
 
@@ -31959,7 +31884,7 @@ QwtPanner::QwtPanner(QWidget* parent) : QWidget(parent)
 }
 
 //! Destructor
-QwtPanner::~QwtPanner()
+QwtCachePanner::~QwtCachePanner()
 {
     delete m_data;
 }
@@ -31968,14 +31893,14 @@ QwtPanner::~QwtPanner()
    Change the mouse button and modifiers used for panning
    The defaults are Qt::LeftButton and Qt::NoModifier
  */
-void QwtPanner::setMouseButton(Qt::MouseButton button, Qt::KeyboardModifiers modifiers)
+void QwtCachePanner::setMouseButton(Qt::MouseButton button, Qt::KeyboardModifiers modifiers)
 {
     m_data->button          = button;
     m_data->buttonModifiers = modifiers;
 }
 
 //! Get mouse button and modifiers used for panning
-void QwtPanner::getMouseButton(Qt::MouseButton& button, Qt::KeyboardModifiers& modifiers) const
+void QwtCachePanner::getMouseButton(Qt::MouseButton& button, Qt::KeyboardModifiers& modifiers) const
 {
     button    = m_data->button;
     modifiers = m_data->buttonModifiers;
@@ -31988,14 +31913,14 @@ void QwtPanner::getMouseButton(Qt::MouseButton& button, Qt::KeyboardModifiers& m
    \param key Key ( See Qt::Keycode )
    \param modifiers Keyboard modifiers
  */
-void QwtPanner::setAbortKey(int key, Qt::KeyboardModifiers modifiers)
+void QwtCachePanner::setAbortKey(int key, Qt::KeyboardModifiers modifiers)
 {
     m_data->abortKey          = key;
     m_data->abortKeyModifiers = modifiers;
 }
 
 //! Get the abort key and modifiers
-void QwtPanner::getAbortKey(int& key, Qt::KeyboardModifiers& modifiers) const
+void QwtCachePanner::getAbortKey(int& key, Qt::KeyboardModifiers& modifiers) const
 {
     key       = m_data->abortKey;
     modifiers = m_data->abortKeyModifiers;
@@ -32010,7 +31935,7 @@ void QwtPanner::getAbortKey(int& key, Qt::KeyboardModifiers& modifiers) const
    \sa setCursor()
  */
 #ifndef QT_NO_CURSOR
-void QwtPanner::setCursor(const QCursor& cursor)
+void QwtCachePanner::setCursor(const QCursor& cursor)
 {
     m_data->cursor = new QCursor(cursor);
 }
@@ -32021,7 +31946,7 @@ void QwtPanner::setCursor(const QCursor& cursor)
    \sa setCursor()
  */
 #ifndef QT_NO_CURSOR
-const QCursor QwtPanner::cursor() const
+const QCursor QwtCachePanner::cursor() const
 {
     if (m_data->cursor)
         return *m_data->cursor;
@@ -32042,7 +31967,7 @@ const QCursor QwtPanner::cursor() const
    \param on true or false
    \sa isEnabled(), eventFilter()
  */
-void QwtPanner::setEnabled(bool on)
+void QwtCachePanner::setEnabled(bool on)
 {
     if (m_data->isEnabled != on) {
         m_data->isEnabled = on;
@@ -32065,13 +31990,13 @@ void QwtPanner::setEnabled(bool on)
 
    /param o Orientation
  */
-void QwtPanner::setOrientations(Qt::Orientations o)
+void QwtCachePanner::setOrientations(Qt::Orientations o)
 {
     m_data->orientations = o;
 }
 
 //! Return the orientation, where panning is enabled
-Qt::Orientations QwtPanner::orientations() const
+Qt::Orientations QwtCachePanner::orientations() const
 {
     return m_data->orientations;
 }
@@ -32080,7 +32005,7 @@ Qt::Orientations QwtPanner::orientations() const
    \return True if an orientation is enabled
    \sa orientations(), setOrientations()
  */
-bool QwtPanner::isOrientationEnabled(Qt::Orientation o) const
+bool QwtCachePanner::isOrientationEnabled(Qt::Orientation o) const
 {
     return m_data->orientations & o;
 }
@@ -32089,7 +32014,7 @@ bool QwtPanner::isOrientationEnabled(Qt::Orientation o) const
    \return true when enabled, false otherwise
    \sa setEnabled, eventFilter()
  */
-bool QwtPanner::isEnabled() const
+bool QwtCachePanner::isEnabled() const
 {
     return m_data->isEnabled;
 }
@@ -32102,7 +32027,7 @@ bool QwtPanner::isEnabled() const
 
    \param event Paint event
  */
-void QwtPanner::paintEvent(QPaintEvent* event)
+void QwtCachePanner::paintEvent(QPaintEvent* event)
 {
     int dx = m_data->pos.x() - m_data->initialPos.x();
     int dy = m_data->pos.y() - m_data->initialPos.y();
@@ -32143,7 +32068,7 @@ void QwtPanner::paintEvent(QPaintEvent* event)
 
    \return An empty bitmap, indicating no mask
  */
-QBitmap QwtPanner::contentsMask() const
+QBitmap QwtCachePanner::contentsMask() const
 {
     return QBitmap();
 }
@@ -32152,7 +32077,7 @@ QBitmap QwtPanner::contentsMask() const
    Grab the widget into a pixmap.
    \return Grabbed pixmap
  */
-QPixmap QwtPanner::grab() const
+QPixmap QwtCachePanner::grab() const
 {
 #if QT_VERSION >= 0x050000
     return parentWidget()->grab(parentWidget()->rect());
@@ -32176,7 +32101,7 @@ QPixmap QwtPanner::grab() const
    \sa widgetMousePressEvent(), widgetMouseReleaseEvent(),
       widgetMouseMoveEvent()
  */
-bool QwtPanner::eventFilter(QObject* object, QEvent* event)
+bool QwtCachePanner::eventFilter(QObject* object, QEvent* event)
 {
     if (object == NULL || object != parentWidget())
         return false;
@@ -32220,7 +32145,7 @@ bool QwtPanner::eventFilter(QObject* object, QEvent* event)
    \sa eventFilter(), widgetMouseReleaseEvent(),
       widgetMouseMoveEvent(),
  */
-void QwtPanner::widgetMousePressEvent(QMouseEvent* mouseEvent)
+void QwtCachePanner::widgetMousePressEvent(QMouseEvent* mouseEvent)
 {
     if ((mouseEvent->button() != m_data->button) || (mouseEvent->modifiers() != m_data->buttonModifiers)) {
         return;
@@ -32258,7 +32183,7 @@ void QwtPanner::widgetMousePressEvent(QMouseEvent* mouseEvent)
    \param mouseEvent Mouse event
    \sa eventFilter(), widgetMousePressEvent(), widgetMouseReleaseEvent()
  */
-void QwtPanner::widgetMouseMoveEvent(QMouseEvent* mouseEvent)
+void QwtCachePanner::widgetMouseMoveEvent(QMouseEvent* mouseEvent)
 {
     if (!isVisible())
         return;
@@ -32284,7 +32209,7 @@ void QwtPanner::widgetMouseMoveEvent(QMouseEvent* mouseEvent)
    \sa eventFilter(), widgetMousePressEvent(),
       widgetMouseMoveEvent(),
  */
-void QwtPanner::widgetMouseReleaseEvent(QMouseEvent* mouseEvent)
+void QwtCachePanner::widgetMouseReleaseEvent(QMouseEvent* mouseEvent)
 {
     if (isVisible()) {
         hide();
@@ -32314,7 +32239,7 @@ void QwtPanner::widgetMouseReleaseEvent(QMouseEvent* mouseEvent)
    \param keyEvent Key event
    \sa eventFilter(), widgetKeyReleaseEvent()
  */
-void QwtPanner::widgetKeyPressEvent(QKeyEvent* keyEvent)
+void QwtCachePanner::widgetKeyPressEvent(QKeyEvent* keyEvent)
 {
     if ((keyEvent->key() == m_data->abortKey) && (keyEvent->modifiers() == m_data->abortKeyModifiers)) {
         hide();
@@ -32332,13 +32257,13 @@ void QwtPanner::widgetKeyPressEvent(QKeyEvent* keyEvent)
    \param keyEvent Key event
    \sa eventFilter(), widgetKeyReleaseEvent()
  */
-void QwtPanner::widgetKeyReleaseEvent(QKeyEvent* keyEvent)
+void QwtCachePanner::widgetKeyReleaseEvent(QKeyEvent* keyEvent)
 {
     Q_UNUSED(keyEvent);
 }
 
 #ifndef QT_NO_CURSOR
-void QwtPanner::showCursor(bool on)
+void QwtCachePanner::showCursor(bool on)
 {
     if (on == m_data->hasCursor)
         return;
@@ -32366,7 +32291,7 @@ void QwtPanner::showCursor(bool on)
 }
 #endif
 
-/*** End of inlined file: qwt_panner.cpp ***/
+/*** End of inlined file: qwt_cache_panner.cpp ***/
 
 /*** Start of inlined file: qwt_utils.cpp ***/
 #include <qapplication.h>
@@ -41257,7 +41182,7 @@ QwtGraphic QwtPlotMultiBarChart::legendIcon(int index, const QSizeF& size) const
 
 /*** End of inlined file: qwt_plot_multi_barchart.cpp ***/
 
-/*** Start of inlined file: qwt_plot_panner.cpp ***/
+/*** Start of inlined file: qwt_plot_cache_panner.cpp ***/
 #include <qbitmap.h>
 #include <qstyle.h>
 #include <qstyleoption.h>
@@ -41344,7 +41269,7 @@ static QBitmap qwtBorderMask(const QWidget* canvas, const QSize& size)
     return QBitmap::fromImage(mask);
 }
 
-class QwtPlotPanner::PrivateData
+class QwtPlotCachePanner::PrivateData
 {
 public:
     PrivateData()
@@ -41365,15 +41290,15 @@ public:
 
    \sa setAxisEnabled()
  */
-QwtPlotPanner::QwtPlotPanner(QWidget* canvas) : QwtPanner(canvas)
+QwtPlotCachePanner::QwtPlotCachePanner(QWidget* canvas) : QwtCachePanner(canvas)
 {
     m_data = new PrivateData();
-    connect(this, &QwtPlotPanner::panned, this, &QwtPlotPanner::moveCanvas);
+    connect(this, &QwtPlotCachePanner::panned, this, &QwtPlotCachePanner::moveCanvas);
     // connect(this, SIGNAL(panned(int, int)), SLOT(moveCanvas(int, int)));
 }
 
 //! Destructor
-QwtPlotPanner::~QwtPlotPanner()
+QwtPlotCachePanner::~QwtPlotCachePanner()
 {
     delete m_data;
 }
@@ -41389,7 +41314,7 @@ QwtPlotPanner::~QwtPlotPanner()
 
    \sa isAxisEnabled(), moveCanvas()
  */
-void QwtPlotPanner::setAxisEnabled(QwtAxisId axisId, bool on)
+void QwtPlotCachePanner::setAxisEnabled(QwtAxisId axisId, bool on)
 {
     if (QwtAxis::isValid(axisId))
         m_data->isAxisEnabled[ axisId ] = on;
@@ -41403,7 +41328,7 @@ void QwtPlotPanner::setAxisEnabled(QwtAxisId axisId, bool on)
 
    \sa setAxisEnabled(), moveCanvas()
  */
-bool QwtPlotPanner::isAxisEnabled(QwtAxisId axisId) const
+bool QwtPlotCachePanner::isAxisEnabled(QwtAxisId axisId) const
 {
     if (QwtAxis::isValid(axisId))
         return m_data->isAxisEnabled[ axisId ];
@@ -41412,19 +41337,19 @@ bool QwtPlotPanner::isAxisEnabled(QwtAxisId axisId) const
 }
 
 //! Return observed plot canvas
-QWidget* QwtPlotPanner::canvas()
+QWidget* QwtPlotCachePanner::canvas()
 {
     return parentWidget();
 }
 
 //! Return Observed plot canvas
-const QWidget* QwtPlotPanner::canvas() const
+const QWidget* QwtPlotCachePanner::canvas() const
 {
     return parentWidget();
 }
 
 //! Return plot widget, containing the observed plot canvas
-QwtPlot* QwtPlotPanner::plot()
+QwtPlot* QwtPlotCachePanner::plot()
 {
     QWidget* w = canvas();
     if (w)
@@ -41434,7 +41359,7 @@ QwtPlot* QwtPlotPanner::plot()
 }
 
 //! Return plot widget, containing the observed plot canvas
-const QwtPlot* QwtPlotPanner::plot() const
+const QwtPlot* QwtPlotCachePanner::plot() const
 {
     const QWidget* w = canvas();
     if (w)
@@ -41451,7 +41376,7 @@ const QwtPlot* QwtPlotPanner::plot() const
 
    \sa QwtPanner::panned()
  */
-void QwtPlotPanner::moveCanvas(int dx, int dy)
+void QwtPlotCachePanner::moveCanvas(int dx, int dy)
 {
     if (dx == 0 && dy == 0)
         return;
@@ -41498,18 +41423,18 @@ void QwtPlotPanner::moveCanvas(int dx, int dy)
    \return Mask as bitmap
    \sa QwtPlotCanvas::borderPath()
  */
-QBitmap QwtPlotPanner::contentsMask() const
+QBitmap QwtPlotCachePanner::contentsMask() const
 {
     if (canvas())
         return qwtBorderMask(canvas(), size());
 
-    return QwtPanner::contentsMask();
+    return QwtCachePanner::contentsMask();
 }
 
 /*!
    \return Pixmap with the content of the canvas
  */
-QPixmap QwtPlotPanner::grab() const
+QPixmap QwtPlotCachePanner::grab() const
 {
     const QWidget* cv = canvas();
     if (cv && cv->inherits("QGLWidget")) {
@@ -41524,10 +41449,10 @@ QPixmap QwtPlotPanner::grab() const
         return pm;
     }
 
-    return QwtPanner::grab();
+    return QwtCachePanner::grab();
 }
 
-/*** End of inlined file: qwt_plot_panner.cpp ***/
+/*** End of inlined file: qwt_plot_cache_panner.cpp ***/
 
 /*** Start of inlined file: qwt_plot_picker.cpp ***/
 class QwtPlotPicker::PrivateData
@@ -42071,7 +41996,7 @@ QwtPlotSeriesDataPicker::PrivateData::PrivateData(QwtPlotSeriesDataPicker* p) : 
 // QwtPlotSeriesDataPicker
 //===============================================================
 
-QwtPlotSeriesDataPicker::QwtPlotSeriesDataPicker(QWidget* canvas) : QwtPlotPicker(canvas), QWT_PIMPL_CONSTRUCT
+QwtPlotSeriesDataPicker::QwtPlotSeriesDataPicker(QWidget* canvas) : QwtPicker(canvas), QWT_PIMPL_CONSTRUCT
 {
     // 设置追踪模式，始终显示追踪信息
     setTrackerMode(QwtPlotPicker::ActiveOnly);
@@ -42083,6 +42008,34 @@ QwtPlotSeriesDataPicker::QwtPlotSeriesDataPicker(QWidget* canvas) : QwtPlotPicke
 
 QwtPlotSeriesDataPicker::~QwtPlotSeriesDataPicker()
 {
+}
+
+QwtPlot* QwtPlotSeriesDataPicker::plot()
+{
+    QWidget* w = canvas();
+    if (w)
+        w = w->parentWidget();
+
+    return qobject_cast< QwtPlot* >(w);
+}
+
+const QwtPlot* QwtPlotSeriesDataPicker::plot() const
+{
+    const QWidget* w = canvas();
+    if (w)
+        w = w->parentWidget();
+
+    return qobject_cast< const QwtPlot* >(w);
+}
+
+QWidget* QwtPlotSeriesDataPicker::canvas()
+{
+    return parentWidget();
+}
+
+const QWidget* QwtPlotSeriesDataPicker::canvas() const
+{
+    return parentWidget();
 }
 
 /**
@@ -42290,7 +42243,7 @@ QwtText QwtPlotSeriesDataPicker::trackerText(const QPoint& pos) const
 
     if (text.isEmpty()) {
         // 回退到默认跟踪器文本
-        return QwtPlotPicker::trackerText(pos);
+        return QwtPicker::trackerText(pos);
     }
 
     QwtText trackerText(text);
@@ -42380,7 +42333,7 @@ void QwtPlotSeriesDataPicker::move(const QPoint& pos)
     default:
         break;
     }
-    QwtPlotPicker::move(pos);
+    QwtPicker::move(pos);
 }
 
 QString QwtPlotSeriesDataPicker::formatAxisValue(double value, int axisId, QwtPlot* plot) const
@@ -42410,7 +42363,7 @@ QString QwtPlotSeriesDataPicker::formatAxisValue(double value, int axisId, QwtPl
  */
 QRect QwtPlotSeriesDataPicker::trackerRect(const QFont& f) const
 {
-    QRect rect = QwtPlotPicker::trackerRect(f);
+    QRect rect = QwtPicker::trackerRect(f);
     // 提前处理不需要改变 rect 位置的情况
     if (textArea() == QwtPlotSeriesDataPicker::TextPlaceAuto && pickMode() == PickNearestPoint) {
         return rect;
@@ -48321,6 +48274,200 @@ void QwtPlotVectorField::dataChanged()
 
 /*** End of inlined file: qwt_plot_vectorfield.cpp ***/
 
+/*** Start of inlined file: qwt_plot_panner.cpp ***/
+#include <qevent.h>
+#include <qpainter.h>
+
+#include <QDebug>
+
+class QwtPlotPanner::PrivateData
+{
+    QWT_DECLARE_PUBLIC(QwtPlotPanner)
+public:
+    PrivateData(QwtPlotPanner* p) : q_ptr(p), orientations(Qt::Vertical | Qt::Horizontal), initialPos(-1, -1)
+    {
+    }
+
+    Qt::Orientations orientations;
+
+    QPoint beginPos;    ///< 记录begin事件时的位置，在移动过程中不会更新
+    QPoint initialPos;  ///< 记录上次移动时的位置
+    QPoint currentPos;  ///< 记录当前位置，当前位置-initialPos=当前画布偏移，当前位置-beginPos=总体偏移
+};
+
+QwtPlotPanner::QwtPlotPanner(QWidget* canvas) : QwtPicker(canvas), QWT_PIMPL_CONSTRUCT
+{
+    if (canvas) {
+        init();
+    }
+}
+
+QwtPlotPanner::~QwtPlotPanner()
+{
+}
+
+void QwtPlotPanner::init()
+{
+    setStateMachine(new QwtPickerDragPointMachine);
+    setMousePattern(QwtEventPattern::MouseSelect1, Qt::LeftButton);
+    setTrackerMode(QwtPicker::AlwaysOff);
+    setRubberBand(QwtPicker::NoRubberBand);
+    setEnabled(true);
+}
+
+QWidget* QwtPlotPanner::canvas()
+{
+    QWidget* w = parentWidget();
+    if (w && w->inherits("QwtPlotCanvas"))
+        return w;
+    return nullptr;
+}
+
+const QWidget* QwtPlotPanner::canvas() const
+{
+    const QWidget* w = parentWidget();
+    if (w && w->inherits("QwtPlotCanvas"))
+        return w;
+    return nullptr;
+}
+
+QwtPlot* QwtPlotPanner::plot()
+{
+    QWidget* w = canvas();
+    if (w)
+        w = w->parentWidget();
+
+    if (w && w->inherits("QwtPlot"))
+        return static_cast< QwtPlot* >(w);
+
+    return nullptr;
+}
+
+const QwtPlot* QwtPlotPanner::plot() const
+{
+    const QWidget* w = canvas();
+    if (w)
+        w = w->parentWidget();
+
+    if (w && w->inherits("QwtPlot"))
+        return static_cast< const QwtPlot* >(w);
+
+    return nullptr;
+}
+
+void QwtPlotPanner::setOrientations(Qt::Orientations o)
+{
+    m_data->orientations = o;
+}
+
+Qt::Orientations QwtPlotPanner::orientations() const
+{
+    return m_data->orientations;
+}
+
+bool QwtPlotPanner::isOrientationEnabled(Qt::Orientation o) const
+{
+    return m_data->orientations & o;
+}
+
+void QwtPlotPanner::setMouseButton(Qt::MouseButton button, Qt::KeyboardModifiers modifiers)
+{
+    // 配置事件模式 - 使用左键拖拽
+    setMousePattern(QwtEventPattern::MouseSelect1, button, modifiers);
+}
+
+void QwtPlotPanner::getMouseButton(Qt::MouseButton& button, Qt::KeyboardModifiers& modifiers) const
+{
+    const QVector< MousePattern >& mp = mousePattern();
+    button                            = mp[ QwtEventPattern::MouseSelect1 ].button;
+    modifiers                         = mp[ QwtEventPattern::MouseSelect1 ].modifiers;
+}
+
+void QwtPlotPanner::move(const QPoint& pos)
+{
+    if (!isActive()) {
+        return;
+    }
+    QWT_D(d);
+    d->currentPos = pos;
+
+    int dx = pos.x() - d->initialPos.x();
+    int dy = pos.y() - d->initialPos.y();
+
+    if (!isOrientationEnabled(Qt::Horizontal)) {
+        dx = 0;
+    }
+    if (!isOrientationEnabled(Qt::Vertical)) {
+        dy = 0;
+    }
+
+    if (dx != 0 || dy != 0) {
+        // 实时移动画布
+        moveCanvas(dx, dy);
+
+        // 更新初始位置为当前位置，实现连续移动
+        d->initialPos = pos;
+    }
+}
+
+bool QwtPlotPanner::end(bool ok)
+{
+    if (!isActive()) {
+        return QwtPicker::end(ok);
+    }
+    QWT_D(d);
+    int wholeDx = d->currentPos.x() - d->beginPos.x();
+    int wholeDy = d->currentPos.y() - d->beginPos.y();
+
+    if (!isOrientationEnabled(Qt::Horizontal)) {
+        wholeDx = 0;
+    }
+    if (!isOrientationEnabled(Qt::Vertical)) {
+        wholeDy = 0;
+    }
+
+    if (wholeDx != 0 || wholeDy != 0) {
+        Q_EMIT panned(wholeDx, wholeDy);
+    }
+
+    d->initialPos = QPoint();
+    d->currentPos = QPoint();
+    d->beginPos   = QPoint();
+    return QwtPicker::end(ok);
+}
+
+void QwtPlotPanner::moveCanvas(int dx, int dy)
+{
+    QwtPlot* plt = plot();
+    if (!plt) {
+        return;
+    }
+    //! 这里有个问题要注意，对于寄生轴，如果这个轴是共享了宿主的某个轴，那么不应该响应pan，
+    //! 因此，这里要求确保宿主绘图最后pan,这样宿主绘图的更新会同步更新给寄生绘图的共享轴
+    const QList< QwtPlot* > allPlots = plt->plotList(true);  // 倒序获取，宿主最后更新
+    for (auto plot : allPlots) {
+        plot->panCanvas(QPoint(dx, dy));
+    }
+    plt->replotAll();
+}
+
+void QwtPlotPanner::widgetMousePressEvent(QMouseEvent* mouseEvent)
+{
+    QWT_D(d);
+
+    //! 注：
+    //! 这里不使用begin来记录，因为在setTrackerMode(QwtPicker::AlwaysOff);模式下，是不会记录鼠标位置
+    //! 在begin中，通过trackerPosition()是无法获取点击的位置，只能在此获取
+    if (mouseMatch(QwtEventPattern::MouseSelect1,
+                   static_cast< const QMouseEvent* >(mouseEvent))) {  // 记录初始位置
+        d->beginPos = d->initialPos = d->currentPos = mouseEvent->pos();
+    }
+
+    QwtPicker::widgetMousePressEvent(mouseEvent);
+}
+
+/*** End of inlined file: qwt_plot_panner.cpp ***/
+
 /*** Start of inlined file: qwt_plot_zoneitem.cpp ***/
 #include <qpainter.h>
 
@@ -51008,32 +51155,32 @@ QwtInterval QwtPolarMarker::boundingInterval(int scaleId) const
 
 /*** End of inlined file: qwt_polar_marker.cpp ***/
 
-/*** Start of inlined file: qwt_polar_panner.cpp ***/
+/*** Start of inlined file: qwt_polar_cache_panner.cpp ***/
 //! Create a plot panner for a polar plot canvas
-QwtPolarPanner::QwtPolarPanner(QwtPolarCanvas* canvas) : QwtPanner(canvas)
+QwtPolarCachePanner::QwtPolarCachePanner(QwtPolarCanvas* canvas) : QwtCachePanner(canvas)
 {
     connect(this, SIGNAL(panned(int, int)), SLOT(movePlot(int, int)));
 }
 
 //! Destructor
-QwtPolarPanner::~QwtPolarPanner()
+QwtPolarCachePanner::~QwtPolarCachePanner()
 {
 }
 
 //! \return observed plot canvas
-QwtPolarCanvas* QwtPolarPanner::canvas()
+QwtPolarCanvas* QwtPolarCachePanner::canvas()
 {
     return qobject_cast< QwtPolarCanvas* >(parent());
 }
 
 //! \return observed plot canvas
-const QwtPolarCanvas* QwtPolarPanner::canvas() const
+const QwtPolarCanvas* QwtPolarCachePanner::canvas() const
 {
     return qobject_cast< const QwtPolarCanvas* >(parent());
 }
 
 //! \return observed plot
-QwtPolarPlot* QwtPolarPanner::plot()
+QwtPolarPlot* QwtPolarCachePanner::plot()
 {
     QwtPolarCanvas* c = canvas();
     if (c)
@@ -51043,7 +51190,7 @@ QwtPolarPlot* QwtPolarPanner::plot()
 }
 
 //! \return observed plot
-const QwtPolarPlot* QwtPolarPanner::plot() const
+const QwtPolarPlot* QwtPolarCachePanner::plot() const
 {
     const QwtPolarCanvas* c = canvas();
     if (c)
@@ -51060,9 +51207,9 @@ const QwtPolarPlot* QwtPolarPanner::plot() const
 
    \sa QwtPanner::panned(), QwtPolarPlot::zoom()
  */
-void QwtPolarPanner::movePlot(int dx, int dy)
+void QwtPolarCachePanner::movePlot(int dx, int dy)
 {
-    QwtPolarPlot* plot = QwtPolarPanner::plot();
+    QwtPolarPlot* plot = QwtPolarCachePanner::plot();
     if (plot == NULL || (dx == 0 && dy == 0))
         return;
 
@@ -51093,16 +51240,16 @@ void QwtPolarPanner::movePlot(int dx, int dy)
 
    \param event Mouse event
  */
-void QwtPolarPanner::widgetMousePressEvent(QMouseEvent* event)
+void QwtPolarCachePanner::widgetMousePressEvent(QMouseEvent* event)
 {
-    const QwtPolarPlot* plot = QwtPolarPanner::plot();
+    const QwtPolarPlot* plot = QwtPolarCachePanner::plot();
     if (plot) {
         if (plot->zoomFactor() < 1.0)
-            QwtPanner::widgetMousePressEvent(event);
+            QwtCachePanner::widgetMousePressEvent(event);
     }
 }
 
-/*** End of inlined file: qwt_polar_panner.cpp ***/
+/*** End of inlined file: qwt_polar_cache_panner.cpp ***/
 
 /*** Start of inlined file: qwt_polar_picker.cpp ***/
 class QwtPolarPicker::PrivateData
@@ -52054,8 +52201,9 @@ bool QwtPlot::eventFilter(QObject* object, QEvent* e)
 //! Replots the plot if autoReplot() is \c true.
 void QwtPlot::autoRefresh()
 {
-    if (m_data->autoReplot)
+    if (m_data->autoReplot) {
         replot();
+    }
 }
 
 /*!
@@ -52333,6 +52481,13 @@ void QwtPlot::replotAll()
     const QList< QwtPlot* > allPlot = plotList();
     for (QwtPlot* plot : allPlot) {
         plot->replot();
+    }
+}
+
+void QwtPlot::autoRefreshAll()
+{
+    if (m_data->autoReplot) {
+        replotAll();
     }
 }
 
@@ -52699,11 +52854,7 @@ void QwtPlot::insertLegend(QwtAbstractLegend* legend, QwtPlot::LegendPosition po
         m_data->legend = legend;
 
         if (m_data->legend) {
-            connect(this,
-                    SIGNAL(legendDataChanged(QVariant, QList< QwtLegendData >)),
-                    m_data->legend,
-                    SLOT(updateLegend(QVariant, QList< QwtLegendData >)));
-
+            connect(this, &QwtPlot::legendDataChanged, m_data->legend, &QwtAbstractLegend::updateLegend);
             if (m_data->legend->parent() != this)
                 m_data->legend->setParent(this);
 
@@ -53085,13 +53236,10 @@ QList< QwtPlot* > QwtPlot::plotList(bool descending) const
     QList< QwtPlot* > plotsByOrder;
     QwtPlot* host = hostPlot();
     if (!host) {
-        // 说明bindedPlot是宿主
-        QwtPlot* that = const_cast< QwtPlot* >(this);
-        plotsByOrder.append(that);
-        host = that;
-    } else {
-        plotsByOrder.append(host);
+        // 说明当前是宿主
+        host = const_cast< QwtPlot* >(this);
     }
+    plotsByOrder.append(host);
     plotsByOrder += host->parasitePlots();
     if (descending) {
         std::reverse(plotsByOrder.begin(), plotsByOrder.end());
@@ -53774,6 +53922,174 @@ void QwtPlot::saveAutoReplotState()
 void QwtPlot::restoreAutoReplotState()
 {
     m_data->autoReplot = m_data->autoReplotTemp;
+}
+
+/**
+ * @brief 按像素平移指定坐标轴
+ * @param axis 坐标轴ID (QwtPlot::xBottom, QwtPlot::yLeft 等)
+ * @param deltaPixels 移动的像素数
+ *
+ * 正数表示向右/下移动，负数表示向左/上移动
+ * 对于对数坐标轴会自动处理坐标变换
+ *
+ * @note 注意，此函数不会进行重绘，需要调用者手动调用@ref replot
+ */
+void QwtPlot::panAxis(QwtAxisId axisId, int deltaPixels)
+{
+    if (!QwtAxis::isValid(axisId)) {
+        qWarning() << "invalid axis id:" << axisId;
+        return;
+    }
+
+    // 获取坐标轴的映射和当前范围
+    const QwtScaleDraw* sd        = axisScaleDraw(axisId);
+    const QwtScaleMap& map        = sd->scaleMap();
+    const QwtScaleDiv& currentDiv = sd->scaleDiv();
+    double currentMin             = currentDiv.lowerBound();
+    double currentMax             = currentDiv.upperBound();
+    //! panAxis分两种情况，第一种，对于线性坐标，只要以点来变换即可，
+    //! 但对于对数坐标，为了保证平移之后，在观察者的角度是“平移”，需要轴的前后端同步移动同样像素
+    bool isLiner = QwtScaleMap::isLinerScale(map);
+
+    if (isLiner) {
+        // 线性坐标轴，变换简单，只需处理一个点的偏移，两个端点同步偏移即可
+        // 对于垂直轴，需要考虑坐标方向
+        // 数学坐标系：向上移动应该是正值，但屏幕坐标系向下移动是正值
+        // 所以需要取反
+        // 水平轴向右移动，实际是刻度在减，也是负值，因此这里都是负值
+        const double valueDist = map.invTransform(-deltaPixels) - map.invTransform(0);
+        setAxisScale(axisId, currentMin + valueDist, currentMax + valueDist);
+    } else {
+        // 非线性，则要计算两段
+        //  获取画布尺寸
+        double scalePixelsLength = sd->length();
+        if (scalePixelsLength <= 0) {
+            return;
+        }
+        double valueDistMin = 0;
+        double valueDistMax = 0;
+        if (QwtAxis::isXAxis(axisId)) {
+            // 水平轴：向右移动为正，数据向左移动
+            valueDistMin = map.invTransform(-deltaPixels) - map.invTransform(0);
+            valueDistMax = map.invTransform(scalePixelsLength - deltaPixels) - map.invTransform(scalePixelsLength);
+            // 对于对数坐标轴，非常容易移动到非常小的情况，这时不要让它再移动，会导致显示异常
+            if (qFuzzyCompare(valueDistMin, valueDistMax)) {
+                return;
+            }
+
+        } else {
+            // 垂直轴：向下移动为正，数据向上移动
+            // 注意：垂直轴的像素坐标是从上到下的，与数据坐标方向相反
+            // 所以计算方式需要调整
+            valueDistMin = map.invTransform(scalePixelsLength) - map.invTransform(scalePixelsLength + deltaPixels);
+            valueDistMax = map.invTransform(0) - map.invTransform(deltaPixels);
+        }
+        if (qFuzzyIsNull(qAbs(valueDistMax - valueDistMin))) {
+            return;
+        }
+        setAxisScale(axisId, currentMin + valueDistMin, currentMax + valueDistMax);
+    }
+}
+
+/**
+ * @brief 按像素偏移平移整个画布
+ * @param offset 像素偏移量
+ *
+ * 该方法会将所有的坐标轴（不管是否已启用）按照指定的像素偏移量进行平移，
+ * 实现整个画布的同步移动效果。
+ * 水平方向：正数向右移动，负数向左移动
+ * 垂直方向：正数向下移动，负数向上移动
+ *
+ * @note 注意，此函数不会进行重绘，需要调用者手动调用@ref replot
+ */
+void QwtPlot::panCanvas(const QPoint& offset)
+{
+    if (offset.isNull()) {
+        return;  // 偏移量为零，无需处理
+    }
+
+    // 平移所有启用的坐标轴
+    for (int axis = 0; axis < QwtPlot::axisCnt; axis++) {
+        // 根据坐标轴类型选择相应的偏移分量
+        if (QwtAxis::isXAxis(axis)) {
+            // 水平轴使用x偏移量
+            panAxis(axis, offset.x());
+        } else {
+            // 垂直轴使用y偏移量（注意方向处理）
+            panAxis(axis, offset.y());
+        }
+    }
+}
+
+/**
+ * @brief 以指定像素位置为中心缩放坐标轴
+ * @param axisId 坐标轴ID
+ * @param factor 缩放因子 (大于1表示放大，小于1表示缩小)
+ * @param centerPosPixels 缩放中心的像素位置（相对于画布）
+ *
+ * 缩放原理：
+ * - 线性坐标：以鼠标位置为中心进行线性缩放
+ * - 对数坐标：以鼠标位置为中心进行对数域的缩放
+ *
+ * @note 注意，此函数不会进行重绘，需要调用者手动调用@ref replot
+ */
+void QwtPlot::zoomAxis(QwtAxisId axisId, double factor, const QPoint& centerPosPixels)
+{
+    if (!QwtAxis::isValid(axisId)) {
+        return;
+    }
+    const QwtScaleDraw* sd        = axisScaleDraw(axisId);
+    const QwtScaleMap& scaleMap   = sd->scaleMap();
+    const QwtScaleDiv& currentDiv = sd->scaleDiv();
+    double currentMin             = currentDiv.lowerBound();
+    double currentMax             = currentDiv.upperBound();
+
+    // 判断是否为线性坐标
+    bool isLinear = QwtScaleMap::isLinerScale(scaleMap);
+
+    double centerValue { 0 };
+    if (QwtAxis::isXAxis(axisId)) {
+        centerValue = scaleMap.invTransform(centerPosPixels.x());
+    } else {
+        centerValue = scaleMap.invTransform(centerPosPixels.y());
+    }
+    if (isLinear) {
+        // 线性坐标缩放
+        // 计算缩放后的范围
+        // 原理：以鼠标位置为中心，将距离缩放 factor 倍
+        // 计算新的最小值和最大值，保持中心点不变
+        double newMin = centerValue - (centerValue - currentMin) / factor;
+        double newMax = centerValue + (currentMax - centerValue) / factor;
+
+        // 边界检查
+        if (newMin >= newMax) {
+            return;  // 无效范围
+        }
+
+        setAxisScale(axisId, newMin, newMax);
+    } else {
+        // 对数坐标缩放
+        // 将对数坐标转换为线性域进行计算
+        double logMin = log10(currentMin);
+        double logMax = log10(currentMax);
+        // 计算中心点的对数值
+        double logCenter = log10(centerValue);
+
+        // 在对数域进行缩放计算
+        double newLogMin = logCenter - (logCenter - logMin) / factor;
+        double newLogMax = logCenter + (logMax - logCenter) / factor;
+
+        // 转换回数据域
+        double newMin = pow(10.0, newLogMin);
+        double newMax = pow(10.0, newLogMax);
+
+        // 边界检查
+        if (newMin <= 0 || newMax <= 0 || newMin >= newMax) {
+            return;  // 无效范围
+        }
+
+        setAxisScale(axisId, newMin, newMax);
+    }
 }
 
 /*** End of inlined file: qwt_plot.cpp ***/
@@ -56804,16 +57120,20 @@ public:
     void updateCursorForMousePress(QwtPlot* p);
     void updateCursorForHover(QwtPlot* p, bool isOnScale);
     void updateCursorForMouseRelease(QwtPlot* p, Qt::MouseButton button, bool isOnScale);
+    static QwtPlot* scalePlot(QwtScaleWidget* scaleWidget);
 
 public:
     bool isEnable { true };
-    QwtPlot* bindedPlot { nullptr };           ///< 绑定的绘图
-    QwtScaleWidget* currentScale { nullptr };  ///< 当前正在操作的 scale widget
-    QPoint lastMousePos;                       ///< 上一次鼠标位置（用于拖拽计算）
-    bool isMousePressed { false };             ///< 记录鼠标是否按下
+    QwtPlot* bindedPlot { nullptr };  ///< 绑定的绘图
+    QwtPlot* currentPlot { nullptr };
+    QwtScaleWidget* currentScale { nullptr };            ///< 当前正在操作的 scale widget
+    QwtAxisId currentAxisId { QwtAxis::AxisPositions };  ///< 当前坐标轴id
+    QPoint lastMousePos;                                 ///< 上一次鼠标位置（用于拖拽计算）
+    bool isMousePressed { false };                       ///< 记录鼠标是否按下
     // 缓存相关
     QList< ScaleCache > scaleCaches;
-    bool cacheDirty { true };  ///< 缓存是否需要重建
+    bool cacheDirty { true };   ///< 缓存是否需要重建
+    double zoomFactor { 1.5 };  ///< 缩放比例
 };
 
 QwtPlotScaleEventDispatcher::PrivateData::PrivateData(QwtPlotScaleEventDispatcher* p) : q_ptr(p)
@@ -56833,7 +57153,9 @@ QwtPlotScaleEventDispatcher::PrivateData::ScaleCache QwtPlotScaleEventDispatcher
 void QwtPlotScaleEventDispatcher::PrivateData::resetRecord()
 {
     currentScale   = nullptr;
+    currentPlot    = nullptr;
     isMousePressed = false;
+    currentAxisId  = QwtAxis::AxisPositions;
 }
 
 void QwtPlotScaleEventDispatcher::PrivateData::updateCursorForMousePress(QwtPlot* p)
@@ -56885,6 +57207,11 @@ void QwtPlotScaleEventDispatcher::PrivateData::updateCursorForMouseRelease(QwtPl
     }
 }
 
+QwtPlot* QwtPlotScaleEventDispatcher::PrivateData::scalePlot(QwtScaleWidget* scaleWidget)
+{
+    return qobject_cast< QwtPlot* >(scaleWidget->parent());
+}
+
 //----------------------------------------------------
 // QwtParasitePlotEventFilter
 //----------------------------------------------------
@@ -56911,6 +57238,28 @@ void QwtPlotScaleEventDispatcher::setEnable(bool on)
 bool QwtPlotScaleEventDispatcher::isEnable() const
 {
     return m_data->isEnable;
+}
+
+/**
+ * @brief 获取 QwtScaleWidget 对应的轴 ID
+ * @param plot QwtPlot 指针
+ * @param scaleWidget 要查找的 QwtScaleWidget
+ * @return 轴 ID，如果找不到返回 QwtAxis::AxisPositions
+ */
+QwtAxisId QwtPlotScaleEventDispatcher::findAxisIdByScaleWidget(const QwtPlot* plot, const QwtScaleWidget* scaleWidget)
+{
+    if (!plot || !scaleWidget) {
+        return QwtAxis::AxisPositions;
+    }
+
+    // 遍历所有可能的轴
+    for (int axis = 0; axis < QwtAxis::AxisPositions; axis++) {
+        if (plot->axisWidget(axis) == scaleWidget) {
+            return axis;
+        }
+    }
+
+    return QwtAxis::AxisPositions;  // 未找到
 }
 
 /**
@@ -56983,7 +57332,7 @@ bool QwtPlotScaleEventDispatcher::eventFilter(QObject* obj, QEvent* e)
     return QObject::eventFilter(obj, e);
 }
 
-bool QwtPlotScaleEventDispatcher::handleMousePress(QwtPlot* plot, QMouseEvent* e)
+bool QwtPlotScaleEventDispatcher::handleMousePress(QwtPlot* bindPlot, QMouseEvent* e)
 {
     if (e->button() != Qt::LeftButton) {
         return false;
@@ -57007,19 +57356,21 @@ bool QwtPlotScaleEventDispatcher::handleMousePress(QwtPlot* plot, QMouseEvent* e
         if (d->currentScale) {
             d->currentScale->setSelected(false);
         }
-        d->currentScale = targetScale;
+        d->currentScale  = targetScale;
+        d->currentPlot   = PrivateData::scalePlot(targetScale);
+        d->currentAxisId = findAxisIdByScaleWidget(d->currentPlot, targetScale);
         // 记录当前选中的内容
         d->currentScale->setSelected(true);
     }
     d->lastMousePos   = e->pos();
     d->isMousePressed = true;
 
-    d->updateCursorForMousePress(plot);
+    d->updateCursorForMousePress(bindPlot);
 
     return true;  // 我们已经处理了事件转发逻辑
 }
 
-bool QwtPlotScaleEventDispatcher::handleMouseMove(QwtPlot* plot, QMouseEvent* e)
+bool QwtPlotScaleEventDispatcher::handleMouseMove(QwtPlot* bindPlot, QMouseEvent* e)
 {
     // 检查当前绘图是否有 scale widget 应该处理此事件
     QWT_D(d);
@@ -57027,34 +57378,42 @@ bool QwtPlotScaleEventDispatcher::handleMouseMove(QwtPlot* plot, QMouseEvent* e)
         if (d->isMousePressed) {
             // 说明当前已经选中了一个scale,且鼠标是按下状态，这个时候处于移动过程中
             if (d->currentScale->testBuildinActions(QwtScaleWidget::ActionClickPan)) {
-                d->updateCursorForHover(plot, true);
-                handleScaleMousePan(d->currentScale, e);
-                return true;
+
+                d->updateCursorForHover(bindPlot, true);
+                const QPoint delta   = e->pos() - d->lastMousePos;
+                const int deltaPixel = QwtAxis::isYAxis(d->currentAxisId) ? delta.y() : delta.x();
+                if (deltaPixel != 0) {
+                    d->currentPlot->panAxis(d->currentAxisId, deltaPixel);
+                    // 需要手动触发重绘
+                    d->currentPlot->replotAll();
+                    d->lastMousePos = e->pos();
+                    return true;
+                }
             }
         } else {
             // 之前已经选中一个scael
             // 但没有按下
             QwtScaleWidget* targetScale = findTargetOnScale(e->pos());
             if (targetScale == d->currentScale) {
-                d->updateCursorForHover(plot, true);
+                d->updateCursorForHover(bindPlot, true);
             } else {
-                plot->unsetCursor();
+                bindPlot->unsetCursor();
             }
         }
     } else {
         // 没有选中任何scale，正常处理
-        plot->unsetCursor();
+        bindPlot->unsetCursor();
     }
     return false;
 }
 
-bool QwtPlotScaleEventDispatcher::handleMouseRelease(QwtPlot* plot, QMouseEvent* e)
+bool QwtPlotScaleEventDispatcher::handleMouseRelease(QwtPlot* bindPlot, QMouseEvent* e)
 {
     QWT_D(d);
-    Q_UNUSED(plot);
+    Q_UNUSED(bindPlot);
 
     QwtScaleWidget* targetScale = findTargetOnScale(e->pos());
-    d->updateCursorForMouseRelease(plot, e->button(), targetScale == d->currentScale);
+    d->updateCursorForMouseRelease(bindPlot, e->button(), targetScale == d->currentScale);
     if (e->button() == Qt::RightButton) {
         if (!targetScale) {
             return false;
@@ -57071,57 +57430,29 @@ bool QwtPlotScaleEventDispatcher::handleMouseRelease(QwtPlot* plot, QMouseEvent*
     if (e->button() == Qt::LeftButton) {
         d->isMousePressed = false;
         // 左键：只有之前按下且在当前scale区域才处理,这里不要联合onMyScale判断，拖曳出去 绘图区域就识别不了
-        return targetScale
-               != nullptr;  // targetScale不为空时返回true代表截断事件，这样上层的事件才能处理，例如QwtFigureWidgetOverlay
+        return (targetScale != nullptr);  // targetScale不为空时返回true代表截断事件，这样上层的事件才能处理，例如QwtFigureWidgetOverlay
     }
     return false;
 }
 
-bool QwtPlotScaleEventDispatcher::handleWheelEvent(QwtPlot* plot, QWheelEvent* e)
+bool QwtPlotScaleEventDispatcher::handleWheelEvent(QwtPlot* bindPlot, QWheelEvent* e)
 {
     QWT_D(d);
-    Q_UNUSED(plot);
+    Q_UNUSED(bindPlot);
     // 检查当前绘图是否有 scale widget 应该处理此事件
     QwtScaleWidget* targetScale = findTargetOnScale(e->pos());
     if (d->currentScale && d->currentScale == targetScale) {
         if (d->currentScale->testBuildinActions(QwtScaleWidget::ActionWheelZoom)) {
-            handleScaleWheelZoom(d->currentScale, e);
+            QPoint p = e->globalPosition().toPoint();
+            p        = d->currentScale->mapFromGlobal(p);
+            if (e->delta() > 0) {
+                d->currentPlot->zoomAxis(d->currentAxisId, d->zoomFactor, p);
+            } else {
+                d->currentPlot->zoomAxis(d->currentAxisId, 1.0 / d->zoomFactor, p);
+            }
+            d->currentPlot->replot();
             return true;
         }
-    }
-    return false;
-}
-
-bool QwtPlotScaleEventDispatcher::handleScaleMousePan(QwtScaleWidget* scaleWidget, QMouseEvent* e)
-{
-    QWT_D(d);
-    if (!scaleWidget) {
-        return false;
-    }
-    const QPoint delta   = e->pos() - d->lastMousePos;
-    const int deltaPixel = scaleWidget->isYAxis() ? delta.y() : delta.x();
-    if (deltaPixel != 0) {
-        scaleWidget->panScale(deltaPixel);
-        d->lastMousePos = e->pos();
-        return true;
-    }
-    return false;
-}
-
-bool QwtPlotScaleEventDispatcher::handleScaleWheelZoom(QwtScaleWidget* scaleWidget, QWheelEvent* e)
-{
-    if (!scaleWidget) {
-        return false;
-    }
-    if (scaleWidget->testBuildinActions(QwtScaleWidget::ActionWheelZoom)) {
-        QPoint p = e->globalPosition().toPoint();
-        p        = scaleWidget->mapFromGlobal(p);
-        if (e->delta() > 0) {
-            scaleWidget->zoomIn(p);
-        } else {
-            scaleWidget->zoomOut(p);
-        }
-        return true;
     }
     return false;
 }

@@ -5,6 +5,23 @@
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the Qwt License, Version 1.0
+ *
+ * Modified by ChenZongYan in 2024 <czy.t@163.com>
+ *   Summary of major modifications (see ChangeLog.md for full history):
+ *   1. CMake build system & C++11 throughout.
+ *   2. Core panner/ zoomer refactored:
+ *        - QwtPanner → QwtCachePanner (pixmap-cache version)
+ *        - New real-time QwtPlotPanner derived from QwtPicker.
+ *   3. Zoomer supports multi-axis.
+ *   4. Parasite-plot framework:
+ *        - QwtFigure, QwtPlotParasiteLayout, QwtPlotTransparentCanvas,
+ *        - QwtPlotScaleEventDispatcher, built-in pan/zoom on axis.
+ *   5. New picker: QwtPlotSeriesDataPicker (works with date axis).
+ *   6. Raster & color-map extensions:
+ *        - QwtGridRasterData (2-D table + interpolation)
+ *        - QwtLinearColorMap::stopColors(), stopPos() API rename.
+ *   7. Bar-chart: expose pen/brush control.
+ *   8. Amalgamated build: single QwtPlot.h / QwtPlot.cpp pair in src-amalgamate.
  *****************************************************************************/
 
 #ifndef QWT_SCALE_WIDGET_H
@@ -229,12 +246,6 @@ public:
 
     // 判断点是否在刻度区域
     bool isOnScale(const QPoint& pos) const;
-    // 按像素移动坐标轴
-    void panScale(int deltaPixels);
-    // 放大坐标轴，会让当前像素显示的刻度越来越大
-    void zoomIn(const QPoint& centerPos = QPoint());
-    // 缩小坐标轴，会让当前像素显示的刻度越来越小
-    void zoomOut(const QPoint& centerPos = QPoint());
 
 protected:
     virtual void paintEvent(QPaintEvent*) QWT_OVERRIDE;
@@ -247,15 +258,6 @@ protected:
 
 private:
     void initScale(QwtScaleDraw::Alignment);
-    //===============================================
-    // 以下函数用于内置动作
-    //===============================================
-    // 处理缩放
-    void doZoom(double factor, const QPoint& centerPos);
-    // 把当前scalewidget窗口上的点映射到坐标轴上的值
-    double mapPosToScaleValue(const QPoint& pos) const;
-    // 把屏幕长度转换为坐标轴的长度
-    double mapLengthToScaleValue(double length) const;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(QwtScaleWidget::LayoutFlags)

@@ -187,7 +187,7 @@ QwtPlotSeriesDataPicker::PrivateData::PrivateData(QwtPlotSeriesDataPicker* p) : 
 // QwtPlotSeriesDataPicker
 //===============================================================
 
-QwtPlotSeriesDataPicker::QwtPlotSeriesDataPicker(QWidget* canvas) : QwtPlotPicker(canvas), QWT_PIMPL_CONSTRUCT
+QwtPlotSeriesDataPicker::QwtPlotSeriesDataPicker(QWidget* canvas) : QwtPicker(canvas), QWT_PIMPL_CONSTRUCT
 {
     // 设置追踪模式，始终显示追踪信息
     setTrackerMode(QwtPlotPicker::ActiveOnly);
@@ -199,6 +199,34 @@ QwtPlotSeriesDataPicker::QwtPlotSeriesDataPicker(QWidget* canvas) : QwtPlotPicke
 
 QwtPlotSeriesDataPicker::~QwtPlotSeriesDataPicker()
 {
+}
+
+QwtPlot* QwtPlotSeriesDataPicker::plot()
+{
+    QWidget* w = canvas();
+    if (w)
+        w = w->parentWidget();
+
+    return qobject_cast< QwtPlot* >(w);
+}
+
+const QwtPlot* QwtPlotSeriesDataPicker::plot() const
+{
+    const QWidget* w = canvas();
+    if (w)
+        w = w->parentWidget();
+
+    return qobject_cast< const QwtPlot* >(w);
+}
+
+QWidget* QwtPlotSeriesDataPicker::canvas()
+{
+    return parentWidget();
+}
+
+const QWidget* QwtPlotSeriesDataPicker::canvas() const
+{
+    return parentWidget();
 }
 
 /**
@@ -406,7 +434,7 @@ QwtText QwtPlotSeriesDataPicker::trackerText(const QPoint& pos) const
 
     if (text.isEmpty()) {
         // 回退到默认跟踪器文本
-        return QwtPlotPicker::trackerText(pos);
+        return QwtPicker::trackerText(pos);
     }
 
     QwtText trackerText(text);
@@ -496,7 +524,7 @@ void QwtPlotSeriesDataPicker::move(const QPoint& pos)
     default:
         break;
     }
-    QwtPlotPicker::move(pos);
+    QwtPicker::move(pos);
 }
 
 QString QwtPlotSeriesDataPicker::formatAxisValue(double value, int axisId, QwtPlot* plot) const
@@ -526,7 +554,7 @@ QString QwtPlotSeriesDataPicker::formatAxisValue(double value, int axisId, QwtPl
  */
 QRect QwtPlotSeriesDataPicker::trackerRect(const QFont& f) const
 {
-    QRect rect = QwtPlotPicker::trackerRect(f);
+    QRect rect = QwtPicker::trackerRect(f);
     // 提前处理不需要改变 rect 位置的情况
     if (textArea() == QwtPlotSeriesDataPicker::TextPlaceAuto && pickMode() == PickNearestPoint) {
         return rect;

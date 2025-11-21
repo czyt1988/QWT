@@ -27,14 +27,14 @@
  * @def qwt的数字版本 MAJ.MIN.{PAT}
  */
 #ifndef QWT_VERSION_PAT
-#define QWT_VERSION_PAT 6
+#define QWT_VERSION_PAT 7
 #endif
 
 /**
  * @def 版本号（字符串）
  */
 #ifndef QWT_VERSION_STR
-#define QWT_VERSION_STR "7.0.6"
+#define QWT_VERSION_STR "7.0.7"
 #endif
 
 #endif  // QWT_VERSION_INFO_H
@@ -1789,6 +1789,9 @@ public:
     static QPointF transform(const QwtScaleMap&, const QwtScaleMap&, const QPointF&);
 
     static QPointF invTransform(const QwtScaleMap&, const QwtScaleMap&, const QPointF&);
+
+    // 是否为线性坐标轴
+    static bool isLinerScale(const QwtScaleMap& sm);
 
     bool isInverting() const;
 
@@ -7557,12 +7560,6 @@ public:
 
     // 判断点是否在刻度区域
     bool isOnScale(const QPoint& pos) const;
-    // 按像素移动坐标轴
-    void panScale(int deltaPixels);
-    // 放大坐标轴，会让当前像素显示的刻度越来越大
-    void zoomIn(const QPoint& centerPos = QPoint());
-    // 缩小坐标轴，会让当前像素显示的刻度越来越小
-    void zoomOut(const QPoint& centerPos = QPoint());
 
 protected:
     virtual void paintEvent(QPaintEvent*) QWT_OVERRIDE;
@@ -7575,15 +7572,6 @@ protected:
 
 private:
     void initScale(QwtScaleDraw::Alignment);
-    //===============================================
-    // 以下函数用于内置动作
-    //===============================================
-    // 处理缩放
-    void doZoom(double factor, const QPoint& centerPos);
-    // 把当前scalewidget窗口上的点映射到坐标轴上的值
-    double mapPosToScaleValue(const QPoint& pos) const;
-    // 把屏幕长度转换为坐标轴的长度
-    double mapLengthToScaleValue(double length) const;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(QwtScaleWidget::LayoutFlags)
@@ -11911,9 +11899,9 @@ private:
 
 /*** End of inlined file: qwt_picker.h ***/
 
-/*** Start of inlined file: qwt_panner.h ***/
-#ifndef QWT_PANNER_H
-#define QWT_PANNER_H
+/*** Start of inlined file: qwt_cache_panner.h ***/
+#ifndef QWT_CACHE_PANNER_H
+#define QWT_CACHE_PANNER_H
 
 #include <qwidget.h>
 
@@ -11921,13 +11909,13 @@ class QCursor;
 class QPixmap;
 
 /*!
-   \brief QwtPanner provides panning of a widget
+   \brief QwtCachePanner provides panning of a widget
 
-   QwtPanner grabs the contents of a widget, that can be dragged
+   QwtCachePanner grabs the contents of a widget, that can be dragged
    in all directions. The offset between the start and the end position
    is emitted by the panned signal.
 
-   QwtPanner grabs the content of the widget into a pixmap and moves
+   QwtCachePanner grabs the content of the widget into a pixmap and moves
    the pixmap around, without initiating any repaint events for the widget.
    Areas, that are not part of content are not painted  while panning.
    This makes panning fast enough for widgets, where
@@ -11936,13 +11924,13 @@ class QPixmap;
    For widgets, where repaints are very fast it might be better to
    implement panning manually by mapping mouse events into paint events.
  */
-class QWT_EXPORT QwtPanner : public QWidget
+class QWT_EXPORT QwtCachePanner : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit QwtPanner(QWidget* parent);
-    virtual ~QwtPanner();
+    explicit QwtCachePanner(QWidget* parent);
+    virtual ~QwtCachePanner();
 
     void setEnabled(bool);
     bool isEnabled() const;
@@ -12004,7 +11992,7 @@ private:
 
 #endif
 
-/*** End of inlined file: qwt_panner.h ***/
+/*** End of inlined file: qwt_cache_panner.h ***/
 
 /*** Start of inlined file: qwt_plot_renderer.h ***/
 #ifndef QWT_PLOT_RENDERER_H
@@ -14576,9 +14564,9 @@ private:
 
 /*** End of inlined file: qwt_plot_multi_barchart.h ***/
 
-/*** Start of inlined file: qwt_plot_panner.h ***/
-#ifndef QWT_PLOT_PANNER_H
-#define QWT_PLOT_PANNER_H
+/*** Start of inlined file: qwt_plot_cache_panner.h ***/
+#ifndef QWT_PLOT_CACHE_PANNER_H
+#define QWT_PLOT_CACHE_PANNER_H
 
 class QwtPlot;
 
@@ -14595,13 +14583,13 @@ class QwtPlot;
    \note The axes are not updated, while dragging the canvas
    \sa QwtPlotZoomer, QwtPlotMagnifier
  */
-class QWT_EXPORT QwtPlotPanner : public QwtPanner
+class QWT_EXPORT QwtPlotCachePanner : public QwtCachePanner
 {
     Q_OBJECT
 
 public:
-    explicit QwtPlotPanner(QWidget*);
-    virtual ~QwtPlotPanner();
+    explicit QwtPlotCachePanner(QWidget*);
+    virtual ~QwtPlotCachePanner();
 
     QWidget* canvas();
     const QWidget* canvas() const;
@@ -14626,7 +14614,7 @@ private:
 
 #endif
 
-/*** End of inlined file: qwt_plot_panner.h ***/
+/*** End of inlined file: qwt_plot_cache_panner.h ***/
 
 /*** Start of inlined file: qwt_plot_picker.h ***/
 #ifndef QWT_PLOT_PICKER_H
@@ -14748,7 +14736,7 @@ class QwtPlotItem;
 /**
  * @brief 这是一个绘图数据拾取显示类，用于显示当前的y值，或者显示最近点
  */
-class QWT_EXPORT QwtPlotSeriesDataPicker : public QwtPlotPicker
+class QWT_EXPORT QwtPlotSeriesDataPicker : public QwtPicker
 {
     Q_OBJECT
     QWT_DECLARE_PRIVATE(QwtPlotSeriesDataPicker)
@@ -14785,6 +14773,12 @@ public:
 public:
     explicit QwtPlotSeriesDataPicker(QWidget* canvas);
     ~QwtPlotSeriesDataPicker();
+
+    QwtPlot* plot();
+    const QwtPlot* plot() const;
+
+    QWidget* canvas();
+    const QWidget* canvas() const;
 
     // 拾取模式
     void setPickMode(PickSeriesMode mode);
@@ -15819,6 +15813,55 @@ private:
 
 /*** End of inlined file: qwt_plot_zoneitem.h ***/
 
+/*** Start of inlined file: qwt_plot_panner.h ***/
+#ifndef QWT_PLOT_PANNER_H
+#define QWT_PLOT_PANNER_H
+
+// qt
+class QWidget;
+
+// qwt
+class QwtPlot;
+
+class QWT_EXPORT QwtPlotPanner : public QwtPicker
+{
+    Q_OBJECT
+    QWT_DECLARE_PRIVATE(QwtPlotPanner)
+public:
+    explicit QwtPlotPanner(QWidget* canvas);
+    virtual ~QwtPlotPanner();
+
+    QWidget* canvas();
+    const QWidget* canvas() const;
+
+    QwtPlot* plot();
+    const QwtPlot* plot() const;
+
+    void setOrientations(Qt::Orientations);
+    Qt::Orientations orientations() const;
+    bool isOrientationEnabled(Qt::Orientation) const;
+
+    void setMouseButton(Qt::MouseButton button, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+    void getMouseButton(Qt::MouseButton& button, Qt::KeyboardModifiers& modifiers) const;
+
+public Q_SLOTS:
+    void moveCanvas(int dx, int dy);
+
+Q_SIGNALS:
+    void panned(int dx, int dy);
+
+protected:
+    virtual void widgetMousePressEvent(QMouseEvent* mouseEvent) QWT_OVERRIDE;
+    virtual void move(const QPoint&) QWT_OVERRIDE;
+    virtual bool end(bool ok = true) QWT_OVERRIDE;
+
+private:
+    void init();
+};
+#endif  // QWT_PLOT_PANNER_H
+
+/*** End of inlined file: qwt_plot_panner.h ***/
+
 /*** Start of inlined file: qwt_plot_zoomer.h ***/
 #ifndef QWT_PLOT_ZOOMER_H
 #define QWT_PLOT_ZOOMER_H
@@ -15864,11 +15907,41 @@ class QStack;
    - QwtEventPattern::MouseSelect2, QwtEventPattern::KeyHome\n
     Zoom to the zoom base
 
+     QwtPlotZoomer 根据用户输入（鼠标或键盘）选择矩形区域，
+     将其转换为绘图坐标，并相应地调整坐标轴。
+     选择操作由“橡皮筋”辅助，并可选择显示当前鼠标位置的坐标。
+     缩放操作可以无限次重复，仅受 maxStackDepth() 或 minZoomSize() 的限制。
+     每个矩形都会被压入一个堆栈中。
+     默认的矩形选择方式是一个 QwtPickerDragRectMachine，
+     其绑定方式如下：
+
+     - QwtEventPattern::MouseSelect1\n
+     缩放矩形的第一个点通过鼠标按下选择，第二个点则根据鼠标释放时的位置确定。
+
+     - QwtEventPattern::KeySelect1\n
+     第一次按键选择第一个点，第二次按键选择第二个点。
+
+     - QwtEventPattern::KeyAbort\n
+     在已选择第一个点的状态下，放弃当前选择。要遍历缩放堆栈，可使用以下绑定方式：
+
+    - QwtEventPattern::MouseSelect3, QwtEventPattern::KeyUndo\n
+    在缩放堆栈中后退一步（缩小）
+
+     - QwtEventPattern::MouseSelect6, QwtEventPattern::KeyRedo\n
+     在缩放堆栈中前进一步（放大）
+
+     - QwtEventPattern::MouseSelect2, QwtEventPattern::KeyHome\n
+     缩放到基准视图（完全缩小）
+
    The setKeyPattern() and setMousePattern() functions can be used
    to configure the zoomer actions. The following example
    shows, how to configure the 'I' and 'O' keys for zooming in and out
    one position on the zoom stack. The "Home" key is used to
    "unzoom" the plot.
+
+     可通过 setKeyPattern() 和 setMousePattern() 函数配置缩放器的行为。
+     以下示例展示了如何将 'I' 和 'O' 键配置为在缩放堆栈中前进和后退一步，
+     并使用 “Home” 键将绘图“取消缩放”到初始状态。
 
    \code
    zoomer = new QwtPlotZoomer( plot );
@@ -15880,6 +15953,9 @@ class QStack;
    QwtPlotZoomer is tailored for plots with one x and y axis, but it is
    allowed to attach a second QwtPlotZoomer ( without rubber band and tracker )
    for the other axes.
+
+    QwtPlotZoomer 专为具有一个 x 轴和一个 y 轴的绘图设计，
+    但也允许附加第二个 QwtPlotZoomer（不带橡皮筋和追踪器）用于其他轴。
 
    \note The realtime example includes an derived zoomer class that adds
         scrollbars to the plot canvas.
@@ -16505,7 +16581,7 @@ private:
 
 /*** End of inlined file: qwt_polar_marker.h ***/
 
-/*** Start of inlined file: qwt_polar_panner.h ***/
+/*** Start of inlined file: qwt_polar_cache_panner.h ***/
 #ifndef QWT_POLAR_PANNER_H
 #define QWT_POLAR_PANNER_H
 
@@ -16524,13 +16600,13 @@ class QwtPolarCanvas;
 
    \sa QwtPolarMagnifier
  */
-class QWT_EXPORT QwtPolarPanner : public QwtPanner
+class QWT_EXPORT QwtPolarCachePanner : public QwtCachePanner
 {
     Q_OBJECT
 
 public:
-    explicit QwtPolarPanner(QwtPolarCanvas*);
-    virtual ~QwtPolarPanner();
+    explicit QwtPolarCachePanner(QwtPolarCanvas*);
+    virtual ~QwtPolarCachePanner();
 
     QwtPolarPlot* plot();
     const QwtPolarPlot* plot() const;
@@ -16547,7 +16623,7 @@ protected:
 
 #endif
 
-/*** End of inlined file: qwt_polar_panner.h ***/
+/*** End of inlined file: qwt_polar_cache_panner.h ***/
 
 /*** Start of inlined file: qwt_polar_picker.h ***/
 #ifndef QWT_POLAR_PICKER_H
@@ -16973,7 +17049,7 @@ public:
     // Get all parasite plots associated with this host plot/获取与此宿主绘图关联的所有寄生绘图
     QList< QwtPlot* > parasitePlots() const;
     // 返回所有绘图,包含宿主绘图，descending=false,增序返回，宿主绘图在第一个，层级越低越靠前，如果descending=true，那么降序返回，宿主在最末端
-    QList< QwtPlot* > plotList(bool descending = true) const;
+    QList< QwtPlot* > plotList(bool descending = false) const;
     // 获取第n个宿主轴
     QwtPlot* parasitePlotAt(int index) const;
 
@@ -17032,6 +17108,12 @@ public:
     // 保存/恢复当前自动绘图设置的状态
     void saveAutoReplotState();
     void restoreAutoReplotState();
+    // 按像素平移指定坐标轴，注意，需要手动replot
+    void panAxis(QwtAxisId axisId, int deltaPixels);
+    // 移动canvas，移动canvas会导致所有轴都进行偏移，注意，需要手动replot
+    void panCanvas(const QPoint& offset);
+    // 对坐标轴进行缩放，注意，需要手动replot
+    void zoomAxis(QwtAxisId axisId, double factor, const QPoint& centerPosPixels);
 #if QWT_AXIS_COMPAT
     enum Axis { yLeft   = QwtAxis::YLeft,
                 yRight  = QwtAxis::YRight,
@@ -17077,6 +17159,7 @@ public Q_SLOTS:
     void autoRefresh();
     // 重绘所有绘图，包括寄生绘图或者宿主绘图
     virtual void replotAll();
+    void autoRefreshAll();
 
 protected:
     virtual void resizeEvent(QResizeEvent*) QWT_OVERRIDE;
@@ -17426,7 +17509,8 @@ public:
     explicit QwtPlotScaleEventDispatcher(QwtPlot* plot, QObject* par = nullptr);
     ~QwtPlotScaleEventDispatcher();
     bool isEnable() const;
-
+    // 获取 QwtScaleWidget 对应的轴 ID
+    static QwtAxisId findAxisIdByScaleWidget(const QwtPlot* plot, const QwtScaleWidget* scaleWidget);
 public Q_SLOTS:
     void updateCache();
     // 设置可用
@@ -17437,16 +17521,12 @@ protected:
     // 更新数据
     void rebuildCache();
     // 处理各种鼠标事件
-    virtual bool handleMousePress(QwtPlot* plot, QMouseEvent* e);
-    virtual bool handleMouseMove(QwtPlot* plot, QMouseEvent* e);
-    virtual bool handleMouseRelease(QwtPlot* plot, QMouseEvent* e);
-    virtual bool handleWheelEvent(QwtPlot* plot, QWheelEvent* e);
+    virtual bool handleMousePress(QwtPlot* bindPlot, QMouseEvent* e);
+    virtual bool handleMouseMove(QwtPlot* bindPlot, QMouseEvent* e);
+    virtual bool handleMouseRelease(QwtPlot* bindPlot, QMouseEvent* e);
+    virtual bool handleWheelEvent(QwtPlot* bindPlot, QWheelEvent* e);
     // 查找应该处理事件的 scale widget
     QwtScaleWidget* findTargetOnScale(const QPoint& pos);
-
-private:
-    bool handleScaleMousePan(QwtScaleWidget* scaleWidget, QMouseEvent* e);
-    bool handleScaleWheelZoom(QwtScaleWidget* scaleWidget, QWheelEvent* e);
 };
 
 #endif  // QWTPLOTSCALEEVENTDISPATCHER_H

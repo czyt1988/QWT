@@ -1,10 +1,12 @@
-#ifndef MAINWINDOW_H
+﻿#ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include <QMainWindow>
 #include "qwt_plot.h"
+#include "qwt_plot_panner.h"
 
 class QwtPlotSeriesDataPicker;
+
 namespace Ui
 {
 class MainWindow;
@@ -24,7 +26,9 @@ public:
 
 private:
     Ui::MainWindow* ui;
+    QwtPlot* m_plot;
     QwtPlotSeriesDataPicker* m_dataPicker;
+    QwtPlotPanner* m_panner;
 };
 
 #endif  // MAINWINDOW_H

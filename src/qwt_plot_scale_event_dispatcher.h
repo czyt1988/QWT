@@ -2,6 +2,7 @@
 #define QWTPLOTSCALEEVENTDISPATCHER_H
 #include <QObject>
 #include "qwt_global.h"
+#include "qwt_axis_id.h"
 class QMouseEvent;
 class QWheelEvent;
 class QwtPlot;
@@ -27,7 +28,8 @@ public:
     explicit QwtPlotScaleEventDispatcher(QwtPlot* plot, QObject* par = nullptr);
     ~QwtPlotScaleEventDispatcher();
     bool isEnable() const;
-
+    // 获取 QwtScaleWidget 对应的轴 ID
+    static QwtAxisId findAxisIdByScaleWidget(const QwtPlot* plot, const QwtScaleWidget* scaleWidget);
 public Q_SLOTS:
     void updateCache();
     // 设置可用
@@ -38,16 +40,12 @@ protected:
     // 更新数据
     void rebuildCache();
     // 处理各种鼠标事件
-    virtual bool handleMousePress(QwtPlot* plot, QMouseEvent* e);
-    virtual bool handleMouseMove(QwtPlot* plot, QMouseEvent* e);
-    virtual bool handleMouseRelease(QwtPlot* plot, QMouseEvent* e);
-    virtual bool handleWheelEvent(QwtPlot* plot, QWheelEvent* e);
+    virtual bool handleMousePress(QwtPlot* bindPlot, QMouseEvent* e);
+    virtual bool handleMouseMove(QwtPlot* bindPlot, QMouseEvent* e);
+    virtual bool handleMouseRelease(QwtPlot* bindPlot, QMouseEvent* e);
+    virtual bool handleWheelEvent(QwtPlot* bindPlot, QWheelEvent* e);
     // 查找应该处理事件的 scale widget
     QwtScaleWidget* findTargetOnScale(const QPoint& pos);
-
-private:
-    bool handleScaleMousePan(QwtScaleWidget* scaleWidget, QMouseEvent* e);
-    bool handleScaleWheelZoom(QwtScaleWidget* scaleWidget, QWheelEvent* e);
 };
 
 #endif  // QWTPLOTSCALEEVENTDISPATCHER_H

@@ -8,7 +8,7 @@
 #include <QMainWindow>
 
 class Plot;
-class QwtPolarPanner;
+class QwtPolarCachePanner;
 class QwtPolarMagnifier;
 
 class PlotBox : public QWidget
@@ -25,6 +25,6 @@ class PlotBox : public QWidget
 
   private:
     Plot* m_plot;
-    QwtPolarPanner* m_panner;
+    QwtPolarCachePanner* m_panner;
     QwtPolarMagnifier* m_zoomer;
 };
