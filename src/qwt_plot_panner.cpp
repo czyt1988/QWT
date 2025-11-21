@@ -120,7 +120,7 @@ public:
 
    \sa setAxisEnabled()
  */
-QwtPlotPanner::QwtPlotPanner(QWidget* canvas) : QwtPanner(canvas)
+QwtPlotPanner::QwtPlotPanner(QWidget* canvas) : QwtCachePanner(canvas)
 {
     m_data = new PrivateData();
     connect(this, &QwtPlotPanner::panned, this, &QwtPlotPanner::moveCanvas);
@@ -258,7 +258,7 @@ QBitmap QwtPlotPanner::contentsMask() const
     if (canvas())
         return qwtBorderMask(canvas(), size());
 
-    return QwtPanner::contentsMask();
+    return QwtCachePanner::contentsMask();
 }
 
 /*!
@@ -279,5 +279,5 @@ QPixmap QwtPlotPanner::grab() const
         return pm;
     }
 
-    return QwtPanner::grab();
+    return QwtCachePanner::grab();
 }

@@ -76,7 +76,7 @@
 #include "../../src/qwt_series_data.cpp"
 #include "../../src/qwt_picker_machine.cpp"
 #include "../../src/qwt_picker.cpp"
-#include "../../src/qwt_panner.cpp"
+#include "../../src/qwt_cache_panner.cpp"
 #include "../../src/qwt_utils.cpp"
 // plot items
 #include "../../src/qwt_plot_dict.cpp"

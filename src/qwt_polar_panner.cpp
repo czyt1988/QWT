@@ -13,7 +13,7 @@
 #include "qwt_point_polar.h"
 
 //! Create a plot panner for a polar plot canvas
-QwtPolarPanner::QwtPolarPanner(QwtPolarCanvas* canvas) : QwtPanner(canvas)
+QwtPolarPanner::QwtPolarPanner(QwtPolarCanvas* canvas) : QwtCachePanner(canvas)
 {
     connect(this, SIGNAL(panned(int, int)), SLOT(movePlot(int, int)));
 }
@@ -101,6 +101,6 @@ void QwtPolarPanner::widgetMousePressEvent(QMouseEvent* event)
     const QwtPolarPlot* plot = QwtPolarPanner::plot();
     if (plot) {
         if (plot->zoomFactor() < 1.0)
-            QwtPanner::widgetMousePressEvent(event);
+            QwtCachePanner::widgetMousePressEvent(event);
     }
 }

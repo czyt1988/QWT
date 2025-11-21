@@ -11,7 +11,7 @@
 #define QWT_PLOT_PANNER_H
 
 #include "qwt_global.h"
-#include "qwt_panner.h"
+#include "qwt_cache_panner.h"
 #include "qwt_axis_id.h"
 
 class QwtPlot;
@@ -29,12 +29,12 @@ class QwtPlot;
    \note The axes are not updated, while dragging the canvas
    \sa QwtPlotZoomer, QwtPlotMagnifier
  */
-class QWT_EXPORT QwtPlotPanner : public QwtPanner
+class QWT_EXPORT QwtPlotPanner : public QwtCachePanner
 {
     Q_OBJECT
 
-  public:
-    explicit QwtPlotPanner( QWidget* );
+public:
+    explicit QwtPlotPanner(QWidget*);
     virtual ~QwtPlotPanner();
 
     QWidget* canvas();
@@ -43,17 +43,17 @@ class QWT_EXPORT QwtPlotPanner : public QwtPanner
     QwtPlot* plot();
     const QwtPlot* plot() const;
 
-    void setAxisEnabled( QwtAxisId axisId, bool on );
-    bool isAxisEnabled( QwtAxisId ) const;
+    void setAxisEnabled(QwtAxisId axisId, bool on);
+    bool isAxisEnabled(QwtAxisId) const;
 
-  public Q_SLOTS:
-    virtual void moveCanvas( int dx, int dy );
+public Q_SLOTS:
+    virtual void moveCanvas(int dx, int dy);
 
-  protected:
+protected:
     virtual QBitmap contentsMask() const QWT_OVERRIDE;
     virtual QPixmap grab() const QWT_OVERRIDE;
 
-  private:
+private:
     class PrivateData;
     PrivateData* m_data;
 };

@@ -10,7 +10,7 @@
 #define QWT_POLAR_PANNER_H
 
 #include "qwt_global.h"
-#include "qwt_panner.h"
+#include "qwt_cache_panner.h"
 
 class QwtPolarPlot;
 class QwtPolarCanvas;
@@ -27,12 +27,12 @@ class QwtPolarCanvas;
 
    \sa QwtPolarMagnifier
  */
-class QWT_EXPORT QwtPolarPanner : public QwtPanner
+class QWT_EXPORT QwtPolarPanner : public QwtCachePanner
 {
     Q_OBJECT
 
-  public:
-    explicit QwtPolarPanner( QwtPolarCanvas* );
+public:
+    explicit QwtPolarPanner(QwtPolarCanvas*);
     virtual ~QwtPolarPanner();
 
     QwtPolarPlot* plot();
@@ -41,11 +41,11 @@ class QWT_EXPORT QwtPolarPanner : public QwtPanner
     QwtPolarCanvas* canvas();
     const QwtPolarCanvas* canvas() const;
 
-  public Q_SLOTS:
-    virtual void movePlot( int dx, int dy );
+public Q_SLOTS:
+    virtual void movePlot(int dx, int dy);
 
-  protected:
-    virtual void widgetMousePressEvent( QMouseEvent* ) QWT_OVERRIDE;
+protected:
+    virtual void widgetMousePressEvent(QMouseEvent*) QWT_OVERRIDE;
 };
 
 #endif

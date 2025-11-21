@@ -83,7 +83,7 @@
 #include "../../src/qwt_magnifier.h"
 #include "../../src/qwt_picker_machine.h"
 #include "../../src/qwt_picker.h"
-#include "../../src/qwt_panner.h"
+#include "../../src/qwt_cache_panner.h"
 #include "../../src/qwt_plot_renderer.h"
 #include "../../src/qwt_polar_renderer.h"
 // plot items

@@ -90,7 +90,7 @@ set(QWT_HEADER_BASE
         qwt_null_paintdevice.h
         qwt_painter.h
         qwt_painter_command.h
-        qwt_panner.h
+        qwt_cache_panner.h
         qwt_picker.h
         qwt_picker_machine.h
         qwt_pixel_matrix.h
@@ -140,7 +140,7 @@ set(QWT_SOURCE_BASE
         qwt_null_paintdevice.cpp
         qwt_painter.cpp
         qwt_painter_command.cpp
-        qwt_panner.cpp
+        qwt_cache_panner.cpp
         qwt_picker.cpp
         qwt_picker_machine.cpp
         qwt_pixel_matrix.cpp

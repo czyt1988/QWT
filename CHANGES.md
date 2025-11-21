@@ -1,3 +1,11 @@
+## tag:v7.0.7
+
+- 原来`QwtPanner`类改名为`QwtCachePanner`,代表带缓存的`Panner`。Qwt6.0的Panner为了避免频繁刷新使用了一个pixmap进行缓存，因此把这类Panner统称为`CachePanner`
+	- 同步`QwtPlotPanner`类改名为`QwtPlotCachePanner`
+	- 同步`QwtPolarPanner`类改名为`QwtPolarCachePanner` 
+- 重写`QwtPlotPanner`类，继承`QwtPicker`，可实现拖动过程能实时刷新，如果想要原来的带缓存的panner，可使用`CachePanner`相关类
+- `Zoomer`支持多坐标轴
+
 ## tag:v7.0.6
 
 - 新增`QwtPlotSeriesDataPicker`类，提供了绘图数据的拾取
