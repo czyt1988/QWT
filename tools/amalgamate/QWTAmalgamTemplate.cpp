@@ -76,6 +76,7 @@
 #include "../../src/qwt_series_data.cpp"
 #include "../../src/qwt_picker_machine.cpp"
 #include "../../src/qwt_picker.cpp"
+#include "../../src/qwt_canvas_picker.cpp"
 #include "../../src/qwt_cache_panner.cpp"
 #include "../../src/qwt_utils.cpp"
 // plot items
@@ -114,7 +115,8 @@
 #include "../../src/qwt_plot_vectorfield.cpp"
 #include "../../src/qwt_plot_panner.cpp"
 #include "../../src/qwt_plot_zoneitem.cpp"
-#include "../../src/qwt_plot_zoomer.cpp"
+#include "../../src/qwt_plot_axis_zoomer.cpp"
+#include "../../src/qwt_plot_canvas_zoomer.cpp"
 //polar items
 #include "../../src/qwt_polar_canvas.cpp"
 #include "../../src/qwt_polar_item.cpp"

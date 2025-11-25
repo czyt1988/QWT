@@ -2083,53 +2083,18 @@ void QwtPlot::panAxis(QwtAxisId axisId, int deltaPixels)
     }
 
     // 获取坐标轴的映射和当前范围
-    const QwtScaleDraw* sd        = axisScaleDraw(axisId);
-    const QwtScaleMap& map        = sd->scaleMap();
-    const QwtScaleDiv& currentDiv = sd->scaleDiv();
-    double currentMin             = currentDiv.lowerBound();
-    double currentMax             = currentDiv.upperBound();
-    //! panAxis分两种情况，第一种，对于线性坐标，只要以点来变换即可，
-    //! 但对于对数坐标，为了保证平移之后，在观察者的角度是“平移”，需要轴的前后端同步移动同样像素
-    bool isLiner = QwtScaleMap::isLinerScale(map);
-
-    if (isLiner) {
-        // 线性坐标轴，变换简单，只需处理一个点的偏移，两个端点同步偏移即可
-        // 对于垂直轴，需要考虑坐标方向
-        // 数学坐标系：向上移动应该是正值，但屏幕坐标系向下移动是正值
-        // 所以需要取反
-        // 水平轴向右移动，实际是刻度在减，也是负值，因此这里都是负值
-        const double valueDist = map.invTransform(-deltaPixels) - map.invTransform(0);
-        setAxisScale(axisId, currentMin + valueDist, currentMax + valueDist);
-    } else {
-        // 非线性，则要计算两段
-        //  获取画布尺寸
-        double scalePixelsLength = sd->length();
-        if (scalePixelsLength <= 0) {
-            return;
-        }
-        double valueDistMin = 0;
-        double valueDistMax = 0;
-        if (QwtAxis::isXAxis(axisId)) {
-            // 水平轴：向右移动为正，数据向左移动
-            valueDistMin = map.invTransform(-deltaPixels) - map.invTransform(0);
-            valueDistMax = map.invTransform(scalePixelsLength - deltaPixels) - map.invTransform(scalePixelsLength);
-            // 对于对数坐标轴，非常容易移动到非常小的情况，这时不要让它再移动，会导致显示异常
-            if (qFuzzyCompare(valueDistMin, valueDistMax)) {
-                return;
-            }
-
-        } else {
-            // 垂直轴：向下移动为正，数据向上移动
-            // 注意：垂直轴的像素坐标是从上到下的，与数据坐标方向相反
-            // 所以计算方式需要调整
-            valueDistMin = map.invTransform(scalePixelsLength) - map.invTransform(scalePixelsLength + deltaPixels);
-            valueDistMax = map.invTransform(0) - map.invTransform(deltaPixels);
-        }
-        if (qFuzzyIsNull(qAbs(valueDistMax - valueDistMin))) {
-            return;
-        }
-        setAxisScale(axisId, currentMin + valueDistMin, currentMax + valueDistMax);
-    }
+    const QwtScaleDraw* sd      = axisScaleDraw(axisId);
+    const QwtScaleMap& scaleMap = sd->scaleMap();
+    // p1和p2是绘图尺寸的边界
+    double minValue = scaleMap.p1();
+    double maxValue = scaleMap.p2();
+    // 把绘图距离偏移deltaPixels,这里手动移动
+    minValue -= deltaPixels;
+    maxValue -= deltaPixels;
+    // 转换回scale坐标系
+    minValue = scaleMap.invTransform(minValue);
+    maxValue = scaleMap.invTransform(maxValue);
+    setAxisScale(axisId, minValue, maxValue);
 }
 
 /**
@@ -2153,7 +2118,7 @@ void QwtPlot::panCanvas(const QPoint& offset)
     for (int axis = 0; axis < QwtPlot::axisCnt; axis++) {
         // 根据坐标轴类型选择相应的偏移分量
         if (QwtAxis::isXAxis(axis)) {
-            // 水平轴使用x偏移量
+            // 水平轴使用x偏移量，由于手动移动坐标轴
             panAxis(axis, offset.x());
         } else {
             // 垂直轴使用y偏移量（注意方向处理）
@@ -2179,56 +2144,41 @@ void QwtPlot::zoomAxis(QwtAxisId axisId, double factor, const QPoint& centerPosP
     if (!QwtAxis::isValid(axisId)) {
         return;
     }
-    const QwtScaleDraw* sd        = axisScaleDraw(axisId);
-    const QwtScaleMap& scaleMap   = sd->scaleMap();
-    const QwtScaleDiv& currentDiv = sd->scaleDiv();
-    double currentMin             = currentDiv.lowerBound();
-    double currentMax             = currentDiv.upperBound();
-
+    const QwtScaleMap& scaleMap = canvasMap(axisId);
+    double currentMin           = scaleMap.s1();  // s1,s2是当前实际点的值
+    double currentMax           = scaleMap.s2();
+    double center               = QwtAxis::isXAxis(axisId) ? centerPosPixels.x() : centerPosPixels.y();
     // 判断是否为线性坐标
-    bool isLinear = QwtScaleMap::isLinerScale(scaleMap);
-
-    double centerValue { 0 };
-    if (QwtAxis::isXAxis(axisId)) {
-        centerValue = scaleMap.invTransform(centerPosPixels.x());
+    const QwtTransform* tm = scaleMap.transformation();
+    if (tm) {
+        // 非线性坐标，把数据转换到屏幕坐标系上(transform)，这样就能绝对线性
+        currentMin = scaleMap.transform(currentMin);
+        currentMax = scaleMap.transform(currentMax);
     } else {
-        centerValue = scaleMap.invTransform(centerPosPixels.y());
+        // 对于线性轴，把屏幕的中心点转换为数据的中心点(invTransform)
+        center = scaleMap.invTransform(center);
     }
-    if (isLinear) {
-        // 线性坐标缩放
-        // 计算缩放后的范围
-        // 原理：以鼠标位置为中心，将距离缩放 factor 倍
-        // 计算新的最小值和最大值，保持中心点不变
-        double newMin = centerValue - (centerValue - currentMin) / factor;
-        double newMax = centerValue + (currentMax - centerValue) / factor;
+    // 把center限制在currentMin~currentMax之间，为了兼容c++11,这里不使用clamp，
+    // 如果后续明确要求c++17及以上，可改为center = std::clamp(center, currentMin, currentMax);
+    center = std::max(currentMin, std::min(center, currentMax));
 
-        // 边界检查
-        if (newMin >= newMax) {
-            return;  // 无效范围
-        }
-
-        setAxisScale(axisId, newMin, newMax);
-    } else {
-        // 对数坐标缩放
-        // 将对数坐标转换为线性域进行计算
-        double logMin = log10(currentMin);
-        double logMax = log10(currentMax);
-        // 计算中心点的对数值
-        double logCenter = log10(centerValue);
-
-        // 在对数域进行缩放计算
-        double newLogMin = logCenter - (logCenter - logMin) / factor;
-        double newLogMax = logCenter + (logMax - logCenter) / factor;
-
-        // 转换回数据域
-        double newMin = pow(10.0, newLogMin);
-        double newMax = pow(10.0, newLogMax);
-
-        // 边界检查
-        if (newMin <= 0 || newMax <= 0 || newMin >= newMax) {
-            return;  // 无效范围
-        }
-
-        setAxisScale(axisId, newMin, newMax);
+    currentMin = center - (center - currentMin) / factor;
+    currentMax = center + (currentMax - center) / factor;
+    // 边界检查
+    if (currentMin >= currentMax) {
+        return;  // 无效范围
     }
+
+    if (tm) {
+        currentMin = scaleMap.invTransform(currentMin);
+        currentMax = scaleMap.invTransform(currentMax);
+        // 避免数值过小，对应log坐标，这个会返回一个合理范围
+        currentMin = tm->bounded(currentMin);
+        currentMax = tm->bounded(currentMax);
+        if (qFuzzyCompare(currentMin, currentMax)) {
+            // 说明缩放到两个点及其接近
+            currentMax = currentMin + 1e-8;
+        }
+    }
+    setAxisScale(axisId, currentMin, currentMax);
 }

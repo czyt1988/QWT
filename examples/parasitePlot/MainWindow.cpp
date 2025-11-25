@@ -9,8 +9,12 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QLabel>
 
 #include "qwt_plot_series_data_picker.h"
+#include "qwt_plot_panner.h"
+#include "qwt_plot_canvas_zoomer.h"
+#include "qwt_plot_magnifier.h"
 // 生成示例数据
 QVector< QPointF > generateSampleData(int count = 100, double amplitude = 1.0, double frequency = 1.0)
 {
@@ -55,13 +59,16 @@ void setupPlotStyle(QwtPlot* plot, const QString& title, const QColor& color)
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    mStatusBarLabel = new QLabel();
+    ui->statusbar->addWidget(mStatusBarLabel);
+    // create plot
     QPalette pal = ui->centralwidget->palette();
     pal.setColor(QPalette::Window, Qt::white);
     ui->centralwidget->setPalette(pal);
     ui->centralwidget->setAutoFillBackground(true);
     QVBoxLayout* mainLayout = new QVBoxLayout(ui->centralwidget);
     m_plot                  = createPlot(ui->centralwidget);
-    createToolBar(m_plot);
+    createToolBar();
     // 添加布局
     mainLayout->addWidget(m_plot);
 }
@@ -153,11 +160,18 @@ QwtPlot* MainWindow::createPlot(QWidget* par)
     m_dataPicker->setEnabled(false);
     // panner
     m_panner = new QwtPlotPanner(hostPlot->canvas());
+    m_panner->setMouseButton(Qt::MiddleButton);
     m_panner->setEnabled(false);
+    // zoomer
+    m_zoomer = new QwtPlotCanvasZoomer(hostPlot->canvas());
+    m_zoomer->setEnabled(false);
+    //
+    m_magnifier = new QwtPlotMagnifier(hostPlot->canvas());
+    m_magnifier->setEnabled(false);
     return hostPlot;
 }
 
-void MainWindow::createToolBar(QwtPlot* hostplot)
+void MainWindow::createToolBar()
 {
     QActionGroup* group    = new QActionGroup(this);
     QAction* actPickYValue = ui->toolBar->addAction("Pick Y Value");
@@ -187,5 +201,29 @@ void MainWindow::createToolBar(QwtPlot* hostplot)
 
     QAction* actPanner = ui->toolBar->addAction("Panner");
     actPanner->setCheckable(true);
-    connect(actPanner, &QAction::triggered, this, [ this ](bool on) { this->m_panner->setEnabled(on); });
+    connect(actPanner, &QAction::triggered, this, [ this ](bool on) {
+        this->m_panner->setEnabled(on);
+        if (on) {
+            this->mStatusBarLabel->setText(tr("Use the middle mouse button to drag the canvas"));  // cn:使用鼠标左键拖动画布
+        }
+    });
+
+    QAction* actZoomer = ui->toolBar->addAction("Zoomer");
+    actZoomer->setCheckable(true);
+    connect(actZoomer, &QAction::triggered, this, [ this ](bool on) {
+        this->m_zoomer->setEnabled(on);
+        if (on) {
+            mStatusBarLabel->setText(
+                tr("Use the mouse to drag a selection box on the canvas to zoom into the selected area."));  // cn:使用鼠标在画布中框选要缩放的区域进行缩放
+        }
+    });
+
+    QAction* actMagnifier = ui->toolBar->addAction("Magnifier");
+    actMagnifier->setCheckable(true);
+    connect(actMagnifier, &QAction::triggered, this, [ this ](bool on) {
+        this->m_magnifier->setEnabled(on);
+        if (on) {
+            mStatusBarLabel->setText(tr("Use the mouse wheel to zoom the canvas.."));  // cn:使用鼠标滚轮缩放画布
+        }
+    });
 }

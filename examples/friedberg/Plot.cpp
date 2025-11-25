@@ -6,7 +6,7 @@
 #include "Plot.h"
 #include "Friedberg2007.h"
 
-#include <QwtPlotZoomer>
+#include "qwt_plot_axis_zoomer.h"
 #include <QwtPlotPanner>
 #include <QwtPlotGrid>
 #include <QwtPlotCurve>
@@ -111,7 +111,7 @@ Plot::Plot(QWidget* parent) : QwtPlot(parent)
         Ctrl+RighButton: zoom out to full size
      */
 
-    QwtPlotZoomer* zoomer = new QwtPlotZoomer(canvas);
+    QwtPlotAxisZoomer* zoomer = new QwtPlotAxisZoomer(canvas);
     zoomer->setRubberBandPen(QColor(Qt::black));
     zoomer->setTrackerPen(QColor(Qt::black));
     zoomer->setMousePattern(QwtEventPattern::MouseSelect2, Qt::RightButton, Qt::ControlModifier);

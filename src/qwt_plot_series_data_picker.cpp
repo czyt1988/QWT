@@ -1,4 +1,8 @@
-﻿#include "qwt_plot_series_data_picker.h"
+﻿/******************************************************************************
+ * Qwt Widget Library
+ * Copyright (C) 2024   ChenZongYan <czy.t@163.com>
+ *****************************************************************************/
+#include "qwt_plot_series_data_picker.h"
 // stl
 #include <algorithm>
 #include <limits>
@@ -187,46 +191,18 @@ QwtPlotSeriesDataPicker::PrivateData::PrivateData(QwtPlotSeriesDataPicker* p) : 
 // QwtPlotSeriesDataPicker
 //===============================================================
 
-QwtPlotSeriesDataPicker::QwtPlotSeriesDataPicker(QWidget* canvas) : QwtPicker(canvas), QWT_PIMPL_CONSTRUCT
+QwtPlotSeriesDataPicker::QwtPlotSeriesDataPicker(QWidget* canvas) : QwtCanvasPicker(canvas), QWT_PIMPL_CONSTRUCT
 {
     // 设置追踪模式，始终显示追踪信息
-    setTrackerMode(QwtPlotPicker::ActiveOnly);
+    setTrackerMode(QwtPicker::ActiveOnly);
     // 设置橡皮筋为垂直线
-    setRubberBand(QwtPlotPicker::UserRubberBand);
+    setRubberBand(QwtPicker::UserRubberBand);
     // 设置状态机，用于点选择
     setStateMachine(new QwtPickerTrackerMachine);
 }
 
 QwtPlotSeriesDataPicker::~QwtPlotSeriesDataPicker()
 {
-}
-
-QwtPlot* QwtPlotSeriesDataPicker::plot()
-{
-    QWidget* w = canvas();
-    if (w)
-        w = w->parentWidget();
-
-    return qobject_cast< QwtPlot* >(w);
-}
-
-const QwtPlot* QwtPlotSeriesDataPicker::plot() const
-{
-    const QWidget* w = canvas();
-    if (w)
-        w = w->parentWidget();
-
-    return qobject_cast< const QwtPlot* >(w);
-}
-
-QWidget* QwtPlotSeriesDataPicker::canvas()
-{
-    return parentWidget();
-}
-
-const QWidget* QwtPlotSeriesDataPicker::canvas() const
-{
-    return parentWidget();
 }
 
 /**

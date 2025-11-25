@@ -9,9 +9,28 @@
 	![series-data-picker-yvalue](./docs/assets/screenshots/qwt-realtime-panner.gif)
 	
 - 重写`QwtPlotPanner`类，继承`QwtPicker`，可实现拖动过程能实时刷新，如果想要原来的带缓存的panner，可使用`CachePanner`相关类
-- `QwtPlotZoomer`支持线性坐标轴、对数坐标轴、多坐标轴的实时平移
-- `Zoomer`支持多坐标轴
+- 新增`QwtCanvasPicker`针对canvas的picker操作都继承此类
+- `QwtPlotPanner`支持线性坐标轴、对数坐标轴、多坐标轴的实时平移
+- 针对`QwtPlotZoomer`只能绑定2个坐标轴问题，新增`QwtPlotCanvasZoomer`类
+	- `QwtPlotCanvasZoomer`无需绑定坐标轴，直接对整个cavas进行缩放
+	- `QwtPlotCanvasZoomer`支持多坐标轴的缩放
+- 原`QwtPlotZoomer`更名为`QwtPlotAxisZoomer`
 - `QwtPlotSeriesDataPicker`将直接继承`QwtPicker`，不再继承`QwtPlotPicker`
+- `QwtPlotMagnifier`支持多坐标轴的缩放
+- `QwtScaleMap`增加移动语义
+- 新增`make-classinclude.py`,可以导出`classincludes`目录，使用方法见`make-classinclude.py`
+--
+
+v7.0.7对Qwt的命名进行了调整
+
+|原名称|新名称|备注|
+|:--|:--|:--|
+|QwtPlotZoomer|QwtPlotAxisZoomer|由于原QwtPlotZoomer只能绑定2个坐标轴，故改名为QwtPlotAxisZoomer|
+|新增|QwtPlotCanvasZoomer|针对整个画布缩放的zoomer|
+|QwtPanner|QwtCachePanner|原Panner无法实时拖动，故名Cache Panner|
+|QwtPlotPanner|QwtPlotCachePanner|原Panner无法实时拖动，故名Cache Panner|
+|QwtPolarPanner|QwtPolarCachePanner|原Panner无法实时拖动，故名Cache Panner|
+|新增|QwtPlotPanner|原QwtPlotPanner改名为QwtPlotCachePanner后新增QwtPlotPanner|
 
 ## tag:v7.0.6
 

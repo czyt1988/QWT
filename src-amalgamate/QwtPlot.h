@@ -1,4 +1,4 @@
-﻿#ifndef QWTPLOT_AMALGAM_H
+#ifndef QWTPLOT_AMALGAM_H
 #define QWTPLOT_AMALGAM_H
 
 /*** Start of inlined file: QWTAmalgamTemplatePublicHeaders.h ***/
@@ -1004,6 +1004,7 @@ public:
 
     double minValue() const;
     double maxValue() const;
+    double centerValue() const;
 
     double width() const;
     long double widthL() const;
@@ -1134,6 +1135,11 @@ inline double QwtInterval::maxValue() const
     return m_maxValue;
 }
 
+//! \return center the interval
+inline double QwtInterval::centerValue() const
+{
+    return isValid() ? (m_minValue + (m_maxValue - m_minValue) * 0.5) : 0.0;
+}
 /*!
    A interval is valid when minValue() <= maxValue().
    In case of QwtInterval::ExcludeBorders it is true
@@ -1759,10 +1765,13 @@ class QWT_EXPORT QwtScaleMap
 public:
     QwtScaleMap();
     QwtScaleMap(const QwtScaleMap&);
+    // 新增移动语义
+    QwtScaleMap(QwtScaleMap&&);
 
     ~QwtScaleMap();
 
     QwtScaleMap& operator=(const QwtScaleMap&);
+    QwtScaleMap& operator=(QwtScaleMap&&);
 
     void setTransformation(QwtTransform*);
     const QwtTransform* transformation() const;
@@ -1795,6 +1804,8 @@ public:
 
     bool isInverting() const;
 
+protected:
+    void swap(QwtScaleMap& other) noexcept;  // 辅助
 private:
     void updateFactor();
 
@@ -11899,6 +11910,40 @@ private:
 
 /*** End of inlined file: qwt_picker.h ***/
 
+/*** Start of inlined file: qwt_canvas_picker.h ***/
+#ifndef QWTCANVASPICKER_H
+#define QWTCANVASPICKER_H
+
+// qt
+class QWidget;
+// qwt
+class QwtPlot;
+
+/**
+ * @brief 专门针对 canvas 的 picker 基类 / Base picker class specifically for canvas
+ *
+ * 提供 canvas 和 plot 的便捷访问方法，作为其他 canvas 相关工具的基类。
+ * Provides convenient access methods for canvas and plot, serving as a base class
+ * for other canvas-related tools.
+ */
+class QWT_EXPORT QwtCanvasPicker : public QwtPicker
+{
+    Q_OBJECT
+public:
+    explicit QwtCanvasPicker(QWidget* canvas);
+    ~QwtCanvasPicker();
+
+    QwtPlot* plot();
+    const QwtPlot* plot() const;
+
+    QWidget* canvas();
+    const QWidget* canvas() const;
+};
+
+#endif  // QWTCANVASPICKER_H
+
+/*** End of inlined file: qwt_canvas_picker.h ***/
+
 /*** Start of inlined file: qwt_cache_panner.h ***/
 #ifndef QWT_CACHE_PANNER_H
 #define QWT_CACHE_PANNER_H
@@ -14736,7 +14781,7 @@ class QwtPlotItem;
 /**
  * @brief 这是一个绘图数据拾取显示类，用于显示当前的y值，或者显示最近点
  */
-class QWT_EXPORT QwtPlotSeriesDataPicker : public QwtPicker
+class QWT_EXPORT QwtPlotSeriesDataPicker : public QwtCanvasPicker
 {
     Q_OBJECT
     QWT_DECLARE_PRIVATE(QwtPlotSeriesDataPicker)
@@ -14773,12 +14818,6 @@ public:
 public:
     explicit QwtPlotSeriesDataPicker(QWidget* canvas);
     ~QwtPlotSeriesDataPicker();
-
-    QwtPlot* plot();
-    const QwtPlot* plot() const;
-
-    QWidget* canvas();
-    const QWidget* canvas() const;
 
     // 拾取模式
     void setPickMode(PickSeriesMode mode);
@@ -15862,18 +15901,18 @@ private:
 
 /*** End of inlined file: qwt_plot_panner.h ***/
 
-/*** Start of inlined file: qwt_plot_zoomer.h ***/
-#ifndef QWT_PLOT_ZOOMER_H
-#define QWT_PLOT_ZOOMER_H
+/*** Start of inlined file: qwt_plot_axis_zoomer.h ***/
+#ifndef QWT_PLOT_AXIS_ZOOMER_H
+#define QWT_PLOT_AXIS_ZOOMER_H
 
 class QSizeF;
 template< typename T >
 class QStack;
 
 /*!
-   \brief QwtPlotZoomer provides stacked zooming for a plot widget
+   \brief QwtAxisZoomer provides stacked zooming for a plot widget
 
-   QwtPlotZoomer selects rectangles from user inputs ( mouse or keyboard )
+   QwtAxisZoomer selects rectangles from user inputs ( mouse or keyboard )
    translates them into plot coordinates and adjusts the axes to them.
    The selection is supported by a rubber band and optionally by displaying
    the coordinates of the current mouse position.
@@ -15907,7 +15946,7 @@ class QStack;
    - QwtEventPattern::MouseSelect2, QwtEventPattern::KeyHome\n
     Zoom to the zoom base
 
-     QwtPlotZoomer 根据用户输入（鼠标或键盘）选择矩形区域，
+     QwtAxisZoomer 根据用户输入（鼠标或键盘）选择矩形区域，
      将其转换为绘图坐标，并相应地调整坐标轴。
      选择操作由“橡皮筋”辅助，并可选择显示当前鼠标位置的坐标。
      缩放操作可以无限次重复，仅受 maxStackDepth() 或 minZoomSize() 的限制。
@@ -15944,32 +15983,32 @@ class QStack;
      并使用 “Home” 键将绘图“取消缩放”到初始状态。
 
    \code
-   zoomer = new QwtPlotZoomer( plot );
+   zoomer = new QwtAxisZoomer( plot );
    zoomer->setKeyPattern( QwtEventPattern::KeyRedo, Qt::Key_I, Qt::ShiftModifier );
    zoomer->setKeyPattern( QwtEventPattern::KeyUndo, Qt::Key_O, Qt::ShiftModifier );
    zoomer->setKeyPattern( QwtEventPattern::KeyHome, Qt::Key_Home );
    \endcode
 
-   QwtPlotZoomer is tailored for plots with one x and y axis, but it is
-   allowed to attach a second QwtPlotZoomer ( without rubber band and tracker )
+   QwtAxisZoomer is tailored for plots with one x and y axis, but it is
+   allowed to attach a second QwtAxisZoomer ( without rubber band and tracker )
    for the other axes.
 
-    QwtPlotZoomer 专为具有一个 x 轴和一个 y 轴的绘图设计，
-    但也允许附加第二个 QwtPlotZoomer（不带橡皮筋和追踪器）用于其他轴。
+    QwtAxisZoomer 专为具有一个 x 轴和一个 y 轴的绘图设计，
+    但也允许附加第二个 QwtAxisZoomer（不带橡皮筋和追踪器）用于其他轴。
 
    \note The realtime example includes an derived zoomer class that adds
         scrollbars to the plot canvas.
 
    \sa QwtPlotPanner, QwtPlotMagnifier
  */
-class QWT_EXPORT QwtPlotZoomer : public QwtPlotPicker
+class QWT_EXPORT QwtPlotAxisZoomer : public QwtPlotPicker
 {
     Q_OBJECT
 public:
-    explicit QwtPlotZoomer(QWidget*, bool doReplot = true);
-    explicit QwtPlotZoomer(QwtAxisId xAxis, QwtAxisId yAxis, QWidget*, bool doReplot = true);
+    explicit QwtPlotAxisZoomer(QWidget*, bool doReplot = true);
+    explicit QwtPlotAxisZoomer(QwtAxisId xAxis, QwtAxisId yAxis, QWidget*, bool doReplot = true);
 
-    virtual ~QwtPlotZoomer();
+    virtual ~QwtPlotAxisZoomer();
 
     virtual void setZoomBase(bool doReplot = true);
     virtual void setZoomBase(const QRectF&);
@@ -16025,7 +16064,125 @@ private:
 
 #endif
 
-/*** End of inlined file: qwt_plot_zoomer.h ***/
+/*** End of inlined file: qwt_plot_axis_zoomer.h ***/
+
+/*** Start of inlined file: qwt_plot_canvas_zoomer.h ***/
+#ifndef QWT_PLOT_CANVAS_ZOOMER_H
+#define QWT_PLOT_CANVAS_ZOOMER_H
+
+#include <QPointer>
+// Qt
+class QSizeF;
+template< typename T >
+class QStack;
+// Qwt
+class QwtPlot;
+
+/**
+ * @brief 存储所有四个坐标轴缩放状态的结构体
+ */
+struct QWT_EXPORT QwtPlotCanvasZoomState
+{
+public:
+    QwtPlotCanvasZoomState();
+    QwtPlotCanvasZoomState(QwtPlot* p,
+                           const QwtInterval& yLeft,
+                           const QwtInterval& yRight,
+                           const QwtInterval& xBottom,
+                           const QwtInterval& xTop);
+    // 从plot获取当前所有坐标轴的状态
+    static QwtPlotCanvasZoomState fromPlot(QwtPlot* plot);
+
+    // 将状态应用到plot
+    void apply() const;
+
+    // 判断两个状态是否相等
+    bool operator==(const QwtPlotCanvasZoomState& other) const;
+    bool operator!=(const QwtPlotCanvasZoomState& other) const;
+
+    // 检查状态是否有效
+    bool isValid() const;
+
+public:
+    QPointer< QwtPlot > plot;
+    QwtInterval axisInterval[ QwtAxis::AxisPositions ];
+};
+Q_DECLARE_METATYPE(QwtPlotCanvasZoomState)
+
+/*!
+   \brief QwtCanvasZoomer provides zooming for all axes of a plot canvas
+
+   QwtCanvasZoomer selects rectangles from user inputs (mouse or keyboard)
+   and adjusts ALL axes of the plot simultaneously. Unlike QwtPlotZoomer which
+   only works on two axes, this zoomer works on the entire canvas and maintains
+   separate ranges for all four axes.
+
+   The selection is supported by a rubber band and optionally by displaying
+   the coordinates of the current mouse position.
+
+   Zooming can be repeated as often as possible, limited only by
+   maxStackDepth() or minZoomSize(). Each zoom state is pushed on a stack.
+
+   \sa QwtPlotPanner, QwtPlotMagnifier
+ */
+class QWT_EXPORT QwtPlotCanvasZoomer : public QwtCanvasPicker
+{
+    Q_OBJECT
+    QWT_DECLARE_PRIVATE(QwtPlotCanvasZoomer)
+public:
+    explicit QwtPlotCanvasZoomer(QWidget* canvas, bool doReplot = true);
+    virtual ~QwtPlotCanvasZoomer();
+
+    // 设置缩放基准状态（当前所有坐标轴的范围），最小缩放范围会基于此基准进行计算
+    virtual void setZoomBase(bool doReplot = true);
+
+    // 获取基准缩放状态
+    QList< QwtPlotCanvasZoomState > zoomBase() const;
+    // 获取当前缩放状态
+    QList< QwtPlotCanvasZoomState > zoomState() const;
+    // zoomer记录的最大的缩放次数，如果超过这个次数，不会再让缩放,-1为不限制次数
+    void setMaxStackDepth(int);
+    int maxStackDepth() const;
+    // 缩放栈
+    const QStack< QList< QwtPlotCanvasZoomState > >& zoomStack() const;
+
+    uint zoomStateIndex() const;
+
+public Q_SLOTS:
+    // 通过索引在缩放栈中导航
+    virtual void zoom(int offset);
+    virtual void appendZoom(const QList< QwtPlotCanvasZoomState >& rect);
+Q_SIGNALS:
+    /*!
+       A signal emitted when the plot has been zoomed in or out.
+       \param state Current zoom state containing all axis ranges.
+     */
+    void zoomed(const QList< QwtPlotCanvasZoomState >& state);
+
+protected:
+    virtual void rescale();
+
+    virtual void widgetMouseReleaseEvent(QMouseEvent*) QWT_OVERRIDE;
+    virtual void widgetKeyPressEvent(QKeyEvent*) QWT_OVERRIDE;
+
+    virtual void begin() QWT_OVERRIDE;
+    virtual bool end(bool ok = true) QWT_OVERRIDE;
+    virtual bool accept(QPolygon&) const QWT_OVERRIDE;
+
+private:
+    void init(bool doReplot);
+
+    // 将画布上的像素矩形转换为四个坐标轴的缩放状态
+    QList< QwtPlotCanvasZoomState > canvasRectToZoomStateList(const QRect& pixelRect) const;
+    // 将画布上的像素矩形转换为四个坐标轴的缩放状态
+    QwtPlotCanvasZoomState canvasRectToZoomState(QwtPlot* plt, const QRect& pixelRect) const;
+    // 移动当前缩放状态
+    void moveCurrentState(double dx, double dy);
+};
+
+#endif  // QWTCANVASZOOMER_H
+
+/*** End of inlined file: qwt_plot_canvas_zoomer.h ***/
 
 // polar items
 

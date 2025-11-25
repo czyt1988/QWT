@@ -3,10 +3,11 @@
 
 #include <QMainWindow>
 #include "qwt_plot.h"
-#include "qwt_plot_panner.h"
-
+class QLabel;
 class QwtPlotSeriesDataPicker;
-
+class QwtPlotPanner;
+class QwtPlotCanvasZoomer;
+class QwtPlotMagnifier;
 namespace Ui
 {
 class MainWindow;
@@ -22,13 +23,16 @@ public:
     // 创建绘图
     QwtPlot* createPlot(QWidget* par);
     // 创建工具栏
-    void createToolBar(QwtPlot* hostplot);
+    void createToolBar();
 
 private:
     Ui::MainWindow* ui;
-    QwtPlot* m_plot;
-    QwtPlotSeriesDataPicker* m_dataPicker;
-    QwtPlotPanner* m_panner;
+    QwtPlot* m_plot { nullptr };
+    QwtPlotSeriesDataPicker* m_dataPicker { nullptr };
+    QwtPlotPanner* m_panner { nullptr };
+    QwtPlotCanvasZoomer* m_zoomer { nullptr };
+    QwtPlotMagnifier* m_magnifier { nullptr };
+    QLabel* mStatusBarLabel { nullptr };
 };
 
 #endif  // MAINWINDOW_H

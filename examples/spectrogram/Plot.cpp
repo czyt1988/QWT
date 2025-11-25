@@ -9,7 +9,7 @@
 #include <QwtPlotSpectrogram>
 #include <QwtScaleWidget>
 #include <QwtScaleDraw>
-#include <QwtPlotZoomer>
+#include "qwt_plot_axis_zoomer.h"
 #include <QwtPlotPanner>
 #include <QwtPlotLayout>
 #include <QwtPlotRenderer>
@@ -23,10 +23,10 @@
 
 namespace
 {
-class MyZoomer : public QwtPlotZoomer
+class MyZoomer : public QwtPlotAxisZoomer
 {
 public:
-    MyZoomer(QWidget* canvas) : QwtPlotZoomer(canvas)
+    MyZoomer(QWidget* canvas) : QwtPlotAxisZoomer(canvas)
     {
         setTrackerMode(AlwaysOn);
     }
@@ -36,7 +36,7 @@ public:
         QColor bg(Qt::white);
         bg.setAlpha(200);
 
-        QwtText text = QwtPlotZoomer::trackerTextF(pos);
+        QwtText text = QwtPlotAxisZoomer::trackerTextF(pos);
         text.setBackgroundBrush(QBrush(bg));
         return text;
     }
@@ -226,7 +226,7 @@ Plot::Plot(QWidget* parent) : QwtPlot(parent), m_alpha(255)
     // RightButton: zoom out by 1
     // Ctrl+RighButton: zoom out to full size
 
-    QwtPlotZoomer* zoomer = new MyZoomer(canvas());
+    QwtPlotAxisZoomer* zoomer = new MyZoomer(canvas());
     zoomer->setMousePattern(QwtEventPattern::MouseSelect2, Qt::RightButton, Qt::ControlModifier);
     zoomer->setMousePattern(QwtEventPattern::MouseSelect3, Qt::RightButton);
 

@@ -11,7 +11,7 @@
 
 #include <QMainWindow>
 
-class QwtPlotZoomer;
+class QwtPlotAxisZoomer;
 class QwtPlotPicker;
 class QwtPlotPanner;
 class Plot;
@@ -40,7 +40,7 @@ class MainWindow : public QMainWindow
 
     Plot* m_plot;
 
-    QwtPlotZoomer* m_zoomer[2];
+    QwtPlotAxisZoomer* m_zoomer[2];
     QwtPlotPicker* m_picker;
     QwtPlotPanner* m_panner;
 };

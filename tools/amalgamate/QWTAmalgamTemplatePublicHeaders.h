@@ -83,6 +83,7 @@
 #include "../../src/qwt_magnifier.h"
 #include "../../src/qwt_picker_machine.h"
 #include "../../src/qwt_picker.h"
+#include "../../src/qwt_canvas_picker.h"
 #include "../../src/qwt_cache_panner.h"
 #include "../../src/qwt_plot_renderer.h"
 #include "../../src/qwt_polar_renderer.h"
@@ -121,7 +122,8 @@
 #include "../../src/qwt_plot_vectorfield.h"
 #include "../../src/qwt_plot_zoneitem.h"
 #include "../../src/qwt_plot_panner.h"
-#include "../../src/qwt_plot_zoomer.h"
+#include "../../src/qwt_plot_axis_zoomer.h"
+#include "../../src/qwt_plot_canvas_zoomer.h"
 // polar items
 #include "../../src/qwt_polar_canvas.h"
 #include "../../src/qwt_polar_item.h"

@@ -33,7 +33,7 @@ class ScrollData
 };
 
 ScrollZoomer::ScrollZoomer( QWidget* canvas )
-    : QwtPlotZoomer( canvas )
+    : QwtPlotAxisZoomer( canvas )
     , m_cornerWidget( NULL )
     , m_hScrollData( NULL )
     , m_vScrollData( NULL )
@@ -109,7 +109,7 @@ void ScrollZoomer::rescale()
         }
     }
 
-    QwtPlotZoomer::rescale();
+    QwtPlotAxisZoomer::rescale();
     updateScrollBars();
 }
 
@@ -256,7 +256,7 @@ bool ScrollZoomer::eventFilter( QObject* object, QEvent* event )
                 break;
         }
     }
-    return QwtPlotZoomer::eventFilter( object, event );
+    return QwtPlotAxisZoomer::eventFilter( object, event );
 }
 
 bool ScrollZoomer::needScrollBar( Qt::Orientation orientation ) const
@@ -307,8 +307,8 @@ void ScrollZoomer::updateScrollBars()
     if ( !canvas() )
         return;
 
-    const int xAxis = QwtPlotZoomer::xAxis();
-    const int yAxis = QwtPlotZoomer::yAxis();
+    const int xAxis = QwtPlotAxisZoomer::xAxis();
+    const int yAxis = QwtPlotAxisZoomer::yAxis();
 
     int xScrollBarAxis = xAxis;
     if ( hScrollBarPosition() == OppositeToScale )

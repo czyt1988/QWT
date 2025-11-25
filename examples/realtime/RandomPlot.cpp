@@ -33,7 +33,7 @@ namespace
         {
             QColor bg( Qt::white );
 
-            QwtText text = QwtPlotZoomer::trackerTextF( pos );
+            QwtText text = QwtPlotAxisZoomer::trackerTextF( pos );
             text.setBackgroundBrush( QBrush( bg ) );
             return text;
         }

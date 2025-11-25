@@ -13,7 +13,7 @@
 
 #include <QwtCounter>
 #include <QwtPickerMachine>
-#include <QwtPlotZoomer>
+#include "qwt_plot_axis_zoomer.h"
 #include <QwtPlotPanner>
 #include <QwtPlotRenderer>
 #include <QwtText>
@@ -29,10 +29,10 @@
 
 namespace
 {
-class Zoomer : public QwtPlotZoomer
+class Zoomer : public QwtPlotAxisZoomer
 {
 public:
-    Zoomer(int xAxis, int yAxis, QWidget* canvas) : QwtPlotZoomer(xAxis, yAxis, canvas)
+    Zoomer(int xAxis, int yAxis, QWidget* canvas) : QwtPlotAxisZoomer(xAxis, yAxis, canvas)
     {
         setTrackerMode(QwtPicker::AlwaysOff);
         setRubberBand(QwtPicker::NoRubberBand);

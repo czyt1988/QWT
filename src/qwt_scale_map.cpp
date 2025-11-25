@@ -53,6 +53,11 @@ QwtScaleMap::QwtScaleMap(const QwtScaleMap& other)
         m_transform = other.m_transform->copy();
 }
 
+QwtScaleMap::QwtScaleMap(QwtScaleMap&& other) : QwtScaleMap()
+{
+    swap(other);
+}
+
 /*!
    Destructor
  */
@@ -80,6 +85,12 @@ QwtScaleMap& QwtScaleMap::operator=(const QwtScaleMap& other)
     return *this;
 }
 
+QwtScaleMap& QwtScaleMap::operator=(QwtScaleMap&& other)
+{
+    // 交换后，other会析构，这时原来的m_transform会在other那里析构掉
+    swap(other);
+    return *this;
+}
 /*!
    Initialize the map with a transformation
  */
@@ -203,18 +214,19 @@ QPointF QwtScaleMap::invTransform(const QwtScaleMap& xMap, const QwtScaleMap& yM
 bool QwtScaleMap::isLinerScale(const QwtScaleMap& sm)
 {
     // 检查变换是否为对数变换
-    const QwtTransform* transform = sm.transformation();
-    if (!transform) {
-        // 没有变换就是线性
-        return true;
-    }
+    return sm.transformation() == nullptr;
+}
 
-    if (dynamic_cast< const QwtLogTransform* >(transform) != nullptr
-        || dynamic_cast< const QwtPowerTransform* >(transform) != nullptr) {
-        return false;
-    }
-
-    return true;
+void QwtScaleMap::swap(QwtScaleMap& other) noexcept
+{
+    // 基本类型，直接换
+    std::swap(m_s1, other.m_s1);
+    std::swap(m_s2, other.m_s2);
+    std::swap(m_p1, other.m_p1);
+    std::swap(m_p2, other.m_p2);
+    std::swap(m_cnv, other.m_cnv);
+    std::swap(m_ts1, other.m_ts1);
+    std::swap(m_transform, other.m_transform);
 }
 
 /*!

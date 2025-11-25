@@ -1,15 +1,19 @@
-﻿#ifndef QWT_PLOT_SERIES_DATA_PICKER_H
+﻿/******************************************************************************
+ * Qwt Widget Library
+ * Copyright (C) 2024   ChenZongYan <czy.t@163.com>
+ *****************************************************************************/
+#ifndef QWT_PLOT_SERIES_DATA_PICKER_H
 #define QWT_PLOT_SERIES_DATA_PICKER_H
 #include <QList>
 #include <QPointF>
-#include "qwt_plot_picker.h"
+#include "qwt_canvas_picker.h"
 #include "qwt_text.h"
 class QwtPlot;
 class QwtPlotItem;
 /**
  * @brief 这是一个绘图数据拾取显示类，用于显示当前的y值，或者显示最近点
  */
-class QWT_EXPORT QwtPlotSeriesDataPicker : public QwtPicker
+class QWT_EXPORT QwtPlotSeriesDataPicker : public QwtCanvasPicker
 {
     Q_OBJECT
     QWT_DECLARE_PRIVATE(QwtPlotSeriesDataPicker)
@@ -46,12 +50,6 @@ public:
 public:
     explicit QwtPlotSeriesDataPicker(QWidget* canvas);
     ~QwtPlotSeriesDataPicker();
-
-    QwtPlot* plot();
-    const QwtPlot* plot() const;
-
-    QWidget* canvas();
-    const QWidget* canvas() const;
 
     // 拾取模式
     void setPickMode(PickSeriesMode mode);

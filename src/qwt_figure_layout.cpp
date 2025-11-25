@@ -1,4 +1,8 @@
-﻿#include "qwt_figure_layout.h"
+﻿/******************************************************************************
+ * Qwt Widget Library
+ * Copyright (C) 2024   ChenZongYan <czy.t@163.com>
+ *****************************************************************************/
+#include "qwt_figure_layout.h"
 #include <QMap>
 #include <QDebug>
 #include <QWidget>
