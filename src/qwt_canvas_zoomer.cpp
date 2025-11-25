@@ -479,26 +479,26 @@ bool QwtCanvasZoomer::end(bool ok)
 
     // 检查X轴范围
     if (newState.xBottom.isValid() && newState.xBottom.width() < minSize.width()) {
-        double center    = newState.xBottom.center();
+        double center    = newState.xBottom.centerValue();
         newState.xBottom = QwtInterval(center - minSize.width() / 2, center + minSize.width() / 2);
         needsAdjustment  = true;
     }
 
     if (newState.xTop.isValid() && newState.xTop.width() < minSize.width()) {
-        double center   = newState.xTop.center();
+        double center   = newState.xTop.centerValue();
         newState.xTop   = QwtInterval(center - minSize.width() / 2, center + minSize.width() / 2);
         needsAdjustment = true;
     }
 
     // 检查Y轴范围
     if (newState.yLeft.isValid() && newState.yLeft.width() < minSize.height()) {
-        double center   = newState.yLeft.center();
+        double center   = newState.yLeft.centerValue();
         newState.yLeft  = QwtInterval(center - minSize.height() / 2, center + minSize.height() / 2);
         needsAdjustment = true;
     }
 
     if (newState.yRight.isValid() && newState.yRight.width() < minSize.height()) {
-        double center   = newState.yRight.center();
+        double center   = newState.yRight.centerValue();
         newState.yRight = QwtInterval(center - minSize.height() / 2, center + minSize.height() / 2);
         needsAdjustment = true;
     }

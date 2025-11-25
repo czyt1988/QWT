@@ -2179,21 +2179,39 @@ void QwtPlot::zoomAxis(QwtAxisId axisId, double factor, const QPoint& centerPosP
     if (!QwtAxis::isValid(axisId)) {
         return;
     }
-    const QwtScaleDraw* sd        = axisScaleDraw(axisId);
-    const QwtScaleMap& scaleMap   = sd->scaleMap();
-    const QwtScaleDiv& currentDiv = sd->scaleDiv();
-    double currentMin             = currentDiv.lowerBound();
-    double currentMax             = currentDiv.upperBound();
-
+    const QwtScaleDraw* sd      = axisScaleDraw(axisId);
+    const QwtScaleMap& scaleMap = sd->scaleMap();
+    double currentMin           = scaleMap.s1();  // s1,s2是当前实际点的值
+    double currentMax           = scaleMap.s2();
+    double center               = QwtAxis::isXAxis(axisId) ? centerPosPixels.x() : centerPosPixels.y();
     // 判断是否为线性坐标
     bool isLinear = QwtScaleMap::isLinerScale(scaleMap);
-
-    double centerValue { 0 };
-    if (QwtAxis::isXAxis(axisId)) {
-        centerValue = scaleMap.invTransform(centerPosPixels.x());
+    if (!isLinear) {
+        // 非线性坐标，把数据转换到屏幕坐标系上，这样就能绝对线性
+        currentMin = scaleMap.transform(currentMin);
+        currentMax = scaleMap.transform(currentMax);
     } else {
-        centerValue = scaleMap.invTransform(centerPosPixels.y());
+        // 对于线性轴，把屏幕的中心点转换为数据的中心点
+        center = scaleMap.transform(center);
     }
+
+    qDebug() << "center=" << center << ",factor=" << factor << ",currentMin=" << currentMin << ",currentMax=" << currentMax;
+    currentMin = center - (center - currentMin) / factor;
+    currentMax = center + (currentMax - center) / factor;
+    qDebug() << "after currentMin=" << currentMin << ",currentMax=" << currentMax;
+    // 边界检查
+    if (currentMin >= currentMax) {
+        return;  // 无效范围
+    }
+
+    if (!isLinear) {
+        currentMin = scaleMap.invTransform(currentMin);
+        currentMax = scaleMap.invTransform(currentMax);
+    }
+    setAxisScale(axisId, currentMin, currentMax);
+
+    return;
+    double centerValue { 0 };
     if (isLinear) {
         // 线性坐标缩放
         // 计算缩放后的范围
