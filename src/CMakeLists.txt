@@ -224,6 +224,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_picker.h
         qwt_plot_series_data_picker.h
         qwt_plot_zoomer.h
+        qwt_canvas_zoomer.h
         qwt_plot_magnifier.h
         qwt_plot_rescaler.h
         qwt_point_mapper.h
@@ -285,6 +286,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_picker.cpp
         qwt_plot_series_data_picker.cpp
         qwt_plot_zoomer.cpp
+        qwt_canvas_zoomer.cpp
         qwt_plot_magnifier.cpp
         qwt_plot_rescaler.cpp
         qwt_point_mapper.cpp

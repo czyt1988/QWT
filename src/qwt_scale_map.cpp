@@ -203,18 +203,7 @@ QPointF QwtScaleMap::invTransform(const QwtScaleMap& xMap, const QwtScaleMap& yM
 bool QwtScaleMap::isLinerScale(const QwtScaleMap& sm)
 {
     // 检查变换是否为对数变换
-    const QwtTransform* transform = sm.transformation();
-    if (!transform) {
-        // 没有变换就是线性
-        return true;
-    }
-
-    if (dynamic_cast< const QwtLogTransform* >(transform) != nullptr
-        || dynamic_cast< const QwtPowerTransform* >(transform) != nullptr) {
-        return false;
-    }
-
-    return true;
+    return sm.transformation() == nullptr;
 }
 
 /*!

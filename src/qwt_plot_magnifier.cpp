@@ -126,55 +126,60 @@ const QwtPlot* QwtPlotMagnifier::plot() const
  */
 void QwtPlotMagnifier::rescale(double factor)
 {
-    QwtPlot* plt = plot();
-    if (plt == NULL)
+    QwtPlot* hostplt = plot();
+    if (!hostplt || hostplt->isParasitePlot()) {
         return;
+    }
 
     factor = qAbs(factor);
-    if (factor == 1.0 || factor == 0.0)
+    if (qFuzzyCompare(factor, 1.0) || qFuzzyCompare(factor, 0.0)) {
         return;
+    }
 
     bool doReplot = false;
 
-    plt->saveAutoReplotState();
-    plt->setAutoReplot(false);
+    const QList< QwtPlot* > allplts = hostplt->plotList(true);
+    for (QwtPlot* plt : allplts) {
+        plt->saveAutoReplotState();
+        plt->setAutoReplot(false);
 
-    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
-        {
-            const QwtAxisId axisId(axisPos);
+        for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+            {
+                const QwtAxisId axisId(axisPos);
 
-            if (isAxisEnabled(axisId)) {
-                const QwtScaleMap scaleMap = plt->canvasMap(axisId);
+                if (isAxisEnabled(axisId)) {
+                    const QwtScaleMap scaleMap = plt->canvasMap(axisId);
 
-                double v1 = scaleMap.s1();
-                double v2 = scaleMap.s2();
+                    double v1 = scaleMap.s1();
+                    double v2 = scaleMap.s2();
 
-                if (scaleMap.transformation()) {
-                    // the coordinate system of the paint device is always linear
+                    if (scaleMap.transformation()) {
+                        // the coordinate system of the paint device is always linear
 
-                    v1 = scaleMap.transform(v1);  // scaleMap.p1()
-                    v2 = scaleMap.transform(v2);  // scaleMap.p2()
+                        v1 = scaleMap.transform(v1);  // scaleMap.p1()
+                        v2 = scaleMap.transform(v2);  // scaleMap.p2()
+                    }
+
+                    const double center  = 0.5 * (v1 + v2);
+                    const double width_2 = 0.5 * (v2 - v1) * factor;
+
+                    v1 = center - width_2;
+                    v2 = center + width_2;
+
+                    if (scaleMap.transformation()) {
+                        v1 = scaleMap.invTransform(v1);
+                        v2 = scaleMap.invTransform(v2);
+                    }
+
+                    plt->setAxisScale(axisId, v1, v2);
+                    doReplot = true;
                 }
-
-                const double center  = 0.5 * (v1 + v2);
-                const double width_2 = 0.5 * (v2 - v1) * factor;
-
-                v1 = center - width_2;
-                v2 = center + width_2;
-
-                if (scaleMap.transformation()) {
-                    v1 = scaleMap.invTransform(v1);
-                    v2 = scaleMap.invTransform(v2);
-                }
-
-                plt->setAxisScale(axisId, v1, v2);
-                doReplot = true;
             }
         }
+
+        plt->restoreAutoReplotState();
     }
-
-    plt->restoreAutoReplotState();
-
-    if (doReplot)
-        plt->replot();
+    if (doReplot) {
+        hostplt->replotAll();
+    }
 }

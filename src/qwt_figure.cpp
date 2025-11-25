@@ -1,4 +1,8 @@
-﻿#include "qwt_figure.h"
+﻿/******************************************************************************
+ * Qwt Widget Library
+ * Copyright (C) 2024   ChenZongYan <czy.t@163.com>
+ *****************************************************************************/
+#include "qwt_figure.h"
 // Qt
 #include <QPainter>
 #include <QPointer>

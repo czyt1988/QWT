@@ -9,9 +9,12 @@
 	![series-data-picker-yvalue](./docs/assets/screenshots/qwt-realtime-panner.gif)
 	
 - 重写`QwtPlotPanner`类，继承`QwtPicker`，可实现拖动过程能实时刷新，如果想要原来的带缓存的panner，可使用`CachePanner`相关类
-- `QwtPlotZoomer`支持线性坐标轴、对数坐标轴、多坐标轴的实时平移
-- `Zoomer`支持多坐标轴
+- `QwtPlotPanner`支持线性坐标轴、对数坐标轴、多坐标轴的实时平移
+- 针对`QwtPlotZoomer`只能绑定2个坐标轴问题，新增`QwtCanvasZoomer`类
+	- `QwtCanvasZoomer`无需绑定坐标轴，直接对整个cavas进行缩放
+	- `QwtCanvasZoomer`支持多坐标轴的缩放
 - `QwtPlotSeriesDataPicker`将直接继承`QwtPicker`，不再继承`QwtPlotPicker`
+- `QwtPlotMagnifier`支持多坐标轴的缩放
 
 ## tag:v7.0.6
 

@@ -1,4 +1,8 @@
-﻿#ifndef QWT_GRID_DATA_HPP
+﻿/******************************************************************************
+ * Qwt Widget Library
+ * Copyright (C) 2024   ChenZongYan <czy.t@163.com>
+ *****************************************************************************/
+#ifndef QWT_GRID_DATA_HPP
 #define QWT_GRID_DATA_HPP
 #include <vector>
 #include <algorithm>
