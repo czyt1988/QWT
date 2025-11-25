@@ -45,10 +45,13 @@ class QWT_EXPORT QwtScaleMap
 public:
     QwtScaleMap();
     QwtScaleMap(const QwtScaleMap&);
+    // 新增移动语义
+    QwtScaleMap(QwtScaleMap&&);
 
     ~QwtScaleMap();
 
     QwtScaleMap& operator=(const QwtScaleMap&);
+    QwtScaleMap& operator=(QwtScaleMap&&);
 
     void setTransformation(QwtTransform*);
     const QwtTransform* transformation() const;
@@ -81,6 +84,8 @@ public:
 
     bool isInverting() const;
 
+protected:
+    void swap(QwtScaleMap& other) noexcept;  // 辅助
 private:
     void updateFactor();
 

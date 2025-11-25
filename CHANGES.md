@@ -15,6 +15,7 @@
 	- `QwtCanvasZoomer`支持多坐标轴的缩放
 - `QwtPlotSeriesDataPicker`将直接继承`QwtPicker`，不再继承`QwtPlotPicker`
 - `QwtPlotMagnifier`支持多坐标轴的缩放
+- `QwtScaleMap`增加移动语义
 
 ## tag:v7.0.6
 
