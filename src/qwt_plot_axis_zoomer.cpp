@@ -483,11 +483,11 @@ void QwtPlotAxisZoomer::widgetMouseReleaseEvent(QMouseEvent* me)
 void QwtPlotAxisZoomer::widgetKeyPressEvent(QKeyEvent* ke)
 {
     if (!isActive()) {
-        if (keyMatch(KeyUndo, ke))
+        if (keyMatch(KeyUndo, ke))  // Qt::Key_Minus
             zoom(-1);
-        else if (keyMatch(KeyRedo, ke))
+        else if (keyMatch(KeyRedo, ke))  // Qt::Key_Plus
             zoom(+1);
-        else if (keyMatch(KeyHome, ke))
+        else if (keyMatch(KeyHome, ke))  // Qt::Key_Escape
             zoom(0);
     }
 

@@ -213,6 +213,7 @@ void MainWindow::createToolBar()
     connect(actZoomer, &QAction::triggered, this, [ this ](bool on) {
         this->m_zoomer->setEnabled(on);
         if (on) {
+            m_zoomer->setZoomBase(false);
             mStatusBarLabel->setText(
                 tr("Use the mouse to drag a selection box on the canvas to zoom into the selected area."));  // cn:使用鼠标在画布中框选要缩放的区域进行缩放
         }

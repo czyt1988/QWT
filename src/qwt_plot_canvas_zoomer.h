@@ -61,6 +61,16 @@ Q_DECLARE_METATYPE(QwtPlotCanvasZoomState)
    Zooming can be repeated as often as possible, limited only by
    maxStackDepth() or minZoomSize(). Each zoom state is pushed on a stack.
 
+   支持如下鼠标快捷键设置：
+   - MouseSelect2，重置回基础
+   - MouseSelect3，缩放栈回退
+   - MouseSelect6，缩放栈前进
+
+   支持如下键盘快捷键设置：
+   - KeyUndo，缩放栈回退
+   - KeyRedo，缩放栈前进
+   - KeyHome，重置回基础
+
    \sa QwtPlotPanner, QwtPlotMagnifier
  */
 class QWT_EXPORT QwtPlotCanvasZoomer : public QwtCanvasPicker
@@ -74,6 +84,9 @@ public:
     // 设置缩放基准状态（当前所有坐标轴的范围），最小缩放范围会基于此基准进行计算
     virtual void setZoomBase(bool doReplot = true);
 
+    // 设置是否自动replot,默认为true
+    void setAutoReplot(bool on = true);
+    bool isAutoReplot() const;
     // 获取基准缩放状态
     QList< QwtPlotCanvasZoomState > zoomBase() const;
     // 获取当前缩放状态

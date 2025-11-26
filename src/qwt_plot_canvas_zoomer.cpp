@@ -30,17 +30,17 @@ QwtPlotCanvasZoomState::QwtPlotCanvasZoomState(QwtPlot* p,
     axisInterval[ QwtAxis::XTop ]    = xTop;
 }
 
-QwtPlotCanvasZoomState QwtPlotCanvasZoomState::fromPlot(QwtPlot* plot)
+QwtPlotCanvasZoomState QwtPlotCanvasZoomState::fromPlot(QwtPlot* p)
 {
     QwtPlotCanvasZoomState state;
-    if (!plot) {
+    if (!p) {
         return state;
     }
-    state.plot = plot;
+    state.plot = p;
     // 获取四个坐标轴的当前范围
     for (QwtAxisId axisId = 0; axisId < QwtAxis::AxisPositions; ++axisId) {
-        const QwtScaleDiv& scaleDiv  = plot->axisScaleDiv(axisId);
-        state.axisInterval[ axisId ] = QwtInterval(scaleDiv.lowerBound(), scaleDiv.upperBound());
+        const QwtScaleDiv& scaleDiv  = p->axisScaleDiv(axisId);
+        state.axisInterval[ axisId ] = scaleDiv.interval();
     }
 
     return state;
@@ -249,10 +249,27 @@ void QwtPlotCanvasZoomer::setZoomBase(bool doReplot)
     m_data->zoomStateIndex = 0;
 }
 
+/**
+ * @brief 设置是否自动replot,默认为true
+ * @param on
+ */
+void QwtPlotCanvasZoomer::setAutoReplot(bool on)
+{
+    m_data->replot = on;
+}
+
+/**
+ * @brief 是否自动replot,默认为true
+ * @return
+ */
+bool QwtPlotCanvasZoomer::isAutoReplot() const
+{
+    return m_data->replot;
+}
+
 void QwtPlotCanvasZoomer::zoom(int offset)
 {
     int newIndex;
-
     if (offset == 0) {
         newIndex = 0;
     } else {
@@ -270,7 +287,7 @@ void QwtPlotCanvasZoomer::zoom(int offset)
 void QwtPlotCanvasZoomer::appendZoom(const QList< QwtPlotCanvasZoomState >& rect)
 {
     m_data->zoomStack.push(rect);
-    m_data->zoomStateIndex = m_data->zoomStack.size() - 1;
+    m_data->zoomStateIndex = m_data->zoomStack.count() - 1;
     rescale();
     Q_EMIT zoomed(rect);
 }
@@ -351,16 +368,14 @@ void QwtPlotCanvasZoomer::begin()
 bool QwtPlotCanvasZoomer::end(bool ok)
 {
     ok = QwtPicker::end(ok);
-    if (!ok)
+    if (!ok) {
         return false;
-
-    QwtPlot* plot = qobject_cast< QwtPlot* >(parentWidget()->parentWidget());
-    if (!plot)
-        return false;
+    }
 
     const QPolygon& pa = selection();
-    if (pa.count() < 2)
+    if (pa.count() < 2) {
         return false;
+    }
 
     QRect rect = QRect(pa.first(), pa.last());
     rect       = rect.normalized();

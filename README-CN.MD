@@ -104,6 +104,24 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 
 具体可参见教程：[绘图数据拾取](https://czyt1988.github.io/QWT/zh/use-guide/pick-value/)
 
+### 修改了画布拖动
+
+重构`QwtPlotPicker`，实现实时拖动画布，原来的`QwtPlotPicker`改名为`QwtPlotCachePanner`。同步支持多坐标轴的画布拖动
+
+效果如下：
+
+![qwt-realtime-panner](./docs/assets/screenshots/qwt-realtime-panner.gif)
+
+具体可参见教程：[拖动工具](https://czyt1988.github.io/QWT/zh/use-guide/panner/)
+
+### 新增了画布放大器
+
+原 `QwtPlotZoomer`需要指定两个坐标轴来进行缩放操作。如果您的绘图需要四个坐标轴都生效，您需要为绘图绑定两个缩放器，使用麻烦，且对于多坐标轴的支持不友好
+
+新增了`QwtPlotCanvasZoomer`无需指定坐标轴，会对整个画布进行整体缩放，且能支持任意多坐标轴
+
+具体可参见教程：[缩放工具](https://czyt1988.github.io/QWT/zh/use-guide/zoomer/)
+
 ## changelog
 
 详细的日志请参阅[CHANGES.MD](./CHANGES.md)

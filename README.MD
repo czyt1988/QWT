@@ -146,6 +146,26 @@ Added the QwtPlotSeriesDataPicker class to support data picking.
 
 For details, refer to the tutorial:[Series Data Picker](https://czyt1988.github.io/QWT/zh/use-guide/pick-value/)
 
+### Enhanced Canvas Panning
+
+Refactored `QwtPlotPicker` to enable real-time canvas panning; the original implementation has been renamed `QwtPlotCachePanner`.  
+The new panner simultaneously supports dragging on any number of axes.
+
+Preview:
+
+![qwt-realtime-panner](./docs/assets/screenshots/qwt-realtime-panner.gif)
+
+For details, refer to the tutorial: [Panning](https://czyt1988.github.io/QWT/zh/use-guide/panner/)
+
+### New Canvas Zoomer
+
+The legacy `QwtPlotZoomer` requires you to specify two axes for every zoom operation.  
+If your plot uses four axes you must attach two zoomers—cumbersome and multi-axis-unfriendly.
+
+The new `QwtPlotCanvasZoomer` needs no axis specification; it zooms the entire canvas as a whole and works seamlessly with any number of axes.
+
+For details, refer to the tutorial: [Zoomer](https://czyt1988.github.io/QWT/zh/use-guide/zoomer/)
+
 ## Changelog
 
 See [CHANGES.MD](./CHANGES.md) for detailed logs.

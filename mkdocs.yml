@@ -60,8 +60,9 @@ plugins:
                 - 多坐标轴的创建: zh/use-guide/parasite-axes.md
                 - 坐标轴交互动作: zh/use-guide/scale-builtin-action.md
                 - 状态机介绍: zh/use-guide/picker-state-machine.md
-                - 绘图数据拾取: zh/use-guide/pick-value.md
-                - 画布平移工具: zh/use-guide/panner.md
+                - 数据拾取工具: zh/use-guide/pick-value.md
+                - 平移工具: zh/use-guide/panner.md
+                - 缩放工具: zh/use-guide/zoomer.md
             - API文档: 
                 - API文档首页: doxygen/index.html
                 - 类列表: doxygen/annotated.html

@@ -1,7 +1,7 @@
 # 平移工具
 
 !!! success "新特性"
-    QwtPlotPicker 是一个完全重构的实时交互式绘图选择器，提供了比原版 `QwtPicker` 更流畅、更直观的用户体验。
+    `QwtPlotPicker` 是一个完全重构的实时交互式绘图选择器，提供了比原版 `QwtPlotPicker` 通过缓存实现的平移更直观的用户体验。
 
 `Qwt6`的`QwtPlotPicker`是基于缓存的平移机制，主要有下面两个问题：
 
