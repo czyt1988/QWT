@@ -31,7 +31,7 @@ target_link_libraries(YOU_APP_TARGET
     )
 ```
 
-## 基于cmake引入SARibbon库
+## 基于cmake引入QWT库
 
 基于cmake引入`QWT`库按照如下步骤执行：
 
