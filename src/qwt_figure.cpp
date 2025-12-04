@@ -45,12 +45,19 @@ class QwtFigure::PrivateData
     QWT_DECLARE_PUBLIC(QwtFigure)
 public:
     PrivateData(QwtFigure* p);
+    // 存储对齐配置的结构体
+    struct AlignmentConfig
+    {
+        QList< QwtPlot* > plots;  // 需要对齐的plot列表
+        int axisId;               // 需要对齐的轴ID
+    };
 
 public:
-    QBrush faceBrush { Qt::white };   ///< Background color of the figure / 图形背景颜色
-    QColor edgeColor { Qt::black };   ///< Border color of the figure / 图形边框颜色
-    int edgeLineWidth { 0 };          ///< Border line width / 边框线宽
-    QPointer< QwtPlot > currentAxes;  ///< Current active axes / 当前活动坐标轴
+    QBrush faceBrush { Qt::white };             ///< Background color of the figure / 图形背景颜色
+    QColor edgeColor { Qt::black };             ///< Border color of the figure / 图形边框颜色
+    int edgeLineWidth { 0 };                    ///< Border line width / 边框线宽
+    QPointer< QwtPlot > currentAxes;            ///< Current active axes / 当前活动坐标轴
+    QList< AlignmentConfig > alignmentConfigs;  // 所有对齐配置
 };
 
 QwtFigure::PrivateData::PrivateData(QwtFigure* p) : q_ptr(p)
@@ -1180,6 +1187,185 @@ QRect QwtFigure::calcActualRect(const QRectF& normRect)
     return lay->calcActualRect(rect(), normRect);
 }
 
+/**
+ * @brief 添加轴对齐配置
+ * @param plots 需要对齐的plot列表
+ * @param axisId 要对齐的轴ID（QwtAxis::XTop/XBottom/YLeft/YRight）
+ */
+void QwtFigure::addAxisAlignment(const QList< QwtPlot* >& plots, int axisId)
+{
+    if (plots.isEmpty() || !QwtAxis::isValid(axisId)) {
+        return;
+    }
+
+    // 过滤掉不在当前figure中的plot
+    QList< QwtPlot* > validPlots;
+    for (QwtPlot* plot : plots) {
+        if (plot && hasAxes(plot)) {
+            validPlots.append(plot);
+        }
+    }
+
+    if (validPlots.isEmpty()) {
+        return;
+    }
+
+    // 添加到配置列表
+    PrivateData::AlignmentConfig config;
+    config.plots  = validPlots;
+    config.axisId = axisId;
+    m_data->alignmentConfigs.append(config);
+}
+
+/**
+ * @brief 移除指定的轴对齐配置
+ * @param plots 需要移除的对齐配置中的plot列表
+ * @param axisId 要移除的对齐配置中的轴ID
+ * @return 是否成功移除
+ */
+bool QwtFigure::removeAxisAlignment(const QList< QwtPlot* >& plots, int axisId)
+{
+    if (plots.isEmpty() || !QwtAxis::isValid(axisId)) {
+        return false;
+    }
+
+    bool removed = false;
+    auto it      = m_data->alignmentConfigs.begin();
+    while (it != m_data->alignmentConfigs.end()) {
+        if (it->axisId == axisId && it->plots == plots) {
+            it      = m_data->alignmentConfigs.erase(it);
+            removed = true;
+        } else {
+            ++it;
+        }
+    }
+    return removed;
+}
+/**
+ * @brief 清除所有轴对齐配置
+ */
+void QwtFigure::clearAxisAlignment()
+{
+    m_data->alignmentConfigs.clear();
+}
+
+/**
+ * @brief 应用所有轴对齐配置，对记录的plot和轴进行对齐
+ */
+void QwtFigure::applyAllAxisAlignments()
+{
+    for (const auto& config : qAsConst(m_data->alignmentConfigs)) {
+        alignAxes(config.plots, config.axisId);
+    }
+}
+
+/**
+ * @brief 应用指定轴ID的所有对齐配置
+ * @param axisId 轴ID
+ */
+void QwtFigure::applyAlignmentsForAxis(int axisId)
+{
+    if (!QwtAxis::isValid(axisId)) {
+        return;
+    }
+
+    for (const auto& config : qAsConst(m_data->alignmentConfigs)) {
+        if (config.axisId == axisId) {
+            alignAxes(config.plots, config.axisId);
+        }
+    }
+}
+
+/**
+ * @brief QwtPlot轴对齐函数
+ * @param plots 待对齐的QwtPlot列表（非空）
+ * @param axisId 要对齐的轴ID（QwtAxis::XTop/XBottom/YLeft/YRight）
+ * @note 1. 函数会统一指定轴的minimumExtent和minBorderDist，确保轴视觉对齐；
+ *       2. 需在控件初始化完成后调用（如showEvent/resizeEvent中）；
+ *       3. 支持任意数量Plot、任意合法轴类型，适配水平/垂直布局。
+ *       4. 不要传入寄生轴，目前仅支持宿主轴
+ */
+void QwtFigure::alignAxes(QList< QwtPlot* > plots, int axisId)
+{
+    // ========== 步骤1：参数有效性校验 ==========
+    if (plots.isEmpty()) {
+        return;
+    }
+
+    if (!QwtAxis::isValid(axisId)) {
+        return;
+    }
+
+    // 过滤掉空指针Plot
+    plots.erase(std::remove_if(plots.begin(), plots.end(), [](QwtPlot* p) { return p == nullptr; }), plots.end());
+    if (plots.isEmpty()) {
+        return;
+    }
+
+    // ========== 步骤2：统一轴的minimumExtent（保证轴宽度/高度一致） ==========
+    double maxExtent = 0.0;
+
+    // 2.1 计算所有Plot对应轴的最大extent（真实延伸尺寸）
+    for (QwtPlot* plot : qAsConst(plots)) {
+        QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
+        if (!scaleWidget)
+            continue;
+
+        QwtScaleDraw* scaleDraw = scaleWidget->scaleDraw();
+        if (!scaleDraw)
+            continue;
+
+        // 重置最小延伸尺寸，确保计算真实的extent
+        scaleDraw->setMinimumExtent(0.0);
+        // 计算当前轴的延伸尺寸（含刻度标签、刻度线、轴标题）
+        double extent = scaleDraw->extent(scaleWidget->font());
+        if (extent > maxExtent) {
+            maxExtent = extent;
+        }
+    }
+
+    // 2.2 给所有Plot的对应轴设置统一的最小延伸尺寸
+    for (QwtPlot* plot : qAsConst(plots)) {
+        QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
+        if (!scaleWidget)
+            continue;
+
+        scaleWidget->scaleDraw()->setMinimumExtent(maxExtent);
+    }
+
+    // ========== 步骤3：统一轴的minBorderDist（保证绘图区域偏移一致） ==========
+    int maxStartDist = 0, maxEndDist = 0;
+
+    // 3.1 遍历所有Plot，计算最大的startDist和endDist
+    for (QwtPlot* plot : qAsConst(plots)) {
+        QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
+        if (!scaleWidget)
+            continue;
+
+        int startDist = 0, endDist = 0;
+        scaleWidget->getBorderDistHint(startDist, endDist);
+
+        // 更新最大值
+        maxStartDist = qMax(maxStartDist, startDist);
+        maxEndDist   = qMax(maxEndDist, endDist);
+    }
+
+    // 3.2 给所有Plot的对应轴设置统一的最小边框距离（最大值）
+    for (QwtPlot* plot : qAsConst(plots)) {
+        QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
+        if (!scaleWidget)
+            continue;
+
+        scaleWidget->setMinBorderDist(maxStartDist, maxEndDist);
+    }
+
+    // ========== 步骤4：强制更新轴和重绘，确保设置生效 ==========
+    for (QwtPlot* plot : qAsConst(plots)) {
+        plot->updateAxes();  // 更新轴布局
+        plot->replot();      // 重绘Plot
+    }
+}
+
 void QwtFigure::paintEvent(QPaintEvent* event)
 {
     QPainter painter(this);
@@ -1197,4 +1383,10 @@ void QwtFigure::paintEvent(QPaintEvent* event)
     }
 
     QFrame::paintEvent(event);
+}
+
+void QwtFigure::resizeEvent(QResizeEvent* event)
+{
+    QFrame::resizeEvent(event);
+    applyAllAxisAlignments();  // 窗口大小改变时重新对齐
 }

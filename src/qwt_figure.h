@@ -199,6 +199,17 @@ public:
     QRectF calcNormRect(const QRect& geoRect) const;
     // 计算正规矩形
     QRect calcActualRect(const QRectF& normRect);
+    //=============AxisAlignment==================
+    // 添加轴对齐配置
+    void addAxisAlignment(const QList< QwtPlot* >& plots, int axisId);
+    // 移除指定的轴对齐配置
+    bool removeAxisAlignment(const QList< QwtPlot* >& plots, int axisId);
+    // 清除所有轴对齐配置
+    void clearAxisAlignment();
+    // 应用所有轴对齐配置，对记录的plot和轴进行对齐
+    void applyAllAxisAlignments();
+    // 应用指定轴ID的所有对齐配置
+    void applyAlignmentsForAxis(int axisId);
 Q_SIGNALS:
     /**
      * @brief Signal emitted when axes are added to the figure/当坐标轴添加到图形时发出的信号
@@ -227,8 +238,13 @@ Q_SIGNALS:
      */
     void currentAxesChanged(QwtPlot* current);
 
+public:
+    // QwtPlot轴对齐函数
+    static void alignAxes(QList< QwtPlot* > plots, int axisId);
+
 protected:
     void paintEvent(QPaintEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 };
 
 #endif  // QWT_FIGURE_H
