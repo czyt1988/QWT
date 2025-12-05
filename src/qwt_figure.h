@@ -199,6 +199,8 @@ public:
     QRectF calcNormRect(const QRect& geoRect) const;
     // 计算正规矩形
     QRect calcActualRect(const QRectF& normRect);
+    // 更新所有的绘图
+    void replotAll();
     //=============AxisAlignment==================
     // 添加轴对齐配置
     void addAxisAlignment(const QList< QwtPlot* >& plots, int axisId);
@@ -207,7 +209,7 @@ public:
     // 清除所有轴对齐配置
     void clearAxisAlignment();
     // 应用所有轴对齐配置，对记录的plot和轴进行对齐
-    void applyAllAxisAlignments();
+    void applyAllAxisAlignments(bool replot = true);
     // 应用指定轴ID的所有对齐配置
     void applyAlignmentsForAxis(int axisId);
 Q_SIGNALS:
@@ -240,7 +242,7 @@ Q_SIGNALS:
 
 public:
     // QwtPlot轴对齐函数
-    static void alignAxes(QList< QwtPlot* > plots, int axisId);
+    static void alignAxes(QList< QwtPlot* > plots, int axisId, bool update = true);
 
 protected:
     void paintEvent(QPaintEvent* event) override;

@@ -1188,6 +1188,17 @@ QRect QwtFigure::calcActualRect(const QRectF& normRect)
 }
 
 /**
+ * @brief 更新所有的绘图
+ */
+void QwtFigure::replotAll()
+{
+    const QList< QwtPlot* > plots = allAxes();
+    for (QwtPlot* plot : plots) {
+        plot->replotAll();
+    }
+}
+
+/**
  * @brief 添加轴对齐配置
  * @param plots 需要对齐的plot列表
  * @param axisId 要对齐的轴ID（QwtAxis::XTop/XBottom/YLeft/YRight）
@@ -1252,10 +1263,10 @@ void QwtFigure::clearAxisAlignment()
 /**
  * @brief 应用所有轴对齐配置，对记录的plot和轴进行对齐
  */
-void QwtFigure::applyAllAxisAlignments()
+void QwtFigure::applyAllAxisAlignments(bool replot)
 {
     for (const auto& config : qAsConst(m_data->alignmentConfigs)) {
-        alignAxes(config.plots, config.axisId);
+        alignAxes(config.plots, config.axisId, replot);
     }
 }
 
@@ -1285,7 +1296,7 @@ void QwtFigure::applyAlignmentsForAxis(int axisId)
  *       3. 支持任意数量Plot、任意合法轴类型，适配水平/垂直布局。
  *       4. 不要传入寄生轴，目前仅支持宿主轴
  */
-void QwtFigure::alignAxes(QList< QwtPlot* > plots, int axisId)
+void QwtFigure::alignAxes(QList< QwtPlot* > plots, int axisId, bool update)
 {
     // ========== 步骤1：参数有效性校验 ==========
     if (plots.isEmpty()) {
@@ -1360,9 +1371,11 @@ void QwtFigure::alignAxes(QList< QwtPlot* > plots, int axisId)
     }
 
     // ========== 步骤4：强制更新轴和重绘，确保设置生效 ==========
-    for (QwtPlot* plot : qAsConst(plots)) {
-        plot->updateAxes();  // 更新轴布局
-        plot->replot();      // 重绘Plot
+    if (update) {
+        for (QwtPlot* plot : qAsConst(plots)) {
+            plot->updateAxes();  // 更新轴布局
+            plot->replot();      // 重绘Plot
+        }
     }
 }
 
@@ -1387,6 +1400,6 @@ void QwtFigure::paintEvent(QPaintEvent* event)
 
 void QwtFigure::resizeEvent(QResizeEvent* event)
 {
+    applyAllAxisAlignments(false);  // 窗口大小改变时重新对齐
     QFrame::resizeEvent(event);
-    applyAllAxisAlignments();  // 窗口大小改变时重新对齐
 }
