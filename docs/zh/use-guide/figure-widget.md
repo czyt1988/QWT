@@ -140,11 +140,8 @@ hostPlot->setCanvasBackground(Qt::white);
 figure->addGridAxes(hostPlot, 3, 2, 2, 0, 1, 2);  // 3x2网格，第2行第0列，跨2列
 
 //! 添加宿主坐标系
-QwtPlot* parasitePlot = figure->createParasiteAxes(hostPlot, QwtAxis::YLeft);
+QwtPlot* parasitePlot = hostPlot->createParasiteAxes(QwtAxis::YLeft);
 //! 宿主坐标轴的其他设置
-
-//! 最后窗口显示前执行以下宿主绘图的replot，刷新坐标轴
-QMetaObject::invokeMethod(hostPlot, &QwtPlot::replot, Qt::QueuedConnection);
 ```
 
 上面例子的效果如下图：
@@ -160,6 +157,30 @@ figure->saveFig("figure.png", 300); // 300 DPI
 // 获取 QPixmap
 QPixmap pixmap = figure->saveFig(300);
 ```
+
+### 坐标轴对齐
+
+figure绘图窗口提供了坐标轴对其的功能，子绘图刻度值如果差异较大，刻度是不对齐的，如下图所示：
+
+![qwt_figure_align](../../assets/picture/figure-scale-not-aligment.png)
+
+这时，可以通过`QwtFigure::addAxisAlignment`函数指定坐标轴对齐
+
+例如上面的例子，通过下面进行坐标轴对齐
+
+```cpp
+figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
+figure->addAxisAlignment({ plot2, plot4 }, QwtAxis::YLeft);
+```
+
+上面的代码代表`plot1`, `plot3`, `hostPlot`这三个绘图的左坐标轴对齐。`plot2`, `plot4`这两个绘图的左坐标轴对齐
+
+运行结果如下图：
+
+![qwt_figure_align](../../assets/picture/figure-scale-aligment.png)
+
+!!! warning "坐标轴对齐注意事项"
+    只有可显示的坐标轴才可以对齐，如果坐标轴不显示，是无法对齐的，例如上面例子的`plot2`, `plot4`和`hostPlot`的右坐标轴就无法对齐，因为`plot2`, `plot4`的坐标轴窗口不可见
 
 ## figure操作蒙版
 

@@ -26,6 +26,50 @@
 
 #include "qwt_series_data.h"
 #include "qwt_point_polar.h"
+#include "qwt_math.h"
+
+// check nan or inf
+static inline bool isSampleNanOrInf(const QPointF& sample)
+{
+    return qwt_is_nan_or_inf(sample);
+}
+
+static inline bool isSampleNanOrInf(const QwtPoint3D& sample)
+{
+    return !std::isfinite(sample.x()) || !std::isfinite(sample.y()) || !std::isfinite(sample.z());
+}
+
+static inline bool isSampleNanOrInf(const QwtPointPolar& sample)
+{
+    return !std::isfinite(sample.azimuth()) || !std::isfinite(sample.radius());
+}
+
+static inline bool isSampleNanOrInf(const QwtSetSample& sample)
+{
+    // 这个样本特殊，直接返回false，在QRectF qwtBoundingRect(const QwtSetSample& sample)里进行判断
+    Q_UNUSED(sample);
+    return false;
+}
+
+static inline bool isSampleNanOrInf(const QwtIntervalSample& sample)
+{
+
+    return !std::isfinite(sample.value) || !std::isfinite(sample.interval.minValue())
+           || !std::isfinite(sample.interval.maxValue());
+}
+
+static inline bool isSampleNanOrInf(const QwtOHLCSample& sample)
+{
+
+    return !std::isfinite(sample.close) || !std::isfinite(sample.high) || !std::isfinite(sample.low)
+           || !std::isfinite(sample.open) || !std::isfinite(sample.time);
+}
+
+static inline bool isSampleNanOrInf(const QwtVectorFieldSample& sample)
+{
+
+    return !std::isfinite(sample.x) || !std::isfinite(sample.y) || !std::isfinite(sample.vx) || !std::isfinite(sample.vx);
+}
 
 static inline QRectF qwtBoundingRect(const QPointF& sample)
 {
@@ -49,13 +93,23 @@ static inline QRectF qwtBoundingRect(const QwtIntervalSample& sample)
 
 static inline QRectF qwtBoundingRect(const QwtSetSample& sample)
 {
-    if (sample.set.empty())
+    if (sample.set.empty()) {
         return QRectF(sample.value, 0.0, 0.0, -1.0);
-
-    double minY = sample.set[ 0 ];
-    double maxY = sample.set[ 0 ];
-
-    for (int i = 1; i < sample.set.size(); i++) {
+    }
+    // 避免第一个点就nan或inf
+    int begin   = 0;
+    double minY = sample.set[ begin ];
+    double maxY = sample.set[ begin ];
+    while (begin < sample.set.size() && qwt_is_nan_or_inf(minY)) {
+        ++begin;
+        minY = sample.set[ begin ];
+        maxY = sample.set[ begin ];
+    }
+    for (int i = begin + 1; i < sample.set.size(); ++i) {
+        // modify by czy at 2025-12
+        if (qwt_is_nan_or_inf(sample.set[ i ])) {
+            continue;
+        }
         if (sample.set[ i ] < minY)
             minY = sample.set[ i ];
 
@@ -110,6 +164,10 @@ QRectF qwtBoundingRectT(const QwtSeriesData< T >& series, size_t from, size_t to
 
     size_t i;
     for (i = from; i <= to; i++) {
+        // chenzongyan modify at 202512:增加nan的判断
+        if (isSampleNanOrInf(series.sample(i))) {
+            continue;
+        }
         const QRectF rect = qwtBoundingRect(series.sample(i));
         if (rect.width() >= 0.0 && rect.height() >= 0.0) {
             boundingRect = rect;
@@ -119,6 +177,10 @@ QRectF qwtBoundingRectT(const QwtSeriesData< T >& series, size_t from, size_t to
     }
 
     for (; i <= to; i++) {
+        // chenzongyan modify at 202512:增加nan的判断
+        if (isSampleNanOrInf(series.sample(i))) {
+            continue;
+        }
         const QRectF rect = qwtBoundingRect(series.sample(i));
         if (rect.width() >= 0.0 && rect.height() >= 0.0) {
             boundingRect.setLeft(qMin(boundingRect.left(), rect.left()));

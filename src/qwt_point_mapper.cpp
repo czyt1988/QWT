@@ -60,16 +60,6 @@ static inline double qwtRoundValueF(double value)
 #endif
 }
 
-/**
- * @brief Checks whether the sample is valid; returns false if any NaN value exists./ 用于检测样本是否有效，如果存在 NaN 值，此函数返回 false。
- * @param sample
- * @return Returns false if any NaN value exists./如果存在 NaN 值，将返回 false。
- */
-static inline bool qwtIsSampleValid(const QPointF& sample)
-{
-    return !(qIsNaN(sample.x()) || qIsNaN(sample.y()));
-}
-
 static Qt::Orientation qwtProbeOrientation(const QwtSeriesData< QPointF >* series, int from, int to)
 {
     if (to - from < 20) {
@@ -213,7 +203,7 @@ qwtMapPointsQuad(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeri
     int realFrom    = from;
     QPointF sample0 = series->sample(from);
     // check nan/检查 NaN
-    while (realFrom < to && !qwtIsSampleValid(sample0)) {
+    while (realFrom < to && qwt_is_nan_or_inf(sample0)) {
         realFrom++;
     }
 
@@ -224,7 +214,7 @@ qwtMapPointsQuad(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeri
     for (int i = realFrom; i <= to; i++) {
         const QPointF sample = series->sample(i);
         // check nan/检查 NaN
-        if (!qwtIsSampleValid(sample)) {
+        if (qwt_is_nan_or_inf(sample)) {
             continue;
         }
         const int x = qwtRoundValue(xMap.transform(sample.x()));
@@ -322,7 +312,7 @@ qwtRenderDots(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtDotsCom
     for (int i = command.from; i <= command.to; i++) {
         const QPointF sample = command.series->sample(i);
         // check nan/检查 NaN
-        if (!qwtIsSampleValid(sample)) {
+        if (qwt_is_nan_or_inf(sample)) {
             continue;
         }
         const int x = static_cast< int >(xMap.transform(sample.x()) + 0.5) - x0;
@@ -383,7 +373,7 @@ static inline Polygon qwtToPoints(const QRectF& boundingRect,
         for (int i = from; i <= to; i++) {
             const QPointF sample = series->sample(i);
             // check nan/检查 NaN
-            if (!qwtIsSampleValid(sample)) {
+            if (qwt_is_nan_or_inf(sample)) {
                 continue;
             }
             const double x = xMap.transform(sample.x());
@@ -405,7 +395,7 @@ static inline Polygon qwtToPoints(const QRectF& boundingRect,
         for (int i = from; i <= to; i++) {
             const QPointF sample = series->sample(i);
             // check nan/检查 NaN
-            if (!qwtIsSampleValid(sample)) {
+            if (qwt_is_nan_or_inf(sample)) {
                 continue;
             }
             const double x = xMap.transform(sample.x());
@@ -467,7 +457,7 @@ static inline Polygon qwtToPolylineFiltered(const QwtScaleMap& xMap,
     int realFrom    = from;
     QPointF sample0 = series->sample(from);
     // check nan/检查 NaN
-    while (realFrom < to && !qwtIsSampleValid(sample0)) {
+    while (realFrom < to && qwt_is_nan_or_inf(sample0)) {
         realFrom++;
     }
 
@@ -478,7 +468,7 @@ static inline Polygon qwtToPolylineFiltered(const QwtScaleMap& xMap,
     for (int i = realFrom + 1; i <= to; i++) {
         const QPointF sample = series->sample(i);
         // check nan/检查 NaN
-        if (!qwtIsSampleValid(sample)) {
+        if (qwt_is_nan_or_inf(sample)) {
             continue;
         }
         const Point p(round(xMap.transform(sample.x())), round(yMap.transform(sample.y())));
@@ -531,7 +521,7 @@ static inline Polygon qwtToPointsFiltered(const QRectF& boundingRect,
     for (int i = from; i <= to; i++) {
         const QPointF sample = series->sample(i);
         // check nan/检查 NaN
-        if (!qwtIsSampleValid(sample)) {
+        if (qwt_is_nan_or_inf(sample)) {
             continue;
         }
         const int x = qwtRoundValue(xMap.transform(sample.x()));

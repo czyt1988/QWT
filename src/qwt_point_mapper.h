@@ -30,7 +30,8 @@
 #include "qwt_global.h"
 
 class QwtScaleMap;
-template< typename T > class QwtSeriesData;
+template< typename T >
+class QwtSeriesData;
 class QPolygonF;
 class QPointF;
 class QRectF;
@@ -48,7 +49,7 @@ class QImage;
  */
 class QWT_EXPORT QwtPointMapper
 {
-  public:
+public:
     /*!
        \brief Flags affecting the transformation process
        \sa setFlag(), setFlags()
@@ -85,43 +86,48 @@ class QWT_EXPORT QwtPointMapper
         WeedOutIntermediatePoints = 0x04
     };
 
-    Q_DECLARE_FLAGS( TransformationFlags, TransformationFlag )
+    Q_DECLARE_FLAGS(TransformationFlags, TransformationFlag)
 
     QwtPointMapper();
     ~QwtPointMapper();
 
-    void setFlags( TransformationFlags );
+    void setFlags(TransformationFlags);
     TransformationFlags flags() const;
 
-    void setFlag( TransformationFlag, bool on = true );
-    bool testFlag( TransformationFlag ) const;
+    void setFlag(TransformationFlag, bool on = true);
+    bool testFlag(TransformationFlag) const;
 
-    void setBoundingRect( const QRectF& );
+    void setBoundingRect(const QRectF&);
     QRectF boundingRect() const;
 
-    QPolygonF toPolygonF( const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QwtSeriesData< QPointF >* series, int from, int to ) const;
+    QPolygonF
+    toPolygonF(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeriesData< QPointF >* series, int from, int to) const;
 
-    QPolygon toPolygon( const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QwtSeriesData< QPointF >* series, int from, int to ) const;
+    QPolygon
+    toPolygon(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeriesData< QPointF >* series, int from, int to) const;
 
-    QPolygon toPoints( const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QwtSeriesData< QPointF >* series, int from, int to ) const;
+    QPolygon
+    toPoints(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeriesData< QPointF >* series, int from, int to) const;
 
-    QPolygonF toPointsF( const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QwtSeriesData< QPointF >* series, int from, int to ) const;
+    QPolygonF
+    toPointsF(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeriesData< QPointF >* series, int from, int to) const;
 
-    QImage toImage( const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-        const QwtSeriesData< QPointF >* series, int from, int to,
-        const QPen&, bool antialiased, uint numThreads ) const;
+    QImage toImage(const QwtScaleMap& xMap,
+                   const QwtScaleMap& yMap,
+                   const QwtSeriesData< QPointF >* series,
+                   int from,
+                   int to,
+                   const QPen&,
+                   bool antialiased,
+                   uint numThreads) const;
 
-  private:
+private:
     Q_DISABLE_COPY(QwtPointMapper)
 
     class PrivateData;
     PrivateData* m_data;
 };
 
-Q_DECLARE_OPERATORS_FOR_FLAGS( QwtPointMapper::TransformationFlags )
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtPointMapper::TransformationFlags)
 
 #endif

@@ -166,6 +166,10 @@ The new `QwtPlotCanvasZoomer` needs no axis specification; it zooms the entire c
 
 For details, refer to the tutorial: [Zoomer](https://czyt1988.github.io/QWT/zh/use-guide/zoomer/)
 
+### Other Modifications
+
+- Fixed the impact of `NAN` and `INF` values on plotting
+
 ## Changelog
 
 See [CHANGES.MD](./CHANGES.md) for detailed logs.

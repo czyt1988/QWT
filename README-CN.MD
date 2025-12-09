@@ -122,6 +122,10 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 
 具体可参见教程：[缩放工具](https://czyt1988.github.io/QWT/zh/use-guide/zoomer/)
 
+### 其它修改
+
+- 修复了`NAN`值和`INF`值对绘图的影响
+
 ## changelog
 
 详细的日志请参阅[CHANGES.MD](./CHANGES.md)

@@ -1,3 +1,12 @@
+## tag:v7.0.8
+
+- `QwtFigure`增加`addAxisAlignment`等坐标轴对齐功能，可以指定子绘图的坐标轴进行对齐
+	坐标轴对齐的效果如下：
+	![axis-alignment](./docs/assets/picture/figure-scale-aligment.png)
+
+- `QwtPointMapper`添加对`NaN`和`Inf`值的异常处理，在数据存在异常值时不会导致坐标映射异常
+- `qwt_series_data.cpp`的数据范围判断增加对`NaN`和`Inf`值的异常处理
+
 ## tag:v7.0.7
 
 - v7.0.5~v7.0.6新增的`QwtScaleWidget::panScale`函数移动到`QwtPlot`中，并改名为`panAxis`，并修复了在对数坐标轴移动异常的问题，解决对数坐标轴坐标移动问题

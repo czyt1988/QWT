@@ -1313,14 +1313,16 @@ void QwtFigure::alignAxes(QList< QwtPlot* > plots, int axisId, bool update)
         return;
     }
 
-    // ========== 步骤2：统一轴的minimumExtent（保证轴宽度/高度一致） ==========
-    double maxExtent = 0.0;
-
-    // 2.1 计算所有Plot对应轴的最大extent（真实延伸尺寸）
+    // ========== 步骤2：统一轴的minimumExtent（保证轴宽度/高度一致）/同时统一轴的EdgeMargin（保证绘图区域和边界的偏移一致） ==========
+    double maxExtent  = 0.0;
+    int maxEdgeMargin = 0;
+    int maxStartDist = 0, maxEndDist = 0;
+    // 计算所有Plot对应轴的最大extent（真实延伸尺寸），edgeMargin，BorderDistHint
     for (QwtPlot* plot : qAsConst(plots)) {
         QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
-        if (!scaleWidget)
+        if (!scaleWidget) {
             continue;
+        }
 
         QwtScaleDraw* scaleDraw = scaleWidget->scaleDraw();
         if (!scaleDraw)
@@ -1333,26 +1335,12 @@ void QwtFigure::alignAxes(QList< QwtPlot* > plots, int axisId, bool update)
         if (extent > maxExtent) {
             maxExtent = extent;
         }
-    }
-
-    // 2.2 给所有Plot的对应轴设置统一的最小延伸尺寸
-    for (QwtPlot* plot : qAsConst(plots)) {
-        QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
-        if (!scaleWidget)
-            continue;
-
-        scaleWidget->scaleDraw()->setMinimumExtent(maxExtent);
-    }
-
-    // ========== 步骤3：统一轴的minBorderDist（保证绘图区域偏移一致） ==========
-    int maxStartDist = 0, maxEndDist = 0;
-
-    // 3.1 遍历所有Plot，计算最大的startDist和endDist
-    for (QwtPlot* plot : qAsConst(plots)) {
-        QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
-        if (!scaleWidget)
-            continue;
-
+        // 查询edgeMargin，记录最大的edgeMargin
+        int em = scaleWidget->edgeMargin();
+        if (em > maxEdgeMargin) {
+            maxEdgeMargin = em;
+        }
+        // 统一轴的minBorderDist（保证绘图区域偏移一致）
         int startDist = 0, endDist = 0;
         scaleWidget->getBorderDistHint(startDist, endDist);
 
@@ -1361,15 +1349,16 @@ void QwtFigure::alignAxes(QList< QwtPlot* > plots, int axisId, bool update)
         maxEndDist   = qMax(maxEndDist, endDist);
     }
 
-    // 3.2 给所有Plot的对应轴设置统一的最小边框距离（最大值）
+    // 给所有Plot更新数据
     for (QwtPlot* plot : qAsConst(plots)) {
         QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
-        if (!scaleWidget)
+        if (!scaleWidget) {
             continue;
-
+        }
+        scaleWidget->scaleDraw()->setMinimumExtent(maxExtent);
+        scaleWidget->setEdgeMargin(maxEdgeMargin);
         scaleWidget->setMinBorderDist(maxStartDist, maxEndDist);
     }
-
     // ========== 步骤4：强制更新轴和重绘，确保设置生效 ==========
     if (update) {
         for (QwtPlot* plot : qAsConst(plots)) {
