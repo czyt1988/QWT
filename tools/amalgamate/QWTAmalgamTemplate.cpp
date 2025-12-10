@@ -53,6 +53,7 @@
 #include "../../src/qwt_scale_widget.cpp"
 #include "../../src/qwt_abstract_scale.cpp"
 #include "../../src/qwt_abstract_slider.cpp"
+#include "../../src/qwt_slider.cpp"
 #include "../../src/qwt_thermo.cpp"
 #include "../../src/qwt_system_clock.cpp"
 #include "../../src/qwt_symbol.cpp"

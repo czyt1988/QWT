@@ -6,6 +6,7 @@
 
 - `QwtPointMapper`添加对`NaN`和`Inf`值的异常处理，在数据存在异常值时不会导致坐标映射异常
 - `qwt_series_data.cpp`的数据范围判断增加对`NaN`和`Inf`值的异常处理
+- 解决合并文件漏了QwtSlider类的问题（Issue #4）
 
 ## tag:v7.0.7
 

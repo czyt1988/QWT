@@ -54,6 +54,7 @@
 #include "../../src/qwt_abstract_scale_draw.h"
 #include "../../src/qwt_abstract_scale.h"
 #include "../../src/qwt_abstract_slider.h"
+#include "../../src/qwt_slider.h"
 #include "../../src/qwt_thermo.h"
 #include "../../src/qwt_system_clock.h"
 #include "../../src/qwt_symbol.h"
