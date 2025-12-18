@@ -199,6 +199,9 @@ QwtPlotSeriesDataPicker::QwtPlotSeriesDataPicker(QWidget* canvas) : QwtCanvasPic
     setRubberBand(QwtPicker::UserRubberBand);
     // 设置状态机，用于点选择
     setStateMachine(new QwtPickerTrackerMachine);
+    //
+    QwtPlot* p = plot();
+    connect(p, &QwtPlot::itemAttached, this, &QwtPlotSeriesDataPicker::onPlotItemDetached);
 }
 
 QwtPlotSeriesDataPicker::~QwtPlotSeriesDataPicker()
@@ -772,4 +775,19 @@ int QwtPlotSeriesDataPicker::pickNearestPoint(const QwtPlot* plot, const QPoint&
         return 1;
     }
     return featurePoints.size();
+}
+
+void QwtPlotSeriesDataPicker::onPlotItemDetached(QwtPlotItem* item, bool on)
+{
+    // 遍历看看是否有此item
+    QWT_D(d);
+    if (!on) {
+        QList< QwtPlotSeriesDataPicker::PrivateData::FeaturePoint >& pickedFeatureDatas = d->featurePoints;
+        for (int i = pickedFeatureDatas.size() - 1; i >= 0; --i) {
+            const QwtPlotSeriesDataPicker::PrivateData::FeaturePoint& fp = pickedFeatureDatas[ i ];
+            if (fp.item == item) {
+                pickedFeatureDatas.removeAt(i);  // 反向删除，避免索引混乱
+            }
+        }
+    }
 }

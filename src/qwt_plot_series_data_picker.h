@@ -99,6 +99,9 @@ private:
     int pickYValue(const QwtPlot* plot, const QPoint& pos, bool interpolate = false);
     // 获取绘图区域屏幕坐标pos上，可拾取的最近的一个点，(基于窗口实现快速索引)
     int pickNearestPoint(const QwtPlot* plot, const QPoint& pos, int windowSize = -5);
+private Q_SLOTS:
+    // item删除的槽，用于更新记录
+    void onPlotItemDetached(QwtPlotItem* item, bool on);
 
 protected:
     // 生成一个item的文字内容
