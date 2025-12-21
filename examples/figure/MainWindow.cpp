@@ -13,6 +13,9 @@
 #include "qwt_figure.h"
 #include "qwt_figure_widget_overlay.h"
 #include "qwt_scale_engine.h"
+#include "qwt_plot_series_data_picker.h"
+//
+#include "PickLinker.h"
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -34,10 +37,12 @@ MainWindow::~MainWindow()
 
 void MainWindow::initFigure(QwtFigure* figure)
 {
+
     figure->setFaceColor(Qt::white);  // 设置背景颜色
 
     // 示例1: 横轴为对数轴
-    QwtPlot* plot1 = new QwtPlot();
+    QwtPlot* plot1                   = new QwtPlot();
+    QwtPlotSeriesDataPicker* picker1 = new QwtPlotSeriesDataPicker(plot1->canvas());
 
     // 设置X轴为对数坐标
     plot1->setAxisScaleEngine(QwtPlot::xBottom, new QwtLogScaleEngine);
@@ -59,6 +64,7 @@ void MainWindow::initFigure(QwtFigure* figure)
 
     // 设置Y轴为对数坐标
     plot2->setAxisScaleEngine(QwtPlot::yLeft, new QwtLogScaleEngine);
+    QwtPlotSeriesDataPicker* picker2 = new QwtPlotSeriesDataPicker(plot2->canvas());
 
     QwtPlotCurve* curve2 = new QwtPlotCurve("Log Y Wave");
     curve2->setSamples(generateExponentialData(100, 0.1));  // 使用指数增长数据，适合对数Y轴
@@ -73,8 +79,9 @@ void MainWindow::initFigure(QwtFigure* figure)
     qDebug() << "plot2 norm rect =" << figure->axesNormRect(plot2);
 
     // 示例3: 线性坐标（保持不变）
-    QwtPlot* plot3       = new QwtPlot();
-    QwtPlotCurve* curve3 = new QwtPlotCurve("Sine Wave 3");
+    QwtPlot* plot3                   = new QwtPlot();
+    QwtPlotSeriesDataPicker* picker3 = new QwtPlotSeriesDataPicker(plot3->canvas());
+    QwtPlotCurve* curve3             = new QwtPlotCurve("Sine Wave 3");
     // 生成带nan和inf值的曲线
     auto series = generateSampleDataWithNan();
     //    if (qwtContainsNanOrInf(series.begin(), series.end())) {
@@ -89,8 +96,8 @@ void MainWindow::initFigure(QwtFigure* figure)
     qDebug() << "plot3 norm rect =" << figure->axesNormRect(plot3);
 
     // 示例4: 双对数坐标
-    QwtPlot* plot4 = new QwtPlot();
-
+    QwtPlot* plot4                   = new QwtPlot();
+    QwtPlotSeriesDataPicker* picker4 = new QwtPlotSeriesDataPicker(plot4->canvas());
     // 设置双对数坐标
     plot4->setAxisScaleEngine(QwtPlot::xBottom, new QwtLogScaleEngine);
     plot4->setAxisScaleEngine(QwtPlot::yLeft, new QwtLogScaleEngine);
@@ -114,13 +121,21 @@ void MainWindow::initFigure(QwtFigure* figure)
     plot4->setAxisAutoScale(QwtPlot::yLeft, true);
     plot4->replot();
 
-    QwtPlot* hostPlot = createParasitePlot();
+    QwtPlot* hostPlot                = createParasitePlot();
+    QwtPlotSeriesDataPicker* picker5 = new QwtPlotSeriesDataPicker(hostPlot->canvas());
     figure->addGridAxes(hostPlot, 3, 2, 2, 0, 1, 2);  // 3x2网格，第2行第0列，跨2列
     qDebug() << "plot4 norm rect =" << figure->axesNormRect(plot4);
 
     // 对齐坐标轴
     figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
     figure->addAxisAlignment({ plot2, plot4 }, QwtAxis::YLeft);
+
+    m_pickerLinker = new PickLinker(this);
+    m_pickerLinker->addPicker(picker1);
+    m_pickerLinker->addPicker(picker2);
+    m_pickerLinker->addPicker(picker3);
+    m_pickerLinker->addPicker(picker4);
+    m_pickerLinker->addPicker(picker5);
 }
 
 void MainWindow::setupPlotStyle(QwtPlot* plot, const QString& title, const QColor& color)

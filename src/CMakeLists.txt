@@ -116,9 +116,6 @@ set(QWT_HEADER_BASE
         qwt_text.h
         qwt_transform.h
         qwt_widget_overlay.h
-        qwt_figure_layout.h
-        qwt_figure.h
-        qwt_figure_widget_overlay.h
         qwt_utils.h
 )
 set(QWT_SOURCE_BASE
@@ -166,9 +163,6 @@ set(QWT_SOURCE_BASE
         qwt_text.cpp
         qwt_transform.cpp
         qwt_widget_overlay.cpp
-        qwt_figure_layout.cpp
-        qwt_figure.cpp
-        qwt_figure_widget_overlay.cpp
         qwt_utils.cpp
 )
 
@@ -239,7 +233,10 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_series_data.h
         qwt_series_store.h
         qwt_point_data.h
-        qwt_scale_widget.h 
+        qwt_scale_widget.h
+        qwt_figure_layout.h
+        qwt_figure.h
+        qwt_figure_widget_overlay.h
     )
     set(QWT_SOURCE_PLOT
         qwt_curve_fitter.cpp
@@ -300,6 +297,9 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_series_data.cpp
         qwt_point_data.cpp
         qwt_scale_widget.cpp
+        qwt_figure_layout.cpp
+        qwt_figure.cpp
+        qwt_figure_widget_overlay.cpp
     )
 
     list(APPEND QWT_HEADER_FILES ${QWT_HEADER_PLOT})

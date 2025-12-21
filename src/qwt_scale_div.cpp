@@ -26,6 +26,7 @@
 
 #include "qwt_scale_div.h"
 #include "qwt_interval.h"
+#include "qwt_math.h"
 
 /*!
    Construct a division without ticks
@@ -205,7 +206,21 @@ bool QwtScaleDiv::operator==( const QwtScaleDiv& other ) const
  */
 bool QwtScaleDiv::operator!=( const QwtScaleDiv& other ) const
 {
-    return ( !( *this == other ) );
+    return (!(*this == other));
+}
+
+bool QwtScaleDiv::fuzzyCompare(const QwtScaleDiv& other) const
+{
+    if (qFuzzyCompare(m_lowerBound, other.m_lowerBound) && qFuzzyCompare(m_upperBound, other.m_upperBound)) {
+        for (int i = 0; i < NTickTypes; i++) {
+            if (!fuzzyRangeEqual(
+                    m_ticks[ i ].begin(), m_ticks[ i ].end(), other.m_ticks[ i ].begin(), other.m_ticks[ i ].end())) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
 }
 
 //! Check if the scale division is empty( lowerBound() == upperBound() )

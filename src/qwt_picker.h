@@ -278,11 +278,15 @@ public:
     virtual QRegion rubberBandMask() const;
 
     virtual QwtText trackerText(const QPoint& pos) const;
-    QPoint trackerPosition() const;
     virtual QRect trackerRect(const QFont&) const;
-
+    // 强制设置trackerPosition，正常这个不需要调用，但有时候没有鼠标也想显示picker可以通过此函数来设置
+    virtual void setTrackerPosition(const QPoint& pos);
+    QPoint trackerPosition() const;
     QPolygon selection() const;
-
+    // 更新显示
+    void update();
+    // 手动设置激活
+    void setActive(bool on);
 public Q_SLOTS:
     void setEnabled(bool);
 

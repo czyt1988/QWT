@@ -5,6 +5,8 @@
 class QwtFigure;
 class QwtPlot;
 class QwtFigureWidgetOverlay;
+class PickLinker;
+
 namespace Ui
 {
 class MainWindow;
@@ -42,6 +44,7 @@ private:
     Ui::MainWindow* ui;
     QwtFigure* m_figure { nullptr };
     QwtFigureWidgetOverlay* m_figureOverlay { nullptr };
+    PickLinker* m_pickerLinker { nullptr };
 };
 
 #endif  // MAINWINDOW_H

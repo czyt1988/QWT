@@ -751,6 +751,20 @@ QPolygon QwtPicker::selection() const
     return adjustedPoints(m_data->pickedPoints);
 }
 
+void QwtPicker::update()
+{
+    updateDisplay();
+}
+
+void QwtPicker::setActive(bool on)
+{
+    if (on) {
+        begin();
+    } else {
+        end();
+    }
+}
+
 //! \return Current position of the tracker
 QPoint QwtPicker::trackerPosition() const
 {
@@ -820,6 +834,15 @@ QRect QwtPicker::trackerRect(const QFont& font) const
     textRect.moveTopLeft(QPoint(left, top));
 
     return textRect;
+}
+
+/**
+ * @brief 强制设置trackerPosition，正常这个不需要调用，但有时候没有鼠标也想显示picker可以通过此函数来设置
+ * @param pos
+ */
+void QwtPicker::setTrackerPosition(const QPoint& pos)
+{
+    m_data->trackerPosition = pos;
 }
 
 /*!
