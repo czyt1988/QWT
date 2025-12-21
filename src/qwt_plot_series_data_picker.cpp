@@ -49,8 +49,10 @@
  * @see QwtSeriesData
  * @see QwtPlotSeriesDataPicker::pickNearestPoint
  */
-QPair< size_t, size_t >
-calculateSearchWindow(size_t curveSize, double targetX, const QwtSeriesData< QPointF >& data, int windowSize = -5)
+QPair< size_t, size_t > calculateSearchWindow(size_t curveSize,
+                                              double targetX,
+                                              const QwtSeriesData< QPointF >& data,
+                                              int windowSize = -5)
 {
     // 初始化默认范围：整个曲线
     size_t startIndex;
@@ -89,8 +91,9 @@ calculateSearchWindow(size_t curveSize, double targetX, const QwtSeriesData< QPo
     realWindowSize = std::min< size_t >(realWindowSize, curveSize);
 
     // 使用二分查找定位目标X坐标的大致位置
-    size_t centerIndex = qwtUpperSampleIndex< QPointF >(
-        data, targetX, [](const double x, const QPointF& point) -> bool { return (x < point.x()); });
+    size_t centerIndex = qwtUpperSampleIndex< QPointF >(data, targetX, [](const double x, const QPointF& point) -> bool {
+        return (x < point.x());
+    });
 
     // 根据中心位置计算窗口边界
     if (centerIndex == curveSize) {
@@ -174,13 +177,14 @@ public:
     QwtPlotSeriesDataPicker::TextPlacement textArea { QwtPlotSeriesDataPicker::TextPlaceAuto };
     QwtPlotSeriesDataPicker::InterpolationMode interpolationMode { QwtPlotSeriesDataPicker::LinearInterpolation };
     // 渲染相关
-    QBrush textBackgroundBrush { QColor(255, 255, 255, 125) };
+    QBrush textBackgroundBrush { QColor(200, 200, 200, 180) };
     Qt::Alignment textAlignment { Qt::AlignLeft | Qt::AlignVCenter };
     // 记录找到的特征点
     int nearestSearchWindowSize { -5 };
     QList< FeaturePoint > featurePoints;
     int featurePointSize { 4 };      ///< 特征点的大小
     bool markFeaturePoint { true };  ///< 是否标记捕获的特征点
+    QPoint mousePos;
 };
 
 QwtPlotSeriesDataPicker::PrivateData::PrivateData(QwtPlotSeriesDataPicker* p) : q_ptr(p)
@@ -493,6 +497,7 @@ void QwtPlotSeriesDataPicker::move(const QPoint& pos)
     if (!currentPlot) {
         return;
     }
+    m_data->mousePos = pos;
     switch (pickMode()) {
     case PickYValue:
         pickYValue(currentPlot, pos, isInterpolation());
@@ -538,8 +543,8 @@ QRect QwtPlotSeriesDataPicker::trackerRect(const QFont& f) const
     if (textArea() == QwtPlotSeriesDataPicker::TextPlaceAuto && pickMode() == PickNearestPoint) {
         return rect;
     }
+    QWT_DC(d);
     const QRect plotRect = pickArea().boundingRect().toRect();
-
     // 根据 textArea 和 pickMode 调整 rect 位置
     if (textArea() == QwtPlotSeriesDataPicker::TextPlaceAuto) {
         // 对于 TextPlaceAuto, 只有 PickYValue 模式需要特殊处理
@@ -550,11 +555,39 @@ QRect QwtPlotSeriesDataPicker::trackerRect(const QFont& f) const
     } else {
         // 根据指定的 textArea 位置调整
         switch (textArea()) {
-        case TextOnTop:
+        case TextFollowOnTop:
             rect.moveTop(plotRect.top());
             break;
-        case TextOnBottom:
+        case TextFollowOnBottom:
             rect.moveBottom(plotRect.bottom());
+            break;
+        case TextOnCanvasTopRight:
+            rect.moveTopRight(plotRect.topRight());
+            break;
+        case TextOnCanvasTopLeft:
+            rect.moveTopLeft(plotRect.topLeft());
+            break;
+        case TextOnCanvasBottomRight:
+            rect.moveBottomRight(plotRect.bottomRight());
+            break;
+        case TextOnCanvasBottomLeft:
+            rect.moveBottomLeft(plotRect.bottomLeft());
+            break;
+        case TextOnCanvasTopAuto:
+            // 对于自动模式，要根据当前鼠标的位置判断
+            if (d->mousePos.x() >= plotRect.width() - rect.width()) {
+                rect.moveTopLeft(plotRect.topLeft());
+            } else {
+                rect.moveTopRight(plotRect.topRight());
+            }
+            break;
+        case TextOnCanvasBottomAuto:
+            // 对于自动模式，要根据当前鼠标的位置判断
+            if (d->mousePos.x() >= plotRect.width() - rect.width()) {
+                rect.moveBottomLeft(plotRect.bottomLeft());
+            } else {
+                rect.moveBottomRight(plotRect.bottomRight());
+            }
             break;
         default:
             // 对于未明确指定的 textArea，保持 rect 不变
@@ -654,8 +687,10 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
                     continue;
                 }
 
-                size_t index = qwtUpperSampleIndex< QPointF >(
-                    *curve->data(), x, [](const double x, const QPointF& pos) -> bool { return (x < pos.x()); });
+                size_t index =
+                    qwtUpperSampleIndex< QPointF >(*curve->data(), x, [](const double x, const QPointF& pos) -> bool {
+                        return (x < pos.x());
+                    });
 
                 if (index == curveSize) {
                     // 没有找到合适的

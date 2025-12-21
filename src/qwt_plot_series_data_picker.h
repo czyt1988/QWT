@@ -32,10 +32,16 @@ public:
      */
     enum TextPlacement
     {
-        TextPlaceAuto,   ///< 自动放置（pick y的时候放置在顶部，pick nearest的时候跟随鼠标）
-        TextOnTop,       ///< 放在绘图区的顶部(默认）
-        TextOnBottom,    ///< 放在绘图区的底部
-        TextFollowMouse  ///< 跟随鼠标指针
+        TextPlaceAuto,         ///< 自动放置（pick y的时候放置在顶部，pick nearest的时候跟随鼠标）
+        TextFollowOnTop,       ///< 放在绘图区的顶部(默认）
+        TextFollowOnBottom,    ///< 放在绘图区的底部
+        TextFollowMouse,       ///< 跟随鼠标指针
+        TextOnCanvasTopRight,  ///< 文字在画布的右上角
+        TextOnCanvasTopLeft,   ///< 文字在画布的左上角
+        TextOnCanvasBottomRight,  ///< 文字在画布的右下角
+        TextOnCanvasBottomLeft,   ///< 文字在画布的左下角
+        TextOnCanvasTopAuto,  ///< 文字在画布的上边，具体是左是右根据鼠标位置来自动识别，尽量避免不影响鼠标位置
+        TextOnCanvasBottomAuto  ///< 文字在画布的下边，具体是左是右根据鼠标位置来自动识别，尽量避免不影响鼠标位置
     };
 
     /**
