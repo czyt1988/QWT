@@ -410,18 +410,8 @@ QwtText QwtPlotSeriesDataPicker::trackerText(const QPoint& pos) const
     if (pickedFeatureDatas.empty()) {
         return QwtText();
     }
-    QwtPlot* p = nullptr;
     for (int i = 0; i < pickedFeatureDatas.size(); ++i) {
         const QwtPlotSeriesDataPicker::PrivateData::FeaturePoint& fp = pickedFeatureDatas[ i ];
-        if (m_data->pickMode == PickYValue) {
-            QwtPlot* itemPlot = fp.item->plot();
-            if (itemPlot != p) {
-                // 说明plot第一次出现，把x轴的值绘制
-                p = itemPlot;
-                if (p->isHostPlot()) {
-                }
-            }
-        }
         text += valueString(fp.feature, fp.item, fp.index, i);
     }
 
