@@ -85,6 +85,7 @@ public:
 
     bool operator==(const QwtScaleDiv&) const;
     bool operator!=(const QwtScaleDiv&) const;
+    bool fuzzyCompare(const QwtScaleDiv& other) const;
 
     void setInterval(double lowerBound, double upperBound);
     void setInterval(const QwtInterval&);

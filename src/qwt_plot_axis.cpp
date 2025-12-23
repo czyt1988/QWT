@@ -597,6 +597,10 @@ void QwtPlot::setAxisScale(QwtAxisId axisId, double min, double max, double step
 {
     if (isAxisValid(axisId)) {
         AxisData& d = m_scaleData->axisData(axisId);
+        if (qFuzzyCompare(d.minValue, min) && qFuzzyCompare(d.maxValue, max) && qFuzzyCompare(d.stepSize, stepSize)) {
+            // 都一样就不设置
+            return;
+        }
 
         d.doAutoScale = false;
         d.isValid     = false;
@@ -628,7 +632,10 @@ void QwtPlot::setAxisScaleDiv(QwtAxisId axisId, const QwtScaleDiv& scaleDiv)
 {
     if (isAxisValid(axisId)) {
         AxisData& d = m_scaleData->axisData(axisId);
-
+        if (d.scaleDiv.fuzzyCompare(scaleDiv)) {
+            // 都一样就不设置
+            return;
+        }
         d.doAutoScale = false;
         d.scaleDiv    = scaleDiv;
         d.isValid     = true;
