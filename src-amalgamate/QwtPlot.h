@@ -27,14 +27,14 @@
  * @def qwt的数字版本 MAJ.MIN.{PAT}
  */
 #ifndef QWT_VERSION_PAT
-#define QWT_VERSION_PAT 7
+#define QWT_VERSION_PAT 8
 #endif
 
 /**
  * @def 版本号（字符串）
  */
 #ifndef QWT_VERSION_STR
-#define QWT_VERSION_STR "7.0.7"
+#define QWT_VERSION_STR "7.0.8"
 #endif
 
 #endif  // QWT_VERSION_INFO_H
@@ -808,6 +808,80 @@ inline Container qwtRemoveNanOrInfCopy(const Container& container)
                  [](const typename Container::value_type& value) { return !qwt_is_nan_or_inf(value); });
 
     return result;
+}
+
+/**
+ * @brief 比较两个浮点区间是否“模糊相等”（使用 qFuzzyCompare）。
+ *        Compare two floating-point ranges for fuzzy equality using qFuzzyCompare.
+ *
+ * 只要迭代器类别满足前向迭代器要求，即可用于任何容器（QVector、QList、
+ * std::vector、std::array、原始数组等）。区间长度不同立即返回 false；
+ * 否则逐元素调用 qFuzzyCompare，全部通过返回 true。
+ *
+ * As long as the iterators meet the ForwardIterator requirements, this function
+ * works with any container (QVector, QList, std::vector, std::array, C-style
+ * arrays, etc.). If the lengths differ it returns false immediately;
+ * otherwise it performs element-wise qFuzzyCompare and returns true only
+ * if all comparisons succeed.
+ *
+ * @tparam It1  第一组迭代器类型 / type of the first range's iterator
+ * @tparam It2  第二组迭代器类型 / type of the second range's iterator
+ *
+ * @param first1  第一组区间起始迭代器 / begin iterator of the first range
+ * @param last1   第一组区间结束迭代器 / end iterator of the first range
+ * @param first2  第二组区间起始迭代器 / begin iterator of the second range
+ * @param last2   第二组区间结束迭代器 / end iterator of the second range
+ *
+ * @return true  – 长度相同且所有对应元素 qFuzzyCompare 返回 true<br>
+ *         false – 长度不同或任一元素 qFuzzyCompare 返回 false
+ *
+ * @retval true  – ranges have equal length and all corresponding elements
+ *                 satisfy qFuzzyCompare<br>
+ * @retval false – lengths differ or any element pair fails qFuzzyCompare
+ *
+ * @note 元素类型必须能被 qFuzzyCompare 接受（一般为 float/double）。
+ *       The value type must be acceptable to qFuzzyCompare (usually float/double).
+ *
+ * @see qFuzzyCompare
+ *
+ * @par 示例 / Example
+ * @code
+ * #include <QList>
+ * #include <QVector>
+ * #include <vector>
+ *
+ * // 1) QList vs QList
+ * QList<double> v1{1.0, 2.0000000000001, 3.0};
+ * QList<double> v2{1.0, 2.0,               3.0};
+ * bool same = fuzzyRangeEqual(v1.begin(), v1.end(),
+ *                             v2.begin(), v2.end()); // same == true
+ *
+ * // 2) QVector vs std::vector
+ * QVector<double>  qv{0.1 + 0.2, 4.0};
+ * std::vector<double> sv{0.3,      4.0};
+ * bool same2 = fuzzyRangeEqual(qv.begin(), qv.end(),
+ *                              sv.begin(), sv.end()); // same2 == true
+ *
+ * // 3) C-style array
+ * double a[] = {1.0, 2.0, 3.0};
+ * double b[] = {1.0, 2.0000000000001, 3.0};
+ * bool same3 = fuzzyRangeEqual(std::begin(a), std::end(a),
+ *                              std::begin(b), std::end(b)); // same3 == true
+ * @endcode
+ */
+template< typename It1, typename It2 >
+bool fuzzyRangeEqual(It1 first1, It1 last1, It2 first2, It2 last2)
+{
+    // 1. 长度不同 => 不相等
+    if (std::distance(first1, last1) != std::distance(first2, last2))
+        return false;
+
+    // 2. 逐元素 qFuzzyCompare
+    for (; first1 != last1; ++first1, ++first2) {
+        if (!qFuzzyCompare(*first1, *first2))
+            return false;
+    }
+    return true;
 }
 
 #endif
@@ -6847,6 +6921,7 @@ public:
 
     bool operator==(const QwtScaleDiv&) const;
     bool operator!=(const QwtScaleDiv&) const;
+    bool fuzzyCompare(const QwtScaleDiv& other) const;
 
     void setInterval(double lowerBound, double upperBound);
     void setInterval(const QwtInterval&);
@@ -11925,11 +12000,15 @@ public:
     virtual QRegion rubberBandMask() const;
 
     virtual QwtText trackerText(const QPoint& pos) const;
-    QPoint trackerPosition() const;
     virtual QRect trackerRect(const QFont&) const;
-
+    // 强制设置trackerPosition，正常这个不需要调用，但有时候没有鼠标也想显示picker可以通过此函数来设置
+    virtual void setTrackerPosition(const QPoint& pos);
+    QPoint trackerPosition() const;
     QPolygon selection() const;
-
+    // 更新显示
+    void update();
+    // 手动设置激活
+    void setActive(bool on);
 public Q_SLOTS:
     void setEnabled(bool);
 
@@ -14921,10 +15000,16 @@ public:
      */
     enum TextPlacement
     {
-        TextPlaceAuto,   ///< 自动放置（pick y的时候放置在顶部，pick nearest的时候跟随鼠标）
-        TextOnTop,       ///< 放在绘图区的顶部(默认）
-        TextOnBottom,    ///< 放在绘图区的底部
-        TextFollowMouse  ///< 跟随鼠标指针
+        TextPlaceAuto,         ///< 自动放置（pick y的时候放置在顶部，pick nearest的时候跟随鼠标）
+        TextFollowOnTop,       ///< 放在绘图区的顶部(默认）
+        TextFollowOnBottom,    ///< 放在绘图区的底部
+        TextFollowMouse,       ///< 跟随鼠标指针
+        TextOnCanvasTopRight,  ///< 文字在画布的右上角
+        TextOnCanvasTopLeft,   ///< 文字在画布的左上角
+        TextOnCanvasBottomRight,  ///< 文字在画布的右下角
+        TextOnCanvasBottomLeft,   ///< 文字在画布的左下角
+        TextOnCanvasTopAuto,  ///< 文字在画布的上边，具体是左是右根据鼠标位置来自动识别，尽量避免不影响鼠标位置
+        TextOnCanvasBottomAuto  ///< 文字在画布的下边，具体是左是右根据鼠标位置来自动识别，尽量避免不影响鼠标位置
     };
 
     /**
@@ -14934,6 +15019,13 @@ public:
     {
         NoInterpolation,     ///< 不进行插值，使用最近的数据点
         LinearInterpolation  ///< 线性插值，在相邻数据点之间进行插值计算
+    };
+
+    struct FeaturePoint
+    {
+        QwtPlotItem* item;  ///< 对应的item
+        QPointF feature;    ///< 特征点
+        size_t index;       ///< 在item里的索引
     };
 
 public:
@@ -14983,21 +15075,29 @@ public:
     // 绘制rubberband
     virtual void drawRubberBand(QPainter* painter) const QWT_OVERRIDE;
 
+    // 手动设置位置
+    virtual void setTrackerPosition(const QPoint& pos) QWT_OVERRIDE;
+
 private:
     // 获取绘图区域屏幕坐标pos上，的所有可拾取的y值,返回获取的个数
     int pickYValue(const QwtPlot* plot, const QPoint& pos, bool interpolate = false);
     // 获取绘图区域屏幕坐标pos上，可拾取的最近的一个点，(基于窗口实现快速索引)
     int pickNearestPoint(const QwtPlot* plot, const QPoint& pos, int windowSize = -5);
+private Q_SLOTS:
+    // item删除的槽，用于更新记录
+    void onPlotItemDetached(QwtPlotItem* item, bool on);
 
 protected:
     // 生成一个item的文字内容
-    virtual QString valueString(const QPointF& value, QwtPlotItem* item, size_t seriesIndex, int order) const;
+    virtual QString valueString(const QList< FeaturePoint >& fps) const;
     // 绘制特征点，所谓特征点就是捕获到的点
     virtual void drawFeaturePoints(QPainter* painter) const;
     // 鼠标移动
     virtual void move(const QPoint& pos) QWT_OVERRIDE;
     // 格式化为坐标轴对应的内容，针对时间轴，value是一个大浮点数，用户需要看到的是2024-10-01这样的数字
     QString formatAxisValue(double value, int axisId, QwtPlot* plot) const;
+    // 更新特征点
+    void updateFeaturePoint(const QPoint& pos);
 };
 
 #endif  // QWT_PLOT_SERIES_DATA_PICKER_H

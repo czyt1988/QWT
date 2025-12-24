@@ -13691,6 +13691,20 @@ bool QwtScaleDiv::operator!=(const QwtScaleDiv& other) const
     return (!(*this == other));
 }
 
+bool QwtScaleDiv::fuzzyCompare(const QwtScaleDiv& other) const
+{
+    if (qFuzzyCompare(m_lowerBound, other.m_lowerBound) && qFuzzyCompare(m_upperBound, other.m_upperBound)) {
+        for (int i = 0; i < NTickTypes; i++) {
+            if (!fuzzyRangeEqual(
+                    m_ticks[ i ].begin(), m_ticks[ i ].end(), other.m_ticks[ i ].begin(), other.m_ticks[ i ].end())) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
 //! Check if the scale division is empty( lowerBound() == upperBound() )
 bool QwtScaleDiv::isEmpty() const
 {
@@ -32104,6 +32118,20 @@ QPolygon QwtPicker::selection() const
     return adjustedPoints(m_data->pickedPoints);
 }
 
+void QwtPicker::update()
+{
+    updateDisplay();
+}
+
+void QwtPicker::setActive(bool on)
+{
+    if (on) {
+        begin();
+    } else {
+        end();
+    }
+}
+
 //! \return Current position of the tracker
 QPoint QwtPicker::trackerPosition() const
 {
@@ -32173,6 +32201,15 @@ QRect QwtPicker::trackerRect(const QFont& font) const
     textRect.moveTopLeft(QPoint(left, top));
 
     return textRect;
+}
+
+/**
+ * @brief 强制设置trackerPosition，正常这个不需要调用，但有时候没有鼠标也想显示picker可以通过此函数来设置
+ * @param pos
+ */
+void QwtPicker::setTrackerPosition(const QPoint& pos)
+{
+    m_data->trackerPosition = pos;
 }
 
 /*!
@@ -42906,6 +42943,9 @@ QPoint QwtPlotPicker::transform(const QPointF& pos) const
 #include <QPainter>
 #include <QtMath>
 #include <QDebug>
+#ifndef QwtPlotSeriesDataPicker_UseTable
+#define QwtPlotSeriesDataPicker_UseTable 1
+#endif
 /**
  * @brief 计算在曲线数据中搜索最近点的窗口范围
  *
@@ -43049,25 +43089,20 @@ class QwtPlotSeriesDataPicker::PrivateData
     QWT_DECLARE_PUBLIC(QwtPlotSeriesDataPicker)
 public:
     PrivateData(QwtPlotSeriesDataPicker* p);
-    struct FeaturePoint
-    {
-        QwtPlotItem* item;  ///< 对应的item
-        QPointF feature;    ///< 特征点
-        size_t index;       ///< 在item里的索引
-    };
 
 public:
     QwtPlotSeriesDataPicker::PickSeriesMode pickMode { QwtPlotSeriesDataPicker::PickYValue };
     QwtPlotSeriesDataPicker::TextPlacement textArea { QwtPlotSeriesDataPicker::TextPlaceAuto };
     QwtPlotSeriesDataPicker::InterpolationMode interpolationMode { QwtPlotSeriesDataPicker::LinearInterpolation };
     // 渲染相关
-    QBrush textBackgroundBrush { QColor(255, 255, 255, 125) };
+    QBrush textBackgroundBrush { QColor(255, 255, 255, 180) };
     Qt::Alignment textAlignment { Qt::AlignLeft | Qt::AlignVCenter };
     // 记录找到的特征点
     int nearestSearchWindowSize { -5 };
     QList< FeaturePoint > featurePoints;
     int featurePointSize { 4 };      ///< 特征点的大小
     bool markFeaturePoint { true };  ///< 是否标记捕获的特征点
+    QPoint mousePos;
 };
 
 QwtPlotSeriesDataPicker::PrivateData::PrivateData(QwtPlotSeriesDataPicker* p) : q_ptr(p)
@@ -43086,6 +43121,9 @@ QwtPlotSeriesDataPicker::QwtPlotSeriesDataPicker(QWidget* canvas) : QwtCanvasPic
     setRubberBand(QwtPicker::UserRubberBand);
     // 设置状态机，用于点选择
     setStateMachine(new QwtPickerTrackerMachine);
+    //
+    QwtPlot* p = plot();
+    connect(p, &QwtPlot::itemAttached, this, &QwtPlotSeriesDataPicker::onPlotItemDetached);
 }
 
 QwtPlotSeriesDataPicker::~QwtPlotSeriesDataPicker()
@@ -43286,14 +43324,11 @@ QwtText QwtPlotSeriesDataPicker::trackerText(const QPoint& pos) const
     QString text;
 
     QWT_DC(d);
-    const QList< QwtPlotSeriesDataPicker::PrivateData::FeaturePoint >& pickedFeatureDatas = d->featurePoints;
+    const QList< QwtPlotSeriesDataPicker::FeaturePoint >& pickedFeatureDatas = d->featurePoints;
     if (pickedFeatureDatas.empty()) {
         return QwtText();
     }
-    for (int i = 0; i < pickedFeatureDatas.size(); ++i) {
-        const QwtPlotSeriesDataPicker::PrivateData::FeaturePoint& fp = pickedFeatureDatas[ i ];
-        text += valueString(fp.feature, fp.item, fp.index, i);
-    }
+    text = valueString(pickedFeatureDatas);
 
     if (text.isEmpty()) {
         // 回退到默认跟踪器文本
@@ -43307,37 +43342,48 @@ QwtText QwtPlotSeriesDataPicker::trackerText(const QPoint& pos) const
     return trackerText;
 }
 
-/**
- * @brief 生成一个文字内容
- *
- * 如果想自定义文字显示，可重写此函数
- * @param value 值
- * @param item 对应的item
- * @param seriesIndex 对应的series的索引
- * @param order 序号，对于有多个值要显示的，这个order会递增，通过这个值可以判断是否换行，或者显示的值太多进行省略显示
- * @return
- */
-QString QwtPlotSeriesDataPicker::valueString(const QPointF& value, QwtPlotItem* item, size_t seriesIndex, int order) const
+QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicker::FeaturePoint >& fps) const
 {
-    Q_UNUSED(seriesIndex);
-    QwtPlot* plot = item ? item->plot() : nullptr;
+    QString t;
+    for (const FeaturePoint& fp : fps) {
+        if (m_data->pickMode == PickYValue) {
+#if QwtPlotSeriesDataPicker_UseTable
+            QString color = Qwt::plotItemColor(fp.item).name();
+            QString name  = fp.item->title().text();
+            QString value = formatAxisValue(fp.feature.y(), fp.item->yAxis(), fp.item->plot());
+            t += QString("<tr>"
+                         "<td><font color='%1'>■</font>%2</td>"
+                         "<td style='text-align:right;'> %3</td>"
+                         "</tr>")
+                     .arg(color, name, value);
 
-    if (m_data->pickMode == PickYValue) {
-        QString t;
-        if (order != 0) {
-            t += "<br/>";
+#else
+            if (!t.isEmpty()) {
+                t += "<br/>";
+            }
+            QwtPlot* plot = fp.item ? fp.item->plot() : nullptr;
+            // 使用formatAxisValue，对于时间日期也能正确显示
+            t += QString("<font color=%1>■</font>%2:%3")
+                     .arg(Qwt::plotItemColor(fp.item).name())
+                     .arg(fp.item->title().text())
+                     .arg(formatAxisValue(fp.feature.y(), fp.item->yAxis(), plot));
+#endif
+        } else {
+            // Pick Nearest Point
+            QwtPlot* plot = fp.item ? fp.item->plot() : nullptr;
+            if (!t.isEmpty()) {
+                t += "<br/>";
+            }
+            t += QString("(%1 , %2)")
+                     .arg(formatAxisValue(fp.feature.x(), fp.item->xAxis(), plot))
+                     .arg(formatAxisValue(fp.feature.y(), fp.item->yAxis(), plot));
         }
-        // 使用formatAxisValue，对于时间日期也能正确显示
-        t += QString("<font color=%1>%2</font>:%3")
-                 .arg(Qwt::plotItemColor(item).name())
-                 .arg(item->title().text())
-                 .arg(formatAxisValue(value.y(), item->yAxis(), plot));
-        return t;
     }
-    // Pick Nearest Point
-    return QString("(%1 , %2)")
-        .arg(formatAxisValue(value.x(), item->xAxis(), plot))
-        .arg(formatAxisValue(value.y(), item->yAxis(), plot));
+#if QwtPlotSeriesDataPicker_UseTable
+    t += "</table>";
+#else
+#endif
+    return t;
 }
 
 /**
@@ -43351,10 +43397,10 @@ QString QwtPlotSeriesDataPicker::valueString(const QPointF& value, QwtPlotItem* 
 void QwtPlotSeriesDataPicker::drawFeaturePoints(QPainter* painter) const
 {
     QWT_DC(d);
-    const QList< QwtPlotSeriesDataPicker::PrivateData::FeaturePoint >& pickedFeatureDatas = d->featurePoints;
+    const QList< QwtPlotSeriesDataPicker::FeaturePoint >& pickedFeatureDatas = d->featurePoints;
     for (int i = 0; i < pickedFeatureDatas.size(); ++i) {
-        const QwtPlotSeriesDataPicker::PrivateData::FeaturePoint& fp = pickedFeatureDatas[ i ];
-        QwtPlot* itemPlot                                            = fp.item->plot();
+        const QwtPlotSeriesDataPicker::FeaturePoint& fp = pickedFeatureDatas[ i ];
+        QwtPlot* itemPlot                               = fp.item->plot();
         if (!itemPlot) {
             continue;
         }
@@ -43373,20 +43419,7 @@ void QwtPlotSeriesDataPicker::drawFeaturePoints(QPainter* painter) const
 
 void QwtPlotSeriesDataPicker::move(const QPoint& pos)
 {
-    const QwtPlot* currentPlot = plot();
-    if (!currentPlot) {
-        return;
-    }
-    switch (pickMode()) {
-    case PickYValue:
-        pickYValue(currentPlot, pos, isInterpolation());
-        break;
-    case PickNearestPoint:
-        pickNearestPoint(currentPlot, pos, nearestSearchWindowSize());
-        break;
-    default:
-        break;
-    }
+    updateFeaturePoint(pos);
     QwtPicker::move(pos);
 }
 
@@ -43408,6 +43441,25 @@ QString QwtPlotSeriesDataPicker::formatAxisValue(double value, int axisId, QwtPl
     return QString::number(value);
 }
 
+void QwtPlotSeriesDataPicker::updateFeaturePoint(const QPoint& pos)
+{
+    const QwtPlot* currentPlot = plot();
+    if (!currentPlot) {
+        return;
+    }
+    m_data->mousePos = pos;
+    switch (pickMode()) {
+    case PickYValue:
+        pickYValue(currentPlot, pos, isInterpolation());
+        break;
+    case PickNearestPoint:
+        pickNearestPoint(currentPlot, pos, nearestSearchWindowSize());
+        break;
+    default:
+        break;
+    }
+}
+
 /**
  * @brief 绘制的区域在
  *
@@ -43422,8 +43474,8 @@ QRect QwtPlotSeriesDataPicker::trackerRect(const QFont& f) const
     if (textArea() == QwtPlotSeriesDataPicker::TextPlaceAuto && pickMode() == PickNearestPoint) {
         return rect;
     }
+    QWT_DC(d);
     const QRect plotRect = pickArea().boundingRect().toRect();
-
     // 根据 textArea 和 pickMode 调整 rect 位置
     if (textArea() == QwtPlotSeriesDataPicker::TextPlaceAuto) {
         // 对于 TextPlaceAuto, 只有 PickYValue 模式需要特殊处理
@@ -43434,11 +43486,39 @@ QRect QwtPlotSeriesDataPicker::trackerRect(const QFont& f) const
     } else {
         // 根据指定的 textArea 位置调整
         switch (textArea()) {
-        case TextOnTop:
+        case TextFollowOnTop:
             rect.moveTop(plotRect.top());
             break;
-        case TextOnBottom:
+        case TextFollowOnBottom:
             rect.moveBottom(plotRect.bottom());
+            break;
+        case TextOnCanvasTopRight:
+            rect.moveTopRight(plotRect.topRight());
+            break;
+        case TextOnCanvasTopLeft:
+            rect.moveTopLeft(plotRect.topLeft());
+            break;
+        case TextOnCanvasBottomRight:
+            rect.moveBottomRight(plotRect.bottomRight());
+            break;
+        case TextOnCanvasBottomLeft:
+            rect.moveBottomLeft(plotRect.bottomLeft());
+            break;
+        case TextOnCanvasTopAuto:
+            // 对于自动模式，要根据当前鼠标的位置判断
+            if (d->mousePos.x() >= plotRect.width() - rect.width()) {
+                rect.moveTopLeft(plotRect.topLeft());
+            } else {
+                rect.moveTopRight(plotRect.topRight());
+            }
+            break;
+        case TextOnCanvasBottomAuto:
+            // 对于自动模式，要根据当前鼠标的位置判断
+            if (d->mousePos.x() >= plotRect.width() - rect.width()) {
+                rect.moveBottomLeft(plotRect.bottomLeft());
+            } else {
+                rect.moveBottomRight(plotRect.bottomRight());
+            }
             break;
         default:
             // 对于未明确指定的 textArea，保持 rect 不变
@@ -43470,8 +43550,8 @@ void QwtPlotSeriesDataPicker::drawRubberBand(QPainter* painter) const
         if (m_data->featurePoints.isEmpty()) {
             return;
         }
-        const QwtPlotSeriesDataPicker::PrivateData::FeaturePoint& fp = m_data->featurePoints.first();
-        QwtPlot* itemPlot                                            = fp.item->plot();
+        const QwtPlotSeriesDataPicker::FeaturePoint& fp = m_data->featurePoints.first();
+        QwtPlot* itemPlot                               = fp.item->plot();
         if (!itemPlot) {
             return;
         }
@@ -43495,6 +43575,12 @@ void QwtPlotSeriesDataPicker::drawRubberBand(QPainter* painter) const
     }
 }
 
+void QwtPlotSeriesDataPicker::setTrackerPosition(const QPoint& pos)
+{
+    updateFeaturePoint(pos);
+    QwtPicker::setTrackerPosition(pos);
+}
+
 /**
  * @brief 获取绘图区域指定屏幕位置上所有可拾取的Y值
  * @param plot 绘图对象
@@ -43510,7 +43596,7 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
         return 0;
     }
     QWT_D(d);
-    QList< QwtPlotSeriesDataPicker::PrivateData::FeaturePoint >& featurePoints = d->featurePoints;
+    QList< QwtPlotSeriesDataPicker::FeaturePoint >& featurePoints = d->featurePoints;
     featurePoints.clear();
     const QList< QwtPlot* > plotList = plot->plotList();
 
@@ -43550,7 +43636,7 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
                     const QPointF& p2 = curve->sample(index);
                     const QPointF& p1 = curve->sample(index - 1);
                     if (qFuzzyCompare(p1.x(), p2.x())) {
-                        QwtPlotSeriesDataPicker::PrivateData::FeaturePoint fp;
+                        QwtPlotSeriesDataPicker::FeaturePoint fp;
                         fp.item    = item;
                         fp.feature = p2;
                         fp.index   = index;
@@ -43562,14 +43648,14 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
                         interPoint.setX(x);
                         interPoint.setY(p1.y() + t * (p2.y() - p1.y()));
 
-                        QwtPlotSeriesDataPicker::PrivateData::FeaturePoint fp;
+                        QwtPlotSeriesDataPicker::FeaturePoint fp;
                         fp.item    = item;
                         fp.feature = interPoint;
                         fp.index   = index;
                         featurePoints.append(fp);
                     }
                 } else {
-                    QwtPlotSeriesDataPicker::PrivateData::FeaturePoint fp;
+                    QwtPlotSeriesDataPicker::FeaturePoint fp;
                     fp.item    = item;
                     fp.feature = curve->sample(index);
                     fp.index   = index;
@@ -43599,10 +43685,10 @@ int QwtPlotSeriesDataPicker::pickNearestPoint(const QwtPlot* plot, const QPoint&
         return 0;
     }
     QWT_D(d);
-    QList< QwtPlotSeriesDataPicker::PrivateData::FeaturePoint >& featurePoints = d->featurePoints;
+    QList< QwtPlotSeriesDataPicker::FeaturePoint >& featurePoints = d->featurePoints;
     featurePoints.clear();
 
-    QwtPlotSeriesDataPicker::PrivateData::FeaturePoint fp;
+    QwtPlotSeriesDataPicker::FeaturePoint fp;
 
     double minScreenDistance         = std::numeric_limits< double >::max();
     const QList< QwtPlot* > plotList = plot->plotList();
@@ -43659,6 +43745,21 @@ int QwtPlotSeriesDataPicker::pickNearestPoint(const QwtPlot* plot, const QPoint&
         return 1;
     }
     return featurePoints.size();
+}
+
+void QwtPlotSeriesDataPicker::onPlotItemDetached(QwtPlotItem* item, bool on)
+{
+    // 遍历看看是否有此item
+    QWT_D(d);
+    if (!on) {
+        QList< QwtPlotSeriesDataPicker::FeaturePoint >& pickedFeatureDatas = d->featurePoints;
+        for (int i = pickedFeatureDatas.size() - 1; i >= 0; --i) {
+            const QwtPlotSeriesDataPicker::FeaturePoint& fp = pickedFeatureDatas[ i ];
+            if (fp.item == item) {
+                pickedFeatureDatas.removeAt(i);  // 反向删除，避免索引混乱
+            }
+        }
+    }
 }
 
 /*** End of inlined file: qwt_plot_series_data_picker.cpp ***/
@@ -56048,6 +56149,10 @@ void QwtPlot::setAxisScale(QwtAxisId axisId, double min, double max, double step
 {
     if (isAxisValid(axisId)) {
         AxisData& d = m_scaleData->axisData(axisId);
+        if (qFuzzyCompare(d.minValue, min) && qFuzzyCompare(d.maxValue, max) && qFuzzyCompare(d.stepSize, stepSize)) {
+            // 都一样就不设置
+            return;
+        }
 
         d.doAutoScale = false;
         d.isValid     = false;
@@ -56079,7 +56184,10 @@ void QwtPlot::setAxisScaleDiv(QwtAxisId axisId, const QwtScaleDiv& scaleDiv)
 {
     if (isAxisValid(axisId)) {
         AxisData& d = m_scaleData->axisData(axisId);
-
+        if (d.scaleDiv.fuzzyCompare(scaleDiv)) {
+            // 都一样就不设置
+            return;
+        }
         d.doAutoScale = false;
         d.scaleDiv    = scaleDiv;
         d.isValid     = true;
