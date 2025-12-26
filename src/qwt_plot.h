@@ -383,6 +383,12 @@ Q_SIGNALS:
      */
     void legendDataChanged(const QVariant& itemInfo, const QList< QwtLegendData >& data);
 
+    /**
+     * @brief Identify the relationship between the parasitic plot and its host plot.
+     * @param on When a parasitic plot is added, on = true.When the parasitic plot is removed, on = false.
+     * @note This signal is emitted only by the host plot.
+     */
+    void parasitePlotAttached(QwtPlot* parasitePlot, bool on);
 public Q_SLOTS:
     virtual void replot();
     void autoRefresh();

@@ -1269,6 +1269,8 @@ void QwtPlot::addParasitePlot(QwtPlot* parasite)
 
     // 设置后对寄生轴要进行一次布局
     updateLayout();
+
+    Q_EMIT parasitePlotAttached(parasite, true);
 }
 
 /**
@@ -1335,6 +1337,7 @@ void QwtPlot::removeParasitePlot(QwtPlot* parasite)
     parasite->m_data->isParasitePlot = false;
     updateLayout();
     updateAllAxisEdgeMargin();
+    Q_EMIT parasitePlotAttached(parasite, false);
 }
 
 /**

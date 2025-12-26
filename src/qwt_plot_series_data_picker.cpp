@@ -19,8 +19,11 @@
 #include <QPainter>
 #include <QtMath>
 #include <QDebug>
+#include <QHash>
+
+// 使用表格性能会非常低下
 #ifndef QwtPlotSeriesDataPicker_UseTable
-#define QwtPlotSeriesDataPicker_UseTable 1
+#define QwtPlotSeriesDataPicker_UseTable 0
 #endif
 /**
  * @brief 计算在曲线数据中搜索最近点的窗口范围
@@ -165,6 +168,27 @@ class QwtPlotSeriesDataPicker::PrivateData
     QWT_DECLARE_PUBLIC(QwtPlotSeriesDataPicker)
 public:
     PrivateData(QwtPlotSeriesDataPicker* p);
+    struct GroupKey
+    {
+        QwtPlot* plot;
+        QwtAxisId axis;
+        bool operator==(const GroupKey& o) const
+        {
+            return plot == o.plot && axis == o.axis;
+        }
+        bool operator<(const GroupKey& o) const
+        {
+            if (plot != o.plot)
+                return plot < o.plot;
+            return static_cast< int >(axis) < static_cast< int >(o.axis);
+        }
+    };
+    struct XGroup
+    {
+        GroupKey key;
+        QString xValue;  // 公共 X 值
+        QList< const FeaturePoint* > fps;
+    };
 
 public:
     QwtPlotSeriesDataPicker::PickSeriesMode pickMode { QwtPlotSeriesDataPicker::PickYValue };
@@ -179,6 +203,8 @@ public:
     int featurePointSize { 4 };      ///< 特征点的大小
     bool markFeaturePoint { true };  ///< 是否标记捕获的特征点
     QPoint mousePos;
+    bool enableShowXOnPicker { true };
+    QVector< XGroup > xGroups;
 };
 
 QwtPlotSeriesDataPicker::PrivateData::PrivateData(QwtPlotSeriesDataPicker* p) : q_ptr(p)
@@ -198,8 +224,18 @@ QwtPlotSeriesDataPicker::QwtPlotSeriesDataPicker(QWidget* canvas) : QwtCanvasPic
     // 设置状态机，用于点选择
     setStateMachine(new QwtPickerTrackerMachine);
     //
-    QwtPlot* p = plot();
-    connect(p, &QwtPlot::itemAttached, this, &QwtPlotSeriesDataPicker::onPlotItemDetached);
+    QwtPlot* host = plot();
+    if (host->isParasitePlot()) {
+        host = host->hostPlot();
+        if (!host) {
+            host = plot();
+        }
+    }
+    QList< QwtPlot* > allPlots = host->plotList();
+    for (const QwtPlot* p : allPlots) {
+        connect(p, &QwtPlot::itemAttached, this, &QwtPlotSeriesDataPicker::onPlotItemDetached);
+    }
+    connect(host, &QwtPlot::parasitePlotAttached, this, &QwtPlotSeriesDataPicker::onParasitePlotAttached);
 }
 
 QwtPlotSeriesDataPicker::~QwtPlotSeriesDataPicker()
@@ -379,6 +415,24 @@ Qt::Alignment QwtPlotSeriesDataPicker::textAlignment() const
 }
 
 /**
+ * @brief 设置是否显示x值
+ * @param on
+ */
+void QwtPlotSeriesDataPicker::setEnableShowXValue(bool on)
+{
+    m_data->enableShowXOnPicker = on;
+}
+
+/**
+ * @brief 是否显示x值
+ * @return
+ */
+bool QwtPlotSeriesDataPicker::isEnableShowXValue() const
+{
+    return m_data->enableShowXOnPicker;
+}
+
+/**
  * @brief trackerText的重载
  *
  * QwtPlotPicker是基于固定x和y轴的，QwtPlot上的item有可能绑定不同的x轴和y轴，因此这里不使用@ref trackerTextF
@@ -420,46 +474,121 @@ QwtText QwtPlotSeriesDataPicker::trackerText(const QPoint& pos) const
 
 QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicker::FeaturePoint >& fps) const
 {
+#if 0
     QString t;
-    for (const FeaturePoint& fp : fps) {
+    for (int i = 0; i < fps.size(); ++i) {
+        const FeaturePoint& fp = fps[ i ];
         if (m_data->pickMode == PickYValue) {
-#if QwtPlotSeriesDataPicker_UseTable
-            QString color = Qwt::plotItemColor(fp.item).name();
-            QString name  = fp.item->title().text();
-            QString value = formatAxisValue(fp.feature.y(), fp.item->yAxis(), fp.item->plot());
-            t += QString("<tr>"
-                         "<td><font color='%1'>■</font>%2</td>"
-                         "<td style='text-align:right;'> %3</td>"
-                         "</tr>")
-                     .arg(color, name, value);
-
-#else
-            if (!t.isEmpty()) {
+            QwtPlot* plot = fp.item ? fp.item->plot() : nullptr;
+            if (0 == i) {
+                // 第一行
+                if (isEnableShowXValue()) {
+                    if (plot->isAxisVisible(QwtAxis::XTop)) {
+                        // 说明x顶部可见
+                        //  加入顶部x的值
+                        t += QString("%1:%2<br/>")
+                                 .arg(plot->axisTitle(QwtAxis::XTop).text())
+                                 .arg(formatAxisValue(fp.feature.x(), fp.item->xAxis(), plot));
+                    }
+                }
+            } else {
                 t += "<br/>";
             }
-            QwtPlot* plot = fp.item ? fp.item->plot() : nullptr;
+
             // 使用formatAxisValue，对于时间日期也能正确显示
-            t += QString("<font color=%1>■</font>%2:%3")
+            t += QString("<font color=%1>■</font>%2:<b>%3</b>")
                      .arg(Qwt::plotItemColor(fp.item).name())
                      .arg(fp.item->title().text())
                      .arg(formatAxisValue(fp.feature.y(), fp.item->yAxis(), plot));
-#endif
+            if (i == (fps.size() - 1)) {
+                if (isEnableShowXValue()) {
+                    if (plot->isAxisVisible(QwtAxis::XBottom)) {
+                        // 说明x底部可见
+                        t += QString("<br/>%1:%2")
+                                 .arg(plot->axisTitle(QwtAxis::XBottom).text())
+                                 .arg(formatAxisValue(fp.feature.x(), fp.item->xAxis(), plot));
+                    }
+                }
+            }
         } else {
             // Pick Nearest Point
             QwtPlot* plot = fp.item ? fp.item->plot() : nullptr;
             if (!t.isEmpty()) {
                 t += "<br/>";
             }
-            t += QString("(%1 , %2)")
-                     .arg(formatAxisValue(fp.feature.x(), fp.item->xAxis(), plot))
-                     .arg(formatAxisValue(fp.feature.y(), fp.item->yAxis(), plot));
+            if (isEnableShowXValue()) {
+                t += QString("(%1 , %2)")
+                         .arg(formatAxisValue(fp.feature.x(), fp.item->xAxis(), plot))
+                         .arg(formatAxisValue(fp.feature.y(), fp.item->yAxis(), plot));
+            } else {
+                t += formatAxisValue(fp.feature.y(), fp.item->yAxis(), plot);
+            }
         }
     }
-#if QwtPlotSeriesDataPicker_UseTable
-    t += "</table>";
-#else
-#endif
     return t;
+#else
+    QWT_DC(d);
+    if (fps.isEmpty())
+        return {};
+
+    /* ---------- 工具 lambda ---------- */
+    auto plotOf = [](const FeaturePoint& fp) -> QwtPlot* { return fp.item ? fp.item->plot() : nullptr; };
+    auto fmtX   = [ & ](const FeaturePoint& fp) -> QString {
+        return formatAxisValue(fp.feature.x(), fp.item->xAxis(), plotOf(fp));
+    };
+    auto fmtY = [ & ](const FeaturePoint& fp) -> QString {
+        return formatAxisValue(fp.feature.y(), fp.item->yAxis(), plotOf(fp));
+    };
+    QString out;
+    if (!isEnableShowXValue()) {
+        for (int i = 0; i < fps.size(); ++i) {
+            if (i) {
+                out += "<br/>";
+            }
+            const FeaturePoint& fp = fps[ i ];
+
+            if (m_data->pickMode == PickYValue) {
+                out += QString(R"(<font color=%1>■</font>%2:<b>%3</b>)")
+                           .arg(Qwt::plotItemColor(fp.item).name(), fp.item->title().text(), fmtY(fp));
+            } else { /* PickNearestPoint */
+                out += fmtY(fp);
+            }
+        }
+    } else {
+        // 要显示x
+        if (m_data->pickMode == PickYValue) {
+            for (int ig = 0; ig < d->xGroups.size(); ++ig) {
+                const PrivateData::XGroup& g = d->xGroups[ ig ];
+                QwtPlot* plot                = g.key.plot;
+                if (!plot)
+                    continue;
+
+                /* 组头：轴标题 + 公共 X 值 */
+                if (plot->isAxisVisible(g.key.axis)) {
+                    if (!out.isEmpty()) {
+                        out += "<br/>";  // 组间换行
+                    }
+                    out += QString("%1:%2").arg(plot->axisTitle(g.key.axis).text(), g.xValue);
+                }
+
+                /* 组内每条曲线 */
+                for (int il = 0; il < g.fps.size(); ++il) {
+                    const FeaturePoint& fp = *g.fps[ il ];
+                    if (!out.isEmpty())
+                        out += "<br/>";  // 曲线间换行
+                    out += QString(R"(<font color=%1>■</font>%2:<b>%3</b>)")
+                               .arg(Qwt::plotItemColor(fp.item).name(), fp.item->title().text(), fmtY(fp));
+                }
+            }
+        } else {
+            for (int i = 0; i < fps.size(); ++i) {
+                const FeaturePoint& fp = fps[ i ];
+                out += QString("(%1 , %2)").arg(fmtX(fp), fmtY(fp));
+            }
+        }
+    }
+    return out;
+#endif
 }
 
 /**
@@ -740,6 +869,26 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
             }
         }
     }
+    // 进行分组
+    if (isEnableShowXValue()) {
+        d->xGroups.clear();
+        QMap< PrivateData::GroupKey, PrivateData::XGroup > xGroupMap;
+        for (const FeaturePoint& fp : featurePoints) {
+            QwtPlot* p = fp.item ? fp.item->plot() : nullptr;
+            PrivateData::GroupKey k { p, fp.item->xAxis() };
+            auto it = xGroupMap.find(k);
+            if (it == xGroupMap.end()) {
+                PrivateData::XGroup g;
+                g.key    = k;
+                g.xValue = formatAxisValue(fp.feature.x(), fp.item->xAxis(), p);  // 第一个点的 X 值
+                g.fps.append(&fp);
+                xGroupMap.insert(k, g);
+                d->xGroups.append(g);
+            } else {
+                it->fps.append(&fp);
+            }
+        }
+    }
     return featurePoints.size();
 }
 
@@ -833,6 +982,25 @@ void QwtPlotSeriesDataPicker::onPlotItemDetached(QwtPlotItem* item, bool on)
             const QwtPlotSeriesDataPicker::FeaturePoint& fp = pickedFeatureDatas[ i ];
             if (fp.item == item) {
                 pickedFeatureDatas.removeAt(i);  // 反向删除，避免索引混乱
+            }
+        }
+    }
+}
+
+void QwtPlotSeriesDataPicker::onParasitePlotAttached(QwtPlot* parasiteplot, bool on)
+{
+
+    if (on) {
+        // 寄生轴新增，需要绑定寄生轴的onPlotItemDetached
+        connect(parasiteplot, &QwtPlot::itemAttached, this, &QwtPlotSeriesDataPicker::onPlotItemDetached);
+    } else {
+        disconnect(parasiteplot, nullptr, this, nullptr);
+        // 同步把已有的信息删除
+        QWT_D(d);
+        for (int i = d->xGroups.size() - 1; i >= 0; --i) {
+            PrivateData::XGroup& g = d->xGroups[ i ];
+            if (g.key.plot == parasiteplot) {
+                d->xGroups.removeAt(i);
             }
         }
     }

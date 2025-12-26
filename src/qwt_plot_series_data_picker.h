@@ -98,6 +98,10 @@ public:
     void setTextAlignment(Qt::Alignment al);
     Qt::Alignment textAlignment() const;
 
+    // 是否显示x值
+    void setEnableShowXValue(bool on);
+    bool isEnableShowXValue() const;
+
     // 顶部矩形文字
     QwtText trackerText(const QPoint& pos) const QWT_OVERRIDE;
 
@@ -118,6 +122,7 @@ private:
 private Q_SLOTS:
     // item删除的槽，用于更新记录
     void onPlotItemDetached(QwtPlotItem* item, bool on);
+    void onParasitePlotAttached(QwtPlot* parasiteplot, bool on);
 
 protected:
     // 生成一个item的文字内容
