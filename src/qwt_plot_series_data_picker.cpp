@@ -985,6 +985,15 @@ void QwtPlotSeriesDataPicker::onPlotItemDetached(QwtPlotItem* item, bool on)
         for (int i = pickedFeatureDatas.size() - 1; i >= 0; --i) {
             const QwtPlotSeriesDataPicker::FeaturePoint& fp = pickedFeatureDatas[ i ];
             if (fp.item == item) {
+                // 同步要删除xGroups
+                for (int j = d->xGroups.size() - 1; j >= 0; --j) {
+                    PrivateData::XGroup& g = d->xGroups[ j ];
+                    for (int k = g.fps.size() - 1; k >= 0; --k) {
+                        if (g.fps[ k ] == &fp) {
+                            g.fps.removeAt(k);
+                        }
+                    }
+                }
                 pickedFeatureDatas.removeAt(i);  // 反向删除，避免索引混乱
             }
         }

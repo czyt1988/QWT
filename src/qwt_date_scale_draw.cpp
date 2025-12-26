@@ -42,12 +42,13 @@ public:
         dateFormats[ QwtDate::Week ] = "Www yyyy";
         dateFormats[ QwtDate::Month ] = "MMM yyyy";
         dateFormats[ QwtDate::Year ] = "yyyy";
+        change \n to <br/>
         **/
         dateFormats[ QwtDate::Millisecond ] = "yyyy-MM-dd<br/>hh:mm:ss:zzz";
         dateFormats[ QwtDate::Second ]      = "yyyy-MM-dd<br/>hh:mm:ss";
         dateFormats[ QwtDate::Minute ]      = "yyyy-MM-dd<br/>hh:mm:ss";
         dateFormats[ QwtDate::Hour ]        = "yyyy-MM-dd<br/>hh:mm:ss";
-        dateFormats[ QwtDate::Day ]         = "yyyy-MM-dd hh";
+        dateFormats[ QwtDate::Day ]         = "yyyy-MM-dd<br/>hh:mm:ss";
         dateFormats[ QwtDate::Week ]        = "yyyy Www";
         dateFormats[ QwtDate::Month ]       = "yyyy-MM ";
         dateFormats[ QwtDate::Year ]        = "yyyy";
