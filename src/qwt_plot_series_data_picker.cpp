@@ -548,7 +548,7 @@ QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicke
             const FeaturePoint& fp = fps[ i ];
 
             if (m_data->pickMode == PickYValue) {
-                out += QString(R"(<font color=%1>■</font>%2:<b>%3</b>)")
+                out += QString(R"(<font color="%1">■</font>%2:<b>%3</b>)")
                            .arg(Qwt::plotItemColor(fp.item).name(), fp.item->title().text(), fmtY(fp));
             } else { /* PickNearestPoint */
                 out += fmtY(fp);
@@ -573,10 +573,11 @@ QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicke
 
                 /* 组内每条曲线 */
                 for (int il = 0; il < g.fps.size(); ++il) {
-                    const FeaturePoint& fp = *g.fps[ il ];
-                    if (!out.isEmpty())
+                    const FeaturePoint& fp = *(g.fps[ il ]);
+                    if (!out.isEmpty()) {
                         out += "<br/>";  // 曲线间换行
-                    out += QString(R"(<font color=%1>■</font>%2:<b>%3</b>)")
+                    }
+                    out += QString(R"(<font color="%1">■</font>%2:<b>%3</b>)")
                                .arg(Qwt::plotItemColor(fp.item).name(), fp.item->title().text(), fmtY(fp));
                 }
             }
@@ -803,6 +804,7 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
     QWT_D(d);
     QList< QwtPlotSeriesDataPicker::FeaturePoint >& featurePoints = d->featurePoints;
     featurePoints.clear();
+    d->xGroups.clear();
     const QList< QwtPlot* > plotList = plot->plotList();
 
     // 遍历所有绘图项
@@ -871,7 +873,6 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
     }
     // 进行分组
     if (isEnableShowXValue()) {
-        d->xGroups.clear();
         QMap< PrivateData::GroupKey, PrivateData::XGroup > xGroupMap;
         for (const FeaturePoint& fp : featurePoints) {
             QwtPlot* p = fp.item ? fp.item->plot() : nullptr;
@@ -883,12 +884,15 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
                 g.xValue = formatAxisValue(fp.feature.x(), fp.item->xAxis(), p);  // 第一个点的 X 值
                 g.fps.append(&fp);
                 xGroupMap.insert(k, g);
-                d->xGroups.append(g);
             } else {
                 it->fps.append(&fp);
             }
         }
+        for (auto i = xGroupMap.begin(); i != xGroupMap.end(); ++i) {
+            d->xGroups.append(i.value());
+        }
     }
+
     return featurePoints.size();
 }
 
@@ -912,7 +916,7 @@ int QwtPlotSeriesDataPicker::pickNearestPoint(const QwtPlot* plot, const QPoint&
     QWT_D(d);
     QList< QwtPlotSeriesDataPicker::FeaturePoint >& featurePoints = d->featurePoints;
     featurePoints.clear();
-
+    d->xGroups.clear();
     QwtPlotSeriesDataPicker::FeaturePoint fp;
 
     double minScreenDistance         = std::numeric_limits< double >::max();

@@ -40,7 +40,7 @@ void PickLinker::onPickerMove(const QPoint& pos)
         }
         double x = c->width() * xPresent;
         p->setTrackerPosition(QPoint(x, 0));
-        qDebug() << "set picker" << p << ",setTrackerPosition=" << QPoint(x, 0);
+        // qDebug() << "set picker" << p << ",setTrackerPosition=" << QPoint(x, 0);
         p->update();
     }
 }

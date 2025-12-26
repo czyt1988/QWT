@@ -43,17 +43,17 @@ public:
         dateFormats[ QwtDate::Month ] = "MMM yyyy";
         dateFormats[ QwtDate::Year ] = "yyyy";
         **/
-        dateFormats[ QwtDate::Millisecond ] = "yyyy-MM-dd\nhh:mm:ss:zzz";
-        dateFormats[ QwtDate::Second ]      = "yyyy-MM-dd\nhh:mm:ss";
-        dateFormats[ QwtDate::Minute ]      = "yyyy-MM-dd\nhh:mm";
-        dateFormats[ QwtDate::Hour ]        = "yyyy-MM-dd hh";
-        dateFormats[ QwtDate::Day ]         = "yyyy-MM-dd";
+        dateFormats[ QwtDate::Millisecond ] = "yyyy-MM-dd<br/>hh:mm:ss:zzz";
+        dateFormats[ QwtDate::Second ]      = "yyyy-MM-dd<br/>hh:mm:ss";
+        dateFormats[ QwtDate::Minute ]      = "yyyy-MM-dd<br/>hh:mm:ss";
+        dateFormats[ QwtDate::Hour ]        = "yyyy-MM-dd<br/>hh:mm:ss";
+        dateFormats[ QwtDate::Day ]         = "yyyy-MM-dd hh";
         dateFormats[ QwtDate::Week ]        = "yyyy Www";
         dateFormats[ QwtDate::Month ]       = "yyyy-MM ";
         dateFormats[ QwtDate::Year ]        = "yyyy";
     }
 
-    Qt::TimeSpec timeSpec;
+    Qt::TimeSpec timeSpec { Qt::LocalTime };
     int utcOffset;
     QwtDate::Week0Type week0Type;
     QString dateFormats[ QwtDate::Year + 1 ];
