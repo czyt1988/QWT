@@ -172,15 +172,39 @@ public:
     {
         QwtPlot* plot;
         QwtAxisId axis;
+        // 获取有效的 plot（如果是寄生轴且共享轴，返回宿主 plot）
+        QwtPlot* effectivePlot() const
+        {
+            if (plot && plot->isParasitePlot() && plot->isParasiteShareAxis(axis)) {
+                QwtPlot* host = plot->hostPlot();
+                if (host)
+                    return host;
+            }
+            return plot;
+        }
+
         bool operator==(const GroupKey& o) const
         {
-            return plot == o.plot && axis == o.axis;
+            if (plot == o.plot && axis == o.axis) {
+                return true;
+            }
+
+            // 处理寄生轴的情况
+            QwtPlot* effPlot1 = effectivePlot();
+            QwtPlot* effPlot2 = o.effectivePlot();
+
+            return (effPlot1 == effPlot2) && (axis == o.axis);
         }
-        bool operator<(const GroupKey& o) const
+
+        // 为 QHash 提供哈希函数
+        friend inline size_t qHash(const GroupKey& key, uint seed = 0)
         {
-            if (plot != o.plot)
-                return plot < o.plot;
-            return static_cast< int >(axis) < static_cast< int >(o.axis);
+            // 使用 qHash 来哈希指针和整数
+            uint h1 = qHash(reinterpret_cast< quintptr >(key.effectivePlot()), seed);
+            uint h2 = qHash(key.axis, seed);
+
+            // 组合哈希值
+            return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
         }
     };
     struct XGroup
@@ -531,63 +555,124 @@ QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicke
     if (fps.isEmpty())
         return {};
 
-    /* ---------- 工具 lambda ---------- */
     auto plotOf = [](const FeaturePoint& fp) -> QwtPlot* { return fp.item ? fp.item->plot() : nullptr; };
-    auto fmtX   = [ & ](const FeaturePoint& fp) -> QString {
-        return formatAxisValue(fp.feature.x(), fp.item->xAxis(), plotOf(fp));
-    };
-    auto fmtY = [ & ](const FeaturePoint& fp) -> QString {
-        return formatAxisValue(fp.feature.y(), fp.item->yAxis(), plotOf(fp));
-    };
-    QString out;
-    if (!isEnableShowXValue()) {
-        for (int i = 0; i < fps.size(); ++i) {
-            if (i) {
-                out += "<br/>";
-            }
-            const FeaturePoint& fp = fps[ i ];
 
-            if (m_data->pickMode == PickYValue) {
+    auto fmtY = [ & ](const FeaturePoint& fp) -> QString {
+        QwtPlot* plot = plotOf(fp);
+        if (!plot)
+            return QString::number(fp.feature.y());
+        return formatAxisValue(fp.feature.y(), fp.item->yAxis(), plot);
+    };
+
+    QString out;
+
+    if (pickMode() == PickYValue) {
+        if (!isEnableShowXValue()) {
+            // 不显示X值
+            for (int i = 0; i < fps.size(); ++i) {
+                if (i > 0)
+                    out += "<br/>";
+                const FeaturePoint& fp = fps[ i ];
                 out += QString(R"(<font color="%1">■</font>%2:<b>%3</b>)")
                            .arg(Qwt::plotItemColor(fp.item).name(), fp.item->title().text(), fmtY(fp));
-            } else { /* PickNearestPoint */
-                out += fmtY(fp);
             }
-        }
-    } else {
-        // 要显示x
-        if (m_data->pickMode == PickYValue) {
+        } else {
+            // 显示X值，按X轴分组显示
             for (int ig = 0; ig < d->xGroups.size(); ++ig) {
                 const PrivateData::XGroup& g = d->xGroups[ ig ];
                 QwtPlot* plot                = g.key.plot;
-                if (!plot)
+                if (!plot || g.fps.isEmpty())
                     continue;
 
-                /* 组头：轴标题 + 公共 X 值 */
-                if (plot->isAxisVisible(g.key.axis)) {
-                    if (!out.isEmpty()) {
-                        out += "<br/>";  // 组间换行
-                    }
-                    out += QString("%1:%2").arg(plot->axisTitle(g.key.axis).text(), g.xValue);
+                // 检查X轴是否可见
+                bool isAxisVisible = false;
+
+                if (g.key.axis == QwtAxis::XTop) {
+                    isAxisVisible = plot->isAxisVisible(QwtAxis::XTop);
+                } else if (g.key.axis == QwtAxis::XBottom) {
+                    isAxisVisible = plot->isAxisVisible(QwtAxis::XBottom);
+                } else {
+                    // 其他位置的轴，默认视为可见
+                    isAxisVisible = true;
                 }
 
-                /* 组内每条曲线 */
-                for (int il = 0; il < g.fps.size(); ++il) {
-                    const FeaturePoint& fp = *(g.fps[ il ]);
-                    if (!out.isEmpty()) {
-                        out += "<br/>";  // 曲线间换行
+                // 如果X轴不可见，则不显示X值
+                if (!isAxisVisible) {
+                    // 直接显示曲线数据，不带X轴标题
+                    for (int il = 0; il < g.fps.size(); ++il) {
+                        const FeaturePoint* fp = g.fps[ il ];
+                        if (!out.isEmpty())
+                            out += "<br/>";
+                        out += QString(R"(<font color="%1">■</font>%2: <b>%3</b>)")
+                                   .arg(Qwt::plotItemColor(fp->item).name(), fp->item->title().text(), fmtY(*fp));
                     }
+                } else {
+                    // X轴可见，显示分组头
+                    if (!out.isEmpty())
+                        out += "<br/>";
+
+                    // 获取X轴标题
+                    QString axisTitle;
+                    if (g.key.axis == QwtAxis::XTop) {
+                        axisTitle = plot->axisTitle(QwtAxis::XTop).text();
+                    } else if (g.key.axis == QwtAxis::XBottom) {
+                        axisTitle = plot->axisTitle(QwtAxis::XBottom).text();
+                    }
+
+                    if (axisTitle.isEmpty()) {
+                        axisTitle = QString("X");
+                    }
+
+                    // 显示X轴标题和共享的X值
+                    out += QString("<b>%1: %2</b>").arg(axisTitle, g.xValue);
+
+                    // 添加该组内的所有曲线及其Y值
+                    for (int il = 0; il < g.fps.size(); ++il) {
+                        const FeaturePoint* fp = g.fps[ il ];
+                        out += "<br/>";
+                        out += QString(R"(<font color="%1">■</font>%2: <b>%3</b>)")
+                                   .arg(Qwt::plotItemColor(fp->item).name(), fp->item->title().text(), fmtY(*fp));
+                    }
+                }
+            }
+
+            // 如果没有分组，则回退到非分组显示（备用）
+            if (out.isEmpty()) {
+                for (int i = 0; i < fps.size(); ++i) {
+                    if (i > 0)
+                        out += "<br/>";
+                    const FeaturePoint& fp = fps[ i ];
                     out += QString(R"(<font color="%1">■</font>%2:<b>%3</b>)")
                                .arg(Qwt::plotItemColor(fp.item).name(), fp.item->title().text(), fmtY(fp));
                 }
             }
-        } else {
+        }
+    } else {
+        // PickNearestPoint 模式
+        if (!isEnableShowXValue()) {
+            // 只显示Y值
             for (int i = 0; i < fps.size(); ++i) {
+                if (i > 0)
+                    out += "<br/>";
+                out += fmtY(fps[ i ]);
+            }
+        } else {
+            // 显示完整坐标 (X, Y)
+            for (int i = 0; i < fps.size(); ++i) {
+                if (i > 0)
+                    out += "<br/>";
                 const FeaturePoint& fp = fps[ i ];
-                out += QString("(%1 , %2)").arg(fmtX(fp), fmtY(fp));
+                auto fmtX              = [ & ](const FeaturePoint& fp) -> QString {
+                    QwtPlot* plot = plotOf(fp);
+                    if (!plot)
+                        return QString::number(fp.feature.x());
+                    return formatAxisValue(fp.feature.x(), fp.item->xAxis(), plot);
+                };
+                out += QString("(%1, %2)").arg(fmtX(fp), fmtY(fp));
             }
         }
     }
+
     return out;
 #endif
 }
@@ -807,89 +892,169 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
     d->xGroups.clear();
     const QList< QwtPlot* > plotList = plot->plotList();
 
-    // 遍历所有绘图项
+    // 收集所有曲线
+    QList< QwtPlotCurve* > allCurves;
     for (QwtPlot* oneplot : plotList) {
         const QwtPlotItemList& items = oneplot->itemList();
         for (QwtPlotItem* item : items) {
             if (item->rtti() == QwtPlotItem::Rtti_PlotCurve) {
-                QwtPlotCurve* curve    = static_cast< QwtPlotCurve* >(item);
-                const size_t curveSize = curve->dataSize();
-                if (!curve->isVisible() || curveSize == 0) {
-                    continue;
-                }
-                // 提前计算并缓存边界矩形
-                const QRectF br = curve->boundingRect();
-                if (!br.isValid()) {
-                    continue;
-                }
-                // 获取曲线的坐标轴映射
-                const QwtScaleMap xMap = oneplot->canvasMap(curve->xAxis());
-                // 将屏幕坐标转换为曲线坐标系的坐标
-                double x = xMap.invTransform(pos.x());
-                // 快速边界检查
-                if (x < br.left() || x > br.right()) {
-                    continue;
-                }
-
-                size_t index = qwtUpperSampleIndex< QPointF >(
-                    *curve->data(), x, [](const double x, const QPointF& pos) -> bool { return (x < pos.x()); });
-
-                if (index == curveSize) {
-                    // 没有找到合适的
-                    continue;
-                }
-                if (interpolate && curveSize > 2 && index > 0) {
-                    // 说明要进行插值计算
-                    const QPointF& p2 = curve->sample(index);
-                    const QPointF& p1 = curve->sample(index - 1);
-                    if (qFuzzyCompare(p1.x(), p2.x())) {
-                        QwtPlotSeriesDataPicker::FeaturePoint fp;
-                        fp.item    = item;
-                        fp.feature = p2;
-                        fp.index   = index;
-                        featurePoints.append(fp);
-                        continue;
-                    } else {
-                        double t = (x - p1.x()) / (p2.x() - p1.x());
-                        QPointF interPoint;
-                        interPoint.setX(x);
-                        interPoint.setY(p1.y() + t * (p2.y() - p1.y()));
-
-                        QwtPlotSeriesDataPicker::FeaturePoint fp;
-                        fp.item    = item;
-                        fp.feature = interPoint;
-                        fp.index   = index;
-                        featurePoints.append(fp);
-                    }
-                } else {
-                    QwtPlotSeriesDataPicker::FeaturePoint fp;
-                    fp.item    = item;
-                    fp.feature = curve->sample(index);
-                    fp.index   = index;
-                    featurePoints.append(fp);
+                QwtPlotCurve* curve = static_cast< QwtPlotCurve* >(item);
+                if (curve->isVisible() && curve->dataSize() > 0) {
+                    allCurves.append(curve);
                 }
             }
         }
     }
-    // 进行分组
-    if (isEnableShowXValue()) {
-        QMap< PrivateData::GroupKey, PrivateData::XGroup > xGroupMap;
-        for (const FeaturePoint& fp : featurePoints) {
-            QwtPlot* p = fp.item ? fp.item->plot() : nullptr;
-            PrivateData::GroupKey k { p, fp.item->xAxis() };
-            auto it = xGroupMap.find(k);
-            if (it == xGroupMap.end()) {
-                PrivateData::XGroup g;
-                g.key    = k;
-                g.xValue = formatAxisValue(fp.feature.x(), fp.item->xAxis(), p);  // 第一个点的 X 值
-                g.fps.append(&fp);
-                xGroupMap.insert(k, g);
-            } else {
-                it->fps.append(&fp);
+
+    if (pickMode() == PickYValue && isEnableShowXValue()) {
+        // 按X轴分组（同一个plot中的同一个X轴为一组）
+        QHash< PrivateData::GroupKey, QList< QwtPlotCurve* > > curvesByAxis;
+
+        for (QwtPlotCurve* curve : allCurves) {
+            QwtPlot* p = curve->plot();
+            PrivateData::GroupKey key { p, curve->xAxis() };
+            curvesByAxis[ key ].append(curve);
+        }
+
+        // 处理每个X轴组
+        for (auto it = curvesByAxis.begin(); it != curvesByAxis.end(); ++it) {
+            const PrivateData::GroupKey& key     = it.key();
+            const QList< QwtPlotCurve* >& curves = it.value();
+
+            if (curves.isEmpty())
+                continue;
+
+            // 创建分组
+            PrivateData::XGroup group;
+            group.key = key;
+
+            // 获取该X轴对应的plot
+            QwtPlot* plotForAxis = key.plot;
+            if (!plotForAxis)
+                continue;
+
+            // 获取该X轴的映射
+            const QwtScaleMap xMap = plotForAxis->canvasMap(key.axis);
+
+            // 计算鼠标位置对应的X值（这是该组所有曲线共享的X值）
+            double mouseXValue = xMap.invTransform(pos.x());
+
+            // 格式化X值，作为该组的公共X值
+            group.xValue = formatAxisValue(mouseXValue, key.axis, plotForAxis);
+
+            // 处理该组内的所有曲线
+            for (QwtPlotCurve* curve : curves) {
+                const size_t curveSize = curve->dataSize();
+                if (curveSize == 0)
+                    continue;
+
+                // 获取曲线的边界矩形
+                const QRectF br = curve->boundingRect();
+                if (!br.isValid()) {
+                    continue;
+                }
+
+                // 边界检查：鼠标X值是否在曲线X范围内
+                if (mouseXValue < br.left() || mouseXValue > br.right()) {
+                    continue;
+                }
+
+                // 在曲线数据中查找对应的点
+                size_t index = qwtUpperSampleIndex< QPointF >(
+                    *curve->data(), mouseXValue, [](const double x, const QPointF& pos) -> bool { return (x < pos.x()); });
+
+                if (index == curveSize) {
+                    continue;
+                }
+
+                // 创建特征点
+                FeaturePoint fp;
+                fp.item  = curve;
+                fp.index = index;
+
+                if (interpolate && curveSize > 2 && index > 0) {
+                    // 插值计算
+                    const QPointF& p2 = curve->sample(index);
+                    const QPointF& p1 = curve->sample(index - 1);
+                    if (qFuzzyCompare(p1.x(), p2.x())) {
+                        fp.feature = p2;
+                    } else {
+                        double t = (mouseXValue - p1.x()) / (p2.x() - p1.x());
+                        QPointF interPoint;
+                        interPoint.setX(mouseXValue);  // 使用统一的X值
+                        interPoint.setY(p1.y() + t * (p2.y() - p1.y()));
+                        fp.feature = interPoint;
+                    }
+                } else {
+                    QPointF point = curve->sample(index);
+                    // 使用统一的X值，而不是曲线上的实际X值
+                    fp.feature = QPointF(mouseXValue, point.y());
+                }
+
+                featurePoints.append(fp);
+                group.fps.append(&featurePoints.last());
+            }
+
+            // 如果该组有特征点，添加到分组列表
+            if (!group.fps.isEmpty()) {
+                d->xGroups.append(group);
             }
         }
-        for (auto i = xGroupMap.begin(); i != xGroupMap.end(); ++i) {
-            d->xGroups.append(i.value());
+    } else {
+        // 不分组显示X值，或不是PickYValue模式
+        for (QwtPlotCurve* curve : allCurves) {
+            const size_t curveSize = curve->dataSize();
+            if (curveSize == 0)
+                continue;
+
+            QwtPlot* oneplot = curve->plot();
+
+            // 获取曲线的坐标轴映射
+            const QwtScaleMap xMap = oneplot->canvasMap(curve->xAxis());
+
+            // 将屏幕坐标转换为曲线坐标系的坐标
+            double x = xMap.invTransform(pos.x());
+
+            // 提前计算并缓存边界矩形
+            const QRectF br = curve->boundingRect();
+            if (!br.isValid()) {
+                continue;
+            }
+
+            // 快速边界检查
+            if (x < br.left() || x > br.right()) {
+                continue;
+            }
+
+            size_t index = qwtUpperSampleIndex< QPointF >(
+                *curve->data(), x, [](const double x, const QPointF& pos) -> bool { return (x < pos.x()); });
+
+            if (index == curveSize) {
+                continue;
+            }
+
+            FeaturePoint fp;
+            fp.item  = curve;
+            fp.index = index;
+
+            if (interpolate && curveSize > 2 && index > 0) {
+                // 插值计算
+                const QPointF& p2 = curve->sample(index);
+                const QPointF& p1 = curve->sample(index - 1);
+                if (qFuzzyCompare(p1.x(), p2.x())) {
+                    fp.feature = p2;
+                } else {
+                    double t = (x - p1.x()) / (p2.x() - p1.x());
+                    QPointF interPoint;
+                    interPoint.setX(x);
+                    interPoint.setY(p1.y() + t * (p2.y() - p1.y()));
+                    fp.feature = interPoint;
+                }
+            } else {
+                fp.feature = curve->sample(index);
+            }
+
+            featurePoints.append(fp);
         }
     }
 
