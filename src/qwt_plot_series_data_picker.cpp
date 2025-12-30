@@ -672,7 +672,6 @@ QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicke
             }
         }
     }
-
     return out;
 #endif
 }
@@ -816,7 +815,6 @@ QRect QwtPlotSeriesDataPicker::trackerRect(const QFont& f) const
             break;
         }
     }
-
     return rect;
 }
 
@@ -921,8 +919,9 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
             const PrivateData::GroupKey& key     = it.key();
             const QList< QwtPlotCurve* >& curves = it.value();
 
-            if (curves.isEmpty())
+            if (curves.isEmpty()) {
                 continue;
+            }
 
             // 创建分组
             PrivateData::XGroup group;
@@ -930,8 +929,9 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
 
             // 获取该X轴对应的plot
             QwtPlot* plotForAxis = key.plot;
-            if (!plotForAxis)
+            if (!plotForAxis) {
                 continue;
+            }
 
             // 获取该X轴的映射
             const QwtScaleMap xMap = plotForAxis->canvasMap(key.axis);
@@ -945,15 +945,12 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
             // 处理该组内的所有曲线
             for (QwtPlotCurve* curve : curves) {
                 const size_t curveSize = curve->dataSize();
-                if (curveSize == 0)
-                    continue;
-
-                // 获取曲线的边界矩形
-                const QRectF br = curve->boundingRect();
-                if (!br.isValid()) {
+                if (curveSize == 0) {
                     continue;
                 }
 
+                // 获取曲线的边界矩形
+                const QRectF br = curve->boundingRect();
                 // 边界检查：鼠标X值是否在曲线X范围内
                 if (mouseXValue < br.left() || mouseXValue > br.right()) {
                     continue;
@@ -1057,7 +1054,6 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
             featurePoints.append(fp);
         }
     }
-
     return featurePoints.size();
 }
 

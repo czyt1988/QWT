@@ -822,7 +822,6 @@ QRect QwtPicker::trackerRect(const QFont& font) const
         y -= textRect.height() + margin;
 
     textRect.moveTopLeft(QPoint(x, y));
-
     const QRect pickRect = pickArea().boundingRect().toRect();
 
     int right  = qMin(textRect.right(), pickRect.right() - margin);
