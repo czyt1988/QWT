@@ -620,11 +620,11 @@ QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicke
                     }
 
                     if (axisTitle.isEmpty()) {
-                        axisTitle = QString("X");
+                        out += QString("<b>%1</b>").arg(g.xValue);
+                    } else {
+                        // 显示X轴标题和共享的X值
+                        out += QString("<b>%1: %2</b>").arg(axisTitle, g.xValue);
                     }
-
-                    // 显示X轴标题和共享的X值
-                    out += QString("<b>%1: %2</b>").arg(axisTitle, g.xValue);
 
                     // 添加该组内的所有曲线及其Y值
                     for (int il = 0; il < g.fps.size(); ++il) {
