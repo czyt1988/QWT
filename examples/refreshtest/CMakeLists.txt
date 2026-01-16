@@ -26,7 +26,24 @@ target_link_libraries(${QWT_APP_NAME} PUBLIC
                                        Qt${QT_VERSION_MAJOR}::Core 
                                        Qt${QT_VERSION_MAJOR}::Gui 
                                        Qt${QT_VERSION_MAJOR}::Widgets)
-
+if(QWT_CONFIG_QWTOPENGL)
+  find_package(Qt${QT_VERSION_MAJOR} ${QWT_MIN_QT_VERSION} COMPONENTS
+      OpenGL
+      REQUIRED
+  )
+  target_link_libraries(${QWT_APP_NAME} PRIVATE
+      Qt${QT_VERSION_MAJOR}::OpenGL
+  )
+  if(${QT_VERSION_MAJOR} EQUAL 6)
+      find_package(Qt${QT_VERSION_MAJOR} ${QWT_MIN_QT_VERSION} COMPONENTS
+          OpenGLWidgets
+          REQUIRED
+      )
+      target_link_libraries(${QWT_APP_NAME} PRIVATE
+          Qt${QT_VERSION_MAJOR}::OpenGLWidgets
+      )
+  endif()
+endif()
 set_target_properties(${QWT_APP_NAME} PROPERTIES
     AUTOMOC ON
     AUTORCC ON

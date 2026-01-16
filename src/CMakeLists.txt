@@ -448,6 +448,7 @@ if(QWT_CONFIG_QWTOPENGL)
         target_link_libraries(${QWT_LIB_NAME} PRIVATE
             Qt${QT_VERSION_MAJOR}::OpenGLWidgets
         )
+        message(STATUS "target link Qt${QT_VERSION_MAJOR}::OpenGLWidgets")
     endif()
 endif()
 

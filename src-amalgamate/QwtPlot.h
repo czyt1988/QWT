@@ -27,14 +27,14 @@
  * @def qwt的数字版本 MAJ.MIN.{PAT}
  */
 #ifndef QWT_VERSION_PAT
-#define QWT_VERSION_PAT 8
+#define QWT_VERSION_PAT 9
 #endif
 
 /**
  * @def 版本号（字符串）
  */
 #ifndef QWT_VERSION_STR
-#define QWT_VERSION_STR "7.0.8"
+#define QWT_VERSION_STR "7.0.9"
 #endif
 
 #endif  // QWT_VERSION_INFO_H
@@ -2228,6 +2228,7 @@ private:
 #include <QtCore/QObject>
 #include <QtGui/QMouseEvent>
 #include <QtGui/QKeyEvent>
+#include <QtGui/QWheelEvent>
 #include <QtGui/QFontMetrics>
 #include <QtGui/QFontMetricsF>
 
@@ -2264,7 +2265,7 @@ inline QPoint eventPos(EventType* event)
  * @return x坐标（整数）
  */
 template< typename EventType >
-inline int eventX(EventType* event)
+inline int eventPosX(EventType* event)
 {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     return event->pos().x();
@@ -2280,7 +2281,7 @@ inline int eventX(EventType* event)
  * @return y坐标（整数）
  */
 template< typename EventType >
-inline int eventY(EventType* event)
+inline int eventPosY(EventType* event)
 {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     return event->pos().y();
@@ -2319,6 +2320,31 @@ inline qreal horizontalAdvanceF(const QFontMetricsF& fm, const QString& str)
 #endif
 }
 
+/**
+ * @brief Get vertical wheel delta value compatible with Qt5 and Qt6
+ *
+ * This function provides a unified interface to retrieve the vertical scroll delta
+ * from a QWheelEvent, supporting both Qt5 (using delta()) and Qt6 (using angleDelta().y())
+ * without changing the calling code.
+ *
+ * The return value represents the vertical scroll amount:
+ * - Positive value: Wheel scrolled up
+ * - Negative value: Wheel scrolled down
+ * - The magnitude follows the standard wheel step (typically ±120 per notch)
+ *
+ * @param e Pointer to the QWheelEvent object (must not be nullptr)
+ * @return Integer delta value of vertical wheel movement
+ * @note The function only returns vertical wheel delta (ignores horizontal scroll via angleDelta().x())
+ * @warning Ensure the input QWheelEvent pointer is valid to avoid null pointer dereference
+ */
+inline int wheelEventDelta(QWheelEvent* e)
+{
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    return e->delta();
+#else
+    return e->angleDelta().y();
+#endif
+}
 }  // namespace   compat
 }  // namespace   qwt
 #endif  // QWT_QT5QT6_COMPAT_HPP
@@ -9919,7 +9945,7 @@ private:
 class QWT_EXPORT QwtDateScaleDraw : public QwtScaleDraw
 {
 public:
-    explicit QwtDateScaleDraw(Qt::TimeSpec = Qt::LocalTime);
+    explicit QwtDateScaleDraw(Qt::TimeSpec timeSpec = Qt::LocalTime);
     virtual ~QwtDateScaleDraw();
 
     void setDateFormat(QwtDate::IntervalType, const QString&);
@@ -12863,7 +12889,11 @@ private:
 #ifndef QWT_PLOT_OPENGL_CANVAS_H
 #define QWT_PLOT_OPENGL_CANVAS_H
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QtOpenGLWidgets/QOpenGLWidget>
+#else
 #include <QOpenGLWidget>
+#endif
 #include <QSurfaceFormat>
 
 class QwtPlot;
@@ -15066,6 +15096,10 @@ public:
     void setTextAlignment(Qt::Alignment al);
     Qt::Alignment textAlignment() const;
 
+    // 是否显示x值
+    void setEnableShowXValue(bool on);
+    bool isEnableShowXValue() const;
+
     // 顶部矩形文字
     QwtText trackerText(const QPoint& pos) const QWT_OVERRIDE;
 
@@ -15086,6 +15120,7 @@ private:
 private Q_SLOTS:
     // item删除的槽，用于更新记录
     void onPlotItemDetached(QwtPlotItem* item, bool on);
+    void onParasitePlotAttached(QwtPlot* parasiteplot, bool on);
 
 protected:
     // 生成一个item的文字内容
@@ -17545,6 +17580,12 @@ Q_SIGNALS:
      */
     void legendDataChanged(const QVariant& itemInfo, const QList< QwtLegendData >& data);
 
+    /**
+     * @brief Identify the relationship between the parasitic plot and its host plot.
+     * @param on When a parasitic plot is added, on = true.When the parasitic plot is removed, on = false.
+     * @note This signal is emitted only by the host plot.
+     */
+    void parasitePlotAttached(QwtPlot* parasitePlot, bool on);
 public Q_SLOTS:
     virtual void replot();
     void autoRefresh();

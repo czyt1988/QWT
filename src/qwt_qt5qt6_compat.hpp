@@ -4,6 +4,7 @@
 #include <QtCore/QObject>
 #include <QtGui/QMouseEvent>
 #include <QtGui/QKeyEvent>
+#include <QtGui/QWheelEvent>
 #include <QtGui/QFontMetrics>
 #include <QtGui/QFontMetricsF>
 
@@ -40,7 +41,7 @@ inline QPoint eventPos(EventType* event)
  * @return x坐标（整数）
  */
 template< typename EventType >
-inline int eventX(EventType* event)
+inline int eventPosX(EventType* event)
 {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     return event->pos().x();
@@ -56,7 +57,7 @@ inline int eventX(EventType* event)
  * @return y坐标（整数）
  */
 template< typename EventType >
-inline int eventY(EventType* event)
+inline int eventPosY(EventType* event)
 {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     return event->pos().y();
@@ -95,6 +96,31 @@ inline qreal horizontalAdvanceF(const QFontMetricsF& fm, const QString& str)
 #endif
 }
 
+/**
+ * @brief Get vertical wheel delta value compatible with Qt5 and Qt6
+ *
+ * This function provides a unified interface to retrieve the vertical scroll delta
+ * from a QWheelEvent, supporting both Qt5 (using delta()) and Qt6 (using angleDelta().y())
+ * without changing the calling code.
+ *
+ * The return value represents the vertical scroll amount:
+ * - Positive value: Wheel scrolled up
+ * - Negative value: Wheel scrolled down
+ * - The magnitude follows the standard wheel step (typically ±120 per notch)
+ *
+ * @param e Pointer to the QWheelEvent object (must not be nullptr)
+ * @return Integer delta value of vertical wheel movement
+ * @note The function only returns vertical wheel delta (ignores horizontal scroll via angleDelta().x())
+ * @warning Ensure the input QWheelEvent pointer is valid to avoid null pointer dereference
+ */
+inline int wheelEventDelta(QWheelEvent* e)
+{
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    return e->delta();
+#else
+    return e->angleDelta().y();
+#endif
+}
 }  // namespace   compat
 }  // namespace   qwt
 #endif  // QWT_QT5QT6_COMPAT_HPP

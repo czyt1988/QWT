@@ -9,6 +9,7 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QActionGroup>
 #include <QLabel>
 
 #include "qwt_plot_series_data_picker.h"

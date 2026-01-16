@@ -8,6 +8,7 @@
 // qwt
 #include "qwt_plot.h"
 #include "qwt_scale_widget.h"
+#include "qwt_qt5qt6_compat.hpp"
 
 class QwtPlotScaleEventDispatcher::PrivateData
 {
@@ -373,12 +374,12 @@ bool QwtPlotScaleEventDispatcher::handleWheelEvent(QwtPlot* bindPlot, QWheelEven
     QWT_D(d);
     Q_UNUSED(bindPlot);
     // 检查当前绘图是否有 scale widget 应该处理此事件
-    QwtScaleWidget* targetScale = findTargetOnScale(e->pos());
+    QwtScaleWidget* targetScale = findTargetOnScale(qwt::compat::eventPos(e));
     if (d->currentScale && d->currentScale == targetScale) {
         if (d->currentScale->testBuildinActions(QwtScaleWidget::ActionWheelZoom)) {
             QPoint p = e->globalPosition().toPoint();
             p        = d->currentScale->mapFromGlobal(p);
-            if (e->delta() > 0) {
+            if (qwt::compat::wheelEventDelta(e) > 0) {
                 d->currentPlot->zoomAxis(d->currentAxisId, d->zoomFactor, p);
             } else {
                 d->currentPlot->zoomAxis(d->currentAxisId, 1.0 / d->zoomFactor, p);
