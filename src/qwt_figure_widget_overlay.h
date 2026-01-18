@@ -125,7 +125,8 @@ Q_SIGNALS:
      */
     void activeWidgetChanged(QWidget* oldActive, QWidget* newActive);
 
-private:
+private Q_SLOTS:
+    void onAxesRemove(QwtPlot* removedAxes);
 };
 
 #endif  // QWTFIGUREWIDGETOVERLAY_H

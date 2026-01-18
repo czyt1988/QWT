@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -70,7 +70,7 @@ namespace Qwt
  * @param defaultColor 默认颜色，无法获取时返回
  * @return
  */
-QColor plotItemColor(QwtPlotItem* item, const QColor& defaultColor)
+QColor plotItemColor(const QwtPlotItem* item, const QColor& defaultColor)
 {
     if (const QwtPlotCurve* p = dynamic_cast< const QwtPlotCurve* >(item)) {
         return p->pen().color();

@@ -19,6 +19,7 @@ tmp
 tmp-file
 .$*
 .vs
+out
 
 #文档目录
 site

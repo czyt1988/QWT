@@ -163,6 +163,18 @@
 #endif
 
 /**
+ * @def  QWT_PIMPL_CONSTRUCT
+ *
+ * 配套QWT_DECLARE_PRIVATE使用,在构造函数中构建privatedata
+ */
+#ifndef QWT_PIMPL_CONSTRUCT_INIT
+#define QWT_PIMPL_CONSTRUCT_INIT() \
+do {                                                                                                               \
+        m_data = std::make_unique< PrivateData >(this);                                                                \
+    } while (0)
+#endif
+
+/**
  *@def QWT_D
  *@brief impl获取指针，参考Q_D
  */

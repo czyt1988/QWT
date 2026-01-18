@@ -162,7 +162,7 @@ class QWT_EXPORT QwtPicker : public QObject, public QwtEventPattern
 
     Q_PROPERTY(RubberBand rubberBand READ rubberBand WRITE setRubberBand)
     Q_PROPERTY(QPen rubberBandPen READ rubberBandPen WRITE setRubberBandPen)
-
+    QWT_DECLARE_PRIVATE(QwtPicker)
 public:
     /*!
        Rubber band style
@@ -379,9 +379,6 @@ private:
     void init(QWidget*, RubberBand rubberBand, DisplayMode trackerMode);
 
     void setMouseTracking(bool);
-
-    class PrivateData;
-    PrivateData* m_data;
 };
 
 #endif

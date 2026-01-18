@@ -129,22 +129,18 @@ void QwtPlot::initAxesData()
     m_scaleData->axisData(QwtAxis::YRight).isVisible = false;
     m_scaleData->axisData(QwtAxis::XTop).isVisible   = false;
 
-    connect(m_scaleData->axisData(QwtAxis::YLeft).scaleWidget,
-            &QwtScaleWidget::requestScaleRangeUpdate,
-            this,
-            &QwtPlot::yLeftRequestScaleRangeUpdate);
-    connect(m_scaleData->axisData(QwtAxis::YRight).scaleWidget,
-            &QwtScaleWidget::requestScaleRangeUpdate,
-            this,
-            &QwtPlot::yRightRequestScaleRangeUpdate);
-    connect(m_scaleData->axisData(QwtAxis::XBottom).scaleWidget,
-            &QwtScaleWidget::requestScaleRangeUpdate,
-            this,
-            &QwtPlot::xBottomRequestScaleRangeUpdate);
-    connect(m_scaleData->axisData(QwtAxis::XTop).scaleWidget,
-            &QwtScaleWidget::requestScaleRangeUpdate,
-            this,
-            &QwtPlot::xTopRequestScaleRangeUpdate);
+    connect(
+        m_scaleData->axisData(QwtAxis::YLeft).scaleWidget, &QwtScaleWidget::requestScaleRangeUpdate, this, &QwtPlot::yLeftRequestScaleRangeUpdate
+    );
+    connect(
+        m_scaleData->axisData(QwtAxis::YRight).scaleWidget, &QwtScaleWidget::requestScaleRangeUpdate, this, &QwtPlot::yRightRequestScaleRangeUpdate
+    );
+    connect(
+        m_scaleData->axisData(QwtAxis::XBottom).scaleWidget, &QwtScaleWidget::requestScaleRangeUpdate, this, &QwtPlot::xBottomRequestScaleRangeUpdate
+    );
+    connect(
+        m_scaleData->axisData(QwtAxis::XTop).scaleWidget, &QwtScaleWidget::requestScaleRangeUpdate, this, &QwtPlot::xTopRequestScaleRangeUpdate
+    );
 }
 
 void QwtPlot::deleteAxesData()
@@ -191,10 +187,10 @@ const QwtScaleWidget* QwtPlot::axisWidget(QwtAxisId axisId) const
  */
 QwtScaleWidget* QwtPlot::axisWidget(QwtAxisId axisId)
 {
-    if (isAxisValid(axisId))
+    if (isAxisValid(axisId)) {
         return m_scaleData->axisData(axisId).scaleWidget;
-
-    return NULL;
+    }
+    return nullptr;
 }
 
 /**
@@ -408,8 +404,9 @@ const QwtScaleDraw* QwtPlot::axisScaleDraw(QwtAxisId axisId) const
  */
 QwtScaleDraw* QwtPlot::axisScaleDraw(QwtAxisId axisId)
 {
-    if (!isAxisValid(axisId))
-        return NULL;
+    if (!isAxisValid(axisId)) {
+        return nullptr;
+    }
 
     return axisWidget(axisId)->scaleDraw();
 }
@@ -596,6 +593,7 @@ void QwtPlot::setAxisAutoScale(QwtAxisId axisId, bool on)
 void QwtPlot::setAxisScale(QwtAxisId axisId, double min, double max, double stepSize)
 {
     if (isAxisValid(axisId)) {
+
         AxisData& d = m_scaleData->axisData(axisId);
         if (qFuzzyCompare(d.minValue, min) && qFuzzyCompare(d.maxValue, max) && qFuzzyCompare(d.stepSize, stepSize)) {
             // 都一样就不设置

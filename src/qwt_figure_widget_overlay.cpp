@@ -71,6 +71,7 @@ QwtFigureWidgetOverlay::QwtFigureWidgetOverlay(QwtFigure* fig) : QwtWidgetOverla
             selectNextWidget();
         }
     }
+    connect(fig, &QwtFigure::axesRemoved, this, &QwtFigureWidgetOverlay::onAxesRemove);
     setMouseTracking(true);
     setTransparentForMouseEvents(false);  // 这里对鼠标不透明，避免被绘图的坐标轴事件截取
     hide();
@@ -789,4 +790,11 @@ void QwtFigureWidgetOverlay::keyPressEvent(QKeyEvent* ke)
         break;
     }
     QwtWidgetOverlay::keyPressEvent(ke);
+}
+
+void QwtFigureWidgetOverlay::onAxesRemove(QwtPlot* removedAxes)
+{
+    if (m_data->mActiveWidget == removedAxes) {
+        m_data->mActiveWidget = nullptr;
+    }
 }

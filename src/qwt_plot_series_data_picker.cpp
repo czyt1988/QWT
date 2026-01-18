@@ -21,9 +21,10 @@
 #include <QDebug>
 #include <QHash>
 
-// 使用表格性能会非常低下
-#ifndef QwtPlotSeriesDataPicker_UseTable
-#define QwtPlotSeriesDataPicker_UseTable 0
+// 是否对x值进行分组，分组会根据item归属不同的x进行区分组别来显示，分组主要针对多x轴的情况
+// 目前分组功能在qt5正常，但qt6异常，异常原因暂不明确
+#ifndef QwtPlotSeriesDataPicker_XGroup
+#define QwtPlotSeriesDataPicker_XGroup 0
 #endif
 /**
  * @brief 计算在曲线数据中搜索最近点的窗口范围
@@ -55,8 +56,9 @@
  * @see QwtSeriesData
  * @see QwtPlotSeriesDataPicker::pickNearestPoint
  */
-QPair< size_t, size_t >
-calculateSearchWindow(size_t curveSize, double targetX, const QwtSeriesData< QPointF >& data, int windowSize = -5)
+QPair< size_t, size_t > calculateSearchWindow(
+    size_t curveSize, double targetX, const QwtSeriesData< QPointF >& data, int windowSize = -5
+)
 {
     // 初始化默认范围：整个曲线
     size_t startIndex;
@@ -95,8 +97,9 @@ calculateSearchWindow(size_t curveSize, double targetX, const QwtSeriesData< QPo
     realWindowSize = std::min< size_t >(realWindowSize, curveSize);
 
     // 使用二分查找定位目标X坐标的大致位置
-    size_t centerIndex = qwtUpperSampleIndex< QPointF >(
-        data, targetX, [](const double x, const QPointF& point) -> bool { return (x < point.x()); });
+    size_t centerIndex = qwtUpperSampleIndex< QPointF >(data, targetX, [](const double x, const QPointF& point) -> bool {
+        return (x < point.x());
+    });
 
     // 根据中心位置计算窗口边界
     if (centerIndex == curveSize) {
@@ -168,10 +171,11 @@ class QwtPlotSeriesDataPicker::PrivateData
     QWT_DECLARE_PUBLIC(QwtPlotSeriesDataPicker)
 public:
     PrivateData(QwtPlotSeriesDataPicker* p);
+#if QwtPlotSeriesDataPicker_XGroup
     struct GroupKey
     {
-        QwtPlot* plot;
-        QwtAxisId axis;
+        QwtPlot* plot { nullptr };
+        QwtAxisId axis { QwtAxis::XBottom };
         // 获取有效的 plot（如果是寄生轴且共享轴，返回宿主 plot）
         QwtPlot* effectivePlot() const
         {
@@ -200,8 +204,8 @@ public:
         friend inline size_t qHash(const GroupKey& key, uint seed = 0)
         {
             // 使用 qHash 来哈希指针和整数
-            uint h1 = qHash(reinterpret_cast< quintptr >(key.effectivePlot()), seed);
-            uint h2 = qHash(key.axis, seed);
+            auto h1 = qHash(reinterpret_cast< quintptr >(key.effectivePlot()), seed);
+            auto h2 = qHash(key.axis, seed);
 
             // 组合哈希值
             return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
@@ -213,7 +217,8 @@ public:
         QString xValue;  // 公共 X 值
         QList< const FeaturePoint* > fps;
     };
-
+    QVector< XGroup > xGroups;
+#endif
 public:
     QwtPlotSeriesDataPicker::PickSeriesMode pickMode { QwtPlotSeriesDataPicker::PickYValue };
     QwtPlotSeriesDataPicker::TextPlacement textArea { QwtPlotSeriesDataPicker::TextPlaceAuto };
@@ -228,7 +233,7 @@ public:
     bool markFeaturePoint { true };  ///< 是否标记捕获的特征点
     QPoint mousePos;
     bool enableShowXOnPicker { true };
-    QVector< XGroup > xGroups;
+    QPoint textTrackerOffset { 15, 0 };  ///< 记录文字tracker的偏移，这个参数在TextFollowMouse的模式下生效（设置此参数可以避免文本紧贴鼠标位置）
 };
 
 QwtPlotSeriesDataPicker::PrivateData::PrivateData(QwtPlotSeriesDataPicker* p) : q_ptr(p)
@@ -457,14 +462,78 @@ bool QwtPlotSeriesDataPicker::isEnableShowXValue() const
 }
 
 /**
- * @brief trackerText的重载
+ * \if ENGLISH
+ * @brief Set the offset of tracker rectangle in TextFollowMouse mode
  *
- * QwtPlotPicker是基于固定x和y轴的，QwtPlot上的item有可能绑定不同的x轴和y轴，因此这里不使用@ref trackerTextF
+ * This method configures the positional offset for the tracker rectangle when operating
+ * in TextFollowMouse mode. The offset prevents the rectangle from being positioned
+ * directly adjacent to the mouse cursor, which enhances visual clarity and prevents
+ * the tracker from obscuring the text content beneath the cursor.
  *
- * 通过pickYPoint或
- * @param pos
- * @return
+ * @param offset The offset value in pixels. Positive values move the tracker away
+ *               from the cursor position. Recommended values are typically between
+ *               10-30 pixels for optimal user experience.
+ * @note The offset is applied relative to the current mouse position.
+ * @see textTrackerOffset()
+ * @see TextPlacement
+ * \endif
+ *
+ * \if CHINESE
+ * @brief 设置文本跟随鼠标模式下追踪矩形的偏移量
+ *
+ * 此方法用于配置在文本跟随鼠标（TextFollowMouse）模式下，追踪矩形（tracker rectangle）
+ * 相对于鼠标位置的位置偏移。通过设置偏移量，可以避免追踪矩形紧贴鼠标光标，从而：
+ * 1. 提高视觉清晰度，防止追踪框遮挡光标下方的文本内容
+ * 2. 改善用户体验，使文本选择和追踪更加自然流畅
+ * 3. 避免因追踪框与鼠标重叠导致的视觉干扰
+ *
+ * @param offset 偏移量（单位：像素）。正值表示追踪框远离鼠标光标方向移动。
+ *               建议偏移量通常在10-30像素之间，以获得最佳用户体验。
+ * @note 偏移量是相对于当前鼠标位置进行计算的。
+ * @see textTrackerOffset()
+ * @see TextPlacement
+ * \endif
  */
+void QwtPlotSeriesDataPicker::setTextTrackerOffset(const QPoint& offset)
+{
+    QWT_D(d);
+    d->textTrackerOffset = offset;
+}
+
+/**
+ * \if ENGLISH
+ * @brief Get the current tracker rectangle offset in TextFollowMouse mode
+ *
+ * This method returns the current offset value used to position the tracker rectangle
+ * relative to the mouse cursor in TextFollowMouse mode. The offset ensures that the
+ * tracker rectangle is not placed directly under the mouse, preventing visual
+ * obstruction of the underlying content.
+ *
+ * @return The current offset as a QPoint, where x and y represent the horizontal
+ *         and vertical offsets in pixels respectively.
+ * @note A return value of QPoint(0, 0) indicates no offset is applied.
+ * @see setTextTrackerOffset()
+ * @see TextPlacement
+ * \endif
+ *
+ * \if CHINESE
+ * @brief 获取当前文本跟随鼠标模式下追踪矩形的偏移量
+ *
+ * 此方法返回当前在文本跟随鼠标（TextFollowMouse）模式下，用于定位追踪矩形
+ * 相对于鼠标位置的偏移值。该偏移量确保追踪矩形不会直接位于鼠标下方，
+ * 从而避免遮挡光标下方的显示内容。
+ *
+ * @return 当前偏移量，以 QPoint 形式返回，其中 x 和 y 分别表示水平和垂直方向的像素偏移。
+ * @see setTextTrackerOffset()
+ * @see TextPlacement
+ * \endif
+ */
+QPoint QwtPlotSeriesDataPicker::textTrackerOffset() const
+{
+    QWT_DC(d);
+    return d->textTrackerOffset;
+}
+
 QwtText QwtPlotSeriesDataPicker::trackerText(const QPoint& pos) const
 {
     if (!isEnabled()) {
@@ -478,12 +547,10 @@ QwtText QwtPlotSeriesDataPicker::trackerText(const QPoint& pos) const
     QString text;
 
     QWT_DC(d);
-    const QList< QwtPlotSeriesDataPicker::FeaturePoint >& pickedFeatureDatas = d->featurePoints;
-    if (pickedFeatureDatas.empty()) {
+    if (d->featurePoints.isEmpty()) {
         return QwtText();
     }
-    text = valueString(pickedFeatureDatas);
-
+    text = valueString(d->featurePoints);
     if (text.isEmpty()) {
         // 回退到默认跟踪器文本
         return QwtPicker::trackerText(pos);
@@ -496,87 +563,50 @@ QwtText QwtPlotSeriesDataPicker::trackerText(const QPoint& pos) const
     return trackerText;
 }
 
-QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicker::FeaturePoint >& fps) const
+QString QwtPlotSeriesDataPicker::valueString(const QList< FeaturePoint >& fps) const
 {
-#if 0
-    QString t;
-    for (int i = 0; i < fps.size(); ++i) {
-        const FeaturePoint& fp = fps[ i ];
-        if (m_data->pickMode == PickYValue) {
-            QwtPlot* plot = fp.item ? fp.item->plot() : nullptr;
-            if (0 == i) {
-                // 第一行
-                if (isEnableShowXValue()) {
-                    if (plot->isAxisVisible(QwtAxis::XTop)) {
-                        // 说明x顶部可见
-                        //  加入顶部x的值
-                        t += QString("%1:%2<br/>")
-                                 .arg(plot->axisTitle(QwtAxis::XTop).text())
-                                 .arg(formatAxisValue(fp.feature.x(), fp.item->xAxis(), plot));
-                    }
-                }
-            } else {
-                t += "<br/>";
-            }
-
-            // 使用formatAxisValue，对于时间日期也能正确显示
-            t += QString("<font color=%1>■</font>%2:<b>%3</b>")
-                     .arg(Qwt::plotItemColor(fp.item).name())
-                     .arg(fp.item->title().text())
-                     .arg(formatAxisValue(fp.feature.y(), fp.item->yAxis(), plot));
-            if (i == (fps.size() - 1)) {
-                if (isEnableShowXValue()) {
-                    if (plot->isAxisVisible(QwtAxis::XBottom)) {
-                        // 说明x底部可见
-                        t += QString("<br/>%1:%2")
-                                 .arg(plot->axisTitle(QwtAxis::XBottom).text())
-                                 .arg(formatAxisValue(fp.feature.x(), fp.item->xAxis(), plot));
-                    }
-                }
-            }
-        } else {
-            // Pick Nearest Point
-            QwtPlot* plot = fp.item ? fp.item->plot() : nullptr;
-            if (!t.isEmpty()) {
-                t += "<br/>";
-            }
-            if (isEnableShowXValue()) {
-                t += QString("(%1 , %2)")
-                         .arg(formatAxisValue(fp.feature.x(), fp.item->xAxis(), plot))
-                         .arg(formatAxisValue(fp.feature.y(), fp.item->yAxis(), plot));
-            } else {
-                t += formatAxisValue(fp.feature.y(), fp.item->yAxis(), plot);
-            }
-        }
-    }
-    return t;
-#else
-    QWT_DC(d);
-    if (fps.isEmpty())
+    if (fps.isEmpty()) {
         return {};
+    }
 
-    auto plotOf = [](const FeaturePoint& fp) -> QwtPlot* { return fp.item ? fp.item->plot() : nullptr; };
-
+    auto fmtX = [ & ](const FeaturePoint& fp) -> QString {
+        if (!fp.item) {
+            return QString::number(fp.feature.x());
+        }
+        QwtPlot* p = fp.item->plot();
+        if (!p) {
+            return QString::number(fp.feature.x());
+        }
+        return formatAxisValue(fp.feature.x(), fp.item->xAxis(), p);
+    };
     auto fmtY = [ & ](const FeaturePoint& fp) -> QString {
-        QwtPlot* plot = plotOf(fp);
-        if (!plot)
+        if (!fp.item) {
             return QString::number(fp.feature.y());
-        return formatAxisValue(fp.feature.y(), fp.item->yAxis(), plot);
+        }
+        QwtPlot* p = fp.item->plot();
+        if (!p) {
+            return QString::number(fp.feature.y());
+        }
+        return formatAxisValue(fp.feature.y(), fp.item->yAxis(), p);
     };
 
     QString out;
 
     if (pickMode() == PickYValue) {
+#if QwtPlotSeriesDataPicker_XGroup
+        QWT_DC(d);
         if (!isEnableShowXValue()) {
             // 不显示X值
             for (int i = 0; i < fps.size(); ++i) {
                 if (i > 0)
                     out += "<br/>";
                 const FeaturePoint& fp = fps[ i ];
+                QString stry           = fmtY(fp);
                 out += QString(R"(<font color="%1">■</font>%2:<b>%3</b>)")
-                           .arg(Qwt::plotItemColor(fp.item).name(), fp.item->title().text(), fmtY(fp));
+                           .arg(Qwt::plotItemColor(fp.item).name(), fp.item->title().text(), stry);
             }
         } else {
+
             // 显示X值，按X轴分组显示
             for (int ig = 0; ig < d->xGroups.size(); ++ig) {
                 const PrivateData::XGroup& g = d->xGroups[ ig ];
@@ -603,8 +633,9 @@ QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicke
                         const FeaturePoint* fp = g.fps[ il ];
                         if (!out.isEmpty())
                             out += "<br/>";
+                        QString stry = fmtY(*fp);
                         out += QString(R"(<font color="%1">■</font>%2: <b>%3</b>)")
-                                   .arg(Qwt::plotItemColor(fp->item).name(), fp->item->title().text(), fmtY(*fp));
+                                   .arg(Qwt::plotItemColor(fp->item).name(), fp->item->title().text(), stry);
                     }
                 } else {
                     // X轴可见，显示分组头
@@ -630,8 +661,9 @@ QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicke
                     for (int il = 0; il < g.fps.size(); ++il) {
                         const FeaturePoint* fp = g.fps[ il ];
                         out += "<br/>";
+                        QString stry = fmtY(*fp);
                         out += QString(R"(<font color="%1">■</font>%2: <b>%3</b>)")
-                                   .arg(Qwt::plotItemColor(fp->item).name(), fp->item->title().text(), fmtY(*fp));
+                                   .arg(Qwt::plotItemColor(fp->item).name(), fp->item->title().text(), stry);
                     }
                 }
             }
@@ -642,11 +674,29 @@ QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicke
                     if (i > 0)
                         out += "<br/>";
                     const FeaturePoint& fp = fps[ i ];
+                    QString stry           = fmtY(fp);
                     out += QString(R"(<font color="%1">■</font>%2:<b>%3</b>)")
-                               .arg(Qwt::plotItemColor(fp.item).name(), fp.item->title().text(), fmtY(fp));
+                               .arg(Qwt::plotItemColor(fp.item).name(), fp.item->title().text(), stry);
                 }
             }
         }
+#else
+        if (isEnableShowXValue()) {
+            // 显示X值
+            const FeaturePoint& fp = fps.first();
+            out += fmtX(fp);
+            out += "<br/>";
+        }
+        for (int i = 0; i < fps.size(); ++i) {
+            if (i > 0) {
+                out += "<br/>";
+            }
+            const FeaturePoint& fp = fps[ i ];
+            QString stry           = fmtY(fp);
+            out += QString(R"(<font color="%1">■</font>%2:<b>%3</b>)")
+                       .arg(Qwt::plotItemColor(fp.item).name(), fp.item->title().text(), stry);
+        }
+#endif
     } else {
         // PickNearestPoint 模式
         if (!isEnableShowXValue()) {
@@ -662,49 +712,110 @@ QString QwtPlotSeriesDataPicker::valueString(const QList< QwtPlotSeriesDataPicke
                 if (i > 0)
                     out += "<br/>";
                 const FeaturePoint& fp = fps[ i ];
-                auto fmtX              = [ & ](const FeaturePoint& fp) -> QString {
-                    QwtPlot* plot = plotOf(fp);
-                    if (!plot)
-                        return QString::number(fp.feature.x());
-                    return formatAxisValue(fp.feature.x(), fp.item->xAxis(), plot);
-                };
                 out += QString("(%1, %2)").arg(fmtX(fp), fmtY(fp));
             }
         }
     }
     return out;
-#endif
 }
 
 /**
- * @brief 绘制特征点，把捕获到的点进行绘制
+ * \if ENGLISH
+ * @brief Draw captured feature points
  *
- * 如果想特征点绘制进行自定义，可重写此函数
+ * Renders all captured feature points using the provided painter.
  *
- * @note setEnableDrawFeaturePoint
- * @param  painter
+ * @note Control visibility via setEnableDrawFeaturePoint()
+ * @param painter Drawing context
+ * \endif
+ *
+ * \if CHINESE
+ * @brief 绘制捕获的特征点
+ *
+ * 使用提供的painter渲染所有捕获的特征点。
+ *
+ * @note 通过 setEnableDrawFeaturePoint() 控制可见性
+ * @param painter 绘图上下文
+ * \endif
  */
-void QwtPlotSeriesDataPicker::drawFeaturePoints(QPainter* painter) const
+void QwtPlotSeriesDataPicker::drawAllFeaturePoints(QPainter* painter) const
 {
     QWT_DC(d);
     const QList< QwtPlotSeriesDataPicker::FeaturePoint >& pickedFeatureDatas = d->featurePoints;
     for (int i = 0; i < pickedFeatureDatas.size(); ++i) {
         const QwtPlotSeriesDataPicker::FeaturePoint& fp = pickedFeatureDatas[ i ];
         QwtPlot* itemPlot                               = fp.item->plot();
-        if (!itemPlot) {
-            continue;
-        }
-        const QwtScaleMap xMap = itemPlot->canvasMap(fp.item->xAxis());
-        const QwtScaleMap yMap = itemPlot->canvasMap(fp.item->yAxis());
-        // 把点转换到屏幕坐标
-        QPointF screenPos = QwtScaleMap::transform(xMap, yMap, fp.feature);
-        QColor itemColor  = Qwt::plotItemColor(fp.item, Qt::black);
-        // 绘制点
-        painter->save();
-        painter->setPen(QPen(itemColor, 1));
-        painter->drawEllipse(screenPos.toPoint(), d->featurePointSize, d->featurePointSize);
-        painter->restore();
+        drawFeaturePoint(painter, itemPlot, fp.item, fp.feature);
     }
+}
+
+/**
+ * \if ENGLISH
+ * @brief Draw a single feature point on the plot
+ *
+ * This virtual method is responsible for rendering individual feature points
+ * on the QwtPlot canvas. Users can override this function to implement
+ * custom drawing styles for feature points (e.g., different shapes, colors,
+ * or visual effects).
+ *
+ * The default implementation draws a circular point at the specified position:
+ * - Size: determined by drawFeaturePointSize()
+ * - Border: 1-pixel outline using the curve color
+ * - Fill: solid fill with the curve color darkened by 150%
+ *
+ * @param painter The QPainter object for drawing operations
+ * @param plot Reference to the QwtPlot widget where drawing occurs
+ * @param item The curve item associated with this feature point
+ * @param itemPoint The coordinates of the feature point in plot coordinates
+ *
+ * @see drawFeaturePointSize()
+ * @see setDrawFeaturePointSize()
+ * @see drawAllFeaturePoints()
+ * \endif
+ *
+ * \if CHINESE
+ * @brief 在绘图区域绘制单个特征点
+ *
+ * 此虚方法负责在画布上渲染单个特征点。用户可以重写此函数来实现
+ * 自定义的特征点绘制样式（例如：不同的形状、颜色或视觉效果）。
+ *
+ * 默认实现会在指定位置绘制一个圆形点：
+ * - 大小：由 drawFeaturePointSize() 决定
+ * - 边框：使用曲线颜色的1像素轮廓
+ * - 填充：使用曲线颜色加深150%进行实心填充
+ *
+ * @param painter 用于绘图操作的 QPainter 对象
+ * @param plot 绘制操作所在的 QwtPlot 部件引用
+ * @param item 与此特征点关联的曲线项
+ * @param itemPoint 特征点在绘图坐标系中的坐标
+ *
+ * @see drawFeaturePointSize()
+ * @see setDrawFeaturePointSize()
+ * @see drawAllFeaturePoints()
+ * \endif
+ */
+void QwtPlotSeriesDataPicker::drawFeaturePoint(
+    QPainter* painter, const QwtPlot* plot, const QwtPlotItem* item, const QPointF& itemPoint
+) const
+{
+    if (!plot || !item) {
+        return;
+    }
+    QWT_DC(d);
+    const QwtScaleMap xMap = plot->canvasMap(item->xAxis());
+    const QwtScaleMap yMap = plot->canvasMap(item->yAxis());
+    // 把点转换到屏幕坐标
+    QPointF screenPos = QwtScaleMap::transform(xMap, yMap, itemPoint);
+    QColor itemColor  = Qwt::plotItemColor(item, Qt::black);
+    // 绘制点
+    painter->save();
+    QColor fillColor = itemColor.darker(150);  // 150% 变暗，可根据需要调整
+    // 设置画笔（边框）
+    painter->setPen(QPen(fillColor, 1));
+    // 设置画刷（填充）
+    painter->setBrush(QBrush(fillColor));
+    painter->drawEllipse(screenPos.toPoint(), d->featurePointSize, d->featurePointSize);
+    painter->restore();
 }
 
 void QwtPlotSeriesDataPicker::move(const QPoint& pos)
@@ -750,72 +861,104 @@ void QwtPlotSeriesDataPicker::updateFeaturePoint(const QPoint& pos)
     }
 }
 
-/**
- * @brief 绘制的区域在
- *
- * 根据文字显示的位置，调整矩形
- * @param f
- * @return
- */
 QRect QwtPlotSeriesDataPicker::trackerRect(const QFont& f) const
 {
-    QRect rect = QwtPicker::trackerRect(f);
+    QRect r = QwtPicker::trackerRect(f);
     // 提前处理不需要改变 rect 位置的情况
-    if (textArea() == QwtPlotSeriesDataPicker::TextPlaceAuto && pickMode() == PickNearestPoint) {
-        return rect;
+    QwtPlotSeriesDataPicker::TextPlacement ta = textArea();
+    if (QwtPlotSeriesDataPicker::TextPlaceAuto == ta && pickMode() == PickNearestPoint) {
+        return r;
     }
     QWT_DC(d);
     const QRect plotRect = pickArea().boundingRect().toRect();
     // 根据 textArea 和 pickMode 调整 rect 位置
-    if (textArea() == QwtPlotSeriesDataPicker::TextPlaceAuto) {
+    if (QwtPlotSeriesDataPicker::TextPlaceAuto == ta) {
         // 对于 TextPlaceAuto, 只有 PickYValue 模式需要特殊处理
         if (pickMode() == PickYValue) {
-            rect.moveTop(plotRect.top());
+            // 预测偏移后的位置
+            QPoint offset    = textTrackerOffset();
+            QRect offsetRect = r.translated(offset);
+            return ensureRectInBounds(offsetRect, plotRect);
         }
         // 其他 pickMode 保持 rect 不变
+        return r;
+    }
+    // 根据指定的 textArea 位置调整
+    switch (ta) {
+    case TextFollowOnTop:
+        r.moveTop(plotRect.top());
+        break;
+    case TextFollowOnBottom:
+        r.moveBottom(plotRect.bottom());
+        break;
+    case TextOnCanvasTopRight:
+        r.moveTopRight(plotRect.topRight());
+        break;
+    case TextOnCanvasTopLeft:
+        r.moveTopLeft(plotRect.topLeft());
+        break;
+    case TextOnCanvasBottomRight:
+        r.moveBottomRight(plotRect.bottomRight());
+        break;
+    case TextOnCanvasBottomLeft:
+        r.moveBottomLeft(plotRect.bottomLeft());
+        break;
+    case TextOnCanvasTopAuto:
+        // 对于自动模式，要根据当前鼠标的位置判断
+        if (d->mousePos.x() >= plotRect.width() - r.width()) {
+            r.moveTopLeft(plotRect.topLeft());
+        } else {
+            r.moveTopRight(plotRect.topRight());
+        }
+        break;
+    case TextOnCanvasBottomAuto:
+        // 对于自动模式，要根据当前鼠标的位置判断
+        if (d->mousePos.x() >= plotRect.width() - r.width()) {
+            r.moveBottomLeft(plotRect.bottomLeft());
+        } else {
+            r.moveBottomRight(plotRect.bottomRight());
+        }
+        break;
+    default:
+        // 对于未明确指定的 textArea，保持 rect 不变
+        break;
+    }
+
+    return r;
+}
+
+
+QRect QwtPlotSeriesDataPicker::ensureRectInBounds(const QRect& rect, const QRect& bounds) const
+{
+    QRect constrainedRect = rect;
+
+    // 水平方向约束
+    if (constrainedRect.width() > bounds.width()) {
+        // 如果矩形比绘图区域还宽，左对齐
+        constrainedRect.moveLeft(bounds.left());
     } else {
-        // 根据指定的 textArea 位置调整
-        switch (textArea()) {
-        case TextFollowOnTop:
-            rect.moveTop(plotRect.top());
-            break;
-        case TextFollowOnBottom:
-            rect.moveBottom(plotRect.bottom());
-            break;
-        case TextOnCanvasTopRight:
-            rect.moveTopRight(plotRect.topRight());
-            break;
-        case TextOnCanvasTopLeft:
-            rect.moveTopLeft(plotRect.topLeft());
-            break;
-        case TextOnCanvasBottomRight:
-            rect.moveBottomRight(plotRect.bottomRight());
-            break;
-        case TextOnCanvasBottomLeft:
-            rect.moveBottomLeft(plotRect.bottomLeft());
-            break;
-        case TextOnCanvasTopAuto:
-            // 对于自动模式，要根据当前鼠标的位置判断
-            if (d->mousePos.x() >= plotRect.width() - rect.width()) {
-                rect.moveTopLeft(plotRect.topLeft());
-            } else {
-                rect.moveTopRight(plotRect.topRight());
-            }
-            break;
-        case TextOnCanvasBottomAuto:
-            // 对于自动模式，要根据当前鼠标的位置判断
-            if (d->mousePos.x() >= plotRect.width() - rect.width()) {
-                rect.moveBottomLeft(plotRect.bottomLeft());
-            } else {
-                rect.moveBottomRight(plotRect.bottomRight());
-            }
-            break;
-        default:
-            // 对于未明确指定的 textArea，保持 rect 不变
-            break;
+        if (constrainedRect.left() < bounds.left()) {
+            constrainedRect.moveLeft(bounds.left());
+        }
+        if (constrainedRect.right() > bounds.right()) {
+            constrainedRect.moveRight(bounds.right());
         }
     }
-    return rect;
+
+    // 垂直方向约束
+    if (constrainedRect.height() > bounds.height()) {
+        // 如果矩形比绘图区域还高，top对齐
+        constrainedRect.moveTop(bounds.top());
+    } else {
+        if (constrainedRect.top() < bounds.top()) {
+            constrainedRect.moveTop(bounds.top());
+        }
+        if (constrainedRect.bottom() > bounds.bottom()) {
+            constrainedRect.moveBottom(bounds.bottom());
+        }
+    }
+
+    return constrainedRect;
 }
 
 void QwtPlotSeriesDataPicker::drawRubberBand(QPainter* painter) const
@@ -824,9 +967,15 @@ void QwtPlotSeriesDataPicker::drawRubberBand(QPainter* painter) const
     if (!isActive()) {
         return;
     }
+    if (!painter || !painter->isActive()) {
+        return;
+    }
+
     QPen rbPen              = rubberBandPen();
     const QPoint mousePoint = trackerPosition();
-
+    if (mousePoint.isNull() || mousePoint.x() < 0 || mousePoint.y() < 0) {
+        return;
+    }
     switch (pickMode()) {
     case PickYValue: {
         painter->save();
@@ -860,7 +1009,7 @@ void QwtPlotSeriesDataPicker::drawRubberBand(QPainter* painter) const
     }
 
     if (isEnableDrawFeaturePoint()) {
-        drawFeaturePoints(painter);
+        drawAllFeaturePoints(painter);
     }
 }
 
@@ -871,24 +1020,69 @@ void QwtPlotSeriesDataPicker::setTrackerPosition(const QPoint& pos)
 }
 
 /**
- * @brief 获取绘图区域指定屏幕位置上所有可拾取的Y值
- * @param plot 绘图对象
- * @param pos 屏幕位置
- * @param interpolate 是否进行插值计算
- * @return 包含绘图项和对应数据点的列表
+ * \if ENGLISH
+ * @brief Get all pickable Y values at a specified screen position
  *
- * @note 此函数考虑了寄生绘图，可以传入宿主绘图或寄生绘图，它会把全部绘图的数据进行获取
+ * This method scans all pickable curves at a given screen coordinate position
+ * and collects their corresponding data points. It supports both host and
+ * parasitic plots, traversing through all related plot items regardless of
+ * their hosting relationship.
+ *
+ * The function returns the total count of feature points successfully picked.
+ * For each picked point, the internal data structures are updated with the
+ * curve information and calculated Y values.
+ *
+ * @param plot The plot widget (can be either host or parasitic plot)
+ * @param pos Screen position in widget coordinates
+ * @param interpolate Whether to perform interpolation between data points.
+ *                   When true, linear interpolation is applied if the position
+ *                   falls between two data points; otherwise, the nearest
+ *                   data point is selected.
+ * @return The number of feature points successfully picked and stored.
+ *         Returns 0 if no pickable items are found at the position.
+ *
+ * @note This function considers both host and parasitic plots. When called
+ *       with a host plot, it includes all its parasitic plots; when called
+ *       with a parasitic plot, it includes its host and all siblings.
+ * @see featurePointList()
+ * @see drawFeaturePoints()
+ * @see clearFeaturePoints()
+ * \endif
+ *
+ * \if CHINESE
+ * @brief 获取绘图区域指定屏幕位置上所有可拾取的Y值
+ *
+ * 此方法在给定的屏幕坐标位置扫描所有可拾取曲线，并收集它们对应的数据点。
+ * 它同时支持宿主绘图和寄生绘图，无论绘图项之间的宿主关系如何，都会遍历所有相关绘图项。
+ *
+ * 函数返回成功拾取的特征点总数。对于每个拾取的点，内部数据结构会更新曲线信息和计算的Y值。
+ *
+ * @param plot 绘图部件（可以是宿主绘图或寄生绘图）
+ * @param pos 部件坐标系中的屏幕位置
+ * @param interpolate 是否在数据点之间执行插值计算。
+ *                   当为true时，如果位置落在两个数据点之间，则应用线性插值；
+ *                   否则，选择最近的数据点。
+ * @return 成功拾取并存储的特征点数量。如果在该位置未找到可拾取项，则返回0。
+ *
+ * @note 此函数同时考虑宿主和寄生绘图。当传入宿主绘图时，包含其所有寄生绘图；
+ *       当传入寄生绘图时，包含其宿主和所有兄弟绘图。
+ * @see featurePointList()
+ * @see drawFeaturePoints()
+ * @see clearFeaturePoints()
+ * \endif
  */
-int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, bool interpolate)
+int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* p, const QPoint& pos, bool interpolate)
 {
-    if (!plot) {
+    if (!p) {
         return 0;
     }
     QWT_D(d);
     QList< QwtPlotSeriesDataPicker::FeaturePoint >& featurePoints = d->featurePoints;
     featurePoints.clear();
+#if QwtPlotSeriesDataPicker_XGroup
     d->xGroups.clear();
-    const QList< QwtPlot* > plotList = plot->plotList();
+#endif
+    const QList< QwtPlot* > plotList = p->plotList();
 
     // 收集所有曲线
     QList< QwtPlotCurve* > allCurves;
@@ -903,7 +1097,7 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
             }
         }
     }
-
+#if QwtPlotSeriesDataPicker_XGroup
     if (pickMode() == PickYValue && isEnableShowXValue()) {
         // 按X轴分组（同一个plot中的同一个X轴为一组）
         QHash< PrivateData::GroupKey, QList< QwtPlotCurve* > > curvesByAxis;
@@ -957,8 +1151,10 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
                 }
 
                 // 在曲线数据中查找对应的点
-                size_t index = qwtUpperSampleIndex< QPointF >(
-                    *curve->data(), mouseXValue, [](const double x, const QPointF& pos) -> bool { return (x < pos.x()); });
+                size_t index =
+                    qwtUpperSampleIndex< QPointF >(*curve->data(), mouseXValue, [](const double x, const QPointF& pos) -> bool {
+                        return (x < pos.x());
+                    });
 
                 if (index == curveSize) {
                     continue;
@@ -1014,17 +1210,15 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
 
             // 提前计算并缓存边界矩形
             const QRectF br = curve->boundingRect();
-            if (!br.isValid()) {
-                continue;
-            }
 
             // 快速边界检查
             if (x < br.left() || x > br.right()) {
                 continue;
             }
 
-            size_t index = qwtUpperSampleIndex< QPointF >(
-                *curve->data(), x, [](const double x, const QPointF& pos) -> bool { return (x < pos.x()); });
+            size_t index = qwtUpperSampleIndex< QPointF >(*curve->data(), x, [](const double x, const QPointF& pos) -> bool {
+                return (x < pos.x());
+            });
 
             if (index == curveSize) {
                 continue;
@@ -1054,6 +1248,64 @@ int QwtPlotSeriesDataPicker::pickYValue(const QwtPlot* plot, const QPoint& pos, 
             featurePoints.append(fp);
         }
     }
+#else
+    for (QwtPlotCurve* curve : allCurves) {
+        const size_t curveSize = curve->dataSize();
+        if (curveSize == 0) {
+            continue;
+        }
+
+        QwtPlot* oneplot = curve->plot();
+
+        // 获取曲线的坐标轴映射
+        const QwtScaleMap xMap = oneplot->canvasMap(curve->xAxis());
+
+        // 将屏幕坐标转换为曲线坐标系的坐标
+        double x = xMap.invTransform(pos.x());
+
+        // 提前计算并缓存边界矩形
+        const QRectF br = curve->boundingRect();
+        if (x < br.left() || x > br.right()) {
+            continue;
+        }
+
+        // 快速边界检查
+        if (x < br.left() || x > br.right()) {
+            continue;
+        }
+
+        size_t index = qwtUpperSampleIndex< QPointF >(*curve->data(), x, [](const double x, const QPointF& pos) -> bool {
+            return (x < pos.x());
+        });
+
+        if (index == curveSize) {
+            continue;
+        }
+
+        FeaturePoint fp;
+        fp.item  = curve;
+        fp.index = index;
+
+        if (interpolate && curveSize > 2 && index > 0) {
+            // 插值计算
+            const QPointF& p2 = curve->sample(index);
+            const QPointF& p1 = curve->sample(index - 1);
+            if (qFuzzyCompare(p1.x(), p2.x())) {
+                fp.feature = p2;
+            } else {
+                double t = (x - p1.x()) / (p2.x() - p1.x());
+                QPointF interPoint;
+                interPoint.setX(x);
+                interPoint.setY(p1.y() + t * (p2.y() - p1.y()));
+                fp.feature = interPoint;
+            }
+        } else {
+            fp.feature = curve->sample(index);
+        }
+
+        featurePoints.append(fp);
+    }
+#endif
     return featurePoints.size();
 }
 
@@ -1077,7 +1329,9 @@ int QwtPlotSeriesDataPicker::pickNearestPoint(const QwtPlot* plot, const QPoint&
     QWT_D(d);
     QList< QwtPlotSeriesDataPicker::FeaturePoint >& featurePoints = d->featurePoints;
     featurePoints.clear();
+#if QwtPlotSeriesDataPicker_XGroup
     d->xGroups.clear();
+#endif
     QwtPlotSeriesDataPicker::FeaturePoint fp;
 
     double minScreenDistance         = std::numeric_limits< double >::max();
@@ -1111,8 +1365,8 @@ int QwtPlotSeriesDataPicker::pickNearestPoint(const QwtPlot* plot, const QPoint&
                 QPointF point         = curve->sample(i);
                 int screenX           = qRound(xMap.transform(point.x()));
                 int screenY           = qRound(yMap.transform(point.y()));
-                double dx             = screenX - pos.x();
-                double dy             = screenY - pos.y();
+                double dx             = double(screenX) - pos.x();
+                double dy             = double(screenY) - pos.y();
                 double screenDistance = dx * dx + dy * dy;
 
                 if (screenDistance < minDistance) {
@@ -1146,6 +1400,7 @@ void QwtPlotSeriesDataPicker::onPlotItemDetached(QwtPlotItem* item, bool on)
         for (int i = pickedFeatureDatas.size() - 1; i >= 0; --i) {
             const QwtPlotSeriesDataPicker::FeaturePoint& fp = pickedFeatureDatas[ i ];
             if (fp.item == item) {
+#if QwtPlotSeriesDataPicker_XGroup
                 // 同步要删除xGroups
                 for (int j = d->xGroups.size() - 1; j >= 0; --j) {
                     PrivateData::XGroup& g = d->xGroups[ j ];
@@ -1155,6 +1410,7 @@ void QwtPlotSeriesDataPicker::onPlotItemDetached(QwtPlotItem* item, bool on)
                         }
                     }
                 }
+#endif
                 pickedFeatureDatas.removeAt(i);  // 反向删除，避免索引混乱
             }
         }
@@ -1163,12 +1419,15 @@ void QwtPlotSeriesDataPicker::onPlotItemDetached(QwtPlotItem* item, bool on)
 
 void QwtPlotSeriesDataPicker::onParasitePlotAttached(QwtPlot* parasiteplot, bool on)
 {
-
+    QWT_D(d);
     if (on) {
         // 寄生轴新增，需要绑定寄生轴的onPlotItemDetached
         connect(parasiteplot, &QwtPlot::itemAttached, this, &QwtPlotSeriesDataPicker::onPlotItemDetached);
     } else {
         disconnect(parasiteplot, nullptr, this, nullptr);
+        // clear featurePoints make it invalid
+        d->featurePoints.clear();
+#if QwtPlotSeriesDataPicker_XGroup
         // 同步把已有的信息删除
         QWT_D(d);
         for (int i = d->xGroups.size() - 1; i >= 0; --i) {
@@ -1177,5 +1436,6 @@ void QwtPlotSeriesDataPicker::onParasitePlotAttached(QwtPlot* parasiteplot, bool
                 d->xGroups.removeAt(i);
             }
         }
+#endif
     }
 }

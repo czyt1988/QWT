@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -36,6 +36,8 @@
 #include <qpainterpath.h>
 #include <qcursor.h>
 #include <qpointer.h>
+
+#include <memory>
 
 static inline QRegion qwtMaskRegion(const QRect& r, int penWidth)
 {
@@ -126,9 +128,9 @@ protected:
 class QwtPicker::PrivateData
 {
 public:
-    PrivateData()
-        : enabled(false)
-        , stateMachine(NULL)
+    PrivateData(QwtPicker* p)
+        : q_ptr(p)
+        , enabled(false)
         , resizeMode(QwtPicker::Stretch)
         , rubberBand(QwtPicker::NoRubberBand)
         , trackerMode(QwtPicker::AlwaysOff)
@@ -139,9 +141,28 @@ public:
     {
     }
 
+    /**
+     * @brief setEnabled but not call updateDisplay(because setEnabled will call in construct function , and updateDisplay is virtual function)
+     * @param on
+     */
+    void setEnabled(bool on)
+    {
+        if (enabled != on) {
+            enabled = on;
+
+            QWidget* w = q_ptr->parentWidget();
+            if (w) {
+                if (enabled)
+                    w->installEventFilter(q_ptr);
+                else
+                    w->removeEventFilter(q_ptr);
+            }
+        }
+    }
+    QwtPicker* q_ptr { nullptr };
     bool enabled;
 
-    QwtPickerMachine* stateMachine;
+    std::unique_ptr< QwtPickerMachine > stateMachine;
 
     QwtPicker::ResizeMode resizeMode;
 
@@ -153,7 +174,7 @@ public:
     QFont trackerFont;
 
     QPolygon pickedPoints;
-    bool isActive;
+    bool isActive { false };
     QPoint trackerPosition;
 
     bool mouseTracking;  // used to save previous value
@@ -173,7 +194,7 @@ public:
    \param parent Parent widget, that will be observed
  */
 
-QwtPicker::QwtPicker(QWidget* parent) : QObject(parent)
+QwtPicker::QwtPicker(QWidget* parent) : QObject(parent), QWT_PIMPL_CONSTRUCT
 {
     init(parent, NoRubberBand, AlwaysOff);
 }
@@ -185,7 +206,8 @@ QwtPicker::QwtPicker(QWidget* parent) : QObject(parent)
    \param trackerMode Tracker mode
    \param parent Parent widget, that will be observed
  */
-QwtPicker::QwtPicker(RubberBand rubberBand, DisplayMode trackerMode, QWidget* parent) : QObject(parent)
+QwtPicker::QwtPicker(RubberBand rubberBand, DisplayMode trackerMode, QWidget* parent)
+    : QObject(parent), QWT_PIMPL_CONSTRUCT
 {
     init(parent, rubberBand, trackerMode);
 }
@@ -193,20 +215,22 @@ QwtPicker::QwtPicker(RubberBand rubberBand, DisplayMode trackerMode, QWidget* pa
 //! Destructor
 QwtPicker::~QwtPicker()
 {
+    m_data->isActive = false;
     setMouseTracking(false);
-
-    delete m_data->stateMachine;
-    delete m_data->rubberBandOverlay;
-    delete m_data->trackerOverlay;
-
-    delete m_data;
+    // 避免还有绘图事件没执行完，而在析构后执行绘图事件
+    if (m_data->rubberBandOverlay) {
+        m_data->rubberBandOverlay->hide();
+        m_data->rubberBandOverlay->deleteLater();
+    }
+    if (m_data->trackerOverlay) {
+        m_data->trackerOverlay->hide();
+        m_data->trackerOverlay->deleteLater();
+    }
 }
 
 //! Initialize the picker - used by the constructors
 void QwtPicker::init(QWidget* parent, RubberBand rubberBand, DisplayMode trackerMode)
 {
-    m_data = new PrivateData;
-
     m_data->rubberBand = rubberBand;
 
     if (parent) {
@@ -217,7 +241,7 @@ void QwtPicker::init(QWidget* parent, RubberBand rubberBand, DisplayMode tracker
         m_data->trackerFont   = parent->font();
         m_data->mouseTracking = parent->hasMouseTracking();
 
-        setEnabled(true);
+        m_data->setEnabled(true);
     }
 
     setTrackerMode(trackerMode);
@@ -231,12 +255,10 @@ void QwtPicker::init(QWidget* parent, RubberBand rubberBand, DisplayMode tracker
  */
 void QwtPicker::setStateMachine(QwtPickerMachine* stateMachine)
 {
-    if (m_data->stateMachine != stateMachine) {
+    if (m_data->stateMachine.get() != stateMachine) {
         reset();
 
-        delete m_data->stateMachine;
-        m_data->stateMachine = stateMachine;
-
+        m_data->stateMachine.reset(stateMachine);
         if (m_data->stateMachine)
             m_data->stateMachine->reset();
     }
@@ -248,7 +270,7 @@ void QwtPicker::setStateMachine(QwtPickerMachine* stateMachine)
  */
 QwtPickerMachine* QwtPicker::stateMachine()
 {
-    return m_data->stateMachine;
+    return m_data->stateMachine.get();
 }
 
 /*!
@@ -257,7 +279,7 @@ QwtPickerMachine* QwtPicker::stateMachine()
  */
 const QwtPickerMachine* QwtPicker::stateMachine() const
 {
-    return m_data->stateMachine;
+    return m_data->stateMachine.get();
 }
 
 //! Return the parent widget, where the selection happens
@@ -376,15 +398,7 @@ QwtPicker::ResizeMode QwtPicker::resizeMode() const
 void QwtPicker::setEnabled(bool enabled)
 {
     if (m_data->enabled != enabled) {
-        m_data->enabled = enabled;
-
-        QWidget* w = parentWidget();
-        if (w) {
-            if (enabled)
-                w->installEventFilter(this);
-            else
-                w->removeEventFilter(this);
-        }
+        m_data->setEnabled(enabled);
 
         updateDisplay();
     }
@@ -1438,7 +1452,7 @@ void QwtPicker::updateDisplay()
     QPointer< Rubberband >& rw = m_data->rubberBandOverlay;
     if (showRubberband) {
         if (rw.isNull()) {
-            rw = new Rubberband(this, NULL);  // NULL -> no extra event filter
+            rw = new Rubberband(this, nullptr);  // NULL -> no extra event filter
             rw->setObjectName("PickerRubberBand");
             rw->setParent(w);
             rw->resize(w->size());
@@ -1451,15 +1465,10 @@ void QwtPicker::updateDisplay()
 
         rw->updateOverlay();
     } else {
-        if (m_data->openGL) {
-            // Qt 4.8 crashes for a delete
-            if (!rw.isNull()) {
-                rw->hide();
-                rw->deleteLater();
-                rw = NULL;
-            }
-        } else {
-            delete rw;
+        if (rw) {
+            rw->hide();
+            rw->deleteLater();
+            rw = NULL;
         }
     }
 
@@ -1474,15 +1483,10 @@ void QwtPicker::updateDisplay()
         tw->setFont(m_data->trackerFont);
         tw->updateOverlay();
     } else {
-        if (m_data->openGL) {
-            // Qt 4.8 crashes for a delete
-            if (!tw.isNull()) {
-                tw->hide();
-                tw->deleteLater();
-                tw = NULL;
-            }
-        } else {
-            delete tw;
+        if (tw) {
+            tw->hide();
+            tw->deleteLater();
+            tw = NULL;
         }
     }
 }

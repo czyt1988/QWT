@@ -124,8 +124,8 @@ public:
     QwtPlotLayout* layout;
     QwtPlotScaleEventDispatcher* scaleEventDispatcher { nullptr };
 
-    bool autoReplot;
-    bool autoReplotTemp;  ///< 用于暂存autoReplot状态
+    bool autoReplot { true };
+    bool autoReplotTemp { true };  ///< 用于暂存autoReplot状态
 
     bool isParasitePlot { false };                                ///< 标记这个绘图是寄生绘图
     QMetaObject::Connection shareConn[ QwtAxis::AxisPositions ];  // 记录寄生轴和宿主轴坐标同步的信号槽，仅仅针对寄生轴有用
@@ -173,8 +173,9 @@ QwtPlot::~QwtPlot()
  */
 void QwtPlot::initPlot(const QwtText& title)
 {
-    m_data->layout     = new QwtPlotLayout;
-    m_data->autoReplot = false;
+    m_data->layout         = new QwtPlotLayout;
+    m_data->autoReplot     = true;
+    m_data->autoReplotTemp = true;
 
     // title
     m_data->titleLabel = new QwtTextLabel(this);
@@ -748,12 +749,9 @@ void QwtPlot::doLayout()
 
    updateCanvasMargins(), QwtPlotItem::getCanvasMarginHint()
  */
-void QwtPlot::getCanvasMarginsHint(const QwtScaleMap maps[],
-                                   const QRectF& canvasRect,
-                                   double& left,
-                                   double& top,
-                                   double& right,
-                                   double& bottom) const
+void QwtPlot::getCanvasMarginsHint(
+    const QwtScaleMap maps[], const QRectF& canvasRect, double& left, double& top, double& right, double& bottom
+) const
 {
     left = top = right = bottom = -1.0;
 
@@ -765,7 +763,8 @@ void QwtPlot::getCanvasMarginsHint(const QwtScaleMap maps[],
 
             double m[ AxisPositions ];
             item->getCanvasMarginHint(
-                maps[ item->xAxis() ], maps[ item->yAxis() ], canvasRect, m[ YLeft ], m[ XTop ], m[ YRight ], m[ XBottom ]);
+                maps[ item->xAxis() ], maps[ item->yAxis() ], canvasRect, m[ YLeft ], m[ XTop ], m[ YRight ], m[ XBottom ]
+            );
 
             left   = qwtMaxF(left, m[ YLeft ]);
             top    = qwtMaxF(top, m[ XTop ]);
@@ -792,8 +791,7 @@ void QwtPlot::updateCanvasMargins()
         maps[ axisId ] = canvasMap(axisId);
 
     double margins[ AxisPositions ];
-    getCanvasMarginsHint(
-        maps, canvas()->contentsRect(), margins[ YLeft ], margins[ XTop ], margins[ YRight ], margins[ XBottom ]);
+    getCanvasMarginsHint(maps, canvas()->contentsRect(), margins[ YLeft ], margins[ XTop ], margins[ YRight ], margins[ XBottom ]);
 
     bool doUpdate = false;
     for (int axisPos = 0; axisPos < AxisPositions; axisPos++) {

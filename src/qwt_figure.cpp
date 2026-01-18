@@ -479,7 +479,7 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
  * @note 此方法在移除过程中会发射@ref axesRemoved 信号，
  * axesRemoved携带的绘图指针不应该被保存
  *
- * @note 此方法还会发射2个信号，先发射@ref currentAxesChanged 信号，此信号参数会携带nullptr，
+ * @note 此方法还会发射3个信号，删除过程会发射@ref axesRemoved 信号，删除完后发射@ref currentAxesChanged 信号，此信号参数会携带nullptr，
  * 最后发射@ref figureCleared 信号
  *
  * @note 此方法会删除已经持有的所有plot窗口

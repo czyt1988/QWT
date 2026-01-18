@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 1997   Josef Wilgen
  * Copyright (C) 2002   Uwe Rathmann
@@ -39,7 +39,7 @@ class QwtPlotItem;
 namespace Qwt
 {
 // 获取item的颜色
-QColor QWT_EXPORT plotItemColor(QwtPlotItem* item, const QColor& defaultColor = QColor());
+QColor QWT_EXPORT plotItemColor(const QwtPlotItem* item, const QColor& defaultColor = QColor());
 }
 
 QWT_EXPORT QSize qwtExpandedToGlobalStrut(const QSize&);

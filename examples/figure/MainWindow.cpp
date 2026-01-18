@@ -1,4 +1,4 @@
-#include "MainWindow.h"
+﻿#include "MainWindow.h"
 #include "ui_MainWindow.h"
 #include <cmath>
 #include <limits>
@@ -14,6 +14,7 @@
 #include "qwt_figure_widget_overlay.h"
 #include "qwt_scale_engine.h"
 #include "qwt_plot_series_data_picker.h"
+#include "qwt_plot_scaleitem.h"
 //
 #include "PickLinker.h"
 
@@ -179,6 +180,9 @@ QwtPlot* MainWindow::createParasitePlot()
     hostPlot->setAxisTitle(QwtPlot::yRight, "Y1 Axis Right");
     hostPlot->enableAxis(QwtPlot::yRight, true);
     hostPlot->enableAxis(QwtPlot::xTop, true);
+    QwtPlotScaleItem* innerScale = new QwtPlotScaleItem(QwtScaleDraw::BottomScale);
+    innerScale->setScaleDivFromAxis(true);
+    innerScale->attach(hostPlot);
 
     //! 给宿主绘图添加网格
     QwtPlotGrid* grid = new QwtPlotGrid();
@@ -221,14 +225,16 @@ void MainWindow::createToolBar()
     });
 
     m_figureOverlay = new QwtFigureWidgetOverlay(m_figure);
-    connect(m_figureOverlay,
-            &QwtFigureWidgetOverlay::widgetNormGeometryChanged,
-            this,
-            [ this ](QWidget* w, const QRectF& oldNormGeo, const QRectF& newNormGeo) {
-                Q_UNUSED(oldNormGeo);
-                qDebug() << "setWidgetNormPos:" << newNormGeo;
-                m_figure->setWidgetNormPos(w, newNormGeo);
-            });
+    connect(
+        m_figureOverlay,
+        &QwtFigureWidgetOverlay::widgetNormGeometryChanged,
+        this,
+        [ this ](QWidget* w, const QRectF& oldNormGeo, const QRectF& newNormGeo) {
+            Q_UNUSED(oldNormGeo);
+            qDebug() << "setWidgetNormPos:" << newNormGeo;
+            m_figure->setWidgetNormPos(w, newNormGeo);
+        }
+    );
     QAction* actionResize = new QAction(tr("Resize"), this);
     actionResize->setCheckable(true);
     connect(actionResize, &QAction::triggered, this, [ this ](bool on) {

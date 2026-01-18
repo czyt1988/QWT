@@ -55,9 +55,9 @@ public:
 
     struct FeaturePoint
     {
-        QwtPlotItem* item;  ///< 对应的item
-        QPointF feature;    ///< 特征点
-        size_t index;       ///< 在item里的索引
+        QwtPlotItem* item { nullptr };  ///< 对应的item
+        QPointF feature { 0, 0 };       ///< 特征点
+        size_t index { 0 };             ///< 在item里的索引
     };
 
 public:
@@ -102,6 +102,10 @@ public:
     void setEnableShowXValue(bool on);
     bool isEnableShowXValue() const;
 
+    // 设置trackerRect在TextFollowMouse模式下的偏移量
+    void setTextTrackerOffset(const QPoint& offset);
+    QPoint textTrackerOffset() const;
+
     // 顶部矩形文字
     QwtText trackerText(const QPoint& pos) const QWT_OVERRIDE;
 
@@ -114,11 +118,11 @@ public:
     // 手动设置位置
     virtual void setTrackerPosition(const QPoint& pos) QWT_OVERRIDE;
 
-private:
+protected:
     // 获取绘图区域屏幕坐标pos上，的所有可拾取的y值,返回获取的个数
-    int pickYValue(const QwtPlot* plot, const QPoint& pos, bool interpolate = false);
+    virtual int pickYValue(const QwtPlot* p, const QPoint& pos, bool interpolate = false);
     // 获取绘图区域屏幕坐标pos上，可拾取的最近的一个点，(基于窗口实现快速索引)
-    int pickNearestPoint(const QwtPlot* plot, const QPoint& pos, int windowSize = -5);
+    virtual int pickNearestPoint(const QwtPlot* plot, const QPoint& pos, int windowSize = -5);
 private Q_SLOTS:
     // item删除的槽，用于更新记录
     void onPlotItemDetached(QwtPlotItem* item, bool on);
@@ -127,14 +131,20 @@ private Q_SLOTS:
 protected:
     // 生成一个item的文字内容
     virtual QString valueString(const QList< FeaturePoint >& fps) const;
-    // 绘制特征点，所谓特征点就是捕获到的点
-    virtual void drawFeaturePoints(QPainter* painter) const;
+    // 绘制特征点
+    virtual void drawFeaturePoint(QPainter* painter, const QwtPlot* plot, const QwtPlotItem* item, const QPointF& itemPoint) const;
     // 鼠标移动
     virtual void move(const QPoint& pos) QWT_OVERRIDE;
     // 格式化为坐标轴对应的内容，针对时间轴，value是一个大浮点数，用户需要看到的是2024-10-01这样的数字
     QString formatAxisValue(double value, int axisId, QwtPlot* plot) const;
+
+private:
+    // 绘制特征点，所谓特征点就是捕获到的点
+    void drawAllFeaturePoints(QPainter* painter) const;
     // 更新特征点
     void updateFeaturePoint(const QPoint& pos);
+    //
+    QRect ensureRectInBounds(const QRect& rect, const QRect& bounds) const;
 };
 
 #endif  // QWT_PLOT_SERIES_DATA_PICKER_H
