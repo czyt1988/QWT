@@ -104,6 +104,9 @@ class QWT_EXPORT QwtPlot : public QFrame, public QwtPlotDict
     Q_PROPERTY(bool autoReplot READ autoReplot WRITE setAutoReplot)
 
     QWT_DECLARE_PRIVATE(QwtPlot)
+
+    friend class QwtFigure;
+
 public:
     /*!
         Position of the legend, relative to the canvas.
@@ -133,6 +136,8 @@ public:
     void setAutoReplot(bool = true);
     bool autoReplot() const;
 
+    // plot id
+    QString plotId() const;
     // Layout
 
     void setPlotLayout(QwtPlotLayout*);
@@ -206,7 +211,7 @@ public:
     const QwtScaleWidget* axisWidget(QwtAxisId) const;
     QwtScaleWidget* axisWidget(QwtAxisId);
 
-    // 获取一个有效的x轴，有效的定义顺序：1.可见、2.XBottom优先、3.指针有效，因此如果xBotton和xTop都可见时，先放回xBottom
+    // Return the currently visible X/Y axis,XBottom/YLeft first
     QwtAxisId visibleXAxisId() const;
     QwtAxisId visibleYAxisId() const;
 
@@ -404,6 +409,8 @@ protected:
     void initParasiteAxes(QwtPlot* parasitePlot) const;
     // updateLayout的具体实现
     void doLayout();
+    // set the plot id
+    void setPlotId(const QString& id);
 private Q_SLOTS:
     void updateLegendItems(const QVariant& itemInfo, const QList< QwtLegendData >& legendData);
     void yLeftRequestScaleRangeUpdate(double min, double max);

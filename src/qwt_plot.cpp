@@ -51,6 +51,7 @@
 #include <qapplication.h>
 #include <qcoreevent.h>
 #include <QTimer>
+#include <QUuid>
 
 #ifndef QwtPlot_DEBUG_PRINT
 #define QwtPlot_DEBUG_PRINT 0
@@ -129,6 +130,7 @@ public:
 
     bool isParasitePlot { false };                                ///< 标记这个绘图是寄生绘图
     QMetaObject::Connection shareConn[ QwtAxis::AxisPositions ];  // 记录寄生轴和宿主轴坐标同步的信号槽，仅仅针对寄生轴有用
+    QString plotId;
 };
 
 QwtPlot::PrivateData::PrivateData(QwtPlot* p) : q_ptr(p)
@@ -204,6 +206,9 @@ void QwtPlot::initPlot(const QwtText& title)
     m_data->canvas = new QwtPlotCanvas(this);
     m_data->canvas->setObjectName("QwtPlotCanvas");
     m_data->canvas->installEventFilter(this);
+
+    //create uuid
+    m_data->plotId = QUuid::createUuid().toString();
 
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 
@@ -375,6 +380,33 @@ void QwtPlot::setAutoReplot(bool tf)
 bool QwtPlot::autoReplot() const
 {
     return m_data->autoReplot;
+}
+
+/**
+* \if ENGLISH
+* Plot ID
+* 
+* The plot ID is provided to enable a Figure to identify individual plots during persistence.
+* 
+* For example, after saving a Figure in XML format, it is necessary to know which plots have established axis synchronization signals with which other plots,
+* 
+* and which plot boundaries have been aligned. These tasks require locating specific plots, which can be achieved using the plot ID.
+* 
+* \return A unique UUID
+* \endif 
+* 
+* \if CHINESE
+ * 绘图id
+ * 
+ * 之所以提供绘图id，是为了让Figure能在持久化中识别绘图，例如把Figure以xml的形式保存后，需要知道哪个plot和哪个plot的坐标轴是建立了坐标轴同步的信号
+ * 哪个绘图的边界进行了对齐，这些都需要定位出具体的绘图，这时可以通过plot id进行定位
+ * 
+ * \return 唯一的uuid
+ * \endif
+ */
+QString QwtPlot::plotId() const
+{
+    return m_data->plotId;
 }
 
 /*!
@@ -732,6 +764,16 @@ void QwtPlot::doLayout()
             p->setGeometry(QRect(0, 0, width(), height()));
         }
     }
+}
+
+/**
+ * set the plot id.
+ * 
+ * \param id 
+ */
+void QwtPlot::setPlotId(const QString& id)
+{
+    m_data->plotId = id;
 }
 
 /*!

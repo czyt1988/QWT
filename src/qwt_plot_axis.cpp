@@ -194,22 +194,29 @@ QwtScaleWidget* QwtPlot::axisWidget(QwtAxisId axisId)
 }
 
 /**
- * @brief Return the currently visible X axis/返回当前可用的 X 轴
+ * \if ENGLISH
+ * \brief Return the currently visible X axis
  *
  * Selection policy (descending priority):
  * 1. Axis must be visible (isAxisVisible() == true);
  * 2. If both XBottom and XTop are visible, prefer XBottom;
  * 3. If only one X axis is visible, return it;
  * 4. If both are invisible, return default QwtAxis::XBottom.
+ * 
+ * \return Selected X axis ID/选中的 X 轴 ID
+ * \endif
  *
+ * \if CHINESE
+ * \brief 返回当前可用的 X 轴
+ * 
  * 选择策略（按优先级递减）:
  * 1. 轴必须可见（isAxisVisible() == true）；
  * 2. 若 XBottom 与 XTop 均可见，优先返回 XBottom；
  * 3. 若仅一条 X 轴可见，返回该轴；
  * 4. 若两条 X 轴均不可见，返回默认 QwtAxis::XBottom。
  *
- * @return Selected X axis ID/选中的 X 轴 ID
- * @note 此函数必定返回
+ * \return 选中的 X 轴 ID
+ * \endif
  */
 QwtAxisId QwtPlot::visibleXAxisId() const
 {
@@ -222,22 +229,28 @@ QwtAxisId QwtPlot::visibleXAxisId() const
 }
 
 /**
- * @brief Return the currently usable Y axis/返回当前可用的 Y 轴
+ * \if ENGLISH
+ * \brief Return the currently usable Y axis/返回当前可用的 Y 轴
  *
  * Selection policy (descending priority):
  * 1. Axis must be visible;
  * 2. If both YLeft and YRight are visible, prefer YLeft;
  * 3. If only one Y axis is visible, return it;
  * 4. If both are invisible, return default QwtAxis::YLeft.
+ * 
+ * \return Selected Y axis ID
+ * \endif
  *
+ * \if CHINESE
+ * \brief 返回当前可用的 Y 轴
+ * 
  * 选择策略（按优先级递减）:
  * 1. 轴必须可见；
  * 2. 若 YLeft 与 YRight 均可见，优先返回 YLeft；
  * 3. 若仅一条 Y 轴可见，返回该轴；
  * 4. 若两条 Y 轴均不可见，返回默认 QwtAxis::YLeft。
  *
- * @return Selected Y axis ID/选中的 Y 轴 ID
- * @note 此函数必定返回
+ * @return 选中的 Y 轴 ID
  */
 QwtAxisId QwtPlot::visibleYAxisId() const
 {
