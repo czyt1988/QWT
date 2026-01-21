@@ -138,6 +138,7 @@ public:
 
     // plot id
     QString plotId() const;
+    void setPlotId(const QString& id);
     // Layout
 
     void setPlotLayout(QwtPlotLayout*);
@@ -409,8 +410,7 @@ protected:
     void initParasiteAxes(QwtPlot* parasitePlot) const;
     // updateLayout的具体实现
     void doLayout();
-    // set the plot id
-    void setPlotId(const QString& id);
+
 private Q_SLOTS:
     void updateLegendItems(const QVariant& itemInfo, const QList< QwtLegendData >& legendData);
     void yLeftRequestScaleRangeUpdate(double min, double max);
