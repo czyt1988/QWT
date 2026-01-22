@@ -45,6 +45,8 @@ class QwtFigure::PrivateData
     QWT_DECLARE_PUBLIC(QwtFigure)
 public:
     PrivateData(QwtFigure* p);
+    //绘图将要移除
+    void plotWillRemove(QwtPlot* p);
     // 存储对齐配置的结构体
     struct AlignmentConfig
     {
@@ -64,6 +66,13 @@ QwtFigure::PrivateData::PrivateData(QwtFigure* p) : q_ptr(p)
 {
 }
 
+void QwtFigure::PrivateData::plotWillRemove(QwtPlot* p)
+{
+    for(auto& alCfg : alignmentConfigs){
+        alCfg.plots.removeAll(p);
+    }
+}
+
 //----------------------------------------------------
 // QwtFigure
 //----------------------------------------------------
@@ -78,6 +87,7 @@ QwtFigure::QwtFigure(QWidget* parent, Qt::WindowFlags f) : QFrame(parent, f), QW
 {
     setLayout(new QwtFigureLayout());
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
 }
 
 QwtFigure::~QwtFigure()
@@ -420,6 +430,7 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
     // Check if the plot to remove is the current axes
     // 检查要移除的绘图是否是当前坐标轴
     bool removingCurrent = (plot == currentAxes());
+    m_data->plotWillRemove(plot);
     QLayout* lay         = layout();
     if (lay) {
         for (int i = 0; i < lay->count(); ++i) {
@@ -1265,7 +1276,7 @@ void QwtFigure::clearAxisAlignment()
  */
 void QwtFigure::applyAllAxisAlignments(bool replot)
 {
-    for (const auto& config : qAsConst(m_data->alignmentConfigs)) {
+    for (const auto& config : qwt_as_const(m_data->alignmentConfigs)) {
         alignAxes(config.plots, config.axisId, replot);
     }
 }
@@ -1280,11 +1291,36 @@ void QwtFigure::applyAlignmentsForAxis(int axisId)
         return;
     }
 
-    for (const auto& config : qAsConst(m_data->alignmentConfigs)) {
+    for (const auto& config : qwt_as_const(m_data->alignmentConfigs)) {
         if (config.axisId == axisId) {
             alignAxes(config.plots, config.axisId);
         }
     }
+}
+
+/**
+ * @brief 获取轴对齐信息数量，此函数用于获取当前有多少个轴对齐信息
+ *
+ * 调用addAxisAlignment多少次，就有多少个轴对齐信息,通过@ref axisAligmentInfo可以获取到具体的轴对齐信息
+ * @return
+ */
+int QwtFigure::axisAligmentCount() const
+{
+    return m_data->alignmentConfigs.size();
+}
+
+/**
+ * @brief QwtFigure::axisAligmentInfo
+ * @param index
+ * @return
+ */
+QPair<QList<QwtPlot*>, int> QwtFigure::axisAligmentInfo(int index) const
+{
+    if(index >= axisAligmentCount() || index < 0 ){
+        return {};
+    }
+    auto ali = m_data->alignmentConfigs.value(index);
+    return qMakePair(ali.plots,ali.axisId);
 }
 
 /**
@@ -1318,7 +1354,7 @@ void QwtFigure::alignAxes(QList< QwtPlot* > plots, int axisId, bool update)
     int maxEdgeMargin = 0;
     int maxStartDist = 0, maxEndDist = 0;
     // 计算所有Plot对应轴的最大extent（真实延伸尺寸），edgeMargin，BorderDistHint
-    for (QwtPlot* plot : qAsConst(plots)) {
+    for (QwtPlot* plot : qwt_as_const(plots)) {
         QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
         if (!scaleWidget) {
             continue;
@@ -1350,7 +1386,7 @@ void QwtFigure::alignAxes(QList< QwtPlot* > plots, int axisId, bool update)
     }
 
     // 给所有Plot更新数据
-    for (QwtPlot* plot : qAsConst(plots)) {
+    for (QwtPlot* plot : qwt_as_const(plots)) {
         QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
         if (!scaleWidget) {
             continue;
@@ -1361,12 +1397,14 @@ void QwtFigure::alignAxes(QList< QwtPlot* > plots, int axisId, bool update)
     }
     // ========== 步骤4：强制更新轴和重绘，确保设置生效 ==========
     if (update) {
-        for (QwtPlot* plot : qAsConst(plots)) {
+        for (QwtPlot* plot : qwt_as_const(plots)) {
             plot->updateAxes();  // 更新轴布局
             plot->replot();      // 重绘Plot
         }
     }
 }
+
+
 
 void QwtFigure::paintEvent(QPaintEvent* event)
 {

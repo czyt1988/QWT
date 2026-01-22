@@ -76,7 +76,7 @@ QwtPlotScaleEventDispatcher::PrivateData::PrivateData(QwtPlotScaleEventDispatche
 
 QwtPlotScaleEventDispatcher::PrivateData::ScaleCache QwtPlotScaleEventDispatcher::PrivateData::findScaleCache(const QPoint& pos)
 {
-    for (const auto& cache : qAsConst(this->scaleCaches)) {
+    for (const auto& cache : qwt_as_const(this->scaleCaches)) {
         if (cache.contains(pos)) {
             return cache;
         }
@@ -394,7 +394,7 @@ bool QwtPlotScaleEventDispatcher::handleWheelEvent(QwtPlot* bindPlot, QWheelEven
 QwtScaleWidget* QwtPlotScaleEventDispatcher::findTargetOnScale(const QPoint& pos)
 {
     // 按层级从高到低检查（缓存列表已经按层级排序）
-    for (const auto& cache : qAsConst(m_data->scaleCaches)) {
+    for (const auto& cache : qwt_as_const(m_data->scaleCaches)) {
         if (cache.contains(pos)) {
             return cache.scaleWidget;
         }

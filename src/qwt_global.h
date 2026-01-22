@@ -73,11 +73,11 @@
 #endif
 
 #ifndef QWT_DEBUG_DRAW
-#define QWT_DEBUG_DRAW 1
+#define QWT_DEBUG_DRAW 0
 #endif
 
 #ifndef QWT_DEBUG_PRINT
-#define QWT_DEBUG_PRINT 1
+#define QWT_DEBUG_PRINT 0
 #endif
 /**
  * @def QWT_DECLARE_PRIVATE
@@ -238,5 +238,17 @@ std::unique_ptr< T > qwt_make_unique(std::size_t size)
 }
 
 #endif
+
+#if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
+#ifndef qwt_as_const
+#define qwt_as_const std::as_const
+#endif
+#else
+// C++14 及以下版本使用 Qt 的 qwt_as_const
+#ifndef qwt_as_const
+#define qwt_as_const qAsConst
+#endif
+#endif
+
 
 #endif

@@ -95,7 +95,7 @@ QSize QwtFigureLayout::sizeHint() const
 QSize QwtFigureLayout::minimumSize() const
 {
     QSize size;
-    for (const auto& item : qAsConst(m_data->m_items)) {
+    for (const auto& item : qwt_as_const(m_data->m_items)) {
         if (item.item && item.item->widget())
             size = size.expandedTo(item.item->minimumSize());
     }
@@ -113,7 +113,7 @@ void QwtFigureLayout::setGeometry(const QRect& rect)
     qDebug() << "QwtFigureLayout setGeometry(rect=" << rect << "),left=" << m_data->m_left
              << ",right=" << m_data->m_right << ",bottom=" << m_data->m_bottom << ",top=" << m_data->m_top;
 #endif
-    for (const auto& item : qAsConst(m_data->m_items)) {
+    for (const auto& item : qwt_as_const(m_data->m_items)) {
         if (!item.item || !item.item->widget() || !item.item->widget()->isVisibleTo(item.item->widget()->parentWidget())) {
             continue;
         }
@@ -392,7 +392,7 @@ QRectF QwtFigureLayout::widgetNormRect(QWidget* widget) const
         return QRectF();
     }
 
-    for (const auto& item : qAsConst(m_data->m_items)) {
+    for (const auto& item : qwt_as_const(m_data->m_items)) {
         if (item.item && item.item->widget() == widget) {
             return item.normRect;
         }

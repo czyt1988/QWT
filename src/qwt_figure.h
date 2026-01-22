@@ -212,6 +212,13 @@ public:
     void applyAllAxisAlignments(bool replot = true);
     // 应用指定轴ID的所有对齐配置
     void applyAlignmentsForAxis(int axisId);
+    // 获取轴对齐信息数量，此函数用于获取当前有多少个轴对齐信息，调用addAxisAlignment多少次，就有多少个
+    int axisAligmentCount() const;
+    // 获取轴对齐信息
+    QPair<QList< QwtPlot* >,int> axisAligmentInfo(int index) const;
+public:
+    // QwtPlot轴对齐函数
+    static void alignAxes(QList< QwtPlot* > plots, int axisId, bool update = true);
 Q_SIGNALS:
     /**
      * @brief Signal emitted when axes are added to the figure/当坐标轴添加到图形时发出的信号
@@ -240,9 +247,6 @@ Q_SIGNALS:
      */
     void currentAxesChanged(QwtPlot* current);
 
-public:
-    // QwtPlot轴对齐函数
-    static void alignAxes(QList< QwtPlot* > plots, int axisId, bool update = true);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
