@@ -410,6 +410,7 @@ endif()
 add_library(${QWT_LIB_NAME} SHARED
         ${QWT_HEADER_FILES}
         ${QWT_SOURCE_FILES}
+        qwt_plot_series_data_picker_group.h qwt_plot_series_data_picker_group.cpp
 #        ${QWT_HEADERS_MOC}
 )
 # 启用别名，可以通过qwt::qwt引入
