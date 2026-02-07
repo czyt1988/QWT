@@ -21,6 +21,11 @@ QwtPlotSeriesDataPickerGroup::QwtPlotSeriesDataPickerGroup(QObject* par) : QObje
 {
 }
 
+QwtPlotSeriesDataPickerGroup::~QwtPlotSeriesDataPickerGroup()
+{
+
+}
+
 /**
  * \if ENGLISH
  * @brief Adds a picker to the synchronization group
