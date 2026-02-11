@@ -92,7 +92,6 @@
 #include "../../src/qwt_plot_abstract_canvas.h"
 #include "../../src/qwt_plot_canvas.h"
 #include "../../src/qwt_plot_transparent_canvas.h"
-#include "../../src/qwt_plot_glcanvas.h"
 #include "../../src/qwt_plot_opengl_canvas.h"
 #include "../../src/qwt_plot_item.h"
 #include "../../src/qwt_plot_dict.h"
