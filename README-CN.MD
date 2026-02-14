@@ -33,11 +33,10 @@ Qt 生态里能画图的库不多，主流的为`QCustomPlot`、`Qwt`、`Qt Char
 - [x] 提供Figure实现绘图的布局
 - [x] 增加寄生轴的支持，实现n个坐标轴
 - [ ] C++11优化(进行中)
-- [ ] 优化超大规模数据的渲染
-- [ ] 提供一些集成的交互方法，让使用更简单
+- [x] 提供一些集成的交互方法，让使用更简单
     - [x] 提供一个通用的数据拾取功能
-    - [] 调整QwtPanner的实现，使其拖动时能实时渲染，并使其能支持多坐标轴
-    - [] 调整zoomer的实现，使其支持多坐标轴
+    - [x] 调整QwtPanner的实现，使其拖动时能实时渲染，并使其能支持多坐标轴
+    - [x] 调整zoomer的实现，使其支持多坐标轴
 
 总之，我将继续维护`Qwt`，让其成为一个协议友好，性能优越，方便使用的Qt绘图库
 
@@ -73,6 +72,10 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 同步配置了`QwtFigureWidgetOverlay`类，集成了`QwtFigure`的一些操作，例如改变绘图的尺寸，移动绘图
 
 ![figure-widget-overlay](./docs/assets/screenshots/figure-widget-overlay.gif)
+
+`QwtFigure`提供了子图坐标轴对齐功能
+
+![figure-widget-overlay](./docs/assets/picture/figure-scale-aligment.png)
 
 具体可参见教程：[Figure绘图容器](https://czyt1988.github.io/QWT/zh/use-guide/figure-widget/)
 
@@ -155,137 +158,87 @@ target_link_libraries(${YOU_APP_TARGET} PUBLIC qwt::qwt)
 
 ### 基本图表
 
-![Figure Widget](./docs/assets/screenshots/qwt_figure.png)
+|  |  |  |
+|:---:|:---:|:---:|
+|![Figure Widget](./docs/assets/picture/figure-scale-aligment.png)|![Simple Plot](./docs/assets/screenshots/simpleplot.png)|![Bar Chart - Grouped](./docs/assets/screenshots/BarChart-grouped.png)|
+|`examples/figure`|`examples/simpleplot`|`examples/simpleplot`|
 
-
-![Simple Plot](./docs/assets/screenshots/simpleplot.png)  
-`examples/simpleplot`  
-
-![Bar Chart - Grouped](./docs/assets/screenshots/BarChart-grouped.png)  
-`examples/barchart`  
-
-![Bar Chart - Stacked](./docs/assets/screenshots/BarChart-stacked.png)  
-`examples/barchart`  
-
-![Scatter Plot](./docs/assets/screenshots/scatterplot.png)  
-`examples/scatterplot`  
-
-![Curve Demo](./docs/assets/screenshots/curvedemo.png)  
-`examples/curvedemo`  
+|  |  |  |
+|:---:|:---:|:---:|
+|![Bar Chart - Stacked](./docs/assets/screenshots/BarChart-stacked.png) |![Scatter Plot](./docs/assets/screenshots/scatterplot.png)  |![Curve Demo](./docs/assets/screenshots/curvedemo.png)  |
+|`examples/barchart`  |`examples/scatterplot`  |`examples/curvedemo` |
 
 ### 实时可视化
 
-![CPU Monitor](./docs/assets/screenshots/cpuplot.png)  
-`examples/cpuplot`  
-
-![Real-Time Plot](./docs/assets/screenshots/realtime.png)  
-`examples/realtime`  
-
-![Oscilloscope](./docs/assets/screenshots/oscilloscope.png)  
-`examples/oscilloscope`  
+|  |  |  |
+|:---:|:---:|:---:|
+|![CPU Monitor](./docs/assets/screenshots/cpuplot.png)|![Real-Time Plot](./docs/assets/screenshots/realtime.png)|![Oscilloscope](./docs/assets/screenshots/oscilloscope.png)  |
+|`examples/cpuplot`|`examples/realtime`|`examples/oscilloscope` |
 
 ### 高级图表
 
-![Polar Demo](./docs/assets/screenshots/polardemo.png)  
-`examples/polardemo`  
+|  |  |  |
+|:---:|:---:|:---:|
+|![Polar Demo](./docs/assets/screenshots/polardemo.png)|![Spectrogram](./docs/assets/screenshots/spectrogram.png)|![Contour Spectrogram](./docs/assets/screenshots/spectrogram-contour.png) |
+|`examples/polardemo`|`examples/spectrogram`|`examples/spectrogram`|
 
-![Spectrogram](./docs/assets/screenshots/spectrogram.png)  
-`examples/spectrogram`  
+|  |  |  |
+|:---:|:---:|:---:|
+|![Vector Field](./docs/assets/screenshots/vectorfield.png)|![Stock Chart](./docs/assets/screenshots/stockchart.png)|![Bode Plot](./docs/assets/screenshots/bode.png)| 
+|`playground/vectorfield`|`examples/stockchart`|`examples/bode`|
 
-![Contour Spectrogram](./docs/assets/screenshots/spectrogram-contour.png)  
-`examples/spectrogram`  
+|  |  |  |
+|:---:|:---:|:---:|
+|![Tube Display](./docs/assets/screenshots/friedberg-tube.png)|![plot matrix](./docs/assets/screenshots/plotmatrix.png)|![Scale Engine](./docs/assets/screenshots/scaleengine.png)|
+|`examples/friedberg`|`playground/plotmatrix`|`playground/scaleengine`|
 
-![Vector Field](./docs/assets/screenshots/vectorfield.png)  
-`playground/vectorfield`  
+|  |  |  |
+|:---:|:---:|:---:|
+|![Rescaler](./docs/assets/screenshots/rescaler.png)|![Graphics Scale](./docs/assets/screenshots/graphicscale.png)|![Spline Editor](./docs/assets/screenshots/splineeditor.png)|
+|`playground/rescaler`|`playground/graphicscale`|`examples/splineeditor`|
 
-![Stock Chart](./docs/assets/screenshots/stockchart.png)  
-`examples/stockchart`  
-
-![Bode Plot](./docs/assets/screenshots/bode.png)  
-`examples/bode`  
-
-![Tube Display](./docs/assets/screenshots/friedberg-tube.png)  
-`examples/friedberg`  
-
-![plot matrix](./docs/assets/screenshots/plotmatrix.png)  
-`playground/plotmatrix`  
-
-![Scale Engine](./docs/assets/screenshots/scaleengine.png)  
-`playground/scaleengine`  
-
-![Rescaler](./docs/assets/screenshots/rescaler.png)  
-`playground/rescaler`  
-
-![Graphics Scale](./docs/assets/screenshots/graphicscale.png)  
-`playground/graphicscale`  
-
-![Spline Editor](./docs/assets/screenshots/splineeditor.png)  
-`examples/splineeditor`  
-
-![System Info](./docs/assets/screenshots/sysinfo.png)  
-`examples/sysinfo`  
-
-![Distro Watch](./docs/assets/screenshots/distrowatch.png)  
-`examples/distrowatch`  
-
-![Raster View 1](./docs/assets/screenshots/rasterview-1.png)  
-`examples/rasterview`  
-
-![Raster View 2](./docs/assets/screenshots/rasterview-2.png)  
-`examples/rasterview`  
-
-![SVG Map](./docs/assets/screenshots/svgmap.png)  
-`playground/svgmap`  
-
-![parasite plot](./docs/assets/screenshots/parasite-plot.png)  
-`examples/parasitePlot`  
+|  |  |  |
+|:---:|:---:|:---:|
+|![System Info](./docs/assets/screenshots/sysinfo.png)|![Distro Watch](./docs/assets/screenshots/distrowatch.png)|![Raster View 1](./docs/assets/screenshots/rasterview-1.png)|
+|`examples/sysinfo`|`examples/distrowatch`|`examples/rasterview`|
+  
+|  |  |  |
+|:---:|:---:|:---:|
+|![Raster View 2](./docs/assets/screenshots/rasterview-2.png)|![SVG Map](./docs/assets/screenshots/svgmap.png)|![parasite plot](./docs/assets/screenshots/parasite-plot.png)|
+|`examples/rasterview`|`playground/svgmap`|`examples/parasitePlot`|
 
 ### 动态演示
 
-![Animated Demo](./docs/assets/screenshots/animated.png)  
-`examples/animated`  
-
-![Curve Tracker](./docs/assets/screenshots/curvetracker.png)  
-`playground/curvetracker`  
-
-![Refresh Test](./docs/assets/screenshots/refreshtest.png)  
-`examples/refreshtest`  
+|  |  |  |
+|:---:|:---:|:---:|
+|![Animated Demo](./docs/assets/screenshots/animated.png)|![Curve Tracker](./docs/assets/screenshots/curvetracker.png)|![Refresh Test](./docs/assets/screenshots/refreshtest.png)|
+|`examples/animated`|`playground/curvetracker`|`examples/refreshtest`|
 
 ### 样式与符号
 
-![Legends Demo](./docs/assets/screenshots/legends.png)  
-`examples/legends`  
-
-![Symbols Demo](./docs/assets/screenshots/symbols.png)  
-`playground/symbols`  
-
-![Shape Rendering](./docs/assets/screenshots/shapes.png)  
-`playground/shapes`  
+|  |  |  |
+|:---:|:---:|:---:|
+|![Legends Demo](./docs/assets/screenshots/legends.png)|![Symbols Demo](./docs/assets/screenshots/symbols.png)|![Shape Rendering](./docs/assets/screenshots/shapes.png)|
+|`examples/legends`|`playground/symbols`|`playground/shapes`|
 
 ### 控件窗口
 
-![Dial Controls](./docs/assets/screenshots/controls-dial.png)  
-`examples/controls`  
-
-![Knob Controls](./docs/assets/screenshots/controls-knob.png)  
-`examples/controls`  
-
-![Slider Controls](./docs/assets/screenshots/controls-sliders.png)  
-`examples/controls`  
-
-![Wheel & Thermo](./docs/assets/screenshots/controls-wheel-thermo.png)  
-`examples/controls`  
-
-![Radio Buttons](./docs/assets/screenshots/radio.png)  
-`examples/radio`  
-
-![Time Scale Demo](./docs/assets/screenshots/timescale.png)  
-`playground/timescale`  
+|  |  |  |
+|:---:|:---:|:---:|
+|![Dial Controls](./docs/assets/screenshots/controls-dial.png)|![Knob Controls](./docs/assets/screenshots/controls-knob.png)|![Slider Controls](./docs/assets/screenshots/controls-sliders.png)|
+|`examples/controls`|`examples/controls`|`examples/controls`|
+ 
+|  |  |  |
+|:---:|:---:|:---:|
+|![Wheel & Thermo](./docs/assets/screenshots/controls-wheel-thermo.png)|![Radio Buttons](./docs/assets/screenshots/radio.png)|![Time Scale Demo](./docs/assets/screenshots/timescale.png)|
+|`examples/controls`|`examples/radio`|`playground/timescale`|
 
 ### 仪表盘
 
-![Compass Dial](./docs/assets/screenshots/dials-compass.png)  
-`examples/dials`  
+|  |  |  |
+|:---:|:---:|:---:|
+|![Compass Dial](./docs/assets/screenshots/dials-compass.png)|![Cockpit Dials](./docs/assets/screenshots/dials-cockpit.png)||
+|`examples/dials`|`examples/dials`||
 
-![Cockpit Dials](./docs/assets/screenshots/dials-cockpit.png)  
-`examples/dials`  
+  
+  

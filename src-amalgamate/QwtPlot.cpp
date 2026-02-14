@@ -34783,6 +34783,7 @@ QPainterPath QwtPlotTransparentCanvas::borderPath(const QRect& rect) const
 /*** End of inlined file: qwt_plot_transparent_canvas.cpp ***/
 
 
+<<<<<<< HEAD
 /*** Start of inlined file: qwt_plot_glcanvas.cpp ***/
 #include <qcoreevent.h>
 #include <qpainter.h>
@@ -34994,6 +34995,8 @@ void QwtPlotGLCanvas::resizeGL(int, int)
 /*** End of inlined file: qwt_plot_glcanvas.cpp ***/
 
 
+=======
+>>>>>>> master
 /*** Start of inlined file: qwt_plot_opengl_canvas.cpp ***/
 #include <qpainter.h>
 #include <qpainterpath.h>

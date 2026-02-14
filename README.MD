@@ -44,8 +44,7 @@ Goals and current progress:
 - [x] Qt 6 support  
 - [ ] C++11 modernization  
 - [x] Merged into single header/source for easier inclusion  
-- [ ] Optimize rendering for ultra-large data sets  
-- [ ] Provide integrated interaction helpers for simpler usage  
+- [x] Provide integrated interaction helpers for simpler usage  
 - [x] Modernized visual style  
 - [x] Figure class for layout management  
 - [x] Add parasite-axis support for unlimited axes
@@ -178,131 +177,85 @@ See [CHANGES.MD](./CHANGES.md) for detailed logs.
 
 ### Basic Charts
 
-![Simple Plot](./docs/assets/screenshots/simpleplot.png)  
-`examples/simpleplot`
+|  |  |  |
+|:---:|:---:|:---:|
+|![Figure Widget](./docs/assets/picture/figure-scale-aligment.png)|![Simple Plot](./docs/assets/screenshots/simpleplot.png)|![Bar Chart - Grouped](./docs/assets/screenshots/BarChart-grouped.png)|
+|`examples/figure`|`examples/simpleplot`|`examples/simpleplot`|
 
-![Bar Chart - Grouped](./docs/assets/screenshots/BarChart-grouped.png)  
-`examples/barchart`
-
-![Bar Chart - Stacked](./docs/assets/screenshots/BarChart-stacked.png)  
-`examples/barchart`
-
-![Scatter Plot](./docs/assets/screenshots/scatterplot.png)  
-`examples/scatterplot`
-
-![Curve Demo](./docs/assets/screenshots/curvedemo.png)  
-`examples/curvedemo`
+|  |  |  |
+|:---:|:---:|:---:|
+|![Bar Chart - Stacked](./docs/assets/screenshots/BarChart-stacked.png) |![Scatter Plot](./docs/assets/screenshots/scatterplot.png)  |![Curve Demo](./docs/assets/screenshots/curvedemo.png)  |
+|`examples/barchart`  |`examples/scatterplot`  |`examples/curvedemo` |
 
 ### Real-Time Visualization
 
-![CPU Monitor](./docs/assets/screenshots/cpuplot.png)  
-`examples/cpuplot`
-
-![Real-Time Plot](./docs/assets/screenshots/realtime.png)  
-`examples/realtime`
-
-![Oscilloscope](./docs/assets/screenshots/oscilloscope.png)  
-`examples/oscilloscope`
+|  |  |  |
+|:---:|:---:|:---:|
+|![CPU Monitor](./docs/assets/screenshots/cpuplot.png)|![Real-Time Plot](./docs/assets/screenshots/realtime.png)|![Oscilloscope](./docs/assets/screenshots/oscilloscope.png)  |
+|`examples/cpuplot`|`examples/realtime`|`examples/oscilloscope` |
 
 ### Advanced Charts
 
-![Polar Demo](./docs/assets/screenshots/polardemo.png)  
-`examples/polardemo`
+|  |  |  |
+|:---:|:---:|:---:|
+|![Polar Demo](./docs/assets/screenshots/polardemo.png)|![Spectrogram](./docs/assets/screenshots/spectrogram.png)|![Contour Spectrogram](./docs/assets/screenshots/spectrogram-contour.png) |
+|`examples/polardemo`|`examples/spectrogram`|`examples/spectrogram`|
 
-![Spectrogram](./docs/assets/screenshots/spectrogram.png)  
-`examples/spectrogram`
+|  |  |  |
+|:---:|:---:|:---:|
+|![Vector Field](./docs/assets/screenshots/vectorfield.png)|![Stock Chart](./docs/assets/screenshots/stockchart.png)|![Bode Plot](./docs/assets/screenshots/bode.png)| 
+|`playground/vectorfield`|`examples/stockchart`|`examples/bode`|
 
-![Contour Spectrogram](./docs/assets/screenshots/spectrogram-contour.png)  
-`examples/spectrogram`
+|  |  |  |
+|:---:|:---:|:---:|
+|![Tube Display](./docs/assets/screenshots/friedberg-tube.png)|![plot matrix](./docs/assets/screenshots/plotmatrix.png)|![Scale Engine](./docs/assets/screenshots/scaleengine.png)|
+|`examples/friedberg`|`playground/plotmatrix`|`playground/scaleengine`|
 
-![Vector Field](./docs/assets/screenshots/vectorfield.png)  
-`playground/vectorfield`
+|  |  |  |
+|:---:|:---:|:---:|
+|![Rescaler](./docs/assets/screenshots/rescaler.png)|![Graphics Scale](./docs/assets/screenshots/graphicscale.png)|![Spline Editor](./docs/assets/screenshots/splineeditor.png)|
+|`playground/rescaler`|`playground/graphicscale`|`examples/splineeditor`|
 
-![Stock Chart](./docs/assets/screenshots/stockchart.png)  
-`examples/stockchart`
-
-![Bode Plot](./docs/assets/screenshots/bode.png)  
-`examples/bode`
-
-![Tube Display](./docs/assets/screenshots/friedberg-tube.png)  
-`examples/friedberg`
-
-![plot matrix](./docs/assets/screenshots/plotmatrix.png)  
-`playground/plotmatrix`
-
-![Scale Engine](./docs/assets/screenshots/scaleengine.png)  
-`playground/scaleengine`
-
-![Rescaler](./docs/assets/screenshots/rescaler.png)  
-`playground/rescaler`
-
-![Graphics Scale](./docs/assets/screenshots/graphicscale.png)  
-`playground/graphicscale`
-
-![Spline Editor](./docs/assets/screenshots/splineeditor.png)  
-`examples/splineeditor`
-
-![System Info](./docs/assets/screenshots/sysinfo.png)  
-`examples/sysinfo`
-
-![Distro Watch](./docs/assets/screenshots/distrowatch.png)  
-`examples/distrowatch`
-
-![Raster View 1](./docs/assets/screenshots/rasterview-1.png)  
-`examples/rasterview`
-
-![Raster View 2](./docs/assets/screenshots/rasterview-2.png)  
-`examples/rasterview`
-
-![SVG Map](./docs/assets/screenshots/svgmap.png)  
-`playground/svgmap`
+|  |  |  |
+|:---:|:---:|:---:|
+|![System Info](./docs/assets/screenshots/sysinfo.png)|![Distro Watch](./docs/assets/screenshots/distrowatch.png)|![Raster View 1](./docs/assets/screenshots/rasterview-1.png)|
+|`examples/sysinfo`|`examples/distrowatch`|`examples/rasterview`|
+  
+|  |  |  |
+|:---:|:---:|:---:|
+|![Raster View 2](./docs/assets/screenshots/rasterview-2.png)|![SVG Map](./docs/assets/screenshots/svgmap.png)|![parasite plot](./docs/assets/screenshots/parasite-plot.png)|
+|`examples/rasterview`|`playground/svgmap`|`examples/parasitePlot`|
 
 ### Animated Demos
 
-![Animated Demo](./docs/assets/screenshots/animated.png)  
-`examples/animated`
-
-![Curve Tracker](./docs/assets/screenshots/curvetracker.png)  
-`playground/curvetracker`
-
-![Refresh Test](./docs/assets/screenshots/refreshtest.png)  
-`examples/refreshtest`
+|  |  |  |
+|:---:|:---:|:---:|
+|![Animated Demo](./docs/assets/screenshots/animated.png)|![Curve Tracker](./docs/assets/screenshots/curvetracker.png)|![Refresh Test](./docs/assets/screenshots/refreshtest.png)|
+|`examples/animated`|`playground/curvetracker`|`examples/refreshtest`|
 
 ### Styles & Symbols
 
-![Legends Demo](./docs/assets/screenshots/legends.png)  
-`examples/legends`
-
-![Symbols Demo](./docs/assets/screenshots/symbols.png)  
-`playground/symbols`
-
-![Shape Rendering](./docs/assets/screenshots/shapes.png)  
-`playground/shapes`
+|  |  |  |
+|:---:|:---:|:---:|
+|![Legends Demo](./docs/assets/screenshots/legends.png)|![Symbols Demo](./docs/assets/screenshots/symbols.png)|![Shape Rendering](./docs/assets/screenshots/shapes.png)|
+|`examples/legends`|`playground/symbols`|`playground/shapes`|
 
 ### Control Widgets
 
-![Dial Controls](./docs/assets/screenshots/controls-dial.png)  
-`examples/controls`
 
-![Knob Controls](./docs/assets/screenshots/controls-knob.png)  
-`examples/controls`
-
-![Slider Controls](./docs/assets/screenshots/controls-sliders.png)  
-`examples/controls`
-
-![Wheel & Thermo](./docs/assets/screenshots/controls-wheel-thermo.png)  
-`examples/controls`
-
-![Radio Buttons](./docs/assets/screenshots/radio.png)  
-`examples/radio`
-
-![Time Scale Demo](./docs/assets/screenshots/timescale.png)  
-`playground/timescale`
+|  |  |  |
+|:---:|:---:|:---:|
+|![Dial Controls](./docs/assets/screenshots/controls-dial.png)|![Knob Controls](./docs/assets/screenshots/controls-knob.png)|![Slider Controls](./docs/assets/screenshots/controls-sliders.png)|
+|`examples/controls`|`examples/controls`|`examples/controls`|
+ 
+|  |  |  |
+|:---:|:---:|:---:|
+|![Wheel & Thermo](./docs/assets/screenshots/controls-wheel-thermo.png)|![Radio Buttons](./docs/assets/screenshots/radio.png)|![Time Scale Demo](./docs/assets/screenshots/timescale.png)|
+|`examples/controls`|`examples/radio`|`playground/timescale`|
 
 ### Instrument Panels
 
-![Compass Dial](./docs/assets/screenshots/dials-compass.png)  
-`examples/dials`
-
-![Cockpit Dials](./docs/assets/screenshots/dials-cockpit.png)  
-`examples/dials`
+|  |  |  |
+|:---:|:---:|:---:|
+|![Compass Dial](./docs/assets/screenshots/dials-compass.png)|![Cockpit Dials](./docs/assets/screenshots/dials-cockpit.png)||
+|`examples/dials`|`examples/dials`||

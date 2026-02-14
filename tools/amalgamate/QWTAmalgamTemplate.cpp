@@ -85,7 +85,6 @@
 #include "../../src/qwt_plot_abstract_canvas.cpp"
 #include "../../src/qwt_plot_canvas.cpp"
 #include "../../src/qwt_plot_transparent_canvas.cpp"
-#include "../../src/qwt_plot_glcanvas.cpp"
 #include "../../src/qwt_plot_opengl_canvas.cpp"
 #include "../../src/qwt_plot_item.cpp"
 #include "../../src/qwt_plot_legenditem.cpp"
