@@ -32,7 +32,8 @@
 
 // Core forward headers (each just #include "../core/xxx.h") — make core types
 // fully visible to clang's code model so shiboken can synthesize wrappers for
-// plot methods that return/take core types by value.
+// plot methods that return/take core types by value. These resolve via the
+// plot module's forward headers in src/plot/ (which #include "../core/xxx.h").
 #include "qwt_interval.h"
 #include "qwt_scale_map.h"
 #include "qwt_scale_div.h"
@@ -42,13 +43,45 @@
 #include "qwt_point_3d.h"
 #include "qwt_point_polar.h"
 #include "qwt_date.h"
+#include "qwt_series_data.h"
+#include "qwt_series_store.h"
+// QwtColorMap has no forward header in src/plot; include from src/core directly
+// (src/ is on the include path via qwt::plot's INTERFACE_INCLUDE_DIRECTORIES).
+#include "core/qwt_colormap.h"
 
-// POC: minimal set for QwtPlot validation.
+// ---- QWTPLOT_HEADER_BASE (always-on plot base headers) ----
 #include "qwt_text.h"
+#include "qwt_graphic.h"
+#include "qwt_null_paintdevice.h"
+#include "qwt_interval_symbol.h"
+#include "qwt_column_symbol.h"
+#include "qwt_symbol.h"
+#include "qwt_text_label.h"
+#include "qwt_abstract_scale_draw.h"
+#include "qwt_scale_draw.h"
+#include "qwt_round_scale_draw.h"
+#include "qwt_date_scale_draw.h"
+#include "qwt_date_scale_engine.h"
+#include "qwt_curve_fitter.h"
+#include "qwt_spline_curve_fitter.h"
+#include "qwt_weeding_curve_fitter.h"
+
+// ---- QWTPLOT_HEADER_PLOT (core 2D plot API) ----
+#include "qwt_axis.h"
 #include "qwt_axis_id.h"
 #include "qwt_plot_abstract_canvas.h"
 #include "qwt_plot_dict.h"
 #include "qwt_plot_canvas.h"
+#include "qwt_plot_transparent_canvas.h"
 #include "qwt_plot.h"
+#include "qwt_plot_item.h"
+#include "qwt_plot_seriesitem.h"
+#include "qwt_plot_grid.h"
+#include "qwt_plot_marker.h"
+#include "qwt_plot_arrowmarker.h"
+#include "qwt_scale_widget.h"
+#include "qwt_plot_layout.h"
+#include "qwt_plot_renderer.h"
+#include "qwt_plot_directpainter.h"
 
 #endif // QWTPLOT_BINDING_GLOBAL_H

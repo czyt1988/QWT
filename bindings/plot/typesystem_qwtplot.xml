@@ -18,31 +18,149 @@
     <rejection class="QwtPlot" function-name="drawItems"/>
     <rejection class="QwtPlot" function-name="drawInsideTicks"/>
 
-    <!-- ===== POC: minimal set to validate the toolchain with QwtPlot ===== -->
+    <!-- QwtSymbol methods taking raw pointer + count (C-style array pattern). -->
+    <rejection class="QwtSymbol" function-name="drawSymbols"/>
+    <rejection class="QwtSymbol" function-name="renderSymbols"/>
 
-    <!-- QwtText: copyable value type with text format and paint/layout attributes. -->
+    <!-- ===== Value types (copyable, no polymorphism) ===== -->
+
     <value-type name="QwtText">
         <enum-type name="TextFormat"/>
         <enum-type name="PaintAttribute" flags="PaintAttributes"/>
         <enum-type name="LayoutAttribute"/>
     </value-type>
 
-    <!-- QwtPlotAbstractCanvas: non-QObject mixin base of QwtPlotCanvas. -->
+    <value-type name="QwtColumnRect">
+        <enum-type name="Direction"/>
+    </value-type>
+
+    <!-- QwtIntervalSymbol is copyable (explicit copy ctor). -->
+    <value-type name="QwtIntervalSymbol">
+        <enum-type name="Style"/>
+    </value-type>
+
+    <!-- QwtGraphic is copyable (explicit copy ctor), inherits QwtNullPaintDevice. -->
+    <value-type name="QwtGraphic">
+        <enum-type name="RenderHint" flags="RenderHints"/>
+        <enum-type name="CommandType" flags="CommandTypes"/>
+    </value-type>
+
+    <!-- ===== Object types (polymorphic / subclassable / non-copyable) ===== -->
+
+    <!-- QwtAxis is a namespace, not a class. Declare its enum explicitly. -->
+    <namespace-type name="QwtAxis">
+        <enum-type name="Position"/>
+    </namespace-type>
+
+    <!-- Base/mixin types -->
+    <object-type name="QwtNullPaintDevice">
+        <enum-type name="Mode"/>
+    </object-type>
+    <object-type name="QwtAbstractSeriesStore"/>
     <object-type name="QwtPlotAbstractCanvas">
         <enum-type name="FocusIndicator"/>
     </object-type>
 
-    <!-- QwtPlotDict: container base of QwtPlot (holds the item list). -->
+    <!-- Plot widget & canvas -->
     <object-type name="QwtPlotDict"/>
-
-    <!-- QwtPlotCanvas: QFrame + QwtPlotAbstractCanvas (multiple inheritance). -->
     <object-type name="QwtPlotCanvas">
         <enum-type name="PaintAttribute" flags="PaintAttributes"/>
     </object-type>
+    <object-type name="QwtPlotTransparentCanvas"/>
 
     <!-- QwtPlot: the central 2D plotting widget (QFrame + QwtPlotDict). -->
     <object-type name="QwtPlot">
         <enum-type name="LegendPosition"/>
         <enum-type name="TickDirection"/>
+        <!-- Ownership: axis scale engine/draw setters transfer to C++. -->
+        <modify-function signature="setAxisScaleEngine(QwtAxisId,QwtScaleEngine*)">
+            <modify-argument index="2"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+        <modify-function signature="setAxisScaleDraw(QwtAxisId,QwtScaleDraw*)">
+            <modify-argument index="2"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
     </object-type>
+
+    <!-- Axes / scale draw -->
+    <object-type name="QwtAbstractScaleDraw">
+        <enum-type name="ScaleComponent" flags="ScaleComponents"/>
+        <!-- Ownership: setTransformation takes a QwtTransform. -->
+        <modify-function signature="setTransformation(QwtTransform*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+    <object-type name="QwtScaleDraw">
+        <enum-type name="Alignment"/>
+    </object-type>
+    <object-type name="QwtRoundScaleDraw"/>
+    <object-type name="QwtDateScaleDraw"/>
+    <object-type name="QwtDateScaleEngine"/>
+
+    <object-type name="QwtScaleWidget">
+        <enum-type name="LayoutFlag" flags="LayoutFlags"/>
+        <enum-type name="BuiltinActions" flags="BuiltinActionsFlags"/>
+        <!-- Ownership: setScaleDraw / setTransformation / setColorMap. -->
+        <modify-function signature="setScaleDraw(QwtScaleDraw*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+        <modify-function signature="setTransformation(QwtTransform*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+        <modify-function signature="setColorMap(const QwtInterval&amp;,QwtColorMap*)">
+            <modify-argument index="2"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <!-- Plot items (base + non-series) -->
+    <object-type name="QwtPlotItem">
+        <enum-type name="RttiValues"/>
+        <enum-type name="ItemAttribute" flags="ItemAttributes"/>
+        <enum-type name="ItemInterest" flags="ItemInterests"/>
+        <enum-type name="RenderHint" flags="RenderHints"/>
+    </object-type>
+    <object-type name="QwtPlotSeriesItem"/>
+    <object-type name="QwtPlotGrid"/>
+    <object-type name="QwtPlotMarker">
+        <enum-type name="LineStyle"/>
+        <!-- Ownership: setSymbol takes a const QwtSymbol*. -->
+        <modify-function signature="setSymbol(const QwtSymbol*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+    <object-type name="QwtPlotArrowMarker">
+        <enum-type name="EndpointStyle"/>
+        <enum-type name="PositionMode"/>
+    </object-type>
+
+    <!-- Symbols -->
+    <object-type name="QwtSymbol">
+        <enum-type name="Style"/>
+        <enum-type name="CachePolicy"/>
+    </object-type>
+    <object-type name="QwtColumnSymbol">
+        <enum-type name="Style"/>
+        <enum-type name="FrameStyle"/>
+    </object-type>
+
+    <!-- Text label (QWidget) -->
+    <object-type name="QwtTextLabel"/>
+
+    <!-- Layout / renderer / painter -->
+    <object-type name="QwtPlotLayout">
+        <enum-type name="Option" flags="Options"/>
+    </object-type>
+    <object-type name="QwtPlotRenderer">
+        <enum-type name="DiscardFlag" flags="DiscardFlags"/>
+        <enum-type name="LayoutFlag" flags="LayoutFlags"/>
+    </object-type>
+    <object-type name="QwtPlotDirectPainter">
+        <enum-type name="Attribute" flags="Attributes"/>
+    </object-type>
+
+    <!-- Curve fitters -->
+    <object-type name="QwtCurveFitter">
+        <enum-type name="Mode"/>
+    </object-type>
+    <object-type name="QwtSplineCurveFitter"/>
+    <object-type name="QwtWeedingCurveFitter"/>
 </typesystem>

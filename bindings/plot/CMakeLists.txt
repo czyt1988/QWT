@@ -13,14 +13,50 @@ foreach(_inc_dir ${pyside_include_dir})
 endforeach()
 
 # Shiboken generates one wrapper .cpp per type + one module wrapper.
-# Explicit list (lowercased class names) — expand in later tasks.
+# Explicit list (lowercased class names).
 set(_qwt_generated_sources
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplot_module_wrapper.cpp
+    # Value types
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwttext_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtcolumnrect_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtintervalsymbol_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtgraphic_wrapper.cpp
+    # Object types — base/mixin
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtnullpaintdevice_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtabstractseriesstore_wrapper.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotabstractcanvas_wrapper.cpp
+    # Object types — plot widget & canvas
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotdict_wrapper.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotcanvas_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplottransparentcanvas_wrapper.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplot_wrapper.cpp
+    # Object types — axes / scale draw
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtaxis_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtabstractscaledraw_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtscaledraw_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtroundscaledraw_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtdatescaledraw_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtdatescaleengine_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtscalewidget_wrapper.cpp
+    # Object types — plot items (base + non-series)
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotitem_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotseriesitem_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotgrid_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotmarker_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotarrowmarker_wrapper.cpp
+    # Object types — symbols
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtsymbol_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtcolumnsymbol_wrapper.cpp
+    # Object types — text label
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwttextlabel_wrapper.cpp
+    # Object types — layout / renderer / painter
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotlayout_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotrenderer_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotdirectpainter_wrapper.cpp
+    # Object types — curve fitters
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtcurvefitter_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtsplinecurvefitter_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtweedingcurvefitter_wrapper.cpp
 )
 
 shiboken_generator_create_binding(
