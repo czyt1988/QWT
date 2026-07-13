@@ -308,3 +308,140 @@ def test_qwtplot_curve_style_enum(qapp):
     cs = qwtplot.QwtPlotCurve.CurveStyle
     assert hasattr(cs, "Lines")
     assert hasattr(cs, "Steps")
+
+
+# ---------------------------------------------------------------------------
+# Task 5: Comprehensive tests — offscreen rendering, signals, interaction
+# ---------------------------------------------------------------------------
+
+def test_offscreen_render_to_pixmap(qapp):
+    """QwtPlotRenderer renders a plot with a curve to a QPixmap (offscreen)."""
+    from PySide6.QtCore import QPointF, QSize
+    from PySide6.QtGui import QPixmap, QPainter
+    plot = qwtplot.QwtPlot()
+    curve = qwtplot.QwtPlotCurve()
+    curve.setSamples([QPointF(0, 0), QPointF(1, 1), QPointF(2, 4), QPointF(3, 9)])
+    curve.attach(plot)
+    plot.replot()
+
+    renderer = qwtplot.QwtPlotRenderer()
+    pixmap = QPixmap(QSize(200, 200))
+    pixmap.fill()
+    painter = QPainter(pixmap)
+    from PySide6.QtCore import QRectF
+    renderer.render(plot, painter, QRectF(0, 0, 200, 200))
+    painter.end()
+    assert not pixmap.isNull()
+
+
+def test_signal_item_attached(qapp):
+    """QwtPlot.itemAttached signal fires when an item is attached."""
+    from PySide6.QtCore import QObject, Signal
+    plot = qwtplot.QwtPlot()
+    received = []
+    plot.itemAttached.connect(lambda item, on: received.append((item, on)))
+    curve = qwtplot.QwtPlotCurve()
+    curve.attach(plot)
+    assert len(received) == 1
+    assert received[0][1] == True  # on=True for attach
+
+
+def test_plot_axis_zoomer_construct(qapp):
+    """QwtPlotAxisZoomer can be constructed on a plot canvas."""
+    plot = qwtplot.QwtPlot()
+    zoomer = qwtplot.QwtPlotAxisZoomer(plot.canvas())
+    assert zoomer is not None
+    zb = zoomer.zoomBase()
+    assert zb is not None
+
+
+def test_plot_panner_construct(qapp):
+    """QwtPlotPanner can be constructed on a plot canvas."""
+    plot = qwtplot.QwtPlot()
+    panner = qwtplot.QwtPlotPanner(plot.canvas())
+    assert panner is not None
+
+
+def test_plot_magnifier_construct(qapp):
+    """QwtPlotMagnifier can be constructed on a plot canvas."""
+    plot = qwtplot.QwtPlot()
+    mag = qwtplot.QwtPlotMagnifier(plot.canvas())
+    assert mag is not None
+
+
+def test_qwtfigure_construct(qapp):
+    """QwtFigure can be constructed as a multi-axes container."""
+    fig = qwtplot.QwtFigure()
+    assert fig is not None
+
+
+def test_qwtpicker_machine_subclasses(qapp):
+    """Picker machine subclasses are constructible."""
+    # Just verify they can be constructed (setStateMachine may have ownership issues)
+    m1 = qwtplot.QwtPickerClickPointMachine()
+    m2 = qwtplot.QwtPickerDragRectMachine()
+    m3 = qwtplot.QwtPickerPolygonMachine()
+    assert m1 is not None
+    assert m2 is not None
+    assert m3 is not None
+
+
+def test_qwtsymbol_set_pen_brush(qapp):
+    """QwtSymbol pen and brush can be set and retrieved."""
+    from PySide6.QtGui import QColor, QPen, QBrush
+    sym = qwtplot.QwtSymbol(qwtplot.QwtSymbol.Rect)
+    sym.setColor(QColor("red"))
+    sym.setPen(QPen(QColor("blue"), 2))
+    sym.setBrush(QBrush(QColor("green")))
+    pen = sym.pen()
+    assert pen.color().red() == 0  # blue has red=0
+    assert pen.width() == 2
+
+
+def test_qwtplot_curve_pen_brush(qapp):
+    """QwtPlotCurve pen and brush can be set."""
+    from PySide6.QtGui import QPen, QBrush, QColor
+    curve = qwtplot.QwtPlotCurve()
+    curve.setPen(QPen(QColor("red"), 2))
+    curve.setBrush(QBrush(QColor("blue")))
+    curve.setStyle(qwtplot.QwtPlotCurve.Lines)
+    assert curve.pen().color().red() == 255
+
+
+def test_qwtplot_insert_legend(qapp):
+    """QwtPlot.insertLegend works with QwtLegend and position enum."""
+    plot = qwtplot.QwtPlot()
+    legend = qwtplot.QwtLegend()
+    plot.insertLegend(legend, qwtplot.QwtPlot.TopLegend)
+    plot.replot()
+
+
+def test_qwtplot_set_axis_title(qapp):
+    """QwtPlot.setAxisTitle sets axis title via QwtText."""
+    plot = qwtplot.QwtPlot()
+    plot.setAxisTitle(0, "Y Left Axis")  # QwtAxis::YLeft = 0
+    plot.setAxisTitle(2, "X Bottom Axis")  # QwtAxis::XBottom = 2
+    assert plot.axisTitle(0).text() == "Y Left Axis"
+
+
+def test_qwtplot_replot_with_grid_and_curve(qapp):
+    """Full replot with grid + curve + legend (offscreen integration test)."""
+    from PySide6.QtCore import QPointF
+    plot = qwtplot.QwtPlot()
+    plot.setTitle("Integration Test")
+    plot.setAxisScale(0, 0.0, 10.0)
+    plot.setAxisScale(2, 0.0, 10.0)
+
+    grid = qwtplot.QwtPlotGrid()
+    grid.attach(plot)
+
+    curve = qwtplot.QwtPlotCurve("data")
+    curve.setSamples([QPointF(i, i * i) for i in range(10)])
+    curve.attach(plot)
+
+    legend = qwtplot.QwtLegend()
+    plot.insertLegend(legend, qwtplot.QwtPlot.BottomLegend)
+
+    plot.replot()
+    # Verify items are in the plot
+    assert curve.size() == 10
