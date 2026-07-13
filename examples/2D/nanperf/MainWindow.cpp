@@ -51,7 +51,7 @@ MainWindow::MainWindow(QWidget* parent)
     m_progress->setRange(0, 1);
     m_progress->setValue(0);
 
-    const NanCase cases[ 6 ] = { NanCase::Leading, NanCase::LeadingTrailing, NanCase::Middle, NanCase::Trailing, NanCase::XyNan, NanCase::XyInterleavedNan };
+    const NanCase cases[ 6 ] = { NanCase::Leading, NanCase::LeadingTrailing, NanCase::Middle, NanCase::Trailing, NanCase::XyNan, NanCase::AllNan };
     auto* grid               = new QGridLayout;
     for (int i = 0; i < 6; ++i) {
         auto* panel = new PlotPanel(cases[ i ]);

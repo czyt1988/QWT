@@ -27,6 +27,8 @@ int NanDataGenerator::nanCount(NanCase cs, int numPoints, double nanFraction)
         return nanN;
     case NanCase::LeadingTrailing:
         return 2 * (nanN / 2);
+    case NanCase::AllNan:
+        return numPoints;
     case NanCase::Baseline:
         return 0;
     }
@@ -79,6 +81,9 @@ void NanDataGenerator::generate(NanCase cs, int numPoints, double nanFraction, Q
             isNan = (i >= numPoints - nanN);
             yNan  = isNan;
             break;
+        case NanCase::AllNan:
+            yNan = true;  // every point NaN regardless of nanFraction
+            break;
         case NanCase::Baseline:
             isNan = false;
             break;
@@ -104,6 +109,8 @@ QString NanDataGenerator::caseLabel(NanCase cs)
         return QStringLiteral("X+Y Middle NaN");
     case NanCase::XyInterleavedNan:
         return QStringLiteral("X/Y Interleaved NaN");
+    case NanCase::AllNan:
+        return QStringLiteral("All NaN");
     case NanCase::Baseline:
         return QStringLiteral("No NaN Baseline");
     }
