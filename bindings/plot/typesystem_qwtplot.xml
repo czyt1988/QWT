@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<typesystem package="qwtplot">
+    <!-- Reference PySide6's Qt types + the already-generated qwtcore types. -->
+    <load-typesystem name="typesystem_core.xml" generate="no"/>
+    <load-typesystem name="typesystem_gui.xml" generate="no"/>
+    <load-typesystem name="typesystem_widgets.xml" generate="no"/>
+    <load-typesystem name="typesystem_qwtcore.xml" generate="no"/>
+
+    <!-- ===== Rejections ===== -->
+    <!-- QwtPlot::Axis is the QWT_AXIS_COMPAT legacy enum (enabled by
+         #define QWT_AXIS_COMPAT 1 in qwt_plot.h). We bind only the new
+         QwtAxisId-based API, so drop the legacy enum entirely. -->
+    <rejection class="QwtPlot" enum-name="Axis"/>
+
+    <!-- QwtPlot methods taking C-style QwtScaleMap arrays (shiboken can't
+         synthesize minimal constructors for fixed-size array types). -->
+    <rejection class="QwtPlot" function-name="getCanvasMarginsHint"/>
+    <rejection class="QwtPlot" function-name="drawItems"/>
+    <rejection class="QwtPlot" function-name="drawInsideTicks"/>
+
+    <!-- ===== POC: minimal set to validate the toolchain with QwtPlot ===== -->
+
+    <!-- QwtText: copyable value type with text format and paint/layout attributes. -->
+    <value-type name="QwtText">
+        <enum-type name="TextFormat"/>
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+        <enum-type name="LayoutAttribute"/>
+    </value-type>
+
+    <!-- QwtPlotAbstractCanvas: non-QObject mixin base of QwtPlotCanvas. -->
+    <object-type name="QwtPlotAbstractCanvas">
+        <enum-type name="FocusIndicator"/>
+    </object-type>
+
+    <!-- QwtPlotDict: container base of QwtPlot (holds the item list). -->
+    <object-type name="QwtPlotDict"/>
+
+    <!-- QwtPlotCanvas: QFrame + QwtPlotAbstractCanvas (multiple inheritance). -->
+    <object-type name="QwtPlotCanvas">
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+    </object-type>
+
+    <!-- QwtPlot: the central 2D plotting widget (QFrame + QwtPlotDict). -->
+    <object-type name="QwtPlot">
+        <enum-type name="LegendPosition"/>
+        <enum-type name="TickDirection"/>
+    </object-type>
+</typesystem>

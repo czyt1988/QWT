@@ -107,7 +107,7 @@ endfunction()
 macro(shiboken_generator_create_binding)
     set(_sb_opt "")
     set(_sb_one EXTENSION_TARGET HEADERS TYPESYSTEM_FILE LIBRARY_TARGET)
-    set(_sb_multi GENERATED_SOURCES QT_MODULES)
+    set(_sb_multi GENERATED_SOURCES QT_MODULES GEN_DEFINES TYPESYSTEM_PATHS)
     cmake_parse_arguments(_sb "${_sb_opt}" "${_sb_one}" "${_sb_multi}" ${ARGN})
     if(_sb_UNPARSED_ARGUMENTS)
         message(FATAL_ERROR "shiboken_generator_create_binding: unknown arguments: ${_sb_UNPARSED_ARGUMENTS}")
@@ -152,9 +152,15 @@ macro(shiboken_generator_create_binding)
     # thing as ONE argument (it un-escapes '\;' back to ';' when invoking the tool).
     string(REPLACE ";" "\\;" _include_paths "${_inc_dirs}")
 
-    # Typesystem search paths: PySide6's bundled typesystems + the binding dir.
+    # Typesystem search paths: PySide6's bundled typesystems + the binding dir
+    # + any extra paths the caller supplies (e.g. the qwtcore dir so qwtplot
+    # can load typesystem_qwtcore.xml via load-typesystem generate="no").
     get_filename_component(_ts_dir ${_typesystem} DIRECTORY)
     set(_typesystem_paths_list "${PYSIDE6_TYPESYSTEMS_DIR}" "${_ts_dir}")
+    if(_sb_TYPESYSTEM_PATHS)
+        list(APPEND _typesystem_paths_list ${_sb_TYPESYSTEM_PATHS})
+    endif()
+    list(REMOVE_DUPLICATES _typesystem_paths_list)
     string(REPLACE ";" "\\;" _typesystem_paths "${_typesystem_paths_list}")
 
     # Shiboken writes wrappers under <output-dir>/<package>/, where <package> is
@@ -172,7 +178,14 @@ macro(shiboken_generator_create_binding)
     # if the define is absent at parse time the methods stay pure-virtual and the
     # abstract template base cannot be subclassed from Python. Pass each define
     # through shiboken's --clang-option so libclang sees it while parsing.
-    set(_gen_defines QWT_PYTHON_WRAPPER QT_NO_KEYWORDS QWTCORE_DLL)
+    # Generation-time defines forwarded to shiboken's libclang parser.
+    # Caller passes module-specific defines via GEN_DEFINES; merge with the
+    # always-required QWT_PYTHON_WRAPPER and QT_NO_KEYWORDS.
+    set(_gen_defines QWT_PYTHON_WRAPPER QT_NO_KEYWORDS)
+    if(_sb_GEN_DEFINES)
+        list(APPEND _gen_defines ${_sb_GEN_DEFINES})
+    endif()
+    list(REMOVE_DUPLICATES _gen_defines)
     set(_clang_defines "")
     foreach(_d ${_gen_defines})
         list(APPEND _clang_defines "--clang-option=-D${_d}")
