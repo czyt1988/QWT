@@ -84,4 +84,34 @@
 #include "qwt_plot_renderer.h"
 #include "qwt_plot_directpainter.h"
 
+// ---- Task 3: Series items + legends ----
+#include "qwt_plot_rasteritem.h"
+#include "qwt_plot_spectrogram.h"
+#include "qwt_plot_curve.h"
+#include "qwt_plot_histogram.h"
+#include "qwt_plot_abstract_barchart.h"
+#include "qwt_plot_barchart.h"
+#include "qwt_plot_multi_barchart.h"
+#include "qwt_plot_intervalcurve.h"
+#include "qwt_plot_tradingcurve.h"
+#include "qwt_plot_boxchart.h"
+#include "qwt_plot_spectrocurve.h"
+#include "qwt_plot_vectorfield.h"
+#include "qwt_vectorfield_symbol.h"
+#include "qwt_plot_shapeitem.h"
+#include "qwt_plot_zoneitem.h"
+#include "qwt_plot_textlabel.h"   // item version (different from qwt_text_label.h)
+#include "qwt_plot_scaleitem.h"
+#include "qwt_plot_graphicitem.h"
+#include "qwt_plot_legenditem.h"
+#include "qwt_abstract_legend.h"
+#include "qwt_legend_data.h"
+#include "qwt_legend.h"
+#include "qwt_legend_label.h"
+#include "qwt_dyngrid_layout.h"
+
+// Glue functions for series item size()/sample() (workaround for shiboken
+// add-function inject-code crash with cross-module value type conversion).
+#include "glue_plot.h"
+
 #endif // QWTPLOT_BINDING_GLOBAL_H

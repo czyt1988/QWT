@@ -179,3 +179,132 @@ def test_qwtcurve_fitter_subclasses(qapp):
     assert fitter is not None
     weeding = qwtplot.QwtWeedingCurveFitter()
     assert weeding is not None
+
+
+# ---------------------------------------------------------------------------
+# Task 3: Series items + legends tests
+# ---------------------------------------------------------------------------
+
+def test_qwtplot_curve_set_samples(qapp):
+    """QwtPlotCurve can set samples and size()/sample() work (template workaround).
+
+    Note: sample() returns a tuple (x, y) due to the shiboken6 glue workaround
+    for cross-module value type conversion (see glue_plot.cpp).
+    """
+    from PySide6.QtCore import QPointF
+    plot = qwtplot.QwtPlot()
+    curve = qwtplot.QwtPlotCurve()
+    points = [QPointF(0.0, 0.0), QPointF(1.0, 2.0), QPointF(3.0, 1.0)]
+    curve.setSamples(points)
+    curve.attach(plot)
+    assert curve.size() == 3
+    s0 = curve.sample(0)
+    assert s0[0] == pytest.approx(0.0)
+    assert s0[1] == pytest.approx(0.0)
+    s2 = curve.sample(2)
+    assert s2[0] == pytest.approx(3.0)
+    plot.replot()
+
+
+def test_qwtplot_curve_set_symbol_no_crash(qapp):
+    """QwtPlotCurve.setSymbol transfers ownership (no double-free)."""
+    import gc
+    plot = qwtplot.QwtPlot()
+    curve = qwtplot.QwtPlotCurve()
+    sym = qwtplot.QwtSymbol(qwtplot.QwtSymbol.Cross)
+    curve.setSymbol(sym)
+    curve.attach(plot)
+    plot.replot()
+    gc.collect()
+    del sym, curve
+    gc.collect()
+
+
+def test_qwtplot_grid_enable(qapp):
+    """QwtPlotGrid can enable X/Y axes and attach."""
+    plot = qwtplot.QwtPlot()
+    grid = qwtplot.QwtPlotGrid()
+    grid.enableX(True)
+    grid.enableY(True)
+    grid.enableXMin(True)
+    grid.enableYMin(True)
+    grid.attach(plot)
+    plot.replot()
+
+
+def test_qwtplot_histogram(qapp):
+    """QwtPlotHistogram can be constructed and attached."""
+    plot = qwtplot.QwtPlot()
+    hist = qwtplot.QwtPlotHistogram()
+    hist.attach(plot)
+    plot.replot()
+
+
+def test_qwtplot_barchart(qapp):
+    """QwtPlotBarChart can be constructed and attached."""
+    from PySide6.QtCore import QPointF
+    plot = qwtplot.QwtPlot()
+    chart = qwtplot.QwtPlotBarChart()
+    chart.setSamples([QPointF(0.0, 1.0), QPointF(1.0, 3.0)])
+    chart.attach(plot)
+    plot.replot()
+    assert chart.size() == 2
+
+
+def test_qwtplot_spectrogram(qapp):
+    """QwtPlotSpectrogram can be constructed and attached."""
+    import qwtcore
+    plot = qwtplot.QwtPlot()
+    spec = qwtplot.QwtPlotSpectrogram()
+    # Set a color map (ownership transfer, no double-free)
+    cm = qwtcore.QwtLinearColorMap()
+    spec.setColorMap(cm)
+    spec.attach(plot)
+    plot.replot()
+
+
+def test_qwtplot_shape_item(qapp):
+    """QwtPlotShapeItem can be constructed."""
+    from PySide6.QtGui import QPainterPath
+    from PySide6.QtCore import QRectF
+    plot = qwtplot.QwtPlot()
+    item = qwtplot.QwtPlotShapeItem()
+    path = QPainterPath()
+    path.addRect(QRectF(0, 0, 10, 10))
+    item.setShape(path)
+    item.attach(plot)
+    plot.replot()
+
+
+def test_qwtplot_zone_item(qapp):
+    """QwtPlotZoneItem can be constructed and configured."""
+    plot = qwtplot.QwtPlot()
+    zone = qwtplot.QwtPlotZoneItem()
+    zone.setInterval(0.0, 10.0)
+    zone.attach(plot)
+    plot.replot()
+
+
+def test_qwtlegend_construct(qapp):
+    """QwtLegend can be constructed and inserted into QwtPlot."""
+    plot = qwtplot.QwtPlot()
+    legend = qwtplot.QwtLegend()
+    plot.insertLegend(legend, qwtplot.QwtPlot.BottomLegend)
+    plot.replot()
+
+
+def test_qwtlegend_data_value_type(qapp):
+    """QwtLegendData value type with Mode and Role enums."""
+    data = qwtplot.QwtLegendData()
+    data.setValue(qwtplot.QwtLegendData.TitleRole, "Test")
+    assert data.value(qwtplot.QwtLegendData.TitleRole) == "Test"
+    # Verify Mode and Role enums are accessible
+    assert qwtplot.QwtLegendData.Checkable == 2
+    assert qwtplot.QwtLegendData.TitleRole == 1
+
+
+def test_qwtplot_curve_style_enum(qapp):
+    """QwtPlotCurve.CurveStyle enum is accessible."""
+    cs = qwtplot.QwtPlotCurve.CurveStyle
+    assert hasattr(cs, "Lines")
+    assert hasattr(cs, "Steps")

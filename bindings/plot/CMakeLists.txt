@@ -57,6 +57,36 @@ set(_qwt_generated_sources
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtcurvefitter_wrapper.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtsplinecurvefitter_wrapper.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtweedingcurvefitter_wrapper.cpp
+    # Task 3: raster items
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotrasteritem_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotspectrogram_wrapper.cpp
+    # Task 3: series items
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotcurve_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplothistogram_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotabstractbarchart_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotbarchart_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotmultibarchart_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotintervalcurve_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplottradingcurve_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotboxchart_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotspectrocurve_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotvectorfield_wrapper.cpp
+    # Task 3: vector field symbols
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtvectorfieldsymbol_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtvectorfieldarrow_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtvectorfieldthinarrow_wrapper.cpp
+    # Task 3: non-series items
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotshapeitem_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotzoneitem_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplottextlabel_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotscaleitem_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotgraphicitem_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotlegenditem_wrapper.cpp
+    # Task 3: legends
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtabstractlegend_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtlegend_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtlegenddata_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtlegendlabel_wrapper.cpp
 )
 
 shiboken_generator_create_binding(
@@ -70,6 +100,9 @@ shiboken_generator_create_binding(
     TYPESYSTEM_PATHS  ${CMAKE_CURRENT_SOURCE_DIR}/../core
 )
 
+# Hand-written glue source for series item size()/sample() workarounds.
+target_sources(${_qwt_bindings_lib} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/glue_plot.cpp)
+
 # Generation-time defines: make shiboken see the python-wrapper hooks + import-side exports.
 target_compile_definitions(${_qwt_bindings_lib} PRIVATE
     QWT_PYTHON_WRAPPER
@@ -80,10 +113,12 @@ target_compile_definitions(${_qwt_bindings_lib} PRIVATE
 
 # The generated qwtplot_python.h #includes "qwtcore_python.h" (produced by the
 # qwtcore binding generation step) to reference core type converters. Add the
-# qwtcore generated output dir to the include path.
+# qwtcore generated output dir + the binding source dir (for glue_plot.h) to
+# the include path.
 target_include_directories(${_qwt_bindings_lib} PRIVATE
     ${CMAKE_BINARY_DIR}/bindings/core/qwtcore
     ${CMAKE_BINARY_DIR}/bindings/plot/qwtplot
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # Output next to the qwt DLLs so the test harness can find both.
