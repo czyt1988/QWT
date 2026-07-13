@@ -87,6 +87,55 @@ set(_qwt_generated_sources
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtlegend_wrapper.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtlegenddata_wrapper.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtlegendlabel_wrapper.cpp
+    # Task 4: event pattern + picker machines
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwteventpattern_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtpicker_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtpickermachine_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtpickertrackermachine_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtpickerclickpointmachine_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtpickerdragpointmachine_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtpickerclickrectmachine_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtpickerdragrectmachine_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtpickerdraglinemachine_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtpickerpolygonmachine_wrapper.cpp
+    # Task 4: pickers
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotpicker_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtcanvaspicker_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotseriesdatapicker_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotseriesdatapickergroup_wrapper.cpp
+    # Task 4: zoomers / panners / magnifier
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotaxiszoomer_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotcanvaszoomer_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotpanner_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotcachepanner_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtcachepanner_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtmagnifier_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotmagnifier_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotrescaler_wrapper.cpp
+    # Task 4: overlays
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtwidgetoverlay_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtfigurewidgetoverlay_wrapper.cpp
+    # Task 4: figure / parasite framework
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtfigure_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtparasiteplotlayout_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotscaleeventdispatcher_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtsamplingthread_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotlayoutengine_wrapper.cpp
+    # Task 4: utility static classes
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotfactory_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotiteminfo_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotdataaccess_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplotstyling_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtplottransform_wrapper.cpp
+    # Task 4: splines
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtspline_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtsplinebasis_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtsplinecubic_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtsplinelocal_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtsplinepleasing_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtsplineparametrization_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtsplinepolynomial_wrapper.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/${_qwt_bindings_lib}/qwtpointmapper_wrapper.cpp
 )
 
 shiboken_generator_create_binding(

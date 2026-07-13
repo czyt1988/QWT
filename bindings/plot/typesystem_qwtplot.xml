@@ -478,4 +478,92 @@
     <!-- QwtDynGridLayout deferred: shiboken generates addLayoutOwnership calls
          that are not available in the current shiboken6 version (QLayout
          ownership tracking). The legend layout is an internal detail. -->
+
+    <!-- ===== Task 4: Interaction + figure + utilities + facade ===== -->
+
+    <!-- Event pattern + picker machines -->
+    <object-type name="QwtEventPattern">
+        <enum-type name="MousePatternCode"/>
+        <enum-type name="KeyPatternCode"/>
+    </object-type>
+    <object-type name="QwtPickerMachine">
+        <enum-type name="SelectionType"/>
+        <enum-type name="Command"/>
+    </object-type>
+    <object-type name="QwtPickerTrackerMachine"/>
+    <object-type name="QwtPickerClickPointMachine"/>
+    <object-type name="QwtPickerDragPointMachine"/>
+    <object-type name="QwtPickerClickRectMachine"/>
+    <object-type name="QwtPickerDragRectMachine"/>
+    <object-type name="QwtPickerDragLineMachine"/>
+    <object-type name="QwtPickerPolygonMachine"/>
+
+    <!-- Pickers -->
+    <object-type name="QwtPicker">
+        <enum-type name="RubberBand"/>
+        <enum-type name="DisplayMode"/>
+        <enum-type name="ResizeMode"/>
+    </object-type>
+    <object-type name="QwtPlotPicker"/>
+    <object-type name="QwtCanvasPicker"/>
+    <object-type name="QwtPlotSeriesDataPicker">
+        <enum-type name="PickSeriesMode"/>
+        <enum-type name="TextPlacement"/>
+        <enum-type name="InterpolationMode"/>
+    </object-type>
+    <object-type name="QwtPlotSeriesDataPickerGroup"/>
+
+    <!-- Zoomers / panners / magnifier -->
+    <object-type name="QwtPlotAxisZoomer"/>
+    <object-type name="QwtPlotCanvasZoomer">
+        <!-- zoomStateIndex() is declared but not defined in the .cpp; reject it. -->
+        <rejection class="QwtPlotCanvasZoomer" function-name="zoomStateIndex"/>
+    </object-type>
+    <!-- QwtPlotCanvasZoomState deferred: has a QwtInterval[4] C-style array member
+         that shiboken cannot synthesize a minimal constructor for. -->
+    <!-- <object-type name="QwtPlotCanvasZoomState"/> -->
+    <object-type name="QwtPlotPanner"/>
+    <object-type name="QwtPlotCachePanner"/>
+    <object-type name="QwtCachePanner"/>
+    <object-type name="QwtMagnifier"/>
+    <object-type name="QwtPlotMagnifier"/>
+    <object-type name="QwtPlotRescaler">
+        <enum-type name="RescalePolicy"/>
+        <enum-type name="ExpandingDirection"/>
+        <rejection class="QwtPlotRescaler" function-name="updateScales"/>
+    </object-type>
+
+    <!-- Overlays -->
+    <object-type name="QwtWidgetOverlay"/>
+    <object-type name="QwtFigureWidgetOverlay"/>
+
+    <!-- Figure / parasite framework (QwtPlotTransparentCanvas already bound in Task 2) -->
+    <object-type name="QwtFigure"/>
+    <!-- QwtFigureLayout deferred: same addLayoutOwnership issue as QwtDynGridLayout
+         (QLayout subclass, shiboken6 generates unavailable ownership calls). -->
+    <object-type name="QwtParasitePlotLayout"/>
+    <object-type name="QwtPlotScaleEventDispatcher"/>
+    <object-type name="QwtSamplingThread"/>
+    <object-type name="QwtPlotLayoutEngine"/>
+
+    <!-- Utility static classes -->
+    <object-type name="QwtPlotFactory"/>
+    <object-type name="QwtPlotItemInfo"/>
+    <object-type name="QwtPlotDataAccess"/>
+    <object-type name="QwtPlotStyling"/>
+    <object-type name="QwtPlotTransform"/>
+
+    <!-- Splines -->
+    <object-type name="QwtSpline"/>
+    <object-type name="QwtSplineBasis"/>
+    <object-type name="QwtSplineCubic"/>
+    <object-type name="QwtSplineLocal"/>
+    <object-type name="QwtSplinePleasing"/>
+    <object-type name="QwtSplineParametrization">
+        <enum-type name="Type"/>
+    </object-type>
+    <value-type name="QwtSplinePolynomial"/>
+
+    <!-- Point mapper (helper, may not generate a wrapper) -->
+    <object-type name="QwtPointMapper"/>
 </typesystem>
