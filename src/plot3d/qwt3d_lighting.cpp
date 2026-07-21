@@ -85,7 +85,7 @@ void Plot3D::blowout(unsigned light)
     QWT_D(d);
     if (light > 7)
         return;
-    d->m_lights[ light ].unlit = false;
+    d->m_lights[ light ].unlit = true;
 }
 
 /**
@@ -136,7 +136,7 @@ void Plot3D::setLightComponent(GLenum property, double r, double g, double b, do
 */
 void Plot3D::setLightComponent(GLenum property, double intensity, unsigned light)
 {
-    setLightComponent(property, intensity, intensity, intensity, 1.0, lightEnum(light));
+    setLightComponent(property, intensity, intensity, intensity, 1.0, light);
 }
 
 /**

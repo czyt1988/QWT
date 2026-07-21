@@ -4,6 +4,7 @@
 #endif
 
 #include "qwt3d_plot_p.h"
+#include "qwt_qt5qt6_compat.hpp"
 
 #include <cmath>
 
@@ -17,7 +18,7 @@ using namespace Qwt3D;
 void Plot3D::mousePressEvent(QMouseEvent* e)
 {
     QWT_D(d);
-    d->m_lastMouseMovePosition = e->pos();
+    d->m_lastMouseMovePosition = qwt::compat::eventPos(e);
     d->m_pressed               = true;
 }
 
@@ -45,13 +46,13 @@ void Plot3D::mouseMoveEvent(QMouseEvent* e)
 
     MouseState bstate(e->buttons(), e->modifiers());
 
-    QPoint diff = e->pos() - d->m_lastMouseMovePosition;
+    QPoint diff = qwt::compat::eventPos(e) - d->m_lastMouseMovePosition;
 
     setRotationMouse(bstate, 3, diff);
     setScaleMouse(bstate, 5, diff);
     setShiftMouse(bstate, 2, diff);
 
-    d->m_lastMouseMovePosition = e->pos();
+    d->m_lastMouseMovePosition = qwt::compat::eventPos(e);
 }
 
 void Plot3D::setRotationMouse(MouseState bstate, double accel, QPoint diff)
@@ -138,7 +139,7 @@ void Plot3D::wheelEvent(QWheelEvent* e)
 
     double accel = 0.05;
 
-    double step = accel * e->angleDelta().y() / WHEEL_DELTA;
+    double step = accel * qwt::compat::wheelEventDelta(e) / WHEEL_DELTA;
     step        = exp(step) - 1;
 
     if (e->modifiers() & Qt::ShiftModifier)
