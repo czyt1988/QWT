@@ -19,7 +19,6 @@
 
 #include "qwt3d_portability.h"
 #include "qwt3d_helper.h"
-#include "qwt3d_openglhelper.h"
 #include <QColor>
 
 
@@ -374,7 +373,7 @@ using ColorVector = std::vector< RGBA >;
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
 // RGB -> QColor
-QWT3D_EXPORT QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b);
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 // QColor -> RGBA
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 

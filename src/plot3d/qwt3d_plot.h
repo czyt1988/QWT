@@ -3,6 +3,7 @@
 
 #include <QOpenGLWidget>
 #include <QMatrix4x4>
+#include <QOpenGLShaderProgram>
 
 #include "qwt3d_coordsys.h"
 #include "qwt3d_theme.h"
@@ -159,15 +160,15 @@ public:
     void blowout(unsigned light = 0);
 
     // Set material component (RGBA)
-    void setMaterialComponent(GLenum property, double r, double g, double b, double a = 1.0);
+    void setMaterialComponent(unsigned int property, double r, double g, double b, double a = 1.0);
     // Set material component (intensity)
-    void setMaterialComponent(GLenum property, double intensity);
+    void setMaterialComponent(unsigned int property, double intensity);
     // Set shininess exponent
     void setShininess(double exponent);
     // Set light component (RGBA)
-    void setLightComponent(GLenum property, double r, double g, double b, double a = 1.0, unsigned light = 0);
+    void setLightComponent(unsigned int property, double r, double g, double b, double a = 1.0, unsigned light = 0);
     // Set light component (intensity)
-    void setLightComponent(GLenum property, double intensity, unsigned light = 0);
+    void setLightComponent(unsigned int property, double intensity, unsigned light = 0);
 
     // Returns Light 'idx' rotation around X axis [-360..360] (some angles are equivalent)
     double xLightRotation(unsigned idx = 0) const;
@@ -201,6 +202,20 @@ public:
     QMatrix4x4 modelViewMatrix() const;
     // Returns the current projection matrix (computed in paintGL)
     QMatrix4x4 projectionMatrix() const;
+
+    // Converts a world coordinate to screen (viewport) coordinates
+    QPointF worldToScreen(const Triple& world) const;
+    // Converts screen (viewport) coordinates to a world coordinate
+    Triple screenToWorld(const QPointF& screen) const;
+
+    // Returns the viewport size (width, height) in pixels
+    QSize viewportSize() const;
+
+    // Shared shader accessors for drawables and items
+    QOpenGLShaderProgram* lineShader() const;
+    QOpenGLShaderProgram* pointShader() const;
+    QOpenGLShaderProgram* polygonShader() const;
+    QOpenGLShaderProgram* textShader() const;
 
 Q_SIGNALS:
 

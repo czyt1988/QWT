@@ -32,7 +32,6 @@ set(QWTPLOT3D_HEADER_PLOT_3D
     qwt3d_drawable.h
     qwt3d_helper.h
     qwt3d_label.h
-    qwt3d_openglhelper.h
     qwt3d_colorlegend.h
     qwt3d_plot.h
     qwt3d_plotitem.h

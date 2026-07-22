@@ -91,9 +91,10 @@ private:
     void autoDecorateExposedAxis(Qwt3DAxis& ax, bool left);
     void drawMajorGridLines();
     void drawMinorGridLines();
-    void drawMajorGridLines(Qwt3DAxis&, Qwt3DAxis&);
-    void drawMinorGridLines(Qwt3DAxis&, Qwt3DAxis&);
+    void drawMajorGridLines(Qwt3DAxis&, Qwt3DAxis&, QVector<float>& verts);
+    void drawMinorGridLines(Qwt3DAxis&, Qwt3DAxis&, QVector<float>& verts);
     void recalculateAxesTics();
+    void drawGridLines(const QVector<float>& vertices, double lineWidth, const RGBA& color);
 };
 
 

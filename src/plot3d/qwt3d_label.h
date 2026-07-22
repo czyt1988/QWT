@@ -8,6 +8,7 @@
 #include <qfontmetrics.h>
 
 #include "qwt3d_drawable.h"
+#include "qwt3d_io_gl2ps.h"
 
 
 

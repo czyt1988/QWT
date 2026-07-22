@@ -71,17 +71,17 @@ private:
     bool operator()(Qwt3DPlot* plot, QString const& fname) override;
 };
 
-GLint setDeviceLineWidth(GLfloat val);
-GLint setDevicePointSize(GLfloat val);
-GLint drawDevicePixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels);
-GLint drawDeviceText(const char* str,
-                     const char* fontname,
-                     int fontsize,
-                     Triple pos,
-                     RGBA rgba,
-                     ANCHOR align,
-                     double gap);
-void setDevicePolygonOffset(GLfloat factor, GLfloat units);
+int setDeviceLineWidth(float val);
+int setDevicePointSize(float val);
+int drawDevicePixels(int width, int height, unsigned int format, unsigned int type, const void* pixels);
+int drawDeviceText(const char* str,
+                   const char* fontname,
+                   int fontsize,
+                   Triple pos,
+                   RGBA rgba,
+                   ANCHOR align,
+                   double gap);
+void setDevicePolygonOffset(float factor, float units);
 
 
 #endif  // QWT3D_IO_GL2PS_H

@@ -2,5 +2,13 @@
     <qresource prefix="/shaders">
         <file>surface.vert</file>
         <file>surface.frag</file>
+        <file>line.vert</file>
+        <file>line.frag</file>
+        <file>point.vert</file>
+        <file>point.frag</file>
+        <file>polygon.vert</file>
+        <file>polygon.frag</file>
+        <file>text.vert</file>
+        <file>text.frag</file>
     </qresource>
 </RCC>

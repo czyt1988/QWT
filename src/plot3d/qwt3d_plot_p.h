@@ -7,6 +7,8 @@
 #include <QPoint>
 #include <QMatrix4x4>
 #include <QList>
+#include <QOpenGLShaderProgram>
+#include <memory>
 
 
 class Qwt3DPlotItem;
@@ -32,11 +34,11 @@ public:
 
     std::vector< Light > m_lights;
 
-    GLdouble m_xRot, m_yRot, m_zRot;
-    GLdouble m_xShift, m_yShift, m_zShift;
-    GLdouble m_zoom;
-    GLdouble m_xScale, m_yScale, m_zScale;
-    GLdouble m_xVPShift, m_yVPShift;
+    double m_xRot, m_yRot, m_zRot;
+    double m_xShift, m_yShift, m_zShift;
+    double m_zoom;
+    double m_xScale, m_yScale, m_zScale;
+    double m_xVPShift, m_yVPShift;
 
     RGBA m_bgColor;
     bool m_ortho;
@@ -79,6 +81,16 @@ public:
     // CPU-side transformation matrices
     QMatrix4x4 m_modelView;
     QMatrix4x4 m_projection;
+
+    // Viewport dimensions
+    int m_viewportWidth = 0;
+    int m_viewportHeight = 0;
+
+    // Shared generic shaders
+    std::unique_ptr< QOpenGLShaderProgram > m_lineShader;
+    std::unique_ptr< QOpenGLShaderProgram > m_pointShader;
+    std::unique_ptr< QOpenGLShaderProgram > m_polygonShader;
+    std::unique_ptr< QOpenGLShaderProgram > m_textShader;
 
     // Attached items list (sorted by z-order)
     QList< Qwt3DPlotItem* > m_items;

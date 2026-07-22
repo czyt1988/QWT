@@ -4,6 +4,11 @@
 
 #include "qwt3d_colorlegend.h"
 
+#include "qwt3d_plot.h"
+
+#include <QOpenGLFunctions>
+#include <QOpenGLBuffer>
+#include <QOpenGLShaderProgram>
 
 class Qwt3DColorLegend::PrivateData
 {
@@ -26,11 +31,6 @@ public:
     bool m_showaxis;
 };
 
-/**
- * @brief Constructs a legend object with an axis at the left side
- * @details The legend resides in the top-right area and has no caption.
- *          Scale numbering is shown.
- */
 Qwt3DColorLegend::Qwt3DColorLegend() : QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
@@ -47,95 +47,54 @@ Qwt3DColorLegend::Qwt3DColorLegend() : QWT_PIMPL_CONSTRUCT
 
 Qwt3DColorLegend::~Qwt3DColorLegend() = default;
 
-/**
- * @brief Sets the legend title string
- * @param s Title text string
- */
 void Qwt3DColorLegend::setTitleString(QString const& s)
 {
     QWT_D(d);
     d->m_caption.setString(s);
 }
 
-/**
- * @brief Sets the legend title font
- * @param family Font family name
- * @param pointSize Font point size
- * @param weight Font weight
- * @param italic Whether font is italic
- */
 void Qwt3DColorLegend::setTitleFont(QString const& family, int pointSize, int weight, bool italic)
 {
     QWT_D(d);
     d->m_caption.setFont(family, pointSize, weight, italic);
 }
 
-/**
- * @brief Sets axis scale limits
- * @param start Start value
- * @param stop Stop value
- */
 void Qwt3DColorLegend::setLimits(double start, double stop)
 {
     QWT_D(d);
     d->m_axis.setLimits(start, stop);
 }
 
-/**
- * @brief Sets number of major intervals
- * @param majors Number of major intervals
- */
 void Qwt3DColorLegend::setMajors(int majors)
 {
     QWT_D(d);
     d->m_axis.setMajors(majors);
 }
 
-/**
- * @brief Sets number of minor intervals
- * @param minors Number of minor intervals
- */
 void Qwt3DColorLegend::setMinors(int minors)
 {
     QWT_D(d);
     d->m_axis.setMinors(minors);
 }
 
-/**
- * @brief Enables or disables auto-scaling
- * @param val True to enable auto-scaling, false to disable
- */
 void Qwt3DColorLegend::setAutoScale(bool val)
 {
     QWT_D(d);
     d->m_axis.setAutoScale(val);
 }
 
-/**
- * @brief Sets predefined scale type
- * @param val Scale type (LINEARSCALE or LOG10SCALE)
- */
 void Qwt3DColorLegend::setScale(SCALETYPE val)
 {
     QWT_D(d);
     d->m_axis.setScale(val);
 }
 
-/**
- * @brief Sets a user-defined scale object
- * @param val Pointer to a Qwt3DScale object
- */
 void Qwt3DColorLegend::setScale(Qwt3DScale* val)
 {
     QWT_D(d);
     d->m_axis.setScale(val);
 }
 
-/**
- * @brief Sets the legend orientation and axis scale position
- * @param orientation Legend orientation (BottomTop or TopBottom)
- * @param pos Axis scale position (Left, Right, Top, or Bottom)
- */
 void Qwt3DColorLegend::setOrientation(ORIENTATION orientation, SCALEPOSITION pos)
 {
     QWT_D(d);
@@ -151,11 +110,6 @@ void Qwt3DColorLegend::setOrientation(ORIENTATION orientation, SCALEPOSITION pos
     }
 }
 
-/**
- * @brief Sets relative position of the legend within the plot area
- * @param relMin Minimum relative position (x,y)
- * @param relMax Maximum relative position (x,y)
- */
 void Qwt3DColorLegend::setRelPosition(Tuple relMin, Tuple relMax)
 {
     QWT_D(d);
@@ -167,11 +121,11 @@ void Qwt3DColorLegend::setGeometryInternal()
 {
     QWT_D(d);
 
-    double ot = .99;
+    if (!plot())
+        return;
 
-    getMatrices(modelMatrix, projMatrix, viewport);
-    d->m_pe.minVertex = relativePosition(Triple(d->m_relMin.x, d->m_relMin.y, ot));
-    d->m_pe.maxVertex = relativePosition(Triple(d->m_relMax.x, d->m_relMax.y, ot));
+    d->m_pe.minVertex = relativePosition(Triple(d->m_relMin.x, d->m_relMin.y, 0.99));
+    d->m_pe.maxVertex = relativePosition(Triple(d->m_relMax.x, d->m_relMax.y, 0.99));
 
     double diff = 0;
     Triple b;
@@ -247,8 +201,10 @@ void Qwt3DColorLegend::drawNumbers(bool val)
 }
 
 /**
- * @brief Draws the color legend
- * @details Renders the color legend including color bar, axis, and caption.
+ * @brief Draws the color legend using VBO + polygon/line shaders
+ * @details Renders the color bar as a set of quads using VBO + polygon shader,
+ *          the border outline using VBO + line shader, then delegates axis
+ *          and caption drawing to their respective draw() methods.
  */
 void Qwt3DColorLegend::draw()
 {
@@ -259,7 +215,9 @@ void Qwt3DColorLegend::draw()
 
     setGeometryInternal();
 
-    saveGLState();
+    // Ensure axis and caption have plot pointer
+    d->m_axis.setPlot(plot());
+    d->m_caption.setPlot(plot());
 
     Triple one = d->m_pe.minVertex;
     Triple two = d->m_pe.maxVertex;
@@ -267,47 +225,135 @@ void Qwt3DColorLegend::draw()
     double h = (d->m_orientation == Qwt3DColorLegend::BottomTop) ? (two - one).z / colors.size()
                                                             : (two - one).x / colors.size();
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    GLStateBewarer(GL_POLYGON_OFFSET_FILL, true);
+    // --- Draw color bar quads using VBO + polygon shader ---
+    if (plot()) {
+        auto* polyShader = plot()->polygonShader();
+        auto* lineShader = plot()->lineShader();
+        auto* f = QOpenGLContext::currentContext()->functions();
 
-    glColor4d(0, 0, 0, 1);
-    glBegin(GL_LINE_LOOP);
-    glVertex3d(one.x, one.y, one.z);
-    glVertex3d(one.x, one.y, two.z);
-    glVertex3d(two.x, one.y, two.z);
-    glVertex3d(two.x, one.y, one.z);
-    glEnd();
+        if (polyShader) {
+            // Build quad vertices: position(3) + color(4) = 7 floats per vertex
+            QVector<float> verts;
+            size_t size = colors.size();
 
-    size_t size = colors.size();
-    RGBA rgb;
+            if (d->m_orientation == Qwt3DColorLegend::BottomTop) {
+                for (unsigned i = 1; i <= size; ++i) {
+                    const RGBA& rgb = colors[ i - 1 ];
+                    float cr = static_cast< float >(rgb.r);
+                    float cg = static_cast< float >(rgb.g);
+                    float cb = static_cast< float >(rgb.b);
+                    float ca = static_cast< float >(rgb.a);
 
-    if (d->m_orientation == Qwt3DColorLegend::BottomTop) {
-        for (unsigned i = 1; i <= size; ++i) {
-            rgb = colors[ i - 1 ];
-            glColor4d(rgb.r, rgb.g, rgb.b, rgb.a);
-            glBegin(GL_POLYGON);
-            glVertex3d(one.x, one.y, one.z + (i - 1) * h);
-            glVertex3d(one.x, one.y, one.z + i * h);
-            glVertex3d(two.x, one.y, one.z + i * h);
-            glVertex3d(two.x, one.y, one.z + (i - 1) * h);
-            glEnd();
+                    // Quad: BL, TL, BR, TR (triangle strip)
+                    // BL
+                    verts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(one.z + (i - 1) * h)
+                          << cr << cg << cb << ca;
+                    // TL
+                    verts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(one.z + i * h)
+                          << cr << cg << cb << ca;
+                    // BR
+                    verts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(one.z + (i - 1) * h)
+                          << cr << cg << cb << ca;
+                    // TR
+                    verts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(one.z + i * h)
+                          << cr << cg << cb << ca;
+                }
+            } else {
+                for (unsigned i = 1; i <= size; ++i) {
+                    const RGBA& rgb = colors[ i - 1 ];
+                    float cr = static_cast< float >(rgb.r);
+                    float cg = static_cast< float >(rgb.g);
+                    float cb = static_cast< float >(rgb.b);
+                    float ca = static_cast< float >(rgb.a);
+
+                    // BL
+                    verts << static_cast< float >(one.x + (i - 1) * h) << static_cast< float >(one.y) << static_cast< float >(one.z)
+                          << cr << cg << cb << ca;
+                    // TL
+                    verts << static_cast< float >(one.x + (i - 1) * h) << static_cast< float >(one.y) << static_cast< float >(two.z)
+                          << cr << cg << cb << ca;
+                    // BR
+                    verts << static_cast< float >(one.x + i * h) << static_cast< float >(one.y) << static_cast< float >(one.z)
+                          << cr << cg << cb << ca;
+                    // TR
+                    verts << static_cast< float >(one.x + i * h) << static_cast< float >(one.y) << static_cast< float >(two.z)
+                          << cr << cg << cb << ca;
+                }
+            }
+
+            QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
+            vbo.create();
+            vbo.bind();
+            vbo.allocate(verts.constData(), verts.size() * sizeof(float));
+
+            polyShader->bind();
+            polyShader->setUniformValue("uModelView", plot()->modelViewMatrix());
+            polyShader->setUniformValue("uProjection", plot()->projectionMatrix());
+            polyShader->setUniformValue("uAlpha", 1.0f);
+
+            int stride = 7 * sizeof(float);
+            polyShader->enableAttributeArray(0);
+            polyShader->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
+            polyShader->enableAttributeArray(1);
+            polyShader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 4, stride);
+
+            // Draw each quad as a triangle strip
+            int vertsPerQuad = 4;
+            for (int i = 0; i < static_cast< int >(colors.size()); ++i) {
+                f->glDrawArrays(GL_TRIANGLE_STRIP, i * vertsPerQuad, vertsPerQuad);
+            }
+
+            polyShader->disableAttributeArray(0);
+            polyShader->disableAttributeArray(1);
+            polyShader->release();
+            vbo.release();
+            vbo.destroy();
         }
-    } else {
-        for (unsigned i = 1; i <= size; ++i) {
-            rgb = colors[ i - 1 ];
-            glColor4d(rgb.r, rgb.g, rgb.b, rgb.a);
-            glBegin(GL_POLYGON);
-            glVertex3d(one.x + (i - 1) * h, one.y, one.z);
-            glVertex3d(one.x + i * h, one.y, one.z);
-            glVertex3d(one.x + i * h, one.y, two.z);
-            glVertex3d(one.x + (i - 1) * h, one.y, two.z);
-            glEnd();
+
+        // --- Draw border outline using VBO + line shader ---
+        if (lineShader) {
+            float br = 0.0f, bg = 0.0f, bb = 0.0f, ba = 1.0f;  // black border
+            QVector<float> lineVerts;
+            // BL -> TL
+            lineVerts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(one.z) << br << bg << bb << ba;
+            lineVerts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(two.z) << br << bg << bb << ba;
+            // TL -> TR
+            lineVerts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(two.z) << br << bg << bb << ba;
+            lineVerts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(two.z) << br << bg << bb << ba;
+            // TR -> BR
+            lineVerts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(two.z) << br << bg << bb << ba;
+            lineVerts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(one.z) << br << bg << bb << ba;
+            // BR -> BL
+            lineVerts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(one.z) << br << bg << bb << ba;
+            lineVerts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(one.z) << br << bg << bb << ba;
+
+            QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
+            vbo.create();
+            vbo.bind();
+            vbo.allocate(lineVerts.constData(), lineVerts.size() * sizeof(float));
+
+            lineShader->bind();
+            lineShader->setUniformValue("uModelView", plot()->modelViewMatrix());
+            lineShader->setUniformValue("uProjection", plot()->projectionMatrix());
+
+            int stride = 7 * sizeof(float);
+            lineShader->enableAttributeArray(0);
+            lineShader->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
+            lineShader->enableAttributeArray(1);
+            lineShader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 4, stride);
+
+            f->glLineWidth(1.0f);
+            f->glDrawArrays(GL_LINES, 0, lineVerts.size() / 7);
+
+            lineShader->disableAttributeArray(0);
+            lineShader->disableAttributeArray(1);
+            lineShader->release();
+            vbo.release();
+            vbo.destroy();
         }
     }
 
-    restoreGLState();
-
+    // Draw axis and caption
     if (d->m_showaxis)
         d->m_axis.draw();
 

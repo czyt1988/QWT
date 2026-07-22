@@ -3,12 +3,15 @@
 
 #include "qwt3d_global.h"
 #include "qwt3d_types.h"
-#include "qwt3d_io_gl2ps.h"
 
-
+class Qwt3DPlot;
 
 /**
  * @brief Abstract base class for Drawables
+ * @details Drawables are scene-graph nodes rendered during paintGL.
+ *          They no longer manage legacy GL state. Each drawable accesses
+ *          the owning Qwt3DPlot to obtain shared shaders and coordinate
+ *          conversion utilities.
  */
 class QWT3D_EXPORT Qwt3DDrawable
 {
@@ -17,10 +20,8 @@ class QWT3D_EXPORT Qwt3DDrawable
 public:
     virtual ~Qwt3DDrawable() = 0;
 
+    // Draws the drawable and all attached children
     virtual void draw();
-
-    virtual void saveGLState();
-    virtual void restoreGLState();
 
     void attach(Qwt3DDrawable*);
     void detach(Qwt3DDrawable*);
@@ -28,22 +29,22 @@ public:
 
     virtual void setColor(double r, double g, double b, double a = 1);
     virtual void setColor(RGBA rgba);
-    Triple relativePosition(Triple rel);
+
+    // Returns the owning plot (may be null)
+    Qwt3DPlot* plot() const;
+    // Sets the owning plot
+    void setPlot(Qwt3DPlot* p);
+
+    // Converts a relative viewport position to world coordinates
+    Triple relativePosition(Triple rel) const;
 
 protected:
     RGBA color;
-    void Enable(GLenum what, GLboolean val);
-    Triple ViewPort2World(Triple win, bool* err = nullptr);
-    Triple World2ViewPort(Triple obj, bool* err = nullptr);
+    Qwt3DPlot* m_plot = nullptr;
 
     Qwt3DDrawable();
     Qwt3DDrawable(Qwt3DDrawable&& other) noexcept;
     Qwt3DDrawable& operator=(Qwt3DDrawable&& other) noexcept;
-
-    GLdouble modelMatrix[ 16 ];
-    GLdouble projMatrix[ 16 ];
-    GLint viewport[ 4 ];
 };
-
 
 #endif

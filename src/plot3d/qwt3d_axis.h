@@ -139,6 +139,8 @@ private:
     bool prepTicCalculation(Triple& startpoint);
 
     Triple biggestNumberString();
+
+    void drawLines(const QVector<float>& vertices, double lineWidth);
 };
 
 

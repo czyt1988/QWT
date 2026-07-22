@@ -1,6 +1,12 @@
 #include <qbitmap.h>
 #include "qwt3d_label.h"
 
+#include "qwt3d_plot.h"
+
+#include <QOpenGLFunctions>
+#include <QOpenGLBuffer>
+#include <QOpenGLTexture>
+#include <QOpenGLShaderProgram>
 
 namespace
 {
@@ -38,34 +44,18 @@ public:
     bool m_flagForUpdate;
 };
 
-/**
- * @brief Default constructor
- */
 Qwt3DLabel::Qwt3DLabel() : QWT_PIMPL_CONSTRUCT
 {
     init();
 }
 
-/**
- * @brief Constructs a Qwt3DLabel with specified font parameters
- * @param family Font family name
- * @param pointSize Font point size
- * @param weight Font weight
- * @param italic Whether font is italic
- */
 Qwt3DLabel::Qwt3DLabel(const QString& family, int pointSize, int weight, bool italic) : QWT_PIMPL_CONSTRUCT
 {
     init(family, pointSize, weight, italic);
 }
 
-/**
- * @brief Destructor
- */
 Qwt3DLabel::~Qwt3DLabel() = default;
 
-/**
- * @brief Copy constructor
- */
 Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
@@ -82,18 +72,13 @@ Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CON
     d->m_gap              = od->m_gap;
     d->m_flagForUpdate    = od->m_flagForUpdate;
     color                 = other.color;
+    m_plot                = other.m_plot;
 }
 
-/**
- * @brief Move constructor
- */
 Qwt3DLabel::Qwt3DLabel(Qwt3DLabel&& other) noexcept : Qwt3DDrawable(std::move(other)), m_data(std::move(other.m_data))
 {
 }
 
-/**
- * @brief Copy assignment operator
- */
 Qwt3DLabel& Qwt3DLabel::operator=(const Qwt3DLabel& other)
 {
     if (this != &other) {
@@ -111,13 +96,11 @@ Qwt3DLabel& Qwt3DLabel::operator=(const Qwt3DLabel& other)
         d->m_gap              = od->m_gap;
         d->m_flagForUpdate    = od->m_flagForUpdate;
         color                 = other.color;
+        m_plot                = other.m_plot;
     }
     return *this;
 }
 
-/**
- * @brief Move assignment operator
- */
 Qwt3DLabel& Qwt3DLabel::operator=(Qwt3DLabel&& other) noexcept
 {
     if (this != &other) {
@@ -148,22 +131,11 @@ void Qwt3DLabel::init()
     d->m_flagForUpdate = true;
 }
 
-/**
- * @brief Enables or disables device font rendering for all labels
- * @param val True to use device fonts, false to use Qt-based rendering
- */
 void Qwt3DLabel::useDeviceFonts(bool val)
 {
     deviceFonts = val;
 }
 
-/**
- * @brief Sets the label font
- * @param family Font family name
- * @param pointSize Font point size
- * @param weight Font weight
- * @param italic Whether font is italic
- */
 void Qwt3DLabel::setFont(const QString& family, int pointSize, int weight, bool italic)
 {
     QWT_D(d);
@@ -171,10 +143,6 @@ void Qwt3DLabel::setFont(const QString& family, int pointSize, int weight, bool 
     d->m_flagForUpdate = true;
 }
 
-/**
- * @brief Sets the label text string
- * @param s Text string to display
- */
 void Qwt3DLabel::setString(QString const& s)
 {
     QWT_D(d);
@@ -182,13 +150,6 @@ void Qwt3DLabel::setString(QString const& s)
     d->m_flagForUpdate = true;
 }
 
-/**
- * @brief Sets the label color from RGBA components
- * @param r Red component
- * @param g Green component
- * @param b Blue component
- * @param a Alpha component
- */
 void Qwt3DLabel::setColor(double r, double g, double b, double a)
 {
     Qwt3DDrawable::setColor(r, g, b, a);
@@ -196,10 +157,6 @@ void Qwt3DLabel::setColor(double r, double g, double b, double a)
     d->m_flagForUpdate = true;
 }
 
-/**
- * @brief Sets the label color from an RGBA object
- * @param rgba RGBA color value
- */
 void Qwt3DLabel::setColor(RGBA rgba)
 {
     Qwt3DDrawable::setColor(rgba);
@@ -207,16 +164,6 @@ void Qwt3DLabel::setColor(RGBA rgba)
     d->m_flagForUpdate = true;
 }
 
-/**
- * @brief Sets the label position and anchor point
- * @param pos Position triple in world coordinates
- * @param a Anchor type defining how the label aligns relative to pos
- * @details Anchor example:
- *          TopCenter (*) resp. BottomRight (X):
- *          +----*----+
- *          |  Pixmap |
- *          +---------X
- */
 void Qwt3DLabel::setPosition(Triple pos, ANCHOR a)
 {
     QWT_D(d);
@@ -224,18 +171,11 @@ void Qwt3DLabel::setPosition(Triple pos, ANCHOR a)
     d->m_pos    = pos;
 }
 
-/**
- * @brief Sets the label position relative to the viewport
- * @param rpos Relative position tuple (x,y)
- * @param a Anchor type defining how the label aligns
- */
 void Qwt3DLabel::setRelPosition(Tuple rpos, ANCHOR a)
 {
     QWT_D(d);
-    double ot = 0.99;
-
-    getMatrices(modelMatrix, projMatrix, viewport);
-    d->m_beg = relativePosition(Triple(rpos.x, rpos.y, ot));
+    d->m_anchor = a;
+    d->m_beg = relativePosition(Triple(rpos.x, rpos.y, 0.99));
     setPosition(d->m_beg, a);
 }
 
@@ -247,15 +187,15 @@ void Qwt3DLabel::update()
 
     QFontInfo info(d->m_font);
 
-    QRect r = QRect(QPoint(0, 0), fm.size(SingleLine, d->m_text));  // fm.boundingRect(text_)  misbehaviour under linux;
+    QRect r = QRect(QPoint(0, 0), fm.size(SingleLine, d->m_text));
 
     r.translate(0, -r.top());
 
     d->m_pm = QPixmap(r.width(), r.bottom());
 
-    if (d->m_pm.isNull())  // else crash under linux
+    if (d->m_pm.isNull())
     {
-        r = QRect(QPoint(0, 0), fm.size(SingleLine, QString(" ")));  // draw empty space else //todo
+        r = QRect(QPoint(0, 0), fm.size(SingleLine, QString(" ")));
         r.translate(0, -r.top());
         d->m_pm = QPixmap(r.width(), r.bottom());
     }
@@ -281,14 +221,6 @@ void Qwt3DLabel::update()
     d->m_tex = d->m_buf.mirrored();
 }
 
-/**
- * @brief Adds an additional shift to the anchor point
- * @param gap Gap value in pixels
- * @details The shift direction depends on the anchor type:
- *          left aligned -->, right aligned <--, top aligned top-down,
- *          bottom aligned bottom-up. The unit is user space dependent
- *          (one pixel on screen - play around to get satisfying results).
- */
 void Qwt3DLabel::adjust(int gap)
 {
     QWT_D(d);
@@ -298,45 +230,84 @@ void Qwt3DLabel::adjust(int gap)
 void Qwt3DLabel::convert2screen()
 {
     QWT_D(d);
-    Triple start = World2ViewPort(d->m_pos);
+    if (!plot())
+        return;
+
+    Qwt3DPlot* p = plot();
+    QMatrix4x4 mvp = p->projectionMatrix() * p->modelViewMatrix();
+
+    // Compute NDC z of the label position
+    QVector4D posVec(static_cast< float >(d->m_pos.x),
+                     static_cast< float >(d->m_pos.y),
+                     static_cast< float >(d->m_pos.z),
+                     1.0f);
+    QVector4D clip = mvp.map(posVec);
+    float ndcZ = 0.0f;
+    if (clip.w() != 0.0f)
+        ndcZ = clip.z() / clip.w();
+
+    QSize vp = p->viewportSize();
+    if (vp.width() <= 0 || vp.height() <= 0)
+        return;
+
+    // Helper to convert screen + NDC z back to world
+    auto screenToWorldZ = [&](const QPointF& s) -> Triple {
+        float ndcX = 2.0f * static_cast< float >(s.x()) / vp.width() - 1.0f;
+        float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / vp.height();
+        QVector4D ndc(ndcX, ndcY, ndcZ, 1.0f);
+        QVector4D world = mvp.inverted().map(ndc);
+        if (world.w() != 0.0f)
+            return Triple(world.x() / world.w(), world.y() / world.w(), world.z() / world.w());
+        return Triple(0, 0, 0);
+    };
+
+    QPointF screen = p->worldToScreen(d->m_pos);
+
+    double w = width();
+    double h = height();
 
     switch (d->m_anchor) {
     case BottomLeft:
         d->m_beg = d->m_pos;
         break;
     case BottomRight:
-        d->m_beg = ViewPort2World(start - Triple(width() + d->m_gap, 0, 0));
+        d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, 0));
         break;
     case BottomCenter:
-        d->m_beg = ViewPort2World(start - Triple(width() / 2, -d->m_gap, 0));
+        d->m_beg = screenToWorldZ(screen - QPointF(w / 2, -d->m_gap));
         break;
     case TopRight:
-        d->m_beg = ViewPort2World(start - Triple(width() + d->m_gap, height(), 0));
+        d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, h));
         break;
     case TopLeft:
-        d->m_beg = ViewPort2World(start - Triple(-d->m_gap, height(), 0));
+        d->m_beg = screenToWorldZ(screen - QPointF(-d->m_gap, h));
         break;
     case TopCenter:
-        d->m_beg = ViewPort2World(start - Triple(width() / 2, height() + d->m_gap, 0));
+        d->m_beg = screenToWorldZ(screen - QPointF(w / 2, h + d->m_gap));
         break;
     case CenterLeft:
-        d->m_beg = ViewPort2World(start - Triple(-d->m_gap, height() / 2, 0));
+        d->m_beg = screenToWorldZ(screen - QPointF(-d->m_gap, h / 2));
         break;
     case CenterRight:
-        d->m_beg = ViewPort2World(start - Triple(width() + d->m_gap, height() / 2, 0));
+        d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, h / 2));
         break;
     case Center:
-        d->m_beg = ViewPort2World(start - Triple(width() / 2, height() / 2, 0));
+        d->m_beg = screenToWorldZ(screen - QPointF(w / 2, h / 2));
         break;
     default:
         break;
     }
-    start    = World2ViewPort(d->m_beg);
-    d->m_end = ViewPort2World(start + Triple(width(), height(), 0));
+
+    QPointF begScreen = p->worldToScreen(d->m_beg);
+    d->m_end = screenToWorldZ(begScreen + QPointF(w, h));
 }
 
 /**
- * @brief Draws the label
+ * @brief Draws the label using a texture quad with GLSL text shader
+ * @details Renders the text to a QImage, creates an OpenGL texture,
+ *          and draws a textured quad using VBO + text.vert/text.frag shaders.
+ *          For gl2ps vector export (deviceFonts mode), falls back to
+ *          drawDeviceText.
  */
 void Qwt3DLabel::draw()
 {
@@ -349,46 +320,87 @@ void Qwt3DLabel::draw()
     if (d->m_buf.isNull())
         return;
 
-    GLboolean b;
-    GLint func;
-    GLdouble v;
-    glGetBooleanv(GL_ALPHA_TEST, &b);
-    glGetIntegerv(GL_ALPHA_TEST_FUNC, &func);
-    glGetDoublev(GL_ALPHA_TEST_REF, &v);
-
-    glEnable(GL_ALPHA_TEST);
-    glAlphaFunc(GL_NOTEQUAL, 0.0);
-
     convert2screen();
-    glRasterPos3d(d->m_beg.x, d->m_beg.y, d->m_beg.z);
 
-    int w = d->m_tex.width();
-    int h = d->m_tex.height();
+    if (!plot())
+        return;
 
+    // gl2ps vector export path: use device text for vector output
     if (deviceFonts) {
-        drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(), d->m_pos, color, d->m_anchor, d->m_gap);
-    } else {
-        drawDevicePixels(w, h, GL_RGBA, GL_UNSIGNED_BYTE, d->m_tex.bits());
+        drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(),
+                       d->m_pos, color, d->m_anchor, d->m_gap);
+        return;
     }
 
-    glAlphaFunc(func, v);
-    Enable(GL_ALPHA_TEST, b);
+    auto* shader = plot()->textShader();
+    if (!shader)
+        return;
+
+    auto* f = QOpenGLContext::currentContext()->functions();
+
+    // Create texture from the text image (alpha channel is used by shader)
+    QOpenGLTexture texture(d->m_tex);
+    texture.setMinificationFilter(QOpenGLTexture::Linear);
+    texture.setMagnificationFilter(QOpenGLTexture::Linear);
+    texture.setWrapMode(QOpenGLTexture::ClampToEdge);
+
+    // Build quad vertices: position(3) + texcoord(2) = 5 floats per vertex
+    // Triangle strip order: BL, TL, BR, TR
+    QVector<float> verts;
+    // Bottom-left
+    verts << static_cast< float >(d->m_beg.x) << static_cast< float >(d->m_beg.y) << static_cast< float >(d->m_beg.z)
+          << 0.0f << 1.0f;
+    // Top-left
+    verts << static_cast< float >(d->m_beg.x) << static_cast< float >(d->m_end.y) << static_cast< float >(d->m_end.z)
+          << 0.0f << 0.0f;
+    // Bottom-right
+    verts << static_cast< float >(d->m_end.x) << static_cast< float >(d->m_beg.y) << static_cast< float >(d->m_beg.z)
+          << 1.0f << 1.0f;
+    // Top-right
+    verts << static_cast< float >(d->m_end.x) << static_cast< float >(d->m_end.y) << static_cast< float >(d->m_end.z)
+          << 1.0f << 0.0f;
+
+    QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
+    vbo.create();
+    vbo.bind();
+    vbo.allocate(verts.constData(), verts.size() * sizeof(float));
+
+    shader->bind();
+    shader->setUniformValue("uModelView", plot()->modelViewMatrix());
+    shader->setUniformValue("uProjection", plot()->projectionMatrix());
+    shader->setUniformValue("uTextTexture", 0);
+    shader->setUniformValue("uTextColor",
+                            QVector4D(static_cast< float >(color.r),
+                                      static_cast< float >(color.g),
+                                      static_cast< float >(color.b),
+                                      static_cast< float >(color.a)));
+
+    texture.bind(0);
+
+    int stride = 5 * sizeof(float);
+    shader->enableAttributeArray(0);
+    shader->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
+    shader->enableAttributeArray(1);
+    shader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 2, stride);
+
+    f->glEnable(GL_BLEND);
+    f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    f->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    shader->disableAttributeArray(0);
+    shader->disableAttributeArray(1);
+    shader->release();
+    texture.release();
+    vbo.release();
+    vbo.destroy();
 }
 
-/**
- * @brief Returns the label width in pixels
- * @return Label pixmap width
- */
 double Qwt3DLabel::width() const
 {
     QWT_DC(d);
     return d->m_pm.width();
 }
 
-/**
- * @brief Returns the label height in pixels
- * @return Label pixmap height
- */
 double Qwt3DLabel::height() const
 {
     QWT_DC(d);

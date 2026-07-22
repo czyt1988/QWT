@@ -1,5 +1,10 @@
 #include "qwt3d_axis.h"
 
+#include "qwt3d_plot.h"
+
+#include <QOpenGLFunctions>
+#include <QOpenGLBuffer>
+#include <QOpenGLShaderProgram>
 
 class Qwt3DAxis::PrivateData
 {
@@ -161,11 +166,6 @@ double Qwt3DAxis::length() const
     return (d->m_end - d->m_beg).length();
 }
 
-/**
- * @brief Sets the axis position
- * @param beg Start position of the axis
- * @param end End position of the axis
- */
 void Qwt3DAxis::setPosition(const Triple& beg, const Triple& end)
 {
     QWT_D(d);
@@ -173,38 +173,24 @@ void Qwt3DAxis::setPosition(const Triple& beg, const Triple& end)
     d->m_end = end;
 }
 
-/**
- * @brief Sets number of major intervals
- * @param val Number of major intervals (always >= 1)
- */
 void Qwt3DAxis::setMajors(int val)
 {
     QWT_D(d);
     if (val == d->m_majorIntervals)
         return;
 
-    d->m_majorIntervals = (val <= 0) ? 1 : val;  // always >= 1
+    d->m_majorIntervals = (val <= 0) ? 1 : val;
 }
 
-/**
- * @brief Sets number of minor intervals
- * @param val Number of minor intervals (always >= 1)
- * @see Qwt3DLogScale::setMinors()
- */
 void Qwt3DAxis::setMinors(int val)
 {
     QWT_D(d);
     if (val == d->m_minorIntervals)
         return;
 
-    d->m_minorIntervals = (val <= 0) ? 1 : val;  // always >= 1
+    d->m_minorIntervals = (val <= 0) ? 1 : val;
 }
 
-/**
- * @brief Sets tic length
- * @param majorl Length of major tics
- * @param minorl Length of minor tics
- */
 void Qwt3DAxis::setTicLength(double majorl, double minorl)
 {
     QWT_D(d);
@@ -219,21 +205,11 @@ void Qwt3DAxis::ticLength(double& majorl, double& minorl) const
     minorl = d->m_lmin;
 }
 
-/**
- * @brief Sets tic orientation from individual components
- * @param tx X component of tic orientation
- * @param ty Y component of tic orientation
- * @param tz Z component of tic orientation
- */
 void Qwt3DAxis::setTicOrientation(double tx, double ty, double tz)
 {
     setTicOrientation(Triple(tx, ty, tz));
 }
 
-/**
- * @brief Sets tic orientation from a Triple vector
- * @param val Orientation vector for tics (will be normalized)
- */
 void Qwt3DAxis::setTicOrientation(const Triple& val)
 {
     QWT_D(d);
@@ -253,12 +229,6 @@ void Qwt3DAxis::setSymmetricTics(bool b)
     d->m_symtics = b;
 }
 
-/**
- * @brief Sets line width for axis and tics
- * @param val Thickness for axis base line
- * @param majfac Relative thickness for axis major tics (majfac*val)
- * @param minfac Relative thickness for axis minor tics (minfac*val)
- */
 void Qwt3DAxis::setLineWidth(double val, double majfac, double minfac)
 {
     QWT_D(d);
@@ -401,30 +371,159 @@ bool Qwt3DAxis::autoScale() const
     return d->m_autoScale;
 }
 
+void Qwt3DAxis::setNumberFont(QString const& family, int pointSize, int weight, bool italic)
+{
+    QWT_D(d);
+    d->m_numberFont = QFont(family, pointSize, weight, italic);
+}
+
+void Qwt3DAxis::setNumberFont(QFont const& font)
+{
+    QWT_D(d);
+    d->m_numberFont = font;
+}
+
+void Qwt3DAxis::setNumberColor(RGBA col)
+{
+    QWT_D(d);
+    d->m_numberColor = col;
+}
+
+void Qwt3DAxis::setLabelFont(QString const& family, int pointSize, int weight, bool italic)
+{
+    QWT_D(d);
+    d->m_labelFont = QFont(family, pointSize, weight, italic);
+    d->m_label.setFont(family, pointSize, weight, italic);
+}
+
+void Qwt3DAxis::setLabelFont(QFont const& font)
+{
+    setLabelFont(font.family(), font.pointSize(), font.weight(), font.italic());
+}
+
+void Qwt3DAxis::setLabelString(QString const& name)
+{
+    QWT_D(d);
+    d->m_label.setString(name);
+}
+
+void Qwt3DAxis::setLabelPosition(const Triple& pos, ANCHOR an)
+{
+    QWT_D(d);
+    d->m_label.setPosition(pos, an);
+}
+
+void Qwt3DAxis::setLabelColor(RGBA col)
+{
+    QWT_D(d);
+    d->m_label.setColor(col);
+}
+
+void Qwt3DAxis::setScale(Qwt3DScale* val)
+{
+    QWT_D(d);
+    d->m_scale = Qwt3DClonePtr< Qwt3DScale >(val);
+}
+
+void Qwt3DAxis::setScale(SCALETYPE val)
+{
+    switch (val) {
+    case LINEARSCALE:
+        setScale(new Qwt3DLinearScale);
+        break;
+    case LOG10SCALE:
+        setScale(new Qwt3DLogScale);
+        setMinors(9);
+        break;
+    default:
+        break;
+    }
+}
+
+/**
+ * @brief Helper: draws a set of line segments using VBO + line shader
+ * @param vertices Interleaved vertex data: 7 floats per vertex (pos.xyz + color.rgba)
+ * @param lineWidth Line width in pixels (TODO: may not be supported > 1.0 in Core Profile)
+ */
+void Qwt3DAxis::drawLines(const QVector<float>& vertices, double lineWidth)
+{
+    if (vertices.isEmpty() || !plot())
+        return;
+
+    auto* shader = plot()->lineShader();
+    if (!shader)
+        return;
+
+    auto* f = QOpenGLContext::currentContext()->functions();
+
+    // TODO: glLineWidth > 1.0 is not guaranteed in Core Profile (Plan B)
+    f->glLineWidth(static_cast< GLfloat >(std::max(1.0, lineWidth)));
+
+    QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
+    vbo.create();
+    vbo.bind();
+    vbo.allocate(vertices.constData(), vertices.size() * sizeof(float));
+
+    shader->bind();
+    shader->setUniformValue("uModelView", plot()->modelViewMatrix());
+    shader->setUniformValue("uProjection", plot()->projectionMatrix());
+
+    int stride = 7 * sizeof(float);
+    shader->enableAttributeArray(0);
+    shader->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
+    shader->enableAttributeArray(1);
+    shader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 4, stride);
+
+    f->glDrawArrays(GL_LINES, 0, vertices.size() / 7);
+
+    shader->disableAttributeArray(0);
+    shader->disableAttributeArray(1);
+    shader->release();
+    vbo.release();
+    vbo.destroy();
+}
+
 /**
  * @brief Draws the axis including base line, tics, and label
+ * @details Uses VBO + line shader for line geometry. Labels are drawn
+ *          via Qwt3DLabel::draw() which uses its own texture-based rendering.
  */
 void Qwt3DAxis::draw()
 {
+    // Draw children first
     Qwt3DDrawable::draw();
 
-    saveGLState();
+    if (!plot())
+        return;
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4d(color.r, color.g, color.b, color.a);
+    // Ensure labels have plot pointer set
+    QWT_D(d);
+    d->m_label.setPlot(plot());
+    for (auto& ml : d->m_markerLabel)
+        ml.setPlot(plot());
 
-    drawBase();
+    // Collect and draw base line
+    {
+        QVector<float> verts;
+        // vertex: pos.xyz(3) + color.rgba(4) = 7 floats
+        float r = static_cast< float >(color.r);
+        float g = static_cast< float >(color.g);
+        float b = static_cast< float >(color.b);
+        float a = static_cast< float >(color.a);
+        verts << static_cast< float >(d->m_beg.x) << static_cast< float >(d->m_beg.y) << static_cast< float >(d->m_beg.z) << r << g << b << a;
+        verts << static_cast< float >(d->m_end.x) << static_cast< float >(d->m_end.y) << static_cast< float >(d->m_end.z) << r << g << b << a;
+        drawLines(verts, d->m_lineWidth);
+    }
+
     drawTics();
     drawLabel();
-
-    restoreGLState();
 }
 
 void Qwt3DAxis::drawLabel()
 {
     QWT_D(d);
 
-    if (!d->m_drawLabel)
+    if (!d->m_drawLabel || !plot())
         return;
 
     Triple diff   = end() - begin();
@@ -455,7 +554,8 @@ void Qwt3DAxis::drawLabel()
         break;
     }
 
-    Triple pos = ViewPort2World(World2ViewPort(center + ticOrientation() * d->m_lmaj) + bnumber);
+    QPointF screen = plot()->worldToScreen(center + ticOrientation() * d->m_lmaj);
+    Triple pos = plot()->screenToWorld(screen + QPointF(bnumber.x, bnumber.y));
     setLabelPosition(pos, d->m_scaleNumberAnchor);
 
     d->m_label.adjust(d->m_labelGap);
@@ -464,12 +564,8 @@ void Qwt3DAxis::drawLabel()
 
 void Qwt3DAxis::drawBase()
 {
-    QWT_D(d);
-    setDeviceLineWidth(d->m_lineWidth);
-    glBegin(GL_LINES);
-    glVertex3d(d->m_beg.x, d->m_beg.y, d->m_beg.z);
-    glVertex3d(d->m_end.x, d->m_end.y, d->m_end.z);
-    glEnd();
+    // Base line is now drawn directly in draw() via drawLines()
+    // This method is kept for API compatibility but does nothing
 }
 
 bool Qwt3DAxis::prepTicCalculation(Triple& startpoint)
@@ -538,18 +634,49 @@ void Qwt3DAxis::drawTics()
     const auto& majorsVec = d->m_scale->majorTicks();
     const auto& minorsVec = d->m_scale->minorTicks();
     d->m_markerLabel.resize(majorsVec.size());
-    setDeviceLineWidth(d->m_majLineWidth);
-    for (i = 0; i != majorsVec.size(); ++i) {
-        double t = (majorsVec[ i ] - d->m_start) / (d->m_stop - d->m_start);
-        nadir    = d->m_beg + t * runningpoint;
-        d->m_majorPos.push_back(drawTic(nadir, d->m_lmaj));
-        drawTicLabel(nadir + 1.2 * d->m_lmaj * d->m_orientation, i);
+
+    float r = static_cast< float >(color.r);
+    float g = static_cast< float >(color.g);
+    float b = static_cast< float >(color.b);
+    float a = static_cast< float >(color.a);
+
+    // Collect and draw major tics
+    {
+        QVector<float> verts;
+        for (i = 0; i != majorsVec.size(); ++i) {
+            double t = (majorsVec[ i ] - d->m_start) / (d->m_stop - d->m_start);
+            nadir    = d->m_beg + t * runningpoint;
+            d->m_majorPos.push_back(nadir);
+
+            double ilen = (d->m_symtics) ? -d->m_lmaj : 0.0;
+            Triple p1 = nadir + ilen * d->m_orientation;
+            Triple p2 = nadir + d->m_lmaj * d->m_orientation;
+            verts << static_cast< float >(p1.x) << static_cast< float >(p1.y) << static_cast< float >(p1.z) << r << g << b << a;
+            verts << static_cast< float >(p2.x) << static_cast< float >(p2.y) << static_cast< float >(p2.z) << r << g << b << a;
+        }
+        drawLines(verts, d->m_majLineWidth);
+
+        // Draw tic labels
+        for (i = 0; i != majorsVec.size(); ++i) {
+            drawTicLabel(nadir + 1.2 * d->m_lmaj * d->m_orientation, static_cast< int >(i));
+        }
     }
-    setDeviceLineWidth(d->m_minLineWidth);
-    for (i = 0; i != minorsVec.size(); ++i) {
-        double t = (minorsVec[ i ] - d->m_start) / (d->m_stop - d->m_start);
-        nadir    = d->m_beg + t * runningpoint;
-        d->m_minorPos.push_back(drawTic(nadir, d->m_lmin));
+
+    // Collect and draw minor tics
+    {
+        QVector<float> verts;
+        for (i = 0; i != minorsVec.size(); ++i) {
+            double t = (minorsVec[ i ] - d->m_start) / (d->m_stop - d->m_start);
+            nadir    = d->m_beg + t * runningpoint;
+            d->m_minorPos.push_back(nadir);
+
+            double ilen = (d->m_symtics) ? -d->m_lmin : 0.0;
+            Triple p1 = nadir + ilen * d->m_orientation;
+            Triple p2 = nadir + d->m_lmin * d->m_orientation;
+            verts << static_cast< float >(p1.x) << static_cast< float >(p1.y) << static_cast< float >(p1.z) << r << g << b << a;
+            verts << static_cast< float >(p2.x) << static_cast< float >(p2.y) << static_cast< float >(p2.z) << r << g << b << a;
+        }
+        drawLines(verts, d->m_minLineWidth);
     }
 }
 
@@ -557,7 +684,7 @@ void Qwt3DAxis::drawTicLabel(Triple pos, int mtic)
 {
     QWT_D(d);
 
-    if (!d->m_drawNumbers || (mtic < 0))
+    if (!d->m_drawNumbers || (mtic < 0) || mtic >= static_cast< int >(d->m_markerLabel.size()))
         return;
 
     d->m_markerLabel[ mtic ].setFont(
@@ -566,111 +693,19 @@ void Qwt3DAxis::drawTicLabel(Triple pos, int mtic)
     d->m_markerLabel[ mtic ].setString(d->m_scale->ticLabel(mtic));
     d->m_markerLabel[ mtic ].setPosition(pos, d->m_scaleNumberAnchor);
     d->m_markerLabel[ mtic ].adjust(d->m_numberGap);
+    d->m_markerLabel[ mtic ].setPlot(plot());
     d->m_markerLabel[ mtic ].draw();
 }
 
 Triple Qwt3DAxis::drawTic(Triple nadir, double length)
 {
+    // This method is no longer used for direct GL drawing.
+    // Tic geometry is now collected and drawn via drawLines() in drawTics().
+    // Kept for API compatibility — returns the nadir position.
     QWT_D(d);
-
-    double ilength = (d->m_symtics) ? -length : 0.0;
-
-    glBegin(GL_LINES);
-    glVertex3d(nadir.x + ilength * d->m_orientation.x,
-               nadir.y + ilength * d->m_orientation.y,
-               nadir.z + ilength * d->m_orientation.z);
-    glVertex3d(nadir.x + length * d->m_orientation.x,
-               nadir.y + length * d->m_orientation.y,
-               nadir.z + length * d->m_orientation.z);
-    glEnd();
+    (void)length;
+    (void)d;
     return nadir;
-}
-
-/**
- * @brief Sets the font for axis numbers
- * @param family Font family name
- * @param pointSize Font point size
- * @param weight Font weight
- * @param italic Whether font is italic
- */
-void Qwt3DAxis::setNumberFont(QString const& family, int pointSize, int weight, bool italic)
-{
-    QWT_D(d);
-    d->m_numberFont = QFont(family, pointSize, weight, italic);
-}
-
-/**
- * @brief Sets the font for axis numbers
- * @param font QFont object to use for axis numbers
- */
-void Qwt3DAxis::setNumberFont(QFont const& font)
-{
-    QWT_D(d);
-    d->m_numberFont = font;
-}
-
-/**
- * @brief Sets the color for axis numbers
- * @param col RGBA color value for axis numbers
- */
-void Qwt3DAxis::setNumberColor(RGBA col)
-{
-    QWT_D(d);
-    d->m_numberColor = col;
-}
-
-/**
- * @brief Sets the font for the axis label
- * @param family Font family name
- * @param pointSize Font point size
- * @param weight Font weight
- * @param italic Whether font is italic
- */
-void Qwt3DAxis::setLabelFont(QString const& family, int pointSize, int weight, bool italic)
-{
-    QWT_D(d);
-    d->m_labelFont = QFont(family, pointSize, weight, italic);
-    d->m_label.setFont(family, pointSize, weight, italic);
-}
-
-/**
- * @brief Sets the font for the axis label
- * @param font QFont object to use for the axis label
- */
-void Qwt3DAxis::setLabelFont(QFont const& font)
-{
-    setLabelFont(font.family(), font.pointSize(), font.weight(), font.italic());
-}
-
-/**
- * @brief Sets the axis label string
- * @param name The label text string
- */
-void Qwt3DAxis::setLabelString(QString const& name)
-{
-    QWT_D(d);
-    d->m_label.setString(name);
-}
-
-/**
- * @brief Sets label position in conjunction with an anchoring strategy
- * @param pos Position for the label
- * @param an Anchor strategy for the label
- */
-void Qwt3DAxis::setLabelPosition(const Triple& pos, ANCHOR an)
-{
-    QWT_D(d);
-    d->m_label.setPosition(pos, an);
-}
-
-/**
- * @brief Sets color for the axis label
- * @param col RGBA color value for the label
- */
-void Qwt3DAxis::setLabelColor(RGBA col)
-{
-    QWT_D(d);
-    d->m_label.setColor(col);
 }
 
 Triple Qwt3DAxis::biggestNumberString()
@@ -678,13 +713,17 @@ Triple Qwt3DAxis::biggestNumberString()
     QWT_D(d);
 
     Triple ret;
+    if (!plot())
+        return ret;
+
     size_t size = d->m_markerLabel.size();
 
-    double width, height;
-
     for (unsigned i = 0; i != size; ++i) {
-        width = fabs((World2ViewPort(d->m_markerLabel[ i ].second()) - World2ViewPort(d->m_markerLabel[ i ].first())).x);
-        height = fabs((World2ViewPort(d->m_markerLabel[ i ].second()) - World2ViewPort(d->m_markerLabel[ i ].first())).y);
+        QPointF first = plot()->worldToScreen(d->m_markerLabel[ i ].first());
+        QPointF second = plot()->worldToScreen(d->m_markerLabel[ i ].second());
+
+        double width = fabs(second.x() - first.x());
+        double height = fabs(second.y() - first.y());
 
         if (width > ret.x)
             ret.x = width + d->m_markerLabel[ i ].gap();
@@ -692,37 +731,4 @@ Triple Qwt3DAxis::biggestNumberString()
             ret.y = height + d->m_markerLabel[ i ].gap();
     }
     return ret;
-}
-
-/**
- * @brief Sets a user-defined scale object
- * @param val Pointer to a Qwt3DScale object. Use with a heap based initialized pointer only.
- *            The axis adopts ownership.
- */
-void Qwt3DAxis::setScale(Qwt3DScale* val)
-{
-    QWT_D(d);
-    d->m_scale = Qwt3DClonePtr< Qwt3DScale >(val);
-}
-
-/**
- * @brief Sets one of the predefined scaling types
- * @param val Predefined scale type (LINEARSCALE or LOG10SCALE)
- * @warning Too small intervals in logarithmic scales lead to empty scales
- *          (or perhaps a scale only containing an isolated major tic).
- *          Better switch to linear scales in such cases.
- */
-void Qwt3DAxis::setScale(SCALETYPE val)
-{
-    switch (val) {
-    case LINEARSCALE:
-        setScale(new Qwt3DLinearScale);
-        break;
-    case LOG10SCALE:
-        setScale(new Qwt3DLogScale);
-        setMinors(9);
-        break;
-    default:
-        break;
-    }
 }

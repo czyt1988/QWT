@@ -16,6 +16,17 @@
 
 #include <qfont.h>
 
+// GL constants for material/light properties (used in setMaterialComponent/setLightComponent)
+#ifndef GL_AMBIENT
+#define GL_AMBIENT 0x1200
+#endif
+#ifndef GL_DIFFUSE
+#define GL_DIFFUSE 0x1201
+#endif
+#ifndef GL_SPECULAR
+#define GL_SPECULAR 0x1202
+#endif
+
 
 Qwt3DTheme::Qwt3DTheme()
     : m_backgroundColor(1.0, 1.0, 1.0, 1.0)

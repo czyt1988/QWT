@@ -202,7 +202,7 @@ void Qwt3DGridData::setSize(unsigned int columns, unsigned int rows)
         for (unsigned int i = 0; i != vertices.size(); ++i) {
             vertices[ i ] = DataRow(rows);
             for (unsigned int j = 0; j != vertices[ i ].size(); ++j) {
-                vertices[ i ][ j ] = new GLdouble[ 3 ];
+                vertices[ i ][ j ] = new double[ 3 ];
             }
         }
     }
@@ -211,7 +211,7 @@ void Qwt3DGridData::setSize(unsigned int columns, unsigned int rows)
         for (unsigned int i = 0; i != normals.size(); ++i) {
             normals[ i ] = DataRow(rows);
             for (unsigned int j = 0; j != normals[ i ].size(); ++j) {
-                normals[ i ][ j ] = new GLdouble[ 3 ];
+                normals[ i ][ j ] = new double[ 3 ];
             }
         }
     }
@@ -237,7 +237,7 @@ void Qwt3DCellData::clear()
  * @param b Blue component (0.0-1.0)
  * @return QColor with components scaled to 0-255 range
  */
-QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b)
+QColor GL2Qt(double r, double g, double b)
 {
     return QColor(static_cast< int >(std::round(r * 255)),
                   static_cast< int >(std::round(g * 255)),

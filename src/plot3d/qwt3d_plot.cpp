@@ -52,6 +52,13 @@ Qwt3DPlot::Qwt3DPlot(QWidget* parent) : QOpenGLWidget(parent), QWT_PIMPL_CONSTRU
 {
     QWT_D(d);
 
+    // Set plot pointer on child drawables so they can access shaders and coordinate conversion
+    d->m_coordinates.setPlot(this);
+    for (auto& axis : d->m_coordinates.axes)
+        axis.setPlot(this);
+    d->m_legend.setPlot(this);
+    d->m_title.setPlot(this);
+
     d->m_title.setFont("Courier", 16, QFont::Bold);
     d->m_title.setString("");
 
@@ -320,8 +327,8 @@ QMatrix4x4 Qwt3DPlot::projectionMatrix() const
 
 /**
  * @brief Sets up the OpenGL rendering state
- * @details Removes legacy fixed-function lighting setup. Only enables blend
- *          and depth test, which remain valid in Core Profile.
+ * @details Compiles shared GLSL shaders (line, point, polygon, text) for use
+ *          by drawables and items. Enables blend and depth test.
  */
 void Qwt3DPlot::initializeGL()
 {
@@ -330,8 +337,30 @@ void Qwt3DPlot::initializeGL()
     glEnable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
 
-    // Lighting parameters are stored on CPU; no GL_LIGHTING calls.
-    // Shader-based lighting will be implemented in the OpenGL modernization task.
+    // Compile shared generic shaders
+    auto compileShader = [](const QString& vertPath, const QString& fragPath) -> std::unique_ptr< QOpenGLShaderProgram > {
+        auto program = std::make_unique< QOpenGLShaderProgram >();
+        if (!program->addShaderFromSourceFile(QOpenGLShader::Vertex, vertPath)) {
+            qWarning("Failed to compile vertex shader %s: %s", vertPath.toLatin1().constData(),
+                     program->log().toLatin1().constData());
+            return nullptr;
+        }
+        if (!program->addShaderFromSourceFile(QOpenGLShader::Fragment, fragPath)) {
+            qWarning("Failed to compile fragment shader %s: %s", fragPath.toLatin1().constData(),
+                     program->log().toLatin1().constData());
+            return nullptr;
+        }
+        if (!program->link()) {
+            qWarning("Failed to link shader program: %s", program->log().toLatin1().constData());
+            return nullptr;
+        }
+        return program;
+    };
+
+    d->m_lineShader = compileShader(":/shaders/line.vert", ":/shaders/line.frag");
+    d->m_pointShader = compileShader(":/shaders/point.vert", ":/shaders/point.frag");
+    d->m_polygonShader = compileShader(":/shaders/polygon.vert", ":/shaders/polygon.frag");
+    d->m_textShader = compileShader(":/shaders/text.vert", ":/shaders/text.frag");
 
     d->m_initializedGL = true;
     if (d->m_renderPixmapRequest) {
@@ -343,9 +372,7 @@ void Qwt3DPlot::initializeGL()
 /**
  * @brief Paints the widget's content
  * @details Uses CPU-side QMatrix4x4 for view/projection calculation.
- *          Legacy GL matrix stack calls (glRotatef/glTranslatef/glPushMatrix)
- *          have been removed. Coordinate system and legend drawing still
- *          use legacy GL temporarily (Plan 08 will modernize them).
+ *          All rendering uses VBO/VAO + GLSL shaders.
  */
 void Qwt3DPlot::paintGL()
 {
@@ -392,7 +419,7 @@ void Qwt3DPlot::paintGL()
                           static_cast< float >(-7 * radius));
     d->m_projection = projection;
 
-    // Draw legend and title (legacy GL temporarily — Plan 08 will modernize)
+    // Draw legend and title
     if (d->m_displayLegend) {
         d->m_legend.draw();
     }
@@ -400,15 +427,12 @@ void Qwt3DPlot::paintGL()
     d->m_title.draw();
 
     // Render all attached items (sorted by z-order)
-    // Each item calls its own GL drawing within the current GL context.
-    // The view/projection matrices are available via d->m_modelView / d->m_projection.
-    // NOTE: Currently no item subclasses exist, so this loop is empty.
     for (Qwt3DPlotItem* item : d->m_items) {
         if (item->isVisible())
             item->draw();
     }
 
-    // Draw coordinate system (legacy GL temporarily — Plan 08 will modernize)
+    // Draw coordinate system
     d->m_coordinates.draw();
 }
 
@@ -419,6 +443,9 @@ void Qwt3DPlot::paintGL()
  */
 void Qwt3DPlot::resizeGL(int w, int h)
 {
+    QWT_D(d);
+    d->m_viewportWidth = w;
+    d->m_viewportHeight = h;
     glViewport(0, 0, w, h);
     paintGL();
 }
@@ -520,6 +547,110 @@ QPixmap Qwt3DPlot::renderPixmap(int w, int h, bool useContext)
         d->m_renderPixmapRequest = true;
         return QPixmap::fromImage(grabFramebuffer());
     }
+}
+
+/**
+ * @brief Converts a world coordinate to screen (viewport) coordinates
+ * @param world World-space triple
+ * @return Screen-space QPointF (pixel coordinates)
+ * @details Uses the CPU-side modelView and projection matrices to transform
+ *          world coordinates to normalized device coordinates, then maps
+ *          to viewport pixels. Replaces the legacy gluProject call.
+ */
+QPointF Qwt3DPlot::worldToScreen(const Triple& world) const
+{
+    QWT_DC(d);
+    QVector4D worldVec(static_cast< float >(world.x), static_cast< float >(world.y), static_cast< float >(world.z), 1.0f);
+    QVector4D clipVec = d->m_projection.map(d->m_modelView.map(worldVec));
+
+    if (clipVec.w() == 0.0f)
+        return QPointF(0, 0);
+
+    float ndcX = clipVec.x() / clipVec.w();
+    float ndcY = clipVec.y() / clipVec.w();
+
+    int w = (d->m_viewportWidth > 0) ? d->m_viewportWidth : width();
+    int h = (d->m_viewportHeight > 0) ? d->m_viewportHeight : height();
+
+    float screenX = (ndcX + 1.0f) * 0.5f * w;
+    float screenY = (1.0f - (ndcY + 1.0f) * 0.5f) * h;
+
+    return QPointF(screenX, screenY);
+}
+
+/**
+ * @brief Converts screen (viewport) coordinates to a world coordinate
+ * @param screen Screen-space point (pixel coordinates)
+ * @return World-space Triple
+ * @details Uses the inverse of the CPU-side modelView and projection matrices
+ *          to unproject screen coordinates. The z-component is determined
+ *          by the near plane (z=0 in NDC). Replaces the legacy gluUnProject call.
+ */
+Triple Qwt3DPlot::screenToWorld(const QPointF& screen) const
+{
+    QWT_DC(d);
+    int w = (d->m_viewportWidth > 0) ? d->m_viewportWidth : width();
+    int h = (d->m_viewportHeight > 0) ? d->m_viewportHeight : height();
+
+    if (w <= 0 || h <= 0)
+        return Triple(0, 0, 0);
+
+    float ndcX = 2.0f * static_cast< float >(screen.x()) / w - 1.0f;
+    float ndcY = 1.0f - 2.0f * static_cast< float >(screen.y()) / h;
+
+    QVector3D clipVec(ndcX, ndcY, 0.0f);
+
+    QMatrix4x4 invMVP = (d->m_projection * d->m_modelView).inverted();
+    QVector3D worldVec = invMVP.map(clipVec);
+
+    return Triple(worldVec.x(), worldVec.y(), worldVec.z());
+}
+
+/**
+ * @brief Returns the viewport size in pixels
+ */
+QSize Qwt3DPlot::viewportSize() const
+{
+    QWT_DC(d);
+    int w = (d->m_viewportWidth > 0) ? d->m_viewportWidth : width();
+    int h = (d->m_viewportHeight > 0) ? d->m_viewportHeight : height();
+    return QSize(w, h);
+}
+
+/**
+ * @brief Returns the shared line shader program
+ */
+QOpenGLShaderProgram* Qwt3DPlot::lineShader() const
+{
+    QWT_DC(d);
+    return d->m_lineShader.get();
+}
+
+/**
+ * @brief Returns the shared point shader program
+ */
+QOpenGLShaderProgram* Qwt3DPlot::pointShader() const
+{
+    QWT_DC(d);
+    return d->m_pointShader.get();
+}
+
+/**
+ * @brief Returns the shared polygon shader program
+ */
+QOpenGLShaderProgram* Qwt3DPlot::polygonShader() const
+{
+    QWT_DC(d);
+    return d->m_polygonShader.get();
+}
+
+/**
+ * @brief Returns the shared text shader program
+ */
+QOpenGLShaderProgram* Qwt3DPlot::textShader() const
+{
+    QWT_DC(d);
+    return d->m_textShader.get();
 }
 
 // --- Item list management ---

@@ -5,35 +5,6 @@
 
 #include "qwt3d_plot_p.h"
 
-
-namespace
-{
-inline GLenum lightEnum(unsigned idx)
-{
-    switch (idx) {
-    case 0:
-        return GL_LIGHT0;
-    case 1:
-        return GL_LIGHT1;
-    case 2:
-        return GL_LIGHT2;
-    case 3:
-        return GL_LIGHT3;
-    case 4:
-        return GL_LIGHT4;
-    case 5:
-        return GL_LIGHT5;
-    case 6:
-        return GL_LIGHT6;
-    case 7:
-        return GL_LIGHT7;
-    default:
-        return GL_LIGHT0;
-    }
-}
-
-} // namespace
-
 /**
  * @brief Enable or disable lighting
  * @param val True to enable, false to disable
@@ -94,7 +65,7 @@ void Qwt3DPlot::blowout(unsigned light)
   @details Parameters are stored on CPU for future shader uniform upload.
            No glMaterialfv calls are made.
 */
-void Qwt3DPlot::setMaterialComponent(GLenum property, double r, double g, double b, double a)
+void Qwt3DPlot::setMaterialComponent(unsigned int property, double r, double g, double b, double a)
 {
     // Store on CPU — shader uniforms will use these values
     // TODO: Store in a material parameter struct for shader uniform upload
@@ -109,7 +80,7 @@ void Qwt3DPlot::setMaterialComponent(GLenum property, double r, double g, double
   @brief Sets material component (intensity)
   @details Convenience function: sets r=g=b=intensity, a=1.0
 */
-void Qwt3DPlot::setMaterialComponent(GLenum property, double intensity)
+void Qwt3DPlot::setMaterialComponent(unsigned int property, double intensity)
 {
     setMaterialComponent(property, intensity, intensity, intensity, 1.0);
 }
@@ -131,7 +102,7 @@ void Qwt3DPlot::setShininess(double exponent)
   @details Parameters are stored on CPU for future shader uniform upload.
            No glLightfv calls are made.
 */
-void Qwt3DPlot::setLightComponent(GLenum property, double r, double g, double b, double a, unsigned light)
+void Qwt3DPlot::setLightComponent(unsigned int property, double r, double g, double b, double a, unsigned light)
 {
     // Store on CPU — shader uniforms will use these values
     // TODO: Store in light parameter struct for shader uniform upload
@@ -147,7 +118,7 @@ void Qwt3DPlot::setLightComponent(GLenum property, double r, double g, double b,
   @brief Sets light component (intensity)
   @details Convenience function: sets r=g=b=intensity, a=1.0
 */
-void Qwt3DPlot::setLightComponent(GLenum property, double intensity, unsigned light)
+void Qwt3DPlot::setLightComponent(unsigned int property, double intensity, unsigned light)
 {
     setLightComponent(property, intensity, intensity, intensity, 1.0, light);
 }

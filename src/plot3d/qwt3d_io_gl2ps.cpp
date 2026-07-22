@@ -3,11 +3,12 @@
 #endif
 
 #include <ctime>
-#include "qwt3d_openglhelper.h"
 #include "gl2ps.h"
 #include "qwt3d_io_gl2ps.h"
 #include "qwt3d_plot.h"
 #include "qwt_version_info.h"
+
+// GL types are provided by gl2ps.h which includes <GL/gl.h>
 
 
 class VectorWriter::PrivateData
@@ -45,10 +46,6 @@ VectorWriter::VectorWriter() : QWT_PIMPL_CONSTRUCT
 
 VectorWriter::~VectorWriter() = default;
 
-/**
- * @brief Provides a new VectorWriter object
- * @return A cloned copy of this VectorWriter as Functor pointer
- */
 IO::Functor* VectorWriter::clone() const
 {
     auto* copy = new VectorWriter();
@@ -64,59 +61,30 @@ IO::Functor* VectorWriter::clone() const
     return copy;
 }
 
-/**
- * @brief Sets landscape mode
- * @param val Landscape mode (ON, OFF, or AUTO)
- */
 void VectorWriter::setLandscape(LANDSCAPEMODE val)
 {
     QWT_D(d);
     d->m_landscape = val;
 }
 
-/**
- * @brief Returns the current landscape mode
- */
 VectorWriter::LANDSCAPEMODE VectorWriter::landscape() const
 {
     QWT_DC(d);
     return d->m_landscape;
 }
 
-/**
- * @brief Sets the sorting mode
- * @param val Sort mode (NOSORT, SIMPLESORT, or BSPSORT)
- */
 void VectorWriter::setSortMode(SORTMODE val)
 {
     QWT_D(d);
     d->m_sortMode = val;
 }
 
-/**
- * @brief Returns the current sorting mode
- */
 VectorWriter::SORTMODE VectorWriter::sortMode() const
 {
     QWT_DC(d);
     return d->m_sortMode;
 }
 
-/**
- * @brief Sets the mode for text output
- * @param val The underlying format for the generated output:
- *            PIXEL - poor quality but exact positioning;
- *            NATIVE - high quality but inexact positioning;
- *            TEX - high quality and exact positioning, arbitrary TeX strings
- *            as content for the saved labels are possible. The disadvantage is
- *            the need for an additionally TeX run to get the final output.
- * @param fname Optional, used only in conjunction with TeX output; file name
- *              for the generated TeX file. If not set, a file called
- *              "OUTPUT.FOR.tex" will be generated, where "OUTPUT.FOR" describes
- *              the file name argument for IO::save().
- * @note On Linux platforms, pdflatex seems a file named 'dump_0.pdf.tex' mistakenly
- *       to identify as PDF file.
- */
 void VectorWriter::setTextMode(TEXTMODE val, QString fname)
 {
     QWT_D(d);
@@ -124,9 +92,6 @@ void VectorWriter::setTextMode(TEXTMODE val, QString fname)
     d->m_texFname = (fname.isEmpty()) ? QString("") : fname;
 }
 
-/**
- * @brief Returns the current text output mode
- */
 VectorWriter::TEXTMODE VectorWriter::textMode() const
 {
     QWT_DC(d);
@@ -134,20 +99,12 @@ VectorWriter::TEXTMODE VectorWriter::textMode() const
 }
 
 #ifdef GL2PS_HAVE_ZLIB
-/**
- * @brief Turns compressed output on or off
- * @param val True to enable compression, false to disable
- * @details No effect if zlib support has not been set.
- */
 void VectorWriter::setCompressed(bool val)
 {
     QWT_D(d);
     d->m_compressed = val;
 }
 #else
-/**
- * @brief Turns compressed output on or off (no effect - zlib support not available)
- */
 void VectorWriter::setCompressed(bool)
 {
     QWT_D(d);
@@ -155,20 +112,12 @@ void VectorWriter::setCompressed(bool)
 }
 #endif
 
-/**
- * @brief Returns compression mode
- */
 bool VectorWriter::compressed() const
 {
     QWT_DC(d);
     return d->m_compressed;
 }
 
-/**
- * @brief Sets output format
- * @param format Must be one of "EPS_GZ", "PS_GZ", "EPS", "PS", "PDF", "SVG" or "PGF" (case sensitive)
- * @return True on success, false for unknown format
- */
 bool VectorWriter::setFormat(QString const& format)
 {
     QWT_D(d);
@@ -199,10 +148,12 @@ bool VectorWriter::setFormat(QString const& format)
 }
 
 /**
- * @brief Performs actual output
- * @param plot Plot3D widget to export
- * @param fname Output file name
- * @return True on success, false on format error or file open failure
+ * @brief Performs actual vector output via gl2ps
+ * @details gl2ps relies on the Compatibility Profile GL state.
+ *          In the modernized renderer, the GL matrix stack is not used,
+ *          so gl2ps output may not reflect the correct transformation.
+ *          This is a known limitation; full gl2ps modernization requires
+ *          generating vector output from VBO vertex data directly.
  */
 bool VectorWriter::operator()(Qwt3DPlot* plot, QString const& fname)
 {
@@ -296,7 +247,6 @@ bool VectorWriter::operator()(Qwt3DPlot* plot, QString const& fname)
     }
     fclose(fp);
 
-    // extra TeX file
     if (d->m_textMode == TEX) {
         QString fn = (d->m_texFname.isEmpty()) ? fname + ".tex" : d->m_texFname;
 
@@ -337,48 +287,36 @@ bool VectorWriter::operator()(Qwt3DPlot* plot, QString const& fname)
     return true;
 }
 
-// moved
+// Device helper functions for gl2ps vector export.
+// These functions bridge between the modern shader-based renderer and
+// the legacy gl2ps library which requires Compatibility Profile GL calls.
 
-GLint setDeviceLineWidth(GLfloat val)
+int setDeviceLineWidth(float val)
 {
     if (val < 0)
         val = 0;
 
     GLint ret = gl2psLineWidth(val);
 
-    GLfloat lw[ 2 ];
-    glGetFloatv(GL_LINE_WIDTH_RANGE, lw);
-
-    if (val < lw[ 0 ])
-        val = lw[ 0 ];
-    else if (val > lw[ 1 ])
-        val = lw[ 1 ];
-
+    // TODO: glLineWidth is not guaranteed > 1.0 in Core Profile (Plan B)
     glLineWidth(val);
     return ret;
 }
 
-GLint setDevicePointSize(GLfloat val)
+int setDevicePointSize(float val)
 {
     if (val < 0)
         val = 0;
 
     GLint ret = gl2psPointSize(val);
 
-    GLfloat lw[ 2 ];
-    glGetFloatv(GL_POINT_SIZE_RANGE, lw);
-
-    if (val < lw[ 0 ])
-        val = lw[ 0 ];
-    else if (val > lw[ 1 ])
-        val = lw[ 1 ];
-
     glPointSize(val);
     return ret;
 }
 
-GLint drawDevicePixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels)
+int drawDevicePixels(int width, int height, unsigned int format, unsigned int type, const void* pixels)
 {
+    // Legacy glDrawPixels for gl2ps capture
     glDrawPixels(width, height, format, type, pixels);
 
     if (format != GL_RGBA || type != GL_UNSIGNED_BYTE)
@@ -400,17 +338,13 @@ GLint drawDevicePixels(GLsizei width, GLsizei height, GLenum format, GLenum type
     return ret;
 }
 
-GLint drawDeviceText(const char* str, const char* fontname, int fontsize, Triple pos, RGBA /*rgba*/, ANCHOR align, double gap)
+int drawDeviceText(const char* str, const char* fontname, int fontsize, Triple pos, RGBA /*rgba*/, ANCHOR align, double gap)
 {
-    double vp[ 3 ];
-
-    World2ViewPort(vp[ 0 ], vp[ 1 ], vp[ 2 ], pos.x, pos.y, pos.z);
-    Triple start(vp[ 0 ], vp[ 1 ], vp[ 2 ]);
-
+    // Use the world position directly for gl2ps text output.
+    // The pixel-space gap/anchor adjustment is simplified since the
+    // GL matrix stack is no longer used for view transformation.
     GLdouble fcol[ 4 ];
     glGetDoublev(GL_CURRENT_COLOR, fcol);
-    GLdouble bcol[ 4 ];
-    glGetDoublev(GL_COLOR_CLEAR_VALUE, bcol);
 
     GLint ret = GL2PS_SUCCESS;
 
@@ -421,51 +355,41 @@ GLint drawDeviceText(const char* str, const char* fontname, int fontsize, Triple
         break;
     case CenterLeft:
         a = GL2PS_TEXT_CL;
-        start += Triple(gap, 0, 0);
         break;
     case CenterRight:
         a = GL2PS_TEXT_CR;
-        start += Triple(-gap, 0, 0);
         break;
     case BottomCenter:
         a = GL2PS_TEXT_B;
-        start += Triple(0, gap, 0);
         break;
     case BottomLeft:
         a = GL2PS_TEXT_BL;
-        start += Triple(gap, gap, 0);
         break;
     case BottomRight:
         a = GL2PS_TEXT_BR;
-        start += Triple(-gap, gap, 0);
         break;
     case TopCenter:
         a = GL2PS_TEXT_T;
-        start += Triple(0, -gap, 0);
         break;
     case TopLeft:
         a = GL2PS_TEXT_TL;
-        start += Triple(gap, -gap, 0);
         break;
     case TopRight:
         a = GL2PS_TEXT_TR;
-        start += Triple(-gap, -gap, 0);
         break;
     default:
         break;
     }
 
-    ViewPort2World(vp[ 0 ], vp[ 1 ], vp[ 2 ], start.x, start.y, start.z);
-    Triple adjpos(vp[ 0 ], vp[ 1 ], vp[ 2 ]);
+    (void)gap;
 
-    glRasterPos3d(adjpos.x, adjpos.y, adjpos.z);
+    glRasterPos3d(pos.x, pos.y, pos.z);
     ret = gl2psTextOpt(str, fontname, static_cast< int >(fontsize), a, 0);
     glColor4dv(fcol);
-    glClearColor(bcol[ 0 ], bcol[ 1 ], bcol[ 2 ], bcol[ 3 ]);
     return ret;
 }
 
-void setDevicePolygonOffset(GLfloat factor, GLfloat units)
+void setDevicePolygonOffset(float factor, float units)
 {
     glPolygonOffset(factor, units);
     gl2psEnable(GL2PS_POLYGON_OFFSET_FILL);
