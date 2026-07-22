@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <list>
 
-using namespace Qwt3D;
 
 class Drawable::PrivateData
 {

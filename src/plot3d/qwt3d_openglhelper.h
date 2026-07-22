@@ -12,8 +12,7 @@
 #include <GL/glu.h>
 #endif
 
-namespace Qwt3D
-{
+
 
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
@@ -127,6 +126,5 @@ inline bool World2ViewPort(double& winx, double& winy, double& winz, double objx
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
 
-}  // ns
 
 #endif  // QWT3D_OPENGLHELPER_H

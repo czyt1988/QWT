@@ -5,8 +5,7 @@
 #include "qwt3d_global.h"
 #include "qwt3d_autoptr.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief Abstract base class for autoscaler
@@ -54,6 +53,5 @@ private:
     int segments(int& l_intervals, int& r_intervals, double start, double stop, double anchor, double mantissa, int exponent);
 };
 
-}  // ns
 
 #endif

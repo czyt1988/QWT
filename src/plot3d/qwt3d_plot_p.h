@@ -6,8 +6,7 @@
 
 #include <QPoint>
 
-namespace Qwt3D
-{
+
 
 class Plot3D::PrivateData
 {
@@ -31,7 +30,7 @@ public:
     Enrichment* m_userPlotStyle;
     std::list< Enrichment* > m_enrichmentList;
     std::vector< GLuint > m_displayLists;
-    Data* m_actualData;
+    Qwt3DData* m_actualData;
 
     std::vector< Light > m_lights;
 
@@ -64,17 +63,17 @@ public:
     QPoint m_lastMouseMovePosition;
     bool m_pressed;
 
-    MouseState m_xrotMState, m_yrotMState, m_zrotMState;
-    MouseState m_xscaleMState, m_yscaleMState, m_zscaleMState;
-    MouseState m_zoomMState;
-    MouseState m_xshiftMState, m_yshiftMState;
+    Qwt3DMouseState m_xrotMState, m_yrotMState, m_zrotMState;
+    Qwt3DMouseState m_xscaleMState, m_yscaleMState, m_zscaleMState;
+    Qwt3DMouseState m_zoomMState;
+    Qwt3DMouseState m_xshiftMState, m_yshiftMState;
 
     bool m_mouseInputEnabled;
 
-    KeyboardState m_xrotKState[ 2 ], m_yrotKState[ 2 ], m_zrotKState[ 2 ];
-    KeyboardState m_xscaleKState[ 2 ], m_yscaleKState[ 2 ], m_zscaleKState[ 2 ];
-    KeyboardState m_zoomKState[ 2 ];
-    KeyboardState m_xshiftKState[ 2 ], m_yshiftKState[ 2 ];
+    Qwt3DKeyboardState m_xrotKState[ 2 ], m_yrotKState[ 2 ], m_zrotKState[ 2 ];
+    Qwt3DKeyboardState m_xscaleKState[ 2 ], m_yscaleKState[ 2 ], m_zscaleKState[ 2 ];
+    Qwt3DKeyboardState m_zoomKState[ 2 ];
+    Qwt3DKeyboardState m_xshiftKState[ 2 ], m_yshiftKState[ 2 ];
 
     bool m_kPressed;
     bool m_kbdInputEnabled;
@@ -87,6 +86,5 @@ public:
     Qwt3DTheme m_theme;
 };
 
-}  // ns
 
 #endif  // QWT3D_PLOT_P_H

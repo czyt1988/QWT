@@ -9,8 +9,7 @@
 
 #include "qwt3d_drawable.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief A Qt string or an output device dependent string
@@ -39,17 +38,17 @@ public:
     // Returns the gap caused by adjust()
     double gap() const;
     // Sets the labels position
-    void setPosition(Qwt3D::Triple pos, ANCHOR a = BottomLeft);
+    void setPosition(Triple pos, ANCHOR a = BottomLeft);
     // Sets the labels position relative to screen
     void setRelPosition(Tuple rpos, ANCHOR a);
     // Receives bottom left label position
-    Qwt3D::Triple first() const;
+    Triple first() const;
     // Receives top right label position
-    Qwt3D::Triple second() const;
+    Triple second() const;
     // Defines an anchor point for the labels surrounding rectangle
     ANCHOR anchor() const;
     virtual void setColor(double r, double g, double b, double a = 1) override;
-    virtual void setColor(Qwt3D::RGBA rgba) override;
+    virtual void setColor(RGBA rgba) override;
 
     // Sets the labels string
     void setString(QString const& s);
@@ -68,6 +67,5 @@ private:
     double height() const;
 };
 
-}  // ns
 
 #endif  // QWT3D_LABEL_H

@@ -4,8 +4,7 @@
 #include "qwt3d_axis.h"
 #include "qwt3d_colorlegend.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief A coordinate system with different styles (BOX, FRAME)
@@ -15,30 +14,30 @@ class QWT3D_EXPORT CoordinateSystem : public Drawable
     QWT_DECLARE_PRIVATE(CoordinateSystem)
 
 public:
-    explicit CoordinateSystem(Qwt3D::Triple blb = Qwt3D::Triple(0, 0, 0),
-                              Qwt3D::Triple ftr = Qwt3D::Triple(0, 0, 0),
-                              Qwt3D::COORDSTYLE = Qwt3D::BOX);
+    explicit CoordinateSystem(Triple blb = Triple(0, 0, 0),
+                              Triple ftr = Triple(0, 0, 0),
+                              COORDSTYLE = BOX);
     ~CoordinateSystem() override;
 
-    void init(Qwt3D::Triple beg = Qwt3D::Triple(0, 0, 0), Qwt3D::Triple end = Qwt3D::Triple(0, 0, 0));
+    void init(Triple beg = Triple(0, 0, 0), Triple end = Triple(0, 0, 0));
     // Set style for the coordinate system (NOCOORD, FRAME or BOX)
-    void setStyle(Qwt3D::COORDSTYLE s,
-                  Qwt3D::AXIS frame_1 = Qwt3D::X1,
-                  Qwt3D::AXIS frame_2 = Qwt3D::Y1,
-                  Qwt3D::AXIS frame_3 = Qwt3D::Z1);
+    void setStyle(COORDSTYLE s,
+                  AXIS frame_1 = X1,
+                  AXIS frame_2 = Y1,
+                  AXIS frame_3 = Z1);
     // Return style of the coordinate system
-    Qwt3D::COORDSTYLE style() const;
+    COORDSTYLE style() const;
     // first == front_left_bottom, second == back_right_top
-    void setPosition(Qwt3D::Triple first, Qwt3D::Triple second);
+    void setPosition(Triple first, Triple second);
 
     // Set common color for all axes
-    void setAxesColor(Qwt3D::RGBA val);
+    void setAxesColor(RGBA val);
     // Set common font for all axis numberings
     void setNumberFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
     // Set common font for all axis numberings
     void setNumberFont(QFont const& font);
     // Set common color for all axis numberings
-    void setNumberColor(Qwt3D::RGBA val);
+    void setNumberColor(RGBA val);
     // Sets an linear axis with real number items
     void setStandardScale();
 
@@ -48,14 +47,14 @@ public:
     void adjustLabels(int val);
 
     // Sets color for the grid lines
-    void setGridLinesColor(Qwt3D::RGBA val);
+    void setGridLinesColor(RGBA val);
 
     // Set common font for all axis labels
     void setLabelFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
     // Set common font for all axis labels
     void setLabelFont(QFont const& font);
     // Set common color for all axis labels
-    void setLabelColor(Qwt3D::RGBA val);
+    void setLabelColor(RGBA val);
 
     // Set line width for tic marks and axes
     void setLineWidth(double val, double majfac = 0.9, double minfac = 0.5);
@@ -65,8 +64,8 @@ public:
     // Switch autoscaling of axes
     void setAutoScale(bool val = true);
 
-    Qwt3D::Triple first() const;
-    Qwt3D::Triple second() const;
+    Triple first() const;
+    Triple second() const;
 
     void setAutoDecoration(bool val = true);
     bool autoDecoration() const;
@@ -79,7 +78,7 @@ public:
     void draw() override;
 
     // Defines whether a grid between the major and/or minor tics should be drawn
-    void setGridLines(bool majors, bool minors, int sides = Qwt3D::NOSIDEGRID);
+    void setGridLines(bool majors, bool minors, int sides = NOSIDEGRID);
     // Returns grids switched on
     int grids() const;
 
@@ -92,11 +91,10 @@ private:
     void autoDecorateExposedAxis(Axis& ax, bool left);
     void drawMajorGridLines();
     void drawMinorGridLines();
-    void drawMajorGridLines(Qwt3D::Axis&, Qwt3D::Axis&);
-    void drawMinorGridLines(Qwt3D::Axis&, Qwt3D::Axis&);
+    void drawMajorGridLines(Axis&, Axis&);
+    void drawMinorGridLines(Axis&, Axis&);
     void recalculateAxesTics();
 };
 
-}  // ns
 
 #endif

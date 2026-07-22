@@ -9,46 +9,45 @@
 
 #include <cmath>
 
-using namespace Qwt3D;
 
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
-class Data::PrivateData
+class Qwt3DData::PrivateData
 {
-    QWT_DECLARE_PUBLIC(Data)
+    QWT_DECLARE_PUBLIC(Qwt3DData)
 
 public:
-    PrivateData(Data* q) : q_ptr(q)
+    PrivateData(Qwt3DData* q) : q_ptr(q)
     {
     }
 
-    Qwt3D::ParallelEpiped m_hull;
+    ParallelEpiped m_hull;
 };
 
-Data::Data() : QWT_PIMPL_CONSTRUCT, datatype(Qwt3D::POLYGON)
+Qwt3DData::Qwt3DData() : QWT_PIMPL_CONSTRUCT, datatype(POLYGON)
 {
 }
 
-Data::~Data() = default;
+Qwt3DData::~Qwt3DData() = default;
 
-void Data::setHull(Qwt3D::ParallelEpiped const& h)
+void Qwt3DData::setHull(ParallelEpiped const& h)
 {
     QWT_D(d);
     d->m_hull = h;
 }
 
-Qwt3D::ParallelEpiped const& Data::hull() const
+ParallelEpiped const& Qwt3DData::hull() const
 {
     QWT_DC(d);
     return d->m_hull;
 }
 
-class GridData::PrivateData
+class Qwt3DGridData::PrivateData
 {
-    QWT_DECLARE_PUBLIC(GridData)
+    QWT_DECLARE_PUBLIC(Qwt3DGridData)
 
 public:
-    PrivateData(GridData* q) : q_ptr(q), m_uperiodic(false), m_vperiodic(false)
+    PrivateData(Qwt3DGridData* q) : q_ptr(q), m_uperiodic(false), m_vperiodic(false)
     {
     }
 
@@ -116,60 +115,60 @@ int _ch2d(coordinate_type** P, int n)
 
 }  // ns anon
 
-GridData::GridData() : QWT_PIMPL_CONSTRUCT
+Qwt3DGridData::Qwt3DGridData() : QWT_PIMPL_CONSTRUCT
 {
-    datatype = Qwt3D::GRID;
+    datatype = GRID;
     setSize(0, 0);
     setPeriodic(false, false);
 }
 
-GridData::GridData(unsigned int columns, unsigned int rows) : QWT_PIMPL_CONSTRUCT
+Qwt3DGridData::Qwt3DGridData(unsigned int columns, unsigned int rows) : QWT_PIMPL_CONSTRUCT
 {
-    datatype = Qwt3D::GRID;
+    datatype = GRID;
     setSize(columns, rows);
     setPeriodic(false, false);
 }
 
-GridData::~GridData()
+Qwt3DGridData::~Qwt3DGridData()
 {
     clear();
 }
 
-int GridData::columns() const
+int Qwt3DGridData::columns() const
 {
     return static_cast< int >(vertices.size());
 }
 
-int GridData::rows() const
+int Qwt3DGridData::rows() const
 {
     return (empty()) ? 0 : static_cast< int >(vertices[ 0 ].size());
 }
 
-bool GridData::empty() const
+bool Qwt3DGridData::empty() const
 {
     return vertices.empty();
 }
 
-void GridData::setPeriodic(bool u, bool v)
+void Qwt3DGridData::setPeriodic(bool u, bool v)
 {
     QWT_D(d);
     d->m_uperiodic = u;
     d->m_vperiodic = v;
 }
 
-bool GridData::uperiodic() const
+bool Qwt3DGridData::uperiodic() const
 {
     QWT_DC(d);
     return d->m_uperiodic;
 }
 
-bool GridData::vperiodic() const
+bool Qwt3DGridData::vperiodic() const
 {
     QWT_DC(d);
     return d->m_vperiodic;
 }
 
-void GridData::clear()
+void Qwt3DGridData::clear()
 {
     setHull(ParallelEpiped());
     {
@@ -195,7 +194,7 @@ void GridData::clear()
     normals.clear();
 }
 
-void GridData::setSize(unsigned int columns, unsigned int rows)
+void Qwt3DGridData::setSize(unsigned int columns, unsigned int rows)
 {
     this->clear();
     vertices = std::vector< DataRow >(columns);
@@ -218,12 +217,12 @@ void GridData::setSize(unsigned int columns, unsigned int rows)
     }
 }
 
-Triple const& CellData::operator()(unsigned cellnumber, unsigned vertexnumber)
+Triple const& Qwt3DCellData::operator()(unsigned cellnumber, unsigned vertexnumber)
 {
     return nodes[ cells[ cellnumber ][ vertexnumber ] ];
 }
 
-void CellData::clear()
+void Qwt3DCellData::clear()
 {
     setHull(ParallelEpiped());
     cells.clear();
@@ -238,7 +237,7 @@ void CellData::clear()
  * @param b Blue component (0.0-1.0)
  * @return QColor with components scaled to 0-255 range
  */
-QColor Qwt3D::GL2Qt(GLdouble r, GLdouble g, GLdouble b)
+QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b)
 {
     return QColor(static_cast< int >(std::round(r * 255)),
                   static_cast< int >(std::round(g * 255)),
@@ -250,7 +249,7 @@ QColor Qwt3D::GL2Qt(GLdouble r, GLdouble g, GLdouble b)
  * @param col Qt QColor to convert
  * @return RGBA structure with components scaled to 0.0-1.0 range
  */
-RGBA Qwt3D::Qt2GL(QColor col)
+RGBA Qt2GL(QColor col)
 {
     QRgb qrgb = col.rgb();
     RGBA rgba;
@@ -266,7 +265,7 @@ RGBA Qwt3D::Qt2GL(QColor col)
  * @param[out] idx Output vector of indices into src forming the convex hull
  * @param src Source vector of Tuple points
  */
-void Qwt3D::convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
 {
     idx.clear();
     if (src.empty())
@@ -301,7 +300,7 @@ void Qwt3D::convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple 
  * @param t Cell field to measure
  * @return Sum of all cell sizes in the field
  */
-unsigned Qwt3D::tesselationSize(CellField const& t)
+unsigned tesselationSize(CellField const& t)
 {
     size_t ret = 0;
 

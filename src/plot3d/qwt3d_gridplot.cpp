@@ -7,7 +7,6 @@
 #include "qwt3d_enrichment_std.h"
 
 using namespace std;
-using namespace Qwt3D;
 
 void SurfacePlot::createDataG()
 {
@@ -21,10 +20,10 @@ void SurfacePlot::createDataG()
     RGBA col;
     int step = resolution();
 
-    if (plotStyle() == Qwt3D::POINTS) {
+    if (plotStyle() == QWT3D_POINTS) {
         createPoints();
         return;
-    } else if (plotStyle() == Qwt3D::USER) {
+    } else if (plotStyle() == USER) {
         if (userStyle())
             createEnrichment(*userStyle());
         return;
@@ -156,7 +155,7 @@ void SurfacePlot::createNormalsG()
     arrow.drawEnd();
 }
 
-void SurfacePlot::readIn(GridData& gdata, Triple** data, unsigned int columns, unsigned int rows)
+void SurfacePlot::readIn(Qwt3DGridData& gdata, Triple** data, unsigned int columns, unsigned int rows)
 {
     gdata.setSize(columns, rows);
 
@@ -186,7 +185,7 @@ void SurfacePlot::readIn(GridData& gdata, Triple** data, unsigned int columns, u
     gdata.setHull(range);
 }
 
-void SurfacePlot::readIn(GridData& gdata,
+void SurfacePlot::readIn(Qwt3DGridData& gdata,
                          double** data,
                          unsigned int columns,
                          unsigned int rows,
@@ -225,7 +224,7 @@ void SurfacePlot::readIn(GridData& gdata,
     gdata.setHull(hull);
 }
 
-void SurfacePlot::calcNormals(GridData& gdata)
+void SurfacePlot::calcNormals(Qwt3DGridData& gdata)
 {
 
     unsigned int rows    = gdata.rows();
@@ -292,7 +291,7 @@ void SurfacePlot::calcNormals(GridData& gdata)
     }
 }
 
-void SurfacePlot::sewPeriodic(GridData& gdata)
+void SurfacePlot::sewPeriodic(Qwt3DGridData& gdata)
 {
     // sewing
 
@@ -388,7 +387,7 @@ void SurfacePlot::createFloorDataG()
 void SurfacePlot::Data2FloorG()
 {
     QWT_D(d);
-    Qwt3D::Data* data = actualData();
+    Qwt3DData* data = actualData();
     if (!data || data->empty())
         return;
 
@@ -423,7 +422,7 @@ void SurfacePlot::Data2FloorG()
 void SurfacePlot::Isolines2FloorG()
 {
     QWT_D(d);
-    Qwt3D::Data* data = actualData();
+    Qwt3DData* data = actualData();
     if (isolines() <= 0 || !data || data->empty())
         return;
 

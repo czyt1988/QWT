@@ -3,8 +3,7 @@
 
 #include "qwt3d_gridmapping.h"
 
-namespace Qwt3D
-{
+
 
 class SurfacePlot;
 
@@ -21,9 +20,9 @@ public:
     // Constructs Function object w/o assigned SurfacePlot
     Function();
     // Constructs Function object and assigns a SurfacePlot
-    explicit Function(Qwt3D::SurfacePlot& plotWidget);
+    explicit Function(SurfacePlot& plotWidget);
     // Constructs Function object and assigns a SurfacePlot
-    explicit Function(Qwt3D::SurfacePlot* plotWidget);
+    explicit Function(SurfacePlot* plotWidget);
     // Overwrite this
     virtual double operator()(double x, double y) = 0;
 
@@ -33,15 +32,14 @@ public:
     void setMaxZ(double val);
 
     // Assigns a new SurfacePlot and creates a data representation for it
-    virtual bool create(Qwt3D::SurfacePlot& plotWidget);
+    virtual bool create(SurfacePlot& plotWidget);
     // Creates data representation for the actual assigned SurfacePlot
     virtual bool create();
     // Assigns the object to another widget - call before create()
-    void assign(Qwt3D::SurfacePlot& plotWidget);
+    void assign(SurfacePlot& plotWidget);
     // Assigns the object to another widget - call before create()
-    void assign(Qwt3D::SurfacePlot* plotWidget);
+    void assign(SurfacePlot* plotWidget);
 };
 
-}  // ns
 
 #endif  // QWT3D_FUNCTION_H

@@ -6,8 +6,7 @@
 #include "qwt3d_axis.h"
 #include "qwt3d_color.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief A flat color legend
@@ -43,7 +42,7 @@ public:
     virtual void draw() override;
 
     // Sets the relative position of the legend inside widget
-    void setRelPosition(Qwt3D::Tuple relMin, Qwt3D::Tuple relMax);
+    void setRelPosition(Tuple relMin, Tuple relMax);
     // Sets legend orientation and scale position
     void setOrientation(ORIENTATION, SCALEPOSITION);
     // Sets the limit of the scale
@@ -59,9 +58,9 @@ public:
     // Sets whether the axis is autoscaled or not
     void setAutoScale(bool val);
     // Sets another scale
-    void setScale(Qwt3D::Scale* scale);
+    void setScale(Scale* scale);
     // Sets one of the predefined scale types
-    void setScale(Qwt3D::SCALETYPE);
+    void setScale(SCALETYPE);
 
     // Sets the legends caption string
     void setTitleString(QString const& s);
@@ -70,13 +69,12 @@ public:
     void setTitleFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
 
     // The color vector
-    Qwt3D::ColorVector colors;
+    ColorVector colors;
 
 private:
-    Qwt3D::ParallelEpiped geometry() const;
+    ParallelEpiped geometry() const;
     void setGeometryInternal();
 };
 
-}  // ns
 
 #endif

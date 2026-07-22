@@ -6,8 +6,7 @@
 #include "qwt3d_types.h"
 #include "qwt3d_autoptr.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief Non-visual scale class encapsulating tic generation
@@ -101,6 +100,5 @@ private:
     void setupCounter(double& k, int& step);
 };
 
-}  // namespace Qwt3D
 
 #endif  // QWT3D_SCALE_H

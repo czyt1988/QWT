@@ -6,7 +6,6 @@
 #include <qcolor.h>
 #include <qstring.h>
 
-using namespace Qwt3D;
 
 class StandardColor::PrivateData
 {
@@ -17,8 +16,8 @@ public:
     {
     }
 
-    Qwt3D::ColorVector m_colors;
-    Qwt3D::Plot3D* m_data;
+    ColorVector m_colors;
+    Plot3D* m_data;
 };
 
 /**
@@ -84,7 +83,7 @@ void StandardColor::setAlpha(double a)
  * @param vec The vector to fill
  * @return Reference to the filled color vector
  */
-Qwt3D::ColorVector& StandardColor::createVector(Qwt3D::ColorVector& vec)
+ColorVector& StandardColor::createVector(ColorVector& vec)
 {
     QWT_D(d);
     vec = d->m_colors;
@@ -128,7 +127,7 @@ void StandardColor::setPreset(const QString& presetName, unsigned size)
         const double t     = (size > 1) ? static_cast< double >(i) / (size - 1) : 0.5;
         const QColor color = colorMap->color(0.0, 1.0, t);
 
-        Qwt3D::RGBA rgba;
+        RGBA rgba;
         rgba.r = color.redF();
         rgba.g = color.greenF();
         rgba.b = color.blueF();

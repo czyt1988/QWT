@@ -3,8 +3,7 @@
 
 #include "qwt3d_plot.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief A class representing surfaces
@@ -25,12 +24,12 @@ public:
     int resolution() const;
     // Returns the number of mesh cells for the ORIGINAL data
     std::pair< int, int > facets() const;
-    bool loadFromData(Qwt3D::Triple** data, unsigned int columns, unsigned int rows, bool uperiodic = false, bool vperiodic = false);
+    bool loadFromData(Triple** data, unsigned int columns, unsigned int rows, bool uperiodic = false, bool vperiodic = false);
     bool loadFromData(double** data, unsigned int columns, unsigned int rows, double minx, double maxx, double miny, double maxy);
-    bool loadFromData(Qwt3D::TripleField const& data, Qwt3D::CellField const& poly);
+    bool loadFromData(TripleField const& data, CellField const& poly);
 
     // Deprecated - Use loadFromData instead
-    bool createDataRepresentation(Qwt3D::Triple** data,
+    bool createDataRepresentation(Triple** data,
                                   unsigned int columns,
                                   unsigned int rows,
                                   bool uperiodic = false,
@@ -50,15 +49,15 @@ public:
         return loadFromData(data, columns, rows, minx, maxx, miny, maxy);
     }
     // Deprecated - Use loadFromData instead
-    bool createDataRepresentation(Qwt3D::TripleField const& data, Qwt3D::CellField const& poly)
+    bool createDataRepresentation(TripleField const& data, CellField const& poly)
     {
         return loadFromData(data, poly);
     }
 
     // Return floor style
-    Qwt3D::FLOORSTYLE floorStyle() const;
+    FLOORSTYLE floorStyle() const;
     // Sets floor style
-    void setFloorStyle(Qwt3D::FLOORSTYLE val);
+    void setFloorStyle(FLOORSTYLE val);
     // Draw normals to every vertex
     void showNormals(bool);
     // Returns true, if normal drawing is on
@@ -89,13 +88,13 @@ protected:
 
     void calculateHull() override;
     void createData() override;
-    void createEnrichment(Qwt3D::Enrichment& p) override;
+    void createEnrichment(Enrichment& p) override;
     virtual void createFloorData();
     void createNormals();
     void createPoints();
 
-    void readIn(Qwt3D::GridData& gdata, Triple** data, unsigned int columns, unsigned int rows);
-    void readIn(Qwt3D::GridData& gdata,
+    void readIn(Qwt3DGridData& gdata, Triple** data, unsigned int columns, unsigned int rows);
+    void readIn(Qwt3DGridData& gdata,
                 double** data,
                 unsigned int columns,
                 unsigned int rows,
@@ -103,8 +102,8 @@ protected:
                 double maxx,
                 double miny,
                 double maxy);
-    void calcNormals(GridData& gdata);
-    void sewPeriodic(GridData& gdata);
+    void calcNormals(Qwt3DGridData& gdata);
+    void sewPeriodic(Qwt3DGridData& gdata);
 
 private:
     void Data2Floor();
@@ -125,6 +124,5 @@ private:
     void setColorFromVertexC(int node, bool skip = false);
 };
 
-}  // ns
 
 #endif  // QWT3D_SURFACEPLOT_H

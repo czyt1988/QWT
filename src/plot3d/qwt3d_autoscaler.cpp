@@ -1,7 +1,6 @@
-﻿#include "qwt3d_helper.h"
+#include "qwt3d_helper.h"
 #include "qwt3d_autoscaler.h"
 
-using namespace Qwt3D;
 
 namespace
 {

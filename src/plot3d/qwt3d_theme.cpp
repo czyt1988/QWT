@@ -16,7 +16,6 @@
 
 #include <qfont.h>
 
-using namespace Qwt3D;
 
 Qwt3DTheme::Qwt3DTheme()
     : m_backgroundColor(1.0, 1.0, 1.0, 1.0)

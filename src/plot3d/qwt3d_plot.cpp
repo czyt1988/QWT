@@ -6,7 +6,6 @@
 #include "qwt3d_plot_p.h"
 #include "qwt3d_enrichment.h"
 
-using namespace Qwt3D;
 
 Plot3D::PrivateData::PrivateData(Plot3D* q)
     : q_ptr(q)
@@ -71,33 +70,33 @@ Plot3D::Plot3D(QWidget* parent) : QOpenGLWidget(parent), QWT_PIMPL_CONSTRUCT
 
     setFocusPolicy(Qt::StrongFocus);
     assignMouse(Qt::LeftButton,
-                MouseState(Qt::LeftButton, Qt::ShiftModifier),
+                Qwt3DMouseState(Qt::LeftButton, Qt::ShiftModifier),
                 Qt::LeftButton,
-                MouseState(Qt::LeftButton, Qt::AltModifier),
-                MouseState(Qt::LeftButton, Qt::AltModifier),
-                MouseState(Qt::LeftButton, Qt::AltModifier | Qt::ShiftModifier),
-                MouseState(Qt::LeftButton, Qt::AltModifier | Qt::ControlModifier),
-                MouseState(Qt::LeftButton, Qt::ControlModifier),
-                MouseState(Qt::LeftButton, Qt::ControlModifier));
+                Qwt3DMouseState(Qt::LeftButton, Qt::AltModifier),
+                Qwt3DMouseState(Qt::LeftButton, Qt::AltModifier),
+                Qwt3DMouseState(Qt::LeftButton, Qt::AltModifier | Qt::ShiftModifier),
+                Qwt3DMouseState(Qt::LeftButton, Qt::AltModifier | Qt::ControlModifier),
+                Qwt3DMouseState(Qt::LeftButton, Qt::ControlModifier),
+                Qwt3DMouseState(Qt::LeftButton, Qt::ControlModifier));
 
     assignKeyboard(Qt::Key_Down,
                    Qt::Key_Up,
-                   KeyboardState(Qt::Key_Right, Qt::ShiftModifier),
-                   KeyboardState(Qt::Key_Left, Qt::ShiftModifier),
+                   Qwt3DKeyboardState(Qt::Key_Right, Qt::ShiftModifier),
+                   Qwt3DKeyboardState(Qt::Key_Left, Qt::ShiftModifier),
                    Qt::Key_Right,
                    Qt::Key_Left,
-                   KeyboardState(Qt::Key_Right, Qt::AltModifier),
-                   KeyboardState(Qt::Key_Left, Qt::AltModifier),
-                   KeyboardState(Qt::Key_Down, Qt::AltModifier),
-                   KeyboardState(Qt::Key_Up, Qt::AltModifier),
-                   KeyboardState(Qt::Key_Down, Qt::AltModifier | Qt::ShiftModifier),
-                   KeyboardState(Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier),
-                   KeyboardState(Qt::Key_Down, Qt::AltModifier | Qt::ControlModifier),
-                   KeyboardState(Qt::Key_Up, Qt::AltModifier | Qt::ControlModifier),
-                   KeyboardState(Qt::Key_Right, Qt::ControlModifier),
-                   KeyboardState(Qt::Key_Left, Qt::ControlModifier),
-                   KeyboardState(Qt::Key_Down, Qt::ControlModifier),
-                   KeyboardState(Qt::Key_Up, Qt::ControlModifier));
+                   Qwt3DKeyboardState(Qt::Key_Right, Qt::AltModifier),
+                   Qwt3DKeyboardState(Qt::Key_Left, Qt::AltModifier),
+                   Qwt3DKeyboardState(Qt::Key_Down, Qt::AltModifier),
+                   Qwt3DKeyboardState(Qt::Key_Up, Qt::AltModifier),
+                   Qwt3DKeyboardState(Qt::Key_Down, Qt::AltModifier | Qt::ShiftModifier),
+                   Qwt3DKeyboardState(Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier),
+                   Qwt3DKeyboardState(Qt::Key_Down, Qt::AltModifier | Qt::ControlModifier),
+                   Qwt3DKeyboardState(Qt::Key_Up, Qt::AltModifier | Qt::ControlModifier),
+                   Qwt3DKeyboardState(Qt::Key_Right, Qt::ControlModifier),
+                   Qwt3DKeyboardState(Qt::Key_Left, Qt::ControlModifier),
+                   Qwt3DKeyboardState(Qt::Key_Down, Qt::ControlModifier),
+                   Qwt3DKeyboardState(Qt::Key_Up, Qt::ControlModifier));
     setKeySpeed(3, 5, 5);
 
     d->m_legend.setLimits(0, 100);
@@ -126,13 +125,13 @@ Plot3D::~Plot3D()
 
 // Inline getter/setter implementations
 
-Qwt3D::CoordinateSystem* Plot3D::coordinates()
+CoordinateSystem* Plot3D::coordinates()
 {
     QWT_D(d);
     return &d->m_coordinates;
 }
 
-Qwt3D::ColorLegend* Plot3D::legend()
+ColorLegend* Plot3D::legend()
 {
     QWT_D(d);
     return &d->m_legend;
@@ -216,19 +215,19 @@ bool Plot3D::ortho() const
     return d->m_ortho;
 }
 
-Qwt3D::PLOTSTYLE Plot3D::plotStyle() const
+PLOTSTYLE Plot3D::plotStyle() const
 {
     QWT_DC(d);
     return d->m_plotStyle;
 }
 
-Qwt3D::Enrichment* Plot3D::userStyle() const
+Enrichment* Plot3D::userStyle() const
 {
     QWT_DC(d);
     return d->m_userPlotStyle;
 }
 
-Qwt3D::SHADINGSTYLE Plot3D::shading() const
+SHADINGSTYLE Plot3D::shading() const
 {
     QWT_DC(d);
     return d->m_shading;
@@ -252,13 +251,13 @@ bool Plot3D::smoothDataMesh() const
     return d->m_smoothDataMesh;
 }
 
-Qwt3D::RGBA Plot3D::backgroundRGBAColor() const
+RGBA Plot3D::backgroundRGBAColor() const
 {
     QWT_DC(d);
     return d->m_bgColor;
 }
 
-Qwt3D::RGBA Plot3D::meshColor() const
+RGBA Plot3D::meshColor() const
 {
     QWT_DC(d);
     return d->m_meshColor;
@@ -276,7 +275,7 @@ const Color* Plot3D::dataColor() const
     return d->m_dataColor;
 }
 
-Qwt3D::ParallelEpiped Plot3D::hull() const
+ParallelEpiped Plot3D::hull() const
 {
     QWT_DC(d);
     return d->m_hull;
@@ -288,7 +287,7 @@ double Plot3D::polygonOffset() const
     return d->m_polygonOffset;
 }
 
-void Plot3D::setTitleColor(Qwt3D::RGBA col)
+void Plot3D::setTitleColor(RGBA col)
 {
     QWT_D(d);
     d->m_title.setColor(col);
@@ -371,7 +370,7 @@ bool Plot3D::initializedGL() const
     return d->m_initializedGL;
 }
 
-void Plot3D::setHull(Qwt3D::ParallelEpiped p)
+void Plot3D::setHull(ParallelEpiped p)
 {
     QWT_D(d);
     d->m_hull = p;
@@ -383,13 +382,13 @@ std::vector< GLuint >& Plot3D::displayLists()
     return d->m_displayLists;
 }
 
-Qwt3D::Data* Plot3D::actualData() const
+Qwt3DData* Plot3D::actualData() const
 {
     QWT_DC(d);
     return d->m_actualData;
 }
 
-void Plot3D::setActualData(Qwt3D::Data* data)
+void Plot3D::setActualData(Qwt3DData* data)
 {
     QWT_D(d);
     d->m_actualData = data;
@@ -617,12 +616,12 @@ void Plot3D::setCoordinateStyle(COORDSTYLE st)
 
 /**
  * @brief Sets plot style for the standard plotting types
- * @param val Plot style value. An argument of value Qwt3D::USER is ignored.
+ * @param val Plot style value. An argument of value USER is ignored.
  */
 void Plot3D::setPlotStyle(PLOTSTYLE val)
 {
     QWT_D(d);
-    if (val == Qwt3D::USER)
+    if (val == USER)
         return;
     delete d->m_userPlotStyle;
     d->m_userPlotStyle = nullptr;
@@ -630,11 +629,11 @@ void Plot3D::setPlotStyle(PLOTSTYLE val)
 }
 
 /**
- * @brief Sets plot style to Qwt3D::USER with an associated enrichment object
+ * @brief Sets plot style to USER with an associated enrichment object
  * @param obj Reference to an Enrichment object
  * @return Pointer to the cloned enrichment object
  */
-Qwt3D::Enrichment* Plot3D::setPlotStyle(Qwt3D::Enrichment const& obj)
+Enrichment* Plot3D::setPlotStyle(Enrichment const& obj)
 {
     QWT_D(d);
     if (&obj == d->m_userPlotStyle)
@@ -642,7 +641,7 @@ Qwt3D::Enrichment* Plot3D::setPlotStyle(Qwt3D::Enrichment const& obj)
 
     delete d->m_userPlotStyle;
     d->m_userPlotStyle = obj.clone();
-    d->m_plotStyle     = Qwt3D::USER;
+    d->m_plotStyle     = USER;
     return d->m_userPlotStyle;
 }
 
@@ -717,7 +716,7 @@ void Plot3D::setMeshLineWidth(double val)
  * @param relx Relative X position (0-1)
  * @param anchor Anchor type for title alignment
  */
-void Plot3D::setTitlePosition(double rely, double relx, Qwt3D::ANCHOR anchor)
+void Plot3D::setTitlePosition(double rely, double relx, ANCHOR anchor)
 {
     QWT_D(d);
     d->m_titleRel.y = (rely < 0 || rely > 1) ? 0.5 : rely;

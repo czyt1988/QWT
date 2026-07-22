@@ -3,8 +3,7 @@
 
 #include "qwt3d_enrichment.h"
 
-namespace Qwt3D
-{
+
 
 class Plot3D;
 
@@ -19,12 +18,12 @@ public:
     CrossHair(const CrossHair& other);
     ~CrossHair() override;
 
-    Qwt3D::Enrichment* clone() const override;
+    Enrichment* clone() const override;
 
     void configure(double rad, double linewidth, bool smooth, bool boxed);
     void drawBegin() override;
     void drawEnd() override;
-    void draw(Qwt3D::Triple const&) override;
+    void draw(Triple const&) override;
 
 private:
     QWT_DECLARE_PRIVATE(CrossHair)
@@ -41,12 +40,12 @@ public:
     Dot(const Dot& other);
     ~Dot() override;
 
-    Qwt3D::Enrichment* clone() const override;
+    Enrichment* clone() const override;
 
     void configure(double pointsize, bool smooth);
     void drawBegin() override;
     void drawEnd() override;
-    void draw(Qwt3D::Triple const&) override;
+    void draw(Triple const&) override;
 
 private:
     QWT_DECLARE_PRIVATE(Dot)
@@ -63,10 +62,10 @@ public:
     Cone(const Cone& other);
     ~Cone() override;
 
-    Qwt3D::Enrichment* clone() const override;
+    Enrichment* clone() const override;
 
     void configure(double rad, unsigned quality);
-    void draw(Qwt3D::Triple const&) override;
+    void draw(Triple const&) override;
 
 private:
     QWT_DECLARE_PRIVATE(Cone)
@@ -84,21 +83,20 @@ public:
     Arrow(const Arrow& other);
     ~Arrow() override;
 
-    Qwt3D::Enrichment* clone() const override;
+    Enrichment* clone() const override;
 
     void configure(int segs, double relconelength, double relconerad, double relstemrad);
     void setQuality(int val);
-    void draw(Qwt3D::Triple const&) override;
+    void draw(Triple const&) override;
 
-    void setTop(Qwt3D::Triple t);
-    void setColor(Qwt3D::RGBA rgba);
+    void setTop(Triple t);
+    void setColor(RGBA rgba);
 
 private:
     QWT_DECLARE_PRIVATE(Arrow)
 
-    double calcRotation(Qwt3D::Triple& axis, Qwt3D::FreeVector const& vec);
+    double calcRotation(Triple& axis, FreeVector const& vec);
 };
 
-}  // ns
 
 #endif  // QWT3D_ENRICHMENT_STD_H

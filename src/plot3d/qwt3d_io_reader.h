@@ -3,8 +3,7 @@
 
 #include "qwt3d_io.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief Functor for reading of native files containing grid data
@@ -33,6 +32,5 @@ private:
                      double& maxy);
 };
 
-}  // ns
 
 #endif  // QWT3D_IO_READER_H

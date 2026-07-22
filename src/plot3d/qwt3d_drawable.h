@@ -5,8 +5,7 @@
 #include "qwt3d_types.h"
 #include "qwt3d_io_gl2ps.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief Abstract base class for Drawables
@@ -28,14 +27,14 @@ public:
     void detachAll();
 
     virtual void setColor(double r, double g, double b, double a = 1);
-    virtual void setColor(Qwt3D::RGBA rgba);
-    Qwt3D::Triple relativePosition(Qwt3D::Triple rel);
+    virtual void setColor(RGBA rgba);
+    Triple relativePosition(Triple rel);
 
 protected:
-    Qwt3D::RGBA color;
+    RGBA color;
     void Enable(GLenum what, GLboolean val);
-    Qwt3D::Triple ViewPort2World(Qwt3D::Triple win, bool* err = nullptr);
-    Qwt3D::Triple World2ViewPort(Qwt3D::Triple obj, bool* err = nullptr);
+    Triple ViewPort2World(Triple win, bool* err = nullptr);
+    Triple World2ViewPort(Triple obj, bool* err = nullptr);
 
     Drawable();
     Drawable(Drawable&& other) noexcept;
@@ -46,6 +45,5 @@ protected:
     GLint viewport[ 4 ];
 };
 
-}  // ns
 
 #endif

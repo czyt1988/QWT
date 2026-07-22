@@ -7,7 +7,6 @@
 #include "qwt3d_enrichment_std.h"
 
 using namespace std;
-using namespace Qwt3D;
 
 /////////////////////////////////////////////////////////////////////////////////
 //
@@ -22,10 +21,10 @@ void SurfacePlot::createDataC()
     if (plotStyle() == NOPLOT)
         return;
 
-    if (plotStyle() == Qwt3D::POINTS) {
+    if (plotStyle() == QWT3D_POINTS) {
         createPoints();
         return;
-    } else if (plotStyle() == Qwt3D::USER) {
+    } else if (plotStyle() == USER) {
         if (userStyle())
             createEnrichment(*userStyle());
         return;
@@ -128,7 +127,7 @@ void SurfacePlot::Data2FloorC()
 void SurfacePlot::Isolines2FloorC()
 {
     QWT_D(d);
-    Qwt3D::Data* data = actualData();
+    Qwt3DData* data = actualData();
     if (isolines() <= 0 || !data || data->empty())
         return;
 
@@ -207,7 +206,7 @@ void SurfacePlot::Isolines2FloorC()
 void SurfacePlot::createNormalsC()
 {
     QWT_D(d);
-    Qwt3D::Data* data = actualData();
+    Qwt3DData* data = actualData();
     if (!normals() || !data || data->empty())
         return;
 
@@ -240,7 +239,7 @@ void SurfacePlot::createNormalsC()
 
 /*!
         Convert user (non-rectangular) mesh based data to internal structure.
-        See also Qwt3D::TripleField and Qwt3D::CellField
+        See also TripleField and CellField
 */
 bool SurfacePlot::loadFromData(TripleField const& data, CellField const& poly)
 {

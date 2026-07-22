@@ -4,8 +4,7 @@
 #include "qwt3d_global.h"
 #include "qwt3d_types.h"
 
-namespace Qwt3D
-{
+
 
 class Plot3D;
 
@@ -61,20 +60,19 @@ protected:
 class QWT3D_EXPORT VertexEnrichment : public Enrichment
 {
 public:
-    VertexEnrichment() : Qwt3D::Enrichment()
+    VertexEnrichment() : Enrichment()
     {
     }
     // The derived class should give back a new Derived(something) here
     virtual Enrichment* clone() const = 0;
     // Overwrite this
-    virtual void draw(Qwt3D::Triple const&) = 0;
+    virtual void draw(Triple const&) = 0;
     // This gives VERTEXENRICHMENT
     TYPE type() const override
     {
-        return Qwt3D::Enrichment::VERTEXENRICHMENT;
+        return Enrichment::VERTEXENRICHMENT;
     }
 };
 
-}  // ns
 
 #endif  // QWT3D_ENRICHMENT_H

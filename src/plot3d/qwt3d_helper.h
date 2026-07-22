@@ -15,8 +15,7 @@ inline double Min_(double a, double b)
 }
 }
 
-namespace Qwt3D
-{
+
 
 // Checks if a value is practically zero (within floating-point epsilon)
 inline bool isPracticallyZero(double a, double b = 0)
@@ -27,6 +26,5 @@ inline bool isPracticallyZero(double a, double b = 0)
     return (fabs(a - b) <= Min_(fabs(a), fabs(b)) * DBL_EPSILON);
 }
 
-}  // ns
 
 #endif

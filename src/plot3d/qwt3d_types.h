@@ -13,10 +13,6 @@
 
 #include "qwt3d_global.h"
 
-#if defined(Q_OS_WIN)
-#include <windows.h>
-#endif
-
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA 120
 #endif
@@ -26,10 +22,9 @@
 #include "qwt3d_openglhelper.h"
 #include <QColor>
 
-namespace Qwt3D
-{
 
-const double PI = 3.14159265358979323846264338328;
+
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
  * @brief Plotting style enumeration
@@ -41,7 +36,7 @@ enum PLOTSTYLE
     HIDDENLINE,  // Hidden Line style
     FILLED,      // Color filled polygons w/o edges
     FILLEDMESH,  // Color filled polygons w/ separately colored edges
-    POINTS,      // User defined style (used by Enrichments)
+    QWT3D_POINTS,      // User defined style (used by Enrichments)
     USER         // User defined style (used by Enrichments)
 };
 
@@ -355,7 +350,7 @@ using Cell = std::vector< unsigned >;
 using CellField = std::vector< Cell >;
 
 // Returns the sum over the sizes of the single cells
-unsigned tesselationSize(Qwt3D::CellField const& t);
+unsigned tesselationSize(CellField const& t);
 
 /**
  * @brief Red-Green-Blue-Alpha value
@@ -381,7 +376,7 @@ using ColorVector = std::vector< RGBA >;
 // RGB -> QColor
 QWT3D_EXPORT QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b);
 // QColor -> RGBA
-QWT3D_EXPORT Qwt3D::RGBA Qt2GL(QColor col);
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
 using DataRow    = std::vector< Vertex >;
@@ -389,39 +384,39 @@ using DataMatrix = std::vector< DataRow >;
 
 /**
  * @brief Abstract base class for plot data
- * @details Data provides the interface for different data representations
+ * @details Qwt3DData provides the interface for different data representations
  *          used by 3D plot widgets.
  */
-class Data
+class Qwt3DData
 {
-    QWT_DECLARE_PRIVATE(Data)
+    QWT_DECLARE_PRIVATE(Qwt3DData)
 
 public:
-    Qwt3D::DATATYPE datatype;
-    Data();
-    virtual ~Data();
+    DATATYPE datatype;
+    Qwt3DData();
+    virtual ~Qwt3DData();
     // Destroy content
     virtual void clear() = 0;
     // No data
     virtual bool empty() const = 0;
-    void setHull(Qwt3D::ParallelEpiped const& h);
-    Qwt3D::ParallelEpiped const& hull() const;
+    void setHull(ParallelEpiped const& h);
+    ParallelEpiped const& hull() const;
 };
 
 /**
  * @brief Implements a matrix of z-Values with limit access functions
- * @details GridData represents data on a rectangular grid topology,
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
  */
-class GridData : public Data
+class Qwt3DGridData : public Qwt3DData
 {
-    QWT_DECLARE_PRIVATE(GridData)
+    QWT_DECLARE_PRIVATE(Qwt3DGridData)
 
 public:
-    GridData();
+    Qwt3DGridData();
     // See setSize()
-    GridData(unsigned int columns, unsigned int rows);
-    ~GridData() override;
+    Qwt3DGridData(unsigned int columns, unsigned int rows);
+    ~Qwt3DGridData() override;
 
     int columns() const;
     int rows() const;
@@ -443,17 +438,17 @@ public:
 
 /**
  * @brief Implements a graph-like cell structure with limit access functions
- * @details CellData represents data as a collection of convex polygon cells
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
  *          with associated node coordinates and normals.
  */
-class CellData : public Data
+class Qwt3DCellData : public Qwt3DData
 {
 public:
-    CellData()
+    Qwt3DCellData()
     {
-        datatype = Qwt3D::POLYGON;
+        datatype = POLYGON;
     }
-    ~CellData()
+    ~Qwt3DCellData()
     {
         clear();
     }
@@ -499,10 +494,9 @@ inline double dotProduct(Triple const& u, Triple const& v)
     return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple >& src);
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
 
-}  // ns
 
 #endif

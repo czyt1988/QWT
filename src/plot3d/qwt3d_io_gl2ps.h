@@ -6,8 +6,7 @@
 #include "qwt3d_types.h"
 #include "qwt3d_io.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief Provides EPS, PS, PDF, SVG, PGF and TeX output
@@ -78,12 +77,11 @@ GLint drawDevicePixels(GLsizei width, GLsizei height, GLenum format, GLenum type
 GLint drawDeviceText(const char* str,
                      const char* fontname,
                      int fontsize,
-                     Qwt3D::Triple pos,
-                     Qwt3D::RGBA rgba,
-                     Qwt3D::ANCHOR align,
+                     Triple pos,
+                     RGBA rgba,
+                     ANCHOR align,
                      double gap);
 void setDevicePolygonOffset(GLfloat factor, GLfloat units);
 
-}  // ns
 
 #endif  // QWT3D_IO_GL2PS_H

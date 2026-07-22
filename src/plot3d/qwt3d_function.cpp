@@ -1,7 +1,6 @@
 #include "qwt3d_surfaceplot.h"
 #include "qwt3d_function.h"
 
-using namespace Qwt3D;
 
 /**
  * @brief Default constructor

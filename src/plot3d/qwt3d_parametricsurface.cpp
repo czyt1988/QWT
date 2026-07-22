@@ -1,7 +1,6 @@
 #include "qwt3d_parametricsurface.h"
 #include "qwt3d_surfaceplot.h"
 
-using namespace Qwt3D;
 
 class ParametricSurface::PrivateData
 {

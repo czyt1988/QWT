@@ -8,7 +8,6 @@
 #include "qwt3d_io_gl2ps.h"
 #include "qwt3d_io_reader.h"
 
-using namespace Qwt3D;
 
 class PixmapWriter::PrivateData
 {

@@ -4,7 +4,6 @@
 
 #include "qwt3d_colorlegend.h"
 
-using namespace Qwt3D;
 
 class ColorLegend::PrivateData
 {
@@ -229,7 +228,7 @@ void ColorLegend::setGeometryInternal()
     d->m_caption.setPosition(c, BottomCenter);
 }
 
-Qwt3D::ParallelEpiped ColorLegend::geometry() const
+ParallelEpiped ColorLegend::geometry() const
 {
     QWT_DC(d);
     return d->m_pe;

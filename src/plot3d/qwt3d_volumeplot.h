@@ -3,8 +3,7 @@
 
 #include "qwt3d_plot.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief Volume plot widget (TODO: not yet fully implemented)
@@ -23,6 +22,5 @@ protected:
     virtual void createData() override = 0;
 };
 
-}  // ns
 
 #endif  // QWT3D_VOLUMEPLOT_H

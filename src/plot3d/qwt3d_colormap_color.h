@@ -16,13 +16,12 @@
 class QwtColorMap;
 class QString;
 
-namespace Qwt3D
-{
+
 
 class Plot3D;
 
 /**
- * @brief Adapts a QwtColorMap (from qwt::core) for use as a Qwt3D::Color.
+ * @brief Adapts a QwtColorMap (from qwt::core) for use as a Color.
  * @details Bridges the 2D colormap infrastructure into the 3D color functor system.
  */
 class QWT3D_EXPORT ColorMapColor : public Color
@@ -34,8 +33,8 @@ public:
 
     ~ColorMapColor() override;
 
-    Qwt3D::RGBA operator()(double x, double y, double z) const override;
-    Qwt3D::ColorVector& createVector(Qwt3D::ColorVector& vec) override;
+    RGBA operator()(double x, double y, double z) const override;
+    ColorVector& createVector(ColorVector& vec) override;
 
     void setColorMap(::QwtColorMap* map);
     const ::QwtColorMap* colorMap() const;
@@ -56,6 +55,5 @@ private:
     double m_alpha;
 };
 
-}  // namespace Qwt3D
 
 #endif

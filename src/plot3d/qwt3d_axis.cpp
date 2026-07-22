@@ -1,6 +1,5 @@
 #include "qwt3d_axis.h"
 
-using namespace Qwt3D;
 
 class Axis::PrivateData
 {
@@ -360,7 +359,7 @@ bool Axis::numbers() const
     return d->m_drawNumbers;
 }
 
-Qwt3D::RGBA Axis::numberColor() const
+RGBA Axis::numberColor() const
 {
     QWT_DC(d);
     return d->m_numberColor;
@@ -658,7 +657,7 @@ void Axis::setLabelString(QString const& name)
  * @param pos Position for the label
  * @param an Anchor strategy for the label
  */
-void Axis::setLabelPosition(const Triple& pos, Qwt3D::ANCHOR an)
+void Axis::setLabelPosition(const Triple& pos, ANCHOR an)
 {
     QWT_D(d);
     d->m_label.setPosition(pos, an);
@@ -713,13 +712,13 @@ void Axis::setScale(Scale* val)
  *          (or perhaps a scale only containing an isolated major tic).
  *          Better switch to linear scales in such cases.
  */
-void Axis::setScale(Qwt3D::SCALETYPE val)
+void Axis::setScale(SCALETYPE val)
 {
     switch (val) {
-    case Qwt3D::LINEARSCALE:
+    case LINEARSCALE:
         setScale(new LinearScale);
         break;
-    case Qwt3D::LOG10SCALE:
+    case LOG10SCALE:
         setScale(new LogScale);
         setMinors(9);
         break;

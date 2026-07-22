@@ -12,7 +12,6 @@
 #include "qwt3d_surfaceplot.h"
 
 using namespace std;
-using namespace Qwt3D;
 
 const char* NativeReader::magicstring = "jk:11051895-17021986";
 

@@ -1,7 +1,6 @@
 #include "qwt3d_coordsys.h"
 
 using namespace std;
-using namespace Qwt3D;
 
 class CoordinateSystem::PrivateData
 {
@@ -584,27 +583,27 @@ void CoordinateSystem::drawMajorGridLines()
     setDeviceLineWidth(axes[ X1 ].majLineWidth());
 
     glBegin(GL_LINES);
-    if (d->m_sides & Qwt3D::FLOOR) {
+    if (d->m_sides & FLOOR) {
         drawMajorGridLines(axes[ X1 ], axes[ X4 ]);
         drawMajorGridLines(axes[ Y1 ], axes[ Y2 ]);
     }
-    if (d->m_sides & Qwt3D::CEIL) {
+    if (d->m_sides & CEIL) {
         drawMajorGridLines(axes[ X2 ], axes[ X3 ]);
         drawMajorGridLines(axes[ Y3 ], axes[ Y4 ]);
     }
-    if (d->m_sides & Qwt3D::LEFT) {
+    if (d->m_sides & LEFT) {
         drawMajorGridLines(axes[ Y1 ], axes[ Y4 ]);
         drawMajorGridLines(axes[ Z1 ], axes[ Z2 ]);
     }
-    if (d->m_sides & Qwt3D::RIGHT) {
+    if (d->m_sides & RIGHT) {
         drawMajorGridLines(axes[ Y2 ], axes[ Y3 ]);
         drawMajorGridLines(axes[ Z3 ], axes[ Z4 ]);
     }
-    if (d->m_sides & Qwt3D::FRONT) {
+    if (d->m_sides & FRONT) {
         drawMajorGridLines(axes[ X1 ], axes[ X2 ]);
         drawMajorGridLines(axes[ Z2 ], axes[ Z3 ]);
     }
-    if (d->m_sides & Qwt3D::BACK) {
+    if (d->m_sides & BACK) {
         drawMajorGridLines(axes[ X3 ], axes[ X4 ]);
         drawMajorGridLines(axes[ Z4 ], axes[ Z1 ]);
     }
@@ -620,27 +619,27 @@ void CoordinateSystem::drawMinorGridLines()
     setDeviceLineWidth(axes[ X1 ].minLineWidth());
 
     glBegin(GL_LINES);
-    if (d->m_sides & Qwt3D::FLOOR) {
+    if (d->m_sides & FLOOR) {
         drawMinorGridLines(axes[ X1 ], axes[ X4 ]);
         drawMinorGridLines(axes[ Y1 ], axes[ Y2 ]);
     }
-    if (d->m_sides & Qwt3D::CEIL) {
+    if (d->m_sides & CEIL) {
         drawMinorGridLines(axes[ X2 ], axes[ X3 ]);
         drawMinorGridLines(axes[ Y3 ], axes[ Y4 ]);
     }
-    if (d->m_sides & Qwt3D::LEFT) {
+    if (d->m_sides & LEFT) {
         drawMinorGridLines(axes[ Y1 ], axes[ Y4 ]);
         drawMinorGridLines(axes[ Z1 ], axes[ Z2 ]);
     }
-    if (d->m_sides & Qwt3D::RIGHT) {
+    if (d->m_sides & RIGHT) {
         drawMinorGridLines(axes[ Y2 ], axes[ Y3 ]);
         drawMinorGridLines(axes[ Z3 ], axes[ Z4 ]);
     }
-    if (d->m_sides & Qwt3D::FRONT) {
+    if (d->m_sides & FRONT) {
         drawMinorGridLines(axes[ X1 ], axes[ X2 ]);
         drawMinorGridLines(axes[ Z2 ], axes[ Z3 ]);
     }
-    if (d->m_sides & Qwt3D::BACK) {
+    if (d->m_sides & BACK) {
         drawMinorGridLines(axes[ X3 ], axes[ X4 ]);
         drawMinorGridLines(axes[ Z4 ], axes[ Z1 ]);
     }
@@ -667,25 +666,25 @@ void CoordinateSystem::drawMinorGridLines(Axis& a0, Axis& a1)
     }
 }
 
-Qwt3D::COORDSTYLE CoordinateSystem::style() const
+COORDSTYLE CoordinateSystem::style() const
 {
     QWT_DC(d);
     return d->m_style;
 }
 
-void CoordinateSystem::setGridLinesColor(Qwt3D::RGBA val)
+void CoordinateSystem::setGridLinesColor(RGBA val)
 {
     QWT_D(d);
     d->m_gridlinecolor = val;
 }
 
-Qwt3D::Triple CoordinateSystem::first() const
+Triple CoordinateSystem::first() const
 {
     QWT_DC(d);
     return d->m_first;
 }
 
-Qwt3D::Triple CoordinateSystem::second() const
+Triple CoordinateSystem::second() const
 {
     QWT_DC(d);
     return d->m_second;

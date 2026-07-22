@@ -5,7 +5,6 @@
 #include "qwt3d_color.h"
 #include "qwt3d_plot.h"
 
-using namespace Qwt3D;
 
 /////////////////////////////////////////////////////////////////
 //
@@ -101,7 +100,7 @@ void CrossHair::drawEnd()
         glDisable(GL_LINE_SMOOTH);
 }
 
-void CrossHair::draw(Qwt3D::Triple const& pos)
+void CrossHair::draw(Triple const& pos)
 {
     QWT_D(d);
     RGBA rgba = (*plot->dataColor())(pos);
@@ -240,7 +239,7 @@ void Dot::drawEnd()
         glDisable(GL_POINT_SMOOTH);
 }
 
-void Dot::draw(Qwt3D::Triple const& pos)
+void Dot::draw(Triple const& pos)
 {
     RGBA rgba = (*plot->dataColor())(pos);
     glColor4d(rgba.r, rgba.g, rgba.b, rgba.a);
@@ -341,7 +340,7 @@ void Cone::configure(double rad, unsigned quality)
     d->m_oldstate = GL_FALSE;
 }
 
-void Cone::draw(Qwt3D::Triple const& pos)
+void Cone::draw(Triple const& pos)
 {
     QWT_D(d);
     RGBA rgba = (*plot->dataColor())(pos);
@@ -431,8 +430,8 @@ public:
     double m_relConeRadius;
     double m_relStemRadius;
 
-    Qwt3D::Triple m_top;
-    Qwt3D::RGBA m_rgba;
+    Triple m_top;
+    RGBA m_rgba;
 };
 
 Arrow::Arrow() : QWT_PIMPL_CONSTRUCT
@@ -491,19 +490,19 @@ void Arrow::setQuality(int val)
     d->m_segments = val;
 }
 
-void Arrow::setTop(Qwt3D::Triple t)
+void Arrow::setTop(Triple t)
 {
     QWT_D(d);
     d->m_top = t;
 }
 
-void Arrow::setColor(Qwt3D::RGBA rgba)
+void Arrow::setColor(RGBA rgba)
 {
     QWT_D(d);
     d->m_rgba = rgba;
 }
 
-void Arrow::draw(Qwt3D::Triple const& pos)
+void Arrow::draw(Triple const& pos)
 {
     QWT_D(d);
     Triple end    = d->m_top;
@@ -570,5 +569,5 @@ double Arrow::calcRotation(Triple& axis, FreeVector const& vec)
     axis          = normalizedcross(first, second);
     double cosphi = dotProduct(first, second);
 
-    return 180 * acos(cosphi) / Qwt3D::PI;
+    return 180 * acos(cosphi) / Qwt3D_PI;
 }

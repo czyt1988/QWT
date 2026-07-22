@@ -18,8 +18,7 @@
 
 class QwtColorMap;
 
-namespace Qwt3D
-{
+
 
 class Plot3D;
 
@@ -79,7 +78,7 @@ public:
     bool smoothMesh() const;
     void setSmoothMesh(bool);
 
-    // Data Color
+    // Qwt3DData Color
     QString dataColorPreset() const;
     void setDataColorPreset(const QString&);
     QwtColorMap* createColorMap() const;
@@ -146,6 +145,5 @@ private:
     double m_specularIntensity;
 };
 
-}  // namespace Qwt3D
 
 #endif

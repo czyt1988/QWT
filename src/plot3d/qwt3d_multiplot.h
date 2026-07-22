@@ -3,8 +3,7 @@
 
 #include "qwt3d_plot.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief Multi-plot widget for combining multiple plot areas
@@ -23,6 +22,5 @@ protected:
     virtual void createData() override = 0;
 };
 
-}  // ns
 
 #endif  // QWT3D_MULTIPLOT_H

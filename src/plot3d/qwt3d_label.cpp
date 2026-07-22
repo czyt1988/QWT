@@ -1,7 +1,6 @@
 #include <qbitmap.h>
 #include "qwt3d_label.h"
 
-using namespace Qwt3D;
 
 namespace
 {
@@ -201,7 +200,7 @@ void Label::setColor(double r, double g, double b, double a)
  * @brief Sets the label color from an RGBA object
  * @param rgba RGBA color value
  */
-void Label::setColor(Qwt3D::RGBA rgba)
+void Label::setColor(RGBA rgba)
 {
     Drawable::setColor(rgba);
     QWT_D(d);
@@ -248,7 +247,7 @@ void Label::update()
 
     QFontInfo info(d->m_font);
 
-    QRect r = QRect(QPoint(0, 0), fm.size(Qwt3D::SingleLine, d->m_text));  // fm.boundingRect(text_)  misbehaviour under linux;
+    QRect r = QRect(QPoint(0, 0), fm.size(SingleLine, d->m_text));  // fm.boundingRect(text_)  misbehaviour under linux;
 
     r.translate(0, -r.top());
 
@@ -256,7 +255,7 @@ void Label::update()
 
     if (d->m_pm.isNull())  // else crash under linux
     {
-        r = QRect(QPoint(0, 0), fm.size(Qwt3D::SingleLine, QString(" ")));  // draw empty space else //todo
+        r = QRect(QPoint(0, 0), fm.size(SingleLine, QString(" ")));  // draw empty space else //todo
         r.translate(0, -r.top());
         d->m_pm = QPixmap(r.width(), r.bottom());
     }
@@ -402,13 +401,13 @@ double Label::gap() const
     return d->m_gap;
 }
 
-Qwt3D::Triple Label::first() const
+Triple Label::first() const
 {
     QWT_DC(d);
     return d->m_beg;
 }
 
-Qwt3D::Triple Label::second() const
+Triple Label::second() const
 {
     QWT_DC(d);
     return d->m_end;

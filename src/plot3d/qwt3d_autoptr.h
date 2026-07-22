@@ -1,8 +1,7 @@
 #ifndef QWT3D_AUTOPTR_H
 #define QWT3D_AUTOPTR_H
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief Simple auto pointer providing deep copies for raw pointer
@@ -68,6 +67,5 @@ private:
     }
 };
 
-}  // ns
 
 #endif  // QWT3D_AUTOPTR_H

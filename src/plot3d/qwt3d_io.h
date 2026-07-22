@@ -8,8 +8,7 @@
 #include <qstringlist.h>
 #include "qwt3d_global.h"
 
-namespace Qwt3D
-{
+
 
 class Plot3D;
 
@@ -154,6 +153,5 @@ private:
     bool operator()(Plot3D* plot, QString const& fname) override;
 };
 
-}  // ns
 
 #endif

@@ -15,7 +15,6 @@
 #include <qcolor.h>
 #include <qstring.h>
 
-using namespace Qwt3D;
 
 ColorMapColor::ColorMapColor(Plot3D* plot, const QString& presetName, unsigned size)
     : m_plot(plot)

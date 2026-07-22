@@ -9,7 +9,6 @@
 #include "qwt3d_plot.h"
 #include "qwt_version_info.h"
 
-using namespace Qwt3D;
 
 class VectorWriter::PrivateData
 {
@@ -341,7 +340,7 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
 
 // moved
 
-GLint Qwt3D::setDeviceLineWidth(GLfloat val)
+GLint setDeviceLineWidth(GLfloat val)
 {
     if (val < 0)
         val = 0;
@@ -360,7 +359,7 @@ GLint Qwt3D::setDeviceLineWidth(GLfloat val)
     return ret;
 }
 
-GLint Qwt3D::setDevicePointSize(GLfloat val)
+GLint setDevicePointSize(GLfloat val)
 {
     if (val < 0)
         val = 0;
@@ -379,7 +378,7 @@ GLint Qwt3D::setDevicePointSize(GLfloat val)
     return ret;
 }
 
-GLint Qwt3D::drawDevicePixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels)
+GLint drawDevicePixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels)
 {
     glDrawPixels(width, height, format, type, pixels);
 
@@ -402,7 +401,7 @@ GLint Qwt3D::drawDevicePixels(GLsizei width, GLsizei height, GLenum format, GLen
     return ret;
 }
 
-GLint Qwt3D::drawDeviceText(const char* str, const char* fontname, int fontsize, Triple pos, RGBA /*rgba*/, ANCHOR align, double gap)
+GLint drawDeviceText(const char* str, const char* fontname, int fontsize, Triple pos, RGBA /*rgba*/, ANCHOR align, double gap)
 {
     double vp[ 3 ];
 
@@ -467,7 +466,7 @@ GLint Qwt3D::drawDeviceText(const char* str, const char* fontname, int fontsize,
     return ret;
 }
 
-void Qwt3D::setDevicePolygonOffset(GLfloat factor, GLfloat units)
+void setDevicePolygonOffset(GLfloat factor, GLfloat units)
 {
     glPolygonOffset(factor, units);
     gl2psEnable(GL2PS_POLYGON_OFFSET_FILL);

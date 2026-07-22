@@ -6,7 +6,6 @@
 #include <cfloat>
 #include "qwt3d_plot_p.h"
 
-using namespace Qwt3D;
 
 /**
   Set the rotation angle of the object. If you look along the respective axis towards ascending

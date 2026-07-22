@@ -5,8 +5,7 @@
 #include "qwt3d_global.h"
 #include "qwt3d_types.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief Abstract base class for general mappings
@@ -26,6 +25,5 @@ public:
     }
 };
 
-}  // ns
 
 #endif  // QWT3D_MAPPING_H

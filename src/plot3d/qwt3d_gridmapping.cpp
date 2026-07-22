@@ -1,7 +1,6 @@
 #include "qwt3d_gridmapping.h"
 #include "qwt3d_surfaceplot.h"
 
-using namespace Qwt3D;
 
 class GridMapping::PrivateData
 {
@@ -13,8 +12,8 @@ public:
     {
     }
 
-    Qwt3D::ParallelEpiped m_range;
-    Qwt3D::SurfacePlot* m_plotwidget;
+    ParallelEpiped m_range;
+    SurfacePlot* m_plotwidget;
     unsigned int m_umesh;
     unsigned int m_vmesh;
     double m_minu;
@@ -69,31 +68,31 @@ void GridMapping::setDomain(double minu, double maxu, double minv, double maxv)
  * @brief Restricts the data range to a parallelepiped
  * @param p The parallelepiped defining the restricted range
  */
-void GridMapping::restrictRange(Qwt3D::ParallelEpiped const& p)
+void GridMapping::restrictRange(ParallelEpiped const& p)
 {
     QWT_D(d);
     d->m_range = p;
 }
 
-Qwt3D::SurfacePlot* GridMapping::plotWidget() const
+SurfacePlot* GridMapping::plotWidget() const
 {
     QWT_DC(d);
     return d->m_plotwidget;
 }
 
-void GridMapping::setPlotWidget(Qwt3D::SurfacePlot* pw)
+void GridMapping::setPlotWidget(SurfacePlot* pw)
 {
     QWT_D(d);
     d->m_plotwidget = pw;
 }
 
-Qwt3D::ParallelEpiped& GridMapping::range()
+ParallelEpiped& GridMapping::range()
 {
     QWT_D(d);
     return d->m_range;
 }
 
-const Qwt3D::ParallelEpiped& GridMapping::range() const
+const ParallelEpiped& GridMapping::range() const
 {
     QWT_DC(d);
     return d->m_range;

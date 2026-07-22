@@ -6,7 +6,6 @@
 #include <cfloat>
 #include "qwt3d_plot_p.h"
 
-using namespace Qwt3D;
 
 namespace
 {

@@ -6,4 +6,3 @@
 #include "qwt3d_plot.h"
 
 using namespace std;
-using namespace Qwt3D;

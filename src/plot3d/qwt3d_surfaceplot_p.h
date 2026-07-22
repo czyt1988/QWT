@@ -4,8 +4,7 @@
 #include "qwt3d_surfaceplot.h"
 #include "qwt3d_plot_p.h"
 
-namespace Qwt3D
-{
+
 
 class SurfacePlot::PrivateData
 {
@@ -21,10 +20,9 @@ public:
 
     FLOORSTYLE m_floorStyle;
 
-    GridData* m_actualDataG;
-    CellData* m_actualDataC;
+    Qwt3DGridData* m_actualDataG;
+    Qwt3DCellData* m_actualDataC;
 };
 
-}  // ns
 
 #endif  // QWT3D_SURFACEPLOT_P_H
