@@ -4,12 +4,12 @@
 #include <list>
 
 
-class Drawable::PrivateData
+class Qwt3DDrawable::PrivateData
 {
-    QWT_DECLARE_PUBLIC(Drawable)
+    QWT_DECLARE_PUBLIC(Qwt3DDrawable)
 
 public:
-    PrivateData(Drawable* q) : q_ptr(q)
+    PrivateData(Qwt3DDrawable* q) : q_ptr(q)
     {
     }
 
@@ -28,21 +28,21 @@ public:
     GLfloat m_poloffs[ 2 ]  = { 0.0f, 0.0f };
     GLboolean m_poloffsfill = 0;
 
-    std::list< Drawable* > m_dlist;
+    std::list< Qwt3DDrawable* > m_dlist;
 };
 
-Drawable::Drawable() : QWT_PIMPL_CONSTRUCT
+Qwt3DDrawable::Qwt3DDrawable() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-Drawable::Drawable(Drawable&& other) noexcept : m_data(std::move(other.m_data)), color(other.color)
+Qwt3DDrawable::Qwt3DDrawable(Qwt3DDrawable&& other) noexcept : m_data(std::move(other.m_data)), color(other.color)
 {
     std::copy(std::begin(other.modelMatrix), std::end(other.modelMatrix), std::begin(modelMatrix));
     std::copy(std::begin(other.projMatrix), std::end(other.projMatrix), std::begin(projMatrix));
     std::copy(std::begin(other.viewport), std::end(other.viewport), std::begin(viewport));
 }
 
-Drawable& Drawable::operator=(Drawable&& other) noexcept
+Qwt3DDrawable& Qwt3DDrawable::operator=(Qwt3DDrawable&& other) noexcept
 {
     if (this != &other) {
         m_data = std::move(other.m_data);
@@ -54,12 +54,12 @@ Drawable& Drawable::operator=(Drawable&& other) noexcept
     return *this;
 }
 
-Drawable::~Drawable()
+Qwt3DDrawable::~Qwt3DDrawable()
 {
     detachAll();
 }
 
-void Drawable::saveGLState()
+void Qwt3DDrawable::saveGLState()
 {
     QWT_D(d);
 
@@ -80,7 +80,7 @@ void Drawable::saveGLState()
     glGetBooleanv(GL_POLYGON_OFFSET_FILL, &d->m_poloffsfill);
 }
 
-void Drawable::restoreGLState()
+void Qwt3DDrawable::restoreGLState()
 {
     QWT_D(d);
 
@@ -102,7 +102,7 @@ void Drawable::restoreGLState()
     Enable(GL_POLYGON_OFFSET_FILL, d->m_poloffsfill);
 }
 
-void Drawable::Enable(GLenum what, GLboolean val)
+void Qwt3DDrawable::Enable(GLenum what, GLboolean val)
 {
     if (val)
         glEnable(what);
@@ -110,7 +110,7 @@ void Drawable::Enable(GLenum what, GLboolean val)
         glDisable(what);
 }
 
-void Drawable::attach(Drawable* dr)
+void Qwt3DDrawable::attach(Qwt3DDrawable* dr)
 {
     QWT_D(d);
 
@@ -120,18 +120,18 @@ void Drawable::attach(Drawable* dr)
         }
 }
 
-void Drawable::detach(Drawable* dr)
+void Qwt3DDrawable::detach(Qwt3DDrawable* dr)
 {
     QWT_D(d);
 
-    std::list< Drawable* >::iterator it = std::find(d->m_dlist.begin(), d->m_dlist.end(), dr);
+    std::list< Qwt3DDrawable* >::iterator it = std::find(d->m_dlist.begin(), d->m_dlist.end(), dr);
 
     if (it != d->m_dlist.end()) {
         d->m_dlist.erase(it);
     }
 }
 
-void Drawable::detachAll()
+void Qwt3DDrawable::detachAll()
 {
     QWT_D(d);
     d->m_dlist.clear();
@@ -144,7 +144,7 @@ void Drawable::detachAll()
  * @return World (object) coordinates
  * @warning Don't rely on (use) this in display lists!
  */
-Triple Drawable::ViewPort2World(Triple win, bool* err)
+Triple Qwt3DDrawable::ViewPort2World(Triple win, bool* err)
 {
     Triple obj;
 
@@ -163,7 +163,7 @@ Triple Drawable::ViewPort2World(Triple win, bool* err)
  * @return Viewport (window) coordinates
  * @warning Don't rely on (use) this in display lists!
  */
-Triple Drawable::World2ViewPort(Triple obj, bool* err)
+Triple Qwt3DDrawable::World2ViewPort(Triple obj, bool* err)
 {
     Triple win;
 
@@ -181,12 +181,12 @@ Triple Drawable::World2ViewPort(Triple obj, bool* err)
  * @return Corresponding world coordinates
  * @warning Don't rely on (use) this in display lists!
  */
-Triple Drawable::relativePosition(Triple rel)
+Triple Qwt3DDrawable::relativePosition(Triple rel)
 {
     return ViewPort2World(Triple((rel.x - viewport[ 0 ]) * viewport[ 2 ], (rel.y - viewport[ 1 ]) * viewport[ 3 ], rel.z));
 }
 
-void Drawable::draw()
+void Qwt3DDrawable::draw()
 {
     QWT_D(d);
 
@@ -198,12 +198,12 @@ void Drawable::draw()
     restoreGLState();
 }
 
-void Drawable::setColor(double r, double g, double b, double a)
+void Qwt3DDrawable::setColor(double r, double g, double b, double a)
 {
     color = RGBA(r, g, b, a);
 }
 
-void Drawable::setColor(RGBA rgba)
+void Qwt3DDrawable::setColor(RGBA rgba)
 {
     color = rgba;
 }

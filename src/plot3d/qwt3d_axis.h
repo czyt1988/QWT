@@ -15,17 +15,17 @@
  * @details Axes are highly customizable especially in terms
  *          of labeling and scaling.
  */
-class QWT3D_EXPORT Axis : public Drawable
+class QWT3D_EXPORT Qwt3DAxis : public Qwt3DDrawable
 {
-    QWT_DECLARE_PRIVATE(Axis)
+    QWT_DECLARE_PRIVATE(Qwt3DAxis)
 
 public:
     // Constructs standard axis
-    Axis();
+    Qwt3DAxis();
     // Constructs a new axis with specified limits
-    Axis(Triple beg, Triple end);
+    Qwt3DAxis(Triple beg, Triple end);
     // Destructor
-    ~Axis() override;
+    ~Qwt3DAxis() override;
 
     // Draws axis
     void draw() override;

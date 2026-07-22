@@ -19,7 +19,7 @@
  */
 class QWT3D_EXPORT Scale
 {
-    friend class Axis;
+    friend class Qwt3DAxis;
     friend class ClonePtr< Scale >;
 
 protected:
@@ -64,7 +64,7 @@ private:
  */
 class QWT3D_EXPORT LinearScale : public Scale
 {
-    friend class Axis;
+    friend class Qwt3DAxis;
     friend class ClonePtr< Scale >;
 
 protected:
@@ -83,7 +83,7 @@ protected:
  */
 class QWT3D_EXPORT LogScale : public Scale
 {
-    friend class Axis;
+    friend class Qwt3DAxis;
     friend class ClonePtr< Scale >;
 
 protected:

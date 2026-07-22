@@ -397,7 +397,7 @@ void Qwt3DTheme::apply(Plot3D* plot) const
 
     plot->setDataColor(new ColorMapColor(plot, m_dataColorPreset));
 
-    CoordinateSystem* coords = plot->coordinates();
+    Qwt3DCoordinateSystem* coords = plot->coordinates();
     if (coords) {
         coords->setAxesColor(m_axesColor);
         coords->setNumberColor(m_numberColor);

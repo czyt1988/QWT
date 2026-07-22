@@ -13,22 +13,22 @@
 
 /**
  * @brief A Qt string or an output device dependent string
- * @details Label provides text rendering on 3D plots, supporting both Qt string
+ * @details Qwt3DLabel provides text rendering on 3D plots, supporting both Qt string
  *          representation and device-dependent string output.
  */
-class QWT3D_EXPORT Label : public Drawable
+class QWT3D_EXPORT Qwt3DLabel : public Qwt3DDrawable
 {
-    QWT_DECLARE_PRIVATE(Label)
+    QWT_DECLARE_PRIVATE(Qwt3DLabel)
 
 public:
-    Label();
-    ~Label() override;
-    Label(const Label& other);
-    Label(Label&& other) noexcept;
-    Label& operator=(const Label& other);
-    Label& operator=(Label&& other) noexcept;
+    Qwt3DLabel();
+    ~Qwt3DLabel() override;
+    Qwt3DLabel(const Qwt3DLabel& other);
+    Qwt3DLabel(Qwt3DLabel&& other) noexcept;
+    Qwt3DLabel& operator=(const Qwt3DLabel& other);
+    Qwt3DLabel& operator=(Qwt3DLabel&& other) noexcept;
     // Construct label and initialize with font
-    Label(const QString& family, int pointSize, int weight = QFont::Normal, bool italic = false);
+    Qwt3DLabel(const QString& family, int pointSize, int weight = QFont::Normal, bool italic = false);
 
     // Sets the labels font
     void setFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);

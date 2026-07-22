@@ -9,15 +9,15 @@
 /**
  * @brief A coordinate system with different styles (BOX, FRAME)
  */
-class QWT3D_EXPORT CoordinateSystem : public Drawable
+class QWT3D_EXPORT Qwt3DCoordinateSystem : public Qwt3DDrawable
 {
-    QWT_DECLARE_PRIVATE(CoordinateSystem)
+    QWT_DECLARE_PRIVATE(Qwt3DCoordinateSystem)
 
 public:
-    explicit CoordinateSystem(Triple blb = Triple(0, 0, 0),
+    explicit Qwt3DCoordinateSystem(Triple blb = Triple(0, 0, 0),
                               Triple ftr = Triple(0, 0, 0),
                               COORDSTYLE = BOX);
-    ~CoordinateSystem() override;
+    ~Qwt3DCoordinateSystem() override;
 
     void init(Triple beg = Triple(0, 0, 0), Triple end = Triple(0, 0, 0));
     // Set style for the coordinate system (NOCOORD, FRAME or BOX)
@@ -83,16 +83,16 @@ public:
     int grids() const;
 
     // The vector of all 12 axes - use them to set axis properties individually
-    std::vector< Axis > axes;
+    std::vector< Qwt3DAxis > axes;
 
 private:
     void destroy();
     void chooseAxes();
-    void autoDecorateExposedAxis(Axis& ax, bool left);
+    void autoDecorateExposedAxis(Qwt3DAxis& ax, bool left);
     void drawMajorGridLines();
     void drawMinorGridLines();
-    void drawMajorGridLines(Axis&, Axis&);
-    void drawMinorGridLines(Axis&, Axis&);
+    void drawMajorGridLines(Qwt3DAxis&, Qwt3DAxis&);
+    void drawMinorGridLines(Qwt3DAxis&, Qwt3DAxis&);
     void recalculateAxesTics();
 };
 

@@ -10,20 +10,20 @@
 /**
  * @brief Abstract base class for Drawables
  */
-class QWT3D_EXPORT Drawable
+class QWT3D_EXPORT Qwt3DDrawable
 {
-    QWT_DECLARE_PRIVATE(Drawable)
+    QWT_DECLARE_PRIVATE(Qwt3DDrawable)
 
 public:
-    virtual ~Drawable() = 0;
+    virtual ~Qwt3DDrawable() = 0;
 
     virtual void draw();
 
     virtual void saveGLState();
     virtual void restoreGLState();
 
-    void attach(Drawable*);
-    void detach(Drawable*);
+    void attach(Qwt3DDrawable*);
+    void detach(Qwt3DDrawable*);
     void detachAll();
 
     virtual void setColor(double r, double g, double b, double a = 1);
@@ -36,9 +36,9 @@ protected:
     Triple ViewPort2World(Triple win, bool* err = nullptr);
     Triple World2ViewPort(Triple obj, bool* err = nullptr);
 
-    Drawable();
-    Drawable(Drawable&& other) noexcept;
-    Drawable& operator=(Drawable&& other) noexcept;
+    Qwt3DDrawable();
+    Qwt3DDrawable(Qwt3DDrawable&& other) noexcept;
+    Qwt3DDrawable& operator=(Qwt3DDrawable&& other) noexcept;
 
     GLdouble modelMatrix[ 16 ];
     GLdouble projMatrix[ 16 ];

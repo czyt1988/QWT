@@ -25,7 +25,7 @@ public:
         Triple shift;
     };
 
-    CoordinateSystem m_coordinates;
+    Qwt3DCoordinateSystem m_coordinates;
     Color* m_dataColor;
     Enrichment* m_userPlotStyle;
     std::list< Enrichment* > m_enrichmentList;
@@ -54,9 +54,9 @@ public:
 
     ParallelEpiped m_hull;
 
-    ColorLegend m_legend;
+    Qwt3DColorLegend m_legend;
 
-    Label m_title;
+    Qwt3DLabel m_title;
     Tuple m_titleRel;
     ANCHOR m_titleAnchor;
 

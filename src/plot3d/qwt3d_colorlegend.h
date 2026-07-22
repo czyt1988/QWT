@@ -13,9 +13,9 @@
  * @details The class visualizes a ColorVector together with a scale (axis)
  *          and a caption. ColorLegends are vertical or horizontal.
  */
-class QWT3D_EXPORT ColorLegend : public Drawable
+class QWT3D_EXPORT Qwt3DColorLegend : public Qwt3DDrawable
 {
-    QWT_DECLARE_PRIVATE(ColorLegend)
+    QWT_DECLARE_PRIVATE(Qwt3DColorLegend)
 
 public:
     // Possible anchor points for caption and axis
@@ -35,8 +35,8 @@ public:
     };
 
     // Standard constructor
-    ColorLegend();
-    ~ColorLegend() override;
+    Qwt3DColorLegend();
+    ~Qwt3DColorLegend() override;
 
     // Draws the object - called by updateGL()
     virtual void draw() override;

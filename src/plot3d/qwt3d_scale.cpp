@@ -14,7 +14,7 @@ class Scale::PrivateData
 public:
     explicit PrivateData(Scale* p);
 
-    friend class Axis;
+    friend class Qwt3DAxis;
 
     std::vector< double > m_majors, m_minors;
     double m_start, m_stop;

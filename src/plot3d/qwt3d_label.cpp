@@ -7,12 +7,12 @@ namespace
 bool deviceFonts = false;
 }
 
-class Label::PrivateData
+class Qwt3DLabel::PrivateData
 {
-    QWT_DECLARE_PUBLIC(Label)
+    QWT_DECLARE_PUBLIC(Qwt3DLabel)
 
 public:
-    PrivateData(Label* q)
+    PrivateData(Qwt3DLabel* q)
         : q_ptr(q)
         , m_beg(0.0, 0.0, 0.0)
         , m_end(0.0, 0.0, 0.0)
@@ -41,19 +41,19 @@ public:
 /**
  * @brief Default constructor
  */
-Label::Label() : QWT_PIMPL_CONSTRUCT
+Qwt3DLabel::Qwt3DLabel() : QWT_PIMPL_CONSTRUCT
 {
     init();
 }
 
 /**
- * @brief Constructs a Label with specified font parameters
+ * @brief Constructs a Qwt3DLabel with specified font parameters
  * @param family Font family name
  * @param pointSize Font point size
  * @param weight Font weight
  * @param italic Whether font is italic
  */
-Label::Label(const QString& family, int pointSize, int weight, bool italic) : QWT_PIMPL_CONSTRUCT
+Qwt3DLabel::Qwt3DLabel(const QString& family, int pointSize, int weight, bool italic) : QWT_PIMPL_CONSTRUCT
 {
     init(family, pointSize, weight, italic);
 }
@@ -61,12 +61,12 @@ Label::Label(const QString& family, int pointSize, int weight, bool italic) : QW
 /**
  * @brief Destructor
  */
-Label::~Label() = default;
+Qwt3DLabel::~Qwt3DLabel() = default;
 
 /**
  * @brief Copy constructor
  */
-Label::Label(const Label& other) : Drawable(), QWT_PIMPL_CONSTRUCT
+Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     const PrivateData* od = other.d_func();
@@ -87,14 +87,14 @@ Label::Label(const Label& other) : Drawable(), QWT_PIMPL_CONSTRUCT
 /**
  * @brief Move constructor
  */
-Label::Label(Label&& other) noexcept : Drawable(std::move(other)), m_data(std::move(other.m_data))
+Qwt3DLabel::Qwt3DLabel(Qwt3DLabel&& other) noexcept : Qwt3DDrawable(std::move(other)), m_data(std::move(other.m_data))
 {
 }
 
 /**
  * @brief Copy assignment operator
  */
-Label& Label::operator=(const Label& other)
+Qwt3DLabel& Qwt3DLabel::operator=(const Qwt3DLabel& other)
 {
     if (this != &other) {
         QWT_D(d);
@@ -118,23 +118,23 @@ Label& Label::operator=(const Label& other)
 /**
  * @brief Move assignment operator
  */
-Label& Label::operator=(Label&& other) noexcept
+Qwt3DLabel& Qwt3DLabel::operator=(Qwt3DLabel&& other) noexcept
 {
     if (this != &other) {
-        Drawable::operator=(std::move(other));
+        Qwt3DDrawable::operator=(std::move(other));
         m_data = std::move(other.m_data);
     }
     return *this;
 }
 
-void Label::init(const QString& family, int pointSize, int weight, bool italic)
+void Qwt3DLabel::init(const QString& family, int pointSize, int weight, bool italic)
 {
     init();
     QWT_D(d);
     d->m_font = QFont(family, pointSize, weight, italic);
 }
 
-void Label::init()
+void Qwt3DLabel::init()
 {
     QWT_D(d);
     d->m_beg = Triple(0.0, 0.0, 0.0);
@@ -152,7 +152,7 @@ void Label::init()
  * @brief Enables or disables device font rendering for all labels
  * @param val True to use device fonts, false to use Qt-based rendering
  */
-void Label::useDeviceFonts(bool val)
+void Qwt3DLabel::useDeviceFonts(bool val)
 {
     deviceFonts = val;
 }
@@ -164,7 +164,7 @@ void Label::useDeviceFonts(bool val)
  * @param weight Font weight
  * @param italic Whether font is italic
  */
-void Label::setFont(const QString& family, int pointSize, int weight, bool italic)
+void Qwt3DLabel::setFont(const QString& family, int pointSize, int weight, bool italic)
 {
     QWT_D(d);
     d->m_font          = QFont(family, pointSize, weight, italic);
@@ -175,7 +175,7 @@ void Label::setFont(const QString& family, int pointSize, int weight, bool itali
  * @brief Sets the label text string
  * @param s Text string to display
  */
-void Label::setString(QString const& s)
+void Qwt3DLabel::setString(QString const& s)
 {
     QWT_D(d);
     d->m_text          = s;
@@ -189,9 +189,9 @@ void Label::setString(QString const& s)
  * @param b Blue component
  * @param a Alpha component
  */
-void Label::setColor(double r, double g, double b, double a)
+void Qwt3DLabel::setColor(double r, double g, double b, double a)
 {
-    Drawable::setColor(r, g, b, a);
+    Qwt3DDrawable::setColor(r, g, b, a);
     QWT_D(d);
     d->m_flagForUpdate = true;
 }
@@ -200,9 +200,9 @@ void Label::setColor(double r, double g, double b, double a)
  * @brief Sets the label color from an RGBA object
  * @param rgba RGBA color value
  */
-void Label::setColor(RGBA rgba)
+void Qwt3DLabel::setColor(RGBA rgba)
 {
-    Drawable::setColor(rgba);
+    Qwt3DDrawable::setColor(rgba);
     QWT_D(d);
     d->m_flagForUpdate = true;
 }
@@ -217,7 +217,7 @@ void Label::setColor(RGBA rgba)
  *          |  Pixmap |
  *          +---------X
  */
-void Label::setPosition(Triple pos, ANCHOR a)
+void Qwt3DLabel::setPosition(Triple pos, ANCHOR a)
 {
     QWT_D(d);
     d->m_anchor = a;
@@ -229,7 +229,7 @@ void Label::setPosition(Triple pos, ANCHOR a)
  * @param rpos Relative position tuple (x,y)
  * @param a Anchor type defining how the label aligns
  */
-void Label::setRelPosition(Tuple rpos, ANCHOR a)
+void Qwt3DLabel::setRelPosition(Tuple rpos, ANCHOR a)
 {
     QWT_D(d);
     double ot = 0.99;
@@ -239,7 +239,7 @@ void Label::setRelPosition(Tuple rpos, ANCHOR a)
     setPosition(d->m_beg, a);
 }
 
-void Label::update()
+void Qwt3DLabel::update()
 {
     QWT_D(d);
     QPainter p;
@@ -289,13 +289,13 @@ void Label::update()
  *          bottom aligned bottom-up. The unit is user space dependent
  *          (one pixel on screen - play around to get satisfying results).
  */
-void Label::adjust(int gap)
+void Qwt3DLabel::adjust(int gap)
 {
     QWT_D(d);
     d->m_gap = gap;
 }
 
-void Label::convert2screen()
+void Qwt3DLabel::convert2screen()
 {
     QWT_D(d);
     Triple start = World2ViewPort(d->m_pos);
@@ -338,7 +338,7 @@ void Label::convert2screen()
 /**
  * @brief Draws the label
  */
-void Label::draw()
+void Qwt3DLabel::draw()
 {
     QWT_D(d);
     if (d->m_flagForUpdate) {
@@ -379,7 +379,7 @@ void Label::draw()
  * @brief Returns the label width in pixels
  * @return Label pixmap width
  */
-double Label::width() const
+double Qwt3DLabel::width() const
 {
     QWT_DC(d);
     return d->m_pm.width();
@@ -389,31 +389,31 @@ double Label::width() const
  * @brief Returns the label height in pixels
  * @return Label pixmap height
  */
-double Label::height() const
+double Qwt3DLabel::height() const
 {
     QWT_DC(d);
     return d->m_pm.height();
 }
 
-double Label::gap() const
+double Qwt3DLabel::gap() const
 {
     QWT_DC(d);
     return d->m_gap;
 }
 
-Triple Label::first() const
+Triple Qwt3DLabel::first() const
 {
     QWT_DC(d);
     return d->m_beg;
 }
 
-Triple Label::second() const
+Triple Qwt3DLabel::second() const
 {
     QWT_DC(d);
     return d->m_end;
 }
 
-ANCHOR Label::anchor() const
+ANCHOR Qwt3DLabel::anchor() const
 {
     QWT_DC(d);
     return d->m_anchor;

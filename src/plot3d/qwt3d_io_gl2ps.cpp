@@ -251,10 +251,10 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
 
     switch (d->m_textMode) {
     case NATIVE:
-        Label::useDeviceFonts(true);
+        Qwt3DLabel::useDeviceFonts(true);
         break;
     case PIXEL:
-        Label::useDeviceFonts(false);
+        Qwt3DLabel::useDeviceFonts(false);
         break;
     case TEX:
         options |= GL2PS_NO_PIXMAP | GL2PS_NO_TEXT;
@@ -270,7 +270,7 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
 
     FILE* fp = fopen(QWT3DLOCAL8BIT(fname), "wb");
     if (!fp) {
-        Label::useDeviceFonts(false);
+        Qwt3DLabel::useDeviceFonts(false);
         return false;
     }
     while (state == GL2PS_OVERFLOW) {
@@ -302,10 +302,10 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
 
         fp = fopen(QWT3DLOCAL8BIT(fn), "wb");
         if (!fp) {
-            Label::useDeviceFonts(false);
+            Qwt3DLabel::useDeviceFonts(false);
             return false;
         }
-        Label::useDeviceFonts(true);
+        Qwt3DLabel::useDeviceFonts(true);
         options &= ~GL2PS_NO_PIXMAP & ~GL2PS_NO_TEXT;
         state = GL2PS_OVERFLOW;
         while (state == GL2PS_OVERFLOW) {
@@ -333,7 +333,7 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
         fclose(fp);
     }
 
-    Label::useDeviceFonts(false);
+    Qwt3DLabel::useDeviceFonts(false);
 
     return true;
 }

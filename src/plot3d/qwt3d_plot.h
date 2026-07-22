@@ -34,9 +34,9 @@ public:
     // Create coordinate system between two points
     void createCoordinateSystem(Triple beg, Triple end);
     // Returns pointer to CoordinateSystem object
-    CoordinateSystem* coordinates();
+    Qwt3DCoordinateSystem* coordinates();
     // Returns pointer to ColorLegend object
-    ColorLegend* legend();
+    Qwt3DColorLegend* legend();
 
     // Returns rotation around X axis [-360..360] (some angles are equivalent)
     double xRotation() const;

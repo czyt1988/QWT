@@ -5,24 +5,24 @@
 #include "qwt3d_colorlegend.h"
 
 
-class ColorLegend::PrivateData
+class Qwt3DColorLegend::PrivateData
 {
-    QWT_DECLARE_PUBLIC(ColorLegend)
+    QWT_DECLARE_PUBLIC(Qwt3DColorLegend)
 
 public:
-    PrivateData(ColorLegend* p) : q_ptr(p)
+    PrivateData(Qwt3DColorLegend* p) : q_ptr(p)
     {
-        m_axisposition = ColorLegend::Left;
-        m_orientation  = ColorLegend::BottomTop;
+        m_axisposition = Qwt3DColorLegend::Left;
+        m_orientation  = Qwt3DColorLegend::BottomTop;
         m_showaxis     = true;
     }
 
-    Label m_caption;
+    Qwt3DLabel m_caption;
     ParallelEpiped m_pe;
     Tuple m_relMin, m_relMax;
-    Axis m_axis;
-    ColorLegend::SCALEPOSITION m_axisposition;
-    ColorLegend::ORIENTATION m_orientation;
+    Qwt3DAxis m_axis;
+    Qwt3DColorLegend::SCALEPOSITION m_axisposition;
+    Qwt3DColorLegend::ORIENTATION m_orientation;
     bool m_showaxis;
 };
 
@@ -31,7 +31,7 @@ public:
  * @details The legend resides in the top-right area and has no caption.
  *          Scale numbering is shown.
  */
-ColorLegend::ColorLegend() : QWT_PIMPL_CONSTRUCT
+Qwt3DColorLegend::Qwt3DColorLegend() : QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     d->m_axis.setNumbers(true);
@@ -45,13 +45,13 @@ ColorLegend::ColorLegend() : QWT_PIMPL_CONSTRUCT
     setRelPosition(Tuple(0.94, 1 - 0.36), Tuple(0.97, 1 - 0.04));
 }
 
-ColorLegend::~ColorLegend() = default;
+Qwt3DColorLegend::~Qwt3DColorLegend() = default;
 
 /**
  * @brief Sets the legend title string
  * @param s Title text string
  */
-void ColorLegend::setTitleString(QString const& s)
+void Qwt3DColorLegend::setTitleString(QString const& s)
 {
     QWT_D(d);
     d->m_caption.setString(s);
@@ -64,7 +64,7 @@ void ColorLegend::setTitleString(QString const& s)
  * @param weight Font weight
  * @param italic Whether font is italic
  */
-void ColorLegend::setTitleFont(QString const& family, int pointSize, int weight, bool italic)
+void Qwt3DColorLegend::setTitleFont(QString const& family, int pointSize, int weight, bool italic)
 {
     QWT_D(d);
     d->m_caption.setFont(family, pointSize, weight, italic);
@@ -75,7 +75,7 @@ void ColorLegend::setTitleFont(QString const& family, int pointSize, int weight,
  * @param start Start value
  * @param stop Stop value
  */
-void ColorLegend::setLimits(double start, double stop)
+void Qwt3DColorLegend::setLimits(double start, double stop)
 {
     QWT_D(d);
     d->m_axis.setLimits(start, stop);
@@ -85,7 +85,7 @@ void ColorLegend::setLimits(double start, double stop)
  * @brief Sets number of major intervals
  * @param majors Number of major intervals
  */
-void ColorLegend::setMajors(int majors)
+void Qwt3DColorLegend::setMajors(int majors)
 {
     QWT_D(d);
     d->m_axis.setMajors(majors);
@@ -95,7 +95,7 @@ void ColorLegend::setMajors(int majors)
  * @brief Sets number of minor intervals
  * @param minors Number of minor intervals
  */
-void ColorLegend::setMinors(int minors)
+void Qwt3DColorLegend::setMinors(int minors)
 {
     QWT_D(d);
     d->m_axis.setMinors(minors);
@@ -105,7 +105,7 @@ void ColorLegend::setMinors(int minors)
  * @brief Enables or disables auto-scaling
  * @param val True to enable auto-scaling, false to disable
  */
-void ColorLegend::setAutoScale(bool val)
+void Qwt3DColorLegend::setAutoScale(bool val)
 {
     QWT_D(d);
     d->m_axis.setAutoScale(val);
@@ -115,7 +115,7 @@ void ColorLegend::setAutoScale(bool val)
  * @brief Sets predefined scale type
  * @param val Scale type (LINEARSCALE or LOG10SCALE)
  */
-void ColorLegend::setScale(SCALETYPE val)
+void Qwt3DColorLegend::setScale(SCALETYPE val)
 {
     QWT_D(d);
     d->m_axis.setScale(val);
@@ -125,7 +125,7 @@ void ColorLegend::setScale(SCALETYPE val)
  * @brief Sets a user-defined scale object
  * @param val Pointer to a Scale object
  */
-void ColorLegend::setScale(Scale* val)
+void Qwt3DColorLegend::setScale(Scale* val)
 {
     QWT_D(d);
     d->m_axis.setScale(val);
@@ -136,7 +136,7 @@ void ColorLegend::setScale(Scale* val)
  * @param orientation Legend orientation (BottomTop or TopBottom)
  * @param pos Axis scale position (Left, Right, Top, or Bottom)
  */
-void ColorLegend::setOrientation(ORIENTATION orientation, SCALEPOSITION pos)
+void Qwt3DColorLegend::setOrientation(ORIENTATION orientation, SCALEPOSITION pos)
 {
     QWT_D(d);
     d->m_orientation  = orientation;
@@ -156,14 +156,14 @@ void ColorLegend::setOrientation(ORIENTATION orientation, SCALEPOSITION pos)
  * @param relMin Minimum relative position (x,y)
  * @param relMax Maximum relative position (x,y)
  */
-void ColorLegend::setRelPosition(Tuple relMin, Tuple relMax)
+void Qwt3DColorLegend::setRelPosition(Tuple relMin, Tuple relMax)
 {
     QWT_D(d);
     d->m_relMin = relMin;
     d->m_relMax = relMax;
 }
 
-void ColorLegend::setGeometryInternal()
+void Qwt3DColorLegend::setGeometryInternal()
 {
     QWT_D(d);
 
@@ -178,7 +178,7 @@ void ColorLegend::setGeometryInternal()
     Triple e;
 
     switch (d->m_axisposition) {
-    case ColorLegend::Left:
+    case Qwt3DColorLegend::Left:
         b   = d->m_pe.minVertex;
         e   = d->m_pe.maxVertex;
         e.x = b.x;
@@ -186,7 +186,7 @@ void ColorLegend::setGeometryInternal()
         d->m_axis.setNumberAnchor(CenterRight);
         diff = d->m_pe.maxVertex.x - d->m_pe.minVertex.x;
         break;
-    case ColorLegend::Right:
+    case Qwt3DColorLegend::Right:
         e   = d->m_pe.maxVertex;
         b   = d->m_pe.minVertex;
         b.x = e.x;
@@ -194,7 +194,7 @@ void ColorLegend::setGeometryInternal()
         d->m_axis.setNumberAnchor(CenterLeft);
         diff = d->m_pe.maxVertex.x - d->m_pe.minVertex.x;
         break;
-    case ColorLegend::Top:
+    case Qwt3DColorLegend::Top:
         e   = d->m_pe.maxVertex;
         b   = d->m_pe.minVertex;
         b.z = e.z;
@@ -202,7 +202,7 @@ void ColorLegend::setGeometryInternal()
         d->m_axis.setNumberAnchor(BottomCenter);
         diff = d->m_pe.maxVertex.z - d->m_pe.minVertex.z;
         break;
-    case ColorLegend::Bottom:
+    case Qwt3DColorLegend::Bottom:
         b   = d->m_pe.minVertex;
         e   = d->m_pe.maxVertex;
         e.z = b.z;
@@ -228,19 +228,19 @@ void ColorLegend::setGeometryInternal()
     d->m_caption.setPosition(c, BottomCenter);
 }
 
-ParallelEpiped ColorLegend::geometry() const
+ParallelEpiped Qwt3DColorLegend::geometry() const
 {
     QWT_DC(d);
     return d->m_pe;
 }
 
-void ColorLegend::drawScale(bool val)
+void Qwt3DColorLegend::drawScale(bool val)
 {
     QWT_D(d);
     d->m_showaxis = val;
 }
 
-void ColorLegend::drawNumbers(bool val)
+void Qwt3DColorLegend::drawNumbers(bool val)
 {
     QWT_D(d);
     d->m_axis.setNumbers(val);
@@ -250,7 +250,7 @@ void ColorLegend::drawNumbers(bool val)
  * @brief Draws the color legend
  * @details Renders the color legend including color bar, axis, and caption.
  */
-void ColorLegend::draw()
+void Qwt3DColorLegend::draw()
 {
     if (colors.empty())
         return;
@@ -264,7 +264,7 @@ void ColorLegend::draw()
     Triple one = d->m_pe.minVertex;
     Triple two = d->m_pe.maxVertex;
 
-    double h = (d->m_orientation == ColorLegend::BottomTop) ? (two - one).z / colors.size()
+    double h = (d->m_orientation == Qwt3DColorLegend::BottomTop) ? (two - one).z / colors.size()
                                                             : (two - one).x / colors.size();
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -282,7 +282,7 @@ void ColorLegend::draw()
     size_t size = colors.size();
     RGBA rgb;
 
-    if (d->m_orientation == ColorLegend::BottomTop) {
+    if (d->m_orientation == Qwt3DColorLegend::BottomTop) {
         for (unsigned i = 1; i <= size; ++i) {
             rgb = colors[ i - 1 ];
             glColor4d(rgb.r, rgb.g, rgb.b, rgb.a);

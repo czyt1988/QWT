@@ -2,12 +2,12 @@
 
 using namespace std;
 
-class CoordinateSystem::PrivateData
+class Qwt3DCoordinateSystem::PrivateData
 {
-    QWT_DECLARE_PUBLIC(CoordinateSystem)
+    QWT_DECLARE_PUBLIC(Qwt3DCoordinateSystem)
 
 public:
-    PrivateData(CoordinateSystem* p)
+    PrivateData(Qwt3DCoordinateSystem* p)
         : q_ptr(p)
         , m_style(BOX)
         , m_smooth(true)
@@ -33,9 +33,9 @@ public:
  * @param second Maximum vertex of the coordinate system box
  * @param st Coordinate system style (NOCOORD, BOX, or FRAME)
  */
-CoordinateSystem::CoordinateSystem(Triple first, Triple second, COORDSTYLE st) : QWT_PIMPL_CONSTRUCT
+Qwt3DCoordinateSystem::Qwt3DCoordinateSystem(Triple first, Triple second, COORDSTYLE st) : QWT_PIMPL_CONSTRUCT
 {
-    axes = std::vector< Axis >(12);
+    axes = std::vector< Qwt3DAxis >(12);
     setStyle(st);
     init(first, second);
 
@@ -50,12 +50,12 @@ CoordinateSystem::CoordinateSystem(Triple first, Triple second, COORDSTYLE st) :
 /**
  * @brief Destructor
  */
-CoordinateSystem::~CoordinateSystem()
+Qwt3DCoordinateSystem::~Qwt3DCoordinateSystem()
 {
     destroy();
 }
 
-void CoordinateSystem::destroy()
+void Qwt3DCoordinateSystem::destroy()
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setLabelString("");
@@ -63,7 +63,7 @@ void CoordinateSystem::destroy()
     detachAll();
 }
 
-void CoordinateSystem::init(Triple first, Triple second)
+void Qwt3DCoordinateSystem::init(Triple first, Triple second)
 {
     QWT_D(d);
 
@@ -133,7 +133,7 @@ void CoordinateSystem::init(Triple first, Triple second)
  * @details Chooses visible axes automatically when auto-decoration is on,
  *          then draws major and minor grid lines as configured.
  */
-void CoordinateSystem::draw()
+void Qwt3DCoordinateSystem::draw()
 {
     QWT_D(d);
 
@@ -145,7 +145,7 @@ void CoordinateSystem::draw()
     if (d->m_autodecoration)
         chooseAxes();
 
-    Drawable::draw();
+    Qwt3DDrawable::draw();
 
     if (d->m_style == NOCOORD)
         return;
@@ -158,7 +158,7 @@ void CoordinateSystem::draw()
         drawMinorGridLines();
 }
 
-void CoordinateSystem::chooseAxes()
+void Qwt3DCoordinateSystem::chooseAxes()
 {
     QWT_D(d);
 
@@ -294,7 +294,7 @@ void CoordinateSystem::chooseAxes()
     }
 }
 
-void CoordinateSystem::autoDecorateExposedAxis(Axis& ax, bool left)
+void Qwt3DCoordinateSystem::autoDecorateExposedAxis(Qwt3DAxis& ax, bool left)
 {
     Triple diff = World2ViewPort(ax.end()) - World2ViewPort(ax.begin());
 
@@ -367,7 +367,7 @@ void CoordinateSystem::autoDecorateExposedAxis(Axis& ax, bool left)
  * @param first Front-left-bottom corner of the bounding box
  * @param second Back-right-top corner of the bounding box
  */
-void CoordinateSystem::setPosition(Triple first, Triple second)
+void Qwt3DCoordinateSystem::setPosition(Triple first, Triple second)
 {
     QWT_D(d);
     d->m_first  = first;
@@ -379,7 +379,7 @@ void CoordinateSystem::setPosition(Triple first, Triple second)
  * @param major Length of major tic marks
  * @param minor Length of minor tic marks
  */
-void CoordinateSystem::setTicLength(double major, double minor)
+void Qwt3DCoordinateSystem::setTicLength(double major, double minor)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setTicLength(major, minor);
@@ -389,7 +389,7 @@ void CoordinateSystem::setTicLength(double major, double minor)
  * @brief Adjusts the distance between axis numbering and axis body for all axes
  * @param val Offset value to fine-tune number positioning
  */
-void CoordinateSystem::adjustNumbers(int val)
+void Qwt3DCoordinateSystem::adjustNumbers(int val)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].adjustNumbers(val);
@@ -399,7 +399,7 @@ void CoordinateSystem::adjustNumbers(int val)
  * @brief Adjusts the distance between axis labels and axis body for all axes
  * @param val Offset value to fine-tune label positioning
  */
-void CoordinateSystem::adjustLabels(int val)
+void Qwt3DCoordinateSystem::adjustLabels(int val)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].adjustLabel(val);
@@ -409,7 +409,7 @@ void CoordinateSystem::adjustLabels(int val)
  * @brief Enables or disables automatic scaling for all axes
  * @param val True to enable auto-scaling, false to disable
  */
-void CoordinateSystem::setAutoScale(bool val)
+void Qwt3DCoordinateSystem::setAutoScale(bool val)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setAutoScale(val);
@@ -419,7 +419,7 @@ void CoordinateSystem::setAutoScale(bool val)
  * @brief Sets a common color for all axes
  * @param val RGBA color value to apply to all axes
  */
-void CoordinateSystem::setAxesColor(RGBA val)
+void Qwt3DCoordinateSystem::setAxesColor(RGBA val)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setColor(val);
@@ -428,7 +428,7 @@ void CoordinateSystem::setAxesColor(RGBA val)
 /**
  * @brief Recalculates tic positions for all axes
  */
-void CoordinateSystem::recalculateAxesTics()
+void Qwt3DCoordinateSystem::recalculateAxesTics()
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].recalculateTics();
@@ -441,7 +441,7 @@ void CoordinateSystem::recalculateAxesTics()
  * @param weight Font weight (e.g., QFont::Normal, QFont::Bold)
  * @param italic Whether to use italic style
  */
-void CoordinateSystem::setNumberFont(QString const& family, int pointSize, int weight, bool italic)
+void Qwt3DCoordinateSystem::setNumberFont(QString const& family, int pointSize, int weight, bool italic)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setNumberFont(family, pointSize, weight, italic);
@@ -451,7 +451,7 @@ void CoordinateSystem::setNumberFont(QString const& family, int pointSize, int w
  * @brief Sets the font used for axis numbering across all axes
  * @param font QFont object to apply to all axis numberings
  */
-void CoordinateSystem::setNumberFont(QFont const& font)
+void Qwt3DCoordinateSystem::setNumberFont(QFont const& font)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setNumberFont(font);
@@ -461,7 +461,7 @@ void CoordinateSystem::setNumberFont(QFont const& font)
  * @brief Sets a common color for all axis numberings
  * @param val RGBA color value to apply to axis numbers
  */
-void CoordinateSystem::setNumberColor(RGBA val)
+void Qwt3DCoordinateSystem::setNumberColor(RGBA val)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setNumberColor(val);
@@ -470,7 +470,7 @@ void CoordinateSystem::setNumberColor(RGBA val)
 /**
  * @brief Sets all axes to use linear scaling with real number items
  */
-void CoordinateSystem::setStandardScale()
+void Qwt3DCoordinateSystem::setStandardScale()
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setScale(LINEARSCALE);
@@ -480,7 +480,7 @@ void CoordinateSystem::setStandardScale()
  * @brief Sets the font used for axis labels across all axes
  * @param font QFont object to apply to all axis labels
  */
-void CoordinateSystem::setLabelFont(QFont const& font)
+void Qwt3DCoordinateSystem::setLabelFont(QFont const& font)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setLabelFont(font);
@@ -493,7 +493,7 @@ void CoordinateSystem::setLabelFont(QFont const& font)
  * @param weight Font weight (e.g., QFont::Normal, QFont::Bold)
  * @param italic Whether to use italic style
  */
-void CoordinateSystem::setLabelFont(QString const& family, int pointSize, int weight, bool italic)
+void Qwt3DCoordinateSystem::setLabelFont(QString const& family, int pointSize, int weight, bool italic)
 {
     setLabelFont(QFont(family, pointSize, weight, italic));
 }
@@ -502,7 +502,7 @@ void CoordinateSystem::setLabelFont(QString const& family, int pointSize, int we
  * @brief Sets a common color for all axis labels
  * @param val RGBA color value to apply to axis labels
  */
-void CoordinateSystem::setLabelColor(RGBA val)
+void Qwt3DCoordinateSystem::setLabelColor(RGBA val)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setLabelColor(val);
@@ -514,7 +514,7 @@ void CoordinateSystem::setLabelColor(RGBA val)
  * @param majfac Scaling factor for major tic line width
  * @param minfac Scaling factor for minor tic line width
  */
-void CoordinateSystem::setLineWidth(double val, double majfac, double minfac)
+void Qwt3DCoordinateSystem::setLineWidth(double val, double majfac, double minfac)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setLineWidth(val, majfac, minfac);
@@ -530,7 +530,7 @@ void CoordinateSystem::setLineWidth(double val, double majfac, double minfac)
  *          specified axes are drawn (unless auto-decoration is enabled).
  *          NOCOORD disables all coordinate system rendering.
  */
-void CoordinateSystem::setStyle(COORDSTYLE s, AXIS frame_1, AXIS frame_2, AXIS frame_3)
+void Qwt3DCoordinateSystem::setStyle(COORDSTYLE s, AXIS frame_1, AXIS frame_2, AXIS frame_3)
 {
     QWT_D(d);
     d->m_style = s;
@@ -566,7 +566,7 @@ void CoordinateSystem::setStyle(COORDSTYLE s, AXIS frame_1, AXIS frame_2, AXIS f
  * @details The axis used for tic calculation is chosen randomly from the respective pair.
  *          For most cases an identical tic distribution is therefore recommended.
  */
-void CoordinateSystem::setGridLines(bool majors, bool minors, int sides)
+void Qwt3DCoordinateSystem::setGridLines(bool majors, bool minors, int sides)
 {
     QWT_D(d);
     d->m_sides          = sides;
@@ -574,7 +574,7 @@ void CoordinateSystem::setGridLines(bool majors, bool minors, int sides)
     d->m_minorgridlines = minors;
 }
 
-void CoordinateSystem::drawMajorGridLines()
+void Qwt3DCoordinateSystem::drawMajorGridLines()
 {
     QWT_D(d);
 
@@ -610,7 +610,7 @@ void CoordinateSystem::drawMajorGridLines()
     glEnd();
 }
 
-void CoordinateSystem::drawMinorGridLines()
+void Qwt3DCoordinateSystem::drawMinorGridLines()
 {
     QWT_D(d);
 
@@ -646,7 +646,7 @@ void CoordinateSystem::drawMinorGridLines()
     glEnd();
 }
 
-void CoordinateSystem::drawMajorGridLines(Axis& a0, Axis& a1)
+void Qwt3DCoordinateSystem::drawMajorGridLines(Qwt3DAxis& a0, Qwt3DAxis& a1)
 {
     Triple d = a1.begin() - a0.begin();
 
@@ -656,7 +656,7 @@ void CoordinateSystem::drawMajorGridLines(Axis& a0, Axis& a1)
     }
 }
 
-void CoordinateSystem::drawMinorGridLines(Axis& a0, Axis& a1)
+void Qwt3DCoordinateSystem::drawMinorGridLines(Qwt3DAxis& a0, Qwt3DAxis& a1)
 {
     Triple d = a1.begin() - a0.begin();
 
@@ -666,55 +666,55 @@ void CoordinateSystem::drawMinorGridLines(Axis& a0, Axis& a1)
     }
 }
 
-COORDSTYLE CoordinateSystem::style() const
+COORDSTYLE Qwt3DCoordinateSystem::style() const
 {
     QWT_DC(d);
     return d->m_style;
 }
 
-void CoordinateSystem::setGridLinesColor(RGBA val)
+void Qwt3DCoordinateSystem::setGridLinesColor(RGBA val)
 {
     QWT_D(d);
     d->m_gridlinecolor = val;
 }
 
-Triple CoordinateSystem::first() const
+Triple Qwt3DCoordinateSystem::first() const
 {
     QWT_DC(d);
     return d->m_first;
 }
 
-Triple CoordinateSystem::second() const
+Triple Qwt3DCoordinateSystem::second() const
 {
     QWT_DC(d);
     return d->m_second;
 }
 
-void CoordinateSystem::setAutoDecoration(bool val)
+void Qwt3DCoordinateSystem::setAutoDecoration(bool val)
 {
     QWT_D(d);
     d->m_autodecoration = val;
 }
 
-bool CoordinateSystem::autoDecoration() const
+bool Qwt3DCoordinateSystem::autoDecoration() const
 {
     QWT_DC(d);
     return d->m_autodecoration;
 }
 
-void CoordinateSystem::setLineSmooth(bool val)
+void Qwt3DCoordinateSystem::setLineSmooth(bool val)
 {
     QWT_D(d);
     d->m_smooth = val;
 }
 
-bool CoordinateSystem::lineSmooth() const
+bool Qwt3DCoordinateSystem::lineSmooth() const
 {
     QWT_DC(d);
     return d->m_smooth;
 }
 
-int CoordinateSystem::grids() const
+int Qwt3DCoordinateSystem::grids() const
 {
     QWT_DC(d);
     return d->m_sides;

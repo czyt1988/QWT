@@ -102,7 +102,7 @@ Plot3D::Plot3D(QWidget* parent) : QOpenGLWidget(parent), QWT_PIMPL_CONSTRUCT
     d->m_legend.setLimits(0, 100);
     d->m_legend.setMajors(10);
     d->m_legend.setMinors(2);
-    d->m_legend.setOrientation(ColorLegend::BottomTop, ColorLegend::Left);
+    d->m_legend.setOrientation(Qwt3DColorLegend::BottomTop, Qwt3DColorLegend::Left);
 
     disableLighting();
 }
@@ -125,13 +125,13 @@ Plot3D::~Plot3D()
 
 // Inline getter/setter implementations
 
-CoordinateSystem* Plot3D::coordinates()
+Qwt3DCoordinateSystem* Plot3D::coordinates()
 {
     QWT_D(d);
     return &d->m_coordinates;
 }
 
-ColorLegend* Plot3D::legend()
+Qwt3DColorLegend* Plot3D::legend()
 {
     QWT_D(d);
     return &d->m_legend;
