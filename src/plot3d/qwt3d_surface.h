@@ -121,6 +121,12 @@ public:
     /// Sets the polygon offset for filled rendering
     void setPolygonOffset(double offset);
 
+    // Shading
+    /// Returns the shading style
+    SHADINGSTYLE shading() const;
+    /// Sets the shading style
+    void setShading(SHADINGSTYLE style);
+
     // Enrichments (moved from Plot3D)
 
     /// Adds an enrichment to the surface (clones the argument)

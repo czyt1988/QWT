@@ -52,6 +52,7 @@ public:
 
     // Plot style and color
     PLOTSTYLE m_plotStyle;
+    SHADINGSTYLE m_shading;
     Qwt3DColor* m_dataColor;
     RGBA m_meshColor;
     double m_meshLineWidth;
@@ -89,6 +90,7 @@ inline Qwt3DSurface::PrivateData::PrivateData(Qwt3DSurface* q)
     , m_resolution(1)
     , m_floorStyle(NOFLOOR)
     , m_plotStyle(FILLEDMESH)
+    , m_shading(GOURAUD)
     , m_dataColor(nullptr)
     , m_meshColor(RGBA(0.0, 0.0, 0.0, 1.0))
     , m_meshLineWidth(1.0)

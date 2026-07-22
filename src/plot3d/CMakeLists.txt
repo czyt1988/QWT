@@ -140,6 +140,10 @@ else()
     target_include_directories(${QWTPLOT3D_LIB_NAME} PRIVATE ${GL2PS_INCLUDE_DIR})
 endif()
 
+# gl2ps is always available (system or bundled) — enable vector export
+# PUBLIC because qwt3d_plot.h exposes Qwt3DVectorWriter types in saveVector()
+target_compile_definitions(${QWTPLOT3D_LIB_NAME} PUBLIC QWT3D_ENABLE_GL2PS)
+
 ########################################################
 # target properties
 ########################################################

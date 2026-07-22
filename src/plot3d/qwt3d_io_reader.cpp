@@ -13,14 +13,14 @@
 #include "qwt3d_plot.h"
 
 
-const char* NativeReader::magicstring = "jk:11051895-17021986";
+const char* Qwt3DNativeReader::magicstring = "jk:11051895-17021986";
 
-class NativeReader::PrivateData
+class Qwt3DNativeReader::PrivateData
 {
-    QWT_DECLARE_PUBLIC(NativeReader)
+    QWT_DECLARE_PUBLIC(Qwt3DNativeReader)
 
 public:
-    PrivateData(NativeReader* q) : q_ptr(q), m_minZ(-DBL_MAX), m_maxZ(DBL_MAX)
+    PrivateData(Qwt3DNativeReader* q) : q_ptr(q), m_minZ(-DBL_MAX), m_maxZ(DBL_MAX)
     {
     }
 
@@ -34,7 +34,7 @@ FILE* open(QString fname)
 {
     FILE* file = fopen(QWT3DLOCAL8BIT(fname), "r");
     if (!file) {
-        fprintf(stderr, "NativeReader::read: cannot open data file \"%s\"\n", QWT3DLOCAL8BIT(fname));
+        fprintf(stderr, "Qwt3DNativeReader::read: cannot open data file \"%s\"\n", QWT3DLOCAL8BIT(fname));
     }
     return file;
 }
@@ -160,15 +160,15 @@ void deleteData(double** data, int columns)
 /**
  * @brief Default constructor
  */
-NativeReader::NativeReader() : QWT_PIMPL_CONSTRUCT
+Qwt3DNativeReader::Qwt3DNativeReader() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-NativeReader::~NativeReader() = default;
+Qwt3DNativeReader::~Qwt3DNativeReader() = default;
 
-IO::Functor* NativeReader::clone() const
+Qwt3DIO::Functor* Qwt3DNativeReader::clone() const
 {
-    auto* copy = new NativeReader();
+    auto* copy = new Qwt3DNativeReader();
     QWT_DC(d);
     auto* copyD   = copy->d_func();
     copyD->m_minZ = d->m_minZ;
@@ -188,7 +188,7 @@ IO::Functor* NativeReader::clone() const
  * @param[out] maxy Maximum y value
  * @return True on success, false if file cannot be opened or has invalid format
  */
-bool NativeReader::collectInfo(FILE*& file,
+bool Qwt3DNativeReader::collectInfo(FILE*& file,
                                QString const& fname,
                                unsigned& xmesh,
                                unsigned& ymesh,
@@ -215,12 +215,12 @@ bool NativeReader::collectInfo(FILE*& file,
 }
 
 /**
- * @brief Reads native format data into a Plot3D widget
- * @param plot Target Plot3D widget
+ * @brief Reads native format data into a Qwt3DPlot widget
+ * @param plot Target Qwt3DPlot widget
  * @param fname File name to read
  * @return True on success, false on file error or data format error
  */
-bool NativeReader::operator()(Qwt3DPlot* plot, QString const& fname)
+bool Qwt3DNativeReader::operator()(Qwt3DPlot* plot, QString const& fname)
 {
     QWT_D(d);
 
@@ -237,7 +237,7 @@ bool NativeReader::operator()(Qwt3DPlot* plot, QString const& fname)
     for (unsigned int j = 0; j < ymesh; j++) {
         for (unsigned int i = 0; i < xmesh; i++) {
             if (fscanf(file, "%lf", &data[ i ][ j ]) != 1) {
-                fprintf(stderr, "NativeReader::read: error in data file \"%s\"\n", QWT3DLOCAL8BIT(fname));
+                fprintf(stderr, "Qwt3DNativeReader::read: error in data file \"%s\"\n", QWT3DLOCAL8BIT(fname));
                 return false;
             }
 
@@ -259,7 +259,7 @@ bool NativeReader::operator()(Qwt3DPlot* plot, QString const& fname)
             break;
     }
     if (!surface) {
-        fprintf(stderr, "NativeReader::read: no Qwt3DSurface item attached to plot\n");
+        fprintf(stderr, "Qwt3DNativeReader::read: no Qwt3DSurface item attached to plot\n");
         deleteData(data, xmesh);
         return false;
     }

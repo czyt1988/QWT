@@ -14,12 +14,12 @@ class Qwt3DPlot;
 
 /**
  * @brief Generic interface for standard and user written I/O handlers
- * @details IO provides a generic interface for standard and user written I/O handlers.
+ * @details Qwt3DIO provides a generic interface for standard and user written I/O handlers.
  *          It also provides functionality for the registering of such handlers in the
  *          framework. The interface mimics roughly Qt's QImageIO functions for defining
  *          image input/output functions.
  */
-class QWT3D_EXPORT IO
+class QWT3D_EXPORT Qwt3DIO
 {
 
 public:
@@ -29,7 +29,7 @@ public:
     /**
      * @brief Functor class for more flexible IO handler implementation
      * @details This class gives more flexibility in implementing userdefined IO handlers
-     *          than the simple IO::Function type.
+     *          than the simple Qwt3DIO::Function type.
      */
     class Functor
     {
@@ -65,11 +65,11 @@ public:
     static Functor* inputHandler(QString const& format);
 
 private:
-    IO()
+    Qwt3DIO()
     {
     }
 
-    // Lightweight Functor encapsulating an IO::Function
+    // Lightweight Functor encapsulating a Qwt3DIO::Function
     class Wrapper : public Functor
     {
     public:
@@ -136,20 +136,20 @@ private:
 /**
  * @brief Provides Qt's Pixmap output facilities
  */
-class QWT3D_EXPORT PixmapWriter : public IO::Functor
+class QWT3D_EXPORT Qwt3DPixmapWriter : public Qwt3DIO::Functor
 {
-    friend class IO;
-    QWT_DECLARE_PRIVATE(PixmapWriter)
+    friend class Qwt3DIO;
+    QWT_DECLARE_PRIVATE(Qwt3DPixmapWriter)
 
 public:
-    PixmapWriter();
-    ~PixmapWriter() override;
+    Qwt3DPixmapWriter();
+    ~Qwt3DPixmapWriter() override;
 
     // Set output quality
     void setQuality(int val);
 
 private:
-    IO::Functor* clone() const override;
+    Qwt3DIO::Functor* clone() const override;
     bool operator()(Qwt3DPlot* plot, QString const& fname) override;
 };
 

@@ -21,6 +21,7 @@ class QwtColorMap;
 
 
 class Qwt3DPlot;
+class Qwt3DPlotItem;
 
 /**
  * @brief Complete visual theme descriptor for Qwt3DPlot widgets.
@@ -125,6 +126,8 @@ public:
     void apply(Qwt3DPlot* plot) const;
 
 private:
+    // Apply item-level properties to a single item
+    void applyToItem(Qwt3DPlotItem* item, Qwt3DPlot* plot) const;
     RGBA m_backgroundColor;
     RGBA m_meshColor;
     double m_meshLineWidth;

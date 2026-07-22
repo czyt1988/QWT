@@ -7,6 +7,7 @@
 
 #include "qwt3d_coordsys.h"
 #include "qwt3d_theme.h"
+#include "qwt3d_io_gl2ps.h"
 
 class Qwt3DPlotItem;
 
@@ -302,8 +303,8 @@ public Q_SLOTS:
     // Saves content to vector format
     virtual bool saveVector(QString const& fileName,
                             QString const& format,
-                            VectorWriter::TEXTMODE text,
-                            VectorWriter::SORTMODE sortmode);
+                            Qwt3DVectorWriter::TEXTMODE text,
+                            Qwt3DVectorWriter::SORTMODE sortmode);
     // Saves content
     virtual bool save(QString const& fileName, QString const& format);
 

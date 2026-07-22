@@ -9,12 +9,12 @@
 #include "qwt3d_io_reader.h"
 
 
-class PixmapWriter::PrivateData
+class Qwt3DPixmapWriter::PrivateData
 {
-    QWT_DECLARE_PUBLIC(PixmapWriter)
+    QWT_DECLARE_PUBLIC(Qwt3DPixmapWriter)
 
 public:
-    PrivateData(PixmapWriter* q) : q_ptr(q), m_quality(-1)
+    PrivateData(Qwt3DPixmapWriter* q) : q_ptr(q), m_quality(-1)
     {
     }
 
@@ -22,15 +22,15 @@ public:
     int m_quality;
 };
 
-PixmapWriter::PixmapWriter() : QWT_PIMPL_CONSTRUCT
+Qwt3DPixmapWriter::Qwt3DPixmapWriter() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-PixmapWriter::~PixmapWriter() = default;
+Qwt3DPixmapWriter::~Qwt3DPixmapWriter() = default;
 
-IO::Functor* PixmapWriter::clone() const
+Qwt3DIO::Functor* Qwt3DPixmapWriter::clone() const
 {
-    auto* copy = new PixmapWriter();
+    auto* copy = new Qwt3DPixmapWriter();
     QWT_DC(d);
     auto* copyD      = copy->d_func();
     copyD->m_fmt     = d->m_fmt;
@@ -38,16 +38,16 @@ IO::Functor* PixmapWriter::clone() const
     return copy;
 }
 
-IO::Entry::Entry() : iofunc(nullptr)
+Qwt3DIO::Entry::Entry() : iofunc(nullptr)
 {
 }
 
-IO::Entry::~Entry()
+Qwt3DIO::Entry::~Entry()
 {
     delete iofunc;
 }
 
-IO::Entry::Entry(IO::Entry const& e)
+Qwt3DIO::Entry::Entry(Qwt3DIO::Entry const& e)
 {
     if (this == &e)
         return;
@@ -56,7 +56,7 @@ IO::Entry::Entry(IO::Entry const& e)
     iofunc = e.iofunc->clone();
 }
 
-void IO::Entry::operator=(IO::Entry const& e)
+void Qwt3DIO::Entry::operator=(Qwt3DIO::Entry const& e)
 {
     if (this == &e)
         return;
@@ -66,38 +66,38 @@ void IO::Entry::operator=(IO::Entry const& e)
     iofunc = e.iofunc->clone();
 }
 
-IO::Entry::Entry(QString const& s, Functor const& f) : fmt(s)
+Qwt3DIO::Entry::Entry(QString const& s, Functor const& f) : fmt(s)
 {
     iofunc = f.clone();
 }
 
-IO::Entry::Entry(QString const& s, Function f) : fmt(s)
+Qwt3DIO::Entry::Entry(QString const& s, Function f) : fmt(s)
 {
     Wrapper w(f);
     iofunc = w.clone();
 }
 
-IO::FormatCompare::FormatCompare(IO::Entry const& e)
+Qwt3DIO::FormatCompare::FormatCompare(Qwt3DIO::Entry const& e)
 {
     e_ = e;
 }
 
-bool IO::FormatCompare::operator()(IO::Entry const& e)
+bool Qwt3DIO::FormatCompare::operator()(Qwt3DIO::Entry const& e)
 {
     return (e.fmt == e_.fmt);
 }
 
-IO::FormatCompare2::FormatCompare2(QString s)
+Qwt3DIO::FormatCompare2::FormatCompare2(QString s)
 {
     s_ = s;
 }
 
-bool IO::FormatCompare2::operator()(IO::Entry const& e)
+bool Qwt3DIO::FormatCompare2::operator()(Qwt3DIO::Entry const& e)
 {
     return (e.fmt == s_);
 }
 
-bool IO::add_unique(Container& l, Entry const& e)
+bool Qwt3DIO::add_unique(Container& l, Entry const& e)
 {
     FormatCompare comp(e);
     l.erase(std::remove_if(l.begin(), l.end(), comp), l.end());
@@ -106,13 +106,13 @@ bool IO::add_unique(Container& l, Entry const& e)
     return true;
 }
 
-IO::IT IO::find(Container& l, QString const& fmt)
+Qwt3DIO::IT Qwt3DIO::find(Container& l, QString const& fmt)
 {
     FormatCompare2 comp(fmt);
     return std::find_if(l.begin(), l.end(), comp);
 }
 
-IO::Container& IO::rlist()
+Qwt3DIO::Container& Qwt3DIO::rlist()
 {
     static Container rl = Container();
     static bool rfirst  = true;
@@ -123,7 +123,7 @@ IO::Container& IO::rlist()
     return rl;
 }
 
-IO::Container& IO::wlist()
+Qwt3DIO::Container& Qwt3DIO::wlist()
 {
     static Container wl = Container();
     static bool wfirst  = true;
@@ -135,13 +135,13 @@ IO::Container& IO::wlist()
 }
 
 /**
- * @brief Registers a new IO::Function for data input
+ * @brief Registers a new Qwt3DIO::Function for data input
  * @param format Format string identifier
  * @param func Input handler function
  * @return True on successful registration
  * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
  */
-bool IO::defineInputHandler(QString const& format, IO::Function func)
+bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Function func)
 {
     return add_unique(rlist(), Entry(format, func));
 }
@@ -153,19 +153,19 @@ bool IO::defineInputHandler(QString const& format, IO::Function func)
  * @return True on successful registration
  * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
  */
-bool IO::defineInputHandler(QString const& format, IO::Functor const& func)
+bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Functor const& func)
 {
     return add_unique(rlist(), Entry(format, func));
 }
 
 /**
- * @brief Registers a new IO::Function for data output
+ * @brief Registers a new Qwt3DIO::Function for data output
  * @param format Format string identifier
  * @param func Output handler function
  * @return True on successful registration
  * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
  */
-bool IO::defineOutputHandler(QString const& format, IO::Function func)
+bool Qwt3DIO::defineOutputHandler(QString const& format, Qwt3DIO::Function func)
 {
     return add_unique(wlist(), Entry(format, func));
 }
@@ -177,22 +177,22 @@ bool IO::defineOutputHandler(QString const& format, IO::Function func)
  * @return True on successful registration
  * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
  */
-bool IO::defineOutputHandler(QString const& format, IO::Functor const& func)
+bool Qwt3DIO::defineOutputHandler(QString const& format, Qwt3DIO::Functor const& func)
 {
     return add_unique(wlist(), Entry(format, func));
 }
 
 /**
- * @brief Applies a reading IO::Function or IO::Functor
+ * @brief Applies a reading Qwt3DIO::Function or Qwt3DIO::Functor
  * @param plot Plot with the content that should be loaded
  * @param fname File name
  * @param format Input format
  * @return The return value from the called Function/Functor.
  *         Returns false if no registered handler could be found.
  */
-bool IO::load(Qwt3DPlot* plot, QString const& fname, QString const& format)
+bool Qwt3DIO::load(Qwt3DPlot* plot, QString const& fname, QString const& format)
 {
-    IT it = IO::find(rlist(), format);
+    IT it = Qwt3DIO::find(rlist(), format);
 
     if (it == rlist().end())
         return false;
@@ -201,16 +201,16 @@ bool IO::load(Qwt3DPlot* plot, QString const& fname, QString const& format)
 }
 
 /**
- * @brief Applies a writing IO::Function or IO::Functor
+ * @brief Applies a writing Qwt3DIO::Function or Qwt3DIO::Functor
  * @param plot Plot with the content that should be saved
  * @param fname File name
  * @param format Output format
  * @return The return value from the called Function/Functor.
  *         Returns false if no registered handler could be found.
  */
-bool IO::save(Qwt3DPlot* plot, QString const& fname, QString const& format)
+bool Qwt3DIO::save(Qwt3DPlot* plot, QString const& fname, QString const& format)
 {
-    IT it = IO::find(wlist(), format);
+    IT it = Qwt3DIO::find(wlist(), format);
 
     if (it == wlist().end())
         return false;
@@ -222,7 +222,7 @@ bool IO::save(Qwt3DPlot* plot, QString const& fname, QString const& format)
  * @brief Returns a list of currently registered input formats
  * @return List of input format strings
  */
-QStringList IO::inputFormatList()
+QStringList Qwt3DIO::inputFormatList()
 {
     QStringList list;
     for (IT it = rlist().begin(); it != rlist().end(); ++it)
@@ -235,7 +235,7 @@ QStringList IO::inputFormatList()
  * @brief Returns a list of currently registered output formats
  * @return List of output format strings
  */
-QStringList IO::outputFormatList()
+QStringList Qwt3DIO::outputFormatList()
 {
     QStringList list;
     for (IT it = wlist().begin(); it != wlist().end(); ++it)
@@ -249,9 +249,9 @@ QStringList IO::outputFormatList()
  * @param format Format string identifier
  * @return Pointer to the input functor, or 0 if non-existent
  */
-IO::Functor* IO::inputHandler(QString const& format)
+Qwt3DIO::Functor* Qwt3DIO::inputHandler(QString const& format)
 {
-    IO::IT it = IO::find(rlist(), format);
+    Qwt3DIO::IT it = Qwt3DIO::find(rlist(), format);
 
     if (it == rlist().end())
         return nullptr;
@@ -264,9 +264,9 @@ IO::Functor* IO::inputHandler(QString const& format)
  * @param format Format string identifier
  * @return Pointer to the output functor, or 0 if non-existent
  */
-IO::Functor* IO::outputHandler(QString const& format)
+Qwt3DIO::Functor* Qwt3DIO::outputHandler(QString const& format)
 {
-    IO::IT it = IO::find(wlist(), format);
+    Qwt3DIO::IT it = Qwt3DIO::find(wlist(), format);
 
     if (it == wlist().end())
         return nullptr;
@@ -274,7 +274,7 @@ IO::Functor* IO::outputHandler(QString const& format)
     return it->iofunc;
 }
 
-bool PixmapWriter::operator()(Qwt3DPlot* plot, QString const& fname)
+bool Qwt3DPixmapWriter::operator()(Qwt3DPlot* plot, QString const& fname)
 {
     QWT_D(d);
     QImage im = plot->grabFramebuffer();
@@ -290,21 +290,22 @@ bool PixmapWriter::operator()(Qwt3DPlot* plot, QString const& fname)
  * @brief Calls Qt's QImageIO::setQuality() function
  * @param val Quality value
  */
-void PixmapWriter::setQuality(int val)
+void Qwt3DPixmapWriter::setQuality(int val)
 {
     QWT_D(d);
     d->m_quality = val;
 }
 
-void IO::setupHandler()
+void Qwt3DIO::setupHandler()
 {
     const QList< QByteArray > list = QImageWriter::supportedImageFormats();
-    PixmapWriter qtw;
+    Qwt3DPixmapWriter qtw;
     for (const auto& fmt : list) {
         qtw.d_func()->m_fmt = fmt;
         defineOutputHandler(fmt, qtw);
     }
-    VectorWriter vecfunc;
+#ifdef QWT3D_ENABLE_GL2PS
+    Qwt3DVectorWriter vecfunc;
     vecfunc.setCompressed(false);
     vecfunc.setFormat("EPS");
     defineOutputHandler("EPS", vecfunc);
@@ -324,9 +325,10 @@ void IO::setupHandler()
     defineOutputHandler("SVG", vecfunc);
     vecfunc.setFormat("PGF");
     defineOutputHandler("PGF", vecfunc);
+#endif // QWT3D_ENABLE_GL2PS
 
-    defineInputHandler("mes", NativeReader());
-    defineInputHandler("MES", NativeReader());
+    defineInputHandler("mes", Qwt3DNativeReader());
+    defineInputHandler("MES", Qwt3DNativeReader());
 }
 
 /**
@@ -336,22 +338,27 @@ void IO::setupHandler()
  * @param text Text handling mode
  * @param sortmode Sort mode for polygon ordering
  * @return True on success
- * @deprecated Use Plot3D::save or IO::save instead.
+ * @deprecated Use Qwt3DPlot::save or Qwt3DIO::save instead.
  * @details If zlib has been configured, format types will be extended by "EPS_GZ" and "PS_GZ".
  *          Beware: BSPSORT turns out to behave very slowly and memory consuming, especially in cases
  *          where many polygons appear. It is still more exact than SIMPLESORT.
  */
-bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, VectorWriter::TEXTMODE text, VectorWriter::SORTMODE sortmode)
+bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, Qwt3DVectorWriter::TEXTMODE text, Qwt3DVectorWriter::SORTMODE sortmode)
 {
+#ifdef QWT3D_ENABLE_GL2PS
     if (format == "EPS" || format == "EPS_GZ" || format == "PS" || format == "PS_GZ" || format == "PDF"
         || format == "SVG" || format == "PGF") {
-        VectorWriter* gl2ps = static_cast< VectorWriter* >(IO::outputHandler(format));
+        Qwt3DVectorWriter* gl2ps = static_cast< Qwt3DVectorWriter* >(Qwt3DIO::outputHandler(format));
         if (gl2ps) {
             gl2ps->setSortMode(sortmode);
             gl2ps->setTextMode(text);
         }
-        return IO::save(this, fileName, format);
+        return Qwt3DIO::save(this, fileName, format);
     }
+#else
+    (void)text;
+    (void)sortmode;
+#endif
     return false;
 }
 /**
@@ -359,7 +366,7 @@ bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, Vecto
  * @param fileName Output file name
  * @param format Image file format supported by Qt
  * @return True on success
- * @deprecated Use Plot3D::save or IO::save instead.
+ * @deprecated Use Qwt3DPlot::save or Qwt3DIO::save instead.
  */
 bool Qwt3DPlot::savePixmap(QString const& fileName, QString const& format)
 {
@@ -367,7 +374,7 @@ bool Qwt3DPlot::savePixmap(QString const& fileName, QString const& format)
         || format == "SVG" || format == "PGF")
         return false;
 
-    return IO::save(this, fileName, format);
+    return Qwt3DIO::save(this, fileName, format);
 }
 
 /**
@@ -375,9 +382,9 @@ bool Qwt3DPlot::savePixmap(QString const& fileName, QString const& format)
  * @param fileName Output file name
  * @param format Output format string
  * @return True on success
- * @details To modify the behaviour for more complex output handling use IO::outputHandler.
+ * @details To modify the behaviour for more complex output handling use Qwt3DIO::outputHandler.
  */
 bool Qwt3DPlot::save(QString const& fileName, QString const& format)
 {
-    return IO::save(this, fileName, format);
+    return Qwt3DIO::save(this, fileName, format);
 }

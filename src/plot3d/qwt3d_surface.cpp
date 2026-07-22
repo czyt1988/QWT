@@ -622,6 +622,29 @@ void Qwt3DSurface::setPolygonOffset(double offset)
     itemChanged();
 }
 
+/**
+ * @brief Returns the shading style
+ */
+SHADINGSTYLE Qwt3DSurface::shading() const
+{
+    QWT_DC(d);
+    return d->m_shading;
+}
+
+/**
+ * @brief Sets the shading style
+ * @param style One of GOURAUD, FLAT, or SMOOTH
+ * @details The shading style controls per-fragment lighting interpolation.
+ *          Currently stored for shader uniform use; full implementation
+ *          requires shader-level branching.
+ */
+void Qwt3DSurface::setShading(SHADINGSTYLE style)
+{
+    QWT_D(d);
+    d->m_shading = style;
+    itemChanged();
+}
+
 // ---------------------------------------------------------------------------
 // Enrichments
 // ---------------------------------------------------------------------------

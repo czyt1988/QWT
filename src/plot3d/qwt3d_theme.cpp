@@ -13,6 +13,8 @@
 #include "qwt3d_colormap_color.h"
 #include "qwt_colormap_preset.h"
 #include "qwt_colormap.h"
+#include "qwt3d_plotitem.h"
+#include "qwt3d_surface.h"
 
 #include <qfont.h>
 
@@ -456,5 +458,33 @@ void Qwt3DTheme::apply(Qwt3DPlot* plot) const
     plot->setMaterialComponent(GL_SPECULAR, m_specularIntensity, m_specularIntensity, m_specularIntensity);
     plot->setMaterialComponent(GL_DIFFUSE, 1.0, 1.0, 1.0);
 
+    // Apply item-level properties to each attached item
+    for (auto* item : plot->itemList())
+        applyToItem(item, plot);
+
     plot->update();
+}
+
+/**
+ * @brief Applies item-level visual properties to a single plot item
+ * @param item The target item (must be a Qwt3DSurface for surface properties)
+ * @param plot The owning plot (used for color map construction)
+ * @details Sets mesh color, line width, smooth mesh, data color (from preset),
+ *          plot style, and shading on Qwt3DSurface items.
+ */
+void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item, Qwt3DPlot* plot) const
+{
+    auto* surface = dynamic_cast<Qwt3DSurface*>(item);
+    if (!surface)
+        return;
+
+    surface->setMeshColor(m_meshColor);
+    surface->setMeshLineWidth(m_meshLineWidth);
+    surface->setSmoothMesh(m_smoothMesh);
+    surface->setPlotStyle(m_plotStyle);
+    surface->setShading(m_shading);
+
+    // Create a colormap-based color functor from the preset name
+    auto* colorMap = new Qwt3DColorMapColor(plot, m_dataColorPreset);
+    surface->setDataColor(colorMap);
 }

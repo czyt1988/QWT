@@ -2,6 +2,8 @@
 #pragma warning(disable : 4786)
 #endif
 
+#ifdef QWT3D_ENABLE_GL2PS
+
 #include <ctime>
 #include "gl2ps.h"
 #include "qwt3d_io_gl2ps.h"
@@ -11,12 +13,12 @@
 // GL types are provided by gl2ps.h which includes <GL/gl.h>
 
 
-class VectorWriter::PrivateData
+class Qwt3DVectorWriter::PrivateData
 {
-    QWT_DECLARE_PUBLIC(VectorWriter)
+    QWT_DECLARE_PUBLIC(Qwt3DVectorWriter)
 
 public:
-    PrivateData(VectorWriter* q)
+    PrivateData(Qwt3DVectorWriter* q)
         : q_ptr(q)
         , m_gl2psFormat(GL2PS_EPS)
         , m_formatError(false)
@@ -25,30 +27,30 @@ public:
 #else
         , m_compressed(false)
 #endif
-        , m_sortMode(VectorWriter::SIMPLESORT)
-        , m_landscape(VectorWriter::AUTO)
-        , m_textMode(VectorWriter::PIXEL)
+        , m_sortMode(Qwt3DVectorWriter::SIMPLESORT)
+        , m_landscape(Qwt3DVectorWriter::AUTO)
+        , m_textMode(Qwt3DVectorWriter::PIXEL)
     {
     }
 
     GLint m_gl2psFormat;
     bool m_formatError;
     bool m_compressed;
-    VectorWriter::SORTMODE m_sortMode;
-    VectorWriter::LANDSCAPEMODE m_landscape;
-    VectorWriter::TEXTMODE m_textMode;
+    Qwt3DVectorWriter::SORTMODE m_sortMode;
+    Qwt3DVectorWriter::LANDSCAPEMODE m_landscape;
+    Qwt3DVectorWriter::TEXTMODE m_textMode;
     QString m_texFname;
 };
 
-VectorWriter::VectorWriter() : QWT_PIMPL_CONSTRUCT
+Qwt3DVectorWriter::Qwt3DVectorWriter() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-VectorWriter::~VectorWriter() = default;
+Qwt3DVectorWriter::~Qwt3DVectorWriter() = default;
 
-IO::Functor* VectorWriter::clone() const
+Qwt3DIO::Functor* Qwt3DVectorWriter::clone() const
 {
-    auto* copy = new VectorWriter();
+    auto* copy = new Qwt3DVectorWriter();
     QWT_DC(d);
     auto* copyD          = copy->d_func();
     copyD->m_gl2psFormat = d->m_gl2psFormat;
@@ -61,64 +63,64 @@ IO::Functor* VectorWriter::clone() const
     return copy;
 }
 
-void VectorWriter::setLandscape(LANDSCAPEMODE val)
+void Qwt3DVectorWriter::setLandscape(LANDSCAPEMODE val)
 {
     QWT_D(d);
     d->m_landscape = val;
 }
 
-VectorWriter::LANDSCAPEMODE VectorWriter::landscape() const
+Qwt3DVectorWriter::LANDSCAPEMODE Qwt3DVectorWriter::landscape() const
 {
     QWT_DC(d);
     return d->m_landscape;
 }
 
-void VectorWriter::setSortMode(SORTMODE val)
+void Qwt3DVectorWriter::setSortMode(SORTMODE val)
 {
     QWT_D(d);
     d->m_sortMode = val;
 }
 
-VectorWriter::SORTMODE VectorWriter::sortMode() const
+Qwt3DVectorWriter::SORTMODE Qwt3DVectorWriter::sortMode() const
 {
     QWT_DC(d);
     return d->m_sortMode;
 }
 
-void VectorWriter::setTextMode(TEXTMODE val, QString fname)
+void Qwt3DVectorWriter::setTextMode(TEXTMODE val, QString fname)
 {
     QWT_D(d);
     d->m_textMode = val;
     d->m_texFname = (fname.isEmpty()) ? QString("") : fname;
 }
 
-VectorWriter::TEXTMODE VectorWriter::textMode() const
+Qwt3DVectorWriter::TEXTMODE Qwt3DVectorWriter::textMode() const
 {
     QWT_DC(d);
     return d->m_textMode;
 }
 
 #ifdef GL2PS_HAVE_ZLIB
-void VectorWriter::setCompressed(bool val)
+void Qwt3DVectorWriter::setCompressed(bool val)
 {
     QWT_D(d);
     d->m_compressed = val;
 }
 #else
-void VectorWriter::setCompressed(bool)
+void Qwt3DVectorWriter::setCompressed(bool)
 {
     QWT_D(d);
     d->m_compressed = false;
 }
 #endif
 
-bool VectorWriter::compressed() const
+bool Qwt3DVectorWriter::compressed() const
 {
     QWT_DC(d);
     return d->m_compressed;
 }
 
-bool VectorWriter::setFormat(QString const& format)
+bool Qwt3DVectorWriter::setFormat(QString const& format)
 {
     QWT_D(d);
     if (format == QString("EPS")) {
@@ -155,7 +157,7 @@ bool VectorWriter::setFormat(QString const& format)
  *          This is a known limitation; full gl2ps modernization requires
  *          generating vector output from VBO vertex data directly.
  */
-bool VectorWriter::operator()(Qwt3DPlot* plot, QString const& fname)
+bool Qwt3DVectorWriter::operator()(Qwt3DPlot* plot, QString const& fname)
 {
     QWT_D(d);
     if (d->m_formatError)
@@ -174,11 +176,11 @@ bool VectorWriter::operator()(Qwt3DPlot* plot, QString const& fname)
         options |= GL2PS_COMPRESS;
 
     switch (d->m_landscape) {
-    case VectorWriter::AUTO:
+    case Qwt3DVectorWriter::AUTO:
         if (viewport[ 2 ] - viewport[ 0 ] > viewport[ 3 ] - viewport[ 0 ])
             options |= GL2PS_LANDSCAPE;
         break;
-    case VectorWriter::ON:
+    case Qwt3DVectorWriter::ON:
         options |= GL2PS_LANDSCAPE;
         break;
     default:
@@ -187,13 +189,13 @@ bool VectorWriter::operator()(Qwt3DPlot* plot, QString const& fname)
 
     int sortmode = GL2PS_SIMPLE_SORT;
     switch (d->m_sortMode) {
-    case VectorWriter::NOSORT:
+    case Qwt3DVectorWriter::NOSORT:
         sortmode = GL2PS_NO_SORT;
         break;
-    case VectorWriter::SIMPLESORT:
+    case Qwt3DVectorWriter::SIMPLESORT:
         sortmode = GL2PS_SIMPLE_SORT;
         break;
-    case VectorWriter::BSPSORT:
+    case Qwt3DVectorWriter::BSPSORT:
         sortmode = GL2PS_BSP_SORT;
         break;
     default:
@@ -394,3 +396,5 @@ void setDevicePolygonOffset(float factor, float units)
     glPolygonOffset(factor, units);
     gl2psEnable(GL2PS_POLYGON_OFFSET_FILL);
 }
+
+#endif // QWT3D_ENABLE_GL2PS

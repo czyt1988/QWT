@@ -2,6 +2,7 @@
 #include "qwt3d_label.h"
 
 #include "qwt3d_plot.h"
+#include "qwt3d_io_gl2ps.h"
 
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
@@ -326,11 +327,13 @@ void Qwt3DLabel::draw()
         return;
 
     // gl2ps vector export path: use device text for vector output
+#ifdef QWT3D_ENABLE_GL2PS
     if (deviceFonts) {
         drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(),
                        d->m_pos, color, d->m_anchor, d->m_gap);
         return;
     }
+#endif
 
     auto* shader = plot()->textShader();
     if (!shader)
