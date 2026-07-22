@@ -20,6 +20,7 @@ public:
 
     FLOORSTYLE m_floorStyle;
 
+    // Data pointers retained for future refactoring to Qwt3DSurface item
     Qwt3DGridData* m_actualDataG;
     Qwt3DCellData* m_actualDataC;
 };

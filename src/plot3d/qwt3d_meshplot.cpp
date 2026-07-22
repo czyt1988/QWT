@@ -3,10 +3,19 @@
 #pragma warning(disable : 4786)
 #endif
 
+// SurfacePlot cell-based rendering is temporarily disabled during the
+// Plot+Item refactor. All methods that referenced deleted Qwt3DPlot
+// methods (plotStyle, userStyle, displayLists, actualData, dataColor,
+// meshColor, meshLineWidth, polygonOffset, etc.) have been commented out.
+//
+// These rendering methods will be reimplemented in the Qwt3DSurface
+// item class (Plan 06).
+
 #include "qwt3d_surfaceplot_p.h"
 #include "qwt3d_enrichment_std.h"
 
-using namespace std;
+
+#if 0 // Disabled during refactor — will be reimplemented in Qwt3DSurface item
 
 /////////////////////////////////////////////////////////////////////////////////
 //
@@ -76,8 +85,6 @@ void SurfacePlot::createDataC()
     }
 }
 
-// ci = cell index
-// cv = vertex index in cell ci
 void SurfacePlot::setColorFromVertexC(int node, bool skip)
 {
     QWT_D(d);
@@ -160,7 +167,7 @@ void SurfacePlot::Isolines2FloorC()
                 if ((val >= nodes[ m ].z && val <= nodes[ mm ].z) || (val >= nodes[ mm ].z && val <= nodes[ m ].z)) {
                     diff = nodes[ mm ].z - nodes[ m ].z;
 
-                    if (isPracticallyZero(diff))  // degenerated
+                    if (isPracticallyZero(diff))
                     {
                         intersection.push_back(nodes[ m ]);
                         intersection.push_back(nodes[ mm ]);
@@ -191,7 +198,6 @@ void SurfacePlot::Isolines2FloorC()
                     glVertex3d(intersection[ 0 ].x, intersection[ 0 ].y, zshift);
                     glVertex3d(intersection[ 1 ].x, intersection[ 1 ].y, zshift);
 
-                    // small pixel gap problem (see OpenGL spec.)
                     glVertex3d(intersection[ 1 ].x, intersection[ 1 ].y, zshift);
                     glVertex3d(intersection[ 0 ].x, intersection[ 0 ].y, zshift);
                     glEnd();
@@ -237,10 +243,6 @@ void SurfacePlot::createNormalsC()
     arrow.drawEnd();
 }
 
-/*!
-        Convert user (non-rectangular) mesh based data to internal structure.
-        See also TripleField and CellField
-*/
 bool SurfacePlot::loadFromData(TripleField const& data, CellField const& poly)
 {
     QWT_D(d);
@@ -253,7 +255,6 @@ bool SurfacePlot::loadFromData(TripleField const& data, CellField const& poly)
 
     unsigned i;
 
-    //  normals for the moment
     Triple n, u, v;
     for (i = 0; i < poly.size(); ++i) {
         if (poly[ i ].size() < 3)
@@ -299,3 +300,5 @@ bool SurfacePlot::loadFromData(TripleField const& data, CellField const& poly)
 
     return true;
 }
+
+#endif // 0 — disabled during refactor

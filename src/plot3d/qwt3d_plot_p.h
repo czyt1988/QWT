@@ -5,15 +5,18 @@
 #include "qwt3d_portability.h"
 
 #include <QPoint>
+#include <QMatrix4x4>
+#include <QList>
 
 
+class Qwt3DPlotItem;
 
-class Plot3D::PrivateData
+class Qwt3DPlot::PrivateData
 {
-    QWT_DECLARE_PUBLIC(Plot3D)
+    QWT_DECLARE_PUBLIC(Qwt3DPlot)
 
 public:
-    PrivateData(Plot3D* q);
+    PrivateData(Qwt3DPlot* q);
 
     struct Light
     {
@@ -26,11 +29,6 @@ public:
     };
 
     Qwt3DCoordinateSystem m_coordinates;
-    Qwt3DColor* m_dataColor;
-    Qwt3DEnrichment* m_userPlotStyle;
-    std::list< Qwt3DEnrichment* > m_enrichmentList;
-    std::vector< GLuint > m_displayLists;
-    Qwt3DData* m_actualData;
 
     std::vector< Light > m_lights;
 
@@ -40,17 +38,10 @@ public:
     GLdouble m_xScale, m_yScale, m_zScale;
     GLdouble m_xVPShift, m_yVPShift;
 
-    RGBA m_meshColor;
-    double m_meshLineWidth;
     RGBA m_bgColor;
-    PLOTSTYLE m_plotStyle;
-    SHADINGSTYLE m_shading;
-    FLOORSTYLE m_floorStyle;
     bool m_ortho;
-    double m_polygonOffset;
-    int m_isolines;
+
     bool m_displayLegend;
-    bool m_smoothDataMesh;
 
     ParallelEpiped m_hull;
 
@@ -84,6 +75,13 @@ public:
     bool m_renderPixmapRequest;
 
     Qwt3DTheme m_theme;
+
+    // CPU-side transformation matrices
+    QMatrix4x4 m_modelView;
+    QMatrix4x4 m_projection;
+
+    // Attached items list (sorted by z-order)
+    QList< Qwt3DPlotItem* > m_items;
 };
 
 

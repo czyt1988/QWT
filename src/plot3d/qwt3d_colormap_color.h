@@ -18,7 +18,7 @@ class QString;
 
 
 
-class Plot3D;
+class Qwt3DPlot;
 
 /**
  * @brief Adapts a QwtColorMap (from qwt::core) for use as a Qwt3DColor.
@@ -27,9 +27,9 @@ class Plot3D;
 class QWT3D_EXPORT Qwt3DColorMapColor : public Qwt3DColor
 {
 public:
-    explicit Qwt3DColorMapColor(Plot3D* plot, const QString& presetName = QString("viridis"), unsigned size = 256);
+    explicit Qwt3DColorMapColor(Qwt3DPlot* plot, const QString& presetName = QString("viridis"), unsigned size = 256);
 
-    Qwt3DColorMapColor(Plot3D* plot, ::QwtColorMap* colorMap, unsigned size = 256);
+    Qwt3DColorMapColor(Qwt3DPlot* plot, ::QwtColorMap* colorMap, unsigned size = 256);
 
     ~Qwt3DColorMapColor() override;
 
@@ -46,7 +46,7 @@ public:
 private:
     void rebuildColorVector(unsigned size);
 
-    Plot3D* m_plot;
+    Qwt3DPlot* m_plot;
     ::QwtColorMap* m_colorMap;
     ColorVector m_colors;
     double m_manualMin;

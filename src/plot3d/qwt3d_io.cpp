@@ -190,7 +190,7 @@ bool IO::defineOutputHandler(QString const& format, IO::Functor const& func)
  * @return The return value from the called Function/Functor.
  *         Returns false if no registered handler could be found.
  */
-bool IO::load(Plot3D* plot, QString const& fname, QString const& format)
+bool IO::load(Qwt3DPlot* plot, QString const& fname, QString const& format)
 {
     IT it = IO::find(rlist(), format);
 
@@ -208,7 +208,7 @@ bool IO::load(Plot3D* plot, QString const& fname, QString const& format)
  * @return The return value from the called Function/Functor.
  *         Returns false if no registered handler could be found.
  */
-bool IO::save(Plot3D* plot, QString const& fname, QString const& format)
+bool IO::save(Qwt3DPlot* plot, QString const& fname, QString const& format)
 {
     IT it = IO::find(wlist(), format);
 
@@ -274,7 +274,7 @@ IO::Functor* IO::outputHandler(QString const& format)
     return it->iofunc;
 }
 
-bool PixmapWriter::operator()(Plot3D* plot, QString const& fname)
+bool PixmapWriter::operator()(Qwt3DPlot* plot, QString const& fname)
 {
     QWT_D(d);
     QImage im = plot->grabFramebuffer();
@@ -341,7 +341,7 @@ void IO::setupHandler()
  *          Beware: BSPSORT turns out to behave very slowly and memory consuming, especially in cases
  *          where many polygons appear. It is still more exact than SIMPLESORT.
  */
-bool Plot3D::saveVector(QString const& fileName, QString const& format, VectorWriter::TEXTMODE text, VectorWriter::SORTMODE sortmode)
+bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, VectorWriter::TEXTMODE text, VectorWriter::SORTMODE sortmode)
 {
     if (format == "EPS" || format == "EPS_GZ" || format == "PS" || format == "PS_GZ" || format == "PDF"
         || format == "SVG" || format == "PGF") {
@@ -361,7 +361,7 @@ bool Plot3D::saveVector(QString const& fileName, QString const& format, VectorWr
  * @return True on success
  * @deprecated Use Plot3D::save or IO::save instead.
  */
-bool Plot3D::savePixmap(QString const& fileName, QString const& format)
+bool Qwt3DPlot::savePixmap(QString const& fileName, QString const& format)
 {
     if (format == "EPS" || format == "EPS_GZ" || format == "PS" || format == "PS_GZ" || format == "PDF"
         || format == "SVG" || format == "PGF")
@@ -377,7 +377,7 @@ bool Plot3D::savePixmap(QString const& fileName, QString const& format)
  * @return True on success
  * @details To modify the behaviour for more complex output handling use IO::outputHandler.
  */
-bool Plot3D::save(QString const& fileName, QString const& format)
+bool Qwt3DPlot::save(QString const& fileName, QString const& format)
 {
     return IO::save(this, fileName, format);
 }

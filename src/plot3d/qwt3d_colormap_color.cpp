@@ -16,7 +16,7 @@
 #include <qstring.h>
 
 
-Qwt3DColorMapColor::Qwt3DColorMapColor(Plot3D* plot, const QString& presetName, unsigned size)
+Qwt3DColorMapColor::Qwt3DColorMapColor(Qwt3DPlot* plot, const QString& presetName, unsigned size)
     : m_plot(plot)
     , m_colorMap(QwtColorMapPreset::create(presetName).release())
     , m_manualMin(0.0)
@@ -27,7 +27,7 @@ Qwt3DColorMapColor::Qwt3DColorMapColor(Plot3D* plot, const QString& presetName, 
     rebuildColorVector(size);
 }
 
-Qwt3DColorMapColor::Qwt3DColorMapColor(Plot3D* plot, ::QwtColorMap* colorMap, unsigned size)
+Qwt3DColorMapColor::Qwt3DColorMapColor(Qwt3DPlot* plot, ::QwtColorMap* colorMap, unsigned size)
     : m_plot(plot), m_colorMap(colorMap), m_manualMin(0.0), m_manualMax(1.0), m_useManualInterval(false), m_alpha(1.0)
 {
     rebuildColorVector(size);

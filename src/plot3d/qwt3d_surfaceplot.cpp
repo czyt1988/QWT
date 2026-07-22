@@ -1,6 +1,5 @@
 #include "qwt3d_surfaceplot_p.h"
 
-using namespace std;
 
 SurfacePlot::PrivateData::PrivateData(SurfacePlot* q)
     : q_ptr(q)
@@ -15,23 +14,20 @@ SurfacePlot::PrivateData::PrivateData(SurfacePlot* q)
 }
 
 /**
- * @brief Constructs a SurfacePlot widget
- * @param[in] parent Parent widget
- * @details Initializes with dataNormals()==false, NOFLOOR, resolution() == 1
- *
+ * @brief Constructs a SurfacePlot widget (TEMPORARY STUB)
+ * @param parent Parent widget
+ * @details SurfacePlot is temporarily stubbed during the Plot+Item refactor.
+ *          It will be refactored into a Qwt3DSurface item in Plan 06.
  */
-SurfacePlot::SurfacePlot(QWidget* parent) : Plot3D(parent), QWT_PIMPL_CONSTRUCT
+SurfacePlot::SurfacePlot(QWidget* parent) : Qwt3DPlot(parent), QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     d->m_actualDataG = new Qwt3DGridData();
     d->m_actualDataC = new Qwt3DCellData();
-
-    setActualData(d->m_actualDataG);
 }
 
 /**
  * @brief Destructor
- *
  */
 SurfacePlot::~SurfacePlot()
 {
@@ -76,22 +72,12 @@ int SurfacePlot::normalQuality() const
     return d->m_normalQuality;
 }
 
-/**
- * @brief Shows or hides data normals
- * @param[in] b True to show normals, false to hide
- *
- */
 void SurfacePlot::showNormals(bool b)
 {
     QWT_D(d);
     d->m_dataNormals = b;
 }
 
-/**
- * @brief Sets the normal vector length
- * @param[in] val Normal length value (0.0 to 1.0). Values < 0 or > 1 are ignored.
- *
- */
 void SurfacePlot::setNormalLength(double val)
 {
     QWT_D(d);
@@ -100,11 +86,6 @@ void SurfacePlot::setNormalLength(double val)
     d->m_normalLength = val;
 }
 
-/**
- * @brief Sets the normal vector quality (number of arrow segments)
- * @param[in] val Quality value. Values < 3 are ignored.
- *
- */
 void SurfacePlot::setNormalQuality(int val)
 {
     QWT_D(d);
@@ -113,139 +94,53 @@ void SurfacePlot::setNormalQuality(int val)
     d->m_normalQuality = val;
 }
 
-/**
- * @brief Calculates the smallest x-y-z parallelepiped enclosing the data
- * @details It can be accessed by hull();
- *
- */
-void SurfacePlot::calculateHull()
+std::pair< int, int > SurfacePlot::facets() const
 {
-    Qwt3DData* data = actualData();
-    if (!data || data->empty())
-        return;
-    setHull(data->hull());
+    // Stub: returns (0, 0) since data rendering is disabled during refactor
+    return std::pair< int, int >(0, 0);
 }
 
-/**
- * @brief Sets data resolution and updates widget
- * @param[in] res Resolution multiplier (res == 1 means original resolution). If res < 1, the function does nothing.
- *
- */
 void SurfacePlot::setResolution(int res)
 {
     QWT_D(d);
-    Qwt3DData* data = actualData();
-    if (!data || data->datatype == POLYGON)
-        return;
-
     if ((d->m_resolution == res) || res < 1)
         return;
 
     d->m_resolution = res;
-    updateNormals();
-    updateData();
-    if (initializedGL())
-        update();
-
     emit resolutionChanged(res);
 }
 
 void SurfacePlot::updateNormals()
 {
-    QWT_D(d);
-    Qwt3DData* data         = actualData();
-    std::vector< GLuint >& dl = displayLists();
-
-    SaveGlDeleteLists(dl[ NormalObject ], 1);
-
-    if ((plotStyle() == NOPLOT && !normals()) || !data)
-        return;
-
-    dl[ NormalObject ] = glGenLists(1);
-    glNewList(dl[ NormalObject ], GL_COMPILE);
-
-    if (data->datatype == POLYGON)
-        createNormalsC();
-    else if (data->datatype == GRID)
-        createNormalsG();
-
-    glEndList();
+    // Stub: normals recalculation disabled during refactor
+    // Will be reimplemented in Qwt3DSurface item (Plan 06)
 }
 
-void SurfacePlot::createData()
+// Stub implementations of loadFromData — data loading is disabled during refactor.
+// These will be reimplemented in Qwt3DSurface item (Plan 06).
+
+bool SurfacePlot::loadFromData(Triple** data, unsigned int columns, unsigned int rows, bool, bool)
 {
-    Qwt3DData* data = actualData();
-    if (!data)
-        return;
-    if (data->datatype == POLYGON)
-        createDataC();
-    else if (data->datatype == GRID)
-        createDataG();
+    // Stub: data loading disabled during refactor
+    (void)data;
+    (void)columns;
+    (void)rows;
+    return false;
 }
 
-void SurfacePlot::createFloorData()
+bool SurfacePlot::loadFromData(double** data, unsigned int columns, unsigned int rows, double, double, double, double)
 {
-    Qwt3DData* data = actualData();
-    if (!data)
-        return;
-    if (data->datatype == POLYGON)
-        createFloorDataC();
-    else if (data->datatype == GRID)
-        createFloorDataG();
+    // Stub: data loading disabled during refactor
+    (void)data;
+    (void)columns;
+    (void)rows;
+    return false;
 }
 
-/**
- * @brief Returns the number of facets in the data
- * @return (columns,rows) for grid data, (number of cells,1) for polygon data, (0,0) otherwise
- * @details The returned value is not affected by resolution().
- *
- */
-pair< int, int > SurfacePlot::facets() const
+bool SurfacePlot::loadFromData(TripleField const& data, CellField const& poly)
 {
-    QWT_DC(d);
-    if (!hasData())
-        return pair< int, int >(0, 0);
-
-    Qwt3DData* data = actualData();
-    if (data->datatype == POLYGON)
-        return pair< int, int >(int(d->m_actualDataC->cells.size()), 1);
-    else if (data->datatype == GRID)
-        return pair< int, int >(d->m_actualDataG->columns(), d->m_actualDataG->rows());
-    else
-        return pair< int, int >(0, 0);
-}
-
-void SurfacePlot::createPoints()
-{
-    Qwt3DDot pt;
-    createEnrichment(pt);
-}
-
-void SurfacePlot::createEnrichment(Qwt3DEnrichment& p)
-{
-    QWT_D(d);
-    Qwt3DData* data = actualData();
-    if (!data)
-        return;
-
-    // todo future work
-    if (p.type() != Qwt3DEnrichment::VERTEXENRICHMENT)
-        return;
-
-    p.assign(*this);
-    p.drawBegin();
-
-    Qwt3DVertexEnrichment* ve = static_cast< Qwt3DVertexEnrichment* >(&p);
-    if (data->datatype == POLYGON) {
-        for (unsigned i = 0; i != d->m_actualDataC->normals.size(); ++i)
-            ve->draw(d->m_actualDataC->nodes[ i ]);
-    } else if (data->datatype == GRID) {
-        int step = resolution();
-        for (int i = 0; i <= d->m_actualDataG->columns() - step; i += step)
-            for (int j = 0; j <= d->m_actualDataG->rows() - step; j += step)
-                ve->draw(Triple(d->m_actualDataG->vertices[ i ][ j ][ 0 ],
-                                d->m_actualDataG->vertices[ i ][ j ][ 1 ],
-                                d->m_actualDataG->vertices[ i ][ j ][ 2 ]));
-    }
-    p.drawEnd();
+    // Stub: data loading disabled during refactor
+    (void)data;
+    (void)poly;
+    return false;
 }

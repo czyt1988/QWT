@@ -20,7 +20,7 @@ public:
 
 private:
     IO::Functor* clone() const override;
-    bool operator()(Plot3D* plot, QString const& fname) override;
+    bool operator()(Qwt3DPlot* plot, QString const& fname) override;
     static const char* magicstring;
     bool collectInfo(FILE*& file,
                      QString const& fname,

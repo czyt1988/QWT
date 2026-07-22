@@ -5,7 +5,7 @@
 
 
 
-class Plot3D;
+class Qwt3DPlot;
 
 /**
  * @brief The Cross Hair Style

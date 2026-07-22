@@ -3,10 +3,20 @@
 #pragma warning(disable : 4786)
 #endif
 
+// SurfacePlot grid-based rendering is temporarily disabled during the
+// Plot+Item refactor. All methods that referenced deleted Qwt3DPlot
+// methods (plotStyle, userStyle, displayLists, actualData, dataColor,
+// meshColor, meshLineWidth, smoothDataMesh, polygonOffset, etc.)
+// have been commented out.
+//
+// These rendering methods will be reimplemented in the Qwt3DSurface
+// item class (Plan 06).
+
 #include "qwt3d_surfaceplot_p.h"
 #include "qwt3d_enrichment_std.h"
 
-using namespace std;
+
+#if 0 // Disabled during refactor — will be reimplemented in Qwt3DSurface item
 
 void SurfacePlot::createDataG()
 {
@@ -161,7 +171,6 @@ void SurfacePlot::readIn(Qwt3DGridData& gdata, Triple** data, unsigned int colum
 
     ParallelEpiped range(Triple(DBL_MAX, DBL_MAX, DBL_MAX), Triple(-DBL_MAX, -DBL_MAX, -DBL_MAX));
 
-    /* fill out the vertex array for the mesh. */
     for (unsigned i = 0; i != columns; ++i) {
         for (unsigned j = 0; j != rows; ++j) {
             gdata.vertices[ i ][ j ][ 0 ] = data[ i ][ j ].x;
@@ -203,7 +212,6 @@ void SurfacePlot::readIn(Qwt3DGridData& gdata,
     double tmin = DBL_MAX;
     double tmax = -DBL_MAX;
 
-    /* fill out the vertex array for the mesh. */
     for (unsigned i = 0; i != columns; ++i) {
         for (unsigned j = 0; j != rows; ++j) {
             gdata.vertices[ i ][ j ][ 0 ] = minx + i * dx;
@@ -226,20 +234,16 @@ void SurfacePlot::readIn(Qwt3DGridData& gdata,
 
 void SurfacePlot::calcNormals(Qwt3DGridData& gdata)
 {
-
     unsigned int rows    = gdata.rows();
     unsigned int columns = gdata.columns();
 
-    // normals
-
-    Triple u, v, n;  // for cross product
+    Triple u, v, n;
 
     for (unsigned i = 0; i != columns; ++i) {
         for (unsigned j = 0; j != rows; ++j) {
             n = Triple(0, 0, 0);
 
             if (i < columns - 1 && j < rows - 1) {
-                /*	get two vectors to cross */
                 u = Triple(gdata.vertices[ i + 1 ][ j ][ 0 ] - gdata.vertices[ i ][ j ][ 0 ],
                            gdata.vertices[ i + 1 ][ j ][ 1 ] - gdata.vertices[ i ][ j ][ 1 ],
                            gdata.vertices[ i + 1 ][ j ][ 2 ] - gdata.vertices[ i ][ j ][ 2 ]);
@@ -247,8 +251,7 @@ void SurfacePlot::calcNormals(Qwt3DGridData& gdata)
                 v = Triple(gdata.vertices[ i ][ j + 1 ][ 0 ] - gdata.vertices[ i ][ j ][ 0 ],
                            gdata.vertices[ i ][ j + 1 ][ 1 ] - gdata.vertices[ i ][ j ][ 1 ],
                            gdata.vertices[ i ][ j + 1 ][ 2 ] - gdata.vertices[ i ][ j ][ 2 ]);
-                /* get the normalized cross product */
-                n += normalizedcross(u, v);  // right hand system here !
+                n += normalizedcross(u, v);
             }
 
             if (i > 0 && j < rows - 1) {
@@ -293,8 +296,6 @@ void SurfacePlot::calcNormals(Qwt3DGridData& gdata)
 
 void SurfacePlot::sewPeriodic(Qwt3DGridData& gdata)
 {
-    // sewing
-
     Triple n;
 
     unsigned int columns = gdata.columns();
@@ -326,10 +327,6 @@ void SurfacePlot::sewPeriodic(Qwt3DGridData& gdata)
     }
 }
 
-/*!
-        Convert user grid data to internal vertex structure.
-        See also NativeReader::read() and Function::create()
-*/
 bool SurfacePlot::loadFromData(Triple** data, unsigned int columns, unsigned int rows, bool uperiodic, bool vperiodic)
 {
     QWT_D(d);
@@ -348,10 +345,6 @@ bool SurfacePlot::loadFromData(Triple** data, unsigned int columns, unsigned int
     return true;
 }
 
-/*!
-        Convert user grid data to internal vertex structure.
-        See also NativeReader::read() and Function::create()
-*/
 bool SurfacePlot::loadFromData(double** data, unsigned int columns, unsigned int rows, double minx, double maxx, double miny, double maxy)
 {
     QWT_D(d);
@@ -472,7 +465,7 @@ void SurfacePlot::Isolines2FloorG()
                     if ((val >= t[ m ].z && val <= t[ mm ].z) || (val >= t[ mm ].z && val <= t[ m ].z)) {
                         diff = t[ mm ].z - t[ m ].z;
 
-                        if (isPracticallyZero(diff))  // degenerated
+                        if (isPracticallyZero(diff))
                         {
                             intersection.push_back(t[ m ]);
                             intersection.push_back(t[ mm ]);
@@ -500,7 +493,6 @@ void SurfacePlot::Isolines2FloorG()
                         glVertex3d(intersection[ 0 ].x, intersection[ 0 ].y, zshift);
                         glVertex3d(intersection[ 1 ].x, intersection[ 1 ].y, zshift);
 
-                        // small pixel gap problem (see OpenGL spec.)
                         glVertex3d(intersection[ 1 ].x, intersection[ 1 ].y, zshift);
                         glVertex3d(intersection[ 0 ].x, intersection[ 0 ].y, zshift);
                         glEnd();
@@ -512,3 +504,5 @@ void SurfacePlot::Isolines2FloorG()
         }
     }
 }
+
+#endif // 0 — disabled during refactor

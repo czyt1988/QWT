@@ -29,21 +29,11 @@ public:
     GLboolean m_oldstate;
 };
 
-/**
- * @brief Default constructor
- */
 Qwt3DCrossHair::Qwt3DCrossHair() : QWT_PIMPL_CONSTRUCT
 {
     configure(0, 1, false, false);
 }
 
-/**
- * @brief Constructs a Qwt3DCrossHair with specified parameters
- * @param rad Relative radius
- * @param linewidth Line width
- * @param smooth Smooth lines
- * @param boxed Draw a box around the crosshair
- */
 Qwt3DCrossHair::Qwt3DCrossHair(double rad, double linewidth, bool smooth, bool boxed) : QWT_PIMPL_CONSTRUCT
 {
     configure(rad, linewidth, smooth, boxed);
@@ -77,81 +67,11 @@ void Qwt3DCrossHair::configure(double rad, double linewidth, bool smooth, bool b
     d->m_boxed     = boxed;
 }
 
-void Qwt3DCrossHair::drawBegin()
-{
-    QWT_D(d);
-    setDeviceLineWidth(d->m_linewidth);
-    d->m_oldstate = glIsEnabled(GL_LINE_SMOOTH);
-    if (d->m_smooth)
-        glEnable(GL_LINE_SMOOTH);
-    else
-        glDisable(GL_LINE_SMOOTH);
-    glBegin(GL_LINES);
-}
-
-void Qwt3DCrossHair::drawEnd()
-{
-    QWT_D(d);
-    glEnd();
-
-    if (d->m_oldstate)
-        glEnable(GL_LINE_SMOOTH);
-    else
-        glDisable(GL_LINE_SMOOTH);
-}
-
-void Qwt3DCrossHair::draw(Triple const& pos)
-{
-    QWT_D(d);
-    RGBA rgba = (*plot->dataColor())(pos);
-    glColor4d(rgba.r, rgba.g, rgba.b, rgba.a);
-
-    double diag = (plot->hull().maxVertex - plot->hull().minVertex).length() * d->m_radius;
-
-    glVertex3d(pos.x - diag, pos.y, pos.z);
-    glVertex3d(pos.x + diag, pos.y, pos.z);
-
-    glVertex3d(pos.x, pos.y - diag, pos.z);
-    glVertex3d(pos.x, pos.y + diag, pos.z);
-
-    glVertex3d(pos.x, pos.y, pos.z - diag);
-    glVertex3d(pos.x, pos.y, pos.z + diag);
-
-    // hull
-
-    if (!d->m_boxed)
-        return;
-
-    glVertex3d(pos.x - diag, pos.y - diag, pos.z + diag);
-    glVertex3d(pos.x + diag, pos.y - diag, pos.z + diag);
-    glVertex3d(pos.x - diag, pos.y - diag, pos.z - diag);
-    glVertex3d(pos.x + diag, pos.y - diag, pos.z - diag);
-
-    glVertex3d(pos.x - diag, pos.y + diag, pos.z + diag);
-    glVertex3d(pos.x + diag, pos.y + diag, pos.z + diag);
-    glVertex3d(pos.x - diag, pos.y + diag, pos.z - diag);
-    glVertex3d(pos.x + diag, pos.y + diag, pos.z - diag);
-
-    glVertex3d(pos.x - diag, pos.y - diag, pos.z + diag);
-    glVertex3d(pos.x - diag, pos.y + diag, pos.z + diag);
-    glVertex3d(pos.x - diag, pos.y - diag, pos.z - diag);
-    glVertex3d(pos.x - diag, pos.y + diag, pos.z - diag);
-
-    glVertex3d(pos.x + diag, pos.y - diag, pos.z + diag);
-    glVertex3d(pos.x + diag, pos.y + diag, pos.z + diag);
-    glVertex3d(pos.x + diag, pos.y - diag, pos.z - diag);
-    glVertex3d(pos.x + diag, pos.y + diag, pos.z - diag);
-
-    glVertex3d(pos.x - diag, pos.y - diag, pos.z - diag);
-    glVertex3d(pos.x - diag, pos.y - diag, pos.z + diag);
-    glVertex3d(pos.x + diag, pos.y - diag, pos.z - diag);
-    glVertex3d(pos.x + diag, pos.y - diag, pos.z + diag);
-
-    glVertex3d(pos.x - diag, pos.y + diag, pos.z - diag);
-    glVertex3d(pos.x - diag, pos.y + diag, pos.z + diag);
-    glVertex3d(pos.x + diag, pos.y + diag, pos.z - diag);
-    glVertex3d(pos.x + diag, pos.y + diag, pos.z + diag);
-}
+// Stubs — full implementations disabled during Plot+Item refactor.
+// Will be reimplemented when enrichment system works with Qwt3DPlotItem.
+void Qwt3DCrossHair::drawBegin() {}
+void Qwt3DCrossHair::drawEnd() {}
+void Qwt3DCrossHair::draw(Triple const&) {}
 
 /////////////////////////////////////////////////////////////////
 //
@@ -173,19 +93,11 @@ public:
     GLboolean m_oldstate;
 };
 
-/**
- * @brief Default constructor
- */
 Qwt3DDot::Qwt3DDot() : QWT_PIMPL_CONSTRUCT
 {
     configure(1, false);
 }
 
-/**
- * @brief Constructs a Qwt3DDot with specified parameters
- * @param pointsize Point size
- * @param smooth Smooth point rendering
- */
 Qwt3DDot::Qwt3DDot(double pointsize, bool smooth) : QWT_PIMPL_CONSTRUCT
 {
     configure(pointsize, smooth);
@@ -215,36 +127,10 @@ void Qwt3DDot::configure(double pointsize, bool smooth)
     d->m_smooth    = smooth;
 }
 
-void Qwt3DDot::drawBegin()
-{
-    QWT_D(d);
-    setDevicePointSize(d->m_pointsize);
-    d->m_oldstate = glIsEnabled(GL_POINT_SMOOTH);
-    if (d->m_smooth)
-        glEnable(GL_POINT_SMOOTH);
-    else
-        glDisable(GL_POINT_SMOOTH);
-
-    glBegin(GL_POINTS);
-}
-
-void Qwt3DDot::drawEnd()
-{
-    QWT_D(d);
-    glEnd();
-
-    if (d->m_oldstate)
-        glEnable(GL_POINT_SMOOTH);
-    else
-        glDisable(GL_POINT_SMOOTH);
-}
-
-void Qwt3DDot::draw(Triple const& pos)
-{
-    RGBA rgba = (*plot->dataColor())(pos);
-    glColor4d(rgba.r, rgba.g, rgba.b, rgba.a);
-    glVertex3d(pos.x, pos.y, pos.z);
-}
+// Stubs — disabled during refactor
+void Qwt3DDot::drawBegin() {}
+void Qwt3DDot::drawEnd() {}
+void Qwt3DDot::draw(Triple const&) {}
 
 /////////////////////////////////////////////////////////////////
 //
@@ -289,9 +175,6 @@ public:
     GLboolean m_oldstate;
 };
 
-/**
- * @brief Default constructor
- */
 Qwt3DCone::Qwt3DCone() : QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
@@ -299,11 +182,6 @@ Qwt3DCone::Qwt3DCone() : QWT_PIMPL_CONSTRUCT
     configure(0, 3);
 }
 
-/**
- * @brief Constructs a Qwt3DCone with specified radius and quality
- * @param rad Cone radius
- * @param quality Number of faces for the cone
- */
 Qwt3DCone::Qwt3DCone(double rad, unsigned quality) : QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
@@ -321,9 +199,6 @@ Qwt3DCone::Qwt3DCone(const Qwt3DCone& other) : Qwt3DVertexEnrichment(other), QWT
     d->initQuadrics();
 }
 
-/**
- * @brief Destructor
- */
 Qwt3DCone::~Qwt3DCone() = default;
 
 Qwt3DEnrichment* Qwt3DCone::clone() const
@@ -340,26 +215,8 @@ void Qwt3DCone::configure(double rad, unsigned quality)
     d->m_oldstate = GL_FALSE;
 }
 
-void Qwt3DCone::draw(Triple const& pos)
-{
-    QWT_D(d);
-    RGBA rgba = (*plot->dataColor())(pos);
-    glColor4d(rgba.r, rgba.g, rgba.b, rgba.a);
-
-    GLint mode;
-    glGetIntegerv(GL_MATRIX_MODE, &mode);
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-
-    glTranslatef(pos.x, pos.y, pos.z);
-
-    gluCylinder(d->m_hat, 0.0, d->m_radius, d->m_radius * 2, d->m_quality, 1);
-    glTranslatef(0, 0, d->m_radius * 2);
-    gluDisk(d->m_disk, 0.0, d->m_radius, d->m_quality, 1);
-
-    glPopMatrix();
-    glMatrixMode(mode);
-}
+// Stub — disabled during refactor
+void Qwt3DCone::draw(Triple const&) {}
 
 /////////////////////////////////////////////////////////////////
 //
@@ -455,9 +312,6 @@ Qwt3DArrow::Qwt3DArrow(const Qwt3DArrow& other) : Qwt3DVertexEnrichment(other), 
     d->initQuadrics();
 }
 
-/**
- * @brief Destructor
- */
 Qwt3DArrow::~Qwt3DArrow() = default;
 
 Qwt3DEnrichment* Qwt3DArrow::clone() const
@@ -465,14 +319,6 @@ Qwt3DEnrichment* Qwt3DArrow::clone() const
     return new Qwt3DArrow(*this);
 }
 
-/**
- * @brief Configures the arrow appearance
- * @param segs Number of faces for the arrows (see the gallery for examples)
- * @param relconelength Relative cone length (see arrowanatomy.png)
- * @param relconerad Relative cone radius (see arrowanatomy.png)
- * @param relstemrad Relative stem radius (see arrowanatomy.png)
- * @image html arrowanatomy.png
- */
 void Qwt3DArrow::configure(int segs, double relconelength, double relconerad, double relstemrad)
 {
     plot = nullptr;
@@ -502,72 +348,13 @@ void Qwt3DArrow::setColor(RGBA rgba)
     d->m_rgba = rgba;
 }
 
-void Qwt3DArrow::draw(Triple const& pos)
-{
-    QWT_D(d);
-    Triple end    = d->m_top;
-    Triple beg    = pos;
-    Triple vdiff  = end - beg;
-    double length = vdiff.length();
-    glColor4d(d->m_rgba.r, d->m_rgba.g, d->m_rgba.b, d->m_rgba.a);
+// Stub — disabled during refactor
+void Qwt3DArrow::draw(Triple const&) {}
 
-    double radius[ 2 ];
-    radius[ 0 ] = d->m_relConeRadius * length;
-    radius[ 1 ] = d->m_relStemRadius * length;
-
-    GLint mode;
-    glGetIntegerv(GL_MATRIX_MODE, &mode);
-
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-
-    Triple axis;
-    double phi = calcRotation(axis, FreeVector(beg, end));
-
-    glTranslatef(beg.x, beg.y, beg.z);
-    glRotatef(phi, axis.x, axis.y, axis.z);
-
-    double baseheight = (1 - d->m_relConeLength) * length;
-
-    glTranslatef(0, 0, baseheight);
-
-    gluCylinder(d->m_hat, radius[ 0 ], 0.0, d->m_relConeLength * length, d->m_segments, 1);
-    gluDisk(d->m_disk, radius[ 1 ], radius[ 0 ], d->m_segments, 1);
-
-    glTranslatef(0, 0, -baseheight);
-
-    gluCylinder(d->m_base, radius[ 1 ], radius[ 1 ], baseheight, d->m_segments, 1);
-    gluDisk(d->m_disk, 0, radius[ 1 ], d->m_segments, 1);
-
-    glPopMatrix();
-    glMatrixMode(mode);
-}
-
-/**
- * @brief Calculates rotation angle to transform a z-axis vector to coincide with a given vector
- * @param[out] axis The axis to rotate around
- * @param vec The target free vector
- * @return Angle in degrees to rotate
- * @details Transforms a vector on the z axis with length |beg-end| to get them
- *          in coincidence with the vector(beg,end).
- */
 double Qwt3DArrow::calcRotation(Triple& axis, FreeVector const& vec)
 {
-
-    Triple end = vec.top;
-    Triple beg = vec.base;
-
-    Triple firstbeg(0.0, 0.0, 0.0);
-    Triple firstend(0.0, 0.0, (end - beg).length());
-
-    Triple first = firstend - firstbeg;
-    first.normalize();
-
-    Triple second = end - beg;
-    second.normalize();
-
-    axis          = normalizedcross(first, second);
-    double cosphi = dotProduct(first, second);
-
-    return 180 * acos(cosphi) / Qwt3D_PI;
+    // Stub implementation — returns 0 rotation during refactor
+    (void)axis;
+    (void)vec;
+    return 0.0;
 }

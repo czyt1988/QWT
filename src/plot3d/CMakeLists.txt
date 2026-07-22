@@ -49,9 +49,6 @@ set(QWTPLOT3D_HEADER_PLOT_3D
     qwt3d_parametricsurface.h
     qwt3d_function.h
     qwt3d_surfaceplot.h
-    qwt3d_volumeplot.h
-    qwt3d_graphplot.h
-    qwt3d_multiplot.h
     qwt3d_io_gl2ps.h
     qwt3d_colormap_color.h
     qwt3d_theme.h

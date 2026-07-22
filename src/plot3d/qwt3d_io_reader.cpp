@@ -11,7 +11,6 @@
 
 #include "qwt3d_surfaceplot.h"
 
-using namespace std;
 
 const char* NativeReader::magicstring = "jk:11051895-17021986";
 
@@ -220,7 +219,7 @@ bool NativeReader::collectInfo(FILE*& file,
  * @param fname File name to read
  * @return True on success, false on file error or data format error
  */
-bool NativeReader::operator()(Plot3D* plot, QString const& fname)
+bool NativeReader::operator()(Qwt3DPlot* plot, QString const& fname)
 {
     QWT_D(d);
 

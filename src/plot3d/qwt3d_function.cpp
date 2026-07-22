@@ -106,7 +106,7 @@ bool Function::create()
 
     Q_ASSERT(plotWidget());
     if (!plotWidget()) {
-        fprintf(stderr, "Function: no valid Plot3D Widget assigned");
+        fprintf(stderr, "Function: no valid Qwt3DPlot Widget assigned");
     } else {
         static_cast< SurfacePlot* >(plotWidget())->loadFromData(data, um, vm, minU(), maxU(), minV(), maxV());
     }

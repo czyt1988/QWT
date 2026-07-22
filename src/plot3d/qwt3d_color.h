@@ -40,10 +40,10 @@ protected:
     }
 };
 
-class Plot3D;
+class Qwt3DPlot;
 
 /**
- * @brief Standard color model for Plot3D - implements the data driven operator()(double x, double y, double z)
+ * @brief Standard color model for Qwt3DPlot - implements the data driven operator()(double x, double y, double z)
  * @details The class has a ColorVector representing z values, which will be used by
  *          operator()(double x, double y, double z)
  */
@@ -53,7 +53,7 @@ class QWT3D_EXPORT Qwt3DStandardColor : public Qwt3DColor
 
 public:
     // Initializes with data and set up a ColorVector with a size of 100 z values (default)
-    explicit Qwt3DStandardColor(Plot3D* data, unsigned size = 100);
+    explicit Qwt3DStandardColor(Qwt3DPlot* data, unsigned size = 100);
     ~Qwt3DStandardColor() override;
     // Receives z-dependent color from ColorVector
     RGBA operator()(double x, double y, double z) const override;

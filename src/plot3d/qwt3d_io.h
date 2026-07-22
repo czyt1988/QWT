@@ -10,7 +10,7 @@
 
 
 
-class Plot3D;
+class Qwt3DPlot;
 
 /**
  * @brief Generic interface for standard and user written I/O handlers
@@ -24,7 +24,7 @@ class QWT3D_EXPORT IO
 
 public:
     // The function type that can be processed by the define... members
-    using Function = bool (*)(Plot3D*, QString const& fname);
+    using Function = bool (*)(Qwt3DPlot*, QString const& fname);
 
     /**
      * @brief Functor class for more flexible IO handler implementation
@@ -40,7 +40,7 @@ public:
         // Must clone the content of *this for an object of a derived class
         virtual Functor* clone() const = 0;
         // The workhorse of the user-defined implementation
-        virtual bool operator()(Plot3D* plot, QString const& fname) = 0;
+        virtual bool operator()(Qwt3DPlot* plot, QString const& fname) = 0;
     };
 
     // Define an input handler for a format with a function
@@ -52,9 +52,9 @@ public:
     // Define an output handler for a format with a functor
     static bool defineOutputHandler(QString const& format, Functor const& func);
     // Save plot to file in specified format
-    static bool save(Plot3D*, QString const& fname, QString const& format);
+    static bool save(Qwt3DPlot*, QString const& fname, QString const& format);
     // Load plot from file in specified format
-    static bool load(Plot3D*, QString const& fname, QString const& format);
+    static bool load(Qwt3DPlot*, QString const& fname, QString const& format);
     // Returns list of available input formats
     static QStringList inputFormatList();
     // Returns list of available output formats
@@ -83,7 +83,7 @@ private:
         {
         }
         // Returns a pointer to the wrapped function
-        bool operator()(Plot3D* plot, QString const& fname) override
+        bool operator()(Qwt3DPlot* plot, QString const& fname) override
         {
             return (hdl) ? (*hdl)(plot, fname) : false;
         }
@@ -150,7 +150,7 @@ public:
 
 private:
     IO::Functor* clone() const override;
-    bool operator()(Plot3D* plot, QString const& fname) override;
+    bool operator()(Qwt3DPlot* plot, QString const& fname) override;
 };
 
 

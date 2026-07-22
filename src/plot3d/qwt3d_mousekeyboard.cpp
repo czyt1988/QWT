@@ -6,15 +6,16 @@
 #include "qwt3d_plot_p.h"
 #include "qwt_qt5qt6_compat.hpp"
 
+#include <algorithm>
 #include <cmath>
 
-using namespace std;
+using std::max;
 
 /**
         Standard mouse button Function. Prepares the call to mouseMoveEvent
         @see mouseMoveEvent()
 */
-void Plot3D::mousePressEvent(QMouseEvent* e)
+void Qwt3DPlot::mousePressEvent(QMouseEvent* e)
 {
     QWT_D(d);
     d->m_lastMouseMovePosition = qwt::compat::eventPos(e);
@@ -25,7 +26,7 @@ void Plot3D::mousePressEvent(QMouseEvent* e)
         Standard mouse button Function. Completes the call to mouseMoveEvent
         @see mouseMoveEvent()
 */
-void Plot3D::mouseReleaseEvent(QMouseEvent*)
+void Qwt3DPlot::mouseReleaseEvent(QMouseEvent*)
 {
     QWT_D(d);
     d->m_pressed = false;
@@ -35,7 +36,7 @@ void Plot3D::mouseReleaseEvent(QMouseEvent*)
         Standard mouse button Function
         @see assignMouse()
 */
-void Plot3D::mouseMoveEvent(QMouseEvent* e)
+void Qwt3DPlot::mouseMoveEvent(QMouseEvent* e)
 {
     QWT_D(d);
     if (!d->m_pressed || !mouseEnabled()) {
@@ -54,7 +55,7 @@ void Plot3D::mouseMoveEvent(QMouseEvent* e)
     d->m_lastMouseMovePosition = qwt::compat::eventPos(e);
 }
 
-void Plot3D::setRotationMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
+void Qwt3DPlot::setRotationMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
 {
     QWT_D(d);
     // Rotation
@@ -78,7 +79,7 @@ void Plot3D::setRotationMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
     setRotation(new_xrot, new_yrot, new_zrot);
 }
 
-void Plot3D::setScaleMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
+void Qwt3DPlot::setScaleMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
 {
     QWT_D(d);
     // Scale
@@ -107,7 +108,7 @@ void Plot3D::setScaleMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
         setZoom(max(0.0, zoom() - relyz));
 }
 
-void Plot3D::setShiftMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
+void Qwt3DPlot::setShiftMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
 {
     QWT_D(d);
     // Shift
@@ -131,7 +132,7 @@ void Plot3D::setShiftMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
 /**
         Standard wheel Function - zoom (wheel only) or z-scale (shift+wheel)
 */
-void Plot3D::wheelEvent(QWheelEvent* e)
+void Qwt3DPlot::wheelEvent(QWheelEvent* e)
 {
     if (!mouseEnabled())
         return;
@@ -166,15 +167,15 @@ void Plot3D::wheelEvent(QWheelEvent* e)
         mouseMoveEvent() evaluates this function - if overridden, their usefulness becomes somehow
    limited
 */
-void Plot3D::assignMouse(Qwt3DMouseState xrot,
-                         Qwt3DMouseState yrot,
-                         Qwt3DMouseState zrot,
-                         Qwt3DMouseState xscale,
-                         Qwt3DMouseState yscale,
-                         Qwt3DMouseState zscale,
-                         Qwt3DMouseState zoom,
-                         Qwt3DMouseState xshift,
-                         Qwt3DMouseState yshift)
+void Qwt3DPlot::assignMouse(Qwt3DMouseState xrot,
+                            Qwt3DMouseState yrot,
+                            Qwt3DMouseState zrot,
+                            Qwt3DMouseState xscale,
+                            Qwt3DMouseState yscale,
+                            Qwt3DMouseState zscale,
+                            Qwt3DMouseState zoom,
+                            Qwt3DMouseState xshift,
+                            Qwt3DMouseState yshift)
 {
     QWT_D(d);
     d->m_xrotMState   = xrot;
@@ -189,12 +190,12 @@ void Plot3D::assignMouse(Qwt3DMouseState xrot,
 }
 
 /**
-The function has no effect if you derive from Plot3D and overrides the mouse Function too careless.
+The function has no effect if you derive from Qwt3DPlot and overrides the mouse Function too careless.
 In this case check first against mouseEnabled() in your version of mouseMoveEvent() and
 wheelEvent(). A more fine grained input control can be achieved by combining assignMouse() with
 enableMouse().
 */
-void Plot3D::enableMouse(bool val)
+void Qwt3DPlot::enableMouse(bool val)
 {
     QWT_D(d);
     d->m_mouseInputEnabled = val;
@@ -203,19 +204,19 @@ void Plot3D::enableMouse(bool val)
 /**
 @see enableMouse()
 */
-void Plot3D::disableMouse(bool val)
+void Qwt3DPlot::disableMouse(bool val)
 {
     QWT_D(d);
     d->m_mouseInputEnabled = !val;
 }
 
-bool Plot3D::mouseEnabled() const
+bool Qwt3DPlot::mouseEnabled() const
 {
     QWT_DC(d);
     return d->m_mouseInputEnabled;
 }
 
-void Plot3D::keyPressEvent(QKeyEvent* e)
+void Qwt3DPlot::keyPressEvent(QKeyEvent* e)
 {
     QWT_D(d);
     if (!keyboardEnabled()) {
@@ -230,7 +231,7 @@ void Plot3D::keyPressEvent(QKeyEvent* e)
     setShiftKeyboard(keyseq, d->m_kbdShiftSpeed);
 }
 
-void Plot3D::setRotationKeyboard(Qwt3DKeyboardState kseq, double speed)
+void Qwt3DPlot::setRotationKeyboard(Qwt3DKeyboardState kseq, double speed)
 {
     QWT_D(d);
     // Rotation
@@ -260,7 +261,7 @@ void Plot3D::setRotationKeyboard(Qwt3DKeyboardState kseq, double speed)
     setRotation(new_xrot, new_yrot, new_zrot);
 }
 
-void Plot3D::setScaleKeyboard(Qwt3DKeyboardState kseq, double speed)
+void Qwt3DPlot::setScaleKeyboard(Qwt3DKeyboardState kseq, double speed)
 {
     QWT_D(d);
     // Scale
@@ -297,7 +298,7 @@ void Plot3D::setScaleKeyboard(Qwt3DKeyboardState kseq, double speed)
         setZoom(max(0.0, zoom() + relyz));
 }
 
-void Plot3D::setShiftKeyboard(Qwt3DKeyboardState kseq, double speed)
+void Qwt3DPlot::setShiftKeyboard(Qwt3DKeyboardState kseq, double speed)
 {
     QWT_D(d);
     // Shift
@@ -338,24 +339,24 @@ void Plot3D::setShiftKeyboard(Qwt3DKeyboardState kseq, double speed)
         shifting along z:     CTRL+[Key_Down, Key_Up]
         @endverbatim
 */
-void Plot3D::assignKeyboard(Qwt3DKeyboardState xrot_n,
-                            Qwt3DKeyboardState xrot_p,
-                            Qwt3DKeyboardState yrot_n,
-                            Qwt3DKeyboardState yrot_p,
-                            Qwt3DKeyboardState zrot_n,
-                            Qwt3DKeyboardState zrot_p,
-                            Qwt3DKeyboardState xscale_n,
-                            Qwt3DKeyboardState xscale_p,
-                            Qwt3DKeyboardState yscale_n,
-                            Qwt3DKeyboardState yscale_p,
-                            Qwt3DKeyboardState zscale_n,
-                            Qwt3DKeyboardState zscale_p,
-                            Qwt3DKeyboardState zoom_n,
-                            Qwt3DKeyboardState zoom_p,
-                            Qwt3DKeyboardState xshift_n,
-                            Qwt3DKeyboardState xshift_p,
-                            Qwt3DKeyboardState yshift_n,
-                            Qwt3DKeyboardState yshift_p)
+void Qwt3DPlot::assignKeyboard(Qwt3DKeyboardState xrot_n,
+                               Qwt3DKeyboardState xrot_p,
+                               Qwt3DKeyboardState yrot_n,
+                               Qwt3DKeyboardState yrot_p,
+                               Qwt3DKeyboardState zrot_n,
+                               Qwt3DKeyboardState zrot_p,
+                               Qwt3DKeyboardState xscale_n,
+                               Qwt3DKeyboardState xscale_p,
+                               Qwt3DKeyboardState yscale_n,
+                               Qwt3DKeyboardState yscale_p,
+                               Qwt3DKeyboardState zscale_n,
+                               Qwt3DKeyboardState zscale_p,
+                               Qwt3DKeyboardState zoom_n,
+                               Qwt3DKeyboardState zoom_p,
+                               Qwt3DKeyboardState xshift_n,
+                               Qwt3DKeyboardState xshift_p,
+                               Qwt3DKeyboardState yshift_n,
+                               Qwt3DKeyboardState yshift_p)
 {
     QWT_D(d);
     d->m_xrotKState[ 0 ] = xrot_n;
@@ -381,11 +382,11 @@ void Plot3D::assignKeyboard(Qwt3DKeyboardState xrot_n,
 }
 
 /**
-The function has no effect if you derive from Plot3D and overrides the keyboard Functions too
+The function has no effect if you derive from Qwt3DPlot and overrides the keyboard Functions too
 careless. In this case check first against keyboardEnabled() in your version of keyPressEvent() A
 more fine grained input control can be achieved by combining assignKeyboard() with enableKeyboard().
 */
-void Plot3D::enableKeyboard(bool val)
+void Qwt3DPlot::enableKeyboard(bool val)
 {
     QWT_D(d);
     d->m_kbdInputEnabled = val;
@@ -394,13 +395,13 @@ void Plot3D::enableKeyboard(bool val)
 /**
 @see enableKeyboard()
 */
-void Plot3D::disableKeyboard(bool val)
+void Qwt3DPlot::disableKeyboard(bool val)
 {
     QWT_D(d);
     d->m_kbdInputEnabled = !val;
 }
 
-bool Plot3D::keyboardEnabled() const
+bool Qwt3DPlot::keyboardEnabled() const
 {
     QWT_DC(d);
     return d->m_kbdInputEnabled;
@@ -409,7 +410,7 @@ bool Plot3D::keyboardEnabled() const
 /**
 Values < 0 are ignored. Default is (3,5,5)
 */
-void Plot3D::setKeySpeed(double rot, double scale, double shift)
+void Qwt3DPlot::setKeySpeed(double rot, double scale, double shift)
 {
     QWT_D(d);
     if (rot > 0)
@@ -420,7 +421,7 @@ void Plot3D::setKeySpeed(double rot, double scale, double shift)
         d->m_kbdShiftSpeed = shift;
 }
 
-void Plot3D::keySpeed(double& rot, double& scale, double& shift) const
+void Qwt3DPlot::keySpeed(double& rot, double& scale, double& shift) const
 {
     QWT_DC(d);
     rot   = d->m_kbdRotSpeed;

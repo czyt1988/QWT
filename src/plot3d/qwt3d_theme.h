@@ -20,10 +20,10 @@ class QwtColorMap;
 
 
 
-class Plot3D;
+class Qwt3DPlot;
 
 /**
- * @brief Complete visual theme descriptor for Plot3D widgets.
+ * @brief Complete visual theme descriptor for Qwt3DPlot widgets.
  * @details Qwt3DTheme encapsulates all visual properties of a 3D plot:
  *          background color, mesh styling, data colormap, coordinate system colors,
  *          title styling, lighting preset, shading mode, plot style, and material
@@ -122,7 +122,7 @@ public:
     void setSpecularIntensity(double);
 
     // Apply to a plot
-    void apply(Plot3D* plot) const;
+    void apply(Qwt3DPlot* plot) const;
 
 private:
     RGBA m_backgroundColor;

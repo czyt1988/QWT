@@ -4,33 +4,43 @@
 #include <QOpenGLWidget>
 
 #include "qwt3d_coordsys.h"
-#include "qwt3d_enrichment_std.h"
 #include "qwt3d_theme.h"
 
-
+class Qwt3DPlotItem;
 
 /**
- * @brief Base class for all plotting widgets
- * @details Plot3D handles all the common features for plotting widgets -
- *          coordinate system, transformations, mouse/keyboard handling,
- *          labeling etc. It contains some pure virtual functions and is,
- *          in so far, an abstract base class. The class provides interfaces
- *          for data handling and implements basic data controlled color allocation.
+ * @brief Pure rendering window for 3D plots
+ * @details Qwt3DPlot is the central rendering window (a QOpenGLWidget subclass).
+ *          It manages GL context, view transformation, lighting, coordinate system,
+ *          legend, title, and mouse/keyboard interaction. It does NOT hold any
+ *          plotting data — data is managed by Qwt3DPlotItem subclasses that are
+ *          attached via attach().
+ *
+ * The rendering pipeline in paintGL():
+ *   1. Clear color + depth buffer
+ *   2. Calculate view/projection matrices on CPU (QMatrix4x4)
+ *   3. For each attached item (sorted by z): item->draw()
+ *   4. Draw coordinate system (legacy GL temporarily)
+ *   5. Draw legend and title
+ *
+ * @code
+ * auto plot = new Qwt3DPlot(parent);
+ * auto item = new MySurfaceItem();
+ * item->attach(plot);
+ * @endcode
  */
-class QWT3D_EXPORT Plot3D : public QOpenGLWidget
+class QWT3D_EXPORT Qwt3DPlot : public QOpenGLWidget
 {
     Q_OBJECT
 
 public:
     // Constructor
-    Plot3D(QWidget* parent = nullptr);
+    Qwt3DPlot(QWidget* parent = nullptr);
     // Destructor
-    ~Plot3D() override;
+    ~Qwt3DPlot() override;
 
     // Render to pixmap
     QPixmap renderPixmap(int w = 0, int h = 0, bool useContext = false);
-    // Recalculate data
-    void updateData();
     // Create coordinate system between two points
     void createCoordinateSystem(Triple beg, Triple end);
     // Returns pointer to CoordinateSystem object
@@ -69,61 +79,17 @@ public:
 
     // Returns orthogonal (true) or perspective (false) projection
     bool ortho() const;
-    // Set plot style
-    void setPlotStyle(PLOTSTYLE val);
-    // Set plot style with Qwt3DEnrichment
-    Qwt3DEnrichment* setPlotStyle(Qwt3DEnrichment const& val);
-    // Returns plotting style
-    PLOTSTYLE plotStyle() const;
-    // Returns current Qwt3DEnrichment object used for plotting styles (if set, zero else)
-    Qwt3DEnrichment* userStyle() const;
-    // Set shading style
-    void setShading(SHADINGSTYLE val);
-    // Returns shading style
-    SHADINGSTYLE shading() const;
-    // Set number of isolines
-    void setIsolines(int isolines);
-    // Returns number of isolines
-    int isolines() const;
 
-    // Enables/disables smooth data mesh lines. Default is false
-    void setSmoothMesh(bool val);
-    // True if mesh antialiasing is on
-    bool smoothDataMesh() const;
     // Sets widgets background color
     void setBackgroundColor(RGBA rgba);
     // Returns the widgets background color
     RGBA backgroundRGBAColor() const;
-    // Sets color for data mesh
-    void setMeshColor(RGBA rgba);
-    // Returns color for data mesh
-    RGBA meshColor() const;
-    // Sets line width for data mesh
-    void setMeshLineWidth(double lw);
-    // Returns line width for data mesh
-    double meshLineWidth() const;
-    // Sets new data color object
-    void setDataColor(Qwt3DColor* col);
-    // Returns data color object
-    const Qwt3DColor* dataColor() const;
 
-    // Add a Qwt3DEnrichment
-    virtual Qwt3DEnrichment* addEnrichment(Qwt3DEnrichment const&);
-    // Remove a Qwt3DEnrichment
-    virtual bool degrade(Qwt3DEnrichment*);
-
-    // Returns rectangular hull
+    // Returns rectangular hull (union of all attached items' hulls)
     ParallelEpiped hull() const;
 
     // Show/hide color legend
     void showColorLegend(bool);
-
-    // Sets style of coordinate system
-    void setCoordinateStyle(COORDSTYLE st);
-    // Set polygon offset
-    void setPolygonOffset(double d);
-    // Returns relative value for polygon offset [0..1]
-    double polygonOffset() const;
 
     // Set title position
     void setTitlePosition(double rely, double relx = 0.5, ANCHOR = TopCenter);
@@ -215,8 +181,17 @@ public:
     double yLightShift(unsigned idx = 0) const;
     // Returns shift of Light 'idx' along Z axis (object coordinates)
     double zLightShift(unsigned idx = 0) const;
-    // Returns true if valid data available, false else
-    bool hasData() const;
+
+    // Returns true if the plot has attached items
+    bool hasItems() const;
+
+    // Item list management
+    void attach(Qwt3DPlotItem* item);
+    void detach(Qwt3DPlotItem* item);
+    const QList< Qwt3DPlotItem* >& itemList() const;
+
+    // Internal: called by Qwt3DPlotItem to request a redraw
+    void itemChanged(Qwt3DPlotItem* item);
 
 Q_SIGNALS:
 
@@ -309,10 +284,7 @@ public Q_SLOTS:
     virtual bool save(QString const& fileName, QString const& format);
 
 protected:
-    QWT_DECLARE_PRIVATE(Plot3D)
-
-    using EnrichmentList = std::list< Qwt3DEnrichment* >;
-    using ELIT           = EnrichmentList::iterator;
+    QWT_DECLARE_PRIVATE(Qwt3DPlot)
 
     void initializeGL() override;
     void paintGL() override;
@@ -325,30 +297,7 @@ protected:
 
     void keyPressEvent(QKeyEvent* e) override;
 
-    // Protected accessors for derived classes
-    std::vector< GLuint >& displayLists();
-    Qwt3DData* actualData() const;
-    void setActualData(Qwt3DData* data);
-
-    virtual void calculateHull() = 0;
-    virtual void createData()    = 0;
-    virtual void createEnrichment(Qwt3DEnrichment&)
-    {
-    }
-    virtual void createEnrichments();
-
-    void createCoordinateSystem();
-    void setHull(ParallelEpiped p);
-
     bool initializedGL() const;
-
-    enum OBJECTS
-    {
-        DataObject,
-        LegendObject,
-        NormalObject,
-        DisplayListSize  // only to have a vector length ...
-    };
 
 private:
     void setRotationMouse(Qwt3DMouseState bstate, double accel, QPoint diff);

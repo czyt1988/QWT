@@ -385,17 +385,16 @@ void Qwt3DTheme::setSpecularIntensity(double v)
     m_specularIntensity = v;
 }
 
-void Qwt3DTheme::apply(Plot3D* plot) const
+void Qwt3DTheme::apply(Qwt3DPlot* plot) const
 {
     if (!plot)
         return;
 
     plot->setBackgroundColor(m_backgroundColor);
-    plot->setMeshColor(m_meshColor);
-    plot->setMeshLineWidth(m_meshLineWidth);
-    plot->setSmoothMesh(m_smoothMesh);
 
-    plot->setDataColor(new Qwt3DColorMapColor(plot, m_dataColorPreset));
+    // Mesh color, line width, smooth mesh, data color, plot style, shading
+    // are now item-level properties — they will be set on Qwt3DSurface items
+    // in future versions. For now, only plot-level properties are applied.
 
     Qwt3DCoordinateSystem* coords = plot->coordinates();
     if (coords) {
@@ -440,11 +439,11 @@ void Qwt3DTheme::apply(Plot3D* plot) const
         break;
     }
 
-    plot->setShading(m_shading);
-    plot->setPlotStyle(m_plotStyle);
+    // Shading, plot style, shininess, material components are stored on CPU
+    // for future shader uniform upload
     plot->setShininess(m_shininess);
     plot->setMaterialComponent(GL_SPECULAR, m_specularIntensity, m_specularIntensity, m_specularIntensity);
     plot->setMaterialComponent(GL_DIFFUSE, 1.0, 1.0, 1.0);
 
-    plot->updateData();
+    plot->update();
 }

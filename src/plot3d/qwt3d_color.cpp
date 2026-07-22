@@ -17,7 +17,7 @@ public:
     }
 
     ColorVector m_colors;
-    Plot3D* m_data;
+    Qwt3DPlot* m_data;
 };
 
 /**
@@ -27,7 +27,7 @@ public:
  * @details Creates a standard color mapping with the specified size and resets
  *          the color vector to default gradient values.
  */
-Qwt3DStandardColor::Qwt3DStandardColor(Plot3D* data, unsigned size) : QWT_PIMPL_CONSTRUCT
+Qwt3DStandardColor::Qwt3DStandardColor(Qwt3DPlot* data, unsigned size) : QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     Q_ASSERT(data);

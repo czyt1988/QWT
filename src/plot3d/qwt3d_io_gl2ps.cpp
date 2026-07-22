@@ -204,7 +204,7 @@ bool VectorWriter::setFormat(QString const& format)
  * @param fname Output file name
  * @return True on success, false on format error or file open failure
  */
-bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
+bool VectorWriter::operator()(Qwt3DPlot* plot, QString const& fname)
 {
     QWT_D(d);
     if (d->m_formatError)
@@ -326,7 +326,6 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
                            fp,
                            QWT3DLOCAL8BIT(fn));
 
-            plot->updateData();
             plot->update();
             state = gl2psEndPage();
         }

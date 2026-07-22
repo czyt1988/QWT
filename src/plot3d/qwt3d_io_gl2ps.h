@@ -68,7 +68,7 @@ public:
 
 private:
     IO::Functor* clone() const override;
-    bool operator()(Plot3D* plot, QString const& fname) override;
+    bool operator()(Qwt3DPlot* plot, QString const& fname) override;
 };
 
 GLint setDeviceLineWidth(GLfloat val);

@@ -1,4 +1,5 @@
 #include "qwt3d_plotitem.h"
+#include "qwt3d_plot.h"
 
 class Qwt3DPlotItem::PrivateData
 {
@@ -43,8 +44,6 @@ Qwt3DPlotItem::~Qwt3DPlotItem()
  *          It will first detach the Qwt3DPlotItem from any plot from a previous
  *          call to attach (if necessary). If a nullptr argument is passed,
  *          it will detach from any Qwt3DPlot it was attached to.
- * @note The plot-side attachItem() call is enabled in a later task.
- * @sa detach()
  */
 void Qwt3DPlotItem::attach(Qwt3DPlot* plot)
 {
@@ -54,18 +53,18 @@ void Qwt3DPlotItem::attach(Qwt3DPlot* plot)
         return;
 
     if (d->m_plot)
-        detach();
+        d->m_plot->detach(this);
 
     d->m_plot = plot;
-    // TODO: d->m_plot->attachItem(this); // Enabled in Task 05
+
+    if (d->m_plot)
+        d->m_plot->attach(this);
 }
 
 /**
  * @brief Detach the item from the plot
  * @details This method detaches a Qwt3DPlotItem from any Qwt3DPlot it has been
  *          associated with. detach() is equivalent to calling attach(nullptr).
- * @note The plot-side detachItem() call is enabled in a later task.
- * @sa attach()
  */
 void Qwt3DPlotItem::detach()
 {
@@ -74,7 +73,7 @@ void Qwt3DPlotItem::detach()
     if (!d->m_plot)
         return;
 
-    // TODO: d->m_plot->detachItem(this); // Enabled in Task 05
+    d->m_plot->detach(this);
     d->m_plot = nullptr;
 }
 
@@ -171,10 +170,10 @@ bool Qwt3DPlotItem::isVisible() const
 /**
  * @brief Notify the plot that the item has changed
  * @details Triggers a plot update so the item is redrawn.
- *          The plot->update() call is enabled in a later task.
  */
 void Qwt3DPlotItem::itemChanged()
 {
     QWT_D(d);
-    // TODO: if (d->m_plot) d->m_plot->update(); // Enabled in Task 05
+    if (d->m_plot)
+        d->m_plot->itemChanged(this);
 }

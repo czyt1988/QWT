@@ -6,7 +6,7 @@
 
 
 
-class Plot3D;
+class Qwt3DPlot;
 
 /**
  * @brief Abstract base class for data dependent visible user objects
@@ -40,7 +40,7 @@ public:
     // Empty per default. Can be overwritten
     virtual void drawEnd() {};
     // Assign to existent plot
-    virtual void assign(Plot3D const& pl)
+    virtual void assign(Qwt3DPlot const& pl)
     {
         plot = &pl;
     }
@@ -48,7 +48,7 @@ public:
     virtual TYPE type() const = 0;
 
 protected:
-    const Plot3D* plot;
+    const Qwt3DPlot* plot;
 };
 
 /**
