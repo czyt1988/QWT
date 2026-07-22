@@ -35,6 +35,7 @@ set(QWTPLOT3D_HEADER_PLOT_3D
     qwt3d_openglhelper.h
     qwt3d_colorlegend.h
     qwt3d_plot.h
+    qwt3d_plotitem.h
     qwt3d_enrichment.h
     qwt3d_enrichment_std.h
     qwt3d_autoscaler.h
@@ -65,6 +66,7 @@ set(QWTPLOT3D_SOURCE_PLOT_3D
     qwt3d_lighting.cpp
     qwt3d_colorlegend.cpp
     qwt3d_plot.cpp
+    qwt3d_plotitem.cpp
     qwt3d_label.cpp
     qwt3d_types.cpp
     qwt3d_enrichment_std.cpp
