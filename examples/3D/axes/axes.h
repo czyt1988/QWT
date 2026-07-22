@@ -2,7 +2,7 @@
 #define axes_h
 
 #include "qwt3d_plot.h"
-using namespace Qwt3D;
+#include "qwt3d_scale.h"
 
 /*****************************
  *
@@ -11,11 +11,11 @@ using namespace Qwt3D;
  *
  ******************************/
 
-class Letter : public LinearScale
+class Letter : public Qwt3DLinearScale
 {
 public:
     explicit Letter(bool uppercase = true) : uc_(uppercase) { }
-    Scale *clone() const override { return new Letter(uc_); }
+    Qwt3DScale *clone() const override { return new Letter(uc_); }
     QString ticLabel(unsigned int idx) const override
     {
         if (idx < majorTicks().size() && idx < 26)
@@ -27,10 +27,10 @@ private:
     bool uc_;
 };
 
-class Imaginary : public LinearScale
+class Imaginary : public Qwt3DLinearScale
 {
 public:
-    Scale *clone() const override { return new Imaginary; }
+    Qwt3DScale *clone() const override { return new Imaginary; }
     QString ticLabel(unsigned int idx) const override
     {
         const auto& majors = majorTicks();
@@ -44,10 +44,10 @@ public:
     }
 };
 
-class TimeItems : public LinearScale
+class TimeItems : public Qwt3DLinearScale
 {
 public:
-    Scale *clone() const override { return new TimeItems; }
+    Qwt3DScale *clone() const override { return new TimeItems; }
     QString ticLabel(unsigned int idx) const override
     {
         if (idx < majorTicks().size()) {

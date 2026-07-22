@@ -139,5 +139,5 @@ void DesignerWorkaround::setupWorkaround(QMainWindow *mw)
     psurfaceCB->addItem(tr("Cone"));
     psurfaceCB->setToolTip(tr("Display parametric surface. Turn Lighting on for better quality."));
 
-    QObject::connect(Exit, SIGNAL(triggered()), mw, SLOT(close()));
+    QObject::connect(Exit, &QAction::triggered, mw, &QMainWindow::close);
 }

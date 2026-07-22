@@ -1,6 +1,6 @@
-#include "qwt3d_surfaceplot.h"
-#include "qwt3d_function.h"
 #include "qwt3d_plot.h"
+#include "qwt3d_surface.h"
+#include "qwt3d_function.h"
 #include "enrichments.h"
 
 #include "ui_enrichmentmainwindowbase.h"
@@ -22,7 +22,8 @@ public:
     ~EnrichmentMainWindow();
     void setColor();
     Bar *bar;
-    Qwt3D::SurfacePlot *plot;
+    Qwt3DPlot *plot;
+    Qwt3DSurface *surface;
 
 public slots:
     void setLevel(int);

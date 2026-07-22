@@ -6,19 +6,17 @@
 
 #include "lightingdlg.h"
 
-using namespace Qwt3D;
-
-class Sphere : public ParametricSurface
+class Sphere : public Qwt3DParametricSurface
 {
 public:
-    Sphere(SurfacePlot &pw) : ParametricSurface(pw)
+    Sphere() : Qwt3DParametricSurface()
     {
         setMesh(41, 31);
-        setDomain(0, 2 * Qwt3D::PI, 0, Qwt3D::PI);
+        setDomain(0, 2 * Qwt3D_PI, 0, Qwt3D_PI);
         setPeriodic(false, false);
     }
 
-    Triple operator()(double u, double v)
+    Triple operator()(double u, double v) override
     {
         double x, y, z;
         double r = 1;
@@ -35,36 +33,39 @@ public:
 //
 /////////////////////////////////////////////////////////////////
 
-Plot::Plot(QWidget *parent) : SurfacePlot(parent)
+Plot::Plot(QWidget *parent) : Qwt3DPlot(parent)
 {
+    surface = new Qwt3DSurface();
+    surface->attach(this);
+
     setTitle("A Simple SurfacePlot Demonstration");
 
-    Sphere sphere(*this);
+    Sphere sphere;
+    sphere.assign(*surface);
     sphere.create();
 
     reset();
     assignMouse(Qt::LeftButton, Qt::RightButton, Qt::LeftButton, Qt::NoButton, Qt::NoButton,
                 Qt::NoButton, Qt::NoButton, Qt::NoButton, Qt::NoButton);
 
-    stick = (Pointer *)addEnrichment(Pointer(0.05));
+    stick = static_cast<Pointer*>(surface->addEnrichment(Pointer(0.05)));
     stick->setPos(0, 0, 1);
 }
 
 void Plot::reset()
 {
-    makeCurrent();
     setRotation(0, 0, 0);
     setTitle("Use your mouse buttons and keyboard");
     setTitleFont("Arial", 8, QFont::Bold);
     setTitleColor(RGBA(0.9, 0.9, 0.9));
-    setSmoothMesh(true);
+    surface->setSmoothMesh(true);
     setZoom(0.9);
-    setCoordinateStyle(NOCOORD);
-    setMeshColor(RGBA(0.6, 0.6, 0.6, 0.3));
-    setPlotStyle(FILLEDMESH);
+    coordinates()->setStyle(NOCOORD);
+    surface->setMeshColor(RGBA(0.6, 0.6, 0.6, 0.3));
+    surface->setPlotStyle(FILLEDMESH);
     setBackgroundColor(RGBA(0, 0, 0));
 
-    updateData();
+    update();
 }
 
 /////////////////////////////////////////////////////////////////
@@ -82,26 +83,16 @@ Pointer::~Pointer() { }
 
 void Pointer::configure(double rad)
 {
-    plot = 0;
+    plot = nullptr;
 
     radius_ = rad;
 }
 
+// Stubs — full VBO+shader implementation deferred.
+// The Pointer enrichment draws a line from the tip to the origin.
+// When implemented: create a 2-vertex VBO, use plot->lineShader().
 void Pointer::drawBegin()
 {
-    GLint mode;
-    glGetIntegerv(GL_MATRIX_MODE, &mode);
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-
-    glColor3d(1, 0, 0);
-    glBegin(GL_LINES);
-    glVertex3d(pos_.x, pos_.y, pos_.z);
-    glVertex3d(0, 0, 0);
-    glEnd();
-
-    glPopMatrix();
-    glMatrixMode(mode);
 }
 
 LightingDlg::LightingDlg(QWidget *parent) : LightingBase(parent)
@@ -109,21 +100,20 @@ LightingDlg::LightingDlg(QWidget *parent) : LightingBase(parent)
     setupUi(this);
     QGridLayout *grid = new QGridLayout(frame);
 
-    dataPlot = 0;
+    dataPlot = nullptr;
 
     plot = new Plot(frame);
-    plot->updateData();
+    plot->update();
 
     grid->addWidget(plot, 0, 0);
 
-    connect(stdlight, SIGNAL(clicked()), this, SLOT(reset()));
-    connect(distSL, SIGNAL(valueChanged(int)), this, SLOT(setDistance(int)));
-    connect(emissSL, SIGNAL(valueChanged(int)), this, SLOT(setEmission(int)));
-    connect(ambdiffSL, SIGNAL(valueChanged(int)), this, SLOT(setDiff(int)));
-    connect(specSL, SIGNAL(valueChanged(int)), this, SLOT(setSpec(int)));
-    connect(shinSL, SIGNAL(valueChanged(int)), this, SLOT(setShin(int)));
-    connect(plot, SIGNAL(rotationChanged(double, double, double)), this,
-            SLOT(setRotation(double, double, double)));
+    connect(stdlight, &QPushButton::clicked, this, &LightingDlg::reset);
+    connect(distSL, &QSlider::valueChanged, this, &LightingDlg::setDistance);
+    connect(emissSL, &QSlider::valueChanged, this, &LightingDlg::setEmission);
+    connect(ambdiffSL, &QSlider::valueChanged, this, &LightingDlg::setDiff);
+    connect(specSL, &QSlider::valueChanged, this, &LightingDlg::setSpec);
+    connect(shinSL, &QSlider::valueChanged, this, &LightingDlg::setShin);
+    connect(plot, &Qwt3DPlot::rotationChanged, this, &LightingDlg::setRotation);
 }
 
 LightingDlg::~LightingDlg()
@@ -171,7 +161,6 @@ void LightingDlg::setDistance(int val)
 {
 
     plot->stick->setPos(0, 0, val / 100.);
-    plot->updateData();
     plot->update();
 
     double drad = (dataPlot->hull().maxVertex - dataPlot->hull().minVertex).length();
@@ -181,7 +170,7 @@ void LightingDlg::setDistance(int val)
     dataPlot->update();
 }
 
-void LightingDlg::assign(Qwt3D::Plot3D *pl)
+void LightingDlg::assign(Qwt3DPlot *pl)
 {
     if (!pl)
         return;

@@ -5,77 +5,71 @@
 #include "qwt3d_parametricsurface.h"
 #include "qwt3d_function.h"
 
-using namespace Qwt3D;
-
-class Rosenbrock : public Function
+class Rosenbrock : public Qwt3DFunction
 {
 public:
-    Rosenbrock(SurfacePlot &pw) : Function(pw) { }
+    Rosenbrock() : Qwt3DFunction() { }
 
-    double operator()(double x, double y)
+    double operator()(double x, double y) override
     {
         return 0.7 * log10((1 - x) * (1 - x) + 10 * (y - x * x) * (y - x * x));
     }
-    //	QString name() const {return "Almost {\\it Rosenbrock}\\,:\\quad$\\frac{\\ln((1-x)^2 +
-    // 100(y-x^2)^2)}{8}$";}
 };
 
-class Hat : public Function
+class Hat : public Qwt3DFunction
 {
 public:
-    Hat(SurfacePlot &pw) : Function(pw)
+    Hat() : Qwt3DFunction()
     {
         // setMinZ(0.3);
         setDomain(0, 10, 0, 10);
     }
 
-    double operator()(double x, double y)
+    double operator()(double x, double y) override
     {
         return 1.0 / (x * x + y * y + 0.5);
-        // return x*x*y/(x*x*x*x+y*y);
     }
 };
 
-class Ripple : public Function
+class Ripple : public Qwt3DFunction
 {
 public:
-    Ripple(SurfacePlot &pw) : Function(pw)
+    Ripple() : Qwt3DFunction()
     {
         double l = 12;
         setDomain(-l, l, -l, l);
     }
 
-    double operator()(double x, double y)
+    double operator()(double x, double y) override
     {
         return (cos(sqrt(x * x + y * y)
-                    + cos(sqrt(((x + .913 * 2 * Qwt3D::PI) * (x + .913 * 2 * Qwt3D::PI)) + y * y))
-                    + cos(sqrt(((x - .913 * 2 * Qwt3D::PI) * (x - .913 * 2 * Qwt3D::PI))
+                    + cos(sqrt(((x + .913 * 2 * Qwt3D_PI) * (x + .913 * 2 * Qwt3D_PI)) + y * y))
+                    + cos(sqrt(((x - .913 * 2 * Qwt3D_PI) * (x - .913 * 2 * Qwt3D_PI))
                                + (y * y))))
                 * 4);
     }
 };
 
-class Saddle : public Function
+class Saddle : public Qwt3DFunction
 {
 public:
-    Saddle() : Function()
+    Saddle() : Qwt3DFunction()
     {
-        //	setMaxZ(0.8);
+        // setMaxZ(0.8);
     }
 
-    double operator()(double x, double y) { return x * x - y * y; }
-    //	QString name() const {return "$x^2-y^2$";}
+    double operator()(double x, double y) override { return x * x - y * y; }
 };
 
-class Mex : public Function
+class Mex : public Qwt3DFunction
 {
 public:
-    Mex() : Function()
+    Mex() : Qwt3DFunction()
     {
-        //	setMaxZ(0.8);
+        // setMaxZ(0.8);
     }
 
-    double operator()(double x, double y)
+    double operator()(double x, double y) override
     {
         double n = sqrt(x * x + y * y);
 
@@ -84,20 +78,19 @@ public:
 
         return 20 * sin(sqrt(x * x + y * y)) / n;
     }
-    //	QString name() const {return "$\\frac{20\\sin\\sqrt{x^2+y^2}}{\\sqrt{x^2+y^2}}$";}
 };
 
-class Torus : public ParametricSurface
+class Torus : public Qwt3DParametricSurface
 {
 public:
-    Torus(SurfacePlot &pw) : ParametricSurface(pw)
+    Torus() : Qwt3DParametricSurface()
     {
         setMesh(41, 31);
-        setDomain(-2 * Qwt3D::PI, 0, -2 * Qwt3D::PI, 0);
+        setDomain(-2 * Qwt3D_PI, 0, -2 * Qwt3D_PI, 0);
         setPeriodic(true, true);
     }
 
-    Triple operator()(double u, double v)
+    Triple operator()(double u, double v) override
     {
         double x, y, z;
         double c = 1.9;
@@ -108,17 +101,17 @@ public:
     }
 };
 
-class Seashell : public ParametricSurface
+class Seashell : public Qwt3DParametricSurface
 {
 public:
-    Seashell(SurfacePlot &pw) : ParametricSurface(pw)
+    Seashell() : Qwt3DParametricSurface()
     {
         setMesh(41, 131);
-        setDomain(0, 2 * Qwt3D::PI, 0, 2 * Qwt3D::PI);
+        setDomain(0, 2 * Qwt3D_PI, 0, 2 * Qwt3D_PI);
         setPeriodic(true, true);
     }
 
-    Triple operator()(double u, double v)
+    Triple operator()(double u, double v) override
     {
         double x, y, z;
         double a = 1;
@@ -126,7 +119,7 @@ public:
         double c = 0.5;
         int n = 3;
 
-        double f = v / (2 * Qwt3D::PI);
+        double f = v / (2 * Qwt3D_PI);
 
         x = a * (1 - f) * cos(n * v) * (1 + cos(u)) + c * cos(n * v);
         y = a * (1 - f) * sin(n * v) * (1 + cos(u)) + c * sin(n * v);
@@ -135,17 +128,17 @@ public:
     }
 };
 
-class Boy : public ParametricSurface
+class Boy : public Qwt3DParametricSurface
 {
 public:
-    Boy(SurfacePlot &pw) : ParametricSurface(pw)
+    Boy() : Qwt3DParametricSurface()
     {
         setMesh(141, 131);
-        setDomain(0, Qwt3D::PI, 0, Qwt3D::PI);
+        setDomain(0, Qwt3D_PI, 0, Qwt3D_PI);
         setPeriodic(true, true);
     }
 
-    Triple operator()(double u, double v)
+    Triple operator()(double u, double v) override
     {
         double x, y, z;
         double a = 2 / 3.;
@@ -161,17 +154,17 @@ public:
     }
 };
 
-class Dini : public ParametricSurface
+class Dini : public Qwt3DParametricSurface
 {
 public:
-    Dini(SurfacePlot &pw) : ParametricSurface(pw)
+    Dini() : Qwt3DParametricSurface()
     {
         setMesh(141, 35);
-        setDomain(0, 5 * Qwt3D::PI, 0.001, 2);
+        setDomain(0, 5 * Qwt3D_PI, 0.001, 2);
         setPeriodic(true, true);
     }
 
-    Triple operator()(double u, double v)
+    Triple operator()(double u, double v) override
     {
         double x, y, z;
         double a = 5;
@@ -185,6 +178,6 @@ public:
     }
 };
 
-void createCone(Qwt3D::TripleField &conepos, Qwt3D::CellField &conecell);
+void createCone(TripleField &conepos, CellField &conecell);
 
 #endif

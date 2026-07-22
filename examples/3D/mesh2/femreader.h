@@ -1,5 +1,5 @@
-#ifndef femreader_h
-#define femreader_h
+#ifndef fem_reader_h
+#define fem_reader_h
 
 #include <math.h>
 #include <fstream>
@@ -11,12 +11,12 @@ class NodeFilter
 public:
     explicit NodeFilter() { values = std::vector<double>(6); }
 
-    Qwt3D::Triple readLine(std::ifstream &str)
+    Triple readLine(std::ifstream &str)
     {
         for (unsigned i = 0; i != values.size(); ++i)
             str >> values[i];
 
-        return Qwt3D::Triple(values[1], values[2], values[5] / 1000);
+        return Triple(values[1], values[2], values[5] / 1000);
     }
 
 private:
@@ -26,9 +26,9 @@ private:
 class CellFilter
 {
 public:
-    Qwt3D::Cell readLine(std::ifstream &str)
+    Cell readLine(std::ifstream &str)
     {
-        Qwt3D::Cell cell(4);
+        Cell cell(4);
         str >> cell[0]; // dummy (cell number) - overridden in next step
         for (unsigned i = 0; i < cell.size(); ++i) {
             str >> cell[i];
@@ -39,13 +39,13 @@ public:
 };
 
 template<typename FILTER>
-bool readNodes(Qwt3D::TripleField &v, const char *fname, FILTER fil)
+bool readNodes(TripleField &v, const char *fname, FILTER fil)
 {
     std::ifstream file(fname);
 
     v.clear();
 
-    Qwt3D::Triple t;
+    Triple t;
     while (file) {
         t = fil.readLine(file);
         if (!file.good())
@@ -56,13 +56,13 @@ bool readNodes(Qwt3D::TripleField &v, const char *fname, FILTER fil)
 }
 
 template<typename FILTER>
-bool readConnections(Qwt3D::CellField &v, const char *fname, FILTER fil)
+bool readConnections(CellField &v, const char *fname, FILTER fil)
 {
     std::ifstream file(fname);
 
     v.clear();
 
-    Qwt3D::Cell cell;
+    Cell cell;
     while (file) {
         cell = fil.readLine(file);
         if (!file.good())

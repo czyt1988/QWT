@@ -1,9 +1,8 @@
 #include "functions.h"
 
 using namespace std;
-using namespace Qwt3D;
 
-void createCone(Qwt3D::TripleField &conepos, Qwt3D::CellField &conecell)
+void createCone(TripleField &conepos, CellField &conecell)
 {
     conepos.clear();
     conecell.clear();
@@ -23,13 +22,13 @@ void createCone(Qwt3D::TripleField &conepos, Qwt3D::CellField &conecell)
     Cell c1;
     // outer top border
     for (i = 0; i < count; ++i) {
-        conepos.push_back(Triple(r1 * cos(2 * i * Qwt3D::PI / count),
-                                 r1 * sin(2 * i * Qwt3D::PI / count), h1));
+        conepos.push_back(Triple(r1 * cos(2 * i * Qwt3D_PI / count),
+                                 r1 * sin(2 * i * Qwt3D_PI / count), h1));
     }
     // inner top border
     for (i = 0; i < count; ++i) {
-        conepos.push_back(Triple(r2 * cos(2 * i * Qwt3D::PI / count),
-                                 r2 * sin(2 * i * Qwt3D::PI / count), h2));
+        conepos.push_back(Triple(r2 * cos(2 * i * Qwt3D_PI / count),
+                                 r2 * sin(2 * i * Qwt3D_PI / count), h2));
         c1.push_back(count + i + 1);
     }
     // top polygon

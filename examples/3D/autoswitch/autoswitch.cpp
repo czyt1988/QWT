@@ -4,16 +4,17 @@
 
 #include "autoswitch.h"
 
-using namespace Qwt3D;
-
 //--------------------------------------------------------------------
 //              autoswitch.cpp
 //
 //      Demonstrates autoswitching axes with a cutted saddle as data
 //--------------------------------------------------------------------
 
-Plot::Plot(QWidget *pw, int updateinterval) : SurfacePlot(pw)
+Plot::Plot(QWidget *pw, int updateinterval) : Qwt3DPlot(pw)
 {
+    auto* surface = new Qwt3DSurface();
+    surface->attach(this);
+
     setRotation(30, 0, 15);
     setShift(0.1, 0, 0);
     setZoom(0.8);
@@ -24,7 +25,7 @@ Plot::Plot(QWidget *pw, int updateinterval) : SurfacePlot(pw)
         coordinates()->axes[i].setMinors(4);
     }
 
-    coordinates()->axes[Qwt3D::X1].setLabelString("x");
+    coordinates()->axes[X1].setLabelString("x");
     coordinates()->axes[Y1].setLabelString("y");
     coordinates()->axes[Z1].setLabelString("z");
     coordinates()->axes[X2].setLabelString("x");
@@ -38,7 +39,7 @@ Plot::Plot(QWidget *pw, int updateinterval) : SurfacePlot(pw)
     coordinates()->axes[Z4].setLabelString("z");
 
     QTimer *timer = new QTimer(this);
-    connect(timer, SIGNAL(timeout()), this, SLOT(rotate()));
+    connect(timer, &QTimer::timeout, this, &Plot::rotate);
 
     timer->start(updateinterval);
 }
@@ -56,27 +57,42 @@ int main(int argc, char **argv)
 {
     QApplication a(argc, argv);
     QSplitter *spl = new QSplitter(Qt::Horizontal);
+
+    // Plot 1: Saddle with iso floor
     Plot *plot1 = new Plot(spl, 30);
-    plot1->setFloorStyle(FLOORISO);
-    plot1->setCoordinateStyle(BOX);
-    Saddle saddle(*plot1);
-    saddle.create();
+    // Get the surface item for plot1
+    Qwt3DSurface *surface1 = nullptr;
+    for (auto* item : plot1->itemList()) {
+        surface1 = dynamic_cast<Qwt3DSurface*>(item);
+        if (surface1) break;
+    }
+    if (surface1) {
+        surface1->setFloorStyle(FLOORISO);
+        Saddle saddle;
+        saddle.assign(*surface1);
+        saddle.create();
+    }
     plot1->setTitle("Autoswitching axes");
     plot1->setBackgroundColor(RGBA(1, 1, 157. / 255));
-    plot1->makeCurrent();
-    plot1->updateData();
     plot1->update();
 
+    // Plot 2: Hat with hiddenline style
     Plot *plot2 = new Plot(spl, 80);
     plot2->setZoom(0.8);
-    Hat hat(*plot2);
-    hat.create();
-    plot2->setPlotStyle(HIDDENLINE);
-    plot2->setFloorStyle(FLOORDATA);
-    plot2->setCoordinateStyle(FRAME);
+    Qwt3DSurface *surface2 = nullptr;
+    for (auto* item : plot2->itemList()) {
+        surface2 = dynamic_cast<Qwt3DSurface*>(item);
+        if (surface2) break;
+    }
+    if (surface2) {
+        Hat hat;
+        hat.assign(*surface2);
+        hat.create();
+        surface2->setPlotStyle(HIDDENLINE);
+        surface2->setFloorStyle(FLOORDATA);
+    }
+    plot2->coordinates()->setStyle(FRAME);
     plot2->setBackgroundColor(RGBA(1, 1, 157. / 255));
-    plot2->makeCurrent();
-    plot2->updateData();
     plot2->update();
 
     spl->resize(800, 400);

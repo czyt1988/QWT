@@ -1,7 +1,8 @@
 #ifndef mesh2mainwindow_h
 #define mesh2mainwindow_h
 
-#include "qwt3d_surfaceplot.h"
+#include "qwt3d_plot.h"
+#include "qwt3d_surface.h"
 
 #include "ui_mesh2mainwindowbase.h"
 #include "designerworkaround.h"
@@ -28,7 +29,8 @@ public:
     Mesh2MainWindow(QWidget *parent = 0);
     ~Mesh2MainWindow();
 
-    Qwt3D::SurfacePlot *dataWidget;
+    Qwt3DPlot *dataWidget;
+    Qwt3DSurface *surface;
 
 public slots:
     void open();
@@ -71,7 +73,7 @@ public slots:
     void showNormals(bool val);
     void setNormalQuality(int);
     void setNormalLength(int);
-    bool openColorMap(Qwt3D::ColorVector &cv, QString fname);
+    bool openColorMap(ColorVector &cv, QString fname);
     void adaptDataColors(const QString &);
     void updateColorLegend(int majors, int minors);
 
@@ -81,7 +83,7 @@ public slots:
     void setFloorGrid(bool b);
     void setFrontGrid(bool b);
     void setBackGrid(bool b);
-    void setGrid(Qwt3D::SIDE, bool);
+    void setGrid(SIDE, bool);
 
     void enableLighting(bool val);
 
@@ -94,15 +96,11 @@ private:
     QAction *activeCoordSystem;
 
     bool legend_;
-    Qwt3D::StandardColor *col_;
+    Qwt3DStandardColor *col_;
 
     QFileDialog *datacolordlg_;
     LightingDlg *lightingdlg_;
     QString filetype_;
-
-    // convenience compatib. code
-    bool connectA(const QObject *sender, const char *slot);
-    bool connectAG(const QObject *sender, const char *slot);
 };
 
 #endif /* include guarded */

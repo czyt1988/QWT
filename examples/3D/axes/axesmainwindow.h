@@ -1,8 +1,8 @@
 #include <qmainwindow.h>
 
-#include "qwt3d_surfaceplot.h"
-#include "qwt3d_function.h"
 #include "qwt3d_plot.h"
+#include "qwt3d_surface.h"
+#include "qwt3d_function.h"
 
 #include "ui_axesmainwindowbase.h"
 
@@ -21,8 +21,9 @@ class AxesMainWindow : public DummyBase
 public:
     AxesMainWindow(QWidget *parent = 0);
     ~AxesMainWindow();
-    Qwt3D::SurfacePlot *plot;
-    Qwt3D::Function *rosenbrock;
+    Qwt3DPlot *plot;
+    Qwt3DSurface *surface;
+    Qwt3DFunction *rosenbrock;
     void resetTics();
 
 public slots:

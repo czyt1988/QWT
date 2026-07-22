@@ -12,15 +12,14 @@
 #include "qwt3d_function.h"
 
 using namespace std;
-using namespace Qwt3D;
 
 // Example function
-class Rosenbrock : public Function
+class Rosenbrock : public Qwt3DFunction
 {
 public:
-    Rosenbrock(SurfacePlot &pw) : Function(pw) { }
+    Rosenbrock() : Qwt3DFunction() { }
 
-    double operator()(double x, double y)
+    double operator()(double x, double y) override
     {
         return log10((1 - x) * (1 - x) + 1 * (y - x * x) * (y - x * x));
     }
@@ -33,23 +32,24 @@ AxesMainWindow::AxesMainWindow(QWidget *parent) : DummyBase(parent)
     setupUi(this);
     QGridLayout *grid = new QGridLayout(frame);
 
-    plot = new SurfacePlot(frame);
+    plot = new Qwt3DPlot(frame);
+    surface = new Qwt3DSurface();
+    surface->attach(plot);
     grid->addWidget(plot, 0, 0);
 
     plot->setZoom(0.8);
     plot->setRotation(30, 0, 15);
 
     plot->coordinates()->setGridLines(true, true);
-    plot->setCoordinateStyle(BOX);
-    // plot->setCoordinateStyle(NOCOORD);
-    // plot->setPlotStyle(FILLED);
+    plot->coordinates()->setStyle(BOX);
 
-    rosenbrock = new Rosenbrock(*plot);
+    rosenbrock = new Rosenbrock();
 
     rosenbrock->setMesh(31, 33);
     rosenbrock->setDomain(-1.73, 1.8, -1.9, 1.8);
     rosenbrock->setMinZ(-100);
 
+    rosenbrock->assign(*surface);
     rosenbrock->create();
 
     for (unsigned i = 0; i != plot->coordinates()->axes.size(); ++i) {
@@ -58,8 +58,7 @@ AxesMainWindow::AxesMainWindow(QWidget *parent) : DummyBase(parent)
         plot->coordinates()->axes[i].setLabelColor(RGBA(0, 0, 0.4));
     }
 
-    // plot->setTitle("Rosenbrock");
-    plot->setMeshLineWidth(1);
+    surface->setMeshLineWidth(1);
     plot->coordinates()->setGridLinesColor(RGBA(0, 0, 0.5));
     plot->coordinates()->setLineWidth(1);
     plot->coordinates()->setNumberColor(RGBA(0, 0.5, 0));
@@ -83,21 +82,19 @@ AxesMainWindow::AxesMainWindow(QWidget *parent) : DummyBase(parent)
     smoothBox->setDown(true);
 
     QMenu *Items = menuBar()->addMenu("Item");
-    Items->addAction("&Standard", this, SLOT(standardItems()), QKeySequence("ALT+S"));
-    Items->addAction("&Imaginary", this, SLOT(complexItems()), QKeySequence("ALT+I"));
-    Items->addAction("&Letter", this, SLOT(letterItems()), QKeySequence("ALT+L"));
-    Items->addAction("&Time", this, SLOT(timeItems()), QKeySequence("ALT+T"));
-    Items->addAction("&Log", this, SLOT(customScale()), QKeySequence("ALT+C"));
+    Items->addAction("&Standard", this, &AxesMainWindow::standardItems, QKeySequence("ALT+S"));
+    Items->addAction("&Imaginary", this, &AxesMainWindow::complexItems, QKeySequence("ALT+I"));
+    Items->addAction("&Letter", this, &AxesMainWindow::letterItems, QKeySequence("ALT+L"));
+    Items->addAction("&Time", this, &AxesMainWindow::timeItems, QKeySequence("ALT+T"));
+    Items->addAction("&Log", this, &AxesMainWindow::customScale, QKeySequence("ALT+C"));
 
-    plot->makeCurrent();
-    plot->updateData();
     plot->update();
 
-    connect(smoothBox, SIGNAL(toggled(bool)), this, SLOT(setSmoothLines(bool)));
-    connect(numbergapslider, SIGNAL(valueChanged(int)), this, SLOT(setNumberGap(int)));
-    connect(labelgapslider, SIGNAL(valueChanged(int)), this, SLOT(setLabelGap(int)));
-    connect(ticLengthSlider, SIGNAL(valueChanged(int)), this, SLOT(setTicLength(int)));
-    connect(ticNumberSlider, SIGNAL(valueChanged(int)), this, SLOT(setTicNumber(int)));
+    connect(smoothBox, &QCheckBox::toggled, this, &AxesMainWindow::setSmoothLines);
+    connect(numbergapslider, &QSlider::valueChanged, this, &AxesMainWindow::setNumberGap);
+    connect(labelgapslider, &QSlider::valueChanged, this, &AxesMainWindow::setLabelGap);
+    connect(ticLengthSlider, &QSlider::valueChanged, this, &AxesMainWindow::setTicLength);
+    connect(ticNumberSlider, &QSlider::valueChanged, this, &AxesMainWindow::setTicNumber);
 
     tics = plot->coordinates()->axes[X1].majors();
 
@@ -105,7 +102,7 @@ AxesMainWindow::AxesMainWindow(QWidget *parent) : DummyBase(parent)
 
     customScale();
 
-    plot->setPolygonOffset(10);
+    surface->setPolygonOffset(10);
 }
 
 AxesMainWindow::~AxesMainWindow()
@@ -116,14 +113,12 @@ AxesMainWindow::~AxesMainWindow()
 void AxesMainWindow::setNumberGap(int gap)
 {
     plot->coordinates()->adjustNumbers(gap);
-    plot->makeCurrent();
     plot->update();
 }
 
 void AxesMainWindow::setLabelGap(int gap)
 {
     plot->coordinates()->adjustLabels(gap);
-    plot->makeCurrent();
     plot->update();
 }
 
@@ -155,7 +150,7 @@ void AxesMainWindow::resetTics()
     plot->coordinates()->setAutoScale(true);
     plot->coordinates()->setStandardScale();
     plot->coordinates()->axes[Z2].setLabelString("Z4");
-    plot->coordinates()->setGridLines(false, false, Qwt3D::BACK);
+    plot->coordinates()->setGridLines(false, false, BACK);
 }
 
 void AxesMainWindow::standardItems()
@@ -209,13 +204,13 @@ void AxesMainWindow::customScale()
     plot->coordinates()->axes[Z3].setScale(LOG10SCALE);
     plot->coordinates()->axes[Z4].setScale(LOG10SCALE);
     plot->coordinates()->axes[Z2].setLabelString("log10(z)");
-    //  plot->coordinates()->axes[Z4].setScale(new LogScale);
+    //  plot->coordinates()->axes[Z4].setScale(new Qwt3DLogScale);
     //  plot->coordinates()->axes[Z1].setAutoScale(false);
     //  plot->coordinates()->axes[Z2].setAutoScale(false);
     //  plot->coordinates()->axes[Z3].setAutoScale(false);
     //  plot->coordinates()->axes[Z4].setAutoScale(false);
 
-    plot->coordinates()->setGridLines(true, true, Qwt3D::BACK);
+    plot->coordinates()->setGridLines(true, true, BACK);
 
     plot->update();
 }

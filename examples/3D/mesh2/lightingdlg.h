@@ -4,44 +4,44 @@
 #include <math.h>
 #include <qapplication.h>
 #include "qwt3d_parametricsurface.h"
-#include "qwt3d_surfaceplot.h"
+#include "qwt3d_plot.h"
+#include "qwt3d_surface.h"
 #include "qwt3d_enrichment.h"
 #include "qwt3d_color.h"
 
 #include "ui_lightingdlgbase.h"
 
-class Pointer : public Qwt3D::VertexEnrichment
+class Pointer : public Qwt3DVertexEnrichment
 {
 public:
     Pointer(double rad);
-    ~Pointer();
+    ~Pointer() override;
 
-    Qwt3D::Enrichment *clone() const { return new Pointer(*this); }
+    Qwt3DEnrichment *clone() const override { return new Pointer(*this); }
 
     void configure(double rad);
-    void drawBegin();
-    void draw(Qwt3D::Triple const &) { }
-    void setPos(double x, double y, double z) { pos_ = Qwt3D::Triple(x, y, z); }
+    void drawBegin() override;
+    void draw(Triple const &) override { }
+    void setPos(double x, double y, double z) { pos_ = Triple(x, y, z); }
 
 private:
     double radius_;
-    Qwt3D::Triple pos_;
+    Triple pos_;
 };
 
-struct SColor : public Qwt3D::Color
+struct SColor : public Qwt3DColor
 {
-    Qwt3D::RGBA operator()(double, double, double) const { return Qwt3D::RGBA(0.8, 0, 0, 0.5); }
+    RGBA operator()(double, double, double) const override { return RGBA(0.8, 0, 0, 0.5); }
 };
 
-typedef Qwt3D::SurfacePlot SPlot; // moc/VC6 issue in Qt 4.0.0
-
-class Plot : public SPlot
+class Plot : public Qwt3DPlot
 {
     Q_OBJECT
 
 public:
     Plot(QWidget *parent);
     Pointer *stick;
+    Qwt3DSurface *surface;
     void reset();
 };
 
@@ -61,10 +61,10 @@ public:
     LightingDlg(QWidget *parent = 0);
     ~LightingDlg();
 
-    void assign(Qwt3D::Plot3D *pl);
+    void assign(Qwt3DPlot *pl);
 
     Plot *plot;
-    Qwt3D::Plot3D *dataPlot;
+    Qwt3DPlot *dataPlot;
 
 public slots:
     void setDistance(int);

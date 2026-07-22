@@ -32,18 +32,8 @@
 #include "qwt3d_io_gl2ps.h"
 #include "qwt3d_io_reader.h"
 #include "qwt_version_info.h"
-using namespace Qwt3D;
+
 using namespace std;
-
-bool Mesh2MainWindow::connectA(const QObject* sender, const char* slot)
-{
-    return connect(sender, SIGNAL(triggered()), this, slot);
-}
-
-bool Mesh2MainWindow::connectAG(const QObject* sender, const char* slot)
-{
-    return connect(sender, SIGNAL(triggered(QAction*)), this, slot);
-}
 
 Mesh2MainWindow::~Mesh2MainWindow()
 {
@@ -56,55 +46,54 @@ Mesh2MainWindow::Mesh2MainWindow(QWidget* parent) : DummyBase(parent)
     setupUi(this);
     QGridLayout* grid = new QGridLayout(frame);
 
-    col_              = 0;
+    col_              = nullptr;
     legend_           = false;
     redrawWait        = 50;
     activeCoordSystem = None;
 
-    dataWidget = new SurfacePlot(frame);
+    dataWidget = new Qwt3DPlot(frame);
+    surface = new Qwt3DSurface();
+    surface->attach(dataWidget);
     grid->addWidget(dataWidget, 0, 0);
 
-    connectAG(coord, SLOT(pickCoordSystem(QAction*)));
-    connectAG(plotstyle, SLOT(pickPlotStyle(QAction*)));
-    connectA(axescolor, SLOT(pickAxesColor()));
-    connectA(backgroundcolor, SLOT(pickBgColor()));
-    connectAG(floorstyle, SLOT(pickFloorStyle(QAction*)));
-    connectA(meshcolor, SLOT(pickMeshColor()));
-    connectA(numbercolor, SLOT(pickNumberColor()));
-    connectA(labelcolor, SLOT(pickLabelColor()));
-    connectA(titlecolor, SLOT(pickTitleColor()));
-    connectA(datacolor, SLOT(pickDataColor()));
-    connect(lighting, SIGNAL(clicked()), this, SLOT(pickLighting()));
-    connectA(resetcolor, SLOT(resetColors()));
-    connectA(numberfont, SLOT(pickNumberFont()));
-    connectA(labelfont, SLOT(pickLabelFont()));
-    connectA(titlefont, SLOT(pickTitleFont()));
-    connectA(resetfont, SLOT(resetFonts()));
-    connect(animation, SIGNAL(toggled(bool)), this, SLOT(toggleAnimation(bool)));
-    connectA(dump, SLOT(dumpImage()));
-    connectA(openFile, SLOT(open()));
-    // connect(openFile, SIGNAL(triggered()), this, SLOT(open()));
-    connectA(openMeshFile, SLOT(openMesh()));
+    connect(coord, &QActionGroup::triggered, this, &Mesh2MainWindow::pickCoordSystem);
+    connect(plotstyle, &QActionGroup::triggered, this, &Mesh2MainWindow::pickPlotStyle);
+    connect(axescolor, &QAction::triggered, this, &Mesh2MainWindow::pickAxesColor);
+    connect(backgroundcolor, &QAction::triggered, this, &Mesh2MainWindow::pickBgColor);
+    connect(floorstyle, &QActionGroup::triggered, this, &Mesh2MainWindow::pickFloorStyle);
+    connect(meshcolor, &QAction::triggered, this, &Mesh2MainWindow::pickMeshColor);
+    connect(numbercolor, &QAction::triggered, this, &Mesh2MainWindow::pickNumberColor);
+    connect(labelcolor, &QAction::triggered, this, &Mesh2MainWindow::pickLabelColor);
+    connect(titlecolor, &QAction::triggered, this, &Mesh2MainWindow::pickTitleColor);
+    connect(datacolor, &QAction::triggered, this, &Mesh2MainWindow::pickDataColor);
+    connect(lighting, &QPushButton::clicked, this, &Mesh2MainWindow::pickLighting);
+    connect(resetcolor, &QAction::triggered, this, &Mesh2MainWindow::resetColors);
+    connect(numberfont, &QAction::triggered, this, &Mesh2MainWindow::pickNumberFont);
+    connect(labelfont, &QAction::triggered, this, &Mesh2MainWindow::pickLabelFont);
+    connect(titlefont, &QAction::triggered, this, &Mesh2MainWindow::pickTitleFont);
+    connect(resetfont, &QAction::triggered, this, &Mesh2MainWindow::resetFonts);
+    connect(animation, &QAction::toggled, this, &Mesh2MainWindow::toggleAnimation);
+    connect(dump, &QAction::triggered, this, &Mesh2MainWindow::dumpImage);
+    connect(openFile, &QAction::triggered, this, &Mesh2MainWindow::open);
+    connect(openMeshFile, &QAction::triggered, this, &Mesh2MainWindow::openMesh);
 
-    // only EXCLUSIVE groups emit selected :-/
-    connect(left, SIGNAL(toggled(bool)), this, SLOT(setLeftGrid(bool)));
-    connect(right, SIGNAL(toggled(bool)), this, SLOT(setRightGrid(bool)));
-    connect(ceil, SIGNAL(toggled(bool)), this, SLOT(setCeilGrid(bool)));
-    connect(floor, SIGNAL(toggled(bool)), this, SLOT(setFloorGrid(bool)));
-    connect(back, SIGNAL(toggled(bool)), this, SLOT(setBackGrid(bool)));
-    connect(front, SIGNAL(toggled(bool)), this, SLOT(setFrontGrid(bool)));
+    connect(left, &QAction::toggled, this, &Mesh2MainWindow::setLeftGrid);
+    connect(right, &QAction::toggled, this, &Mesh2MainWindow::setRightGrid);
+    connect(ceil, &QAction::toggled, this, &Mesh2MainWindow::setCeilGrid);
+    connect(floor, &QAction::toggled, this, &Mesh2MainWindow::setFloorGrid);
+    connect(back, &QAction::toggled, this, &Mesh2MainWindow::setBackGrid);
+    connect(front, &QAction::toggled, this, &Mesh2MainWindow::setFrontGrid);
 
     timer = new QTimer(this);
-    connect(timer, SIGNAL(timeout()), this, SLOT(rotate()));
+    connect(timer, &QTimer::timeout, this, &Mesh2MainWindow::rotate);
 
     resSlider->setRange(1, 70);
-    connect(resSlider, SIGNAL(valueChanged(int)), dataWidget, SLOT(setResolution(int)));
-    connect(dataWidget, SIGNAL(resolutionChanged(int)), resSlider, SLOT(setValue(int)));
+    connect(resSlider, &QSlider::valueChanged, this, [this](int val) { surface->setResolution(val); });
     resSlider->setValue(1);
 
-    connect(offsSlider, SIGNAL(valueChanged(int)), this, SLOT(setPolygonOffset(int)));
+    connect(offsSlider, &QSlider::valueChanged, this, &Mesh2MainWindow::setPolygonOffset);
 
-    connect(normButton, SIGNAL(clicked()), this, SLOT(setStandardView()));
+    connect(normButton, &QPushButton::clicked, this, &Mesh2MainWindow::setStandardView);
 
     QString qwtstr(" qwtplot3d ");
     qwtstr += QString::number(QWT_VERSION_MAJ) + ".";
@@ -126,22 +115,22 @@ Mesh2MainWindow::Mesh2MainWindow(QWidget* parent) : DummyBase(parent)
     zoomLabel = new QLabel("", statusBar());
     statusBar()->addWidget(zoomLabel, 0);
 
-    connect(dataWidget, SIGNAL(rotationChanged(double, double, double)), this, SLOT(showRotate(double, double, double)));
-    connect(dataWidget, SIGNAL(vieportShiftChanged(double, double)), this, SLOT(showShift(double, double)));
-    connect(dataWidget, SIGNAL(scaleChanged(double, double, double)), this, SLOT(showScale(double, double, double)));
-    connect(dataWidget, SIGNAL(zoomChanged(double)), this, SLOT(showZoom(double)));
+    connect(dataWidget, &Qwt3DPlot::rotationChanged, this, &Mesh2MainWindow::showRotate);
+    connect(dataWidget, &Qwt3DPlot::vieportShiftChanged, this, &Mesh2MainWindow::showShift);
+    connect(dataWidget, &Qwt3DPlot::scaleChanged, this, &Mesh2MainWindow::showScale);
+    connect(dataWidget, &Qwt3DPlot::zoomChanged, this, &Mesh2MainWindow::showZoom);
 
-    connect(functionCB, SIGNAL(currentTextChanged(const QString&)), this, SLOT(createFunction(const QString&)));
-    connect(psurfaceCB, SIGNAL(currentTextChanged(const QString&)), this, SLOT(createPSurface(const QString&)));
-    connect(projection, SIGNAL(toggled(bool)), this, SLOT(toggleProjectionMode(bool)));
-    connect(colorlegend, SIGNAL(toggled(bool)), this, SLOT(toggleColorLegend(bool)));
-    connect(autoscale, SIGNAL(toggled(bool)), this, SLOT(toggleAutoScale(bool)));
-    connect(shader, SIGNAL(toggled(bool)), this, SLOT(toggleShader(bool)));
-    connect(mouseinput, SIGNAL(toggled(bool)), dataWidget, SLOT(enableMouse(bool)));
-    connect(lightingswitch, SIGNAL(toggled(bool)), this, SLOT(enableLighting(bool)));
-    connect(normals, SIGNAL(toggled(bool)), this, SLOT(showNormals(bool)));
-    connect(normalsquality, SIGNAL(valueChanged(int)), this, SLOT(setNormalQuality(int)));
-    connect(normalslength, SIGNAL(valueChanged(int)), this, SLOT(setNormalLength(int)));
+    connect(functionCB, &QComboBox::currentTextChanged, this, &Mesh2MainWindow::createFunction);
+    connect(psurfaceCB, &QComboBox::currentTextChanged, this, &Mesh2MainWindow::createPSurface);
+    connect(projection, &QCheckBox::toggled, this, &Mesh2MainWindow::toggleProjectionMode);
+    connect(colorlegend, &QCheckBox::toggled, this, &Mesh2MainWindow::toggleColorLegend);
+    connect(autoscale, &QCheckBox::toggled, this, &Mesh2MainWindow::toggleAutoScale);
+    connect(shader, &QCheckBox::toggled, this, &Mesh2MainWindow::toggleShader);
+    connect(mouseinput, &QCheckBox::toggled, dataWidget, &Qwt3DPlot::enableMouse);
+    connect(lightingswitch, &QCheckBox::toggled, this, &Mesh2MainWindow::enableLighting);
+    connect(normals, &QAction::toggled, this, &Mesh2MainWindow::showNormals);
+    connect(normalsquality, &QSlider::valueChanged, this, &Mesh2MainWindow::setNormalQuality);
+    connect(normalslength, &QSlider::valueChanged, this, &Mesh2MainWindow::setNormalLength);
 
     setStandardView();
 
@@ -153,14 +142,11 @@ Mesh2MainWindow::Mesh2MainWindow(QWidget* parent) : DummyBase(parent)
     lightingdlg_ = new LightingDlg(this);
     lightingdlg_->assign(dataWidget);
 
-    // todo - restore, when Qt4 re-implements preview functionality
-    // connect(datacolordlg_, SIGNAL(filesSelected(const QStringList&)), this,
-    // SLOT(adaptDataColors4(const QStringList&)));
-    connect(filetypeCB, SIGNAL(currentTextChanged(const QString&)), this, SLOT(setFileType(const QString&)));
+    connect(filetypeCB, &QComboBox::currentTextChanged, this, &Mesh2MainWindow::setFileType);
 
     filetypeCB->clear();
 
-    QStringList list = IO::outputFormatList();
+    QStringList list = Qwt3DIO::outputFormatList();
     filetypeCB->insertItems(0, list);
 
     filetype_ = filetypeCB->currentText();
@@ -168,19 +154,23 @@ Mesh2MainWindow::Mesh2MainWindow(QWidget* parent) : DummyBase(parent)
 
     grids->setEnabled(false);
 
-    PixmapWriter* pmhandler = (PixmapWriter*)IO::outputHandler("JPEG");
+    auto* pmhandler = dynamic_cast<Qwt3DPixmapWriter*>(Qwt3DIO::outputHandler("JPEG"));
     if (!pmhandler)
-        pmhandler = (PixmapWriter*)IO::outputHandler("jpeg");  // Qt4 naming scheme change
+        pmhandler = dynamic_cast<Qwt3DPixmapWriter*>(Qwt3DIO::outputHandler("jpeg"));
     if (pmhandler)
         pmhandler->setQuality(70);
 
-    VectorWriter* handler = (VectorWriter*)IO::outputHandler("PDF");
-    handler->setTextMode(VectorWriter::TEX);
-    handler = (VectorWriter*)IO::outputHandler("EPS");
-    handler->setTextMode(VectorWriter::TEX);
-    handler = (VectorWriter*)IO::outputHandler("EPS_GZ");
-    if (handler)  // with zlib support only
-        handler->setTextMode(VectorWriter::TEX);
+#ifdef QWT3D_ENABLE_GL2PS
+    auto* handler = dynamic_cast<Qwt3DVectorWriter*>(Qwt3DIO::outputHandler("PDF"));
+    if (handler)
+        handler->setTextMode(Qwt3DVectorWriter::TEX);
+    handler = dynamic_cast<Qwt3DVectorWriter*>(Qwt3DIO::outputHandler("EPS"));
+    if (handler)
+        handler->setTextMode(Qwt3DVectorWriter::TEX);
+    handler = dynamic_cast<Qwt3DVectorWriter*>(Qwt3DIO::outputHandler("EPS_GZ"));
+    if (handler)
+        handler->setTextMode(Qwt3DVectorWriter::TEX);
+#endif
 }
 
 void Mesh2MainWindow::open()
@@ -195,17 +185,17 @@ void Mesh2MainWindow::open()
     filenameWidget->setToolTip(s);
     QString ext = fi.suffix();
     filenameWidget->setText(fi.fileName());
-    qApp->processEvents();  // enforces repaint;
+    qApp->processEvents();
 
-    if (IO::load(dataWidget, s, ext)) {
-        double a = dataWidget->facets().first;
-        double b = dataWidget->facets().second;
+    if (Qwt3DIO::load(dataWidget, s, ext)) {
+        double a = surface->facets().first;
+        double b = surface->facets().second;
 
         dimWidget->setText(
             QString("Cells ") + QString::number(a * b) + " (" + QString::number(a) + "x" + QString::number(b) + ")"
         );
 
-        dataWidget->setResolution(3);
+        surface->setResolution(3);
     }
 
     for (unsigned i = 0; i != dataWidget->coordinates()->axes.size(); ++i) {
@@ -221,8 +211,6 @@ void Mesh2MainWindow::open()
 
 void Mesh2MainWindow::createFunction(QString const& name)
 {
-    dataWidget->makeCurrent();
-
     dataWidget->legend()->setScale(LINEARSCALE);
     for (unsigned i = 0; i != dataWidget->coordinates()->axes.size(); ++i) {
         dataWidget->coordinates()->axes[ i ].setMajors(7);
@@ -230,12 +218,11 @@ void Mesh2MainWindow::createFunction(QString const& name)
     }
 
     if (name == QString("Rosenbrock")) {
-        Rosenbrock rosenbrock(*dataWidget);
-
+        Rosenbrock rosenbrock;
         rosenbrock.setMesh(50, 51);
         rosenbrock.setDomain(-1.73, 1.55, -1.5, 1.95);
         rosenbrock.setMinZ(-100);
-
+        rosenbrock.assign(*surface);
         rosenbrock.create();
 
         dataWidget->coordinates()->axes[ Z1 ].setScale(LOG10SCALE);
@@ -244,34 +231,34 @@ void Mesh2MainWindow::createFunction(QString const& name)
         dataWidget->coordinates()->axes[ Z4 ].setScale(LOG10SCALE);
         dataWidget->legend()->setScale(LOG10SCALE);
     } else if (name == QString("Hat")) {
-        Hat hat(*dataWidget);
-
+        Hat hat;
         hat.setMesh(51, 72);
         hat.setDomain(-1.5, 1.5, -1.5, 1.5);
+        hat.assign(*surface);
         hat.create();
     } else if (name == QString("Ripple")) {
-        Ripple ripple(*dataWidget);
+        Ripple ripple;
         ripple.setMesh(120, 120);
+        ripple.assign(*surface);
         ripple.create();
     } else if (name == QString("Saddle")) {
         Saddle saddle;
-
         saddle.setMesh(71, 71);
         double dom = 2.5;
         saddle.setDomain(-dom, dom, -dom, dom);
-        saddle.assign(*dataWidget);
+        saddle.assign(*surface);
         saddle.create();
     } else if (name == QString("Sombrero")) {
         Mex mex;
-
         mex.setMesh(91, 91);
         double dom = 15;
         mex.setDomain(-dom, dom, -dom, dom);
-        mex.create(*dataWidget);
+        mex.assign(*surface);
+        mex.create();
     }
 
-    double a = dataWidget->facets().first;
-    double b = dataWidget->facets().second;
+    double a = surface->facets().first;
+    double b = surface->facets().second;
 
     dimWidget->setText(QString("Cells ") + QString::number(a * b) + " (" + QString::number(a) + "x" + QString::number(b) + ")");
 
@@ -297,32 +284,35 @@ void Mesh2MainWindow::createFunction(QString const& name)
 
 void Mesh2MainWindow::createPSurface(QString const& name)
 {
-    dataWidget->makeCurrent();
     if (name == QString("Torus")) {
-        Torus sf(*dataWidget);
+        Torus sf;
+        sf.assign(*surface);
         sf.create();
     } else if (name == QString("Seashell")) {
-        Seashell ss(*dataWidget);
+        Seashell ss;
+        ss.assign(*surface);
         ss.create();
     } else if (name == QString("Boy")) {
-        Boy boy(*dataWidget);
+        Boy boy;
+        boy.assign(*surface);
         boy.create();
     } else if (name == QString("Dini")) {
-        Dini dini(*dataWidget);
+        Dini dini;
+        dini.assign(*surface);
         dini.create();
     } else if (name == QString("Cone")) {
         TripleField conepos;
         CellField conecell;
         createCone(conepos, conecell);
-        dataWidget->loadFromData(conepos, conecell);
+        surface->loadFromData(conepos, conecell);
     }
     for (unsigned i = 0; i != dataWidget->coordinates()->axes.size(); ++i) {
         dataWidget->coordinates()->axes[ i ].setMajors(7);
         dataWidget->coordinates()->axes[ i ].setMinors(5);
     }
 
-    double a = dataWidget->facets().first;
-    double b = dataWidget->facets().second;
+    double a = surface->facets().first;
+    double b = surface->facets().second;
 
     dimWidget->setText(QString("Cells ") + QString::number(a * b) + " (" + QString::number(a) + "x" + QString::number(b) + ")");
 
@@ -355,7 +345,7 @@ void Mesh2MainWindow::pickCoordSystem(QAction* action)
 
     dataWidget->setTitle("QwtPlot3D (Use Ctrl-Alt-Shift-LeftBtn-Wheel or keyboard)");
 
-    if (!dataWidget->hasData()) {
+    if (!dataWidget->hasItems()) {
         double l = 0.6;
         dataWidget->createCoordinateSystem(Triple(-l, -l, -l), Triple(l, l, l));
         for (unsigned i = 0; i != dataWidget->coordinates()->axes.size(); ++i) {
@@ -366,13 +356,13 @@ void Mesh2MainWindow::pickCoordSystem(QAction* action)
 
     if (action == Box || action == Frame) {
         if (action == Box)
-            dataWidget->setCoordinateStyle(BOX);
+            dataWidget->coordinates()->setStyle(BOX);
         if (action == Frame)
-            dataWidget->setCoordinateStyle(FRAME);
+            dataWidget->coordinates()->setStyle(FRAME);
         grids->setEnabled(true);
     } else if (action == None) {
         dataWidget->setTitle("QwtPlot3D (Use Ctrl-Alt-Shift-LeftBtn-Wheel or keyboard)");
-        dataWidget->setCoordinateStyle(NOCOORD);
+        dataWidget->coordinates()->setStyle(NOCOORD);
         grids->setEnabled(false);
     }
 }
@@ -383,23 +373,18 @@ void Mesh2MainWindow::pickPlotStyle(QAction* action)
         return;
 
     if (action == polygon) {
-        dataWidget->setPlotStyle(FILLED);
+        surface->setPlotStyle(FILLED);
     } else if (action == filledmesh) {
-        dataWidget->setPlotStyle(FILLEDMESH);
+        surface->setPlotStyle(FILLEDMESH);
     } else if (action == wireframe) {
-        dataWidget->setPlotStyle(WIREFRAME);
+        surface->setPlotStyle(WIREFRAME);
     } else if (action == hiddenline) {
-        dataWidget->setPlotStyle(HIDDENLINE);
+        surface->setPlotStyle(HIDDENLINE);
     } else if (action == pointstyle) {
-
-        dataWidget->setPlotStyle(Qwt3D::POINTS);
-        //    Cone d(len,32);
-        //    CrossHair d(0.003,0,true,false);
-        //    dataWidget->setPlotStyle(d);
+        surface->setPlotStyle(QWT3D_POINTS);
     } else {
-        dataWidget->setPlotStyle(NOPLOT);
+        surface->setPlotStyle(NOPLOT);
     }
-    dataWidget->updateData();
     dataWidget->update();
 }
 
@@ -409,43 +394,42 @@ void Mesh2MainWindow::pickFloorStyle(QAction* action)
         return;
 
     if (action == floordata) {
-        dataWidget->setFloorStyle(FLOORDATA);
+        surface->setFloorStyle(FLOORDATA);
     } else if (action == flooriso) {
-        dataWidget->setFloorStyle(FLOORISO);
+        surface->setFloorStyle(FLOORISO);
     } else {
-        dataWidget->setFloorStyle(NOFLOOR);
+        surface->setFloorStyle(NOFLOOR);
     }
 
-    dataWidget->updateData();
     dataWidget->update();
 }
 
 void Mesh2MainWindow::setLeftGrid(bool b)
 {
-    setGrid(Qwt3D::LEFT, b);
+    setGrid(LEFT, b);
 }
 void Mesh2MainWindow::setRightGrid(bool b)
 {
-    setGrid(Qwt3D::RIGHT, b);
+    setGrid(RIGHT, b);
 }
 void Mesh2MainWindow::setCeilGrid(bool b)
 {
-    setGrid(Qwt3D::CEIL, b);
+    setGrid(CEIL, b);
 }
 void Mesh2MainWindow::setFloorGrid(bool b)
 {
-    setGrid(Qwt3D::FLOOR, b);
+    setGrid(FLOOR, b);
 }
 void Mesh2MainWindow::setFrontGrid(bool b)
 {
-    setGrid(Qwt3D::FRONT, b);
+    setGrid(FRONT, b);
 }
 void Mesh2MainWindow::setBackGrid(bool b)
 {
-    setGrid(Qwt3D::BACK, b);
+    setGrid(BACK, b);
 }
 
-void Mesh2MainWindow::setGrid(Qwt3D::SIDE s, bool b)
+void Mesh2MainWindow::setGrid(SIDE s, bool b)
 {
     if (!dataWidget)
         return;
@@ -457,7 +441,7 @@ void Mesh2MainWindow::setGrid(Qwt3D::SIDE s, bool b)
     else
         sum &= ~s;
 
-    dataWidget->coordinates()->setGridLines(sum != Qwt3D::NOSIDEGRID, sum != Qwt3D::NOSIDEGRID, sum);
+    dataWidget->coordinates()->setGridLines(sum != NOSIDEGRID, sum != NOSIDEGRID, sum);
     dataWidget->update();
 }
 
@@ -475,16 +459,14 @@ void Mesh2MainWindow::resetColors()
 
     dataWidget->coordinates()->setAxesColor(axc);
     dataWidget->setBackgroundColor(bgc);
-    dataWidget->setMeshColor(msc);
-    dataWidget->updateData();
+    surface->setMeshColor(msc);
     dataWidget->coordinates()->setNumberColor(nuc);
     dataWidget->coordinates()->setLabelColor(lbc);
     dataWidget->setTitleColor(tc);
 
-    col_ = new StandardColor(dataWidget);
-    dataWidget->setDataColor(col_);
-    dataWidget->updateData();
-    dataWidget->updateNormals();
+    col_ = new Qwt3DStandardColor(dataWidget);
+    surface->setDataColor(col_);
+    surface->updateNormals();
     dataWidget->update();
 }
 
@@ -516,8 +498,7 @@ void Mesh2MainWindow::pickMeshColor()
     if (!c.isValid())
         return;
     RGBA rgb = Qt2GL(c);
-    dataWidget->setMeshColor(rgb);
-    dataWidget->updateData();
+    surface->setMeshColor(rgb);
     dataWidget->update();
 }
 
@@ -569,12 +550,11 @@ void Mesh2MainWindow::adaptDataColors(const QString& fileName)
     if (!openColorMap(cv, fileName))
         return;
 
-    col_ = new StandardColor(dataWidget);
+    col_ = new Qwt3DStandardColor(dataWidget);
     col_->setColorVector(cv);
 
-    dataWidget->setDataColor(col_);
-    dataWidget->updateData();
-    dataWidget->updateNormals();
+    surface->setDataColor(col_);
+    surface->updateNormals();
     dataWidget->showColorLegend(legend_);
     dataWidget->update();
 }
@@ -641,19 +621,18 @@ void Mesh2MainWindow::dumpImage()
     else
         name += filetype_;
 
-    VectorWriter* vw = (VectorWriter*)IO::outputHandler("PDF");
+#ifdef QWT3D_ENABLE_GL2PS
+    auto* vw = dynamic_cast<Qwt3DVectorWriter*>(Qwt3DIO::outputHandler("PDF"));
     if (vw)
-        vw->setSortMode(VectorWriter::BSPSORT);
-    IO::save(dataWidget, name.toLower(), filetype_);
+        vw->setSortMode(Qwt3DVectorWriter::BSPSORT);
+#endif
+    Qwt3DIO::save(dataWidget, name.toLower(), filetype_);
 }
 
-/*!
-  Turns animation on or off
-*/
 void Mesh2MainWindow::toggleAnimation(bool val)
 {
     if (val) {
-        timer->start(redrawWait);  // Wait this many msecs before redraw
+        timer->start(redrawWait);
     } else {
         timer->stop();
     }
@@ -689,15 +668,14 @@ void Mesh2MainWindow::toggleAutoScale(bool val)
 void Mesh2MainWindow::toggleShader(bool val)
 {
     if (val)
-        dataWidget->setShading(GOURAUD);
+        surface->setShading(GOURAUD);
     else
-        dataWidget->setShading(FLAT);
+        surface->setShading(FLAT);
 }
 
 void Mesh2MainWindow::setPolygonOffset(int val)
 {
-    dataWidget->setPolygonOffset(val / 10.0);
-    dataWidget->updateData();
+    surface->setPolygonOffset(val / 10.0);
     dataWidget->update();
 }
 
@@ -736,8 +714,8 @@ void Mesh2MainWindow::openMesh()
     readNodes(vdata, QWT3DLOCAL8BIT(data), NodeFilter());
     readConnections(vpoly, QWT3DLOCAL8BIT(edges), CellFilter());
 
-    dataWidget->loadFromData(vdata, vpoly);
-    dimWidget->setText(QString("Cells ") + QString::number(dataWidget->facets().first));
+    surface->loadFromData(vdata, vpoly);
+    dimWidget->setText(QString("Cells ") + QString::number(surface->facets().first));
 
     for (unsigned i = 0; i != dataWidget->coordinates()->axes.size(); ++i) {
         dataWidget->coordinates()->axes[ i ].setMajors(4);
@@ -751,22 +729,22 @@ void Mesh2MainWindow::openMesh()
 
 void Mesh2MainWindow::showNormals(bool val)
 {
-    dataWidget->showNormals(val);
-    dataWidget->updateNormals();
+    surface->showNormals(val);
+    surface->updateNormals();
     dataWidget->update();
 }
 
 void Mesh2MainWindow::setNormalLength(int val)
 {
-    dataWidget->setNormalLength(val / 400.);
-    dataWidget->updateNormals();
+    surface->setNormalLength(val / 400.);
+    surface->updateNormals();
     dataWidget->update();
 }
 
 void Mesh2MainWindow::setNormalQuality(int val)
 {
-    dataWidget->setNormalQuality(val);
-    dataWidget->updateNormals();
+    surface->setNormalQuality(val);
+    surface->updateNormals();
     dataWidget->update();
 }
 
