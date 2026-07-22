@@ -36,6 +36,7 @@ set(QWTPLOT3D_HEADER_PLOT_3D
     qwt3d_colorlegend.h
     qwt3d_plot.h
     qwt3d_plotitem.h
+    qwt3d_surface.h
     qwt3d_enrichment.h
     qwt3d_enrichment_std.h
     qwt3d_autoscaler.h
@@ -48,7 +49,6 @@ set(QWTPLOT3D_HEADER_PLOT_3D
     qwt3d_gridmapping.h
     qwt3d_parametricsurface.h
     qwt3d_function.h
-    qwt3d_surfaceplot.h
     qwt3d_io_gl2ps.h
     qwt3d_colormap_color.h
     qwt3d_theme.h
@@ -64,6 +64,7 @@ set(QWTPLOT3D_SOURCE_PLOT_3D
     qwt3d_colorlegend.cpp
     qwt3d_plot.cpp
     qwt3d_plotitem.cpp
+    qwt3d_surface.cpp
     qwt3d_label.cpp
     qwt3d_types.cpp
     qwt3d_enrichment_std.cpp
@@ -74,12 +75,10 @@ set(QWTPLOT3D_SOURCE_PLOT_3D
     qwt3d_gridmapping.cpp
     qwt3d_parametricsurface.cpp
     qwt3d_function.cpp
-    qwt3d_surfaceplot.cpp
-    qwt3d_gridplot.cpp
-    qwt3d_meshplot.cpp
     qwt3d_io_gl2ps.cpp
     qwt3d_colormap_color.cpp
     qwt3d_theme.cpp
+    shaders/shaders.qrc
 )
 list(APPEND QWTPLOT3D_HEADER_FILES ${QWTPLOT3D_HEADER_PLOT_3D})
 list(APPEND QWTPLOT3D_SOURCE_FILES ${QWTPLOT3D_SOURCE_PLOT_3D})

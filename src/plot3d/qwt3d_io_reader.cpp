@@ -9,7 +9,8 @@
 #include <cfloat>
 #include <cstdio>
 
-#include "qwt3d_surfaceplot.h"
+#include "qwt3d_surface.h"
+#include "qwt3d_plot.h"
 
 
 const char* NativeReader::magicstring = "jk:11051895-17021986";
@@ -250,7 +251,20 @@ bool NativeReader::operator()(Qwt3DPlot* plot, QString const& fname)
     /* close the file */
     fclose(file);
 
-    static_cast< SurfacePlot* >(plot)->loadFromData(data, xmesh, ymesh, minx, maxx, miny, maxy);
+    // Find the first Qwt3DSurface item attached to the plot
+    Qwt3DSurface* surface = nullptr;
+    for (Qwt3DPlotItem* item : plot->itemList()) {
+        surface = dynamic_cast<Qwt3DSurface*>(item);
+        if (surface)
+            break;
+    }
+    if (!surface) {
+        fprintf(stderr, "NativeReader::read: no Qwt3DSurface item attached to plot\n");
+        deleteData(data, xmesh);
+        return false;
+    }
+
+    surface->loadFromData(data, xmesh, ymesh, minx, maxx, miny, maxy);
     deleteData(data, xmesh);
 
     return true;

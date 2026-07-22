@@ -5,7 +5,7 @@
 
 
 
-class SurfacePlot;
+class Qwt3DSurface;
 
 /**
  * @brief Abstract base class for mathematical functions
@@ -17,12 +17,12 @@ class QWT3D_EXPORT Function : public GridMapping
 {
 
 public:
-    // Constructs Function object w/o assigned SurfacePlot
+    // Constructs Function object w/o assigned Qwt3DSurface
     Function();
-    // Constructs Function object and assigns a SurfacePlot
-    explicit Function(SurfacePlot& plotWidget);
-    // Constructs Function object and assigns a SurfacePlot
-    explicit Function(SurfacePlot* plotWidget);
+    // Constructs Function object and assigns a Qwt3DSurface
+    explicit Function(Qwt3DSurface& plotWidget);
+    // Constructs Function object and assigns a Qwt3DSurface
+    explicit Function(Qwt3DSurface* plotWidget);
     // Overwrite this
     virtual double operator()(double x, double y) = 0;
 
@@ -31,14 +31,14 @@ public:
     // Sets maximal z value
     void setMaxZ(double val);
 
-    // Assigns a new SurfacePlot and creates a data representation for it
-    virtual bool create(SurfacePlot& plotWidget);
-    // Creates data representation for the actual assigned SurfacePlot
+    // Assigns a new Qwt3DSurface and creates a data representation for it
+    virtual bool create(Qwt3DSurface& plotWidget);
+    // Creates data representation for the actual assigned Qwt3DSurface
     virtual bool create();
-    // Assigns the object to another widget - call before create()
-    void assign(SurfacePlot& plotWidget);
-    // Assigns the object to another widget - call before create()
-    void assign(SurfacePlot* plotWidget);
+    // Assigns the object to another surface - call before create()
+    void assign(Qwt3DSurface& plotWidget);
+    // Assigns the object to another surface - call before create()
+    void assign(Qwt3DSurface* plotWidget);
 };
 
 

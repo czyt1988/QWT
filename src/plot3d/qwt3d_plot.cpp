@@ -7,6 +7,7 @@
 #include "qwt3d_plotitem.h"
 
 #include <algorithm>
+#include <cfloat>
 
 
 Qwt3DPlot::PrivateData::PrivateData(Qwt3DPlot* q)
@@ -294,6 +295,30 @@ bool Qwt3DPlot::initializedGL() const
 }
 
 /**
+ * @brief Returns the current model-view matrix
+ * @return The model-view matrix computed during the last paintGL() call
+ * @details Items use this matrix in their shader uniforms to transform
+ *          vertex positions from model space to view space.
+ */
+QMatrix4x4 Qwt3DPlot::modelViewMatrix() const
+{
+    QWT_DC(d);
+    return d->m_modelView;
+}
+
+/**
+ * @brief Returns the current projection matrix
+ * @return The projection matrix computed during the last paintGL() call
+ * @details Items use this matrix in their shader uniforms to transform
+ *          vertex positions from view space to clip space.
+ */
+QMatrix4x4 Qwt3DPlot::projectionMatrix() const
+{
+    QWT_DC(d);
+    return d->m_projection;
+}
+
+/**
  * @brief Sets up the OpenGL rendering state
  * @details Removes legacy fixed-function lighting setup. Only enables blend
  *          and depth test, which remain valid in Core Profile.
@@ -548,7 +573,9 @@ const QList< Qwt3DPlotItem* >& Qwt3DPlot::itemList() const
 /**
  * @brief Called by Qwt3DPlotItem when its data or properties change
  * @param item The item that changed
- * @details Re-sorts the item list by z-order and triggers a repaint.
+ * @details Re-sorts the item list by z-order, recalculates the plot hull
+ *          as the union of all items' hulls, updates the coordinate system,
+ *          and triggers a repaint.
  */
 void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
 {
@@ -558,5 +585,23 @@ void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
         [](const Qwt3DPlotItem* a, const Qwt3DPlotItem* b) {
             return a->z() < b->z();
         });
+
+    // Recalculate hull from all items' hulls
+    if (!d->m_items.isEmpty()) {
+        Triple minV(DBL_MAX, DBL_MAX, DBL_MAX);
+        Triple maxV(-DBL_MAX, -DBL_MAX, -DBL_MAX);
+        for (const Qwt3DPlotItem* item : qwt_as_const(d->m_items)) {
+            ParallelEpiped h = item->hull();
+            minV.x = std::min(minV.x, h.minVertex.x);
+            minV.y = std::min(minV.y, h.minVertex.y);
+            minV.z = std::min(minV.z, h.minVertex.z);
+            maxV.x = std::max(maxV.x, h.maxVertex.x);
+            maxV.y = std::max(maxV.y, h.maxVertex.y);
+            maxV.z = std::max(maxV.z, h.maxVertex.z);
+        }
+        d->m_hull = ParallelEpiped(minV, maxV);
+        createCoordinateSystem(minV, maxV);
+    }
+
     update();
 }

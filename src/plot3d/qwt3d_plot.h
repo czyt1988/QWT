@@ -2,6 +2,7 @@
 #define QWT3D_PLOT_H
 
 #include <QOpenGLWidget>
+#include <QMatrix4x4>
 
 #include "qwt3d_coordsys.h"
 #include "qwt3d_theme.h"
@@ -193,6 +194,14 @@ public:
     // Internal: called by Qwt3DPlotItem to request a redraw
     void itemChanged(Qwt3DPlotItem* item);
 
+    // Returns true if GL has been initialized
+    bool initializedGL() const;
+
+    // Returns the current model-view matrix (computed in paintGL)
+    QMatrix4x4 modelViewMatrix() const;
+    // Returns the current projection matrix (computed in paintGL)
+    QMatrix4x4 projectionMatrix() const;
+
 Q_SIGNALS:
 
     /**
@@ -296,8 +305,6 @@ protected:
     void wheelEvent(QWheelEvent* e) override;
 
     void keyPressEvent(QKeyEvent* e) override;
-
-    bool initializedGL() const;
 
 private:
     void setRotationMouse(Qwt3DMouseState bstate, double accel, QPoint diff);

@@ -1,5 +1,5 @@
 #include "qwt3d_gridmapping.h"
-#include "qwt3d_surfaceplot.h"
+#include "qwt3d_surface.h"
 
 
 class GridMapping::PrivateData
@@ -13,7 +13,7 @@ public:
     }
 
     ParallelEpiped m_range;
-    SurfacePlot* m_plotwidget;
+    Qwt3DSurface* m_plotwidget;
     unsigned int m_umesh;
     unsigned int m_vmesh;
     double m_minu;
@@ -74,13 +74,13 @@ void GridMapping::restrictRange(ParallelEpiped const& p)
     d->m_range = p;
 }
 
-SurfacePlot* GridMapping::plotWidget() const
+Qwt3DSurface* GridMapping::plotWidget() const
 {
     QWT_DC(d);
     return d->m_plotwidget;
 }
 
-void GridMapping::setPlotWidget(SurfacePlot* pw)
+void GridMapping::setPlotWidget(Qwt3DSurface* pw)
 {
     QWT_D(d);
     d->m_plotwidget = pw;

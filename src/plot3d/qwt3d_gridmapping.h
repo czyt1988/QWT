@@ -5,7 +5,7 @@
 
 
 
-class SurfacePlot;
+class Qwt3DSurface;
 
 /**
  * @brief Abstract base class for mappings acting on rectangular grids
@@ -13,7 +13,7 @@ class SurfacePlot;
 class QWT3D_EXPORT GridMapping : public Mapping
 {
 public:
-    // Constructs GridMapping object w/o assigned SurfacePlot
+    // Constructs GridMapping object w/o assigned Qwt3DSurface
     GridMapping();
     ~GridMapping() override;
 
@@ -28,8 +28,8 @@ protected:
     QWT_DECLARE_PRIVATE(GridMapping)
 
     // Accessors for subclasses
-    SurfacePlot* plotWidget() const;
-    void setPlotWidget(SurfacePlot* pw);
+    Qwt3DSurface* plotWidget() const;
+    void setPlotWidget(Qwt3DSurface* pw);
 
     ParallelEpiped& range();
     const ParallelEpiped& range() const;
