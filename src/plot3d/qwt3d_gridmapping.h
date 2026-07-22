@@ -10,12 +10,12 @@ class Qwt3DSurface;
 /**
  * @brief Abstract base class for mappings acting on rectangular grids
  */
-class QWT3D_EXPORT GridMapping : public Mapping
+class QWT3D_EXPORT Qwt3DGridMapping : public Qwt3DMapping
 {
 public:
-    // Constructs GridMapping object w/o assigned Qwt3DSurface
-    GridMapping();
-    ~GridMapping() override;
+    // Constructs Qwt3DGridMapping object w/o assigned Qwt3DSurface
+    Qwt3DGridMapping();
+    ~Qwt3DGridMapping() override;
 
     // Sets number of rows and columns
     void setMesh(unsigned int columns, unsigned int rows);
@@ -25,11 +25,11 @@ public:
     void restrictRange(ParallelEpiped const&);
 
 protected:
-    QWT_DECLARE_PRIVATE(GridMapping)
+    QWT_DECLARE_PRIVATE(Qwt3DGridMapping)
 
     // Accessors for subclasses
-    Qwt3DSurface* plotWidget() const;
-    void setPlotWidget(Qwt3DSurface* pw);
+    Qwt3DSurface* surface() const;
+    void setSurface(Qwt3DSurface* surface);
 
     ParallelEpiped& range();
     const ParallelEpiped& range() const;

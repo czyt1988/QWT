@@ -10,12 +10,12 @@
 /**
  * @brief Abstract base class for general mappings
  */
-class QWT3D_EXPORT Mapping
+class QWT3D_EXPORT Qwt3DMapping
 {
 
 public:
     // Destructor
-    virtual ~Mapping()
+    virtual ~Qwt3DMapping()
     {
     }
     // Descriptive String

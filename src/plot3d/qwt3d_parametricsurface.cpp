@@ -1,13 +1,14 @@
 #include "qwt3d_parametricsurface.h"
+
 #include "qwt3d_surface.h"
 
 
-class ParametricSurface::PrivateData
+class Qwt3DParametricSurface::PrivateData
 {
-    QWT_DECLARE_PUBLIC(ParametricSurface)
+    QWT_DECLARE_PUBLIC(Qwt3DParametricSurface)
 
 public:
-    PrivateData(ParametricSurface* q) : q_ptr(q), m_uperiodic(false), m_vperiodic(false)
+    PrivateData(Qwt3DParametricSurface* q) : q_ptr(q), m_uperiodic(false), m_vperiodic(false)
     {
     }
 
@@ -15,52 +16,52 @@ public:
     bool m_vperiodic;
 };
 
-ParametricSurface::ParametricSurface() : GridMapping(), QWT_PIMPL_CONSTRUCT
+Qwt3DParametricSurface::Qwt3DParametricSurface() : Qwt3DGridMapping(), QWT_PIMPL_CONSTRUCT
 {
 }
 
-ParametricSurface::ParametricSurface(Qwt3DSurface& pw) : GridMapping(), QWT_PIMPL_CONSTRUCT
+Qwt3DParametricSurface::Qwt3DParametricSurface(Qwt3DSurface& pw) : Qwt3DGridMapping(), QWT_PIMPL_CONSTRUCT
 {
-    setPlotWidget(&pw);
+    setSurface(&pw);
 }
 
-ParametricSurface::ParametricSurface(Qwt3DSurface* pw) : GridMapping(), QWT_PIMPL_CONSTRUCT
+Qwt3DParametricSurface::Qwt3DParametricSurface(Qwt3DSurface* pw) : Qwt3DGridMapping(), QWT_PIMPL_CONSTRUCT
 {
-    setPlotWidget(pw);
+    setSurface(pw);
 }
 
-ParametricSurface::~ParametricSurface() = default;
+Qwt3DParametricSurface::~Qwt3DParametricSurface() = default;
 
-void ParametricSurface::setPeriodic(bool u, bool v)
+void Qwt3DParametricSurface::setPeriodic(bool u, bool v)
 {
     QWT_D(d);
     d->m_uperiodic = u;
     d->m_vperiodic = v;
 }
 
-void ParametricSurface::assign(Qwt3DSurface& plotWidget)
+void Qwt3DParametricSurface::assign(Qwt3DSurface& surface)
 {
-    if (&plotWidget != this->plotWidget())
-        setPlotWidget(&plotWidget);
+    if (&surface != this->surface())
+        setSurface(&surface);
 }
 
-void ParametricSurface::assign(Qwt3DSurface* plotWidget)
+void Qwt3DParametricSurface::assign(Qwt3DSurface* surface)
 {
-    if (plotWidget != this->plotWidget())
-        setPlotWidget(plotWidget);
+    if (surface != this->surface())
+        setSurface(surface);
 }
 
 /**
  * @brief Creates the parametric surface data and loads it into the surface item
- * @return True on success, false if meshU() <= 2, meshV() <= 2, or plotWidget() is null
- * @details For plotWidget() != nullptr the function permanently assigns her argument (In fact, assign(plotWidget) is called)
+ * @return True on success, false if meshU() <= 2, meshV() <= 2, or surface() is null
+ * @details For surface() != nullptr the function permanently assigns her argument (In fact, assign(surface) is called)
  */
-bool ParametricSurface::create()
+bool Qwt3DParametricSurface::create()
 {
     const unsigned int um = meshU();
     const unsigned int vm = meshV();
 
-    if ((um <= 2) || (vm <= 2) || !plotWidget())
+    if ((um <= 2) || (vm <= 2) || !surface())
         return false;
 
     /* allocate some cache for the mesh */
@@ -82,21 +83,21 @@ bool ParametricSurface::create()
 
             if (data[i][j].x > range().maxVertex.x)
                 data[i][j].x = range().maxVertex.x;
-            else if (data[i][j].y > range().maxVertex.y)
+            if (data[i][j].y > range().maxVertex.y)
                 data[i][j].y = range().maxVertex.y;
-            else if (data[i][j].z > range().maxVertex.z)
+            if (data[i][j].z > range().maxVertex.z)
                 data[i][j].z = range().maxVertex.z;
-            else if (data[i][j].x < range().minVertex.x)
+            if (data[i][j].x < range().minVertex.x)
                 data[i][j].x = range().minVertex.x;
-            else if (data[i][j].y < range().minVertex.y)
+            if (data[i][j].y < range().minVertex.y)
                 data[i][j].y = range().minVertex.y;
-            else if (data[i][j].z < range().minVertex.z)
+            if (data[i][j].z < range().minVertex.z)
                 data[i][j].z = range().minVertex.z;
         }
     }
 
     QWT_D(d);
-    static_cast<Qwt3DSurface*>(plotWidget())->loadFromData(data, um, vm, d->m_uperiodic, d->m_vperiodic);
+    surface()->loadFromData(data, um, vm, d->m_uperiodic, d->m_vperiodic);
 
     for (i = 0; i < um; i++) {
         delete[] data[i];
@@ -107,7 +108,7 @@ bool ParametricSurface::create()
     return true;
 }
 
-bool ParametricSurface::create(Qwt3DSurface& pl)
+bool Qwt3DParametricSurface::create(Qwt3DSurface& pl)
 {
     assign(pl);
     return create();

@@ -1,57 +1,58 @@
-#include "qwt3d_surface.h"
 #include "qwt3d_function.h"
+
+#include "qwt3d_surface.h"
 
 
 /**
  * @brief Default constructor
  */
-Function::Function() : GridMapping()
+Qwt3DFunction::Qwt3DFunction() : Qwt3DGridMapping()
 {
 }
 
 /**
- * @brief Constructs a Function object and assigns a Qwt3DSurface
+ * @brief Constructs a Qwt3DFunction object and assigns a Qwt3DSurface
  * @param pw Reference to a Qwt3DSurface item
  */
-Function::Function(Qwt3DSurface& pw) : GridMapping()
+Qwt3DFunction::Qwt3DFunction(Qwt3DSurface& pw) : Qwt3DGridMapping()
 {
-    setPlotWidget(&pw);
+    setSurface(&pw);
 }
 
 /**
- * @brief Constructs a Function object and assigns a Qwt3DSurface
+ * @brief Constructs a Qwt3DFunction object and assigns a Qwt3DSurface
  * @param pw Pointer to a Qwt3DSurface item
  */
-Function::Function(Qwt3DSurface* pw) : GridMapping()
+Qwt3DFunction::Qwt3DFunction(Qwt3DSurface* pw) : Qwt3DGridMapping()
 {
-    setPlotWidget(pw);
+    setSurface(pw);
 }
 
 /**
  * @brief Assigns the object to another surface - call before create()
- * @param plotWidget Reference to a Qwt3DSurface item
+ * @param surface Reference to a Qwt3DSurface item
  */
-void Function::assign(Qwt3DSurface& plotWidget)
+void Qwt3DFunction::assign(Qwt3DSurface& surface)
 {
-    if (&plotWidget != this->plotWidget())
-        setPlotWidget(&plotWidget);
+    if (&surface != this->surface())
+        setSurface(&surface);
 }
 
 /**
  * @brief Assigns the object to another surface - call before create()
- * @param plotWidget Pointer to a Qwt3DSurface item
+ * @param surface Pointer to a Qwt3DSurface item
  */
-void Function::assign(Qwt3DSurface* plotWidget)
+void Qwt3DFunction::assign(Qwt3DSurface* surface)
 {
-    if (plotWidget != this->plotWidget())
-        setPlotWidget(plotWidget);
+    if (surface != this->surface())
+        setSurface(surface);
 }
 
 /**
  * @brief Sets minimum z value for the function
  * @param val Minimum z value
  */
-void Function::setMinZ(double val)
+void Qwt3DFunction::setMinZ(double val)
 {
     range().minVertex.z = val;
 }
@@ -60,7 +61,7 @@ void Function::setMinZ(double val)
  * @brief Sets maximum z value for the function
  * @param val Maximum z value
  */
-void Function::setMaxZ(double val)
+void Qwt3DFunction::setMaxZ(double val)
 {
     range().maxVertex.z = val;
 }
@@ -72,12 +73,12 @@ void Function::setMaxZ(double val)
  *          mesh grid, clips values to the min/max z range, and loads data
  *          into the assigned Qwt3DSurface.
  */
-bool Function::create()
+bool Qwt3DFunction::create()
 {
     const unsigned int um = meshU();
     const unsigned int vm = meshV();
 
-    if ((um <= 2) || (vm <= 2) || !plotWidget())
+    if ((um <= 2) || (vm <= 2) || !surface())
         return false;
 
     /* allocate some space for the mesh */
@@ -104,11 +105,11 @@ bool Function::create()
         }
     }
 
-    Q_ASSERT(plotWidget());
-    if (!plotWidget()) {
-        fprintf(stderr, "Function: no valid Qwt3DSurface assigned");
+    Q_ASSERT(surface());
+    if (!surface()) {
+        fprintf(stderr, "Qwt3DFunction: no valid Qwt3DSurface assigned");
     } else {
-        static_cast<Qwt3DSurface*>(plotWidget())->loadFromData(data, um, vm, minU(), maxU(), minV(), maxV());
+        surface()->loadFromData(data, um, vm, minU(), maxU(), minV(), maxV());
     }
 
     for (i = 0; i < um; i++) {
@@ -125,7 +126,7 @@ bool Function::create()
  * @param pl Reference to a Qwt3DSurface item
  * @return True on success
  */
-bool Function::create(Qwt3DSurface& pl)
+bool Qwt3DFunction::create(Qwt3DSurface& pl)
 {
     assign(pl);
     return create();
