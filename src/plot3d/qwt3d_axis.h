@@ -75,7 +75,7 @@ public:
     // Returns, if scale drawing is on or off
     bool scaling() const;
     void setScale(SCALETYPE);
-    void setScale(Scale* item);
+    void setScale(Qwt3DScale* item);
     // Turns number drawing on or off
     void setNumbers(bool val);
     // Returns, if number drawing is on or off

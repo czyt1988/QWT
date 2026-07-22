@@ -212,7 +212,7 @@ void SurfacePlot::createNormalsC()
 
     if (d->m_actualDataC->nodes.size() != d->m_actualDataC->normals.size())
         return;
-    Arrow arrow;
+    Qwt3DArrow arrow;
     arrow.setQuality(normalQuality());
 
     Triple basev, topv, norm;

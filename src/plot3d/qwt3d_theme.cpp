@@ -395,7 +395,7 @@ void Qwt3DTheme::apply(Plot3D* plot) const
     plot->setMeshLineWidth(m_meshLineWidth);
     plot->setSmoothMesh(m_smoothMesh);
 
-    plot->setDataColor(new ColorMapColor(plot, m_dataColorPreset));
+    plot->setDataColor(new Qwt3DColorMapColor(plot, m_dataColorPreset));
 
     Qwt3DCoordinateSystem* coords = plot->coordinates();
     if (coords) {

@@ -7,12 +7,12 @@
 #include <qstring.h>
 
 
-class StandardColor::PrivateData
+class Qwt3DStandardColor::PrivateData
 {
-    QWT_DECLARE_PUBLIC(StandardColor)
+    QWT_DECLARE_PUBLIC(Qwt3DStandardColor)
 
 public:
-    PrivateData(StandardColor* q) : q_ptr(q), m_data(nullptr)
+    PrivateData(Qwt3DStandardColor* q) : q_ptr(q), m_data(nullptr)
     {
     }
 
@@ -21,13 +21,13 @@ public:
 };
 
 /**
- * @brief Constructs a StandardColor object
+ * @brief Constructs a Qwt3DStandardColor object
  * @param data Plot3D data source for color mapping
  * @param size Number of color entries in the color vector
  * @details Creates a standard color mapping with the specified size and resets
  *          the color vector to default gradient values.
  */
-StandardColor::StandardColor(Plot3D* data, unsigned size) : QWT_PIMPL_CONSTRUCT
+Qwt3DStandardColor::Qwt3DStandardColor(Plot3D* data, unsigned size) : QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     Q_ASSERT(data);
@@ -36,7 +36,7 @@ StandardColor::StandardColor(Plot3D* data, unsigned size) : QWT_PIMPL_CONSTRUCT
     reset(size);
 }
 
-StandardColor::~StandardColor() = default;
+Qwt3DStandardColor::~Qwt3DStandardColor() = default;
 
 /**
  * @brief Resets the color vector to the default colormap
@@ -44,7 +44,7 @@ StandardColor::~StandardColor() = default;
  * @details Creates a color vector of the given size sampled from the viridis
  *          colormap, the modern perceptually-uniform default.
  */
-void StandardColor::reset(unsigned size)
+void Qwt3DStandardColor::reset(unsigned size)
 {
     setPreset(QStringLiteral("viridis"), size);
 }
@@ -53,7 +53,7 @@ void StandardColor::reset(unsigned size)
  * @brief Assigns a new ColorVector
  * @param cv The new color vector (also overwrites the constructor's size argument)
  */
-void StandardColor::setColorVector(ColorVector const& cv)
+void Qwt3DStandardColor::setColorVector(ColorVector const& cv)
 {
     QWT_D(d);
     d->m_colors = cv;
@@ -63,7 +63,7 @@ void StandardColor::setColorVector(ColorVector const& cv)
  * @brief Sets the alpha value for all colors
  * @param a Alpha value (0.0 to 1.0)
  */
-void StandardColor::setAlpha(double a)
+void Qwt3DStandardColor::setAlpha(double a)
 {
     QWT_D(d);
     if (a < 0 || a > 1)
@@ -79,11 +79,11 @@ void StandardColor::setAlpha(double a)
 }
 
 /**
- * @brief Creates color vector for ColorLegend - essentially a copy from the internal vector
+ * @brief Creates color vector for Qwt3DColorLegend - essentially a copy from the internal vector
  * @param vec The vector to fill
  * @return Reference to the filled color vector
  */
-ColorVector& StandardColor::createVector(ColorVector& vec)
+ColorVector& Qwt3DStandardColor::createVector(ColorVector& vec)
 {
     QWT_D(d);
     vec = d->m_colors;
@@ -96,7 +96,7 @@ ColorVector& StandardColor::createVector(ColorVector& vec)
  * @return RGBA color corresponding to the z value
  * @details Maps the z value to a color index based on the data hull's z range.
  */
-RGBA StandardColor::operator()(double, double, double z) const
+RGBA Qwt3DStandardColor::operator()(double, double, double z) const
 {
     QWT_DC(d);
     Q_ASSERT(d->m_data);
@@ -116,7 +116,7 @@ RGBA StandardColor::operator()(double, double, double z) const
  * @details Uses QwtColorMapPreset to create a QwtLinearColorMap and samples it
  *          at the specified number of points to fill the internal color vector.
  */
-void StandardColor::setPreset(const QString& presetName, unsigned size)
+void Qwt3DStandardColor::setPreset(const QString& presetName, unsigned size)
 {
     QWT_D(d);
 

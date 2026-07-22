@@ -8,16 +8,16 @@
 
 /////////////////////////////////////////////////////////////////
 //
-//   CrossHair
+//   Qwt3DCrossHair
 //
 /////////////////////////////////////////////////////////////////
 
-class CrossHair::PrivateData
+class Qwt3DCrossHair::PrivateData
 {
-    QWT_DECLARE_PUBLIC(CrossHair)
+    QWT_DECLARE_PUBLIC(Qwt3DCrossHair)
 
 public:
-    PrivateData(CrossHair* q)
+    PrivateData(Qwt3DCrossHair* q)
         : q_ptr(q), m_boxed(false), m_smooth(false), m_linewidth(1.0), m_radius(0.0), m_oldstate(GL_FALSE)
     {
     }
@@ -32,24 +32,24 @@ public:
 /**
  * @brief Default constructor
  */
-CrossHair::CrossHair() : QWT_PIMPL_CONSTRUCT
+Qwt3DCrossHair::Qwt3DCrossHair() : QWT_PIMPL_CONSTRUCT
 {
     configure(0, 1, false, false);
 }
 
 /**
- * @brief Constructs a CrossHair with specified parameters
+ * @brief Constructs a Qwt3DCrossHair with specified parameters
  * @param rad Relative radius
  * @param linewidth Line width
  * @param smooth Smooth lines
  * @param boxed Draw a box around the crosshair
  */
-CrossHair::CrossHair(double rad, double linewidth, bool smooth, bool boxed) : QWT_PIMPL_CONSTRUCT
+Qwt3DCrossHair::Qwt3DCrossHair(double rad, double linewidth, bool smooth, bool boxed) : QWT_PIMPL_CONSTRUCT
 {
     configure(rad, linewidth, smooth, boxed);
 }
 
-CrossHair::CrossHair(const CrossHair& other) : VertexEnrichment(other), QWT_PIMPL_CONSTRUCT
+Qwt3DCrossHair::Qwt3DCrossHair(const Qwt3DCrossHair& other) : Qwt3DVertexEnrichment(other), QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     const PrivateData* od = other.d_func();
@@ -60,14 +60,14 @@ CrossHair::CrossHair(const CrossHair& other) : VertexEnrichment(other), QWT_PIMP
     d->m_oldstate         = od->m_oldstate;
 }
 
-CrossHair::~CrossHair() = default;
+Qwt3DCrossHair::~Qwt3DCrossHair() = default;
 
-Enrichment* CrossHair::clone() const
+Qwt3DEnrichment* Qwt3DCrossHair::clone() const
 {
-    return new CrossHair(*this);
+    return new Qwt3DCrossHair(*this);
 }
 
-void CrossHair::configure(double rad, double linewidth, bool smooth, bool boxed)
+void Qwt3DCrossHair::configure(double rad, double linewidth, bool smooth, bool boxed)
 {
     plot = nullptr;
     QWT_D(d);
@@ -77,7 +77,7 @@ void CrossHair::configure(double rad, double linewidth, bool smooth, bool boxed)
     d->m_boxed     = boxed;
 }
 
-void CrossHair::drawBegin()
+void Qwt3DCrossHair::drawBegin()
 {
     QWT_D(d);
     setDeviceLineWidth(d->m_linewidth);
@@ -89,7 +89,7 @@ void CrossHair::drawBegin()
     glBegin(GL_LINES);
 }
 
-void CrossHair::drawEnd()
+void Qwt3DCrossHair::drawEnd()
 {
     QWT_D(d);
     glEnd();
@@ -100,7 +100,7 @@ void CrossHair::drawEnd()
         glDisable(GL_LINE_SMOOTH);
 }
 
-void CrossHair::draw(Triple const& pos)
+void Qwt3DCrossHair::draw(Triple const& pos)
 {
     QWT_D(d);
     RGBA rgba = (*plot->dataColor())(pos);
@@ -155,16 +155,16 @@ void CrossHair::draw(Triple const& pos)
 
 /////////////////////////////////////////////////////////////////
 //
-//   Dot
+//   Qwt3DDot
 //
 /////////////////////////////////////////////////////////////////
 
-class Dot::PrivateData
+class Qwt3DDot::PrivateData
 {
-    QWT_DECLARE_PUBLIC(Dot)
+    QWT_DECLARE_PUBLIC(Qwt3DDot)
 
 public:
-    PrivateData(Dot* q) : q_ptr(q), m_smooth(false), m_pointsize(1.0), m_oldstate(GL_FALSE)
+    PrivateData(Qwt3DDot* q) : q_ptr(q), m_smooth(false), m_pointsize(1.0), m_oldstate(GL_FALSE)
     {
     }
 
@@ -176,22 +176,22 @@ public:
 /**
  * @brief Default constructor
  */
-Dot::Dot() : QWT_PIMPL_CONSTRUCT
+Qwt3DDot::Qwt3DDot() : QWT_PIMPL_CONSTRUCT
 {
     configure(1, false);
 }
 
 /**
- * @brief Constructs a Dot with specified parameters
+ * @brief Constructs a Qwt3DDot with specified parameters
  * @param pointsize Point size
  * @param smooth Smooth point rendering
  */
-Dot::Dot(double pointsize, bool smooth) : QWT_PIMPL_CONSTRUCT
+Qwt3DDot::Qwt3DDot(double pointsize, bool smooth) : QWT_PIMPL_CONSTRUCT
 {
     configure(pointsize, smooth);
 }
 
-Dot::Dot(const Dot& other) : VertexEnrichment(other), QWT_PIMPL_CONSTRUCT
+Qwt3DDot::Qwt3DDot(const Qwt3DDot& other) : Qwt3DVertexEnrichment(other), QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     const PrivateData* od = other.d_func();
@@ -200,14 +200,14 @@ Dot::Dot(const Dot& other) : VertexEnrichment(other), QWT_PIMPL_CONSTRUCT
     d->m_oldstate         = od->m_oldstate;
 }
 
-Dot::~Dot() = default;
+Qwt3DDot::~Qwt3DDot() = default;
 
-Enrichment* Dot::clone() const
+Qwt3DEnrichment* Qwt3DDot::clone() const
 {
-    return new Dot(*this);
+    return new Qwt3DDot(*this);
 }
 
-void Dot::configure(double pointsize, bool smooth)
+void Qwt3DDot::configure(double pointsize, bool smooth)
 {
     plot = nullptr;
     QWT_D(d);
@@ -215,7 +215,7 @@ void Dot::configure(double pointsize, bool smooth)
     d->m_smooth    = smooth;
 }
 
-void Dot::drawBegin()
+void Qwt3DDot::drawBegin()
 {
     QWT_D(d);
     setDevicePointSize(d->m_pointsize);
@@ -228,7 +228,7 @@ void Dot::drawBegin()
     glBegin(GL_POINTS);
 }
 
-void Dot::drawEnd()
+void Qwt3DDot::drawEnd()
 {
     QWT_D(d);
     glEnd();
@@ -239,7 +239,7 @@ void Dot::drawEnd()
         glDisable(GL_POINT_SMOOTH);
 }
 
-void Dot::draw(Triple const& pos)
+void Qwt3DDot::draw(Triple const& pos)
 {
     RGBA rgba = (*plot->dataColor())(pos);
     glColor4d(rgba.r, rgba.g, rgba.b, rgba.a);
@@ -248,16 +248,16 @@ void Dot::draw(Triple const& pos)
 
 /////////////////////////////////////////////////////////////////
 //
-//   Cone
+//   Qwt3DCone
 //
 /////////////////////////////////////////////////////////////////
 
-class Cone::PrivateData
+class Qwt3DCone::PrivateData
 {
-    QWT_DECLARE_PUBLIC(Cone)
+    QWT_DECLARE_PUBLIC(Qwt3DCone)
 
 public:
-    PrivateData(Cone* q) : q_ptr(q), m_hat(nullptr), m_disk(nullptr), m_quality(3), m_radius(0.0), m_oldstate(GL_FALSE)
+    PrivateData(Qwt3DCone* q) : q_ptr(q), m_hat(nullptr), m_disk(nullptr), m_quality(3), m_radius(0.0), m_oldstate(GL_FALSE)
     {
     }
 
@@ -292,7 +292,7 @@ public:
 /**
  * @brief Default constructor
  */
-Cone::Cone() : QWT_PIMPL_CONSTRUCT
+Qwt3DCone::Qwt3DCone() : QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     d->initQuadrics();
@@ -300,18 +300,18 @@ Cone::Cone() : QWT_PIMPL_CONSTRUCT
 }
 
 /**
- * @brief Constructs a Cone with specified radius and quality
+ * @brief Constructs a Qwt3DCone with specified radius and quality
  * @param rad Cone radius
  * @param quality Number of faces for the cone
  */
-Cone::Cone(double rad, unsigned quality) : QWT_PIMPL_CONSTRUCT
+Qwt3DCone::Qwt3DCone(double rad, unsigned quality) : QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     d->initQuadrics();
     configure(rad, quality);
 }
 
-Cone::Cone(const Cone& other) : VertexEnrichment(other), QWT_PIMPL_CONSTRUCT
+Qwt3DCone::Qwt3DCone(const Qwt3DCone& other) : Qwt3DVertexEnrichment(other), QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     const PrivateData* od = other.d_func();
@@ -324,14 +324,14 @@ Cone::Cone(const Cone& other) : VertexEnrichment(other), QWT_PIMPL_CONSTRUCT
 /**
  * @brief Destructor
  */
-Cone::~Cone() = default;
+Qwt3DCone::~Qwt3DCone() = default;
 
-Enrichment* Cone::clone() const
+Qwt3DEnrichment* Qwt3DCone::clone() const
 {
-    return new Cone(*this);
+    return new Qwt3DCone(*this);
 }
 
-void Cone::configure(double rad, unsigned quality)
+void Qwt3DCone::configure(double rad, unsigned quality)
 {
     plot = nullptr;
     QWT_D(d);
@@ -340,7 +340,7 @@ void Cone::configure(double rad, unsigned quality)
     d->m_oldstate = GL_FALSE;
 }
 
-void Cone::draw(Triple const& pos)
+void Qwt3DCone::draw(Triple const& pos)
 {
     QWT_D(d);
     RGBA rgba = (*plot->dataColor())(pos);
@@ -363,16 +363,16 @@ void Cone::draw(Triple const& pos)
 
 /////////////////////////////////////////////////////////////////
 //
-//   Arrow
+//   Qwt3DArrow
 //
 /////////////////////////////////////////////////////////////////
 
-class Arrow::PrivateData
+class Qwt3DArrow::PrivateData
 {
-    QWT_DECLARE_PUBLIC(Arrow)
+    QWT_DECLARE_PUBLIC(Qwt3DArrow)
 
 public:
-    PrivateData(Arrow* q)
+    PrivateData(Qwt3DArrow* q)
         : q_ptr(q)
         , m_hat(nullptr)
         , m_disk(nullptr)
@@ -434,14 +434,14 @@ public:
     RGBA m_rgba;
 };
 
-Arrow::Arrow() : QWT_PIMPL_CONSTRUCT
+Qwt3DArrow::Qwt3DArrow() : QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     d->initQuadrics();
     configure(3, 0.4, 0.06, 0.02);
 }
 
-Arrow::Arrow(const Arrow& other) : VertexEnrichment(other), QWT_PIMPL_CONSTRUCT
+Qwt3DArrow::Qwt3DArrow(const Qwt3DArrow& other) : Qwt3DVertexEnrichment(other), QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     const PrivateData* od = other.d_func();
@@ -458,11 +458,11 @@ Arrow::Arrow(const Arrow& other) : VertexEnrichment(other), QWT_PIMPL_CONSTRUCT
 /**
  * @brief Destructor
  */
-Arrow::~Arrow() = default;
+Qwt3DArrow::~Qwt3DArrow() = default;
 
-Enrichment* Arrow::clone() const
+Qwt3DEnrichment* Qwt3DArrow::clone() const
 {
-    return new Arrow(*this);
+    return new Qwt3DArrow(*this);
 }
 
 /**
@@ -473,7 +473,7 @@ Enrichment* Arrow::clone() const
  * @param relstemrad Relative stem radius (see arrowanatomy.png)
  * @image html arrowanatomy.png
  */
-void Arrow::configure(int segs, double relconelength, double relconerad, double relstemrad)
+void Qwt3DArrow::configure(int segs, double relconelength, double relconerad, double relstemrad)
 {
     plot = nullptr;
     QWT_D(d);
@@ -484,25 +484,25 @@ void Arrow::configure(int segs, double relconelength, double relconerad, double 
     d->m_relStemRadius = relstemrad;
 }
 
-void Arrow::setQuality(int val)
+void Qwt3DArrow::setQuality(int val)
 {
     QWT_D(d);
     d->m_segments = val;
 }
 
-void Arrow::setTop(Triple t)
+void Qwt3DArrow::setTop(Triple t)
 {
     QWT_D(d);
     d->m_top = t;
 }
 
-void Arrow::setColor(RGBA rgba)
+void Qwt3DArrow::setColor(RGBA rgba)
 {
     QWT_D(d);
     d->m_rgba = rgba;
 }
 
-void Arrow::draw(Triple const& pos)
+void Qwt3DArrow::draw(Triple const& pos)
 {
     QWT_D(d);
     Triple end    = d->m_top;
@@ -551,7 +551,7 @@ void Arrow::draw(Triple const& pos)
  * @details Transforms a vector on the z axis with length |beg-end| to get them
  *          in coincidence with the vector(beg,end).
  */
-double Arrow::calcRotation(Triple& axis, FreeVector const& vec)
+double Qwt3DArrow::calcRotation(Triple& axis, FreeVector const& vec)
 {
 
     Triple end = vec.top;

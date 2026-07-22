@@ -123,7 +123,7 @@ void SurfacePlot::createNormalsG()
     if (!normals() || d->m_actualDataG->empty())
         return;
 
-    Arrow arrow;
+    Qwt3DArrow arrow;
     arrow.setQuality(normalQuality());
 
     Triple basev, topv, norm;

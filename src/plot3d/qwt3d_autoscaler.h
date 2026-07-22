@@ -10,14 +10,14 @@
 /**
  * @brief Abstract base class for autoscaler
  */
-class QWT3D_EXPORT AutoScaler
+class QWT3D_EXPORT Qwt3DAutoScaler
 {
-    friend class ClonePtr< AutoScaler >;
+    friend class Qwt3DClonePtr< Qwt3DAutoScaler >;
 
 protected:
-    virtual AutoScaler* clone() const                                               = 0;
+    virtual Qwt3DAutoScaler* clone() const                                        = 0;
     virtual int execute(double& a, double& b, double start, double stop, int ivals) = 0;
-    virtual ~AutoScaler()
+    virtual ~Qwt3DAutoScaler()
     {
     }
 
@@ -31,21 +31,21 @@ private:
 /**
  * @brief Automatic beautifying of linear scales
  */
-class QWT3D_EXPORT LinearAutoScaler : public AutoScaler
+class QWT3D_EXPORT Qwt3DLinearAutoScaler : public Qwt3DAutoScaler
 {
-    friend class LinearScale;
+    friend class Qwt3DLinearScale;
 
 protected:
-    QWT_DECLARE_PRIVATE(LinearAutoScaler)
+    QWT_DECLARE_PRIVATE(Qwt3DLinearAutoScaler)
 
-    LinearAutoScaler();
-    explicit LinearAutoScaler(std::vector< double >& mantisses);
-    ~LinearAutoScaler() override;
-    AutoScaler* clone() const override;
+    Qwt3DLinearAutoScaler();
+    explicit Qwt3DLinearAutoScaler(std::vector< double >& mantisses);
+    ~Qwt3DLinearAutoScaler() override;
+    Qwt3DAutoScaler* clone() const override;
     int execute(double& a, double& b, double start, double stop, int ivals) override;
 
-    // Copies state from another LinearAutoScaler (used by LinearScale::clone)
-    void copyStateFrom(const LinearAutoScaler& other);
+    // Copies state from another Qwt3DLinearAutoScaler (used by Qwt3DLinearScale::clone)
+    void copyStateFrom(const Qwt3DLinearAutoScaler& other);
 
 private:
     void init(double start, double stop, int ivals);

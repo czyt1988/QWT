@@ -12,9 +12,9 @@
  * @details Use your own color model by providing an implementation of
  *          operator()(double x, double y, double z). Colors destructor has been
  *          declared protected, in order to use only heap based objects. Plot3D
- *          will handle the objects destruction. See StandardColor for an example.
+ *          will handle the objects destruction. See Qwt3DStandardColor for an example.
  */
-class QWT3D_EXPORT Color
+class QWT3D_EXPORT Qwt3DColor
 {
 public:
     // Implement your color model here
@@ -23,7 +23,7 @@ public:
     {
         return this->operator()(t.x, t.y, t.z);
     }
-    // Should create a color vector usable by ColorLegend. The default implementation returns its argument
+    // Should create a color vector usable by Qwt3DColorLegend. The default implementation returns its argument
     virtual ColorVector& createVector(ColorVector& vec)
     {
         return vec;
@@ -35,7 +35,7 @@ public:
     }
 
 protected:
-    virtual ~Color()
+    virtual ~Qwt3DColor()
     {
     }
 };
@@ -47,14 +47,14 @@ class Plot3D;
  * @details The class has a ColorVector representing z values, which will be used by
  *          operator()(double x, double y, double z)
  */
-class QWT3D_EXPORT StandardColor : public Color
+class QWT3D_EXPORT Qwt3DStandardColor : public Qwt3DColor
 {
-    QWT_DECLARE_PRIVATE(StandardColor)
+    QWT_DECLARE_PRIVATE(Qwt3DStandardColor)
 
 public:
     // Initializes with data and set up a ColorVector with a size of 100 z values (default)
-    explicit StandardColor(Plot3D* data, unsigned size = 100);
-    ~StandardColor() override;
+    explicit Qwt3DStandardColor(Plot3D* data, unsigned size = 100);
+    ~Qwt3DStandardColor() override;
     // Receives z-dependent color from ColorVector
     RGBA operator()(double x, double y, double z) const override;
     void setColorVector(ColorVector const& cv);
@@ -62,7 +62,7 @@ public:
     void reset(unsigned size = 100);
     // Sets unitary alpha value for all colors
     void setAlpha(double a);
-    // Creates color vector for ColorLegend - essentially a copy from the internal vector
+    // Creates color vector for Qwt3DColorLegend - essentially a copy from the internal vector
     ColorVector& createVector(ColorVector& vec) override;
 
     // Set colormap from a preset name (e.g. "viridis", "plasma", "jet")

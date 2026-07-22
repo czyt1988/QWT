@@ -15,7 +15,7 @@ class Plot3D;
  *          implementation in derived classes. They can be used for initialization issues or actions not
  *          depending on the related primitive.
  */
-class QWT3D_EXPORT Enrichment
+class QWT3D_EXPORT Qwt3DEnrichment
 {
 public:
     // Type of the Enrichment - only VERTEXENRICHMENT's are defined at this moment
@@ -27,14 +27,14 @@ public:
         VOXELENRICHMENT
     };
 
-    Enrichment() : plot(nullptr)
+    Qwt3DEnrichment() : plot(nullptr)
     {
     }
-    virtual ~Enrichment()
+    virtual ~Qwt3DEnrichment()
     {
     }
     // The derived class should give back a new Derived(something) here
-    virtual Enrichment* clone() const = 0;
+    virtual Qwt3DEnrichment* clone() const = 0;
     // Empty per default. Can be overwritten
     virtual void drawBegin() {};
     // Empty per default. Can be overwritten
@@ -57,20 +57,20 @@ protected:
  *          draw() is called, when the Plot realizes its internal OpenGL data representation
  *          for every Vertex associated to his argument.
  */
-class QWT3D_EXPORT VertexEnrichment : public Enrichment
+class QWT3D_EXPORT Qwt3DVertexEnrichment : public Qwt3DEnrichment
 {
 public:
-    VertexEnrichment() : Enrichment()
+    Qwt3DVertexEnrichment() : Qwt3DEnrichment()
     {
     }
     // The derived class should give back a new Derived(something) here
-    virtual Enrichment* clone() const = 0;
+    virtual Qwt3DEnrichment* clone() const = 0;
     // Overwrite this
     virtual void draw(Triple const&) = 0;
     // This gives VERTEXENRICHMENT
     TYPE type() const override
     {
-        return Enrichment::VERTEXENRICHMENT;
+        return Qwt3DEnrichment::VERTEXENRICHMENT;
     }
 };
 

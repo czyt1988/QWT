@@ -26,9 +26,9 @@ public:
     };
 
     Qwt3DCoordinateSystem m_coordinates;
-    Color* m_dataColor;
-    Enrichment* m_userPlotStyle;
-    std::list< Enrichment* > m_enrichmentList;
+    Qwt3DColor* m_dataColor;
+    Qwt3DEnrichment* m_userPlotStyle;
+    std::list< Qwt3DEnrichment* > m_enrichmentList;
     std::vector< GLuint > m_displayLists;
     Qwt3DData* m_actualData;
 

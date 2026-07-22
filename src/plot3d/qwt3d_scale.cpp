@@ -4,15 +4,15 @@
 
 /****************************
  *
- * Scale::PrivateData
+ * Qwt3DScale::PrivateData
  *
  ****************************/
 
-class Scale::PrivateData
+class Qwt3DScale::PrivateData
 {
-    QWT_DECLARE_PUBLIC(Scale)
+    QWT_DECLARE_PUBLIC(Qwt3DScale)
 public:
-    explicit PrivateData(Scale* p);
+    explicit PrivateData(Qwt3DScale* p);
 
     friend class Qwt3DAxis;
 
@@ -22,35 +22,35 @@ public:
     double m_mstart, m_mstop;
 };
 
-Scale::PrivateData::PrivateData(Scale* p)
+Qwt3DScale::PrivateData::PrivateData(Qwt3DScale* p)
     : q_ptr(p), m_start(0.), m_stop(0.), m_majorIntervals(0), m_minorIntervals(0), m_mstart(0.), m_mstop(0.)
 {
 }
 
 /****************************
  *
- * Scale
+ * Qwt3DScale
  *
  ****************************/
 
-Scale::Scale() : QWT_PIMPL_CONSTRUCT
+Qwt3DScale::Qwt3DScale() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-Scale::~Scale() = default;
+Qwt3DScale::~Qwt3DScale() = default;
 
-void Scale::destroy() const
+void Qwt3DScale::destroy() const
 {
     delete this;
 }
 
 /**
- * @brief Copies Scale base state from another Scale
- * @param other Source Scale to copy from
+ * @brief Copies Qwt3DScale base state from another Qwt3DScale
+ * @param other Source Qwt3DScale to copy from
  * @details Used by derived class clone() implementations to copy
- *          the Scale base data without requiring a copy constructor.
+ *          the Qwt3DScale base data without requiring a copy constructor.
  */
-void Scale::copyFrom(const Scale& other)
+void Qwt3DScale::copyFrom(const Qwt3DScale& other)
 {
     QWT_D(d);
     const auto* od      = other.d_func();
@@ -70,9 +70,9 @@ void Scale::copyFrom(const Scale& other)
  * @return The QString representation for the value corresponding to a valid index, an empty QString else.
  * @details The default return value is simply the tic values QString representation.
  *          Overwrite this function, if you plan to transform the value in some way.
- *          See e.g. LogScale::ticLabel.
+ *          See e.g. Qwt3DLogScale::ticLabel.
  */
-QString Scale::ticLabel(unsigned int idx) const
+QString Qwt3DScale::ticLabel(unsigned int idx) const
 {
     QWT_DC(d);
     if (idx < d->m_majors.size()) {
@@ -86,7 +86,7 @@ QString Scale::ticLabel(unsigned int idx) const
  * @param start Scale start value
  * @param stop Scale stop value
  */
-void Scale::setLimits(double start, double stop)
+void Qwt3DScale::setLimits(double start, double stop)
 {
     QWT_D(d);
     if (start < stop) {
@@ -102,7 +102,7 @@ void Scale::setLimits(double start, double stop)
  * @brief Sets number of major intervals
  * @param val Number of major intervals
  */
-void Scale::setMajors(int val)
+void Qwt3DScale::setMajors(int val)
 {
     QWT_D(d);
     d->m_majorIntervals = val;
@@ -112,7 +112,7 @@ void Scale::setMajors(int val)
  * @brief Sets number of minor intervals per major interval
  * @param val Number of minor intervals
  */
-void Scale::setMinors(int val)
+void Qwt3DScale::setMinors(int val)
 {
     QWT_D(d);
     d->m_minorIntervals = val;
@@ -123,7 +123,7 @@ void Scale::setMinors(int val)
  * @param start First major tic value
  * @param stop Last major tic value
  */
-void Scale::setMajorLimits(double start, double stop)
+void Qwt3DScale::setMajorLimits(double start, double stop)
 {
     QWT_D(d);
     if (start < stop) {
@@ -139,7 +139,7 @@ void Scale::setMajorLimits(double start, double stop)
  * @brief Returns major intervals
  * @return Number of major intervals
  */
-int Scale::majors() const
+int Qwt3DScale::majors() const
 {
     QWT_DC(d);
     return d->m_majorIntervals;
@@ -149,7 +149,7 @@ int Scale::majors() const
  * @brief Returns minor intervals
  * @return Number of minor intervals
  */
-int Scale::minors() const
+int Qwt3DScale::minors() const
 {
     QWT_DC(d);
     return d->m_minorIntervals;
@@ -159,7 +159,7 @@ int Scale::minors() const
  * @brief Returns const reference to major tic positions
  * @return Const reference to the vector of major tic positions
  */
-const std::vector< double >& Scale::majorTicks() const
+const std::vector< double >& Qwt3DScale::majorTicks() const
 {
     QWT_DC(d);
     return d->m_majors;
@@ -169,7 +169,7 @@ const std::vector< double >& Scale::majorTicks() const
  * @brief Returns const reference to minor tic positions
  * @return Const reference to the vector of minor tic positions
  */
-const std::vector< double >& Scale::minorTicks() const
+const std::vector< double >& Qwt3DScale::minorTicks() const
 {
     QWT_DC(d);
     return d->m_minors;
@@ -185,7 +185,7 @@ const std::vector< double >& Scale::minorTicks() const
  * @return Number of major intervals after autoscaling
  * @details The default implementation sets a=start, b=stop and returns ivals.
  */
-int Scale::autoscale(double& a, double& b, double start, double stop, int ivals)
+int Qwt3DScale::autoscale(double& a, double& b, double start, double stop, int ivals)
 {
     a = start;
     b = stop;
@@ -194,37 +194,37 @@ int Scale::autoscale(double& a, double& b, double start, double stop, int ivals)
 
 /****************************
  *
- * LinearScale::PrivateData
+ * Qwt3DLinearScale::PrivateData
  *
  ****************************/
 
-class LinearScale::PrivateData
+class Qwt3DLinearScale::PrivateData
 {
-    QWT_DECLARE_PUBLIC(LinearScale)
+    QWT_DECLARE_PUBLIC(Qwt3DLinearScale)
 public:
-    explicit PrivateData(LinearScale* p);
+    explicit PrivateData(Qwt3DLinearScale* p);
 
-    LinearAutoScaler m_autoscaler;
+    Qwt3DLinearAutoScaler m_autoscaler;
 };
 
-LinearScale::PrivateData::PrivateData(LinearScale* p) : q_ptr(p)
+Qwt3DLinearScale::PrivateData::PrivateData(Qwt3DLinearScale* p) : q_ptr(p)
 {
 }
 
 /****************************
  *
- * LinearScale
+ * Qwt3DLinearScale
  *
  ****************************/
 
-LinearScale::LinearScale() : QWT_PIMPL_CONSTRUCT
+Qwt3DLinearScale::Qwt3DLinearScale() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-LinearScale::~LinearScale() = default;
+Qwt3DLinearScale::~Qwt3DLinearScale() = default;
 
 /**
- * @brief Applies LinearAutoScaler::execute() for autoscaling
+ * @brief Applies Qwt3DLinearAutoScaler::execute() for autoscaling
  * @param[out] a First major tic after autoscaling
  * @param[out] b Last major tic after autoscaling
  * @param start Scale begin
@@ -232,19 +232,19 @@ LinearScale::~LinearScale() = default;
  * @param ivals Requested number of major intervals
  * @return Number of major intervals after autoscaling
  */
-int LinearScale::autoscale(double& a, double& b, double start, double stop, int ivals)
+int Qwt3DLinearScale::autoscale(double& a, double& b, double start, double stop, int ivals)
 {
     QWT_D(d);
     return d->m_autoscaler.execute(a, b, start, stop, ivals);
 }
 
 /**
- * @brief Returns a new heap based object utilized from ClonePtr
- * @return A new LinearScale copy
+ * @brief Returns a new heap based object utilized from Qwt3DClonePtr
+ * @return A new Qwt3DLinearScale copy
  */
-Scale* LinearScale::clone() const
+Qwt3DScale* Qwt3DLinearScale::clone() const
 {
-    auto* copy = new LinearScale();
+    auto* copy = new Qwt3DLinearScale();
     copy->copyFrom(*this);
     QWT_DC(d);
     auto* copyD = copy->d_func();
@@ -255,10 +255,10 @@ Scale* LinearScale::clone() const
 /**
  * @brief Creates the major and minor vector for the scale
  */
-void LinearScale::calculate()
+void Qwt3DLinearScale::calculate()
 {
-    // Access Scale base data through Scale::d_func()
-    auto* sd = Scale::d_func();
+    // Access Qwt3DScale base data through Qwt3DScale::d_func()
+    auto* sd = Qwt3DScale::d_func();
 
     sd->m_majors.clear();
     sd->m_minors.clear();
@@ -331,13 +331,13 @@ void LinearScale::calculate()
 
 /****************************
  *
- * LogScale
+ * Qwt3DLogScale
  *
  ****************************/
 
-void LogScale::setupCounter(double& k, int& step)
+void Qwt3DLogScale::setupCounter(double& k, int& step)
 {
-    auto* sd = Scale::d_func();
+    auto* sd = Qwt3DScale::d_func();
     switch (sd->m_minorIntervals) {
     case 9:
         k    = 9;
@@ -368,9 +368,9 @@ void LogScale::setupCounter(double& k, int& step)
  *          for an 'intelligent' guess, what to do. Better switch manually to linear
  *          scales in such cases.
  */
-void LogScale::calculate()
+void Qwt3DLogScale::calculate()
 {
-    auto* sd = Scale::d_func();
+    auto* sd = Qwt3DScale::d_func();
 
     sd->m_majors.clear();
     sd->m_minors.clear();
@@ -448,9 +448,9 @@ void LogScale::calculate()
  * @param val Number of minor intervals (only 9, 5, 3, or 2 are accepted)
  * @details They will produce mantissa sets of {2,3,4,5,6,7,8,9}, {2,4,6,8}, {2,5} or {5} respectively.
  */
-void LogScale::setMinors(int val)
+void Qwt3DLogScale::setMinors(int val)
 {
-    auto* sd = Scale::d_func();
+    auto* sd = Qwt3DScale::d_func();
     if ((val == 2) || (val == 3) || (val == 5) || (val == 9))
         sd->m_minorIntervals = val;
 }
@@ -458,21 +458,21 @@ void LogScale::setMinors(int val)
 /**
  * @brief Default constructor - sets 9 minor intervals
  */
-LogScale::LogScale()
+Qwt3DLogScale::Qwt3DLogScale()
 {
-    auto* sd             = Scale::d_func();
+    auto* sd             = Qwt3DScale::d_func();
     sd->m_minorIntervals = 9;
 }
 
-LogScale::~LogScale() = default;
+Qwt3DLogScale::~Qwt3DLogScale() = default;
 
 /**
- * @brief Returns a new heap based object utilized from ClonePtr
- * @return A new LogScale copy
+ * @brief Returns a new heap based object utilized from Qwt3DClonePtr
+ * @return A new Qwt3DLogScale copy
  */
-Scale* LogScale::clone() const
+Qwt3DScale* Qwt3DLogScale::clone() const
 {
-    auto* copy = new LogScale();
+    auto* copy = new Qwt3DLogScale();
     copy->copyFrom(*this);
     return copy;
 }
@@ -482,7 +482,7 @@ Scale* LogScale::clone() const
  * @param idx The current major tic index
  * @return The QString representation of 10^value for valid index, empty QString else
  */
-QString LogScale::ticLabel(unsigned int idx) const
+QString Qwt3DLogScale::ticLabel(unsigned int idx) const
 {
     QWT_DC(d);
     if (idx < d->m_majors.size()) {

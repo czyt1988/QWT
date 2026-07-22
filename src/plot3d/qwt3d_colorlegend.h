@@ -58,7 +58,7 @@ public:
     // Sets whether the axis is autoscaled or not
     void setAutoScale(bool val);
     // Sets another scale
-    void setScale(Scale* scale);
+    void setScale(Qwt3DScale* scale);
     // Sets one of the predefined scale types
     void setScale(SCALETYPE);
 

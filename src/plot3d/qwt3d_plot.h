@@ -71,12 +71,12 @@ public:
     bool ortho() const;
     // Set plot style
     void setPlotStyle(PLOTSTYLE val);
-    // Set plot style with Enrichment
-    Enrichment* setPlotStyle(Enrichment const& val);
+    // Set plot style with Qwt3DEnrichment
+    Qwt3DEnrichment* setPlotStyle(Qwt3DEnrichment const& val);
     // Returns plotting style
     PLOTSTYLE plotStyle() const;
-    // Returns current Enrichment object used for plotting styles (if set, zero else)
-    Enrichment* userStyle() const;
+    // Returns current Qwt3DEnrichment object used for plotting styles (if set, zero else)
+    Qwt3DEnrichment* userStyle() const;
     // Set shading style
     void setShading(SHADINGSTYLE val);
     // Returns shading style
@@ -103,14 +103,14 @@ public:
     // Returns line width for data mesh
     double meshLineWidth() const;
     // Sets new data color object
-    void setDataColor(Color* col);
+    void setDataColor(Qwt3DColor* col);
     // Returns data color object
-    const Color* dataColor() const;
+    const Qwt3DColor* dataColor() const;
 
-    // Add an Enrichment
-    virtual Enrichment* addEnrichment(Enrichment const&);
-    // Remove an Enrichment
-    virtual bool degrade(Enrichment*);
+    // Add a Qwt3DEnrichment
+    virtual Qwt3DEnrichment* addEnrichment(Qwt3DEnrichment const&);
+    // Remove a Qwt3DEnrichment
+    virtual bool degrade(Qwt3DEnrichment*);
 
     // Returns rectangular hull
     ParallelEpiped hull() const;
@@ -311,7 +311,7 @@ public Q_SLOTS:
 protected:
     QWT_DECLARE_PRIVATE(Plot3D)
 
-    using EnrichmentList = std::list< Enrichment* >;
+    using EnrichmentList = std::list< Qwt3DEnrichment* >;
     using ELIT           = EnrichmentList::iterator;
 
     void initializeGL() override;
@@ -332,7 +332,7 @@ protected:
 
     virtual void calculateHull() = 0;
     virtual void createData()    = 0;
-    virtual void createEnrichment(Enrichment&)
+    virtual void createEnrichment(Qwt3DEnrichment&)
     {
     }
     virtual void createEnrichments();

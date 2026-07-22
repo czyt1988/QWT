@@ -67,7 +67,7 @@ public:
     RGBA m_numberColor;
     int m_numberGap;
     int m_labelGap;
-    ClonePtr< Scale > m_scale;
+    Qwt3DClonePtr< Qwt3DScale > m_scale;
 };
 
 /**
@@ -103,7 +103,7 @@ void Qwt3DAxis::init()
 
     detachAll();
 
-    d->m_scale = ClonePtr< Scale >(new LinearScale);
+    d->m_scale = Qwt3DClonePtr< Qwt3DScale >(new Qwt3DLinearScale);
 
     d->m_beg = Triple(0.0, 0.0, 0.0);
     d->m_end = d->m_beg;
@@ -189,7 +189,7 @@ void Qwt3DAxis::setMajors(int val)
 /**
  * @brief Sets number of minor intervals
  * @param val Number of minor intervals (always >= 1)
- * @see LogScale::setMinors()
+ * @see Qwt3DLogScale::setMinors()
  */
 void Qwt3DAxis::setMinors(int val)
 {
@@ -696,13 +696,13 @@ Triple Qwt3DAxis::biggestNumberString()
 
 /**
  * @brief Sets a user-defined scale object
- * @param val Pointer to a Scale object. Use with a heap based initialized pointer only.
+ * @param val Pointer to a Qwt3DScale object. Use with a heap based initialized pointer only.
  *            The axis adopts ownership.
  */
-void Qwt3DAxis::setScale(Scale* val)
+void Qwt3DAxis::setScale(Qwt3DScale* val)
 {
     QWT_D(d);
-    d->m_scale = ClonePtr< Scale >(val);
+    d->m_scale = Qwt3DClonePtr< Qwt3DScale >(val);
 }
 
 /**
@@ -716,10 +716,10 @@ void Qwt3DAxis::setScale(SCALETYPE val)
 {
     switch (val) {
     case LINEARSCALE:
-        setScale(new LinearScale);
+        setScale(new Qwt3DLinearScale);
         break;
     case LOG10SCALE:
-        setScale(new LogScale);
+        setScale(new Qwt3DLogScale);
         setMinors(9);
         break;
     default:

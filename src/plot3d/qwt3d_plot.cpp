@@ -62,7 +62,7 @@ Plot3D::Plot3D(QWidget* parent) : QOpenGLWidget(parent), QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
 
-    d->m_dataColor = new StandardColor(this, 100);
+    d->m_dataColor = new Qwt3DStandardColor(this, 100);
     d->m_title.setFont("Courier", 16, QFont::Bold);
     d->m_title.setString("");
 
@@ -221,7 +221,7 @@ PLOTSTYLE Plot3D::plotStyle() const
     return d->m_plotStyle;
 }
 
-Enrichment* Plot3D::userStyle() const
+Qwt3DEnrichment* Plot3D::userStyle() const
 {
     QWT_DC(d);
     return d->m_userPlotStyle;
@@ -269,7 +269,7 @@ double Plot3D::meshLineWidth() const
     return d->m_meshLineWidth;
 }
 
-const Color* Plot3D::dataColor() const
+const Qwt3DColor* Plot3D::dataColor() const
 {
     QWT_DC(d);
     return d->m_dataColor;
@@ -574,9 +574,9 @@ void Plot3D::setBackgroundColor(RGBA rgba)
 
 /**
  * @brief Assigns a new coloring object for the data
- * @param col Pointer to a new Color object
+ * @param col Pointer to a new Qwt3DColor object
  */
-void Plot3D::setDataColor(Color* col)
+void Plot3D::setDataColor(Qwt3DColor* col)
 {
     QWT_D(d);
     Q_ASSERT(d->m_dataColor);
@@ -630,10 +630,10 @@ void Plot3D::setPlotStyle(PLOTSTYLE val)
 
 /**
  * @brief Sets plot style to USER with an associated enrichment object
- * @param obj Reference to an Enrichment object
+ * @param obj Reference to a Qwt3DEnrichment object
  * @return Pointer to the cloned enrichment object
  */
-Enrichment* Plot3D::setPlotStyle(Enrichment const& obj)
+Qwt3DEnrichment* Plot3D::setPlotStyle(Qwt3DEnrichment const& obj)
 {
     QWT_D(d);
     if (&obj == d->m_userPlotStyle)
@@ -740,10 +740,10 @@ void Plot3D::setTitleFont(const QString& family, int pointSize, int weight, bool
 
 /**
  * @brief Adds an enrichment object to the plot
- * @param e Reference to an Enrichment object
+ * @param e Reference to a Qwt3DEnrichment object
  * @return Pointer to the cloned enrichment object added to the list
  */
-Enrichment* Plot3D::addEnrichment(Enrichment const& e)
+Qwt3DEnrichment* Plot3D::addEnrichment(Qwt3DEnrichment const& e)
 {
     QWT_D(d);
     if (d->m_enrichmentList.end() == std::find(d->m_enrichmentList.begin(), d->m_enrichmentList.end(), &e))
@@ -753,10 +753,10 @@ Enrichment* Plot3D::addEnrichment(Enrichment const& e)
 
 /**
  * @brief Removes an enrichment object from the plot
- * @param e Pointer to the Enrichment object to remove
+ * @param e Pointer to the Qwt3DEnrichment object to remove
  * @return True if the enrichment was found and removed, false otherwise
  */
-bool Plot3D::degrade(Enrichment* e)
+bool Plot3D::degrade(Qwt3DEnrichment* e)
 {
     QWT_D(d);
     ELIT it = std::find(d->m_enrichmentList.begin(), d->m_enrichmentList.end(), e);

@@ -123,9 +123,9 @@ void Qwt3DColorLegend::setScale(SCALETYPE val)
 
 /**
  * @brief Sets a user-defined scale object
- * @param val Pointer to a Scale object
+ * @param val Pointer to a Qwt3DScale object
  */
-void Qwt3DColorLegend::setScale(Scale* val)
+void Qwt3DColorLegend::setScale(Qwt3DScale* val)
 {
     QWT_D(d);
     d->m_axis.setScale(val);

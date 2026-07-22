@@ -88,7 +88,7 @@ protected:
 
     void calculateHull() override;
     void createData() override;
-    void createEnrichment(Enrichment& p) override;
+    void createEnrichment(Qwt3DEnrichment& p) override;
     virtual void createFloorData();
     void createNormals();
     void createPoints();

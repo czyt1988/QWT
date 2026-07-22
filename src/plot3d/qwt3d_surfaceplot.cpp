@@ -217,11 +217,11 @@ pair< int, int > SurfacePlot::facets() const
 
 void SurfacePlot::createPoints()
 {
-    Dot pt;
+    Qwt3DDot pt;
     createEnrichment(pt);
 }
 
-void SurfacePlot::createEnrichment(Enrichment& p)
+void SurfacePlot::createEnrichment(Qwt3DEnrichment& p)
 {
     QWT_D(d);
     Qwt3DData* data = actualData();
@@ -229,13 +229,13 @@ void SurfacePlot::createEnrichment(Enrichment& p)
         return;
 
     // todo future work
-    if (p.type() != Enrichment::VERTEXENRICHMENT)
+    if (p.type() != Qwt3DEnrichment::VERTEXENRICHMENT)
         return;
 
     p.assign(*this);
     p.drawBegin();
 
-    VertexEnrichment* ve = static_cast< VertexEnrichment* >(&p);
+    Qwt3DVertexEnrichment* ve = static_cast< Qwt3DVertexEnrichment* >(&p);
     if (data->datatype == POLYGON) {
         for (unsigned i = 0; i != d->m_actualDataC->normals.size(); ++i)
             ve->draw(d->m_actualDataC->nodes[ i ]);
