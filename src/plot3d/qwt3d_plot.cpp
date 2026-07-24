@@ -428,16 +428,25 @@ void Qwt3DPlot::paintGL()
     // Draw coordinate system
     d->m_coordinates.draw();
 
-    // Draw legend (after items so item color functors are initialized)
+    // Draw legend and title with a FIXED modelview (no user rotation)
+    // so they stay anchored to the screen regardless of 3D scene rotation.
+    // This matches the original libqwtplot3d behavior where legend/title
+    // were drawn before user rotation was applied to the modelview matrix.
+    QMatrix4x4 savedModelView = d->m_modelView;
+    d->m_modelView.setToIdentity();
+    d->m_modelView.rotate(-90.0f, 1.0f, 0.0f, 0.0f);
+
     if (d->m_displayLegend) {
         for (Qwt3DPlotItem* item : d->m_items)
             item->populateLegendColors(d->m_legend.colors);
         d->m_legend.draw();
     }
 
-    // Draw title
     d->m_title.setRelPosition(d->m_titleRel, d->m_titleAnchor);
     d->m_title.draw();
+
+    // Restore user modelview for subsequent operations (mouse picking, etc.)
+    d->m_modelView = savedModelView;
 }
 
 /**
