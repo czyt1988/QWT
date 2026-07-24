@@ -43,6 +43,7 @@ public:
     ANCHOR m_anchor;
     int m_gap;
     bool m_flagForUpdate;
+    float m_ndcZ = 0.0f;
 };
 
 Qwt3DLabel::Qwt3DLabel() : QWT_PIMPL_CONSTRUCT
@@ -243,9 +244,9 @@ void Qwt3DLabel::convert2screen()
                      static_cast< float >(d->m_pos.z),
                      1.0f);
     QVector4D clip = mvp.map(posVec);
-    float ndcZ = 0.0f;
+    d->m_ndcZ = 0.0f;
     if (clip.w() != 0.0f)
-        ndcZ = clip.z() / clip.w();
+        d->m_ndcZ = clip.z() / clip.w();
 
     QSize vp = p->viewportSize();
     if (vp.width() <= 0 || vp.height() <= 0)
@@ -255,7 +256,7 @@ void Qwt3DLabel::convert2screen()
     auto screenToWorldZ = [&](const QPointF& s) -> Triple {
         float ndcX = 2.0f * static_cast< float >(s.x()) / vp.width() - 1.0f;
         float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / vp.height();
-        QVector4D ndc(ndcX, ndcY, ndcZ, 1.0f);
+        QVector4D ndc(ndcX, ndcY, d->m_ndcZ, 1.0f);
         QVector4D world = mvp.inverted().map(ndc);
         if (world.w() != 0.0f)
             return Triple(world.x() / world.w(), world.y() / world.w(), world.z() / world.w());
@@ -347,20 +348,48 @@ void Qwt3DLabel::draw()
     texture.setMagnificationFilter(QOpenGLTexture::Linear);
     texture.setWrapMode(QOpenGLTexture::ClampToEdge);
 
+    // Compute all four quad corners via screen-to-world conversion.
+    // m_beg and m_end are two diagonal corners (BL, TR) in world space,
+    // but the other two corners cannot be synthesized by mixing x/y/z
+    // components — they must be computed independently from screen space.
+    Qwt3DPlot* p = plot();
+    QMatrix4x4 mvp = p->projectionMatrix() * p->modelViewMatrix();
+    QSize vp = p->viewportSize();
+
+    QPointF begScreen = p->worldToScreen(d->m_beg);
+    QPointF endScreen = p->worldToScreen(d->m_end);
+
+    auto screenToWorldZ = [&](const QPointF& s) -> Triple {
+        if (vp.width() <= 0 || vp.height() <= 0)
+            return Triple(0, 0, 0);
+        float ndcX = 2.0f * static_cast< float >(s.x()) / vp.width() - 1.0f;
+        float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / vp.height();
+        QVector4D ndc(ndcX, ndcY, d->m_ndcZ, 1.0f);
+        QVector4D world = mvp.inverted().map(ndc);
+        if (world.w() != 0.0f)
+            return Triple(world.x() / world.w(), world.y() / world.w(), world.z() / world.w());
+        return Triple(0, 0, 0);
+    };
+
+    Triple bl = d->m_beg;
+    Triple tr = d->m_end;
+    Triple tl = screenToWorldZ(QPointF(begScreen.x(), endScreen.y()));
+    Triple br = screenToWorldZ(QPointF(endScreen.x(), begScreen.y()));
+
     // Build quad vertices: position(3) + texcoord(2) = 5 floats per vertex
     // Triangle strip order: BL, TL, BR, TR
     QVector<float> verts;
     // Bottom-left
-    verts << static_cast< float >(d->m_beg.x) << static_cast< float >(d->m_beg.y) << static_cast< float >(d->m_beg.z)
+    verts << static_cast< float >(bl.x) << static_cast< float >(bl.y) << static_cast< float >(bl.z)
           << 0.0f << 1.0f;
     // Top-left
-    verts << static_cast< float >(d->m_beg.x) << static_cast< float >(d->m_end.y) << static_cast< float >(d->m_end.z)
+    verts << static_cast< float >(tl.x) << static_cast< float >(tl.y) << static_cast< float >(tl.z)
           << 0.0f << 0.0f;
     // Bottom-right
-    verts << static_cast< float >(d->m_end.x) << static_cast< float >(d->m_beg.y) << static_cast< float >(d->m_beg.z)
+    verts << static_cast< float >(br.x) << static_cast< float >(br.y) << static_cast< float >(br.z)
           << 1.0f << 1.0f;
     // Top-right
-    verts << static_cast< float >(d->m_end.x) << static_cast< float >(d->m_end.y) << static_cast< float >(d->m_end.z)
+    verts << static_cast< float >(tr.x) << static_cast< float >(tr.y) << static_cast< float >(tr.z)
           << 1.0f << 0.0f;
 
     QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
@@ -388,7 +417,9 @@ void Qwt3DLabel::draw()
 
     f->glEnable(GL_BLEND);
     f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    f->glDisable(GL_DEPTH_TEST);
     f->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    f->glEnable(GL_DEPTH_TEST);
 
     shader->disableAttributeArray(0);
     shader->disableAttributeArray(1);

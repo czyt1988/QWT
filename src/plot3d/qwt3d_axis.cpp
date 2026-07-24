@@ -658,6 +658,8 @@ void Qwt3DAxis::drawTics()
 
         // Draw tic labels
         for (i = 0; i != majorsVec.size(); ++i) {
+            double t = (majorsVec[ i ] - d->m_start) / (d->m_stop - d->m_start);
+            nadir    = d->m_beg + t * runningpoint;
             drawTicLabel(nadir + 1.2 * d->m_lmaj * d->m_orientation, static_cast< int >(i));
         }
     }
