@@ -122,6 +122,18 @@ enum SIDE
 };
 
 /**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+    TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+    TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
  * @brief Possible anchor points for drawing operations
  */
 enum ANCHOR

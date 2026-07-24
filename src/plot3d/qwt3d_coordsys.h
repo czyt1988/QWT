@@ -70,6 +70,12 @@ public:
     void setAutoDecoration(bool val = true);
     bool autoDecoration() const;
 
+    // Set tick position preference for auto-decorated axes
+    // TICK_BOTTOM (default): ticks on visually lower axis; TICK_TOP: ticks on visually upper axis
+    void setTickPosition(TICKPOSITION val);
+    // Returns tick position preference
+    TICKPOSITION tickPosition() const;
+
     // Draw smooth axes
     void setLineSmooth(bool val = true);
     // Smooth axes enabled?

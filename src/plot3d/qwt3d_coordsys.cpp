@@ -21,6 +21,7 @@ public:
         , m_majorgridlines(false)
         , m_minorgridlines(false)
         , m_sides(0)
+        , m_tickPosition(TICK_BOTTOM)
     {
     }
 
@@ -31,6 +32,7 @@ public:
     bool m_autodecoration;
     bool m_majorgridlines, m_minorgridlines;
     int m_sides;
+    TICKPOSITION m_tickPosition;
 };
 
 Qwt3DCoordinateSystem::Qwt3DCoordinateSystem(Triple first, Triple second, COORDSTYLE st) : QWT_PIMPL_CONSTRUCT
@@ -256,7 +258,13 @@ void Qwt3DCoordinateSystem::chooseAxes()
                 {
                     if (rem_x >= 0)
                     {
-                        double y = min(min(end[ rem_x ].y(), end[ i ].y()), min(beg[ rem_x ].y(), beg[ i ].y()));
+                        // Screen y increases downward; max y = visually lower, min y = visually upper
+                        double y;
+                        if (d->m_tickPosition == TICK_BOTTOM) {
+                            y = max(max(end[ rem_x ].y(), end[ i ].y()), max(beg[ rem_x ].y(), beg[ i ].y()));
+                        } else {
+                            y = min(min(end[ rem_x ].y(), end[ i ].y()), min(beg[ rem_x ].y(), beg[ i ].y()));
+                        }
                         choice_x = (y == beg[ i ].y() || y == end[ i ].y()) ? static_cast< int >(i) : rem_x;
 
                         other_x = (choice_x == static_cast< int >(i)) ? rem_x : static_cast< int >(i);
@@ -270,7 +278,13 @@ void Qwt3DCoordinateSystem::chooseAxes()
                     }
                 } else if (i == Y1 || i == Y2 || i == Y3 || i == Y4) {
                     if (rem_y >= 0) {
-                        double y = min(min(end[ rem_y ].y(), end[ i ].y()), min(beg[ rem_y ].y(), beg[ i ].y()));
+                        // Screen y increases downward; max y = visually lower, min y = visually upper
+                        double y;
+                        if (d->m_tickPosition == TICK_BOTTOM) {
+                            y = max(max(end[ rem_y ].y(), end[ i ].y()), max(beg[ rem_y ].y(), beg[ i ].y()));
+                        } else {
+                            y = min(min(end[ rem_y ].y(), end[ i ].y()), min(beg[ rem_y ].y(), beg[ i ].y()));
+                        }
                         choice_y = (y == beg[ i ].y() || y == end[ i ].y()) ? static_cast< int >(i) : rem_y;
 
                         other_y = (choice_y == static_cast< int >(i)) ? rem_y : static_cast< int >(i);
@@ -283,6 +297,9 @@ void Qwt3DCoordinateSystem::chooseAxes()
                     }
                 } else if (i == Z1 || i == Z2 || i == Z3 || i == Z4) {
                     if (rem_z >= 0) {
+                        // Two Z axes found on hull — track for post-loop connection check
+                        choice_z = rem_z;
+                        other_z = static_cast< int >(i);
                         rem_z = -1;
                     } else {
                         rem_z = static_cast< int >(i);
@@ -651,6 +668,18 @@ bool Qwt3DCoordinateSystem::autoDecoration() const
 {
     QWT_DC(d);
     return d->m_autodecoration;
+}
+
+void Qwt3DCoordinateSystem::setTickPosition(TICKPOSITION val)
+{
+    QWT_D(d);
+    d->m_tickPosition = val;
+}
+
+TICKPOSITION Qwt3DCoordinateSystem::tickPosition() const
+{
+    QWT_DC(d);
+    return d->m_tickPosition;
 }
 
 void Qwt3DCoordinateSystem::setLineSmooth(bool val)
