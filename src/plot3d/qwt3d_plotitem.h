@@ -92,6 +92,9 @@ public:
     /// Notify the plot that the item has changed
     virtual void itemChanged();
 
+    /// Populate the legend color vector from the item's color functor
+    virtual void populateLegendColors(ColorVector& colors) const;
+
 private:
     Qwt3DPlotItem(const Qwt3DPlotItem&) = delete;
     Qwt3DPlotItem& operator=(const Qwt3DPlotItem&) = delete;

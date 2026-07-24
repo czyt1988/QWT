@@ -419,13 +419,6 @@ void Qwt3DPlot::paintGL()
                           static_cast< float >(-7 * radius));
     d->m_projection = projection;
 
-    // Draw legend and title
-    if (d->m_displayLegend) {
-        d->m_legend.draw();
-    }
-    d->m_title.setRelPosition(d->m_titleRel, d->m_titleAnchor);
-    d->m_title.draw();
-
     // Render all attached items (sorted by z-order)
     for (Qwt3DPlotItem* item : d->m_items) {
         if (item->isVisible())
@@ -434,6 +427,17 @@ void Qwt3DPlot::paintGL()
 
     // Draw coordinate system
     d->m_coordinates.draw();
+
+    // Draw legend (after items so item color functors are initialized)
+    if (d->m_displayLegend) {
+        for (Qwt3DPlotItem* item : d->m_items)
+            item->populateLegendColors(d->m_legend.colors);
+        d->m_legend.draw();
+    }
+
+    // Draw title
+    d->m_title.setRelPosition(d->m_titleRel, d->m_titleAnchor);
+    d->m_title.draw();
 }
 
 /**
@@ -465,16 +469,13 @@ void Qwt3DPlot::createCoordinateSystem(Triple beg, Triple end)
 /**
  * @brief Shows or hides the color legend
  * @param show True to show, false to hide
- * @details The color legend colors will be provided by items in future versions.
- *          Currently the legend uses default colors.
- *          TODO: Once Qwt3DSurface items are implemented, legend colors
- *          should be provided by the surface item's dataColor functor.
+ * @details The color legend colors are populated from attached items'
+ *          dataColor functors during paintGL.
  */
 void Qwt3DPlot::showColorLegend(bool show)
 {
     QWT_D(d);
     d->m_displayLegend = show;
-    // TODO: legend colors will be provided by items' dataColor in future
     update();
 }
 

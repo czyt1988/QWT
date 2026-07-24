@@ -177,3 +177,7 @@ void Qwt3DPlotItem::itemChanged()
     if (d->m_plot)
         d->m_plot->itemChanged(this);
 }
+
+void Qwt3DPlotItem::populateLegendColors(ColorVector&) const
+{
+}

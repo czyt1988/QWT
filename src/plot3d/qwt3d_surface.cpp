@@ -527,6 +527,13 @@ const Qwt3DColor* Qwt3DSurface::dataColor() const
     return d->m_dataColor;
 }
 
+void Qwt3DSurface::populateLegendColors(ColorVector& colors) const
+{
+    QWT_DC(d);
+    if (d->m_dataColor)
+        d->m_dataColor->createVector(colors);
+}
+
 /**
  * @brief Returns the mesh line color
  */

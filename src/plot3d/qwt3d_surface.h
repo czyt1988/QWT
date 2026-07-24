@@ -138,6 +138,7 @@ public:
 
     void draw() override;
     ParallelEpiped hull() const override;
+    void populateLegendColors(ColorVector& colors) const override;
 
 public Q_SLOTS:
     /// Sets the data resolution (1 = full, higher = coarser)
