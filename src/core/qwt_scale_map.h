@@ -74,19 +74,19 @@ public:
     double invTransform(double p) const;
 
     //! Return first border of paint interval
-    constexpr double p1() const noexcept;
+    Q_DECL_CONSTEXPR double p1() const noexcept { return m_p1; }
     //! Return second border of paint interval
-    constexpr double p2() const noexcept;
+    Q_DECL_CONSTEXPR double p2() const noexcept { return m_p2; }
 
     //! Return first border of scale interval
-    constexpr double s1() const noexcept;
+    Q_DECL_CONSTEXPR double s1() const noexcept { return m_s1; }
     //! Return second border of scale interval
-    constexpr double s2() const noexcept;
+    Q_DECL_CONSTEXPR double s2() const noexcept { return m_s2; }
 
     //! Return distance between paint interval boundaries
-    double pDist() const;
+    double pDist() const { return qAbs(m_p2 - m_p1); }
     //! Return distance between scale interval boundaries
-    double sDist() const;
+    double sDist() const { return qAbs(m_s2 - m_s1); }
 
     //! Transform a rectangle from scale to paint coordinates
     static QRectF transform(const QwtScaleMap&, const QwtScaleMap&, const QRectF&);
@@ -104,16 +104,16 @@ public:
     static bool isLinerScale(const QwtScaleMap& sm);
 
     //! Check if this scale has no nonlinear transformation
-    constexpr bool isLinear() const noexcept;
+    Q_DECL_CONSTEXPR bool isLinear() const noexcept { return m_transform == nullptr; }
 
     //! Check if the mapping direction is inverted
-    constexpr bool isInverting() const noexcept;
+    Q_DECL_CONSTEXPR bool isInverting() const noexcept { return ((m_p1 < m_p2) != (m_s1 < m_s2)); }
 
     //! Conversion factor for linear fast-path: result = p1() + (value - ts1()) * cnv()
-    constexpr double cnv() const noexcept;
+    Q_DECL_CONSTEXPR double cnv() const noexcept { return m_cnv; }
 
     //! Transformed scale origin for linear fast-path
-    constexpr double ts1() const noexcept;
+    Q_DECL_CONSTEXPR double ts1() const noexcept { return m_ts1; }
 
 protected:
     void swap(QwtScaleMap& other) noexcept;  // helper
@@ -128,54 +128,6 @@ private:
 
     QwtTransform* m_transform { nullptr };
 };
-
-/**
- * @brief Return first border of the scale interval
- */
-inline constexpr double QwtScaleMap::s1() const noexcept
-{
-    return m_s1;
-}
-
-/**
- * @brief Return second border of the scale interval
- */
-inline constexpr double QwtScaleMap::s2() const noexcept
-{
-    return m_s2;
-}
-
-/**
- * @brief Return first border of the paint interval
- */
-inline constexpr double QwtScaleMap::p1() const noexcept
-{
-    return m_p1;
-}
-
-/**
- * @brief Return second border of the paint interval
- */
-inline constexpr double QwtScaleMap::p2() const noexcept
-{
-    return m_p2;
-}
-
-/**
- * @brief Return qwtAbs(p2() - p1())
- */
-inline double QwtScaleMap::pDist() const
-{
-    return qAbs(m_p2 - m_p1);
-}
-
-/**
- * @brief Return qwtAbs(s2() - s1())
- */
-inline double QwtScaleMap::sDist() const
-{
-    return qAbs(m_s2 - m_s1);
-}
 
 /**
  * @brief Transform a point related to the scale interval into a point related to the paint device interval
@@ -204,30 +156,6 @@ inline double QwtScaleMap::invTransform(double p) const
         s = m_transform->invTransform(s);
 
     return s;
-}
-
-//! Return true when ( p1() < p2() ) != ( s1() < s2() )
-inline constexpr bool QwtScaleMap::isInverting() const noexcept
-{
-    return ((m_p1 < m_p2) != (m_s1 < m_s2));
-}
-
-//! Return true when there is no nonlinear transformation
-inline constexpr bool QwtScaleMap::isLinear() const noexcept
-{
-    return m_transform == nullptr;
-}
-
-//! Return the conversion factor for linear fast-path transform
-inline constexpr double QwtScaleMap::cnv() const noexcept
-{
-    return m_cnv;
-}
-
-//! Return the transformed scale origin for linear fast-path transform
-inline constexpr double QwtScaleMap::ts1() const noexcept
-{
-    return m_ts1;
 }
 
 #ifndef QT_NO_DEBUG_STREAM

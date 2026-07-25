@@ -2129,7 +2129,10 @@ void QwtPlot::updateAxisEdgeMargin(QwtAxisId axisId)
     QRectF hostScaleRect = host->plotLayout()->scaleRect(axisId);
     // Host rectangle correction: only correct edgeMargin as the original rectangle
     hostScaleRect = shrinkRect(hostScaleRect, host->axisWidget(axisId)->edgeMargin(), axisId);
-    layers.append({ host, hostScaleRect });
+    AxisLayer hostLayer;
+    hostLayer.plot      = host;
+    hostLayer.scaleRect = hostScaleRect;
+    layers.append(hostLayer);
     // Parasite axes form levels 1, 2, ... in order of addition
     for (QwtPlot* p : parasites) {
         if (!p || !p->isAxisVisible(axisId)) {

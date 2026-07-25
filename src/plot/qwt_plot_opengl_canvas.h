@@ -35,6 +35,7 @@
 #include <QOpenGLWidget>
 #endif
 #include <QSurfaceFormat>
+#include <QPainterPath>
 
 class QwtPlot;
 

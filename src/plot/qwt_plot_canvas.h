@@ -31,6 +31,7 @@
 #include "qwt_plot_abstract_canvas.h"
 
 #include <qframe.h>
+#include <qpainterpath.h>
 
 class QwtPlot;
 class QPixmap;

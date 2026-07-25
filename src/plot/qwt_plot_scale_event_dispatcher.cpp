@@ -401,7 +401,11 @@ bool QwtPlotScaleEventDispatcher::handleWheelEvent(QwtPlot* bindPlot, QWheelEven
     QwtScaleWidget* targetScale = findTargetOnScale(qwt::compat::eventPos(e));
     if (d->currentScale && d->currentScale == targetScale) {
         if (d->currentScale->testBuildinActions(QwtScaleWidget::ActionWheelZoom)) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
             QPoint p = e->globalPosition().toPoint();
+#else
+            QPoint p = e->globalPos();
+#endif
             p        = d->currentScale->mapFromGlobal(p);
             if (qwt::compat::wheelEventDelta(e) > 0) {
                 d->currentPlot->zoomAxis(d->currentAxisId, d->zoomFactor, p);

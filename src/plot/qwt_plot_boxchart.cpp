@@ -19,7 +19,11 @@
 #include "qwt_text.h"
 
 #include <qpainter.h>
+#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
 #include <qrandom.h>
+#else
+#include <qdatetime.h>
+#endif
 
 class QwtPlotBoxChart::PrivateData
 {
@@ -918,9 +922,14 @@ void QwtPlotBoxChart::drawOutliers(QPainter* painter,
     const bool doAlign           = QwtPainter::roundingAlignment(painter);
     const double jitter          = d->outlierJitter;
 
+#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
     QRandomGenerator* rng = nullptr;
     if (jitter > 0)
         rng = QRandomGenerator::global();
+#else
+    if (jitter > 0)
+        qsrand(static_cast<uint>(QTime::currentTime().msecsSinceStartOfDay()));
+#endif
 
     for (size_t i = 0; i < m_outlierData->size(); ++i) {
         const QwtBoxOutlierSample& outlierSample = m_outlierData->sample(i);
@@ -935,10 +944,18 @@ void QwtPlotBoxChart::drawOutliers(QPainter* painter,
                 valuePixel = qRound(valuePixel);
 
             double posPixel = basePosPixel;
+#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
             if (jitter > 0 && rng) {
                 const double offset = rng->bounded(jitter) - jitter * 0.5;
                 posPixel += offset;
             }
+#else
+            if (jitter > 0)
+            {
+                const double offset = (static_cast<double>(qrand()) / RAND_MAX) * jitter - jitter * 0.5;
+                posPixel += offset;
+            }
+#endif
 
             QPointF point = (orient == Qt::Vertical) ? QPointF(posPixel, valuePixel) : QPointF(valuePixel, posPixel);
 

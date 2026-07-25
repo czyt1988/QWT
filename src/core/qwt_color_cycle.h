@@ -12,6 +12,7 @@
 
 #include "qwtcore_global.h"
 #include <qcolor.h>
+#include <qvector.h>
 
 #if QT_VERSION < 0x060000
 template< typename T >

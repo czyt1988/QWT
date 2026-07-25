@@ -222,7 +222,7 @@ QVector< QPair< double, QColor > > QwtColorMapPreset::colorStops(Preset preset)
  */
 std::unique_ptr< QwtLinearColorMap > QwtColorMapPreset::create(Preset preset)
 {
-    auto map         = std::make_unique< QwtLinearColorMap >();
+    auto map         = qwt_make_unique< QwtLinearColorMap >();
     const auto stops = colorStops(preset);
     if (stops.isEmpty())
         return map;

@@ -60,8 +60,8 @@ public:
     //! Border flags
     Q_DECLARE_FLAGS(BorderFlags, BorderFlag)
 
-    constexpr QwtInterval() noexcept;
-    constexpr QwtInterval(double minValue, double maxValue, BorderFlags = IncludeBorders) noexcept;
+    Q_DECL_CONSTEXPR QwtInterval() noexcept;
+    Q_DECL_CONSTEXPR QwtInterval(double minValue, double maxValue, BorderFlags = IncludeBorders) noexcept;
 
     // Assign the limits of the interval
     void setInterval(double minValue, double maxValue, BorderFlags = IncludeBorders) noexcept;
@@ -79,14 +79,14 @@ public:
     bool operator!=(const QwtInterval&) const;
 
     void setBorderFlags(BorderFlags) noexcept;
-    constexpr BorderFlags borderFlags() const noexcept;
+    Q_DECL_CONSTEXPR BorderFlags borderFlags() const noexcept;
 
-    constexpr double minValue() const noexcept;
-    constexpr double maxValue() const noexcept;
-    constexpr double centerValue() const noexcept;
+    Q_DECL_CONSTEXPR double minValue() const noexcept;
+    Q_DECL_CONSTEXPR double maxValue() const noexcept;
+    Q_DECL_CONSTEXPR double centerValue() const noexcept;
 
-    constexpr double width() const noexcept;
-    constexpr long double widthL() const noexcept;
+    Q_DECL_CONSTEXPR double width() const noexcept;
+    Q_DECL_CONSTEXPR long double widthL() const noexcept;
 
     void setMinValue(double) noexcept;
     void setMaxValue(double) noexcept;
@@ -120,8 +120,8 @@ public:
     // Extend an interval with a value
     QwtInterval& operator|=(double);
 
-    constexpr bool isValid() const noexcept;
-    constexpr bool isNull() const noexcept;
+    Q_DECL_CONSTEXPR bool isValid() const noexcept;
+    Q_DECL_CONSTEXPR bool isNull() const noexcept;
     void invalidate() noexcept;
 
     // Symmetrize the interval around a value
@@ -142,7 +142,7 @@ Q_DECLARE_TYPEINFO(QwtInterval, Q_MOVABLE_TYPE);
  * @details Creates an invalid interval [0.0, -1.0]
  * @sa setInterval(), isValid()
  */
-inline constexpr QwtInterval::QwtInterval() noexcept : m_minValue(0.0), m_maxValue(-1.0), m_borderFlags(IncludeBorders)
+inline Q_DECL_CONSTEXPR QwtInterval::QwtInterval() noexcept : m_minValue(0.0), m_maxValue(-1.0), m_borderFlags(IncludeBorders)
 {
 }
 
@@ -152,7 +152,7 @@ inline constexpr QwtInterval::QwtInterval() noexcept : m_minValue(0.0), m_maxVal
  * @param maxValue Maximum value
  * @param borderFlags Include/Exclude borders
  */
-inline constexpr QwtInterval::QwtInterval(double minValue, double maxValue, BorderFlags borderFlags) noexcept
+inline Q_DECL_CONSTEXPR QwtInterval::QwtInterval(double minValue, double maxValue, BorderFlags borderFlags) noexcept
     : m_minValue(minValue), m_maxValue(maxValue), m_borderFlags(borderFlags)
 {
 }
@@ -184,7 +184,7 @@ inline void QwtInterval::setBorderFlags(BorderFlags borderFlags) noexcept
  * @return Border flags
  * @sa setBorderFlags()
  */
-inline constexpr QwtInterval::BorderFlags QwtInterval::borderFlags() const noexcept
+inline Q_DECL_CONSTEXPR QwtInterval::BorderFlags QwtInterval::borderFlags() const noexcept
 {
     return m_borderFlags;
 }
@@ -211,7 +211,7 @@ inline void QwtInterval::setMaxValue(double maxValue) noexcept
  * @return Minimum value of the interval
  * @sa setMinValue()
  */
-inline constexpr double QwtInterval::minValue() const noexcept
+inline Q_DECL_CONSTEXPR double QwtInterval::minValue() const noexcept
 {
     return m_minValue;
 }
@@ -220,7 +220,7 @@ inline constexpr double QwtInterval::minValue() const noexcept
  * @return Maximum value of the interval
  * @sa setMaxValue()
  */
-inline constexpr double QwtInterval::maxValue() const noexcept
+inline Q_DECL_CONSTEXPR double QwtInterval::maxValue() const noexcept
 {
     return m_maxValue;
 }
@@ -229,7 +229,7 @@ inline constexpr double QwtInterval::maxValue() const noexcept
  * @return Center of the interval
  * @sa width()
  */
-inline constexpr double QwtInterval::centerValue() const noexcept
+inline Q_DECL_CONSTEXPR double QwtInterval::centerValue() const noexcept
 {
     return isValid() ? (m_minValue + (m_maxValue - m_minValue) * 0.5) : 0.0;
 }
@@ -241,7 +241,7 @@ inline constexpr double QwtInterval::centerValue() const noexcept
  * @return True, if the interval is valid
  * @sa isValid()
  */
-inline constexpr bool QwtInterval::isValid() const noexcept
+inline Q_DECL_CONSTEXPR bool QwtInterval::isValid() const noexcept
 {
     return ((m_borderFlags & ExcludeBorders) == 0) ? (m_minValue <= m_maxValue) : (m_minValue < m_maxValue);
 }
@@ -252,7 +252,7 @@ inline constexpr bool QwtInterval::isValid() const noexcept
  * @return Interval width
  * @sa isValid()
  */
-inline constexpr double QwtInterval::width() const noexcept
+inline Q_DECL_CONSTEXPR double QwtInterval::width() const noexcept
 {
     return isValid() ? (m_maxValue - m_minValue) : 0.0;
 }
@@ -264,7 +264,7 @@ inline constexpr double QwtInterval::width() const noexcept
  * @return Interval width
  * @sa isValid()
  */
-inline constexpr long double QwtInterval::widthL() const noexcept
+inline Q_DECL_CONSTEXPR long double QwtInterval::widthL() const noexcept
 {
     return isValid() ? static_cast< long double >(m_maxValue) - static_cast< long double >(m_minValue) : 0.0L;
 }
@@ -326,7 +326,7 @@ inline QwtInterval QwtInterval::operator|(double value) const
  * @brief Check if interval is null
  * @return True if isValid() && (minValue() >= maxValue())
  */
-inline constexpr bool QwtInterval::isNull() const noexcept
+inline Q_DECL_CONSTEXPR bool QwtInterval::isNull() const noexcept
 {
     return isValid() && m_minValue >= m_maxValue;
 }
