@@ -36,12 +36,8 @@ add_subdirectory(2D/ticks_inside)
 add_subdirectory(2D/nanperf)
 
 if(QWT_CONFIG_QWTPLOT_3D)
-    add_subdirectory(3D/autoswitch)
-    add_subdirectory(3D/axes)
-    add_subdirectory(3D/enrichments)
     add_subdirectory(3D/figureSurface3D)
-    add_subdirectory(3D/mesh2)
-    add_subdirectory(3D/simpleplot3D)
+    add_subdirectory(3D/qwtplot3d)
 endif()
 if(QWT_CONFIG_BUILD_STATIC_EXAMPLE)
     # 静态编译示例

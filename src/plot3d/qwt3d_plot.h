@@ -93,6 +93,10 @@ public:
 
     // Show/hide color legend
     void showColorLegend(bool);
+    // Set legend to a predefined screen position
+    void setLegendPosition(Qwt3DColorLegend::Position pos);
+    // Set legend position using absolute pixel coordinates
+    void setLegendAbsolutePosition(const QRectF& pixelRect);
 
     // Set title position
     void setTitlePosition(double rely, double relx = 0.5, ANCHOR = TopCenter);

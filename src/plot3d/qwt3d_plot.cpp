@@ -488,6 +488,18 @@ void Qwt3DPlot::showColorLegend(bool show)
     update();
 }
 
+void Qwt3DPlot::setLegendPosition(Qwt3DColorLegend::Position pos)
+{
+    QWT_D(d);
+    d->m_legend.setPosition(pos);
+}
+
+void Qwt3DPlot::setLegendAbsolutePosition(const QRectF& pixelRect)
+{
+    QWT_D(d);
+    d->m_legend.setAbsolutePosition(pixelRect);
+}
+
 /**
  * @brief Sets the background color
  * @param rgba Background color as RGBA value

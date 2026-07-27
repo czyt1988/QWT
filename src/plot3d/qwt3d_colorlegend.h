@@ -6,6 +6,8 @@
 #include "qwt3d_axis.h"
 #include "qwt3d_color.h"
 
+#include <QRectF>
+
 
 
 /**
@@ -34,6 +36,21 @@ public:
         LeftRight
     };
 
+    // Predefined screen positions for the legend
+    enum Position
+    {
+        PosTopLeft,
+        PosTopCenter,
+        PosTopRight,
+        PosLeftCenter,
+        PosCenter,
+        PosRightCenter,
+        PosBottomLeft,
+        PosBottomCenter,
+        PosBottomRight,
+        PosCustom
+    };
+
     // Standard constructor
     Qwt3DColorLegend();
     ~Qwt3DColorLegend() override;
@@ -43,6 +60,12 @@ public:
 
     // Sets the relative position of the legend inside widget
     void setRelPosition(Tuple relMin, Tuple relMax);
+    // Sets legend to a predefined screen position
+    void setPosition(Position pos);
+    // Sets legend position using absolute pixel coordinates (Qt coordinate system, origin top-left)
+    void setAbsolutePosition(const QRectF& pixelRect);
+    // Returns the current position mode
+    Position position() const;
     // Sets legend orientation and scale position
     void setOrientation(ORIENTATION, SCALEPOSITION);
     // Sets the limit of the scale

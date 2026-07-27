@@ -20,6 +20,8 @@ public:
         m_axisposition = Qwt3DColorLegend::Left;
         m_orientation  = Qwt3DColorLegend::BottomTop;
         m_showaxis     = true;
+        m_position     = Qwt3DColorLegend::PosCustom;
+        m_useAbsolute  = false;
     }
 
     Qwt3DLabel m_caption;
@@ -29,6 +31,9 @@ public:
     Qwt3DColorLegend::SCALEPOSITION m_axisposition;
     Qwt3DColorLegend::ORIENTATION m_orientation;
     bool m_showaxis;
+    Qwt3DColorLegend::Position m_position;
+    QRectF m_absoluteRect;
+    bool m_useAbsolute;
 };
 
 Qwt3DColorLegend::Qwt3DColorLegend() : QWT_PIMPL_CONSTRUCT
@@ -115,6 +120,84 @@ void Qwt3DColorLegend::setRelPosition(Tuple relMin, Tuple relMax)
     QWT_D(d);
     d->m_relMin = relMin;
     d->m_relMax = relMax;
+    d->m_position = PosCustom;
+    d->m_useAbsolute = false;
+}
+
+void Qwt3DColorLegend::setPosition(Position pos)
+{
+    QWT_D(d);
+    d->m_position = pos;
+    d->m_useAbsolute = false;
+
+    // Default legend dimensions (relative to viewport)
+    const double margin = 0.02;
+    const double legendW = 0.03;
+    const double legendH = 0.32;
+
+    if (pos == PosCustom)
+        return;
+
+    double left, right, top, bottom;
+
+    // Horizontal placement
+    switch (pos) {
+    case PosTopLeft: case PosLeftCenter: case PosBottomLeft:
+        left = margin;
+        right = margin + legendW;
+        break;
+    case PosTopCenter: case PosCenter: case PosBottomCenter:
+        left = 0.5 - legendW / 2;
+        right = 0.5 + legendW / 2;
+        break;
+    case PosTopRight: case PosRightCenter: case PosBottomRight:
+        right = 1.0 - margin;
+        left = right - legendW;
+        break;
+    default:
+        return;
+    }
+
+    // Vertical placement (rel.y: 0 = top, 1 = bottom, Qt convention)
+    switch (pos) {
+    case PosTopLeft: case PosTopCenter: case PosTopRight:
+        top = margin;
+        bottom = margin + legendH;
+        break;
+    case PosLeftCenter: case PosCenter: case PosRightCenter:
+        top = 0.5 - legendH / 2;
+        bottom = 0.5 + legendH / 2;
+        break;
+    case PosBottomLeft: case PosBottomCenter: case PosBottomRight:
+        bottom = 1.0 - margin;
+        top = bottom - legendH;
+        break;
+    default:
+        return;
+    }
+
+    d->m_relMin = Tuple(left, top);
+    d->m_relMax = Tuple(right, bottom);
+
+    if (plot())
+        plot()->update();
+}
+
+void Qwt3DColorLegend::setAbsolutePosition(const QRectF& pixelRect)
+{
+    QWT_D(d);
+    d->m_absoluteRect = pixelRect;
+    d->m_useAbsolute = true;
+    d->m_position = PosCustom;
+
+    if (plot())
+        plot()->update();
+}
+
+Qwt3DColorLegend::Position Qwt3DColorLegend::position() const
+{
+    QWT_DC(d);
+    return d->m_position;
 }
 
 void Qwt3DColorLegend::setGeometryInternal()
@@ -124,8 +207,23 @@ void Qwt3DColorLegend::setGeometryInternal()
     if (!plot())
         return;
 
-    d->m_pe.minVertex = relativePosition(Triple(d->m_relMin.x, d->m_relMin.y, 0.99));
-    d->m_pe.maxVertex = relativePosition(Triple(d->m_relMax.x, d->m_relMax.y, 0.99));
+    Tuple relMin = d->m_relMin;
+    Tuple relMax = d->m_relMax;
+
+    // Convert absolute pixel coordinates to relative on each draw
+    // so the legend tracks viewport resize correctly
+    if (d->m_useAbsolute) {
+        QSize vp = plot()->viewportSize();
+        if (vp.width() > 0 && vp.height() > 0) {
+            relMin = Tuple(d->m_absoluteRect.left() / vp.width(),
+                           d->m_absoluteRect.top() / vp.height());
+            relMax = Tuple(d->m_absoluteRect.right() / vp.width(),
+                           d->m_absoluteRect.bottom() / vp.height());
+        }
+    }
+
+    d->m_pe.minVertex = relativePosition(Triple(relMin.x, relMin.y, 0.99));
+    d->m_pe.maxVertex = relativePosition(Triple(relMax.x, relMax.y, 0.99));
 
     double diff = 0;
     Triple b;
