@@ -16,14 +16,14 @@
 | `QWT_CONFIG_QWTWIDGETS` | `ON` | 启用除 QwtPlot 外的其他控件（如滑块、刻度盘等）相关类 |
 | `QWT_CONFIG_QWTSVG` | `ON` | 启用 SVG 图像显示和导出功能，允许在图表上显示 SVG 图像或将图表导出为 SVG 文档 |
 | `QWT_CONFIG_QWTOPENGL` | `ON` | 启用 OpenGL 画布支持，允许使用 OpenGL 渲染图表 |
-| `QWT_CONFIG_QWTPLOT_3D` | `ON` | 启用 QwtPlot3D，允许使用3D图表 |
+| `QWT_CONFIG_QWTPLOT_3D` | `ON` | 启用 3D 绘图模块（Plot+Item 架构，需 OpenGL 3.3+ Core Profile） |
 | `QWT_CONFIG_BUILD_EXAMPLE` | `ON` | 构建示例程序 |
 | `QWT_CONFIG_BUILD_PLAYGROUND` | `ON` | 构建实验性代码 |
 | `QWT_CONFIG_BUILD_STATIC_EXAMPLE` | `ON` | 构建静态链接示例。注意：构建静态示例会需要相对较长的编译时间 |
 | `QWT_CONFIG_BUILD_TESTS` | `OFF` | 构建测试程序 |
 
 !!! tip
-    QWT 7.1之后的版本把QwtPlot3D的代码整合，实现了2D和3D图表，QwtPlot3D的代码来自[https://github.com/SciDAVis/qwtplot3d](https://github.com/SciDAVis/qwtplot3d)
+    QWT 7.1之后的版本把QwtPlot3D的代码整合，实现了2D和3D图表。v7.3.5起3D模块完全重构为 Plot+Item 架构，使用现代 OpenGL（VBO/VAO + GLSL 3.3 Core 着色器），不再使用旧版固定管线。原始 QwtPlot3D 代码来自[https://github.com/SciDAVis/qwtplot3d](https://github.com/SciDAVis/qwtplot3d)
 
 ### 基本构建步骤
 

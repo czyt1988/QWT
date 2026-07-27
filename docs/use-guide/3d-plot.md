@@ -1,63 +1,85 @@
 # 3D Plot Introduction
 
-Qwt 7.1 integrates the original `QwtPlot3D` library, providing 3D data visualization capabilities. The 3D plot module supports surface plots, grid plots, function plots, and other types, suitable for 3D data display in scientific computing and engineering analysis.
+Qwt 7.1 integrates the original `QwtPlot3D` library, providing 3D data visualization capabilities. Starting from v7.3.3, the 3D module has been fully refactored to a **Plot + Item** architecture that mirrors the 2D module (`QwtPlot` + `QwtPlotItem`), with modern OpenGL rendering (VBO/VAO + GLSL 3.3 Core shaders).
 
 ## Main Features
 
 **Features**
 
-- ✅ **Multiple plot types**: Surface plots, grid plots, parametric surfaces, etc.
-- ✅ **OpenGL rendering**: High-performance 3D rendering using OpenGL
+- ✅ **Plot + Item architecture**: `Qwt3DPlot` (rendering window) + `Qwt3DPlotItem` (drawable items), symmetric with 2D's `QwtPlot` + `QwtPlotItem`
+- ✅ **Multiple plot types**: Surface plots, grid plots, parametric surfaces, function plots, etc.
+- ✅ **Modern OpenGL rendering**: VBO/VAO + GLSL 3.3 Core shaders (no legacy fixed-function pipeline)
 - ✅ **Interactive operations**: Supports mouse rotation, zooming, and panning
 - ✅ **Lighting and materials**: Supports lighting effects and material configuration
 - ✅ **Theme system**: One-click visual style switching with 10 preset themes and 22 scientific colormaps
+- ✅ **Multi-item composition**: Attach multiple items to a single `Qwt3DPlot` for combined rendering
 
-## 3D Plot Module Structure
+## Architecture Overview
+
+The 3D module follows a **Plot + Item** pattern, symmetric with the 2D module:
+
+- **`Qwt3DPlot`** is a rendering window (`QOpenGLWidget` subclass) that manages the GL context, view transforms, lighting, coordinate system, and mouse/keyboard interaction. It holds **no plotting data** itself.
+- **`Qwt3DPlotItem`** is the abstract base class for all 3D drawable items. Items manage their own data, geometry, and styles. They attach to a `Qwt3DPlot` via `attach()` / `detach()`.
+- A single `Qwt3DPlot` can hold **any number of items**, rendered together in one GL context.
 
 ```mermaid
 classDiagram
-    class Plot3D {
-        +setCoordinateStyle()
-        +setPlotStyle()
+    class Qwt3DPlot {
+        +attach(Qwt3DPlotItem*)
+        +detach(Qwt3DPlotItem*)
+        +itemList()
         +setRotation()
         +setScale()
-        +updateData()
         +enableMouse()
         +showColorLegend()
-        +setDataColor()
+        +applyTheme()
     }
 
-    class SurfacePlot {
+    class Qwt3DPlotItem {
+        <<abstract>>
+        +attach(Qwt3DPlot*)
+        +detach()
+        +draw()*
+        +hull()*
+        +setZ()
+        +itemChanged()
+    }
+
+    class Qwt3DSurface {
         +loadFromData()
         +setResolution()
+        +setPlotStyle()
+        +setDataColor()
+        +addEnrichment()
     }
 
-    class Function {
-        +operator(x,y)
+    class Qwt3DFunction {
+        +operator()(x,y)*
         +create()
         +setDomain()
         +setMesh()
     }
 
-    Plot3D <|-- SurfacePlot
-    Plot3D --> Function : uses
+    Qwt3DPlotItem <|-- Qwt3DSurface
+    Qwt3DFunction --> Qwt3DSurface : generates data for
+    Qwt3DPlot o-- Qwt3DPlotItem : manages
 ```
 
-!!! note "Namespace"
-    All 3D classes live in the `Qwt3D` namespace. Below they are shown without the
-    `Qwt3D::` prefix for brevity — qualify them (or add `using namespace Qwt3D;`) in your code.
+!!! note "No Namespace"
+    All 3D classes use the `Qwt3D` prefix directly in the global scope (e.g., `Qwt3DPlot`, `Qwt3DSurface`). There is no `namespace Qwt3D` — this is a breaking change from v7.3.2 and earlier.
 
 ## Core Classes
 
-| Class Name | Description |
-|------|------|
-| `Qwt3D::Plot3D` | 3D plot base class, provides basic framework and interaction |
-| `Qwt3D::SurfacePlot` | 3D surface plot, displays continuous surfaces (handles both grid and cell data) |
-| `Qwt3D::Function` | 3D function plot, generates surfaces from mathematical functions |
-| `Qwt3D::GraphPlot` | Intermediate base class for graph-based 3D plots |
-| `Qwt3D::Axis` | 3D axis configuration |
-| `Qwt3D::ColorLegend` | 3D color bar |
-| `Qwt3D::Qwt3DTheme` | 3D theme system, encapsulates background, mesh, colormap, axes, lighting, and all visual attributes |
+| Class | Description |
+|-------|-------------|
+| `Qwt3DPlot` | 3D rendering window (QOpenGLWidget), manages GL context, view, lighting, coordinate system, and item list |
+| `Qwt3DPlotItem` | Abstract base class for all 3D plot items (attach/detach/draw/hull) |
+| `Qwt3DSurface` | 3D surface plot item, displays continuous surfaces (handles both grid and cell data) |
+| `Qwt3DFunction` | Data generator that creates surfaces from z = f(x, y) mathematical functions |
+| `Qwt3DParametricSurface` | Data generator for parametric surfaces r(u, v) |
+| `Qwt3DCoordinateSystem` | 3D coordinate system with 12 axes, box/frame styles |
+| `Qwt3DColorLegend` | 3D color bar / legend |
+| `Qwt3DTheme` | 3D theme system, encapsulates background, mesh, colormap, axes, lighting, and all visual attributes |
 
 ## Usage
 
@@ -68,32 +90,31 @@ The 3D plot example is located at: `examples/3D/simpleplot3D`. Screenshot:
 ### Basic Usage Example
 
 ```cpp
-#include <qwt3d_surfaceplot.h>
+#include <qwt3d_plot.h>
+#include <qwt3d_surface.h>
 #include <qwt3d_function.h>
 
-using namespace Qwt3D;
+// Create rendering window
+Qwt3DPlot* plot = new Qwt3DPlot();
 
-// Create surface plot
-SurfacePlot* plot = new SurfacePlot();
+// Create surface item
+Qwt3DSurface* surface = new Qwt3DSurface();
+surface->attach(plot);
 
-// Define function
-class MyFunction : public Function
+// Define mathematical function
+class MyFunction : public Qwt3DFunction
 {
 public:
     double operator()(double x, double y) override
     {
-        return std::sin(x) * std::cos(y);  // Mathematical function
+        return std::sin(x) * std::cos(y);
     }
 };
 
-// Create function object and assign it to the plot
-MyFunction* func = new MyFunction(*plot);
-
-// Set data range and mesh resolution
+// Create function and assign to surface
+MyFunction* func = new MyFunction(*surface);
 func->setDomain(-5, 5, -5, 5);  // x and y range
 func->setMesh(50, 50);           // 50x50 grid
-
-// Create surface
 func->create();
 
 // Set rotation angles
@@ -106,12 +127,13 @@ plot->show();
 ### Data Loading
 
 ```cpp
-#include <qwt3d_surfaceplot.h>
+#include <qwt3d_plot.h>
+#include <qwt3d_surface.h>
 
-using namespace Qwt3D;
-
-// Load from data array
-SurfacePlot* plot = new SurfacePlot();
+// Create plot + surface item
+Qwt3DPlot* plot = new Qwt3DPlot();
+Qwt3DSurface* surface = new Qwt3DSurface();
+surface->attach(plot);
 
 // Allocate a 100x100 Z value array
 double* zData[100];
@@ -120,10 +142,10 @@ for (int i = 0; i < 100; ++i)
 // ... fill data ...
 
 // Load Z value data with explicit X/Y range
-plot->loadFromData(zData, 100, 100, 0.0, 100.0, 0.0, 100.0);
+surface->loadFromData(zData, 100, 100, 0.0, 100.0, 0.0, 100.0);
 
 // Set resolution (1 = use all data; higher values downsample)
-plot->setResolution(1);
+surface->setResolution(1);
 ```
 
 ### Interactive Operations
@@ -149,18 +171,35 @@ plot->setRotation(45, 30, 60);  // X, Y, Z axis rotation angles (degrees)
 ```cpp
 #include <qwt3d_colormap_color.h>
 
-using namespace Qwt3D;
-
 // Enable color legend
 plot->showColorLegend(true);
 
 // Set color mapping based on Z values using a core colormap preset
-plot->setDataColor(new ColorMapColor(plot, "viridis"));
+surface->setDataColor(new Qwt3DColorMapColor(plot, "viridis"));
+```
+
+### Multi-Item Composition
+
+One of the key advantages of the Plot + Item architecture is the ability to render multiple items in the same 3D space:
+
+```cpp
+Qwt3DPlot* plot = new Qwt3DPlot();
+
+// Surface item
+Qwt3DSurface* surface = new Qwt3DSurface();
+surface->loadFromData(gridData, cols, rows, 0, 10, 0, 10);
+surface->attach(plot);
+
+// Second surface with different z-order
+Qwt3DSurface* overlay = new Qwt3DSurface();
+overlay->loadFromData(overlayData, cols2, rows2, 0, 10, 0, 10);
+overlay->setZ(1.0);  // render on top
+overlay->attach(plot);
 ```
 
 ### Theme System (v7.3.1+)
 
-The `Qwt3D::Qwt3DTheme` class provides one-click switching of 3D plot visual styles, encapsulating all visual attributes including background color, mesh color, data colormap, axis colors, title styling, lighting presets, and shading modes.
+The `Qwt3DTheme` class provides one-click switching of 3D plot visual styles, encapsulating all visual attributes including background color, mesh color, data colormap, axis colors, title styling, lighting presets, and shading modes.
 
 #### Built-in Preset Themes
 
@@ -183,22 +222,22 @@ The `Qwt3D::Qwt3DTheme` class provides one-click switching of 3D plot visual sty
 #include <qwt3d_theme.h>
 
 // Method 1: Use preset theme (recommended)
-plot->applyTheme(Qwt3D::Qwt3DTheme::Dark);
+plot->applyTheme(Qwt3DTheme::Dark);
 
 // Method 2: Apply theme by name
 plot->applyTheme("Scientific");
 
 // Method 3: Custom theme
-Qwt3D::Qwt3DTheme theme(Qwt3D::Qwt3DTheme::Scientific);
+Qwt3DTheme theme(Qwt3DTheme::Scientific);
 theme.setDataColorPreset("plasma");  // Use one of 22 scientific colormap presets
 theme.setShininess(20.0);
-theme.setLightingPreset(Qwt3D::Qwt3DTheme::Studio);
+theme.setLightingPreset(Qwt3DTheme::Studio);
 theme.apply(plot);
 ```
 
 #### Colormap Presets
 
-`Qwt3D::Qwt3DTheme` provides 22 scientific visualization colormaps via the `core` module's `QwtColorMapPreset`:
+`Qwt3DTheme` provides 22 scientific visualization colormaps via the `core` module's `QwtColorMapPreset`:
 
 - Perceptually uniform: `viridis`, `plasma`, `inferno`, `magma`, `cividis`
 - Classic: `jet`, `hot`, `cool`, `spring`, `summer`, `autumn`, `winter`
@@ -239,28 +278,53 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 ```
 
 !!! warning "OpenGL Dependency"
-    The 3D plot module depends on OpenGL and GLU libraries. Ensure that OpenGL drivers and GLU library are installed on your system.
+    The 3D plot module requires **OpenGL 3.3+ Core Profile** and uses GLSL 3.30 shaders. Ensure that your graphics driver supports OpenGL 3.3 or higher. The module also bundles `gl2ps` for vector export (EPS/PDF) as a Compatibility Profile fallback.
 
 ## Core Method Summary
 
-| Method | Class | Description |
-|------|------|------|
-| `setDomain()` | `Qwt3D::Function` / `Qwt3D::GridMapping` | Set X/Y data range |
-| `setMesh()` | `Qwt3D::Function` / `Qwt3D::GridMapping` | Set grid resolution (columns, rows) |
-| `setResolution()` | `Qwt3D::SurfacePlot` | Set data resolution (1 = all data) |
-| `loadFromData()` | `Qwt3D::SurfacePlot` | Load data array into the plot |
-| `create()` | `Qwt3D::Function` | Generate and attach surface data |
-| `setRotation()` | `Qwt3D::Plot3D` | Set rotation angles |
-| `setScale()` | `Qwt3D::Plot3D` | Set scale ratio |
-| `enableMouse()` | `Qwt3D::Plot3D` | Enable/disable mouse interaction |
-| `showColorLegend()` | `Qwt3D::Plot3D` | Show/hide color legend |
-| `setDataColor()` | `Qwt3D::Plot3D` | Set data color functor |
-| `updateData()` | `Qwt3D::Plot3D` | Recalculate and update data |
+### Qwt3DPlot Methods
+
+| Method | Description |
+|--------|-------------|
+| `attach(item)` / `detach(item)` | Attach/detach a plot item |
+| `itemList()` | Get list of attached items |
+| `setRotation(x, y, z)` | Set rotation angles (degrees) |
+| `setScale(x, y, z)` | Set scale ratio |
+| `setZoom(z)` | Set zoom level |
+| `enableMouse(bool)` | Enable/disable mouse interaction |
+| `showColorLegend(bool)` | Show/hide color legend |
+| `applyTheme(preset)` / `applyTheme(name)` | Apply a theme |
+| `setBackgroundColor(RGBA)` | Set background color |
+
+### Qwt3DSurface Methods
+
+| Method | Description |
+|--------|-------------|
+| `loadFromData(...)` | Load data array into the surface (3 overloads: grid double**, grid Triple**, cell) |
+| `setResolution(int)` | Set data resolution (1 = all data, higher = downsample) |
+| `setPlotStyle(PLOTSTYLE)` | Set rendering style (WIREFRAME, HIDDENLINE, FILLED, FILLEDMESH, POINTS) |
+| `setDataColor(Qwt3DColor*)` | Set data color functor (takes ownership) |
+| `setMeshColor(RGBA)` / `setMeshLineWidth(double)` | Configure mesh appearance |
+| `setFloorStyle(FLOORSTYLE)` | Set floor projection style |
+| `setShading(SHADINGSTYLE)` | Set shading mode (FLAT, GOURAUD) |
+| `addEnrichment(Qwt3DEnrichment&)` | Add vertex/edge/face enrichment |
+| `setNormalLength(double)` / `showNormals(bool)` | Configure surface normals |
+
+### Qwt3DFunction Methods
+
+| Method | Description |
+|--------|-------------|
+| `operator()(x, y)` | Pure virtual — user implements z = f(x, y) |
+| `assign(Qwt3DSurface&)` | Assign target surface item |
+| `setDomain(minX, maxX, minY, maxY)` | Set X/Y data range |
+| `setMesh(columns, rows)` | Set grid resolution |
+| `create()` / `create(surface&)` | Generate and load surface data |
 
 !!! tip "3D Plot Recommendations"
     - Data size should not be too large (recommended under 100x100 grid)
     - For complex surfaces, reduce resolution to improve performance
     - Use lighting effects to enhance visual appearance
+    - Use `setZ()` to control draw order when multiple items overlap
 
 !!! example "Related Examples"
     - Basic 3D plot: `examples/3D/simpleplot3D`

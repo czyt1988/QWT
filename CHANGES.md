@@ -1,3 +1,43 @@
+## tag:v7.3.5 (2026-07-24)
+
+### Breaking Changes
+
+- **3D Module Architecture Refactor — Plot + Item Pattern**
+    - Completely refactored the 3D module from the legacy widget-per-plot model to a **Plot + Item** architecture, symmetric with the 2D module (`QwtPlot` + `QwtPlotItem`):
+        - `Qwt3DPlot` (QOpenGLWidget): pure rendering window, manages GL context, view transforms, lighting, coordinate system, and item list. No longer holds plotting data.
+        - `Qwt3DPlotItem` (new): abstract base class for all 3D drawable items (attach/detach/draw/hull/z/title), mirroring `QwtPlotItem`.
+        - `Qwt3DSurface`: concrete surface item using VBO/VAO + GLSL 3.3 Core shaders. Merged logic from the old `gridplot.cpp` and `meshplot.cpp`.
+    - Removed `namespace Qwt3D` — all classes now use the `Qwt3D` prefix in the global scope (e.g., `Qwt3DPlot`, `Qwt3DSurface`, `Qwt3DFunction`).
+    - Renamed all 3D classes: `Plot3D` → `Qwt3DPlot`, `SurfacePlot` → `Qwt3DSurface`, `Function` → `Qwt3DFunction`, `CoordinateSystem` → `Qwt3DCoordinateSystem`, `Axis` → `Qwt3DAxis`, `ColorLegend` → `Qwt3DColorLegend`, `Color` → `Qwt3DColor`, `StandardColor` → `Qwt3DStandardColor`, `ColorMapColor` → `Qwt3DColorMapColor`, `Qwt3DTheme` (already prefixed, namespace removed), `Mapping` → `Qwt3DMapping`, `GridMapping` → `Qwt3DGridMapping`, `ParametricSurface` → `Qwt3DParametricSurface`, `Scale` → `Qwt3DScale`, `AutoScaler` → `Qwt3DAutoScaler`, `Enrichment` → `Qwt3DEnrichment`, `Drawable` → `Qwt3DDrawable`, `Label` → `Qwt3DLabel`.
+    - Deleted stub classes: `GraphPlot`, `MultiPlot`, `VolumePlot` — to be reimplemented as `Qwt3DPlotItem` subclasses if needed.
+    - Moved plotting methods from `Qwt3DPlot` to `Qwt3DSurface`: `setPlotStyle()`, `setDataColor()`, `loadFromData()`, `setResolution()`, `setMeshColor()`, `addEnrichment()`, `setFloorStyle()`, `setShading()`, `showNormals()`.
+    - Removed `updateData()` — use `plot->update()` or `item->itemChanged()` instead.
+    - Removed `setCoordinateStyle()` — use `Qwt3DCoordinateSystem` API directly.
+    - `Qwt3DFunction` and `Qwt3DParametricSurface` now target `Qwt3DSurface*` (item) instead of `SurfacePlot*` (widget).
+
+- **3D Module: Modern OpenGL Migration**
+    - Replaced ALL legacy OpenGL calls (immediate mode, display lists, fixed-function pipeline, GLU quadrics) with modern OpenGL:
+        - VBO (`QOpenGLBuffer`) + VAO (`QOpenGLVertexArrayObject`) for vertex data management.
+        - GLSL 3.30 Core shaders for all rendering (surface, line, point, polygon, text).
+        - CPU-side `QMatrix4x4` matrix computation (no GL matrix stack).
+        - `QOpenGLTexture` for text labels (replacing `glRasterPos3d` + `glDrawPixels`).
+        - CPU-generated triangle mesh geometry for Cone/Arrow enrichments (replacing `gluCylinder`/`gluDisk`).
+    - Deleted `qwt3d_openglhelper.h` (legacy GL state management utilities).
+    - gl2ps vector export wrapped in `QWT3D_ENABLE_GL2PS` conditional compilation (Compatibility Profile fallback).
+    - 10 new GLSL shader files in `src/plot3d/shaders/` (surface, polygon, line, point, text — vert+frag pairs).
+
+- **3D Theme System: Plot-level / Item-level Split**
+    - `Qwt3DTheme::apply()` now applies plot-level properties (background, coordinate colors, title, lighting) to `Qwt3DPlot` and item-level properties (meshColor, dataColorPreset, plotStyle, shading, smoothMesh) to attached `Qwt3DSurface` items via `dynamic_cast`.
+
+- **3D IO System Adaptation**
+    - `Qwt3DNativeReader` now searches `plot->itemList()` for a `Qwt3DSurface` item (creating one if none exists) instead of `dynamic_cast<SurfacePlot*>(plot)`.
+    - Renamed IO classes: `IO` → `Qwt3DIO`, `PixmapWriter` → `Qwt3DPixmapWriter`, `VectorWriter` → `Qwt3DVectorWriter`, `NativeReader` → `Qwt3DNativeReader`.
+
+- **3D Examples Updated**
+    - All 6 examples in `examples/3D/` updated to the new Plot + Item API.
+    - `SIGNAL()/SLOT()` connections migrated to new-style `connect()`.
+    - Legacy GL calls in example enrichments replaced with VBO + shader rendering.
+
 ## tag:v7.3.4 (2026-07-12)
 
 ### New Features

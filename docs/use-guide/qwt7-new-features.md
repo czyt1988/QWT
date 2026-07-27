@@ -15,8 +15,9 @@ This article provides a comprehensive overview of the core new features in Qwt 7
 
 Qwt 7.0 includes built-in complete 3D plotting capabilities, supporting:
 
+- ✅ **Plot + Item Architecture**: `Qwt3DPlot` (rendering window) + `Qwt3DPlotItem` (drawable items), symmetric with 2D's `QwtPlot` + `QwtPlotItem`
 - ✅ **Multiple Plot Types**: Surface plots, mesh plots, parametric surfaces, function plots, etc.
-- ✅ **OpenGL Rendering**: High-performance 3D rendering with smooth interactive experience
+- ✅ **Modern OpenGL Rendering**: VBO/VAO + GLSL 3.3 Core shaders (no legacy fixed-function pipeline)
 - ✅ **Interactive Operations**: Mouse rotation, zooming, and panning
 - ✅ **Lighting and Materials**: Realistic lighting effects and material configuration
 - ✅ **Color Mapping**: Automatic color mapping based on Z values, with color bar support
@@ -29,26 +30,30 @@ Qwt 7.0 includes built-in complete 3D plotting capabilities, supporting:
 
 | Class | Description |
 |------|------|
-| `Qwt3D::Plot3D` | 3D plot base class, providing the basic framework and interaction |
-| `Qwt3D::SurfacePlot` | 3D surface plot, displaying continuous surfaces (handles both grid and cell data) |
-| `Qwt3D::Function` | 3D function plot, generating surfaces from mathematical functions |
+| `Qwt3DPlot` | 3D rendering window (QOpenGLWidget), manages GL context, view, lighting, coordinate system, and item list |
+| `Qwt3DPlotItem` | Abstract base class for all 3D plot items (attach/detach/draw/hull) |
+| `Qwt3DSurface` | 3D surface plot item, displaying continuous surfaces (handles both grid and cell data) |
+| `Qwt3DFunction` | Data generator that creates surfaces from z = f(x, y) mathematical functions |
 
-!!! note "Namespace"
-    All 3D classes live in the `Qwt3D` namespace. The `Qwt3DPlot3D`/`Qwt3DSurfacePlot`/`Qwt3DFunction` names sometimes seen online are **incorrect** — the real names omit the redundant `Qwt3D` prefix on the class itself.
+!!! note "No Namespace"
+    All 3D classes use the `Qwt3D` prefix directly in the global scope (e.g., `Qwt3DPlot`, `Qwt3DSurface`). There is no `namespace Qwt3D`.
 
 ### Usage Example
 
 ```cpp
-#include <qwt3d_surfaceplot.h>
+#include <qwt3d_plot.h>
+#include <qwt3d_surface.h>
 #include <qwt3d_function.h>
 
-using namespace Qwt3D;
+// Create a rendering window
+Qwt3DPlot* plot = new Qwt3DPlot();
 
-// Create a surface plot
-SurfacePlot* plot = new SurfacePlot();
+// Create a surface item and attach to the plot
+Qwt3DSurface* surface = new Qwt3DSurface();
+surface->attach(plot);
 
 // Define a mathematical function
-class MyFunction : public Function
+class MyFunction : public Qwt3DFunction
 {
 public:
     double operator()(double x, double y) override
@@ -57,7 +62,7 @@ public:
     }
 };
 
-MyFunction* func = new MyFunction(*plot);
+MyFunction* func = new MyFunction(*surface);
 func->setDomain(-5, 5, -5, 5);  // x and y range
 func->setMesh(50, 50);           // 50x50 grid
 func->create();

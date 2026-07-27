@@ -44,7 +44,7 @@ target_link_libraries(YOU_APP_TARGET PRIVATE OpenGL::GLU)
 ```
 
 !!! tip "提示"
-    qwt7.1之后合并了`qwtplot3d`库，因此需要引入opengl相关的依赖
+    qwt7.1之后合并了`qwtplot3d`库，因此需要引入opengl相关的依赖。GLU仅用于gl2ps矢量导出回退。
 
 ## 基于cmake引入QWT库
 
@@ -93,13 +93,13 @@ target_link_libraries(YOU_APP_TARGET PRIVATE qwt::plot3d) # 会自动把qt的依
     - **通用算法与兼容层**：`qwt_algorithm.hpp`、`qwt_qt5qt6_compat.hpp`（Qt5/Qt6 兼容层）
     - **数据容器/系列/栅格**：`QwtGridData`、`QwtSeriesData`、`QwtPointData`、`QwtSeriesStore`、`QwtRasterData`、`QwtMatrixRasterData`、`QwtGridRasterData`
 - `plot`模块，主要为2D绘图库，是原qwt的功能集成
-- `plot3d`模块，主要为3D绘图库，是qwtplot3d的功能集成
+- `plot3d`模块，主要为3D绘图库（v7.3.5+ 采用 Plot+Item 架构），是qwtplot3d的功能集成
 
 > **依赖说明**
 >
 >    `plot`和`plot3d`都依赖`core`模块，但彼此独立。qwt依赖的Qt模块为`Core`、`Gui`、`Widgets`（public），`Concurrent`、`PrintSupport`（private），可选`Svg`、`OpenGL`/`OpenGLWidgets`（由`QWT_CONFIG_QWTSVG`/`QWT_CONFIG_QWTOPENGL`控制），这些模块在引入`qwt`库时，会自动添加依赖
 >
->   此外`qwt7.1`之后合并了qwtplot3d库，如果3D选项打开，会自动引入`OpenGL::GLU`依赖
+>   此外`qwt7.1`之后合并了qwtplot3d库，如果3D选项打开，会自动引入`Qt OpenGL`和`Qt OpenGLWidgets`依赖。GLU仅用于gl2ps矢量导出回退。
 
 ## 公开的预定义宏
 

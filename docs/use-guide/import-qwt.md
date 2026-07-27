@@ -44,7 +44,7 @@ target_link_libraries(YOU_APP_TARGET PRIVATE OpenGL::GLU)
 ```
 
 !!! tip "Tip"
-    Since Qwt 7.1, the `qwtplot3d` library has been merged, so OpenGL-related dependencies are required.
+    Since Qwt 7.1, the `qwtplot3d` library has been merged, so OpenGL-related dependencies are required. GLU is only needed for gl2ps vector export.
 
 ## Importing the QWT Library via CMake
 
@@ -112,9 +112,9 @@ The `qwt` project provides three modules:
 >
 >    - `qwt::core` depends only on Qt `Core` + `Gui`
 >    - `qwt::plot` depends on Qt `Core` + `Gui` + `Widgets` (public); `Concurrent` + `PrintSupport` (private). Optional: `Svg` and `OpenGL`/`OpenGLWidgets` (gated by `QWT_CONFIG_QWTSVG` / `QWT_CONFIG_QWTOPENGL`). All dependencies are added automatically when importing via CMake.
->    - `qwt::plot3d` depends on Qt `Core` + `Gui` + `Widgets` + `OpenGL::GLU` + Qt OpenGL Widgets
+>    - `qwt::plot3d` depends on Qt `Core` + `Gui` + `Widgets` + `Qt OpenGL` + `Qt OpenGLWidgets` (Qt6). GLU is only needed for gl2ps vector export.
 >
->    If the 3D option is enabled, the `OpenGL::GLU` dependency is automatically included.
+>    If the 3D option is enabled, all OpenGL dependencies are automatically included.
 
 ## Public Predefined Macros
 

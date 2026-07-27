@@ -1,3 +1,43 @@
+## tag:v7.3.5 (2026-07-24)
+
+### 破坏性变更
+
+- **3D模块架构重构 — Plot + Item 模式**
+    - 将 3D 模块从旧的 widget-per-plot 模式完全重构为 **Plot + Item** 架构，与 2D 模块（`QwtPlot` + `QwtPlotItem`）对称：
+        - `Qwt3DPlot`（QOpenGLWidget）：纯渲染窗口，管理 GL 上下文、视图变换、光照、坐标系统和 item 列表。不再持有绘图数据。
+        - `Qwt3DPlotItem`（新增）：所有 3D 绘图 item 的抽象基类（attach/detach/draw/hull/z/title），与 `QwtPlotItem` 对称。
+        - `Qwt3DSurface`：曲面 item，使用 VBO/VAO + GLSL 3.3 Core 着色器渲染。合并了旧 `gridplot.cpp` 和 `meshplot.cpp` 的逻辑。
+    - 移除 `namespace Qwt3D` — 所有类使用 `Qwt3D` 前缀定义在全局作用域（如 `Qwt3DPlot`、`Qwt3DSurface`、`Qwt3DFunction`）。
+    - 重命名所有 3D 类：`Plot3D` → `Qwt3DPlot`，`SurfacePlot` → `Qwt3DSurface`，`Function` → `Qwt3DFunction`，`CoordinateSystem` → `Qwt3DCoordinateSystem`，`Axis` → `Qwt3DAxis`，`ColorLegend` → `Qwt3DColorLegend`，`Color` → `Qwt3DColor`，`StandardColor` → `Qwt3DStandardColor`，`ColorMapColor` → `Qwt3DColorMapColor`，`Qwt3DTheme`（已有前缀，仅去命名空间），`Mapping` → `Qwt3DMapping`，`GridMapping` → `Qwt3DGridMapping`，`ParametricSurface` → `Qwt3DParametricSurface`，`Scale` → `Qwt3DScale`，`AutoScaler` → `Qwt3DAutoScaler`，`Enrichment` → `Qwt3DEnrichment`，`Drawable` → `Qwt3DDrawable`，`Label` → `Qwt3DLabel`。
+    - 删除 stub 类：`GraphPlot`、`MultiPlot`、`VolumePlot` — 如需要后续作为 `Qwt3DPlotItem` 子类重新实现。
+    - 绘图方法从 `Qwt3DPlot` 移至 `Qwt3DSurface`：`setPlotStyle()`、`setDataColor()`、`loadFromData()`、`setResolution()`、`setMeshColor()`、`addEnrichment()`、`setFloorStyle()`、`setShading()`、`showNormals()`。
+    - 移除 `updateData()` — 改用 `plot->update()` 或 `item->itemChanged()`。
+    - 移除 `setCoordinateStyle()` — 直接使用 `Qwt3DCoordinateSystem` API。
+    - `Qwt3DFunction` 和 `Qwt3DParametricSurface` 的 target 从 `SurfacePlot*`（widget）改为 `Qwt3DSurface*`（item）。
+
+- **3D模块：现代 OpenGL 迁移**
+    - 将所有旧版 OpenGL 调用（立即模式、显示列表、固定管线、GLU 二次曲面）替换为现代 OpenGL：
+        - VBO（`QOpenGLBuffer`）+ VAO（`QOpenGLVertexArrayObject`）管理顶点数据。
+        - GLSL 3.30 Core 着色器用于所有渲染（surface、line、point、polygon、text）。
+        - CPU 端 `QMatrix4x4` 矩阵计算（不使用 GL 矩阵栈）。
+        - `QOpenGLTexture` 用于文本标签（替代 `glRasterPos3d` + `glDrawPixels`）。
+        - CPU 生成的三角网格几何体用于 Cone/Arrow 装饰（替代 `gluCylinder`/`gluDisk`）。
+    - 删除 `qwt3d_openglhelper.h`（旧版 GL 状态管理工具）。
+    - gl2ps 矢量导出封装在 `QWT3D_ENABLE_GL2PS` 条件编译宏下（Compatibility Profile 回退）。
+    - 新增 10 个 GLSL 着色器文件在 `src/plot3d/shaders/`（surface、polygon、line、point、text — vert+frag 配对）。
+
+- **3D主题系统：Plot级/Item级拆分**
+    - `Qwt3DTheme::apply()` 现在将 plot 级属性（背景、坐标颜色、标题、光照）应用到 `Qwt3DPlot`，将 item 级属性（meshColor、dataColorPreset、plotStyle、shading、smoothMesh）通过 `dynamic_cast` 应用到已挂载的 `Qwt3DSurface` item。
+
+- **3D IO系统适配**
+    - `Qwt3DNativeReader` 现在搜索 `plot->itemList()` 中的 `Qwt3DSurface` item（如不存在则创建），替代 `dynamic_cast<SurfacePlot*>(plot)`。
+    - 重命名 IO 类：`IO` → `Qwt3DIO`，`PixmapWriter` → `Qwt3DPixmapWriter`，`VectorWriter` → `Qwt3DVectorWriter`，`NativeReader` → `Qwt3DNativeReader`。
+
+- **3D示例更新**
+    - `examples/3D/` 下全部 6 个示例更新为新的 Plot + Item API。
+    - `SIGNAL()/SLOT()` 连接迁移为新式 `connect()` 语法。
+    - 示例装饰中的旧版 GL 调用替换为 VBO + 着色器渲染。
+
 ## tag:v7.3.4 (2026-07-12)
 
 ### 新功能
