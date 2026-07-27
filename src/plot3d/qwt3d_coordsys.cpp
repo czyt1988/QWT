@@ -341,13 +341,20 @@ void Qwt3DCoordinateSystem::autoDecorateExposedAxis(Qwt3DAxis& ax, bool left)
     if (!plot())
         return;
 
-    QPointF begScreen = plot()->worldToScreen(ax.begin());
-    QPointF endScreen = plot()->worldToScreen(ax.end());
+    (void)left;  // polarity is now derived from the outward direction below
 
-    QPointF diff = endScreen - begScreen;
-    diff.setY(-diff.y());  // screen Y is inverted relative to world Y
+    // The exposed axis lies on the projected box silhouette, so the screen
+    // vector from the box center to the axis midpoint always points outward.
+    // This is independent of the axis' own screen direction (which is what the
+    // previous sina-vs-SQRT_2 heuristic used) and therefore does not flip when
+    // the axis projects near 45 degrees or when the viewport aspect changes.
+    Triple midWorld = ax.begin() + (ax.end() - ax.begin()) / 2.0;
+    Triple centerWorld = first() + (second() - first()) / 2.0;
+    QPointF midScreen = plot()->worldToScreen(midWorld);
+    QPointF centerScreen = plot()->worldToScreen(centerWorld);
+    QPointF outward = midScreen - centerScreen;  // screen y grows downward
 
-    double s = sqrt(diff.x() * diff.x() + diff.y() * diff.y());
+    double s = sqrt(outward.x() * outward.x() + outward.y() * outward.y());
 
     if (!s)
         return;
@@ -356,46 +363,14 @@ void Qwt3DCoordinateSystem::autoDecorateExposedAxis(Qwt3DAxis& ax, bool left)
     ax.setNumbers(true);
     ax.setLabel(true);
 
-    const double SQRT_2 = 0.7071067;
-    double sina = fabs(diff.y() / s);
-
-    if (left) {
-        if (diff.x() >= 0 && diff.y() >= 0 && sina < SQRT_2) {
-            ax.setNumberAnchor(BottomCenter);
-        } else if (diff.x() >= 0 && diff.y() >= 0 && !left) {
-            ax.setNumberAnchor(CenterRight);
-        } else if (diff.x() <= 0 && diff.y() >= 0 && sina >= SQRT_2) {
-            ax.setNumberAnchor(CenterRight);
-        } else if (diff.x() <= 0 && diff.y() >= 0) {
-            ax.setNumberAnchor(TopCenter);
-        } else if (diff.x() <= 0 && diff.y() <= 0 && sina <= SQRT_2) {
-            ax.setNumberAnchor(BottomCenter);
-        } else if (diff.x() <= 0 && diff.y() <= 0) {
-            ax.setNumberAnchor(CenterRight);
-        } else if (diff.x() >= 0 && diff.y() <= 0 && sina >= SQRT_2) {
-            ax.setNumberAnchor(CenterRight);
-        } else if (diff.x() >= 0 && diff.y() <= 0) {
-            ax.setNumberAnchor(TopCenter);
-        }
-    } else {
-        if (diff.x() >= 0 && diff.y() >= 0 && sina <= SQRT_2) {
-            ax.setNumberAnchor(TopCenter);
-        } else if (diff.x() >= 0 && diff.y() >= 0 && !left) {
-            ax.setNumberAnchor(CenterLeft);
-        } else if (diff.x() <= 0 && diff.y() >= 0 && sina >= SQRT_2) {
-            ax.setNumberAnchor(CenterLeft);
-        } else if (diff.x() <= 0 && diff.y() >= 0) {
-            ax.setNumberAnchor(BottomCenter);
-        } else if (diff.x() <= 0 && diff.y() <= 0 && sina <= SQRT_2) {
-            ax.setNumberAnchor(TopCenter);
-        } else if (diff.x() <= 0 && diff.y() <= 0) {
-            ax.setNumberAnchor(CenterLeft);
-        } else if (diff.x() >= 0 && diff.y() <= 0 && sina >= SQRT_2) {
-            ax.setNumberAnchor(CenterLeft);
-        } else if (diff.x() >= 0 && diff.y() <= 0) {
-            ax.setNumberAnchor(BottomCenter);
-        }
-    }
+    // Map the outward screen direction to an anchor so the label text extends
+    // outward (away from the box). Screen y is downward, hence outward.y() > 0
+    // means the axis is visually below the center and the text must extend
+    // further down; the horizontal cases are symmetric.
+    if (fabs(outward.y()) >= fabs(outward.x()))
+        ax.setNumberAnchor(outward.y() > 0 ? BottomCenter : TopCenter);
+    else
+        ax.setNumberAnchor(outward.x() > 0 ? CenterLeft : CenterRight);
 }
 
 void Qwt3DCoordinateSystem::setPosition(Triple first, Triple second)
