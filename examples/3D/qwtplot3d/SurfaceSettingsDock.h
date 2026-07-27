@@ -20,6 +20,7 @@ class Qwt3DColorMapColor;
 class Qwt3DEnrichment;
 class Qwt3DPlot;
 class Qwt3DSurface;
+class Qwt3DTheme;
 
 /**
  * @brief Dock widget with tabbed settings for all Qwt3DPlot and Qwt3DSurface properties.
@@ -39,6 +40,9 @@ public:
 
     /// Re-apply all current UI values to the plot/surface (call after data switch)
     void reapplyAll();
+
+    /// Sync all UI controls to match the given theme (call before reapplyAll after a theme switch)
+    void syncFromTheme(const Qwt3DTheme& theme);
 
 private Q_SLOTS:
     // Surface tab

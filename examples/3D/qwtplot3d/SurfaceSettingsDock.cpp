@@ -172,6 +172,75 @@ void SurfaceSettingsDock::reapplyAll()
 }
 
 // ---------------------------------------------------------------------------
+// Sync UI controls from a theme (call before reapplyAll after a theme switch)
+// ---------------------------------------------------------------------------
+void SurfaceSettingsDock::syncFromTheme(const Qwt3DTheme& theme)
+{
+    if (!m_plot || !m_surface)
+        return;
+
+    // --- Surface tab ---
+    // Map PLOTSTYLE enum to combo index (combo order differs from enum order)
+    m_plotStyleCombo->blockSignals(true);
+    switch (theme.plotStyle()) {
+    case WIREFRAME:  m_plotStyleCombo->setCurrentIndex(0); break;
+    case FILLED:     m_plotStyleCombo->setCurrentIndex(1); break;
+    case FILLEDMESH: m_plotStyleCombo->setCurrentIndex(2); break;
+    case HIDDENLINE: m_plotStyleCombo->setCurrentIndex(3); break;
+    case QWT3D_POINTS: m_plotStyleCombo->setCurrentIndex(4); break;
+    default: break;
+    }
+    m_plotStyleCombo->blockSignals(false);
+
+    m_shadingCombo->blockSignals(true);
+    m_shadingCombo->setCurrentIndex(theme.shading() == FLAT ? 0 : 1);
+    m_shadingCombo->blockSignals(false);
+
+    setColorButton(m_meshColorBtn, rgbaToQColor(theme.meshColor()));
+
+    m_meshLineWidthSpin->blockSignals(true);
+    m_meshLineWidthSpin->setValue(theme.meshLineWidth());
+    m_meshLineWidthSpin->blockSignals(false);
+
+    m_smoothMeshCheck->blockSignals(true);
+    m_smoothMeshCheck->setChecked(theme.smoothMesh());
+    m_smoothMeshCheck->blockSignals(false);
+
+    m_colorPresetCombo->blockSignals(true);
+    m_colorPresetCombo->setCurrentText(theme.dataColorPreset());
+    m_colorPresetCombo->blockSignals(false);
+
+    // --- Axes tab ---
+    setColorButton(m_axesColorBtn, rgbaToQColor(theme.axesColor()));
+    setColorButton(m_gridLinesColorBtn, rgbaToQColor(theme.gridLinesColor()));
+
+    // --- View & Light tab ---
+    setColorButton(m_bgColorBtn, rgbaToQColor(theme.backgroundColor()));
+
+    m_lightingCheck->blockSignals(true);
+    m_lightingCheck->setChecked(theme.lightingPreset() != Qwt3DTheme::NoLighting);
+    m_lightingCheck->blockSignals(false);
+
+    // Light rotation is set inside Qwt3DTheme::apply() directly on the plot,
+    // so read the effective values back from the plot.
+    m_lightRotXSpin->blockSignals(true);
+    m_lightRotYSpin->blockSignals(true);
+    m_lightRotZSpin->blockSignals(true);
+    m_lightRotXSpin->setValue(m_plot->xLightRotation(0));
+    m_lightRotYSpin->setValue(m_plot->yLightRotation(0));
+    m_lightRotZSpin->setValue(m_plot->zLightRotation(0));
+    m_lightRotXSpin->blockSignals(false);
+    m_lightRotYSpin->blockSignals(false);
+    m_lightRotZSpin->blockSignals(false);
+
+    m_shininessSpin->blockSignals(true);
+    m_shininessSpin->setValue(theme.shininess());
+    m_shininessSpin->blockSignals(false);
+
+    setColorButton(m_titleColorBtn, rgbaToQColor(theme.titleColor()));
+}
+
+// ---------------------------------------------------------------------------
 // Tab 1: Surface
 // ---------------------------------------------------------------------------
 QWidget* SurfaceSettingsDock::createSurfaceTab()

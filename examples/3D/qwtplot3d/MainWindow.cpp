@@ -53,9 +53,10 @@ MainWindow::MainWindow(QWidget* parent)
     // Load initial data
     switchData(0);
 
-    // Apply initial theme (reapplyAll refreshes m_colorFunctor, which
-    // applyTheme replaces — same pattern as onThemeChanged)
+    // Apply initial theme, sync dock UI to match, then reapply
+    // (reapplyAll recreates m_colorFunctor that applyTheme replaces)
     m_plot->applyTheme(Qwt3DTheme::Default);
+    m_dock->syncFromTheme(m_plot->theme());
     m_dock->reapplyAll();
     m_plot->update();
 }
@@ -333,6 +334,7 @@ void MainWindow::onThemeChanged(int index)
 {
     const QString name = m_themeCombo->itemText(index);
     m_plot->applyTheme(name);
+    m_dock->syncFromTheme(m_plot->theme());
     m_dock->reapplyAll();
     m_plot->update();
 }
