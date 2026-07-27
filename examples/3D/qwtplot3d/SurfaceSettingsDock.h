@@ -122,6 +122,11 @@ private:
     // Helpers
     void loadAxisValues();
     void applyAxisValues();
+    void applyMeshColor();
+    void applyAxesColor();
+    void applyGridLinesColor();
+    void applyBackgroundColor();
+    void applyTitleColor();
     int currentAxisIndex() const;
     int computeGridSides() const;
     void updatePlot();

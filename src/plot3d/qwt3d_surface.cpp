@@ -514,6 +514,8 @@ void Qwt3DSurface::setDataColor(Qwt3DColor* color)
     if (d->m_dataColor)
         d->m_dataColor->destroy();
     d->m_dataColor = color;
+    if (d->m_dataColor)
+        d->m_dataColor->setSurface(this);
     d->m_vboDirty = true;
     itemChanged();
 }
@@ -525,6 +527,20 @@ const Qwt3DColor* Qwt3DSurface::dataColor() const
 {
     QWT_DC(d);
     return d->m_dataColor;
+}
+
+/**
+ * @brief Marks per-vertex colors as stale
+ * @details Per-vertex colors are baked into the VBO during buildVBO(). Mutating
+ *          the color functor in place (e.g. setColorMap, setAlpha) does not
+ *          automatically trigger a rebuild. Call this method afterwards so that
+ *          draw() re-runs the color functor and re-uploads the vertex buffer.
+ */
+void Qwt3DSurface::invalidateColors()
+{
+    QWT_D(d);
+    d->m_vboDirty = true;
+    itemChanged();
 }
 
 void Qwt3DSurface::populateLegendColors(ColorVector& colors) const

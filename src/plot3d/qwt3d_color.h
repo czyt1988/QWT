@@ -7,6 +7,8 @@
 
 
 
+class Qwt3DSurface;
+
 /**
  * @brief Abstract base class for color functors
  * @details Use your own color model by providing an implementation of
@@ -34,10 +36,18 @@ public:
         delete this;
     }
 
+    /// Sets the owning surface for automatic VBO invalidation (called by Qwt3DSurface)
+    void setSurface(Qwt3DSurface* surface) { m_surface = surface; }
+
 protected:
     virtual ~Qwt3DColor()
     {
     }
+
+    /// Called by subclasses after mutating color state; triggers VBO rebuild on the owning surface
+    void notifyColorChanged();
+
+    Qwt3DSurface* m_surface = nullptr;
 };
 
 class Qwt3DPlot;

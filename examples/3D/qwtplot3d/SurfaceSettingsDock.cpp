@@ -116,6 +116,7 @@ void SurfaceSettingsDock::reapplyAll()
     onPlotStyleChanged(m_plotStyleCombo->currentIndex());
     onFloorStyleChanged(m_floorStyleCombo->currentIndex());
     onShadingChanged(m_shadingCombo->currentIndex());
+    applyMeshColor();
     onMeshLineWidth(m_meshLineWidthSpin->value());
     onSmoothMesh(m_smoothMeshCheck->isChecked());
     onIsolines(m_isolinesSpin->value());
@@ -125,17 +126,17 @@ void SurfaceSettingsDock::reapplyAll()
     onNormalLength(m_normalLengthSpin->value());
     onNormalQuality(m_normalQualitySpin->value());
 
-    // Rebuild color functor with current preset
-    if (m_colorFunctor) {
-        QString preset = m_colorPresetCombo->currentText();
-        m_colorFunctor->setColorMap(QwtColorMapPreset::create(preset).release());
-        onColorAlpha(m_colorAlphaSlider->value());
-    }
+    // Rebuild color functor with current preset.
+    // applyTheme() replaces the surface's color functor (destroying the old one),
+    // so m_colorFunctor may be a dangling pointer — always create a fresh one.
+    m_colorFunctor = new Qwt3DColorMapColor(m_plot, m_colorPresetCombo->currentText(), 256);
+    m_surface->setDataColor(m_colorFunctor);
+    onColorAlpha(m_colorAlphaSlider->value());
 
     // Axes tab
     loadAxisValues();
-    onAxesColor();
-    onGridLinesColor();
+    applyAxesColor();
+    applyGridLinesColor();
     onAutoDecoration(m_autoDecorationCheck->isChecked());
     onTickPositionChanged(m_tickPositionCombo->currentIndex());
     onLineSmooth(m_lineSmoothCheck->isChecked());
@@ -158,13 +159,13 @@ void SurfaceSettingsDock::reapplyAll()
     onViewportShiftChanged();
     onScaleChanged();
     onZoomChanged(m_zoomSpin->value());
-    onBackgroundColor();
+    applyBackgroundColor();
     onLightingEnabled(m_lightingCheck->isChecked());
     onLightRotationChanged();
     onLightShiftChanged();
     onShininess(m_shininessSpin->value());
     onTitleChanged(m_titleEdit->text());
-    onTitleColor();
+    applyTitleColor();
     onTitlePositionChanged();
 
     updatePlot();
@@ -835,14 +836,19 @@ void SurfaceSettingsDock::onShadingChanged(int index)
     updatePlot();
 }
 
+void SurfaceSettingsDock::applyMeshColor()
+{
+    if (m_surface)
+        m_surface->setMeshColor(qColorToRGBA(getColorFromButton(m_meshColorBtn)));
+}
+
 void SurfaceSettingsDock::onMeshColor()
 {
     QColor c = QColorDialog::getColor(getColorFromButton(m_meshColorBtn), this, "Mesh Color");
     if (!c.isValid())
         return;
     styleColorButton(m_meshColorBtn, c);
-    if (m_surface)
-        m_surface->setMeshColor(qColorToRGBA(c));
+    applyMeshColor();
     updatePlot();
 }
 
@@ -987,15 +993,26 @@ void SurfaceSettingsDock::onAxisSymmetricTics(bool /*on*/)
     applyAxisValues();
 }
 
+void SurfaceSettingsDock::applyAxesColor()
+{
+    if (m_plot)
+        m_plot->coordinates()->setAxesColor(qColorToRGBA(getColorFromButton(m_axesColorBtn)));
+}
+
 void SurfaceSettingsDock::onAxesColor()
 {
     QColor c = QColorDialog::getColor(getColorFromButton(m_axesColorBtn), this, "Axes Color");
     if (!c.isValid())
         return;
     styleColorButton(m_axesColorBtn, c);
-    if (m_plot)
-        m_plot->coordinates()->setAxesColor(qColorToRGBA(c));
+    applyAxesColor();
     updatePlot();
+}
+
+void SurfaceSettingsDock::applyGridLinesColor()
+{
+    if (m_plot)
+        m_plot->coordinates()->setGridLinesColor(qColorToRGBA(getColorFromButton(m_gridLinesColorBtn)));
 }
 
 void SurfaceSettingsDock::onGridLinesColor()
@@ -1004,8 +1021,7 @@ void SurfaceSettingsDock::onGridLinesColor()
     if (!c.isValid())
         return;
     styleColorButton(m_gridLinesColorBtn, c);
-    if (m_plot)
-        m_plot->coordinates()->setGridLinesColor(qColorToRGBA(c));
+    applyGridLinesColor();
     updatePlot();
 }
 
@@ -1167,14 +1183,19 @@ void SurfaceSettingsDock::onZoomChanged(double val)
         m_plot->setZoom(val);
 }
 
+void SurfaceSettingsDock::applyBackgroundColor()
+{
+    if (m_plot)
+        m_plot->setBackgroundColor(qColorToRGBA(getColorFromButton(m_bgColorBtn)));
+}
+
 void SurfaceSettingsDock::onBackgroundColor()
 {
     QColor c = QColorDialog::getColor(getColorFromButton(m_bgColorBtn), this, "Background Color");
     if (!c.isValid())
         return;
     styleColorButton(m_bgColorBtn, c);
-    if (m_plot)
-        m_plot->setBackgroundColor(qColorToRGBA(c));
+    applyBackgroundColor();
     updatePlot();
 }
 
@@ -1224,14 +1245,19 @@ void SurfaceSettingsDock::onTitleChanged(const QString& text)
     updatePlot();
 }
 
+void SurfaceSettingsDock::applyTitleColor()
+{
+    if (m_plot)
+        m_plot->setTitleColor(qColorToRGBA(getColorFromButton(m_titleColorBtn)));
+}
+
 void SurfaceSettingsDock::onTitleColor()
 {
     QColor c = QColorDialog::getColor(getColorFromButton(m_titleColorBtn), this, "Title Color");
     if (!c.isValid())
         return;
     styleColorButton(m_titleColorBtn, c);
-    if (m_plot)
-        m_plot->setTitleColor(qColorToRGBA(c));
+    applyTitleColor();
     updatePlot();
 }
 

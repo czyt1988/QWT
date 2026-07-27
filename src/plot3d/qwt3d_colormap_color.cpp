@@ -76,6 +76,7 @@ void Qwt3DColorMapColor::setColorMap(::QwtColorMap* map)
         m_colorMap = map;
     }
     rebuildColorVector(static_cast< unsigned >(m_colors.size()));
+    notifyColorChanged();
 }
 
 const ::QwtColorMap* Qwt3DColorMapColor::colorMap() const
@@ -89,11 +90,13 @@ void Qwt3DColorMapColor::setInterval(double min, double max)
     m_manualMax         = max;
     m_useManualInterval = true;
     rebuildColorVector(static_cast< unsigned >(m_colors.size()));
+    notifyColorChanged();
 }
 
 void Qwt3DColorMapColor::reset(unsigned size)
 {
     rebuildColorVector(size);
+    notifyColorChanged();
 }
 
 void Qwt3DColorMapColor::setAlpha(double a)
@@ -102,6 +105,7 @@ void Qwt3DColorMapColor::setAlpha(double a)
         return;
     m_alpha = a;
     rebuildColorVector(static_cast< unsigned >(m_colors.size()));
+    notifyColorChanged();
 }
 
 void Qwt3DColorMapColor::rebuildColorVector(unsigned size)

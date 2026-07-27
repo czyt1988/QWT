@@ -100,6 +100,8 @@ public:
     void setDataColor(Qwt3DColor* color);
     /// Returns the data color functor
     const Qwt3DColor* dataColor() const;
+    /// Marks per-vertex colors as stale, triggering a VBO rebuild on the next draw
+    void invalidateColors();
     /// Returns the mesh line color
     RGBA meshColor() const;
     /// Sets the mesh line color

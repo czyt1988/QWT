@@ -1,10 +1,24 @@
 #include "qwt3d_color.h"
 #include "qwt3d_plot.h"
+#include "qwt3d_surface.h"
 #include "qwt_colormap.h"
 #include "qwt_colormap_preset.h"
 
 #include <qcolor.h>
 #include <qstring.h>
+
+
+/**
+ * @brief Notifies the owning surface that per-vertex colors are stale
+ * @details Called by subclasses after mutating color state (setColorMap,
+ *          setAlpha, etc). Triggers m_vboDirty and itemChanged on the surface,
+ *          causing buildVBO() to re-run the color functor on the next draw.
+ */
+void Qwt3DColor::notifyColorChanged()
+{
+    if (m_surface)
+        m_surface->invalidateColors();
+}
 
 
 class Qwt3DStandardColor::PrivateData
@@ -57,6 +71,7 @@ void Qwt3DStandardColor::setColorVector(ColorVector const& cv)
 {
     QWT_D(d);
     d->m_colors = cv;
+    notifyColorChanged();
 }
 
 /**
@@ -76,6 +91,8 @@ void Qwt3DStandardColor::setAlpha(double a)
         elem.a           = a;
         d->m_colors[ i ] = elem;
     }
+
+    notifyColorChanged();
 }
 
 /**
@@ -135,4 +152,6 @@ void Qwt3DStandardColor::setPreset(const QString& presetName, unsigned size)
 
         d->m_colors[ i ] = rgba;
     }
+
+    notifyColorChanged();
 }

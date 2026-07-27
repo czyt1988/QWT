@@ -53,8 +53,10 @@ MainWindow::MainWindow(QWidget* parent)
     // Load initial data
     switchData(0);
 
-    // Apply initial theme
+    // Apply initial theme (reapplyAll refreshes m_colorFunctor, which
+    // applyTheme replaces — same pattern as onThemeChanged)
     m_plot->applyTheme(Qwt3DTheme::Default);
+    m_dock->reapplyAll();
     m_plot->update();
 }
 

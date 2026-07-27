@@ -44,16 +44,25 @@ Qwt3DDrawable::~Qwt3DDrawable()
 
 void Qwt3DDrawable::attach(Qwt3DDrawable* dr)
 {
+    // A moved-from drawable has a null m_data (its PIMPL was moved out by the
+    // move constructor/assignment). All m_data access must tolerate this empty,
+    // moved-from state — otherwise destroying the moved-from elements left
+    // behind by std::vector reallocation (e.g. growing std::vector<Qwt3DLabel>
+    // in Qwt3DAxis::drawTics) dereferences null and crashes.
+    if (!m_data || !dr)
+        return;
+
     QWT_D(d);
 
     if (d->m_dlist.end() == std::find(d->m_dlist.begin(), d->m_dlist.end(), dr))
-        if (dr) {
-            d->m_dlist.push_back(dr);
-        }
+        d->m_dlist.push_back(dr);
 }
 
 void Qwt3DDrawable::detach(Qwt3DDrawable* dr)
 {
+    if (!m_data)
+        return;
+
     QWT_D(d);
 
     std::list< Qwt3DDrawable* >::iterator it = std::find(d->m_dlist.begin(), d->m_dlist.end(), dr);
@@ -65,6 +74,9 @@ void Qwt3DDrawable::detach(Qwt3DDrawable* dr)
 
 void Qwt3DDrawable::detachAll()
 {
+    if (!m_data)
+        return;
+
     QWT_D(d);
     d->m_dlist.clear();
 }

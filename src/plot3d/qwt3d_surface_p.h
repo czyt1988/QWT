@@ -123,8 +123,10 @@ inline Qwt3DSurface::PrivateData::~PrivateData()
     delete m_actualDataC;
 
     // Clean up color functor
-    if (m_dataColor)
+    if (m_dataColor) {
+        m_dataColor->setSurface(nullptr);
         m_dataColor->destroy();
+    }
 
     // Clean up enrichments
     for (auto* e : m_enrichmentList)
