@@ -131,6 +131,8 @@ private:
     void applyGridLinesColor();
     void applyBackgroundColor();
     void applyTitleColor();
+    void updateLegendScalePosCombo();
+    void syncLegendLimitsToData();
     int currentAxisIndex() const;
     int computeGridSides() const;
     void updatePlot();

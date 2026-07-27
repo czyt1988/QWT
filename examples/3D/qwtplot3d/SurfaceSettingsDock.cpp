@@ -143,6 +143,7 @@ void SurfaceSettingsDock::reapplyAll()
     onGridSideToggled();
 
     // Legend tab
+    syncLegendLimitsToData();
     onLegendOrientationChanged(m_legendOrientationCombo->currentIndex());
     onLegendScalePositionChanged(m_legendScalePosCombo->currentIndex());
     onLegendDrawScale(m_legendDrawScaleCheck->isChecked());
@@ -523,10 +524,9 @@ QWidget* SurfaceSettingsDock::createLegendTab()
     form->addRow(QStringLiteral("Orientation:"), m_legendOrientationCombo);
 
     m_legendScalePosCombo = new QComboBox;
-    m_legendScalePosCombo->addItems({QStringLiteral("Top"), QStringLiteral("Bottom"),
-                                     QStringLiteral("Left"), QStringLiteral("Right")});
     connect(m_legendScalePosCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &SurfaceSettingsDock::onLegendScalePositionChanged);
+    updateLegendScalePosCombo();
     form->addRow(QStringLiteral("Scale Position:"), m_legendScalePosCombo);
 
     m_legendDrawScaleCheck = new QCheckBox(QStringLiteral("Draw Scale"));
@@ -1137,28 +1137,89 @@ void SurfaceSettingsDock::onLineSmooth(bool on)
 }
 
 // ---------------------------------------------------------------------------
+// Legend tab helpers
+// ---------------------------------------------------------------------------
+void SurfaceSettingsDock::updateLegendScalePosCombo()
+{
+    if (!m_legendScalePosCombo || !m_legendOrientationCombo)
+        return;
+
+    bool wasBlocked = m_legendScalePosCombo->blockSignals(true);
+
+    int prevEnumVal = m_legendScalePosCombo->currentData().toInt();
+    if (prevEnumVal < 0)
+        prevEnumVal = Qwt3DColorLegend::Left;
+
+    m_legendScalePosCombo->clear();
+
+    bool isVertical = (m_legendOrientationCombo->currentIndex() == 0); // BottomTop = vertical
+
+    if (isVertical) {
+        m_legendScalePosCombo->addItem(QStringLiteral("Left"),
+            static_cast<int>(Qwt3DColorLegend::Left));
+        m_legendScalePosCombo->addItem(QStringLiteral("Right"),
+            static_cast<int>(Qwt3DColorLegend::Right));
+    } else {
+        m_legendScalePosCombo->addItem(QStringLiteral("Top"),
+            static_cast<int>(Qwt3DColorLegend::Top));
+        m_legendScalePosCombo->addItem(QStringLiteral("Bottom"),
+            static_cast<int>(Qwt3DColorLegend::Bottom));
+    }
+
+    int idx = m_legendScalePosCombo->findData(prevEnumVal);
+    if (idx >= 0)
+        m_legendScalePosCombo->setCurrentIndex(idx);
+    else
+        m_legendScalePosCombo->setCurrentIndex(0);
+
+    m_legendScalePosCombo->blockSignals(wasBlocked);
+}
+
+void SurfaceSettingsDock::syncLegendLimitsToData()
+{
+    if (!m_surface)
+        return;
+
+    ParallelEpiped h = m_surface->hull();
+    if (isPracticallyZero(h.minVertex.z, h.maxVertex.z))
+        return;
+
+    bool wasBlocked1 = m_legendLimitStartSpin->blockSignals(true);
+    bool wasBlocked2 = m_legendLimitStopSpin->blockSignals(true);
+
+    m_legendLimitStartSpin->setValue(h.minVertex.z);
+    m_legendLimitStopSpin->setValue(h.maxVertex.z);
+
+    m_legendLimitStartSpin->blockSignals(wasBlocked1);
+    m_legendLimitStopSpin->blockSignals(wasBlocked2);
+}
+
+// ---------------------------------------------------------------------------
 // Legend tab slots
 // ---------------------------------------------------------------------------
 void SurfaceSettingsDock::onLegendOrientationChanged(int index)
 {
     if (!m_plot || !m_plot->legend())
         return;
-    // BottomTop=0, LeftRight=1
-    // ScalePosition: Top=0, Bottom=1, Left=2, Right=3
     Qwt3DColorLegend::ORIENTATION orient = (index == 0)
         ? Qwt3DColorLegend::BottomTop : Qwt3DColorLegend::LeftRight;
-    Qwt3DColorLegend::SCALEPOSITION sp = static_cast<Qwt3DColorLegend::SCALEPOSITION>(m_legendScalePosCombo->currentIndex());
+
+    updateLegendScalePosCombo();
+
+    Qwt3DColorLegend::SCALEPOSITION sp = static_cast<Qwt3DColorLegend::SCALEPOSITION>(
+        m_legendScalePosCombo->currentData().toInt());
     m_plot->legend()->setOrientation(orient, sp);
     updatePlot();
 }
 
-void SurfaceSettingsDock::onLegendScalePositionChanged(int index)
+void SurfaceSettingsDock::onLegendScalePositionChanged(int)
 {
     if (!m_plot || !m_plot->legend())
         return;
     Qwt3DColorLegend::ORIENTATION orient = (m_legendOrientationCombo->currentIndex() == 0)
         ? Qwt3DColorLegend::BottomTop : Qwt3DColorLegend::LeftRight;
-    Qwt3DColorLegend::SCALEPOSITION sp = static_cast<Qwt3DColorLegend::SCALEPOSITION>(index);
+    Qwt3DColorLegend::SCALEPOSITION sp = static_cast<Qwt3DColorLegend::SCALEPOSITION>(
+        m_legendScalePosCombo->currentData().toInt());
     m_plot->legend()->setOrientation(orient, sp);
     updatePlot();
 }
