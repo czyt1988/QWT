@@ -514,8 +514,6 @@ void Qwt3DSurface::setDataColor(Qwt3DColor* color)
     if (d->m_dataColor)
         d->m_dataColor->destroy();
     d->m_dataColor = color;
-    if (d->m_dataColor)
-        d->m_dataColor->setSurface(this);
     d->m_vboDirty = true;
     itemChanged();
 }
@@ -543,11 +541,30 @@ void Qwt3DSurface::invalidateColors()
     itemChanged();
 }
 
+/**
+ * @brief Pushes the plot's union z-range into the color functor
+ * @details Reads Qwt3DPlot::hull() (the union of all attached items' hulls) and
+ *          feeds its z-range to the color functor via setActiveRange(). This is
+ *          plain data input — it does not trigger a rebuild; callers are expected
+ *          to have m_vboDirty set (buildVBO) or to call invalidateColors() as
+ *          needed. No-op if no color functor is set or no plot is attached.
+ */
+void Qwt3DSurface::pushColorRange() const
+{
+    QWT_DC(d);
+    if (!d->m_dataColor || !plot())
+        return;
+    const ParallelEpiped h = plot()->hull();
+    d->m_dataColor->setActiveRange(h.minVertex.z, h.maxVertex.z);
+}
+
 void Qwt3DSurface::populateLegendColors(ColorVector& colors) const
 {
     QWT_DC(d);
-    if (d->m_dataColor)
+    if (d->m_dataColor) {
+        pushColorRange();
         d->m_dataColor->createVector(colors);
+    }
 }
 
 /**
@@ -686,8 +703,6 @@ Qwt3DEnrichment* Qwt3DSurface::addEnrichment(Qwt3DEnrichment const& enrichment)
         return nullptr;
 
     Qwt3DEnrichment* en = enrichment.clone();
-    if (plot())
-        en->assign(*plot());
     d->m_enrichmentList.push_back(en);
     return en;
 }
@@ -791,12 +806,15 @@ void Qwt3DSurface::buildVBO()
     // Ensure we have a data color functor
     if (!d->m_dataColor) {
         if (plot()) {
-            d->m_dataColor = new Qwt3DStandardColor(plot());
+            d->m_dataColor = new Qwt3DStandardColor();
         } else {
             // No plot attached yet — cannot create default color
             return;
         }
     }
+
+    // Push the plot's union z-range into the color functor before querying it
+    pushColorRange();
 
     if (d->m_actualDataG && !d->m_actualDataG->empty()) {
         // --- Grid data ---

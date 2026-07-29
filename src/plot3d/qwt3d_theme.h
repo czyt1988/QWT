@@ -127,7 +127,7 @@ public:
 
 private:
     // Apply item-level properties to a single item
-    void applyToItem(Qwt3DPlotItem* item, Qwt3DPlot* plot) const;
+    void applyToItem(Qwt3DPlotItem* item) const;
     RGBA m_backgroundColor;
     RGBA m_meshColor;
     double m_meshLineWidth;

@@ -5,8 +5,6 @@
 
 
 
-class Qwt3DPlot;
-
 /**
  * @brief The Cross Hair Style
  */

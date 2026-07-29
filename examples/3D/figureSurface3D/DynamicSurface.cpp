@@ -45,7 +45,7 @@ DynamicSurfacePlot::DynamicSurfacePlot(QWidget* parent)
     m_plot->coordinates()->setStyle(BOX);
 
     // Configure data color (StandardColor for z-value-driven coloring)
-    auto* stdColor = new Qwt3DStandardColor(m_plot);
+    auto* stdColor = new Qwt3DStandardColor();
     m_surface->setDataColor(stdColor);
 
     // Configure lighting

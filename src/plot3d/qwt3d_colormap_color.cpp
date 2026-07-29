@@ -8,7 +8,6 @@
  *****************************************************************************/
 
 #include "qwt3d_colormap_color.h"
-#include "qwt3d_plot.h"
 #include "qwt_colormap.h"
 #include "qwt_colormap_preset.h"
 
@@ -16,9 +15,8 @@
 #include <qstring.h>
 
 
-Qwt3DColorMapColor::Qwt3DColorMapColor(Qwt3DPlot* plot, const QString& presetName, unsigned size)
-    : m_plot(plot)
-    , m_colorMap(QwtColorMapPreset::create(presetName).release())
+Qwt3DColorMapColor::Qwt3DColorMapColor(const QString& presetName, unsigned size)
+    : m_colorMap(QwtColorMapPreset::create(presetName).release())
     , m_manualMin(0.0)
     , m_manualMax(1.0)
     , m_useManualInterval(false)
@@ -27,8 +25,8 @@ Qwt3DColorMapColor::Qwt3DColorMapColor(Qwt3DPlot* plot, const QString& presetNam
     rebuildColorVector(size);
 }
 
-Qwt3DColorMapColor::Qwt3DColorMapColor(Qwt3DPlot* plot, ::QwtColorMap* colorMap, unsigned size)
-    : m_plot(plot), m_colorMap(colorMap), m_manualMin(0.0), m_manualMax(1.0), m_useManualInterval(false), m_alpha(1.0)
+Qwt3DColorMapColor::Qwt3DColorMapColor(::QwtColorMap* colorMap, unsigned size)
+    : m_colorMap(colorMap), m_manualMin(0.0), m_manualMax(1.0), m_useManualInterval(false), m_alpha(1.0)
 {
     rebuildColorVector(size);
 }
@@ -44,13 +42,9 @@ RGBA Qwt3DColorMapColor::operator()(double, double, double z) const
     if (m_useManualInterval) {
         zMin = m_manualMin;
         zMax = m_manualMax;
-    } else if (m_plot) {
-        const ParallelEpiped hull = m_plot->hull();
-        zMin                      = hull.minVertex.z;
-        zMax                      = hull.maxVertex.z;
     } else {
-        zMin = 0.0;
-        zMax = 1.0;
+        zMin = activeZMin();
+        zMax = activeZMax();
     }
 
     const QRgb rgb = m_colorMap->rgb(zMin, zMax, z);
@@ -76,7 +70,6 @@ void Qwt3DColorMapColor::setColorMap(::QwtColorMap* map)
         m_colorMap = map;
     }
     rebuildColorVector(static_cast< unsigned >(m_colors.size()));
-    notifyColorChanged();
 }
 
 const ::QwtColorMap* Qwt3DColorMapColor::colorMap() const
@@ -90,13 +83,11 @@ void Qwt3DColorMapColor::setInterval(double min, double max)
     m_manualMax         = max;
     m_useManualInterval = true;
     rebuildColorVector(static_cast< unsigned >(m_colors.size()));
-    notifyColorChanged();
 }
 
 void Qwt3DColorMapColor::reset(unsigned size)
 {
     rebuildColorVector(size);
-    notifyColorChanged();
 }
 
 void Qwt3DColorMapColor::setAlpha(double a)
@@ -105,7 +96,6 @@ void Qwt3DColorMapColor::setAlpha(double a)
         return;
     m_alpha = a;
     rebuildColorVector(static_cast< unsigned >(m_colors.size()));
-    notifyColorChanged();
 }
 
 void Qwt3DColorMapColor::rebuildColorVector(unsigned size)
@@ -116,13 +106,9 @@ void Qwt3DColorMapColor::rebuildColorVector(unsigned size)
     if (m_useManualInterval) {
         zMin = m_manualMin;
         zMax = m_manualMax;
-    } else if (m_plot) {
-        const ParallelEpiped hull = m_plot->hull();
-        zMin                      = hull.minVertex.z;
-        zMax                      = hull.maxVertex.z;
     } else {
-        zMin = 0.0;
-        zMax = 1.0;
+        zMin = activeZMin();
+        zMax = activeZMax();
     }
 
     if (!m_colorMap)

@@ -4,10 +4,6 @@
 #include "qwt3d_global.h"
 #include "qwt3d_types.h"
 
-
-
-class Qwt3DPlot;
-
 /**
  * @brief Abstract base class for data dependent visible user objects
  * @details Enrichments provide a framework for user defined OpenGL objects. The base class has a pure virtual
@@ -27,7 +23,7 @@ public:
         VOXELENRICHMENT
     };
 
-    Qwt3DEnrichment() : plot(nullptr)
+    Qwt3DEnrichment()
     {
     }
     virtual ~Qwt3DEnrichment()
@@ -39,16 +35,8 @@ public:
     virtual void drawBegin() {};
     // Empty per default. Can be overwritten
     virtual void drawEnd() {};
-    // Assign to existent plot
-    virtual void assign(Qwt3DPlot const& pl)
-    {
-        plot = &pl;
-    }
     // Overwrite
     virtual TYPE type() const = 0;
-
-protected:
-    const Qwt3DPlot* plot;
 };
 
 /**

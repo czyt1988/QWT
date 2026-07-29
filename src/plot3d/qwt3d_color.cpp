@@ -1,6 +1,4 @@
 #include "qwt3d_color.h"
-#include "qwt3d_plot.h"
-#include "qwt3d_surface.h"
 #include "qwt_colormap.h"
 #include "qwt_colormap_preset.h"
 
@@ -8,45 +6,28 @@
 #include <qstring.h>
 
 
-/**
- * @brief Notifies the owning surface that per-vertex colors are stale
- * @details Called by subclasses after mutating color state (setColorMap,
- *          setAlpha, etc). Triggers m_vboDirty and itemChanged on the surface,
- *          causing buildVBO() to re-run the color functor on the next draw.
- */
-void Qwt3DColor::notifyColorChanged()
-{
-    if (m_surface)
-        m_surface->invalidateColors();
-}
-
-
 class Qwt3DStandardColor::PrivateData
 {
     QWT_DECLARE_PUBLIC(Qwt3DStandardColor)
 
 public:
-    PrivateData(Qwt3DStandardColor* q) : q_ptr(q), m_data(nullptr)
+    PrivateData(Qwt3DStandardColor* q) : q_ptr(q)
     {
     }
 
     ColorVector m_colors;
-    Qwt3DPlot* m_data;
 };
 
 /**
  * @brief Constructs a Qwt3DStandardColor object
- * @param data Plot3D data source for color mapping
  * @param size Number of color entries in the color vector
  * @details Creates a standard color mapping with the specified size and resets
- *          the color vector to default gradient values.
+ *          the color vector to default gradient values. The z-range used for
+ *          color normalization is pushed in by the owning Qwt3DPlotItem via
+ *          setActiveRange() (defaults to [0, 1] until set).
  */
-Qwt3DStandardColor::Qwt3DStandardColor(Qwt3DPlot* data, unsigned size) : QWT_PIMPL_CONSTRUCT
+Qwt3DStandardColor::Qwt3DStandardColor(unsigned size) : QWT_PIMPL_CONSTRUCT
 {
-    QWT_D(d);
-    Q_ASSERT(data);
-    d->m_data = data;
-
     reset(size);
 }
 
@@ -66,17 +47,20 @@ void Qwt3DStandardColor::reset(unsigned size)
 /**
  * @brief Assigns a new ColorVector
  * @param cv The new color vector (also overwrites the constructor's size argument)
+ * @details This is a silent mutation: the owning Qwt3DPlotItem is not notified.
+ *          Call Qwt3DSurface::invalidateColors() afterwards to trigger a VBO
+ *          rebuild.
  */
 void Qwt3DStandardColor::setColorVector(ColorVector const& cv)
 {
     QWT_D(d);
     d->m_colors = cv;
-    notifyColorChanged();
 }
 
 /**
  * @brief Sets the alpha value for all colors
  * @param a Alpha value (0.0 to 1.0)
+ * @details Silent mutation: call Qwt3DSurface::invalidateColors() to rebuild.
  */
 void Qwt3DStandardColor::setAlpha(double a)
 {
@@ -91,8 +75,6 @@ void Qwt3DStandardColor::setAlpha(double a)
         elem.a           = a;
         d->m_colors[ i ] = elem;
     }
-
-    notifyColorChanged();
 }
 
 /**
@@ -111,14 +93,15 @@ ColorVector& Qwt3DStandardColor::createVector(ColorVector& vec)
  * @brief Returns the color for a given z value
  * @param z The z coordinate value for color lookup
  * @return RGBA color corresponding to the z value
- * @details Maps the z value to a color index based on the data hull's z range.
+ * @details Maps the z value to a color index based on the active z-range
+ *          pushed in by the owning Qwt3DPlotItem via setActiveRange().
  */
 RGBA Qwt3DStandardColor::operator()(double, double, double z) const
 {
     QWT_DC(d);
-    Q_ASSERT(d->m_data);
-    int index = static_cast< int >((d->m_colors.size() - 1) * (z - d->m_data->hull().minVertex.z)
-                                   / (d->m_data->hull().maxVertex.z - d->m_data->hull().minVertex.z));
+    const double zMin = activeZMin();
+    const double zMax = activeZMax();
+    int index = static_cast< int >((d->m_colors.size() - 1) * (z - zMin) / (zMax - zMin));
     if (index < 0)
         index = 0;
     if (static_cast< unsigned int >(index) > d->m_colors.size() - 1)
@@ -152,6 +135,4 @@ void Qwt3DStandardColor::setPreset(const QString& presetName, unsigned size)
 
         d->m_colors[ i ] = rgba;
     }
-
-    notifyColorChanged();
 }

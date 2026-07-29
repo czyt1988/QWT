@@ -156,6 +156,8 @@ protected:
 
 private:
     void buildVBO();
+    /// Pushes the plot's union z-range into the color functor (silent data input, no rebuild trigger)
+    void pushColorRange() const;
 };
 
 #endif // QWT3D_SURFACE_H

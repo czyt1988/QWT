@@ -2,9 +2,6 @@
 
 #include <cmath>
 
-#include "qwt3d_color.h"
-#include "qwt3d_plot.h"
-
 
 /////////////////////////////////////////////////////////////////
 //
@@ -57,7 +54,6 @@ Qwt3DEnrichment* Qwt3DCrossHair::clone() const
 
 void Qwt3DCrossHair::configure(double rad, double linewidth, bool smooth, bool boxed)
 {
-    plot = nullptr;
     QWT_D(d);
     d->m_radius    = rad;
     d->m_linewidth = linewidth;
@@ -117,7 +113,6 @@ Qwt3DEnrichment* Qwt3DDot::clone() const
 
 void Qwt3DDot::configure(double pointsize, bool smooth)
 {
-    plot = nullptr;
     QWT_D(d);
     d->m_pointsize = pointsize;
     d->m_smooth    = smooth;
@@ -174,7 +169,6 @@ Qwt3DEnrichment* Qwt3DCone::clone() const
 
 void Qwt3DCone::configure(double rad, unsigned quality)
 {
-    plot = nullptr;
     QWT_D(d);
     d->m_radius   = rad;
     d->m_quality  = quality;
@@ -240,7 +234,6 @@ Qwt3DEnrichment* Qwt3DArrow::clone() const
 
 void Qwt3DArrow::configure(int segs, double relconelength, double relconerad, double relstemrad)
 {
-    plot = nullptr;
     QWT_D(d);
     d->m_segments      = segs;
     d->m_relConeLength = relconelength;

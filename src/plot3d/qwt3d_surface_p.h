@@ -124,7 +124,6 @@ inline Qwt3DSurface::PrivateData::~PrivateData()
 
     // Clean up color functor
     if (m_dataColor) {
-        m_dataColor->setSurface(nullptr);
         m_dataColor->destroy();
     }
 

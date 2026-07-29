@@ -460,7 +460,7 @@ void Qwt3DTheme::apply(Qwt3DPlot* plot) const
 
     // Apply item-level properties to each attached item
     for (auto* item : plot->itemList())
-        applyToItem(item, plot);
+        applyToItem(item);
 
     plot->update();
 }
@@ -468,11 +468,10 @@ void Qwt3DTheme::apply(Qwt3DPlot* plot) const
 /**
  * @brief Applies item-level visual properties to a single plot item
  * @param item The target item (must be a Qwt3DSurface for surface properties)
- * @param plot The owning plot (used for color map construction)
  * @details Sets mesh color, line width, smooth mesh, data color (from preset),
  *          plot style, and shading on Qwt3DSurface items.
  */
-void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item, Qwt3DPlot* plot) const
+void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item) const
 {
     auto* surface = dynamic_cast<Qwt3DSurface*>(item);
     if (!surface)
@@ -485,6 +484,6 @@ void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item, Qwt3DPlot* plot) const
     surface->setShading(m_shading);
 
     // Create a colormap-based color functor from the preset name
-    auto* colorMap = new Qwt3DColorMapColor(plot, m_dataColorPreset);
+    auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
     surface->setDataColor(colorMap);
 }

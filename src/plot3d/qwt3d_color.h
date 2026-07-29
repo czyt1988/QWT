@@ -2,12 +2,9 @@
 #define QWT3D_COLOR_H
 
 #include <qstring.h>
+
 #include "qwt3d_global.h"
 #include "qwt3d_types.h"
-
-
-
-class Qwt3DSurface;
 
 /**
  * @brief Abstract base class for color functors
@@ -15,6 +12,14 @@ class Qwt3DSurface;
  *          operator()(double x, double y, double z). Colors destructor has been
  *          declared protected, in order to use only heap based objects. Plot3D
  *          will handle the objects destruction. See Qwt3DStandardColor for an example.
+ *
+ * Qwt3DColor is a pure value object: it holds no back-pointer to its owner and
+ * never notifies anyone when its state mutates. The owning Qwt3DPlotItem is
+ * responsible for triggering a rebuild after an in-place mutation (see
+ * Qwt3DSurface::invalidateColors). The active z-range used for color
+ * normalization is pushed in by the owner via setActiveRange() before the
+ * functor is queried. This mirrors the 2D module, where QwtColorMap is a silent
+ * value object and QwtPlotSpectrogram::setColorMap() drives the notification.
  */
 class QWT3D_EXPORT Qwt3DColor
 {
@@ -36,21 +41,27 @@ public:
         delete this;
     }
 
-    /// Sets the owning surface for automatic VBO invalidation (called by Qwt3DSurface)
-    void setSurface(Qwt3DSurface* surface) { m_surface = surface; }
+    /// Sets the active z-range used for color normalization (pushed by the owning Qwt3DPlotItem before VBO/legend build)
+    void setActiveRange(double zMin, double zMax)
+    {
+        m_zMin = zMin;
+        m_zMax = zMax;
+    }
 
 protected:
     virtual ~Qwt3DColor()
     {
     }
 
-    /// Called by subclasses after mutating color state; triggers VBO rebuild on the owning surface
-    void notifyColorChanged();
+    /// Lower bound of the active z-range (default 0.0)
+    double activeZMin() const { return m_zMin; }
+    /// Upper bound of the active z-range (default 1.0)
+    double activeZMax() const { return m_zMax; }
 
-    Qwt3DSurface* m_surface = nullptr;
+private:
+    double m_zMin = 0.0;
+    double m_zMax = 1.0;
 };
-
-class Qwt3DPlot;
 
 /**
  * @brief Standard color model for Qwt3DPlot - implements the data driven operator()(double x, double y, double z)
@@ -62,8 +73,8 @@ class QWT3D_EXPORT Qwt3DStandardColor : public Qwt3DColor
     QWT_DECLARE_PRIVATE(Qwt3DStandardColor)
 
 public:
-    // Initializes with data and set up a ColorVector with a size of 100 z values (default)
-    explicit Qwt3DStandardColor(Qwt3DPlot* data, unsigned size = 100);
+    // Initializes with a ColorVector of the given size sampled from the viridis colormap (default)
+    explicit Qwt3DStandardColor(unsigned size = 100);
     ~Qwt3DStandardColor() override;
     // Receives z-dependent color from ColorVector
     RGBA operator()(double x, double y, double z) const override;

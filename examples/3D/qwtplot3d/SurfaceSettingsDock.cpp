@@ -99,7 +99,7 @@ void SurfaceSettingsDock::setSurface(Qwt3DSurface* surface)
 
     if (m_surface && m_plot) {
         // Create and attach the color functor
-        m_colorFunctor = new Qwt3DColorMapColor(m_plot, QStringLiteral("viridis"), 256);
+        m_colorFunctor = new Qwt3DColorMapColor(QStringLiteral("viridis"), 256);
         m_surface->setDataColor(m_colorFunctor);
     }
 }
@@ -129,7 +129,7 @@ void SurfaceSettingsDock::reapplyAll()
     // Rebuild color functor with current preset.
     // applyTheme() replaces the surface's color functor (destroying the old one),
     // so m_colorFunctor may be a dangling pointer — always create a fresh one.
-    m_colorFunctor = new Qwt3DColorMapColor(m_plot, m_colorPresetCombo->currentText(), 256);
+    m_colorFunctor = new Qwt3DColorMapColor(m_colorPresetCombo->currentText(), 256);
     m_surface->setDataColor(m_colorFunctor);
     onColorAlpha(m_colorAlphaSlider->value());
 
@@ -983,6 +983,8 @@ void SurfaceSettingsDock::onColorPresetChanged(int /*index*/)
         return;
     QString preset = m_colorPresetCombo->currentText();
     m_colorFunctor->setColorMap(QwtColorMapPreset::create(preset).release());
+    if (m_surface)
+        m_surface->invalidateColors();
     updatePlot();
 }
 
@@ -991,6 +993,8 @@ void SurfaceSettingsDock::onColorAlpha(int val)
     if (!m_colorFunctor)
         return;
     m_colorFunctor->setAlpha(val / 255.0);
+    if (m_surface)
+        m_surface->invalidateColors();
     updatePlot();
 }
 
