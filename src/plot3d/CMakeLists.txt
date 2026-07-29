@@ -51,6 +51,7 @@ set(QWTPLOT3D_HEADER_PLOT_3D
     qwt3d_io_gl2ps.h
     qwt3d_colormap_color.h
     qwt3d_theme.h
+    qwt3d_render_context.h
 )
 set(QWTPLOT3D_SOURCE_PLOT_3D
     qwt3d_axis.cpp
@@ -77,6 +78,7 @@ set(QWTPLOT3D_SOURCE_PLOT_3D
     qwt3d_io_gl2ps.cpp
     qwt3d_colormap_color.cpp
     qwt3d_theme.cpp
+    qwt3d_render_context.cpp
     shaders/shaders.qrc
 )
 list(APPEND QWTPLOT3D_HEADER_FILES ${QWTPLOT3D_HEADER_PLOT_3D})

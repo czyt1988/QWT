@@ -305,6 +305,50 @@ void Qwt3DSurface::loadFromData(double** data, unsigned int columns, unsigned in
 }
 
 /**
+ * @brief Load grid data from a Qwt3DFunctionData result
+ * @param data Result of Qwt3DFunction::create() containing z-values and domain
+ * @details Converts the vector-based data to the internal grid format and
+ *          delegates to the pointer-based overload. Memory-safe: the vector
+ *          data is read-only; a temporary pointer array is created for the
+ *          legacy API.
+ */
+void Qwt3DSurface::loadFromData(const Qwt3DFunctionData& data)
+{
+    if (data.columns == 0 || data.rows == 0)
+        return;
+
+    // Build a temporary pointer array from the vector-of-vectors
+    std::vector<double*> ptrs(data.columns);
+    for (unsigned int i = 0; i < data.columns; ++i)
+        ptrs[i] = const_cast<double*>(data.z[i].data());
+
+    loadFromData(ptrs.data(), data.columns, data.rows,
+                 data.minx, data.maxx, data.miny, data.maxy);
+}
+
+/**
+ * @brief Load grid data from a Qwt3DParametricData result
+ * @param data Result of Qwt3DParametricSurface::create() containing xyz triples
+ * @details Converts the vector-based data to the internal grid format and
+ *          delegates to the pointer-based overload. Memory-safe: the vector
+ *          data is read-only; a temporary pointer array is created for the
+ *          legacy API.
+ */
+void Qwt3DSurface::loadFromData(const Qwt3DParametricData& data)
+{
+    if (data.columns == 0 || data.rows == 0)
+        return;
+
+    // Build a temporary pointer array from the vector-of-vectors
+    std::vector<Triple*> ptrs(data.columns);
+    for (unsigned int i = 0; i < data.columns; ++i)
+        ptrs[i] = const_cast<Triple*>(data.vertices[i].data());
+
+    loadFromData(ptrs.data(), data.columns, data.rows,
+                 data.uperiodic, data.vperiodic);
+}
+
+/**
  * @brief Load cell (polygon) data from node coordinates and cell indices
  * @param nodes Vector of 3D node coordinates
  * @param poly Vector of cells (each cell is a vector of node indices)

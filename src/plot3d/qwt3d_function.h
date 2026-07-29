@@ -2,27 +2,40 @@
 #define QWT3D_FUNCTION_H
 
 #include "qwt3d_gridmapping.h"
+#include "qwt3d_types.h"
 
 
-
-class Qwt3DSurface;
 
 /**
  * @brief Abstract base class for mathematical functions
  * @details A Qwt3DFunction encapsulates a mathematical function with rectangular domain. The user has to
  *          adapt the pure virtual operator() to get a working object. Also, the client code should call
  *          setDomain, setMesh and create for reasonable operating conditions.
+ *
+ *          create() returns a Qwt3DFunctionData struct that the caller feeds to
+ *          Qwt3DSurface::loadFromData(). The function no longer holds a back-pointer
+ *          to the surface item (deferred smell #2, resolved).
+ *
+ * @code
+ * class MyFunction : public Qwt3DFunction
+ * {
+ * public:
+ *     double operator()(double x, double y) override { return std::sin(x + y); }
+ * };
+ *
+ * MyFunction func;
+ * func.setMesh(50, 50);
+ * func.setDomain(-3, 3, -3, 3);
+ * auto data = func.create();
+ * surface->loadFromData(data);
+ * @endcode
  */
 class QWT3D_EXPORT Qwt3DFunction : public Qwt3DGridMapping
 {
 
 public:
-    // Constructs Qwt3DFunction object w/o assigned Qwt3DSurface
+    // Constructs Qwt3DFunction object
     Qwt3DFunction();
-    // Constructs Qwt3DFunction object and assigns a Qwt3DSurface
-    explicit Qwt3DFunction(Qwt3DSurface& surface);
-    // Constructs Qwt3DFunction object and assigns a Qwt3DSurface
-    explicit Qwt3DFunction(Qwt3DSurface* surface);
     // Overwrite this
     virtual double operator()(double x, double y) = 0;
 
@@ -31,15 +44,8 @@ public:
     // Sets maximal z value
     void setMaxZ(double val);
 
-    // Assigns a new Qwt3DSurface and creates a data representation for it
-    virtual bool create(Qwt3DSurface& surface);
-    // Creates data representation for the actual assigned Qwt3DSurface
-    virtual bool create();
-    // Assigns the object to another surface - call before create()
-    void assign(Qwt3DSurface& surface);
-    // Assigns the object to another surface - call before create()
-    void assign(Qwt3DSurface* surface);
+    // Evaluates the function over the mesh grid and returns the result
+    virtual Qwt3DFunctionData create();
 };
-
 
 #endif  // QWT3D_FUNCTION_H

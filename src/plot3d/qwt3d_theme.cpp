@@ -40,6 +40,9 @@ Qwt3DTheme::Qwt3DTheme()
     , m_numberColor(0.0, 0.0, 0.0, 1.0)
     , m_labelColor(0.0, 0.0, 0.0, 1.0)
     , m_gridLinesColor(0.2, 0.2, 0.2, 1.0)
+    , m_interiorGridLinesColor(0.6, 0.6, 0.6, 0.5)
+    , m_interiorGridMajorWidth(0.5)
+    , m_interiorGridMinorWidth(0.3)
     , m_titleColor(0.0, 0.0, 0.0, 1.0)
     , m_titleFontFamily("Courier")
     , m_titleFontSize(16)
@@ -81,6 +84,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.8, 0.8, 0.8, 1.0);
         theme.m_labelColor        = RGBA(0.9, 0.9, 0.9, 1.0);
         theme.m_gridLinesColor    = RGBA(0.35, 0.35, 0.35, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.25, 0.25, 0.25, 0.5);
         theme.m_titleColor        = RGBA(0.95, 0.95, 0.95, 1.0);
         theme.m_lightingPreset    = Soft;
         theme.m_shininess         = 5.0;
@@ -106,6 +110,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.3, 0.15, 0.0, 1.0);
         theme.m_labelColor        = RGBA(0.3, 0.15, 0.0, 1.0);
         theme.m_gridLinesColor    = RGBA(0.7, 0.55, 0.4, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.8, 0.65, 0.5, 0.5);
         theme.m_titleColor        = RGBA(0.3, 0.15, 0.0, 1.0);
         theme.m_lightingPreset    = FlatLight;
         theme.m_shininess         = 3.0;
@@ -121,6 +126,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.0, 0.15, 0.35, 1.0);
         theme.m_labelColor        = RGBA(0.0, 0.15, 0.35, 1.0);
         theme.m_gridLinesColor    = RGBA(0.5, 0.6, 0.75, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.6, 0.7, 0.85, 0.5);
         theme.m_titleColor        = RGBA(0.0, 0.15, 0.35, 1.0);
         theme.m_lightingPreset    = FlatLight;
         theme.m_shininess         = 3.0;
@@ -135,6 +141,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.2, 0.2, 0.2, 1.0);
         theme.m_labelColor        = RGBA(0.2, 0.2, 0.2, 1.0);
         theme.m_gridLinesColor    = RGBA(0.75, 0.75, 0.75, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.85, 0.85, 0.85, 0.4);
         theme.m_titleColor        = RGBA(0.2, 0.2, 0.2, 1.0);
         theme.m_titleFontFamily   = "sans-serif";
         theme.m_titleFontSize     = 14;
@@ -152,6 +159,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.35, 0.25, 0.15, 1.0);
         theme.m_labelColor        = RGBA(0.35, 0.25, 0.15, 1.0);
         theme.m_gridLinesColor    = RGBA(0.65, 0.55, 0.45, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.75, 0.65, 0.55, 0.5);
         theme.m_titleColor        = RGBA(0.35, 0.25, 0.15, 1.0);
         theme.m_lightingPreset    = Outdoor;
         theme.m_shininess         = 5.0;
@@ -167,6 +175,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.0, 0.1, 0.3, 1.0);
         theme.m_labelColor        = RGBA(0.0, 0.1, 0.3, 1.0);
         theme.m_gridLinesColor    = RGBA(0.5, 0.65, 0.8, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.6, 0.75, 0.9, 0.5);
         theme.m_titleColor        = RGBA(0.0, 0.1, 0.3, 1.0);
         theme.m_lightingPreset    = FlatLight;
         theme.m_shininess         = 3.0;
@@ -181,6 +190,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor     = RGBA(1.0, 1.0, 1.0, 1.0);
         theme.m_labelColor      = RGBA(1.0, 1.0, 1.0, 1.0);
         theme.m_gridLinesColor  = RGBA(0.5, 0.5, 0.5, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.3, 0.3, 0.3, 0.5);
         theme.m_titleColor      = RGBA(1.0, 1.0, 1.0, 1.0);
         break;
 
@@ -188,6 +198,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_meshLineWidth     = 1.5;
         theme.m_dataColorPreset   = "plasma";
         theme.m_gridLinesColor    = RGBA(0.6, 0.6, 0.6, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.7, 0.7, 0.7, 0.4);
         theme.m_titleFontFamily   = "Arial";
         theme.m_titleFontSize     = 20;
         theme.m_lightingPreset    = Studio;
@@ -317,6 +328,33 @@ void Qwt3DTheme::setGridLinesColor(RGBA c)
     m_gridLinesColor = c;
 }
 
+RGBA Qwt3DTheme::interiorGridLinesColor() const
+{
+    return m_interiorGridLinesColor;
+}
+void Qwt3DTheme::setInteriorGridLinesColor(RGBA c)
+{
+    m_interiorGridLinesColor = c;
+}
+
+double Qwt3DTheme::interiorGridMajorWidth() const
+{
+    return m_interiorGridMajorWidth;
+}
+void Qwt3DTheme::setInteriorGridMajorWidth(double w)
+{
+    m_interiorGridMajorWidth = w;
+}
+
+double Qwt3DTheme::interiorGridMinorWidth() const
+{
+    return m_interiorGridMinorWidth;
+}
+void Qwt3DTheme::setInteriorGridMinorWidth(double w)
+{
+    m_interiorGridMinorWidth = w;
+}
+
 RGBA Qwt3DTheme::titleColor() const
 {
     return m_titleColor;
@@ -415,6 +453,8 @@ void Qwt3DTheme::apply(Qwt3DPlot* plot) const
         coords->setNumberColor(m_numberColor);
         coords->setLabelColor(m_labelColor);
         coords->setGridLinesColor(m_gridLinesColor);
+        coords->setInteriorGridLinesColor(m_interiorGridLinesColor);
+        coords->setInteriorGridLinesWidth(m_interiorGridMajorWidth, m_interiorGridMinorWidth);
     }
 
     plot->setTitleColor(m_titleColor);

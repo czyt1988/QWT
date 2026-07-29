@@ -1,7 +1,5 @@
 #include "qwt3d_axis.h"
 
-#include "qwt3d_plot.h"
-
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
 #include <QOpenGLShaderProgram>
@@ -442,15 +440,16 @@ void Qwt3DAxis::setScale(SCALETYPE val)
 
 /**
  * @brief Helper: draws a set of line segments using VBO + line shader
+ * @param ctx Render context providing shader and matrices
  * @param vertices Interleaved vertex data: 7 floats per vertex (pos.xyz + color.rgba)
  * @param lineWidth Line width in pixels (TODO: may not be supported > 1.0 in Core Profile)
  */
-void Qwt3DAxis::drawLines(const QVector<float>& vertices, double lineWidth)
+void Qwt3DAxis::drawLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth)
 {
-    if (vertices.isEmpty() || !plot())
+    if (vertices.isEmpty())
         return;
 
-    auto* shader = plot()->lineShader();
+    auto* shader = ctx.lineShader;
     if (!shader)
         return;
 
@@ -465,8 +464,8 @@ void Qwt3DAxis::drawLines(const QVector<float>& vertices, double lineWidth)
     vbo.allocate(vertices.constData(), vertices.size() * sizeof(float));
 
     shader->bind();
-    shader->setUniformValue("uModelView", plot()->modelViewMatrix());
-    shader->setUniformValue("uProjection", plot()->projectionMatrix());
+    shader->setUniformValue("uModelView", ctx.modelView);
+    shader->setUniformValue("uProjection", ctx.projection);
 
     int stride = 7 * sizeof(float);
     shader->enableAttributeArray(0);
@@ -485,22 +484,16 @@ void Qwt3DAxis::drawLines(const QVector<float>& vertices, double lineWidth)
 
 /**
  * @brief Draws the axis including base line, tics, and label
+ * @param ctx Render context providing shaders, matrices, and coordinate conversion
  * @details Uses VBO + line shader for line geometry. Labels are drawn
  *          via Qwt3DLabel::draw() which uses its own texture-based rendering.
  */
-void Qwt3DAxis::draw()
+void Qwt3DAxis::draw(const Qwt3DRenderContext& ctx)
 {
     // Draw children first
-    Qwt3DDrawable::draw();
+    Qwt3DDrawable::draw(ctx);
 
-    if (!plot())
-        return;
-
-    // Ensure labels have plot pointer set
     QWT_D(d);
-    d->m_label.setPlot(plot());
-    for (auto& ml : d->m_markerLabel)
-        ml.setPlot(plot());
 
     // Collect and draw base line
     {
@@ -512,24 +505,24 @@ void Qwt3DAxis::draw()
         float a = static_cast< float >(color.a);
         verts << static_cast< float >(d->m_beg.x) << static_cast< float >(d->m_beg.y) << static_cast< float >(d->m_beg.z) << r << g << b << a;
         verts << static_cast< float >(d->m_end.x) << static_cast< float >(d->m_end.y) << static_cast< float >(d->m_end.z) << r << g << b << a;
-        drawLines(verts, d->m_lineWidth);
+        drawLines(ctx, verts, d->m_lineWidth);
     }
 
-    drawTics();
-    drawLabel();
+    drawTics(ctx);
+    drawLabel(ctx);
 }
 
-void Qwt3DAxis::drawLabel()
+void Qwt3DAxis::drawLabel(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
-    if (!d->m_drawLabel || !plot())
+    if (!d->m_drawLabel)
         return;
 
     Triple diff   = end() - begin();
     Triple center = begin() + diff / 2;
 
-    Triple bnumber = biggestNumberString();
+    Triple bnumber = biggestNumberString(ctx);
 
     switch (d->m_scaleNumberAnchor) {
     case BottomLeft:
@@ -554,18 +547,19 @@ void Qwt3DAxis::drawLabel()
         break;
     }
 
-    QPointF screen = plot()->worldToScreen(center + ticOrientation() * d->m_lmaj);
-    Triple pos = plot()->screenToWorld(screen + QPointF(bnumber.x, bnumber.y));
+    QPointF screen = ctx.worldToScreen(center + ticOrientation() * d->m_lmaj);
+    Triple pos = ctx.screenToWorld(screen + QPointF(bnumber.x, bnumber.y));
     setLabelPosition(pos, d->m_scaleNumberAnchor);
 
     d->m_label.adjust(d->m_labelGap);
-    d->m_label.draw();
+    d->m_label.draw(ctx);
 }
 
-void Qwt3DAxis::drawBase()
+void Qwt3DAxis::drawBase(const Qwt3DRenderContext& ctx)
 {
     // Base line is now drawn directly in draw() via drawLines()
     // This method is kept for API compatibility but does nothing
+    (void)ctx;
 }
 
 bool Qwt3DAxis::prepTicCalculation(Triple& startpoint)
@@ -620,7 +614,7 @@ void Qwt3DAxis::recalculateTics()
     }
 }
 
-void Qwt3DAxis::drawTics()
+void Qwt3DAxis::drawTics(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
@@ -654,13 +648,13 @@ void Qwt3DAxis::drawTics()
             verts << static_cast< float >(p1.x) << static_cast< float >(p1.y) << static_cast< float >(p1.z) << r << g << b << a;
             verts << static_cast< float >(p2.x) << static_cast< float >(p2.y) << static_cast< float >(p2.z) << r << g << b << a;
         }
-        drawLines(verts, d->m_majLineWidth);
+        drawLines(ctx, verts, d->m_majLineWidth);
 
         // Draw tic labels
         for (i = 0; i != majorsVec.size(); ++i) {
             double t = (majorsVec[ i ] - d->m_start) / (d->m_stop - d->m_start);
             nadir    = d->m_beg + t * runningpoint;
-            drawTicLabel(nadir + 1.2 * d->m_lmaj * d->m_orientation, static_cast< int >(i));
+            drawTicLabel(ctx, nadir + 1.2 * d->m_lmaj * d->m_orientation, static_cast< int >(i));
         }
     }
 
@@ -678,11 +672,11 @@ void Qwt3DAxis::drawTics()
             verts << static_cast< float >(p1.x) << static_cast< float >(p1.y) << static_cast< float >(p1.z) << r << g << b << a;
             verts << static_cast< float >(p2.x) << static_cast< float >(p2.y) << static_cast< float >(p2.z) << r << g << b << a;
         }
-        drawLines(verts, d->m_minLineWidth);
+        drawLines(ctx, verts, d->m_minLineWidth);
     }
 }
 
-void Qwt3DAxis::drawTicLabel(Triple pos, int mtic)
+void Qwt3DAxis::drawTicLabel(const Qwt3DRenderContext& ctx, Triple pos, int mtic)
 {
     QWT_D(d);
 
@@ -695,8 +689,7 @@ void Qwt3DAxis::drawTicLabel(Triple pos, int mtic)
     d->m_markerLabel[ mtic ].setString(d->m_scale->ticLabel(mtic));
     d->m_markerLabel[ mtic ].setPosition(pos, d->m_scaleNumberAnchor);
     d->m_markerLabel[ mtic ].adjust(d->m_numberGap);
-    d->m_markerLabel[ mtic ].setPlot(plot());
-    d->m_markerLabel[ mtic ].draw();
+    d->m_markerLabel[ mtic ].draw(ctx);
 }
 
 Triple Qwt3DAxis::drawTic(Triple nadir, double length)
@@ -710,19 +703,17 @@ Triple Qwt3DAxis::drawTic(Triple nadir, double length)
     return nadir;
 }
 
-Triple Qwt3DAxis::biggestNumberString()
+Triple Qwt3DAxis::biggestNumberString(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
     Triple ret;
-    if (!plot())
-        return ret;
 
     size_t size = d->m_markerLabel.size();
 
     for (unsigned i = 0; i != size; ++i) {
-        QPointF first = plot()->worldToScreen(d->m_markerLabel[ i ].first());
-        QPointF second = plot()->worldToScreen(d->m_markerLabel[ i ].second());
+        QPointF first = ctx.worldToScreen(d->m_markerLabel[ i ].first());
+        QPointF second = ctx.worldToScreen(d->m_markerLabel[ i ].second());
 
         double width = fabs(second.x() - first.x());
         double height = fabs(second.y() - first.y());

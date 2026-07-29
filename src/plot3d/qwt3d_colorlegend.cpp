@@ -4,8 +4,6 @@
 
 #include "qwt3d_colorlegend.h"
 
-#include "qwt3d_plot.h"
-
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
 #include <QOpenGLShaderProgram>
@@ -178,9 +176,6 @@ void Qwt3DColorLegend::setPosition(Position pos)
 
     d->m_relMin = Tuple(left, top);
     d->m_relMax = Tuple(right, bottom);
-
-    if (plot())
-        plot()->update();
 }
 
 void Qwt3DColorLegend::setAbsolutePosition(const QRectF& pixelRect)
@@ -189,9 +184,6 @@ void Qwt3DColorLegend::setAbsolutePosition(const QRectF& pixelRect)
     d->m_absoluteRect = pixelRect;
     d->m_useAbsolute = true;
     d->m_position = PosCustom;
-
-    if (plot())
-        plot()->update();
 }
 
 Qwt3DColorLegend::Position Qwt3DColorLegend::position() const
@@ -200,12 +192,9 @@ Qwt3DColorLegend::Position Qwt3DColorLegend::position() const
     return d->m_position;
 }
 
-void Qwt3DColorLegend::setGeometryInternal()
+void Qwt3DColorLegend::setGeometryInternal(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
-
-    if (!plot())
-        return;
 
     Tuple relMin = d->m_relMin;
     Tuple relMax = d->m_relMax;
@@ -213,17 +202,16 @@ void Qwt3DColorLegend::setGeometryInternal()
     // Convert absolute pixel coordinates to relative on each draw
     // so the legend tracks viewport resize correctly
     if (d->m_useAbsolute) {
-        QSize vp = plot()->viewportSize();
-        if (vp.width() > 0 && vp.height() > 0) {
-            relMin = Tuple(d->m_absoluteRect.left() / vp.width(),
-                           d->m_absoluteRect.top() / vp.height());
-            relMax = Tuple(d->m_absoluteRect.right() / vp.width(),
-                           d->m_absoluteRect.bottom() / vp.height());
+        if (ctx.viewport.width() > 0 && ctx.viewport.height() > 0) {
+            relMin = Tuple(d->m_absoluteRect.left() / ctx.viewport.width(),
+                           d->m_absoluteRect.top() / ctx.viewport.height());
+            relMax = Tuple(d->m_absoluteRect.right() / ctx.viewport.width(),
+                           d->m_absoluteRect.bottom() / ctx.viewport.height());
         }
     }
 
-    d->m_pe.minVertex = relativePosition(Triple(relMin.x, relMin.y, 0.99));
-    d->m_pe.maxVertex = relativePosition(Triple(relMax.x, relMax.y, 0.99));
+    d->m_pe.minVertex = ctx.relativePosition(Triple(relMin.x, relMin.y, 0.99));
+    d->m_pe.maxVertex = ctx.relativePosition(Triple(relMax.x, relMax.y, 0.99));
 
     double diff = 0;
     Triple b;
@@ -300,22 +288,19 @@ void Qwt3DColorLegend::drawNumbers(bool val)
 
 /**
  * @brief Draws the color legend using VBO + polygon/line shaders
+ * @param ctx Render context providing shaders, matrices, and coordinate conversion
  * @details Renders the color bar as a set of quads using VBO + polygon shader,
  *          the border outline using VBO + line shader, then delegates axis
  *          and caption drawing to their respective draw() methods.
  */
-void Qwt3DColorLegend::draw()
+void Qwt3DColorLegend::draw(const Qwt3DRenderContext& ctx)
 {
     if (colors.empty())
         return;
 
     QWT_D(d);
 
-    setGeometryInternal();
-
-    // Ensure axis and caption have plot pointer
-    d->m_axis.setPlot(plot());
-    d->m_caption.setPlot(plot());
+    setGeometryInternal(ctx);
 
     Triple one = d->m_pe.minVertex;
     Triple two = d->m_pe.maxVertex;
@@ -324,9 +309,9 @@ void Qwt3DColorLegend::draw()
                                                             : (two - one).x / colors.size();
 
     // --- Draw color bar quads using VBO + polygon shader ---
-    if (plot()) {
-        auto* polyShader = plot()->polygonShader();
-        auto* lineShader = plot()->lineShader();
+    {
+        auto* polyShader = ctx.polygonShader;
+        auto* lineShader = ctx.lineShader;
         auto* f = QOpenGLContext::currentContext()->functions();
 
         if (polyShader) {
@@ -385,8 +370,8 @@ void Qwt3DColorLegend::draw()
             vbo.allocate(verts.constData(), verts.size() * sizeof(float));
 
             polyShader->bind();
-            polyShader->setUniformValue("uModelView", plot()->modelViewMatrix());
-            polyShader->setUniformValue("uProjection", plot()->projectionMatrix());
+            polyShader->setUniformValue("uModelView", ctx.modelView);
+            polyShader->setUniformValue("uProjection", ctx.projection);
             polyShader->setUniformValue("uAlpha", 1.0f);
 
             int stride = 7 * sizeof(float);
@@ -431,8 +416,8 @@ void Qwt3DColorLegend::draw()
             vbo.allocate(lineVerts.constData(), lineVerts.size() * sizeof(float));
 
             lineShader->bind();
-            lineShader->setUniformValue("uModelView", plot()->modelViewMatrix());
-            lineShader->setUniformValue("uProjection", plot()->projectionMatrix());
+            lineShader->setUniformValue("uModelView", ctx.modelView);
+            lineShader->setUniformValue("uProjection", ctx.projection);
 
             int stride = 7 * sizeof(float);
             lineShader->enableAttributeArray(0);
@@ -453,7 +438,7 @@ void Qwt3DColorLegend::draw()
 
     // Draw axis and caption
     if (d->m_showaxis)
-        d->m_axis.draw();
+        d->m_axis.draw(ctx);
 
-    d->m_caption.draw();
+    d->m_caption.draw(ctx);
 }

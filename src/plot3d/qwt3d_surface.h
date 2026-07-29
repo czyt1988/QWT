@@ -51,6 +51,10 @@ public:
     /// Load grid data from z-value matrix with explicit x/y domain
     void loadFromData(double** data, unsigned int columns, unsigned int rows,
                       double minx, double maxx, double miny, double maxy);
+    /// Load grid data from a Qwt3DFunctionData result (modern vector API)
+    void loadFromData(const Qwt3DFunctionData& data);
+    /// Load grid data from a Qwt3DParametricData result (modern vector API)
+    void loadFromData(const Qwt3DParametricData& data);
 
     // Data loading — cell data
 

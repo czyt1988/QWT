@@ -122,6 +122,19 @@ enum SIDE
 };
 
 /**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+    NO_INTERIOR = 0,
+    X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+    Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+    Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
  * @brief Tick position preference for auto-decorated axes
  * @details Controls whether ticks appear on the visually lower or upper axis
  *          when auto-decoration is enabled. In screen coordinates, y increases
@@ -520,6 +533,38 @@ inline double dotProduct(Triple const& u, Triple const& v)
 void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
+
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+    /// z[i][j] = z-value at column i, row j
+    std::vector<std::vector<double>> z;
+    unsigned int columns = 0;
+    unsigned int rows = 0;
+    double minx = 0.0;
+    double maxx = 0.0;
+    double miny = 0.0;
+    double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+    /// vertices[i][j] = xyz position at column i, row j
+    std::vector<std::vector<Triple>> vertices;
+    unsigned int columns = 0;
+    unsigned int rows = 0;
+    bool uperiodic = false;
+    bool vperiodic = false;
+};
 
 
 #endif

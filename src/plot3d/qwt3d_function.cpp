@@ -1,51 +1,12 @@
 #include "qwt3d_function.h"
 
-#include "qwt3d_surface.h"
-
+#include <vector>
 
 /**
  * @brief Default constructor
  */
 Qwt3DFunction::Qwt3DFunction() : Qwt3DGridMapping()
 {
-}
-
-/**
- * @brief Constructs a Qwt3DFunction object and assigns a Qwt3DSurface
- * @param pw Reference to a Qwt3DSurface item
- */
-Qwt3DFunction::Qwt3DFunction(Qwt3DSurface& pw) : Qwt3DGridMapping()
-{
-    setSurface(&pw);
-}
-
-/**
- * @brief Constructs a Qwt3DFunction object and assigns a Qwt3DSurface
- * @param pw Pointer to a Qwt3DSurface item
- */
-Qwt3DFunction::Qwt3DFunction(Qwt3DSurface* pw) : Qwt3DGridMapping()
-{
-    setSurface(pw);
-}
-
-/**
- * @brief Assigns the object to another surface - call before create()
- * @param surface Reference to a Qwt3DSurface item
- */
-void Qwt3DFunction::assign(Qwt3DSurface& surface)
-{
-    if (&surface != this->surface())
-        setSurface(&surface);
-}
-
-/**
- * @brief Assigns the object to another surface - call before create()
- * @param surface Pointer to a Qwt3DSurface item
- */
-void Qwt3DFunction::assign(Qwt3DSurface* surface)
-{
-    if (surface != this->surface())
-        setSurface(surface);
 }
 
 /**
@@ -67,67 +28,52 @@ void Qwt3DFunction::setMaxZ(double val)
 }
 
 /**
- * @brief Creates data representation for the actual assigned Qwt3DSurface
- * @return True on success, false if mesh is too small or no surface assigned
- * @details Allocates data arrays, evaluates the function operator() over the
- *          mesh grid, clips values to the min/max z range, and loads data
- *          into the assigned Qwt3DSurface.
+ * @brief Evaluates the function over the mesh grid and returns the result
+ * @return Qwt3DFunctionData containing the z-value matrix and domain bounds
+ * @details Allocates a z-value matrix, evaluates operator() over the
+ *          mesh grid, clips values to the min/max z range, and returns
+ *          the result. The caller is responsible for feeding this to
+ *          Qwt3DSurface::loadFromData(). Returns an empty result
+ *          (columns=0) if the mesh is too small.
  */
-bool Qwt3DFunction::create()
+Qwt3DFunctionData Qwt3DFunction::create()
 {
     const unsigned int um = meshU();
     const unsigned int vm = meshV();
 
-    if ((um <= 2) || (vm <= 2) || !surface())
-        return false;
+    Qwt3DFunctionData result;
+    result.columns = um;
+    result.rows = vm;
+    result.minx = minU();
+    result.maxx = maxU();
+    result.miny = minV();
+    result.maxy = maxV();
 
-    /* allocate some space for the mesh */
-    double** data = new double*[um];
-
-    unsigned i, j;
-    for (i = 0; i < um; i++) {
-        data[i] = new double[vm];
+    if (um <= 2 || vm <= 2) {
+        result.columns = 0;
+        result.rows = 0;
+        return result;
     }
 
-    /* get the data */
+    result.z.resize(um);
+    for (unsigned int i = 0; i < um; ++i)
+        result.z[i].resize(vm);
 
-    double dx = (maxU() - minU()) / (um - 1);
-    double dy = (maxV() - minV()) / (vm - 1);
+    const double dx = (maxU() - minU()) / (um - 1);
+    const double dy = (maxV() - minV()) / (vm - 1);
 
-    for (i = 0; i < um; ++i) {
-        for (j = 0; j < vm; ++j) {
-            data[i][j] = operator()(minU() + i * dx, minV() + j * dy);
+    for (unsigned int i = 0; i < um; ++i) {
+        for (unsigned int j = 0; j < vm; ++j) {
+            double val = operator()(minU() + i * dx, minV() + j * dy);
 
-            if (data[i][j] > range().maxVertex.z)
-                data[i][j] = range().maxVertex.z;
-            else if (data[i][j] < range().minVertex.z)
-                data[i][j] = range().minVertex.z;
+            if (val > range().maxVertex.z)
+                val = range().maxVertex.z;
+            else if (val < range().minVertex.z)
+                val = range().minVertex.z;
+
+            result.z[i][j] = val;
         }
     }
 
-    Q_ASSERT(surface());
-    if (!surface()) {
-        fprintf(stderr, "Qwt3DFunction: no valid Qwt3DSurface assigned");
-    } else {
-        surface()->loadFromData(data, um, vm, minU(), maxU(), minV(), maxV());
-    }
-
-    for (i = 0; i < um; i++) {
-        delete[] data[i];
-    }
-
-    delete[] data;
-
-    return true;
-}
-
-/**
- * @brief Assigns a new Qwt3DSurface and creates a data representation for it
- * @param pl Reference to a Qwt3DSurface item
- * @return True on success
- */
-bool Qwt3DFunction::create(Qwt3DSurface& pl)
-{
-    assign(pl);
-    return create();
+    return result;
 }

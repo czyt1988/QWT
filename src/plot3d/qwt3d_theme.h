@@ -93,6 +93,12 @@ public:
     void setLabelColor(RGBA);
     RGBA gridLinesColor() const;
     void setGridLinesColor(RGBA);
+    RGBA interiorGridLinesColor() const;
+    void setInteriorGridLinesColor(RGBA);
+    double interiorGridMajorWidth() const;
+    void setInteriorGridMajorWidth(double);
+    double interiorGridMinorWidth() const;
+    void setInteriorGridMinorWidth(double);
 
     // Title
     RGBA titleColor() const;
@@ -137,6 +143,9 @@ private:
     RGBA m_numberColor;
     RGBA m_labelColor;
     RGBA m_gridLinesColor;
+    RGBA m_interiorGridLinesColor;
+    double m_interiorGridMajorWidth;
+    double m_interiorGridMinorWidth;
     RGBA m_titleColor;
     QString m_titleFontFamily;
     int m_titleFontSize;

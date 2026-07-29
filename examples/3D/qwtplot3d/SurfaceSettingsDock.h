@@ -79,6 +79,12 @@ private Q_SLOTS:
     void onGridSideToggled();
     void onGridMajorsToggled(bool on);
     void onGridMinorsToggled(bool on);
+    void onInteriorGridSideToggled();
+    void onInteriorGridMajorsToggled(bool on);
+    void onInteriorGridMinorsToggled(bool on);
+    void onInteriorGridLinesColor();
+    void onInteriorGridMajorWidth(double val);
+    void onInteriorGridMinorWidth(double val);
     void onAutoDecoration(bool on);
     void onTickPositionChanged(int index);
     void onLineSmooth(bool on);
@@ -137,6 +143,8 @@ private:
     void syncLegendLimitsToData();
     int currentAxisIndex() const;
     int computeGridSides() const;
+    int computeInteriorSides() const;
+    void applyInteriorGridLinesColor();
     void updatePlot();
     void setColorButton(QPushButton* btn, const class QColor& color);
     QColor getColorFromButton(QPushButton* btn) const;
@@ -182,6 +190,12 @@ private:
     QCheckBox* m_gridSideChecks[6] = {};
     QCheckBox* m_gridMajorsCheck = nullptr;
     QCheckBox* m_gridMinorsCheck = nullptr;
+    QCheckBox* m_interiorGridSideChecks[3] = {};
+    QCheckBox* m_interiorGridMajorsCheck = nullptr;
+    QCheckBox* m_interiorGridMinorsCheck = nullptr;
+    QPushButton* m_interiorGridLinesColorBtn = nullptr;
+    QDoubleSpinBox* m_interiorGridMajWidthSpin = nullptr;
+    QDoubleSpinBox* m_interiorGridMinWidthSpin = nullptr;
     QCheckBox* m_autoDecorationCheck = nullptr;
     QComboBox* m_tickPositionCombo = nullptr;
     QCheckBox* m_lineSmoothCheck = nullptr;

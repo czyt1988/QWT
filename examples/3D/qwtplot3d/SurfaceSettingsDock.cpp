@@ -142,6 +142,12 @@ void SurfaceSettingsDock::reapplyAll()
     onLineSmooth(m_lineSmoothCheck->isChecked());
     onGridSideToggled();
 
+    // Interior grid
+    applyInteriorGridLinesColor();
+    onInteriorGridMajorWidth(m_interiorGridMajWidthSpin->value());
+    onInteriorGridMinorWidth(m_interiorGridMinWidthSpin->value());
+    onInteriorGridSideToggled();
+
     // Legend tab
     syncLegendLimitsToData();
     onLegendPositionChanged(m_legendPositionCombo->currentIndex());
@@ -216,6 +222,14 @@ void SurfaceSettingsDock::syncFromTheme(const Qwt3DTheme& theme)
     // --- Axes tab ---
     setColorButton(m_axesColorBtn, rgbaToQColor(theme.axesColor()));
     setColorButton(m_gridLinesColorBtn, rgbaToQColor(theme.gridLinesColor()));
+    setColorButton(m_interiorGridLinesColorBtn, rgbaToQColor(theme.interiorGridLinesColor()));
+
+    m_interiorGridMajWidthSpin->blockSignals(true);
+    m_interiorGridMinWidthSpin->blockSignals(true);
+    m_interiorGridMajWidthSpin->setValue(theme.interiorGridMajorWidth());
+    m_interiorGridMinWidthSpin->setValue(theme.interiorGridMinorWidth());
+    m_interiorGridMajWidthSpin->blockSignals(false);
+    m_interiorGridMinWidthSpin->blockSignals(false);
 
     // --- View & Light tab ---
     setColorButton(m_bgColorBtn, rgbaToQColor(theme.backgroundColor()));
@@ -489,6 +503,50 @@ QWidget* SurfaceSettingsDock::createAxesTab()
     m_gridMinorsCheck = new QCheckBox(QStringLiteral("Minor Grid Lines"));
     connect(m_gridMinorsCheck, &QCheckBox::toggled, this, &SurfaceSettingsDock::onGridMinorsToggled);
     commonForm->addRow(QString(), m_gridMinorsCheck);
+
+    // --- Interior grid section ---
+    auto* interiorGroup = new QGroupBox(QStringLiteral("Interior Grid"));
+    auto* interiorForm = new QFormLayout(interiorGroup);
+
+    auto* interiorSidesLayout = new QVBoxLayout;
+    const char* interiorSideNames[] = {"X Inner", "Y Inner", "Z Inner"};
+    for (int i = 0; i < 3; ++i) {
+        m_interiorGridSideChecks[i] = new QCheckBox(QString::fromLatin1(interiorSideNames[i]));
+        connect(m_interiorGridSideChecks[i], &QCheckBox::toggled, this, &SurfaceSettingsDock::onInteriorGridSideToggled);
+        interiorSidesLayout->addWidget(m_interiorGridSideChecks[i]);
+    }
+    interiorForm->addRow(QStringLiteral("Directions:"), interiorSidesLayout);
+
+    m_interiorGridMajorsCheck = new QCheckBox(QStringLiteral("Major"));
+    connect(m_interiorGridMajorsCheck, &QCheckBox::toggled, this, &SurfaceSettingsDock::onInteriorGridMajorsToggled);
+    interiorForm->addRow(QString(), m_interiorGridMajorsCheck);
+
+    m_interiorGridMinorsCheck = new QCheckBox(QStringLiteral("Minor"));
+    connect(m_interiorGridMinorsCheck, &QCheckBox::toggled, this, &SurfaceSettingsDock::onInteriorGridMinorsToggled);
+    interiorForm->addRow(QString(), m_interiorGridMinorsCheck);
+
+    m_interiorGridLinesColorBtn = new QPushButton(QStringLiteral("Choose..."));
+    styleColorButton(m_interiorGridLinesColorBtn, QColor(153, 153, 153, 128));
+    connect(m_interiorGridLinesColorBtn, &QPushButton::clicked, this, &SurfaceSettingsDock::onInteriorGridLinesColor);
+    interiorForm->addRow(QStringLiteral("Color:"), m_interiorGridLinesColorBtn);
+
+    m_interiorGridMajWidthSpin = new QDoubleSpinBox;
+    m_interiorGridMajWidthSpin->setRange(0.1, 5.0);
+    m_interiorGridMajWidthSpin->setSingleStep(0.1);
+    m_interiorGridMajWidthSpin->setValue(0.5);
+    connect(m_interiorGridMajWidthSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &SurfaceSettingsDock::onInteriorGridMajorWidth);
+    interiorForm->addRow(QStringLiteral("Major Width:"), m_interiorGridMajWidthSpin);
+
+    m_interiorGridMinWidthSpin = new QDoubleSpinBox;
+    m_interiorGridMinWidthSpin->setRange(0.1, 5.0);
+    m_interiorGridMinWidthSpin->setSingleStep(0.1);
+    m_interiorGridMinWidthSpin->setValue(0.3);
+    connect(m_interiorGridMinWidthSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &SurfaceSettingsDock::onInteriorGridMinorWidth);
+    interiorForm->addRow(QStringLiteral("Minor Width:"), m_interiorGridMinWidthSpin);
+
+    form->addRow(interiorGroup);
 
     m_autoDecorationCheck = new QCheckBox(QStringLiteral("Auto Decoration"));
     m_autoDecorationCheck->setChecked(true);
@@ -843,6 +901,21 @@ int SurfaceSettingsDock::computeGridSides() const
     return sides;
 }
 
+int SurfaceSettingsDock::computeInteriorSides() const
+{
+    int sides = NO_INTERIOR;
+    if (m_interiorGridSideChecks[0]->isChecked()) sides |= X_INNER;
+    if (m_interiorGridSideChecks[1]->isChecked()) sides |= Y_INNER;
+    if (m_interiorGridSideChecks[2]->isChecked()) sides |= Z_INNER;
+    return sides;
+}
+
+void SurfaceSettingsDock::applyInteriorGridLinesColor()
+{
+    if (m_plot)
+        m_plot->coordinates()->setInteriorGridLinesColor(qColorToRGBA(getColorFromButton(m_interiorGridLinesColorBtn)));
+}
+
 void SurfaceSettingsDock::loadAxisValues()
 {
     if (!m_plot)
@@ -1138,6 +1211,51 @@ void SurfaceSettingsDock::onGridMajorsToggled(bool)
 void SurfaceSettingsDock::onGridMinorsToggled(bool)
 {
     onGridSideToggled();
+}
+
+void SurfaceSettingsDock::onInteriorGridSideToggled()
+{
+    if (!m_plot)
+        return;
+    int dirs = computeInteriorSides();
+    bool majors = m_interiorGridMajorsCheck->isChecked();
+    bool minors = m_interiorGridMinorsCheck->isChecked();
+    m_plot->coordinates()->setInteriorGridLines(majors, minors, dirs);
+    updatePlot();
+}
+
+void SurfaceSettingsDock::onInteriorGridMajorsToggled(bool)
+{
+    onInteriorGridSideToggled();
+}
+
+void SurfaceSettingsDock::onInteriorGridMinorsToggled(bool)
+{
+    onInteriorGridSideToggled();
+}
+
+void SurfaceSettingsDock::onInteriorGridLinesColor()
+{
+    QColor c = QColorDialog::getColor(getColorFromButton(m_interiorGridLinesColorBtn), this, "Interior Grid Lines Color");
+    if (!c.isValid())
+        return;
+    styleColorButton(m_interiorGridLinesColorBtn, c);
+    applyInteriorGridLinesColor();
+    updatePlot();
+}
+
+void SurfaceSettingsDock::onInteriorGridMajorWidth(double val)
+{
+    if (m_plot)
+        m_plot->coordinates()->setInteriorGridLinesWidth(val, m_interiorGridMinWidthSpin->value());
+    updatePlot();
+}
+
+void SurfaceSettingsDock::onInteriorGridMinorWidth(double val)
+{
+    if (m_plot)
+        m_plot->coordinates()->setInteriorGridLinesWidth(m_interiorGridMajWidthSpin->value(), val);
+    updatePlot();
 }
 
 void SurfaceSettingsDock::onAutoDecoration(bool on)

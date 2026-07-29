@@ -1,5 +1,4 @@
 #include "qwt3d_gridmapping.h"
-#include "qwt3d_surface.h"
 
 
 class Qwt3DGridMapping::PrivateData
@@ -8,12 +7,11 @@ class Qwt3DGridMapping::PrivateData
 
 public:
     PrivateData(Qwt3DGridMapping* q)
-        : q_ptr(q), m_surface(nullptr), m_umesh(0), m_vmesh(0), m_minu(0.0), m_maxu(0.0), m_minv(0.0), m_maxv(0.0)
+        : q_ptr(q), m_umesh(0), m_vmesh(0), m_minu(0.0), m_maxu(0.0), m_minv(0.0), m_maxv(0.0)
     {
     }
 
     ParallelEpiped m_range;
-    Qwt3DSurface* m_surface;
     unsigned int m_umesh;
     unsigned int m_vmesh;
     double m_minu;
@@ -24,7 +22,7 @@ public:
 
 /**
  * @brief Default constructor
- * @details Initializes with no surface, zero mesh dimensions, zero domain,
+ * @details Initializes with zero mesh dimensions, zero domain,
  *          and unrestricted z range.
  */
 Qwt3DGridMapping::Qwt3DGridMapping() : QWT_PIMPL_CONSTRUCT
@@ -72,18 +70,6 @@ void Qwt3DGridMapping::restrictRange(ParallelEpiped const& p)
 {
     QWT_D(d);
     d->m_range = p;
-}
-
-Qwt3DSurface* Qwt3DGridMapping::surface() const
-{
-    QWT_DC(d);
-    return d->m_surface;
-}
-
-void Qwt3DGridMapping::setSurface(Qwt3DSurface* surface)
-{
-    QWT_D(d);
-    d->m_surface = surface;
 }
 
 ParallelEpiped& Qwt3DGridMapping::range()

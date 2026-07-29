@@ -1,7 +1,5 @@
 #include "qwt3d_drawable.h"
 
-#include "qwt3d_plot.h"
-
 #include <algorithm>
 #include <list>
 
@@ -23,7 +21,7 @@ Qwt3DDrawable::Qwt3DDrawable() : QWT_PIMPL_CONSTRUCT
 }
 
 Qwt3DDrawable::Qwt3DDrawable(Qwt3DDrawable&& other) noexcept
-    : m_data(std::move(other.m_data)), color(other.color), m_plot(other.m_plot)
+    : m_data(std::move(other.m_data)), color(other.color)
 {
 }
 
@@ -32,7 +30,6 @@ Qwt3DDrawable& Qwt3DDrawable::operator=(Qwt3DDrawable&& other) noexcept
     if (this != &other) {
         m_data = std::move(other.m_data);
         color = other.color;
-        m_plot = other.m_plot;
     }
     return *this;
 }
@@ -81,49 +78,12 @@ void Qwt3DDrawable::detachAll()
     d->m_dlist.clear();
 }
 
-/**
- * @brief Returns the owning plot
- * @return Pointer to the Qwt3DPlot this drawable belongs to (may be null)
- */
-Qwt3DPlot* Qwt3DDrawable::plot() const
-{
-    return m_plot;
-}
-
-/**
- * @brief Sets the owning plot
- * @param p Pointer to the Qwt3DPlot
- */
-void Qwt3DDrawable::setPlot(Qwt3DPlot* p)
-{
-    m_plot = p;
-}
-
-/**
- * @brief Converts a relative viewport position to world coordinates
- * @param rel Relative position in viewport coordinates
- * @return Corresponding world coordinates
- * @details Uses the plot's screenToWorld method for coordinate conversion.
- */
-Triple Qwt3DDrawable::relativePosition(Triple rel) const
-{
-    if (!m_plot)
-        return Triple(0, 0, 0);
-
-    QSize vp = m_plot->viewportSize();
-    if (vp.width() <= 0 || vp.height() <= 0)
-        return Triple(0, 0, 0);
-
-    QPointF screen(rel.x * vp.width(), rel.y * vp.height());
-    return m_plot->screenToWorld(screen);
-}
-
-void Qwt3DDrawable::draw()
+void Qwt3DDrawable::draw(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
     for (auto* drawable : d->m_dlist) {
-        drawable->draw();
+        drawable->draw(ctx);
     }
 }
 

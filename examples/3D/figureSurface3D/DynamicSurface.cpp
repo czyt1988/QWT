@@ -70,8 +70,7 @@ DynamicSurfacePlot::DynamicSurfacePlot(QWidget* parent)
     m_plot->enableKeyboard(true);
 
     // Create the initial surface data
-    m_ripple.assign(*m_surface);
-    m_ripple.create();
+    m_surface->loadFromData(m_ripple.create());
 
     // Set initial view
     resetView();
@@ -95,7 +94,7 @@ void DynamicSurfacePlot::setupAxes()
 void DynamicSurfacePlot::advanceTime(double dt)
 {
     m_ripple.setTime(m_ripple.time() + dt);
-    m_ripple.create();
+    m_surface->loadFromData(m_ripple.create());
     m_plot->update();
     Q_EMIT timeChanged(m_ripple.time());
 }

@@ -5,15 +5,13 @@
 
 
 
-class Qwt3DSurface;
-
 /**
  * @brief Abstract base class for mappings acting on rectangular grids
  */
 class QWT3D_EXPORT Qwt3DGridMapping : public Qwt3DMapping
 {
 public:
-    // Constructs Qwt3DGridMapping object w/o assigned Qwt3DSurface
+    // Constructs Qwt3DGridMapping object
     Qwt3DGridMapping();
     ~Qwt3DGridMapping() override;
 
@@ -26,10 +24,6 @@ public:
 
 protected:
     QWT_DECLARE_PRIVATE(Qwt3DGridMapping)
-
-    // Accessors for subclasses
-    Qwt3DSurface* surface() const;
-    void setSurface(Qwt3DSurface* surface);
 
     ParallelEpiped& range();
     const ParallelEpiped& range() const;
@@ -44,4 +38,4 @@ protected:
 };
 
 
-#endif  // QWT3D_GRIDMAPPING_H
+#endif

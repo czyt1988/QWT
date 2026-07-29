@@ -55,8 +55,8 @@ public:
     Qwt3DColorLegend();
     ~Qwt3DColorLegend() override;
 
-    // Draws the object - called by updateGL()
-    virtual void draw() override;
+    // Draws the object - called by paintGL()
+    void draw(const Qwt3DRenderContext& ctx) override;
 
     // Sets the relative position of the legend inside widget
     void setRelPosition(Tuple relMin, Tuple relMax);
@@ -96,7 +96,7 @@ public:
 
 private:
     ParallelEpiped geometry() const;
-    void setGeometryInternal();
+    void setGeometryInternal(const Qwt3DRenderContext& ctx);
 };
 
 

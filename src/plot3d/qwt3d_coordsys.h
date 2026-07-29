@@ -81,26 +81,39 @@ public:
     // Smooth axes enabled?
     bool lineSmooth() const;
 
-    void draw() override;
+    void draw(const Qwt3DRenderContext& ctx) override;
 
     // Defines whether a grid between the major and/or minor tics should be drawn
     void setGridLines(bool majors, bool minors, int sides = NOSIDEGRID);
     // Returns grids switched on
     int grids() const;
 
+    // Set interior grid lines through the box volume
+    void setInteriorGridLines(bool majors, bool minors, int directions = NO_INTERIOR);
+    // Returns interior grid directions switched on
+    int interiorGrids() const;
+    // Sets color for the interior grid lines
+    void setInteriorGridLinesColor(RGBA val);
+    // Sets line width for interior grid lines
+    void setInteriorGridLinesWidth(double major, double minor);
+
     // The vector of all 12 axes - use them to set axis properties individually
     std::vector< Qwt3DAxis > axes;
 
 private:
     void destroy();
-    void chooseAxes();
-    void autoDecorateExposedAxis(Qwt3DAxis& ax, bool left);
-    void drawMajorGridLines();
-    void drawMinorGridLines();
+    void chooseAxes(const Qwt3DRenderContext& ctx);
+    void autoDecorateExposedAxis(const Qwt3DRenderContext& ctx, Qwt3DAxis& ax, bool left);
+    void drawMajorGridLines(const Qwt3DRenderContext& ctx);
+    void drawMinorGridLines(const Qwt3DRenderContext& ctx);
     void drawMajorGridLines(Qwt3DAxis&, Qwt3DAxis&, QVector<float>& verts);
     void drawMinorGridLines(Qwt3DAxis&, Qwt3DAxis&, QVector<float>& verts);
+    void drawInteriorMajorGridLines(const Qwt3DRenderContext& ctx);
+    void drawInteriorMinorGridLines(const Qwt3DRenderContext& ctx);
+    void drawInteriorGridLines(Qwt3DAxis& axisA, Qwt3DAxis& axisB,
+                               int dirAxis, bool major, QVector<float>& verts);
     void recalculateAxesTics();
-    void drawGridLines(const QVector<float>& vertices, double lineWidth, const RGBA& color);
+    void drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth, const RGBA& color);
 };
 
 

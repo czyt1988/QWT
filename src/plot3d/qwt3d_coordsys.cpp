@@ -1,7 +1,5 @@
 #include "qwt3d_coordsys.h"
 
-#include "qwt3d_plot.h"
-
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
 #include <QOpenGLShaderProgram>
@@ -22,6 +20,11 @@ public:
         , m_minorgridlines(false)
         , m_sides(0)
         , m_tickPosition(TICK_BOTTOM)
+        , m_interiorMajor(false)
+        , m_interiorMinor(false)
+        , m_interiorSides(NO_INTERIOR)
+        , m_interiorMajWidth(0.5)
+        , m_interiorMinWidth(0.3)
     {
     }
 
@@ -33,6 +36,10 @@ public:
     bool m_majorgridlines, m_minorgridlines;
     int m_sides;
     TICKPOSITION m_tickPosition;
+    bool m_interiorMajor, m_interiorMinor;
+    int m_interiorSides;
+    RGBA m_interiorGridColor;
+    double m_interiorMajWidth, m_interiorMinWidth;
 };
 
 Qwt3DCoordinateSystem::Qwt3DCoordinateSystem(Triple first, Triple second, COORDSTYLE st) : QWT_PIMPL_CONSTRUCT
@@ -47,6 +54,7 @@ Qwt3DCoordinateSystem::Qwt3DCoordinateSystem(Triple first, Triple second, COORDS
     setNumberColor(RGBA(0, 0, 0));
     setLabelFont("Courier", 14, QFont::Bold);
     setGridLines(false, false);
+    setInteriorGridLinesColor(RGBA(0.6, 0.6, 0.6, 0.5));
 }
 
 Qwt3DCoordinateSystem::~Qwt3DCoordinateSystem()
@@ -126,13 +134,14 @@ void Qwt3DCoordinateSystem::init(Triple first, Triple second)
 
 /**
  * @brief Helper: draws a set of line segments using VBO + line shader
+ * @param ctx Render context providing shader and matrices
  */
-void Qwt3DCoordinateSystem::drawGridLines(const QVector<float>& vertices, double lineWidth, const RGBA& lineColor)
+void Qwt3DCoordinateSystem::drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth, const RGBA& lineColor)
 {
-    if (vertices.isEmpty() || !plot())
+    if (vertices.isEmpty())
         return;
 
-    auto* shader = plot()->lineShader();
+    auto* shader = ctx.lineShader;
     if (!shader)
         return;
 
@@ -147,8 +156,8 @@ void Qwt3DCoordinateSystem::drawGridLines(const QVector<float>& vertices, double
     vbo.allocate(vertices.constData(), vertices.size() * sizeof(float));
 
     shader->bind();
-    shader->setUniformValue("uModelView", plot()->modelViewMatrix());
-    shader->setUniformValue("uProjection", plot()->projectionMatrix());
+    shader->setUniformValue("uModelView", ctx.modelView);
+    shader->setUniformValue("uProjection", ctx.projection);
 
     int stride = 7 * sizeof(float);
     shader->enableAttributeArray(0);
@@ -167,39 +176,36 @@ void Qwt3DCoordinateSystem::drawGridLines(const QVector<float>& vertices, double
 
 /**
  * @brief Draws the coordinate system, including grid lines if enabled
+ * @param ctx Render context providing shaders, matrices, and coordinate conversion
  */
-void Qwt3DCoordinateSystem::draw()
+void Qwt3DCoordinateSystem::draw(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
-    // Set plot on all axes
-    if (plot()) {
-        for (auto& ax : axes)
-            ax.setPlot(plot());
-    }
-
     if (d->m_autodecoration)
-        chooseAxes();
+        chooseAxes(ctx);
 
-    Qwt3DDrawable::draw();
+    Qwt3DDrawable::draw(ctx);
 
     if (d->m_style == NOCOORD)
         return;
 
-    if (d->m_majorgridlines || d->m_minorgridlines)
+    if (d->m_majorgridlines || d->m_minorgridlines
+        || d->m_interiorMajor || d->m_interiorMinor)
         recalculateAxesTics();
     if (d->m_majorgridlines)
-        drawMajorGridLines();
+        drawMajorGridLines(ctx);
     if (d->m_minorgridlines)
-        drawMinorGridLines();
+        drawMinorGridLines(ctx);
+    if (d->m_interiorMajor)
+        drawInteriorMajorGridLines(ctx);
+    if (d->m_interiorMinor)
+        drawInteriorMinorGridLines(ctx);
 }
 
-void Qwt3DCoordinateSystem::chooseAxes()
+void Qwt3DCoordinateSystem::chooseAxes(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
-
-    if (!plot())
-        return;
 
     vector< QPointF > beg(axes.size());
     vector< QPointF > end(axes.size());
@@ -210,8 +216,8 @@ void Qwt3DCoordinateSystem::chooseAxes()
         if (d->m_style != NOCOORD)
             attach(&axes[ i ]);
 
-        beg[ i ]               = plot()->worldToScreen(axes[ i ].begin());
-        end[ i ]               = plot()->worldToScreen(axes[ i ].end());
+        beg[ i ]               = ctx.worldToScreen(axes[ i ].begin());
+        end[ i ]               = ctx.worldToScreen(axes[ i ].end());
         src[ i ]               = Tuple(beg[ i ].x(), beg[ i ].y());
         src[ axes.size() + i ] = Tuple(end[ i ].x(), end[ i ].y());
 
@@ -270,7 +276,7 @@ void Qwt3DCoordinateSystem::chooseAxes()
                         other_x = (choice_x == static_cast< int >(i)) ? rem_x : static_cast< int >(i);
                         left = (beg[ choice_x ].x() < beg[ other_x ].x() || end[ choice_x ].x() < end[ other_x ].x()) ? true : false;
 
-                        autoDecorateExposedAxis(axes[ choice_x ], left);
+                        autoDecorateExposedAxis(ctx, axes[ choice_x ], left);
 
                         rem_x = -1;
                     } else {
@@ -289,7 +295,7 @@ void Qwt3DCoordinateSystem::chooseAxes()
 
                         other_y = (choice_y == static_cast< int >(i)) ? rem_y : static_cast< int >(i);
                         left = (beg[ choice_y ].x() < beg[ other_y ].x() || end[ choice_y ].x() < end[ other_y ].x()) ? true : false;
-                        autoDecorateExposedAxis(axes[ choice_y ], left);
+                        autoDecorateExposedAxis(ctx, axes[ choice_y ], left);
 
                         rem_y = -1;
                     } else {
@@ -319,11 +325,11 @@ void Qwt3DCoordinateSystem::chooseAxes()
             axes[ choice_z ].end() == axes[ choice_y ].begin() ||
             axes[ choice_z ].end() == axes[ choice_y ].end()))
         {
-            autoDecorateExposedAxis(axes[ choice_z ], left);
+            autoDecorateExposedAxis(ctx, axes[ choice_z ], left);
         }
         else
         {
-            autoDecorateExposedAxis(axes[ other_z ], !left);
+            autoDecorateExposedAxis(ctx, axes[ other_z ], !left);
             choice_z = other_z;
         }
     }
@@ -336,11 +342,8 @@ void Qwt3DCoordinateSystem::chooseAxes()
     }
 }
 
-void Qwt3DCoordinateSystem::autoDecorateExposedAxis(Qwt3DAxis& ax, bool left)
+void Qwt3DCoordinateSystem::autoDecorateExposedAxis(const Qwt3DRenderContext& ctx, Qwt3DAxis& ax, bool left)
 {
-    if (!plot())
-        return;
-
     (void)left;  // polarity is now derived from the outward direction below
 
     // The exposed axis lies on the projected box silhouette, so the screen
@@ -350,8 +353,8 @@ void Qwt3DCoordinateSystem::autoDecorateExposedAxis(Qwt3DAxis& ax, bool left)
     // the axis projects near 45 degrees or when the viewport aspect changes.
     Triple midWorld = ax.begin() + (ax.end() - ax.begin()) / 2.0;
     Triple centerWorld = first() + (second() - first()) / 2.0;
-    QPointF midScreen = plot()->worldToScreen(midWorld);
-    QPointF centerScreen = plot()->worldToScreen(centerWorld);
+    QPointF midScreen = ctx.worldToScreen(midWorld);
+    QPointF centerScreen = ctx.worldToScreen(centerWorld);
     QPointF outward = midScreen - centerScreen;  // screen y grows downward
 
     double s = sqrt(outward.x() * outward.x() + outward.y() * outward.y());
@@ -499,7 +502,7 @@ void Qwt3DCoordinateSystem::setGridLines(bool majors, bool minors, int sides)
     d->m_minorgridlines = minors;
 }
 
-void Qwt3DCoordinateSystem::drawMajorGridLines()
+void Qwt3DCoordinateSystem::drawMajorGridLines(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
@@ -535,10 +538,10 @@ void Qwt3DCoordinateSystem::drawMajorGridLines()
         drawMajorGridLines(axes[ Z4 ], axes[ Z1 ], verts);
     }
 
-    drawGridLines(verts, axes[ X1 ].majLineWidth(), d->m_gridlinecolor);
+    drawGridLines(ctx, verts, axes[ X1 ].majLineWidth(), d->m_gridlinecolor);
 }
 
-void Qwt3DCoordinateSystem::drawMinorGridLines()
+void Qwt3DCoordinateSystem::drawMinorGridLines(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
@@ -574,7 +577,7 @@ void Qwt3DCoordinateSystem::drawMinorGridLines()
         drawMinorGridLines(axes[ Z4 ], axes[ Z1 ], verts);
     }
 
-    drawGridLines(verts, axes[ X1 ].minLineWidth(), d->m_gridlinecolor);
+    drawGridLines(ctx, verts, axes[ X1 ].minLineWidth(), d->m_gridlinecolor);
 }
 
 void Qwt3DCoordinateSystem::drawMajorGridLines(Qwt3DAxis& a0, Qwt3DAxis& a1, QVector<float>& verts)
@@ -609,6 +612,95 @@ void Qwt3DCoordinateSystem::drawMinorGridLines(Qwt3DAxis& a0, Qwt3DAxis& a1, QVe
     }
 }
 
+void Qwt3DCoordinateSystem::drawInteriorMajorGridLines(const Qwt3DRenderContext& ctx)
+{
+    QWT_D(d);
+
+    QVector<float> verts;
+
+    if (d->m_interiorSides & Z_INNER) {
+        drawInteriorGridLines(axes[ X1 ], axes[ Y1 ], 2, true, verts);
+    }
+    if (d->m_interiorSides & X_INNER) {
+        drawInteriorGridLines(axes[ Y1 ], axes[ Z2 ], 0, true, verts);
+    }
+    if (d->m_interiorSides & Y_INNER) {
+        drawInteriorGridLines(axes[ X1 ], axes[ Z2 ], 1, true, verts);
+    }
+
+    drawGridLines(ctx, verts, d->m_interiorMajWidth, d->m_interiorGridColor);
+}
+
+void Qwt3DCoordinateSystem::drawInteriorMinorGridLines(const Qwt3DRenderContext& ctx)
+{
+    QWT_D(d);
+
+    QVector<float> verts;
+
+    if (d->m_interiorSides & Z_INNER) {
+        drawInteriorGridLines(axes[ X1 ], axes[ Y1 ], 2, false, verts);
+    }
+    if (d->m_interiorSides & X_INNER) {
+        drawInteriorGridLines(axes[ Y1 ], axes[ Z2 ], 0, false, verts);
+    }
+    if (d->m_interiorSides & Y_INNER) {
+        drawInteriorGridLines(axes[ X1 ], axes[ Z2 ], 1, false, verts);
+    }
+
+    drawGridLines(ctx, verts, d->m_interiorMinWidth, d->m_interiorGridColor);
+}
+
+void Qwt3DCoordinateSystem::drawInteriorGridLines(
+    Qwt3DAxis& axisA, Qwt3DAxis& axisB, int dirAxis, bool major, QVector<float>& verts)
+{
+    QWT_D(d);
+
+    Triple begA = axisA.begin(), endA = axisA.end();
+    Triple begB = axisB.begin(), endB = axisB.end();
+
+    int dimA = (!isPracticallyZero(endA.x - begA.x)) ? 0
+             : (!isPracticallyZero(endA.y - begA.y)) ? 1 : 2;
+    int dimB = (!isPracticallyZero(endB.x - begB.x)) ? 0
+             : (!isPracticallyZero(endB.y - begB.y)) ? 1 : 2;
+
+    if (dimA == dirAxis || dimB == dirAxis || dimA == dimB)
+        return;
+
+    Triple bmin = first();
+    Triple bmax = second();
+
+    float r = static_cast< float >(d->m_interiorGridColor.r);
+    float g = static_cast< float >(d->m_interiorGridColor.g);
+    float bl = static_cast< float >(d->m_interiorGridColor.b);
+    float al = static_cast< float >(d->m_interiorGridColor.a);
+
+    const auto& positionsA = major ? axisA.majorPositions() : axisA.minorPositions();
+    const auto& positionsB = major ? axisB.majorPositions() : axisB.minorPositions();
+
+    for (const auto& pa : positionsA) {
+        double coordA = (dimA == 0) ? pa.x : (dimA == 1) ? pa.y : pa.z;
+        for (const auto& pb : positionsB) {
+            double coordB = (dimB == 0) ? pb.x : (dimB == 1) ? pb.y : pb.z;
+
+            Triple p1 = bmin;
+            Triple p2 = bmax;
+
+            if (dimA == 0) { p1.x = coordA; p2.x = coordA; }
+            else if (dimA == 1) { p1.y = coordA; p2.y = coordA; }
+            else { p1.z = coordA; p2.z = coordA; }
+
+            if (dimB == 0) { p1.x = coordB; p2.x = coordB; }
+            else if (dimB == 1) { p1.y = coordB; p2.y = coordB; }
+            else { p1.z = coordB; p2.z = coordB; }
+
+            verts << static_cast< float >(p1.x) << static_cast< float >(p1.y) << static_cast< float >(p1.z)
+                  << r << g << bl << al;
+            verts << static_cast< float >(p2.x) << static_cast< float >(p2.y) << static_cast< float >(p2.z)
+                  << r << g << bl << al;
+        }
+    }
+}
+
 COORDSTYLE Qwt3DCoordinateSystem::style() const
 {
     QWT_DC(d);
@@ -619,6 +711,33 @@ void Qwt3DCoordinateSystem::setGridLinesColor(RGBA val)
 {
     QWT_D(d);
     d->m_gridlinecolor = val;
+}
+
+void Qwt3DCoordinateSystem::setInteriorGridLines(bool majors, bool minors, int directions)
+{
+    QWT_D(d);
+    d->m_interiorSides  = directions;
+    d->m_interiorMajor  = majors;
+    d->m_interiorMinor  = minors;
+}
+
+int Qwt3DCoordinateSystem::interiorGrids() const
+{
+    QWT_DC(d);
+    return d->m_interiorSides;
+}
+
+void Qwt3DCoordinateSystem::setInteriorGridLinesColor(RGBA val)
+{
+    QWT_D(d);
+    d->m_interiorGridColor = val;
+}
+
+void Qwt3DCoordinateSystem::setInteriorGridLinesWidth(double major, double minor)
+{
+    QWT_D(d);
+    d->m_interiorMajWidth = major;
+    d->m_interiorMinWidth = minor;
 }
 
 Triple Qwt3DCoordinateSystem::first() const

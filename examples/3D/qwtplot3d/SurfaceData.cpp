@@ -44,8 +44,7 @@ void RippleProvider::create(Qwt3DSurface& surface)
 {
     RippleFunction ripple;
     ripple.setTime(m_time);
-    ripple.assign(surface);
-    ripple.create();
+    surface.loadFromData(ripple.create());
 }
 
 // ---------------------------------------------------------------------------
@@ -71,8 +70,7 @@ public:
 void GaussianProvider::create(Qwt3DSurface& surface)
 {
     GaussianFunction gaussian;
-    gaussian.assign(surface);
-    gaussian.create();
+    surface.loadFromData(gaussian.create());
 }
 
 // ---------------------------------------------------------------------------
@@ -98,8 +96,7 @@ public:
 void SaddleProvider::create(Qwt3DSurface& surface)
 {
     SaddleFunction saddle;
-    saddle.assign(surface);
-    saddle.create();
+    surface.loadFromData(saddle.create());
 }
 
 // ---------------------------------------------------------------------------
@@ -128,8 +125,7 @@ public:
 void SombreroProvider::create(Qwt3DSurface& surface)
 {
     SombreroFunction sombrero;
-    sombrero.assign(surface);
-    sombrero.create();
+    surface.loadFromData(sombrero.create());
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +157,5 @@ public:
 void TorusProvider::create(Qwt3DSurface& surface)
 {
     TorusSurface torus;
-    torus.assign(surface);
-    torus.create();
+    surface.loadFromData(torus.create());
 }

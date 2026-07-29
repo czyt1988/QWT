@@ -41,7 +41,7 @@ public:
     // Sets the labels position
     void setPosition(Triple pos, ANCHOR a = BottomLeft);
     // Sets the labels position relative to screen
-    void setRelPosition(Tuple rpos, ANCHOR a);
+    void setRelPosition(Tuple rpos, ANCHOR a, const Qwt3DRenderContext& ctx);
     // Receives bottom left label position
     Triple first() const;
     // Receives top right label position
@@ -54,7 +54,7 @@ public:
     // Sets the labels string
     void setString(QString const& s);
     // Actual drawing
-    virtual void draw() override;
+    void draw(const Qwt3DRenderContext& ctx) override;
 
     // Decides about use of PDF standard fonts for PDF output
     static void useDeviceFonts(bool val);
@@ -63,7 +63,7 @@ private:
     void init();
     void init(const QString& family, int pointSize, int weight = QFont::Normal, bool italic = false);
     void update();
-    void convert2screen();
+    void convert2screen(const Qwt3DRenderContext& ctx);
     double width() const;
     double height() const;
 };

@@ -360,6 +360,8 @@ void MainWindow::onGridToggled(bool on)
 {
     int sides = LEFT | RIGHT | CEIL | FLOOR | FRONT | BACK;
     m_plot->coordinates()->setGridLines(on, false, sides);
+    int interior = X_INNER | Y_INNER | Z_INNER;
+    m_plot->coordinates()->setInteriorGridLines(on, false, interior);
     m_plot->update();
 }
 

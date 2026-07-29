@@ -53,13 +53,6 @@ Qwt3DPlot::Qwt3DPlot(QWidget* parent) : QOpenGLWidget(parent), QWT_PIMPL_CONSTRU
 {
     QWT_D(d);
 
-    // Set plot pointer on child drawables so they can access shaders and coordinate conversion
-    d->m_coordinates.setPlot(this);
-    for (auto& axis : d->m_coordinates.axes)
-        axis.setPlot(this);
-    d->m_legend.setPlot(this);
-    d->m_title.setPlot(this);
-
     d->m_title.setFont("Courier", 16, QFont::Bold);
     d->m_title.setString("");
 
@@ -441,6 +434,15 @@ void Qwt3DPlot::paintGL()
                           static_cast< float >(-7 * radius));
     d->m_projection = projection;
 
+    // Build render context for the user-rotation phase (items + coordinate system)
+    Qwt3DRenderContext ctx;
+    ctx.modelView = d->m_modelView;
+    ctx.projection = d->m_projection;
+    ctx.viewport = viewportSize();
+    ctx.lineShader = d->m_lineShader.get();
+    ctx.polygonShader = d->m_polygonShader.get();
+    ctx.textShader = d->m_textShader.get();
+
     // Render all attached items (sorted by z-order)
     for (Qwt3DPlotItem* item : d->m_items) {
         if (item->isVisible())
@@ -448,7 +450,7 @@ void Qwt3DPlot::paintGL()
     }
 
     // Draw coordinate system
-    d->m_coordinates.draw();
+    d->m_coordinates.draw(ctx);
 
     // Draw legend and title with a FIXED modelview (no user rotation)
     // so they stay anchored to the screen regardless of 3D scene rotation.
@@ -458,14 +460,18 @@ void Qwt3DPlot::paintGL()
     d->m_modelView.setToIdentity();
     d->m_modelView.rotate(-90.0f, 1.0f, 0.0f, 0.0f);
 
+    // Build context for the fixed-MV phase (legend + title)
+    Qwt3DRenderContext ctxFixed = ctx;
+    ctxFixed.modelView = d->m_modelView;
+
     if (d->m_displayLegend) {
         for (Qwt3DPlotItem* item : d->m_items)
             item->populateLegendColors(d->m_legend.colors);
-        d->m_legend.draw();
+        d->m_legend.draw(ctxFixed);
     }
 
-    d->m_title.setRelPosition(d->m_titleRel, d->m_titleAnchor);
-    d->m_title.draw();
+    d->m_title.setRelPosition(d->m_titleRel, d->m_titleAnchor, ctxFixed);
+    d->m_title.draw(ctxFixed);
 
     // Restore user modelview for subsequent operations (mouse picking, etc.)
     d->m_modelView = savedModelView;
@@ -514,12 +520,14 @@ void Qwt3DPlot::setLegendPosition(Qwt3DColorLegend::Position pos)
 {
     QWT_D(d);
     d->m_legend.setPosition(pos);
+    update();
 }
 
 void Qwt3DPlot::setLegendAbsolutePosition(const QRectF& pixelRect)
 {
     QWT_D(d);
     d->m_legend.setAbsolutePosition(pixelRect);
+    update();
 }
 
 /**

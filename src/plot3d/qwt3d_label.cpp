@@ -1,7 +1,6 @@
 #include <qbitmap.h>
 #include "qwt3d_label.h"
 
-#include "qwt3d_plot.h"
 #include "qwt3d_io_gl2ps.h"
 
 #include <QOpenGLFunctions>
@@ -74,7 +73,6 @@ Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CON
     d->m_gap              = od->m_gap;
     d->m_flagForUpdate    = od->m_flagForUpdate;
     color                 = other.color;
-    m_plot                = other.m_plot;
 }
 
 Qwt3DLabel::Qwt3DLabel(Qwt3DLabel&& other) noexcept : Qwt3DDrawable(std::move(other)), m_data(std::move(other.m_data))
@@ -98,7 +96,6 @@ Qwt3DLabel& Qwt3DLabel::operator=(const Qwt3DLabel& other)
         d->m_gap              = od->m_gap;
         d->m_flagForUpdate    = od->m_flagForUpdate;
         color                 = other.color;
-        m_plot                = other.m_plot;
     }
     return *this;
 }
@@ -173,11 +170,11 @@ void Qwt3DLabel::setPosition(Triple pos, ANCHOR a)
     d->m_pos    = pos;
 }
 
-void Qwt3DLabel::setRelPosition(Tuple rpos, ANCHOR a)
+void Qwt3DLabel::setRelPosition(Tuple rpos, ANCHOR a, const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
     d->m_anchor = a;
-    d->m_beg = relativePosition(Triple(rpos.x, rpos.y, 0.99));
+    d->m_beg = ctx.relativePosition(Triple(rpos.x, rpos.y, 0.99));
     setPosition(d->m_beg, a);
 }
 
@@ -229,14 +226,11 @@ void Qwt3DLabel::adjust(int gap)
     d->m_gap = gap;
 }
 
-void Qwt3DLabel::convert2screen()
+void Qwt3DLabel::convert2screen(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
-    if (!plot())
-        return;
 
-    Qwt3DPlot* p = plot();
-    QMatrix4x4 mvp = p->projectionMatrix() * p->modelViewMatrix();
+    QMatrix4x4 mvp = ctx.projection * ctx.modelView;
 
     // Compute NDC z of the label position
     QVector4D posVec(static_cast< float >(d->m_pos.x),
@@ -248,14 +242,13 @@ void Qwt3DLabel::convert2screen()
     if (clip.w() != 0.0f)
         d->m_ndcZ = clip.z() / clip.w();
 
-    QSize vp = p->viewportSize();
-    if (vp.width() <= 0 || vp.height() <= 0)
+    if (ctx.viewport.width() <= 0 || ctx.viewport.height() <= 0)
         return;
 
     // Helper to convert screen + NDC z back to world
     auto screenToWorldZ = [&](const QPointF& s) -> Triple {
-        float ndcX = 2.0f * static_cast< float >(s.x()) / vp.width() - 1.0f;
-        float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / vp.height();
+        float ndcX = 2.0f * static_cast< float >(s.x()) / ctx.viewport.width() - 1.0f;
+        float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / ctx.viewport.height();
         QVector4D ndc(ndcX, ndcY, d->m_ndcZ, 1.0f);
         QVector4D world = mvp.inverted().map(ndc);
         if (world.w() != 0.0f)
@@ -263,7 +256,7 @@ void Qwt3DLabel::convert2screen()
         return Triple(0, 0, 0);
     };
 
-    QPointF screen = p->worldToScreen(d->m_pos);
+    QPointF screen = ctx.worldToScreen(d->m_pos);
 
     double w = width();
     double h = height();
@@ -300,18 +293,19 @@ void Qwt3DLabel::convert2screen()
         break;
     }
 
-    QPointF begScreen = p->worldToScreen(d->m_beg);
+    QPointF begScreen = ctx.worldToScreen(d->m_beg);
     d->m_end = screenToWorldZ(begScreen + QPointF(w, h));
 }
 
 /**
  * @brief Draws the label using a texture quad with GLSL text shader
+ * @param ctx Render context providing shaders, matrices, and coordinate conversion
  * @details Renders the text to a QImage, creates an OpenGL texture,
  *          and draws a textured quad using VBO + text.vert/text.frag shaders.
  *          For gl2ps vector export (deviceFonts mode), falls back to
  *          drawDeviceText.
  */
-void Qwt3DLabel::draw()
+void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
     if (d->m_flagForUpdate) {
@@ -322,10 +316,7 @@ void Qwt3DLabel::draw()
     if (d->m_buf.isNull())
         return;
 
-    convert2screen();
-
-    if (!plot())
-        return;
+    convert2screen(ctx);
 
     // gl2ps vector export path: use device text for vector output
 #ifdef QWT3D_ENABLE_GL2PS
@@ -336,7 +327,7 @@ void Qwt3DLabel::draw()
     }
 #endif
 
-    auto* shader = plot()->textShader();
+    auto* shader = ctx.textShader;
     if (!shader)
         return;
 
@@ -352,12 +343,11 @@ void Qwt3DLabel::draw()
     // m_beg and m_end are two diagonal corners (BL, TR) in world space,
     // but the other two corners cannot be synthesized by mixing x/y/z
     // components — they must be computed independently from screen space.
-    Qwt3DPlot* p = plot();
-    QMatrix4x4 mvp = p->projectionMatrix() * p->modelViewMatrix();
-    QSize vp = p->viewportSize();
+    QMatrix4x4 mvp = ctx.projection * ctx.modelView;
+    QSize vp = ctx.viewport;
 
-    QPointF begScreen = p->worldToScreen(d->m_beg);
-    QPointF endScreen = p->worldToScreen(d->m_end);
+    QPointF begScreen = ctx.worldToScreen(d->m_beg);
+    QPointF endScreen = ctx.worldToScreen(d->m_end);
 
     auto screenToWorldZ = [&](const QPointF& s) -> Triple {
         if (vp.width() <= 0 || vp.height() <= 0)
@@ -398,8 +388,8 @@ void Qwt3DLabel::draw()
     vbo.allocate(verts.constData(), verts.size() * sizeof(float));
 
     shader->bind();
-    shader->setUniformValue("uModelView", plot()->modelViewMatrix());
-    shader->setUniformValue("uProjection", plot()->projectionMatrix());
+    shader->setUniformValue("uModelView", ctx.modelView);
+    shader->setUniformValue("uProjection", ctx.projection);
     shader->setUniformValue("uTextTexture", 0);
     shader->setUniformValue("uTextColor",
                             QVector4D(static_cast< float >(color.r),

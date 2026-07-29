@@ -28,7 +28,7 @@ public:
     ~Qwt3DAxis() override;
 
     // Draws axis
-    void draw() override;
+    void draw(const Qwt3DRenderContext& ctx) override;
 
     // Positionate axis
     void setPosition(const Triple& beg, const Triple& end);
@@ -131,16 +131,16 @@ public:
 
 private:
     void init();
-    void drawBase();
-    void drawTics();
-    void drawTicLabel(Triple Pos, int mtic);
+    void drawBase(const Qwt3DRenderContext& ctx);
+    void drawTics(const Qwt3DRenderContext& ctx);
+    void drawTicLabel(const Qwt3DRenderContext& ctx, Triple Pos, int mtic);
     Triple drawTic(Triple nadir, double length);
-    void drawLabel();
+    void drawLabel(const Qwt3DRenderContext& ctx);
     bool prepTicCalculation(Triple& startpoint);
 
-    Triple biggestNumberString();
+    Triple biggestNumberString(const Qwt3DRenderContext& ctx);
 
-    void drawLines(const QVector<float>& vertices, double lineWidth);
+    void drawLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth);
 };
 
 
