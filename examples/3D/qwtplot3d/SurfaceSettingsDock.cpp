@@ -144,6 +144,7 @@ void SurfaceSettingsDock::reapplyAll()
 
     // Legend tab
     syncLegendLimitsToData();
+    onLegendPositionChanged(m_legendPositionCombo->currentIndex());
     onLegendOrientationChanged(m_legendOrientationCombo->currentIndex());
     onLegendScalePositionChanged(m_legendScalePosCombo->currentIndex());
     onLegendDrawScale(m_legendDrawScaleCheck->isChecked());
@@ -516,6 +517,17 @@ QWidget* SurfaceSettingsDock::createLegendTab()
 {
     auto* w = new QWidget;
     auto* form = new QFormLayout(w);
+
+    m_legendPositionCombo = new QComboBox;
+    m_legendPositionCombo->addItems({
+        QStringLiteral("Top-Left"), QStringLiteral("Top-Center"), QStringLiteral("Top-Right"),
+        QStringLiteral("Left-Center"), QStringLiteral("Center"), QStringLiteral("Right-Center"),
+        QStringLiteral("Bottom-Left"), QStringLiteral("Bottom-Center"), QStringLiteral("Bottom-Right")
+    });
+    m_legendPositionCombo->setCurrentIndex(4); // Center
+    connect(m_legendPositionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &SurfaceSettingsDock::onLegendPositionChanged);
+    form->addRow(QStringLiteral("Position:"), m_legendPositionCombo);
 
     m_legendOrientationCombo = new QComboBox;
     m_legendOrientationCombo->addItems({QStringLiteral("Bottom-Top"), QStringLiteral("Left-Right")});
@@ -1139,6 +1151,15 @@ void SurfaceSettingsDock::onLineSmooth(bool on)
 // ---------------------------------------------------------------------------
 // Legend tab helpers
 // ---------------------------------------------------------------------------
+void SurfaceSettingsDock::onLegendPositionChanged(int index)
+{
+    if (!m_plot || !m_plot->legend())
+        return;
+    auto pos = static_cast<Qwt3DColorLegend::Position>(index);
+    m_plot->setLegendPosition(pos);
+    updatePlot();
+}
+
 void SurfaceSettingsDock::updateLegendScalePosCombo()
 {
     if (!m_legendScalePosCombo || !m_legendOrientationCombo)

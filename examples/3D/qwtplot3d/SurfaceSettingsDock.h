@@ -84,6 +84,7 @@ private Q_SLOTS:
     void onLineSmooth(bool on);
 
     // Legend tab
+    void onLegendPositionChanged(int index);
     void onLegendOrientationChanged(int index);
     void onLegendScalePositionChanged(int index);
     void onLegendDrawScale(bool on);
@@ -185,6 +186,7 @@ private:
     QCheckBox* m_lineSmoothCheck = nullptr;
 
     // --- Legend tab ---
+    QComboBox* m_legendPositionCombo = nullptr;
     QComboBox* m_legendOrientationCombo = nullptr;
     QComboBox* m_legendScalePosCombo = nullptr;
     QCheckBox* m_legendDrawScaleCheck = nullptr;
