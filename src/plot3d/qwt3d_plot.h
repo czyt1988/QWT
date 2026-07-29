@@ -83,6 +83,9 @@ public:
     // Returns orthogonal (true) or perspective (false) projection
     bool ortho() const;
 
+    // Returns the current aspect ratio mode
+    ASPECTRATIOMODE aspectRatioMode() const;
+
     // Sets widgets background color
     void setBackgroundColor(RGBA rgba);
     // Returns the widgets background color
@@ -267,6 +270,12 @@ Q_SIGNALS:
      */
     void projectionChanged(bool);
 
+    /**
+     * @brief Signal emitted when the aspect ratio mode is changed
+     * @param mode The new aspect ratio mode (AUTOFILL or DATARATIO)
+     */
+    void aspectRatioModeChanged(ASPECTRATIOMODE mode);
+
 public Q_SLOTS:
 
     // Set rotation values
@@ -282,6 +291,9 @@ public Q_SLOTS:
 
     // Set orthogonal/perspective projection
     void setOrtho(bool);
+
+    // Set the aspect ratio mode (AUTOFILL or DATARATIO)
+    void setAspectRatioMode(ASPECTRATIOMODE mode);
 
     // Enable mouse input
     void enableMouse(bool val = true);

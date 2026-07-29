@@ -42,6 +42,7 @@ public:
 
     RGBA m_bgColor;
     bool m_ortho;
+    ASPECTRATIOMODE m_aspectRatioMode = AUTOFILL;
 
     bool m_displayLegend;
 

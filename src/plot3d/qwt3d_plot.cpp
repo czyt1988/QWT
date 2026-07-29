@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 
 
 Qwt3DPlot::PrivateData::PrivateData(Qwt3DPlot* q)
@@ -206,6 +207,12 @@ bool Qwt3DPlot::ortho() const
     return d->m_ortho;
 }
 
+ASPECTRATIOMODE Qwt3DPlot::aspectRatioMode() const
+{
+    QWT_DC(d);
+    return d->m_aspectRatioMode;
+}
+
 RGBA Qwt3DPlot::backgroundRGBAColor() const
 {
     QWT_DC(d);
@@ -385,16 +392,31 @@ void Qwt3DPlot::paintGL()
     Triple beg = d->m_coordinates.first();
     Triple end = d->m_coordinates.second();
     Triple center = beg + (end - beg) / 2;
-    double radius = (center - beg).length();
+    Triple dv = end - beg;
+
+    double normX = 1.0, normY = 1.0, normZ = 1.0;
+    double radius;
+
+    if (d->m_aspectRatioMode == AUTOFILL) {
+        double maxRange = std::max({dv.x, dv.y, dv.z});
+        if (maxRange > 0) {
+            normX = (dv.x > 0) ? maxRange / dv.x : 1.0;
+            normY = (dv.y > 0) ? maxRange / dv.y : 1.0;
+            normZ = (dv.z > 0) ? maxRange / dv.z : 1.0;
+        }
+        radius = (maxRange > 0) ? maxRange * sqrt(3.0) / 2.0 : 1.0;
+    } else {
+        radius = (center - beg).length();
+    }
 
     QMatrix4x4 modelView;
     modelView.setToIdentity();
     modelView.rotate(d->m_xRot - 90, 1.0f, 0.0f, 0.0f);
     modelView.rotate(d->m_yRot, 0.0f, 1.0f, 0.0f);
     modelView.rotate(d->m_zRot, 0.0f, 0.0f, 1.0f);
-    modelView.scale(static_cast< float >(d->m_zoom * d->m_xScale),
-                    static_cast< float >(d->m_zoom * d->m_yScale),
-                    static_cast< float >(d->m_zoom * d->m_zScale));
+    modelView.scale(static_cast< float >(d->m_zoom * d->m_xScale * normX),
+                    static_cast< float >(d->m_zoom * d->m_yScale * normY),
+                    static_cast< float >(d->m_zoom * d->m_zScale * normZ));
     modelView.translate(static_cast< float >(d->m_xShift - center.x),
                          static_cast< float >(d->m_yShift - center.y),
                          static_cast< float >(d->m_zShift - center.z));
@@ -523,6 +545,27 @@ void Qwt3DPlot::setOrtho(bool val)
     update();
 
     emit projectionChanged(val);
+}
+
+/**
+ * @brief Sets the aspect ratio mode for the 3D coordinate box
+ * @param mode AUTOFILL to independently scale each axis to fill the viewport,
+ *             DATARATIO to preserve original data proportions
+ * @details In AUTOFILL mode (default), each axis is normalized to the same
+ *          visual length so the coordinate box appears as a cube, making the
+ *          plot fill the viewport. In DATARATIO mode, the original data
+ *          proportions are preserved (equal aspect ratio), similar to
+ *          matplotlib's plt.axis('equal').
+ */
+void Qwt3DPlot::setAspectRatioMode(ASPECTRATIOMODE mode)
+{
+    QWT_D(d);
+    if (mode == d->m_aspectRatioMode)
+        return;
+    d->m_aspectRatioMode = mode;
+    update();
+
+    emit aspectRatioModeChanged(mode);
 }
 
 /**

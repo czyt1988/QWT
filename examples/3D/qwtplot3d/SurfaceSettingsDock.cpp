@@ -161,6 +161,7 @@ void SurfaceSettingsDock::reapplyAll()
     onViewportShiftChanged();
     onScaleChanged();
     onZoomChanged(m_zoomSpin->value());
+    onAspectRatioChanged(m_aspectRatioCombo->currentIndex());
     applyBackgroundColor();
     onLightingEnabled(m_lightingCheck->isChecked());
     onLightRotationChanged();
@@ -658,6 +659,14 @@ QWidget* SurfaceSettingsDock::createViewLightTab()
     connect(m_zoomSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &SurfaceSettingsDock::onZoomChanged);
     viewForm->addRow(QStringLiteral("Zoom:"), m_zoomSpin);
+
+    m_aspectRatioCombo = new QComboBox;
+    m_aspectRatioCombo->addItem(QStringLiteral("Auto Fill"), AUTOFILL);
+    m_aspectRatioCombo->addItem(QStringLiteral("Data Ratio"), DATARATIO);
+    m_aspectRatioCombo->setCurrentIndex(0);
+    connect(m_aspectRatioCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &SurfaceSettingsDock::onAspectRatioChanged);
+    viewForm->addRow(QStringLiteral("Aspect Ratio:"), m_aspectRatioCombo);
 
     m_bgColorBtn = new QPushButton(QStringLiteral("Choose..."));
     styleColorButton(m_bgColorBtn, Qt::white);
@@ -1332,6 +1341,14 @@ void SurfaceSettingsDock::onZoomChanged(double val)
 {
     if (m_plot)
         m_plot->setZoom(val);
+}
+
+void SurfaceSettingsDock::onAspectRatioChanged(int index)
+{
+    if (!m_plot)
+        return;
+    int data = m_aspectRatioCombo->itemData(index).toInt();
+    m_plot->setAspectRatioMode(static_cast<ASPECTRATIOMODE>(data));
 }
 
 void SurfaceSettingsDock::applyBackgroundColor()

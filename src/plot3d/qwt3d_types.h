@@ -134,6 +134,18 @@ enum TICKPOSITION
 };
 
 /**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+    AUTOFILL,   // Each axis independently scaled to fill the view (default)
+    DATARATIO   // Preserve data proportions (equal aspect ratio)
+};
+
+/**
  * @brief Possible anchor points for drawing operations
  */
 enum ANCHOR

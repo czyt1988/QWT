@@ -102,6 +102,7 @@ private Q_SLOTS:
     void onViewportShiftChanged();
     void onScaleChanged();
     void onZoomChanged(double val);
+    void onAspectRatioChanged(int index);
     void onBackgroundColor();
     void onLightingEnabled(bool on);
     void onIlluminateLight(int idx);
@@ -211,6 +212,7 @@ private:
     QDoubleSpinBox* m_scaleYSpin = nullptr;
     QDoubleSpinBox* m_scaleZSpin = nullptr;
     QDoubleSpinBox* m_zoomSpin = nullptr;
+    QComboBox* m_aspectRatioCombo = nullptr;
     QPushButton* m_bgColorBtn = nullptr;
     QCheckBox* m_lightingCheck = nullptr;
     QPushButton* m_lightButtons[8] = {};
