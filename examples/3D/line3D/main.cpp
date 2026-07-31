@@ -4,28 +4,24 @@
  * Renders a 3D helix (x = cos t, y = sin t, z = t) as a lit tube swept along
  * the polyline. Demonstrates Qwt3DLine with Tube / Lines / Dots styles,
  * per-vertex colormap coloring (by height), optional point markers, theme
- * integration, and lighting.
+ * integration, and lighting. A LineSettingsDock provides interactive controls
+ * for all line properties and data regeneration.
  *****************************************************************************/
 
+#include <QActionGroup>
 #include <QApplication>
 #include <QComboBox>
 #include <QLabel>
 #include <QMainWindow>
 #include <QMenu>
-#include <QActionGroup>
 #include <QToolBar>
-#include <QVector>
 
-#include <cmath>
-
-#include "qwt3d_color.h"
-#include "qwt3d_colormap_color.h"
+#include "LineSettingsDock.h"
 #include "qwt3d_coordsys.h"
 #include "qwt3d_line3d.h"
 #include "qwt3d_plot.h"
 #include "qwt3d_theme.h"
 #include "qwt3d_types.h"
-#include "qwt_point_3d.h"
 
 class LineWindow : public QMainWindow
 {
@@ -48,25 +44,6 @@ public:
 
         setupAxes();
 
-        // Helix samples
-        const int n = 240;
-        const double tMin = 0.0;
-        const double tMax = 4.0 * 2 * std::acos(-1.0); // 4 * pi
-        QVector<QwtPoint3D> samples;
-        samples.reserve(n);
-        for (int i = 0; i < n; ++i) {
-            const double t = tMin + (tMax - tMin) * i / (n - 1);
-            samples.append(QwtPoint3D(std::cos(t), std::sin(t), t));
-        }
-        m_line->setSamples(samples);
-
-        m_line->setLineStyle(Qwt3DLine::Tube);
-        m_line->setTubeRadius(0.05);
-        m_line->setTubeSegments(10);
-        m_line->setDataColor(new Qwt3DColorMapColor("plasma"));
-        m_line->setPointSize(10.0);
-        m_line->setPointVisible(false);
-
         // Lighting
         m_plot->enableLighting(true);
         m_plot->illuminate(0);
@@ -79,6 +56,15 @@ public:
         m_plot->enableMouse(true);
         m_plot->enableKeyboard(true);
         m_plot->showColorLegend(true);
+
+        // Settings dock — provides line property controls and data regeneration
+        m_dock = new LineSettingsDock(this);
+        m_dock->setPlot(m_plot);
+        m_dock->setLine(m_line);
+        addDockWidget(Qt::LeftDockWidgetArea, m_dock);
+
+        // Apply line properties and generate initial data from dock defaults
+        m_dock->reapplyAll();
 
         resetView();
         createToolbar();
@@ -111,52 +97,44 @@ private:
         auto* tb = addToolBar("Controls");
         tb->setMovable(false);
 
-        // Line style group
-        auto* styleGroup = new QActionGroup(this);
-        styleGroup->setExclusive(true);
-        auto addStyle = [&](const QString& name, int v, bool checked = false) {
-            auto* a = styleGroup->addAction(name);
+        // Coord style menu (Box / Frame / None)
+        auto* coordGroup = new QActionGroup(this);
+        coordGroup->setExclusive(true);
+        auto addCoord = [&](const QString& name, COORDSTYLE v, bool checked = false) {
+            auto* a = coordGroup->addAction(name);
             a->setCheckable(true);
             a->setChecked(checked);
-            a->setData(v);
+            a->setData(int(v));
         };
-        addStyle("Lines", int(Qwt3DLine::Lines));
-        addStyle("Tube", int(Qwt3DLine::Tube), true);
-        addStyle("Dots", int(Qwt3DLine::Dots));
-        auto* styleAction = tb->addAction("Line Style");
-        styleAction->setMenu(new QMenu(tb));
-        for (auto* a : styleGroup->actions())
-            styleAction->menu()->addAction(a);
-        connect(styleGroup, &QActionGroup::triggered, this, [this](QAction* a) {
-            m_line->setLineStyle(static_cast<Qwt3DLine::LineStyle>(a->data().toInt()));
+        addCoord(QStringLiteral("Box"), BOX, true);
+        addCoord(QStringLiteral("Frame"), FRAME);
+        addCoord(QStringLiteral("None"), NOCOORD);
+        auto* coordAction = tb->addAction(QStringLiteral("Coord Style"));
+        coordAction->setMenu(new QMenu(tb));
+        for (auto* a : coordGroup->actions())
+            coordAction->menu()->addAction(a);
+        connect(coordGroup, &QActionGroup::triggered, this, [this](QAction* a) {
+            m_plot->coordinates()->setStyle(static_cast<COORDSTYLE>(a->data().toInt()));
             m_plot->update();
         });
 
         tb->addSeparator();
 
-        auto* markersAction = tb->addAction("Point Markers");
-        markersAction->setCheckable(true);
-        connect(markersAction, &QAction::toggled, this, [this](bool on) {
-            m_line->setPointVisible(on);
-            m_plot->update();
-        });
-
-        tb->addSeparator();
-
-        tb->addWidget(new QLabel("Theme:"));
+        // Theme selector
+        tb->addWidget(new QLabel(QStringLiteral("Theme:")));
         m_themeCombo = new QComboBox();
         m_themeCombo->addItems(Qwt3DTheme::availablePresets());
         tb->addWidget(m_themeCombo);
         connect(m_themeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, [this](int idx) {
             m_plot->applyTheme(m_themeCombo->itemText(idx));
-            m_line->setTubeRadius(0.05);
+            m_dock->reapplyAll();
             m_plot->update();
         });
 
         tb->addSeparator();
 
-        auto* lightAction = tb->addAction("Lighting");
+        auto* lightAction = tb->addAction(QStringLiteral("Lighting"));
         lightAction->setCheckable(true);
         lightAction->setChecked(true);
         connect(lightAction, &QAction::toggled, this, [this](bool on) {
@@ -164,7 +142,7 @@ private:
             m_plot->update();
         });
 
-        auto* legendAction = tb->addAction("Color Legend");
+        auto* legendAction = tb->addAction(QStringLiteral("Color Legend"));
         legendAction->setCheckable(true);
         legendAction->setChecked(true);
         connect(legendAction, &QAction::toggled, this, [this](bool on) {
@@ -174,11 +152,12 @@ private:
 
         tb->addSeparator();
 
-        tb->addAction("Reset View", this, [this] { resetView(); });
+        tb->addAction(QStringLiteral("Reset View"), this, [this] { resetView(); });
     }
 
     Qwt3DPlot* m_plot = nullptr;
     Qwt3DLine* m_line = nullptr;
+    LineSettingsDock* m_dock = nullptr;
     QComboBox* m_themeCombo = nullptr;
 };
 

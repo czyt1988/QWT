@@ -4,24 +4,20 @@
  * Renders a Gaussian peak sampled on a regular x/y grid as a 3D bar chart
  * (3D histogram / bar3 style). Demonstrates Qwt3DBar with the 2D-grid data
  * entry, per-bar colormap coloring, FilledMesh / Wireframe styles, theme
- * integration, and lighting.
+ * integration, and lighting. A BarSettingsDock provides interactive controls
+ * for all bar properties and data regeneration.
  *****************************************************************************/
 
+#include <QActionGroup>
 #include <QApplication>
 #include <QComboBox>
 #include <QLabel>
 #include <QMainWindow>
 #include <QMenu>
-#include <QActionGroup>
 #include <QToolBar>
-#include <QVector>
 
-#include <cmath>
-#include <vector>
-
+#include "BarSettingsDock.h"
 #include "qwt3d_bar.h"
-#include "qwt3d_color.h"
-#include "qwt3d_colormap_color.h"
 #include "qwt3d_coordsys.h"
 #include "qwt3d_plot.h"
 #include "qwt3d_theme.h"
@@ -48,28 +44,6 @@ public:
 
         setupAxes();
 
-        // Gaussian peak on a 9x9 grid over [-2, 2] x [-2, 2]
-        const int cols = 9, rows = 9;
-        const double minX = -2.0, maxX = 2.0, minY = -2.0, maxY = 2.0;
-        QVector<QVector<double>> z(cols, QVector<double>(rows));
-        for (int i = 0; i < cols; ++i) {
-            const double x = minX + (maxX - minX) * i / (cols - 1);
-            for (int j = 0; j < rows; ++j) {
-                const double y = minY + (maxY - minY) * j / (rows - 1);
-                z[i][j] = std::exp(-(x * x + y * y) / 1.5);
-            }
-        }
-        std::vector<double*> ptrs(cols);
-        for (int i = 0; i < cols; ++i)
-            ptrs[i] = z[i].data();
-
-        m_bar->setSamples(ptrs.data(), cols, rows, minX, maxX, minY, maxY);
-        m_bar->setBarStyle(Qwt3DBar::FilledMesh);
-        m_bar->setDataColor(new Qwt3DColorMapColor("viridis"));
-        m_bar->setMeshColor(RGBA(0.1, 0.1, 0.1, 0.4));
-        m_bar->setMeshLineWidth(1.0);
-        m_bar->setBaseline(0.0);
-
         // Lighting
         m_plot->enableLighting(true);
         m_plot->illuminate(0);
@@ -82,6 +56,15 @@ public:
         m_plot->enableMouse(true);
         m_plot->enableKeyboard(true);
         m_plot->showColorLegend(true);
+
+        // Settings dock — provides bar property controls and data regeneration
+        m_dock = new BarSettingsDock(this);
+        m_dock->setPlot(m_plot);
+        m_dock->setBar(m_bar);
+        addDockWidget(Qt::LeftDockWidgetArea, m_dock);
+
+        // Apply bar properties and generate initial data from dock defaults
+        m_dock->reapplyAll();
 
         resetView();
         createToolbar();
@@ -114,45 +97,44 @@ private:
         auto* tb = addToolBar("Controls");
         tb->setMovable(false);
 
-        // Bar style group
-        auto* styleGroup = new QActionGroup(this);
-        styleGroup->setExclusive(true);
-        auto addStyle = [&](const QString& name, int v, bool checked = false) {
-            auto* a = styleGroup->addAction(name);
+        // Coord style menu (Box / Frame / None)
+        auto* coordGroup = new QActionGroup(this);
+        coordGroup->setExclusive(true);
+        auto addCoord = [&](const QString& name, COORDSTYLE v, bool checked = false) {
+            auto* a = coordGroup->addAction(name);
             a->setCheckable(true);
             a->setChecked(checked);
-            a->setData(v);
+            a->setData(int(v));
         };
-        addStyle("Filled", int(Qwt3DBar::Filled));
-        addStyle("FilledMesh", int(Qwt3DBar::FilledMesh), true);
-        addStyle("Wireframe", int(Qwt3DBar::Wireframe));
-        auto* styleAction = tb->addAction("Bar Style");
-        styleAction->setMenu(new QMenu(tb));
-        for (auto* a : styleGroup->actions())
-            styleAction->menu()->addAction(a);
-        connect(styleGroup, &QActionGroup::triggered, this, [this](QAction* a) {
-            m_bar->setBarStyle(static_cast<Qwt3DBar::BarStyle>(a->data().toInt()));
+        addCoord(QStringLiteral("Box"), BOX, true);
+        addCoord(QStringLiteral("Frame"), FRAME);
+        addCoord(QStringLiteral("None"), NOCOORD);
+        auto* coordAction = tb->addAction(QStringLiteral("Coord Style"));
+        coordAction->setMenu(new QMenu(tb));
+        for (auto* a : coordGroup->actions())
+            coordAction->menu()->addAction(a);
+        connect(coordGroup, &QActionGroup::triggered, this, [this](QAction* a) {
+            m_plot->coordinates()->setStyle(static_cast<COORDSTYLE>(a->data().toInt()));
             m_plot->update();
         });
 
         tb->addSeparator();
 
         // Theme selector
-        tb->addWidget(new QLabel("Theme:"));
+        tb->addWidget(new QLabel(QStringLiteral("Theme:")));
         m_themeCombo = new QComboBox();
         m_themeCombo->addItems(Qwt3DTheme::availablePresets());
         tb->addWidget(m_themeCombo);
         connect(m_themeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, [this](int idx) {
             m_plot->applyTheme(m_themeCombo->itemText(idx));
-            // Re-apply bar-specific mesh transparency lost after theme dispatch
-            m_bar->setMeshColor(RGBA(0.1, 0.1, 0.1, 0.4));
+            m_dock->reapplyAll();
             m_plot->update();
         });
 
         tb->addSeparator();
 
-        auto* lightAction = tb->addAction("Lighting");
+        auto* lightAction = tb->addAction(QStringLiteral("Lighting"));
         lightAction->setCheckable(true);
         lightAction->setChecked(true);
         connect(lightAction, &QAction::toggled, this, [this](bool on) {
@@ -160,7 +142,7 @@ private:
             m_plot->update();
         });
 
-        auto* legendAction = tb->addAction("Color Legend");
+        auto* legendAction = tb->addAction(QStringLiteral("Color Legend"));
         legendAction->setCheckable(true);
         legendAction->setChecked(true);
         connect(legendAction, &QAction::toggled, this, [this](bool on) {
@@ -170,11 +152,12 @@ private:
 
         tb->addSeparator();
 
-        tb->addAction("Reset View", this, [this] { resetView(); });
+        tb->addAction(QStringLiteral("Reset View"), this, [this] { resetView(); });
     }
 
     Qwt3DPlot* m_plot = nullptr;
     Qwt3DBar* m_bar = nullptr;
+    BarSettingsDock* m_dock = nullptr;
     QComboBox* m_themeCombo = nullptr;
 };
 

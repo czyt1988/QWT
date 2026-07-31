@@ -1,3 +1,42 @@
+## tag:v7.3.6 (2026-07-31)
+
+### New Features
+
+- **Qwt3DBar and Qwt3DLine — New 3D Plot Items**
+    - `Qwt3DBar`: 3D bar chart item, supports 1D series + 2D grid (`Qwt3DFunctionData`) data entry, per-bar flat-normal cuboids (6 faces), Filled/FilledMesh/Wireframe styles reusing the surface shader with two-pass edge overlay
+    - `Qwt3DLine`: 3D line/curve item, `setSamples` mirroring `QwtPlotCurve`, `LineStyle` supports Lines/Tube/Dots; Tube swept with parallel-transport framing (robust on straight segments) for lighting; Lines/Dots reuse shared line/point shaders
+    - Theme integration: `Qwt3DTheme::applyToItem()` extended to dispatch Qwt3DLine/Qwt3DBar (previously only Qwt3DSurface)
+    - New examples: `examples/3D/bar3D` (gaussian peak grid) and `examples/3D/line3D` (helix tube)
+
+- **3D Coordinate Box Aspect Ratio Mode**
+    - Added `AUTOFILL`/`DATARATIO` aspect ratio modes for the 3D coordinate box
+
+- **qwtplot3d Comprehensive Demo Example**
+    - New example project at `examples/3D/qwtplot3d` with MainWindow and dockable settings for surface styles, axes, legends, view/lighting, and enrichments
+    - Settings dock UI syncs with applied theme (`syncFromTheme` method)
+    - Legend position combo dynamically updates options based on orientation (vertical: Left/Right, horizontal: Top/Bottom)
+
+### Bug Fixes
+
+- Fixed dangling pointer: recreate `Qwt3DColorMapColor` in `reapplyAll()` because `applyTheme()` replaces and destroys the old functor
+- Stabilized exposed axis label anchor positioning — replaced angle-based heuristic with outward screen vector from coordinate box center to axis midpoint, remaining consistent across viewport aspect ratio changes
+- Fixed anisotropic tic-length model — tic length was a single world-space value clobbered by `init()` on every data change; now per-axis auto mode (scale × that axis's own data range) with persistent manual override via `setTicLength()`, new `setTicLengthScale()`/`setAutoTicLength()` API (default scale 0.015)
+
+### Refactoring
+
+- **3D Color Classes Become Pure Value Objects**
+    - Removed `Qwt3DSurface*`/`Qwt3DPlot*` reverse pointers and `notifyColorChanged()` from `Qwt3DColor`/`Qwt3DStandardColor`/`Qwt3DColorMapColor`; mutators are now silent; z range pushed via `setActiveRange()`; color headers no longer include/forward-declare `qwt3d_surface.h`/`qwt3d_plot.h`; in-place mutation of an attached functor now requires `surface->invalidateColors()`
+- **Eliminated Reverse-Pointer Violations (Deferred Smells Resolved)**
+    - Introduced `Qwt3DRenderContext` value struct (bundling shaders, matrices, viewport, coordinate-conversion methods); `Qwt3DDrawable::draw()` now takes `const Qwt3DRenderContext&`; removed `m_plot`/`plot()`/`setPlot()` from `Qwt3DDrawable`
+    - `Qwt3DFunction::create()` and `Qwt3DParametricSurface::create()` now return data (`Qwt3DFunctionData`/`Qwt3DParametricData`) instead of pushing via back-pointer; removed `m_surface` from `Qwt3DGridMapping`; added vector-based `loadFromData()` overloads to `Qwt3DSurface`
+    - Removed dead-code `plot` back-pointer from `Qwt3DEnrichment`
+
+### Documentation
+
+- Added 3D module refactor dev-guide (en/zh): why/how the 3D module was refactored to a Plot+Item architecture, tiered layering, migration table
+- Added dedicated Qwt3DBar and Qwt3DLine usage pages (en/zh) with key features, data shapes/styles tables, class diagrams, method tables, tips, and example links
+- Refined 3D Plot Introduction overview (en/zh), replacing inline bar/line usage subsections with pointers to the dedicated pages
+
 ## tag:v7.3.5 (2026-07-24)
 
 ### Breaking Changes

@@ -1,3 +1,42 @@
+## tag:v7.3.6 (2026-07-31)
+
+### 新功能
+
+- **Qwt3DBar 和 Qwt3DLine — 新增 3D 绘图项**
+    - `Qwt3DBar`：3D 柱状图 item，支持 1D 序列 + 2D 网格（`Qwt3DFunctionData`）数据输入，逐柱平面法向量立方体（6 面），支持 Filled/FilledMesh/Wireframe 三种样式，复用 surface 着色器并两遍叠加边线
+    - `Qwt3DLine`：3D 线/曲线 item，`setSamples` 接口与 `QwtPlotCurve` 对齐，`LineStyle` 支持 Lines/Tube/Dots；Tube 使用平行传输标架（parallel-transport framing）生成扫掠圆柱体并支持光照（直线段也稳健），Lines/Dots 复用共享 line/point 着色器
+    - 主题集成：`Qwt3DTheme::applyToItem()` 扩展支持 Qwt3DLine/Qwt3DBar 分派（此前仅支持 Qwt3DSurface）
+    - 新增示例：`examples/3D/bar3D`（高斯峰网格）和 `examples/3D/line3D`（螺旋管）
+
+- **3D 坐标盒纵横比模式**
+    - 为 3D 坐标盒新增 `AUTOFILL`/`DATARATIO` 纵横比模式
+
+- **qwtplot3d 综合演示示例**
+    - 新增示例项目位于 `examples/3D/qwtplot3d`，包含 MainWindow 和可停靠设置面板，支持曲面样式、坐标轴、图例、视图/光照和装饰的交互配置
+    - 设置面板 UI 与已应用主题同步（`syncFromTheme` 方法）
+    - 图例位置组合框根据方向动态更新选项（垂直显示 Left/Right，水平显示 Top/Bottom）
+
+### Bug 修复
+
+- 修复悬空指针：`reapplyAll()` 中重建 `Qwt3DColorMapColor`，因 `applyTheme()` 会替换并销毁旧 functor
+- 稳定暴露轴标签锚点定位 — 用从坐标盒中心到轴中点的外向屏幕向量替代角度启发式，在视口纵横比变化时仍保持一致
+- 修复各向异性 tic 长度模型 — tic 长度原为单一世界空间值，每次数据变化时被 `init()` 覆盖；现为逐轴自动模式（scale × 该轴自身数据范围），手动 `setTicLength()` 为持久覆盖，新增 `setTicLengthScale()`/`setAutoTicLength()` API（默认 scale 0.015）
+
+### 重构
+
+- **3D 颜色类变为纯值对象**
+    - 移除 `Qwt3DColor`/`Qwt3DStandardColor`/`Qwt3DColorMapColor` 的 `Qwt3DSurface*`/`Qwt3DPlot*` 反向指针与 `notifyColorChanged()`，mutator 变为静默；z 范围由 surface 经 `setActiveRange()` 推入；颜色头文件不再 include/前向声明 `qwt3d_surface.h`/`qwt3d_plot.h`；就地修改已挂载 functor 后需调用 `surface->invalidateColors()`
+- **消除反向指针违规（两项遗留 smell 解决）**
+    - 引入 `Qwt3DRenderContext` 值结构体（封装着色器、矩阵、视口和坐标转换方法），`Qwt3DDrawable::draw()` 改为接收 `const Qwt3DRenderContext&`；移除 `Qwt3DDrawable` 的 `m_plot`/`plot()`/`setPlot()`
+    - `Qwt3DFunction::create()` 和 `Qwt3DParametricSurface::create()` 改为返回数据（`Qwt3DFunctionData`/`Qwt3DParametricData`），不再通过反向指针推入；移除 `Qwt3DGridMapping` 的 `m_surface`；为 `Qwt3DSurface` 新增基于 vector 的 `loadFromData()` 重载
+    - 移除 `Qwt3DEnrichment` 中 `plot` 死代码回指
+
+### 文档
+
+- 新增 3D 模块重构开发者指南（双语）：阐述 3D 模块重构为 Plot+Item 架构的原因与方法、分层设计、迁移表
+- 新增 Qwt3DBar 和 Qwt3DLine 专属使用指南（双语）：包含关键特性、数据形状/样式表、类图、方法表、技巧和示例链接
+- 精简 3D 绘图简介概述（双语），替换内联 bar/line 使用子节为指向专属页面的链接
+
 ## tag:v7.3.5 (2026-07-24)
 
 ### 破坏性变更
