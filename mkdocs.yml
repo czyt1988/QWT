@@ -71,6 +71,7 @@ plugins:
                     - Coding Standards: dev-guide/coding-standards.md
                     - Comment Standards: dev-guide/comment-standards.md
                     - PIMPL Pattern: dev-guide/pimpl-pattern.md
+                    - 3D Module Refactor: dev-guide/plot3d-refactor.md
                     - Doc Writing Guide: doc-writing-guide.md
             - User Guide:
                 - Basic Usage:
@@ -148,6 +149,7 @@ plugins:
                     - 编码规范: dev-guide/coding-standards.md
                     - 注释规范: dev-guide/comment-standards.md
                     - PIMPL模式: dev-guide/pimpl-pattern.md
+                    - 3D模块重构: dev-guide/plot3d-refactor.md
                     - 文档编写指南: doc-writing-guide.md
             - 使用指南:
                 - 基本使用:

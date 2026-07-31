@@ -75,6 +75,8 @@ classDiagram
 | `Qwt3DPlot` | 3D渲染窗口（QOpenGLWidget），管理GL上下文、视图、光照、坐标系统和item列表 |
 | `Qwt3DPlotItem` | 所有3D绘图item的抽象基类（attach/detach/draw/hull） |
 | `Qwt3DSurface` | 3D表面图item，显示连续曲面（同时支持网格和单元数据） |
+| `Qwt3DBar` | 3D柱状图item（1D序列或2D网格直方图）；逐柱立方体，扁平法向 |
+| `Qwt3DLine` | 3D线图item；Tube（扫掠圆柱、带光照）/ Lines / Dots 三种样式 |
 | `Qwt3DFunction` | 数据生成器，根据 z = f(x, y) 数学函数生成曲面 |
 | `Qwt3DParametricSurface` | 参数曲面数据生成器 r(u, v) |
 | `Qwt3DCoordinateSystem` | 3D坐标系统，12轴，支持BOX/FRAME样式 |
@@ -197,6 +199,77 @@ overlay->setZ(1.0);  // 在上层渲染
 overlay->attach(plot);
 ```
 
+### 3D柱状图（v7.3.5+）
+
+`Qwt3DBar` 渲染 3D 柱状图 / 3D 直方图。每个样本变成一个轴对齐的长方体（"柱"），其高度编码标量值。支持两种数据形态：
+
+- **1D 序列**：柱子自由放置在 xy 平面上（用 `QwtPoint3D` 的 `setSamples`，其中 (x,y) 为柱底中心，z 为高度）。
+- **2D 网格**：在矩形 x/y 域上采样的柱阵列（用 `double**` z 矩阵或 `Qwt3DFunctionData` 的 `setSamples`）——经典的 "bar3" / 3D 直方图。
+
+柱体复用带光照的 surface 着色器，使用逐面扁平法向，因此响应 `enableLighting()`。颜色由 `Qwt3DColor` functor 按柱驱动（通常按高度）。
+
+```cpp
+#include <qwt3d_plot.h>
+#include <qwt3d_bar.h>
+#include <qwt3d_colormap_color.h>
+
+Qwt3DPlot* plot = new Qwt3DPlot();
+
+Qwt3DBar* bars = new Qwt3DBar();
+bars->setSamples(zMatrix, columns, rows, minX, maxX, minY, maxY); // 2D 网格
+bars->setBarStyle(Qwt3DBar::FilledMesh);
+bars->setDataColor(new Qwt3DColorMapColor("viridis"));
+bars->setBaseline(0.0);          // 柱底 z（默认 0）
+bars->attach(plot);
+
+plot->enableLighting(true);
+plot->setRotation(35, 0, 25);
+```
+
+```cpp
+// 1D 序列变体：柱子沿 x 轴排列，y = 0
+QVector<double> x = {0, 1, 2, 3, 4};
+QVector<double> h = {1.2, 2.3, 0.8, 3.1, 1.7};
+bars->setSamples(x, h);
+```
+
+### 3D线图（v7.3.5+）
+
+`Qwt3DLine` 渲染穿过 3D 空间的折线。数据为 `QwtPoint3D` 样本序列，通过 `setSamples(...)` 设置（重载镜像 2D 的 `QwtPlotCurve`）。提供三种渲染样式：
+
+- **`Tube`（默认）**：折线用圆形截面扫掠成带光照的实体管道。真正的 3D 粗细 + Blinn-Phong 着色；推荐用于轨迹和流线。管道几何使用 parallel-transport 标架（在直线段上稳定，不像 Frenet 标架会退化）。未设置时半径自动取包围盒对角线的 0.5%。
+- **`Lines`**：细 GL 线条（1px）。可靠，但 OpenGL Core 不保证 `glLineWidth > 1`。
+- **`Dots`**：逐样本点标记，点大小可配。
+
+颜色可为纯色（`setColor`）或由 `Qwt3DColor` functor 逐顶点驱动（`setDataColor`）。
+
+```cpp
+#include <qwt3d_plot.h>
+#include <qwt3d_line3d.h>
+#include <qwt3d_colormap_color.h>
+
+Qwt3DPlot* plot = new Qwt3DPlot();
+
+QVector<QwtPoint3D> samples;
+for (int i = 0; i < 240; ++i) {
+    const double t = 4 * M_PI * i / 239;
+    samples.append(QwtPoint3D(std::cos(t), std::sin(t), t));  // 螺旋
+}
+
+Qwt3DLine* line = new Qwt3DLine();
+line->setSamples(samples);
+line->setLineStyle(Qwt3DLine::Tube);
+line->setTubeRadius(0.05);
+line->setTubeSegments(10);
+line->setDataColor(new Qwt3DColorMapColor("plasma"));
+line->attach(plot);
+
+plot->enableLighting(true);
+```
+
+!!! note "Tube 与 Lines 的取舍"
+    OpenGL Core 难以可靠支持 `glLineWidth > 1`，因此粗的 3D 曲线必须用 `Tube` 样式（几何体）而非加宽 GL 线。
+
 ### 主题系统（v7.3.1+）
 
 `Qwt3DTheme` 类提供一键切换 3D 绘图视觉风格的能力，封装了背景色、网格色、数据色彩映射（colormap）、坐标轴颜色、标题样式、光照预设、着色模式等全部视觉属性。
@@ -310,6 +383,30 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 | `addEnrichment(Qwt3DEnrichment&)` | 添加顶点/边/面装饰 |
 | `setNormalLength(double)` / `showNormals(bool)` | 配置曲面法线 |
 
+### Qwt3DBar 方法
+
+| 方法 | 说明 |
+|------|------|
+| `setSamples(...)` | 加载柱数据（1D：`QVector<QwtPoint3D>` / `(x, heights)`；2D 网格：`double**` + 域 或 `Qwt3DFunctionData`） |
+| `setBarWidth(w)` / `setBarDepth(d)` | 设置柱底面（<= 0 = 自动，取间距 80%） |
+| `setBaseline(z)` | 设置柱底 z 值（默认 0） |
+| `setBarStyle(BarStyle)` | `Filled`、`FilledMesh`、`Wireframe` |
+| `setDataColor(Qwt3DColor*)` | 设置逐柱颜色 functor（获取所有权） |
+| `setMeshColor(RGBA)` / `setMeshLineWidth(double)` | 配置边线 |
+| `invalidateColors()` | 就地修改 functor 后重建 VBO 颜色 |
+
+### Qwt3DLine 方法
+
+| 方法 | 说明 |
+|------|------|
+| `setSamples(...)` | 设置 3D 点序列（`QVector<QwtPoint3D>` / 并行 x,y,z 数组 / `QwtSeriesData<QwtPoint3D>*`） |
+| `setLineStyle(LineStyle)` | `Lines`、`Tube`、`Dots` |
+| `setLineWidth(w)` | GL 线宽（Lines 样式；Core 下 > 1 不保证） |
+| `setTubeRadius(r)` / `setTubeSegments(n)` | 管道截面（<= 0 = 自动；最少 3 段） |
+| `setPointSize(s)` / `setPointVisible(bool)` | 点标记（Dots 样式，或在 Lines/Tube 上叠加） |
+| `setColor(RGBA)` / `setDataColor(Qwt3DColor*)` | 纯色或逐顶点颜色 functor |
+| `invalidateColors()` | 就地修改 functor 后重建 VBO 颜色 |
+
 ### Qwt3DFunction 方法
 
 | 方法 | 说明 |
@@ -332,6 +429,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
     - 3D增强：`examples/3D/enrichments`
     - 3D自动切换：`examples/3D/autoswitch`
     - 动态3D曲面（QwtFigure集成）：`examples/3D/figureSurface3D`
+    - 3D柱状图：`examples/3D/bar3D`
+    - 3D线图：`examples/3D/line3D`
 
 3D轴配置、3D增强、3D自动切换与动态3D曲面的例子截图如下：
 
