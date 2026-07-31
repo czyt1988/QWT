@@ -38,6 +38,8 @@ add_subdirectory(2D/nanperf)
 if(QWT_CONFIG_QWTPLOT_3D)
     add_subdirectory(3D/figureSurface3D)
     add_subdirectory(3D/qwtplot3d)
+    add_subdirectory(3D/line3D)
+    add_subdirectory(3D/bar3D)
 endif()
 if(QWT_CONFIG_BUILD_STATIC_EXAMPLE)
     # 静态编译示例

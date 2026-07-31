@@ -15,6 +15,8 @@
 #include "qwt_colormap.h"
 #include "qwt3d_plotitem.h"
 #include "qwt3d_surface.h"
+#include "qwt3d_bar.h"
+#include "qwt3d_line3d.h"
 
 #include <qfont.h>
 
@@ -507,23 +509,51 @@ void Qwt3DTheme::apply(Qwt3DPlot* plot) const
 
 /**
  * @brief Applies item-level visual properties to a single plot item
- * @param item The target item (must be a Qwt3DSurface for surface properties)
- * @details Sets mesh color, line width, smooth mesh, data color (from preset),
- *          plot style, and shading on Qwt3DSurface items.
+ * @param item The target item
+ * @details Dispatches by concrete item type. Qwt3DSurface receives mesh color,
+ *          line width, smooth mesh, data color (from preset), plot style, and
+ *          shading. Qwt3DBar receives mesh color/line width, bar style (mapped
+ *          from the theme's plot style), and the data color functor. Qwt3DLine
+ *          receives the solid color and the data color functor.
  */
 void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item) const
 {
-    auto* surface = dynamic_cast<Qwt3DSurface*>(item);
-    if (!surface)
+    if (auto* surface = dynamic_cast<Qwt3DSurface*>(item)) {
+        surface->setMeshColor(m_meshColor);
+        surface->setMeshLineWidth(m_meshLineWidth);
+        surface->setSmoothMesh(m_smoothMesh);
+        surface->setPlotStyle(m_plotStyle);
+        surface->setShading(m_shading);
+
+        auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+        surface->setDataColor(colorMap);
         return;
+    }
 
-    surface->setMeshColor(m_meshColor);
-    surface->setMeshLineWidth(m_meshLineWidth);
-    surface->setSmoothMesh(m_smoothMesh);
-    surface->setPlotStyle(m_plotStyle);
-    surface->setShading(m_shading);
+    if (auto* bar = dynamic_cast<Qwt3DBar*>(item)) {
+        bar->setMeshColor(m_meshColor);
+        bar->setMeshLineWidth(m_meshLineWidth);
+        // Map the theme's PLOTSTYLE onto the closest bar style
+        switch (m_plotStyle) {
+        case WIREFRAME:
+            bar->setBarStyle(Qwt3DBar::Wireframe);
+            break;
+        case FILLED:
+            bar->setBarStyle(Qwt3DBar::Filled);
+            break;
+        default: // FILLEDMESH, HIDDENLINE, etc.
+            bar->setBarStyle(Qwt3DBar::FilledMesh);
+            break;
+        }
+        auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+        bar->setDataColor(colorMap);
+        return;
+    }
 
-    // Create a colormap-based color functor from the preset name
-    auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
-    surface->setDataColor(colorMap);
+    if (auto* line = dynamic_cast<Qwt3DLine*>(item)) {
+        line->setColor(m_meshColor);
+        auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+        line->setDataColor(colorMap);
+        return;
+    }
 }

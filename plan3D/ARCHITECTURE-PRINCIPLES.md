@@ -108,7 +108,8 @@ qwt3d_plot_p.h                               ← Qwt3DPlot 私有数据
 qwt3d_plotitem.h / qwt3d_plotitem.cpp       ← Qwt3DPlotItem
 qwt3d_plotitem_p.h                           ← Qwt3DPlotItem 私有数据
 qwt3d_surface.h / qwt3d_surface.cpp          ← Qwt3DSurface
-qwt3d_line3d.h / qwt3d_line3d.cpp            ← Qwt3DLine
+qwt3d_bar.h / qwt3d_bar.cpp                  ← Qwt3DBar            (+ qwt3d_bar_p.h) [已实现]
+qwt3d_line3d.h / qwt3d_line3d.cpp            ← Qwt3DLine           (+ qwt3d_line3d_p.h) [已实现]
 qwt3d_scatter.h / qwt3d_scatter.cpp          ← Qwt3DScatter
 qwt3d_coordsys.h / qwt3d_coordsys.cpp        ← Qwt3DCoordinateSystem
 qwt3d_axis.h / qwt3d_axis.cpp                ← Qwt3DAxis
@@ -229,16 +230,18 @@ private:
 
 ```
 Qwt3DPlotItem (抽象基类)
-├── Qwt3DSurface          ← 曲面（网格/单元）
-├── Qwt3DLine              ← 3D 线条/曲线
+├── Qwt3DSurface          ← 曲面（网格/单元）             [已实现]
+├── Qwt3DLine              ← 3D 线条/曲线 (Tube/Lines/Dots)  [已实现]
 ├── Qwt3DScatter           ← 3D 散点
-├── Qwt3DBar               ← 3D 柱状图
+├── Qwt3DBar               ← 3D 柱状图 (1D 序列 / 2D 网格)    [已实现]
 ├── Qwt3DVectorField       ← 3D 矢量场
 ├── Qwt3DStreamline        ← 流线
 ├── Qwt3DIsosurface        ← 等值面
 ├── Qwt3DVolume            ← 体绘制
 └── Qwt3DContourSlice      ← 等值线切片
 ```
+
+> `Qwt3DLine`（文件 `qwt3d_line3d.h/.cpp`+`_p.h`）与 `Qwt3DBar`（`qwt3d_bar.h/.cpp`+`_p.h`）已于 v7.3.4 实现：均继承 `Qwt3DPlotItem`，实现 `draw()`/`hull()`/`populateLegendColors()`，复用 surface shader 与 `Qwt3DColor` functor 体系，并已接入 `Qwt3DTheme::applyToItem()`。`Qwt3DLine` 提供 `setSamples(...)`（镜像 2D `QwtPlotCurve`）、`LineStyle{Lines,Tube,Dots}`、Tube 用 parallel-transport 扫掠几何；`Qwt3DBar` 提供 1D 序列与 2D 网格（`Qwt3DFunctionData`）入口、`BarStyle{Filled,FilledMesh,Wireframe}`、逐柱 6 面扁平法向 cuboid。
 
 每个 item 自行管理：
 - 自身的数据（`setData` / `loadFromData`）

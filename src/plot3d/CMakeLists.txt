@@ -36,6 +36,8 @@ set(QWTPLOT3D_HEADER_PLOT_3D
     qwt3d_plot.h
     qwt3d_plotitem.h
     qwt3d_surface.h
+    qwt3d_bar.h
+    qwt3d_line3d.h
     qwt3d_enrichment.h
     qwt3d_enrichment_std.h
     qwt3d_autoscaler.h
@@ -65,6 +67,8 @@ set(QWTPLOT3D_SOURCE_PLOT_3D
     qwt3d_plot.cpp
     qwt3d_plotitem.cpp
     qwt3d_surface.cpp
+    qwt3d_bar.cpp
+    qwt3d_line3d.cpp
     qwt3d_label.cpp
     qwt3d_types.cpp
     qwt3d_enrichment_std.cpp

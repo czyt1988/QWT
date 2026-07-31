@@ -13,10 +13,14 @@
 ```
 Qwt3DPlot  (QOpenGLWidget)           管理 GL 上下文 / 视图变换 / 光照 / 坐标系统 / item 列表 / 主题
   └─ QList<Qwt3DPlotItem*>           通过 attach()/detach() 挂载，paintGL() 按z序遍历 item->draw()
-        └─ Qwt3DSurface              曲面 item：持有数据 + VBO/VAO/EBO/shader + 颜色 functor
-              ├─ Qwt3DColor*         颜色 functor（纯值对象，z 范围由 surface 推入）
-              └─ list<Qwt3DEnrichment*>  扩展（当前为 stub，渲染待实现）
+        ├─ Qwt3DSurface              曲面 item：持有数据 + VBO/VAO/EBO/shader + 颜色 functor
+        │     ├─ Qwt3DColor*         颜色 functor（纯值对象，z 范围由 surface 推入）
+        │     └─ list<Qwt3DEnrichment*>  扩展（当前为 stub，渲染待实现）
+        ├─ Qwt3DLine                 线图 item：Tube（沿折线扫掠圆柱，带光照）/ Lines / Dots
+        └─ Qwt3DBar                  柱状图 item：逐柱 cuboid（6 面扁平法向），Filled / FilledMesh / Wireframe
 ```
+
+> 所有 item 均继承 `Qwt3DPlotItem`，实现 `draw()` + `hull()` +（可选）`populateLegendColors()`，自带 VBO/VAO 与颜色 functor。`Qwt3DLine`（Tube/Dots 用共享 `lineShader`/`pointShader`，Tube 用 surface shader）与 `Qwt3DBar`（复用 surface shader）均遵循与 `Qwt3DSurface` 相同的惰性 VBO / `pushColorRange()` / `invalidateColors()` 模式。
 
 **关键原则**：`Qwt3DPlot` 是纯渲染窗口，**不持绘图数据**；数据与绘制逻辑都在 item 里。`Qwt3DPlotItem` 是非 widget 的纯数据 + 绘制对象。
 
@@ -30,7 +34,7 @@ Qwt3DPlot  (QOpenGLWidget)           管理 GL 上下文 / 视图变换 / 光照
 | 1 静默值对象 | `qwt3d_color` `qwt3d_colormap_color` `qwt3d_enrichment`(+`_std`) `qwt3d_theme` | 不通知任何人；mutator 静默（对应 2D `QwtColorMap`/`QwtSymbol`） |
 | 2 drawable | `qwt3d_drawable`(base) `qwt3d_label` `qwt3d_axis` `qwt3d_colorlegend` `qwt3d_coordsys` | 通过 `Qwt3DRenderContext` 参数接收渲染资源，无反向指针 |
 | 3 数据源映射 | `qwt3d_gridmapping` `qwt3d_function` `qwt3d_parametricsurface` | `create()` 返回数据，无汇指针 |
-| 4 item | `qwt3d_plotitem`(base) `qwt3d_surface`(+`_p`) | 持 `Qwt3DPlot*`（item→widget，**合法**） |
+| 4 item | `qwt3d_plotitem`(base) `qwt3d_surface`(+`_p`) `qwt3d_bar`(+`_p`) `qwt3d_line3d`(+`_p`) | 持 `Qwt3DPlot*`（item→widget，**合法**） |
 | 5 widget | `qwt3d_plot`(+`_p`) `qwt3d_lighting` `qwt3d_mousekeyboard` `qwt3d_movements` | 高持低，方向正确 |
 | 横切 I/O | `qwt3d_io` `qwt3d_io_reader` `qwt3d_io_gl2ps` | 仅以 `Qwt3DPlot*` 为 functor 参数，**不存储** |
 
@@ -72,7 +76,7 @@ Qwt3DPlot  (QOpenGLWidget)           管理 GL 上下文 / 视图变换 / 光照
 
 - 所有类 `Qwt3D` 前缀，**全局作用域，无 `namespace Qwt3D`**（v7.3.3+ 已彻底移除命名空间）。
 - **禁止 legacy GL**：`glBegin/glEnd`、display list、`glRotatef` 等固定管线 API 一律不用。全部使用 VBO/VAO + GLSL 3.3 Core shader。
-- PIMPL 用 `QWT_DECLARE_PRIVATE` / `QWT_D()` / `QWT_DC()`（详见根 `AGENTS.md`）。3D 私有头：`qwt3d_plot_p.h`、`qwt3d_surface_p.h`。
+- PIMPL 用 `QWT_DECLARE_PRIVATE` / `QWT_D()` / `QWT_DC()`（详见根 `AGENTS.md`）。3D 私有头：`qwt3d_plot_p.h`、`qwt3d_surface_p.h`、`qwt3d_bar_p.h`、`qwt3d_line3d_p.h`。
 - 主题：`Qwt3DTheme`（10 种内置预设）+ `Qwt3DColorMapColor`（适配器，桥接 core 的 22 种科学 colormap 预设到 3D 表面）。
 - 光照预设：`Qwt3DTheme::LightingPreset`（`NoLighting` / `FlatLight` / `Studio` / `Outdoor` / `Soft`）。
 
