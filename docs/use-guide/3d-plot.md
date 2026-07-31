@@ -199,76 +199,12 @@ overlay->setZ(1.0);  // render on top
 overlay->attach(plot);
 ```
 
-### 3D Bar Chart (v7.3.5+)
+### Other 3D Item Types (v7.3.5+)
 
-`Qwt3DBar` renders a 3D bar chart / 3D histogram. Each sample becomes an axis-aligned cuboid ("bar") whose height encodes the scalar value. Two data shapes are supported:
+Beyond surfaces, the 3D module ships two more `Qwt3DPlotItem` types — see their dedicated usage pages:
 
-- A **1D series** of bars placed freely on the xy-plane (`setSamples` with `QwtPoint3D`, where (x, y) is the footprint center and z is the height).
-- A **2D grid** of bars sampled over a rectangular x/y domain (`setSamples` with a `double**` z-matrix or a `Qwt3DFunctionData`) — the classic "bar3" / 3D histogram.
-
-Bars reuse the lit surface shader with flat per-face normals, so they respond to `enableLighting()`. Colors are driven per-bar by a `Qwt3DColor` functor (typically by height).
-
-```cpp
-#include <qwt3d_plot.h>
-#include <qwt3d_bar.h>
-#include <qwt3d_colormap_color.h>
-
-Qwt3DPlot* plot = new Qwt3DPlot();
-
-Qwt3DBar* bars = new Qwt3DBar();
-bars->setSamples(zMatrix, columns, rows, minX, maxX, minY, maxY); // 2D grid
-bars->setBarStyle(Qwt3DBar::FilledMesh);
-bars->setDataColor(new Qwt3DColorMapColor("viridis"));
-bars->setBaseline(0.0);          // bar bottom z (default 0)
-bars->attach(plot);
-
-plot->enableLighting(true);
-plot->setRotation(35, 0, 25);
-```
-
-```cpp
-// 1D series variant: bars along the x axis, y = 0
-QVector<double> x = {0, 1, 2, 3, 4};
-QVector<double> h = {1.2, 2.3, 0.8, 3.1, 1.7};
-bars->setSamples(x, h);
-```
-
-### 3D Line Plot (v7.3.5+)
-
-`Qwt3DLine` renders a polyline through 3D space. Data is a series of `QwtPoint3D` samples, set via `setSamples(...)` (overloads mirror 2D `QwtPlotCurve`). Three rendering styles are provided:
-
-- **`Tube` (default)** — the polyline is swept with a circular cross-section to form a lit, solid tube. True 3D thickness with Blinn-Phong shading; recommended for trajectories and streamlines. Tube geometry uses parallel-transport framing (robust on straight segments, unlike Frenet frames). The radius auto-sizes to 0.5% of the hull diagonal when not set.
-- **`Lines`** — thin GL line strip (1px). Reliable, but `glLineWidth > 1` is not guaranteed in OpenGL Core profile.
-- **`Dots`** — per-sample point markers with configurable point size.
-
-Colors may be solid (`setColor`) or driven per-vertex by a `Qwt3DColor` functor (`setDataColor`).
-
-```cpp
-#include <qwt3d_plot.h>
-#include <qwt3d_line3d.h>
-#include <qwt3d_colormap_color.h>
-
-Qwt3DPlot* plot = new Qwt3DPlot();
-
-QVector<QwtPoint3D> samples;
-for (int i = 0; i < 240; ++i) {
-    const double t = 4 * M_PI * i / 239;
-    samples.append(QwtPoint3D(std::cos(t), std::sin(t), t));  // helix
-}
-
-Qwt3DLine* line = new Qwt3DLine();
-line->setSamples(samples);
-line->setLineStyle(Qwt3DLine::Tube);
-line->setTubeRadius(0.05);
-line->setTubeSegments(10);
-line->setDataColor(new Qwt3DColorMapColor("plasma"));
-line->attach(plot);
-
-plot->enableLighting(true);
-```
-
-!!! note "Tube vs Lines"
-    OpenGL Core profile does not support `glLineWidth > 1` reliably, so thick 3D curves must use the `Tube` style (geometry) rather than wide GL lines.
+- [3D Bar Chart](3d-bar-chart.md) (`Qwt3DBar`) — 1D series or 2D grid (3D histogram), per-bar cuboids with flat normals, `Filled`/`FilledMesh`/`Wireframe`.
+- [3D Line Plot](3d-line-plot.md) (`Qwt3DLine`) — `Tube` (lit swept cylinder) / `Lines` / `Dots`, per-vertex colormap.
 
 ### Theme System (v7.3.1+)
 
@@ -382,30 +318,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 | `setShading(SHADINGSTYLE)` | Set shading mode (FLAT, GOURAUD) |
 | `addEnrichment(Qwt3DEnrichment&)` | Add vertex/edge/face enrichment |
 | `setNormalLength(double)` / `showNormals(bool)` | Configure surface normals |
-
-### Qwt3DBar Methods
-
-| Method | Description |
-|--------|-------------|
-| `setSamples(...)` | Load bar data (1D: `QVector<QwtPoint3D>` / `(x, heights)`; 2D grid: `double**` + domain or `Qwt3DFunctionData`) |
-| `setBarWidth(w)` / `setBarDepth(d)` | Set bar footprint (<= 0 = auto, 80% of spacing) |
-| `setBaseline(z)` | Set bar bottom z value (default 0) |
-| `setBarStyle(BarStyle)` | `Filled`, `FilledMesh`, `Wireframe` |
-| `setDataColor(Qwt3DColor*)` | Set per-bar color functor (takes ownership) |
-| `setMeshColor(RGBA)` / `setMeshLineWidth(double)` | Configure edge lines |
-| `invalidateColors()` | Rebuild VBO colors after mutating the functor in place |
-
-### Qwt3DLine Methods
-
-| Method | Description |
-|--------|-------------|
-| `setSamples(...)` | Set the 3D point series (`QVector<QwtPoint3D>` / parallel x,y,z arrays / `QwtSeriesData<QwtPoint3D>*`) |
-| `setLineStyle(LineStyle)` | `Lines`, `Tube`, `Dots` |
-| `setLineWidth(w)` | GL line width (Lines style; > 1 not guaranteed in Core) |
-| `setTubeRadius(r)` / `setTubeSegments(n)` | Tube cross-section (<= 0 = auto; min 3 segments) |
-| `setPointSize(s)` / `setPointVisible(bool)` | Point markers (Dots style, or overlay on Lines/Tube) |
-| `setColor(RGBA)` / `setDataColor(Qwt3DColor*)` | Solid color or per-vertex color functor |
-| `invalidateColors()` | Rebuild VBO colors after mutating the functor in place |
 
 ### Qwt3DFunction Methods
 

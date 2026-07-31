@@ -111,6 +111,8 @@ plugins:
                     - Polar Plot: use-guide/polar-plot.md
                 - 3D Plot:
                     - 3D Plot Introduction: use-guide/3d-plot.md
+                    - 3D Bar Chart: use-guide/3d-bar-chart.md
+                    - 3D Line Plot: use-guide/3d-line-plot.md
                     - OpenGL Canvas: use-guide/opengl.md
                 - Control Widgets:
                     - Widgets & Controls: use-guide/widgets-controls.md
@@ -189,6 +191,8 @@ plugins:
                     - 极坐标绘图: use-guide/polar-plot.md
                 - 3D绘图:
                     - 3D绘图简介: use-guide/3d-plot.md
+                    - 3D柱状图: use-guide/3d-bar-chart.md
+                    - 3D线图: use-guide/3d-line-plot.md
                     - OpenGL画布: use-guide/opengl.md
                 - 控件组件:
                     - 仪表盘与滑块: use-guide/widgets-controls.md

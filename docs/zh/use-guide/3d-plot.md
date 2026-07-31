@@ -199,76 +199,12 @@ overlay->setZ(1.0);  // 在上层渲染
 overlay->attach(plot);
 ```
 
-### 3D柱状图（v7.3.5+）
+### 其他 3D item 类型（v7.3.5+）
 
-`Qwt3DBar` 渲染 3D 柱状图 / 3D 直方图。每个样本变成一个轴对齐的长方体（"柱"），其高度编码标量值。支持两种数据形态：
+除曲面外，3D 模块还提供两个 `Qwt3DPlotItem` 类型——详见各自的使用说明文档：
 
-- **1D 序列**：柱子自由放置在 xy 平面上（用 `QwtPoint3D` 的 `setSamples`，其中 (x,y) 为柱底中心，z 为高度）。
-- **2D 网格**：在矩形 x/y 域上采样的柱阵列（用 `double**` z 矩阵或 `Qwt3DFunctionData` 的 `setSamples`）——经典的 "bar3" / 3D 直方图。
-
-柱体复用带光照的 surface 着色器，使用逐面扁平法向，因此响应 `enableLighting()`。颜色由 `Qwt3DColor` functor 按柱驱动（通常按高度）。
-
-```cpp
-#include <qwt3d_plot.h>
-#include <qwt3d_bar.h>
-#include <qwt3d_colormap_color.h>
-
-Qwt3DPlot* plot = new Qwt3DPlot();
-
-Qwt3DBar* bars = new Qwt3DBar();
-bars->setSamples(zMatrix, columns, rows, minX, maxX, minY, maxY); // 2D 网格
-bars->setBarStyle(Qwt3DBar::FilledMesh);
-bars->setDataColor(new Qwt3DColorMapColor("viridis"));
-bars->setBaseline(0.0);          // 柱底 z（默认 0）
-bars->attach(plot);
-
-plot->enableLighting(true);
-plot->setRotation(35, 0, 25);
-```
-
-```cpp
-// 1D 序列变体：柱子沿 x 轴排列，y = 0
-QVector<double> x = {0, 1, 2, 3, 4};
-QVector<double> h = {1.2, 2.3, 0.8, 3.1, 1.7};
-bars->setSamples(x, h);
-```
-
-### 3D线图（v7.3.5+）
-
-`Qwt3DLine` 渲染穿过 3D 空间的折线。数据为 `QwtPoint3D` 样本序列，通过 `setSamples(...)` 设置（重载镜像 2D 的 `QwtPlotCurve`）。提供三种渲染样式：
-
-- **`Tube`（默认）**：折线用圆形截面扫掠成带光照的实体管道。真正的 3D 粗细 + Blinn-Phong 着色；推荐用于轨迹和流线。管道几何使用 parallel-transport 标架（在直线段上稳定，不像 Frenet 标架会退化）。未设置时半径自动取包围盒对角线的 0.5%。
-- **`Lines`**：细 GL 线条（1px）。可靠，但 OpenGL Core 不保证 `glLineWidth > 1`。
-- **`Dots`**：逐样本点标记，点大小可配。
-
-颜色可为纯色（`setColor`）或由 `Qwt3DColor` functor 逐顶点驱动（`setDataColor`）。
-
-```cpp
-#include <qwt3d_plot.h>
-#include <qwt3d_line3d.h>
-#include <qwt3d_colormap_color.h>
-
-Qwt3DPlot* plot = new Qwt3DPlot();
-
-QVector<QwtPoint3D> samples;
-for (int i = 0; i < 240; ++i) {
-    const double t = 4 * M_PI * i / 239;
-    samples.append(QwtPoint3D(std::cos(t), std::sin(t), t));  // 螺旋
-}
-
-Qwt3DLine* line = new Qwt3DLine();
-line->setSamples(samples);
-line->setLineStyle(Qwt3DLine::Tube);
-line->setTubeRadius(0.05);
-line->setTubeSegments(10);
-line->setDataColor(new Qwt3DColorMapColor("plasma"));
-line->attach(plot);
-
-plot->enableLighting(true);
-```
-
-!!! note "Tube 与 Lines 的取舍"
-    OpenGL Core 难以可靠支持 `glLineWidth > 1`，因此粗的 3D 曲线必须用 `Tube` 样式（几何体）而非加宽 GL 线。
+- [3D柱状图](3d-bar-chart.md)（`Qwt3DBar`）：1D 序列或 2D 网格（3D 直方图），逐柱立方体扁平法向，`Filled`/`FilledMesh`/`Wireframe`。
+- [3D线图](3d-line-plot.md)（`Qwt3DLine`）：`Tube`（带光照扫掠圆柱）/ `Lines` / `Dots`，逐顶点 colormap。
 
 ### 主题系统（v7.3.1+）
 
@@ -382,30 +318,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 | `setShading(SHADINGSTYLE)` | 设置着色模式（FLAT, GOURAUD） |
 | `addEnrichment(Qwt3DEnrichment&)` | 添加顶点/边/面装饰 |
 | `setNormalLength(double)` / `showNormals(bool)` | 配置曲面法线 |
-
-### Qwt3DBar 方法
-
-| 方法 | 说明 |
-|------|------|
-| `setSamples(...)` | 加载柱数据（1D：`QVector<QwtPoint3D>` / `(x, heights)`；2D 网格：`double**` + 域 或 `Qwt3DFunctionData`） |
-| `setBarWidth(w)` / `setBarDepth(d)` | 设置柱底面（<= 0 = 自动，取间距 80%） |
-| `setBaseline(z)` | 设置柱底 z 值（默认 0） |
-| `setBarStyle(BarStyle)` | `Filled`、`FilledMesh`、`Wireframe` |
-| `setDataColor(Qwt3DColor*)` | 设置逐柱颜色 functor（获取所有权） |
-| `setMeshColor(RGBA)` / `setMeshLineWidth(double)` | 配置边线 |
-| `invalidateColors()` | 就地修改 functor 后重建 VBO 颜色 |
-
-### Qwt3DLine 方法
-
-| 方法 | 说明 |
-|------|------|
-| `setSamples(...)` | 设置 3D 点序列（`QVector<QwtPoint3D>` / 并行 x,y,z 数组 / `QwtSeriesData<QwtPoint3D>*`） |
-| `setLineStyle(LineStyle)` | `Lines`、`Tube`、`Dots` |
-| `setLineWidth(w)` | GL 线宽（Lines 样式；Core 下 > 1 不保证） |
-| `setTubeRadius(r)` / `setTubeSegments(n)` | 管道截面（<= 0 = 自动；最少 3 段） |
-| `setPointSize(s)` / `setPointVisible(bool)` | 点标记（Dots 样式，或在 Lines/Tube 上叠加） |
-| `setColor(RGBA)` / `setDataColor(Qwt3DColor*)` | 纯色或逐顶点颜色 functor |
-| `invalidateColors()` | 就地修改 functor 后重建 VBO 颜色 |
 
 ### Qwt3DFunction 方法
 
