@@ -58,8 +58,16 @@ public:
 
     // Set line width for tic marks and axes
     void setLineWidth(double val, double majfac = 0.9, double minfac = 0.5);
-    // Set length for tic marks
+    // Set length for tic marks (explicit override; persists across data changes)
     void setTicLength(double major, double minor);
+    // Set the automatic tic-length scale: fraction of the per-axis data range in
+    // the tick's own pointing direction (default 0.015). Switches back to automatic
+    // per-axis derivation, clearing any explicit length set via setTicLength().
+    void setTicLengthScale(double scale);
+    // Returns the automatic tic-length scale
+    double ticLengthScale() const;
+    // Switch to automatic per-axis tic-length derivation (clears explicit override)
+    void setAutoTicLength();
 
     // Switch autoscaling of axes
     void setAutoScale(bool val = true);
@@ -113,6 +121,8 @@ private:
     void drawInteriorGridLines(Qwt3DAxis& axisA, Qwt3DAxis& axisB,
                                int dirAxis, bool major, QVector<float>& verts);
     void recalculateAxesTics();
+    // Applies the current tic-length model (auto per-axis, or explicit manual) to all axes
+    void applyTicLengths();
     void drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth, const RGBA& color);
 };
 

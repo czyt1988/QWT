@@ -4,6 +4,8 @@
 #include <QOpenGLBuffer>
 #include <QOpenGLShaderProgram>
 
+#include <cmath>
+
 using namespace std;
 
 class Qwt3DCoordinateSystem::PrivateData
@@ -40,6 +42,13 @@ public:
     int m_interiorSides;
     RGBA m_interiorGridColor;
     double m_interiorMajWidth, m_interiorMinWidth;
+
+    // Tic-length model: automatic per-axis derivation (scale-based) by default,
+    // or an explicit manual override that survives init() (data changes).
+    double m_ticLengthScale = 0.015;   // auto: fraction of per-axis perpendicular range
+    bool m_manualTicLength = false;     // user set an explicit length via setTicLength()
+    double m_manualMajorTic = 0.0;
+    double m_manualMinorTic = 0.0;
 };
 
 Qwt3DCoordinateSystem::Qwt3DCoordinateSystem(Triple first, Triple second, COORDSTYLE st) : QWT_PIMPL_CONSTRUCT
@@ -83,9 +92,6 @@ void Qwt3DCoordinateSystem::init(Triple first, Triple second)
 
     setPosition(first, second);
 
-    double majl = dv.length() / 100;  // 1 %
-    setTicLength(majl, 0.6 * majl);
-
     axes[ X1 ].setPosition(first, first + Triple(dv.x, 0, 0));
     axes[ Y1 ].setPosition(first, first + Triple(0, dv.y, 0));
     axes[ Z1 ].setPosition(first + Triple(0, dv.y, 0), first + Triple(0, dv.y, dv.z));
@@ -128,6 +134,11 @@ void Qwt3DCoordinateSystem::init(Triple first, Triple second)
     axes[ Z2 ].setTicOrientation(-1, 0, 0);
     axes[ Z4 ].setTicOrientation(1, 0, 0);
     axes[ Z3 ].setTicOrientation(1, 0, 0);
+
+    // Apply the tic-length model now that all orientations are set. This respects
+    // an explicit override (setTicLength) and otherwise derives per-axis lengths
+    // from the data range in each tick's pointing direction (anisotropy-proof).
+    applyTicLengths();
 
     setStyle(d->m_style);
 }
@@ -385,8 +396,64 @@ void Qwt3DCoordinateSystem::setPosition(Triple first, Triple second)
 
 void Qwt3DCoordinateSystem::setTicLength(double major, double minor)
 {
+    QWT_D(d);
+    // Store as an explicit override so init() (re-run on every data change) honors
+    // it instead of clobbering it with the automatic per-axis derivation.
+    d->m_manualTicLength = true;
+    d->m_manualMajorTic = major;
+    d->m_manualMinorTic = minor;
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setTicLength(major, minor);
+}
+
+void Qwt3DCoordinateSystem::setTicLengthScale(double scale)
+{
+    QWT_D(d);
+    if (scale < 0.0)
+        scale = 0.0;
+    d->m_ticLengthScale = scale;
+    d->m_manualTicLength = false;  // back to automatic per-axis derivation
+    applyTicLengths();
+}
+
+double Qwt3DCoordinateSystem::ticLengthScale() const
+{
+    QWT_DC(d);
+    return d->m_ticLengthScale;
+}
+
+void Qwt3DCoordinateSystem::setAutoTicLength()
+{
+    QWT_D(d);
+    d->m_manualTicLength = false;
+    applyTicLengths();
+}
+
+void Qwt3DCoordinateSystem::applyTicLengths()
+{
+    QWT_D(d);
+
+    if (d->m_manualTicLength) {
+        // Explicit user override: identical length on every axis, preserved across init()
+        for (unsigned i = 0; i != axes.size(); ++i)
+            axes[ i ].setTicLength(d->m_manualMajorTic, d->m_manualMinorTic);
+        return;
+    }
+
+    // Automatic per-axis derivation: each tick's length is a fraction of the data
+    // range in the direction the tick points. Under AUTOFILL the visual length
+    // then collapses to scale * maxRange on every axis (anisotropy-proof); under
+    // DATARATIO it is scale * that axis's own range (consistent per axis).
+    const Triple dv = d->m_second - d->m_first;
+    const double scale = d->m_ticLengthScale;
+    for (unsigned i = 0; i != axes.size(); ++i) {
+        const Triple o = axes[ i ].ticOrientation();
+        double rangeDir = std::abs(o.x) * dv.x + std::abs(o.y) * dv.y + std::abs(o.z) * dv.z;
+        if (!(rangeDir > 0.0))
+            rangeDir = 1.0;
+        const double majl = scale * rangeDir;
+        axes[ i ].setTicLength(majl, 0.6 * majl);
+    }
 }
 
 void Qwt3DCoordinateSystem::adjustNumbers(int val)
