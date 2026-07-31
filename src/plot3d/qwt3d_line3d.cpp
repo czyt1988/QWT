@@ -148,6 +148,142 @@ ParallelEpiped computeHullFromSeries(const QwtSeriesData<QwtPoint3D>* s)
     }
     return ParallelEpiped(Triple(minx, miny, minz), Triple(maxx, maxy, maxz));
 }
+
+// ---------------------------------------------------------------------------
+// Shape template generators — unit-sized shapes centered at origin (±0.5)
+// Produce LineTubeVertex (position + normal + dummy color) and triangle indices.
+// The marker builder scales and translates these to each sample point.
+// ---------------------------------------------------------------------------
+
+/// Generates a unit cube (6 faces, per-face normals)
+void buildCubeShape(QVector<LineTubeVertex>& vertices, QVector<unsigned int>& indices)
+{
+    struct Face { QVector3D normal; QVector3D c[4]; };
+    static const Face faces[6] = {
+        { QVector3D(0, 0, 1), { { -0.5f, -0.5f, 0.5f }, { 0.5f, -0.5f, 0.5f }, { 0.5f, 0.5f, 0.5f }, { -0.5f, 0.5f, 0.5f } } },
+        { QVector3D(0, 0, -1), { { 0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f, -0.5f }, { -0.5f, 0.5f, -0.5f }, { 0.5f, 0.5f, -0.5f } } },
+        { QVector3D(1, 0, 0), { { 0.5f, -0.5f, 0.5f }, { 0.5f, -0.5f, -0.5f }, { 0.5f, 0.5f, -0.5f }, { 0.5f, 0.5f, 0.5f } } },
+        { QVector3D(-1, 0, 0), { { -0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f, 0.5f }, { -0.5f, 0.5f, 0.5f }, { -0.5f, 0.5f, -0.5f } } },
+        { QVector3D(0, 1, 0), { { -0.5f, 0.5f, 0.5f }, { 0.5f, 0.5f, 0.5f }, { 0.5f, 0.5f, -0.5f }, { -0.5f, 0.5f, -0.5f } } },
+        { QVector3D(0, -1, 0), { { -0.5f, -0.5f, -0.5f }, { 0.5f, -0.5f, -0.5f }, { 0.5f, -0.5f, 0.5f }, { -0.5f, -0.5f, 0.5f } } },
+    };
+    for (int f = 0; f < 6; ++f) {
+        unsigned int base = static_cast<unsigned int>(vertices.size());
+        for (int v = 0; v < 4; ++v) {
+            LineTubeVertex vtx;
+            vtx.position = faces[f].c[v];
+            vtx.normal = faces[f].normal;
+            vtx.color = QVector4D(1, 1, 1, 1);
+            vertices.append(vtx);
+        }
+        indices.append(base + 0);
+        indices.append(base + 1);
+        indices.append(base + 2);
+        indices.append(base + 0);
+        indices.append(base + 2);
+        indices.append(base + 3);
+    }
+}
+
+/// Generates a regular tetrahedron (4 faces)
+void buildTetrahedronShape(QVector<LineTubeVertex>& vertices, QVector<unsigned int>& indices)
+{
+    static const QVector3D v[4] = {
+        QVector3D(0.5f, 0.5f, 0.5f),
+        QVector3D(0.5f, -0.5f, -0.5f),
+        QVector3D(-0.5f, 0.5f, -0.5f),
+        QVector3D(-0.5f, -0.5f, 0.5f)
+    };
+    static const int faces[4][3] = { { 0, 1, 2 }, { 0, 3, 1 }, { 0, 2, 3 }, { 1, 3, 2 } };
+    for (int f = 0; f < 4; ++f) {
+        const QVector3D& a = v[faces[f][0]];
+        const QVector3D& b = v[faces[f][1]];
+        const QVector3D& c = v[faces[f][2]];
+        QVector3D n = QVector3D::crossProduct(b - a, c - a).normalized();
+        if (QVector3D::dotProduct(n, (a + b + c) / 3.0f) < 0.0f)
+            n = -n;
+        unsigned int base = static_cast<unsigned int>(vertices.size());
+        for (int i = 0; i < 3; ++i) {
+            LineTubeVertex vtx;
+            vtx.position = v[faces[f][i]];
+            vtx.normal = n;
+            vtx.color = QVector4D(1, 1, 1, 1);
+            vertices.append(vtx);
+        }
+        indices.append(base + 0);
+        indices.append(base + 1);
+        indices.append(base + 2);
+    }
+}
+
+/// Generates a regular octahedron (8 faces)
+void buildOctahedronShape(QVector<LineTubeVertex>& vertices, QVector<unsigned int>& indices)
+{
+    static const QVector3D v[6] = {
+        QVector3D(0.5f, 0, 0), QVector3D(-0.5f, 0, 0),
+        QVector3D(0, 0.5f, 0), QVector3D(0, -0.5f, 0),
+        QVector3D(0, 0, 0.5f), QVector3D(0, 0, -0.5f)
+    };
+    static const int faces[8][3] = {
+        { 0, 2, 4 }, { 2, 1, 4 }, { 1, 3, 4 }, { 3, 0, 4 },
+        { 2, 0, 5 }, { 1, 2, 5 }, { 3, 1, 5 }, { 0, 3, 5 }
+    };
+    for (int f = 0; f < 8; ++f) {
+        const QVector3D& a = v[faces[f][0]];
+        const QVector3D& b = v[faces[f][1]];
+        const QVector3D& c = v[faces[f][2]];
+        QVector3D n = QVector3D::crossProduct(b - a, c - a).normalized();
+        if (QVector3D::dotProduct(n, (a + b + c) / 3.0f) < 0.0f)
+            n = -n;
+        unsigned int base = static_cast<unsigned int>(vertices.size());
+        for (int i = 0; i < 3; ++i) {
+            LineTubeVertex vtx;
+            vtx.position = v[faces[f][i]];
+            vtx.normal = n;
+            vtx.color = QVector4D(1, 1, 1, 1);
+            vertices.append(vtx);
+        }
+        indices.append(base + 0);
+        indices.append(base + 1);
+        indices.append(base + 2);
+    }
+}
+
+/// Generates a UV sphere (8 lat × 12 lon segments)
+void buildSphereShape(QVector<LineTubeVertex>& vertices, QVector<unsigned int>& indices)
+{
+    const int latSegs = 8;
+    const int lonSegs = 12;
+    const float r = 0.5f;
+
+    for (int lat = 0; lat <= latSegs; ++lat) {
+        const float theta = float(Qwt3D_PI * lat / latSegs);
+        const float st = std::sin(theta), ct = std::cos(theta);
+        for (int lon = 0; lon <= lonSegs; ++lon) {
+            const float phi = float(2.0 * Qwt3D_PI * lon / lonSegs);
+            const float sp = std::sin(phi), cp = std::cos(phi);
+            LineTubeVertex vtx;
+            vtx.position = QVector3D(r * cp * st, r * sp * st, r * ct);
+            vtx.normal = vtx.position.normalized();
+            vtx.color = QVector4D(1, 1, 1, 1);
+            vertices.append(vtx);
+        }
+    }
+    for (int lat = 0; lat < latSegs; ++lat) {
+        for (int lon = 0; lon < lonSegs; ++lon) {
+            const unsigned int a = static_cast<unsigned int>(lat * (lonSegs + 1) + lon);
+            const unsigned int b = a + 1;
+            const unsigned int c = a + static_cast<unsigned int>(lonSegs + 1);
+            const unsigned int dd = c + 1;
+            indices.append(a);
+            indices.append(c);
+            indices.append(b);
+            indices.append(b);
+            indices.append(c);
+            indices.append(dd);
+        }
+    }
+}
 } // namespace
 
 // ---------------------------------------------------------------------------
@@ -201,6 +337,7 @@ void Qwt3DLine::setSamples(QwtSeriesData<QwtPoint3D>* data)
     d->m_hull = computeHullFromSeries(d->m_series);
     d->m_vboDirty = true;
     d->m_pointsDirty = true;
+    d->m_markersDirty = true;
     itemChanged();
 }
 
@@ -293,6 +430,7 @@ void Qwt3DLine::setPointSize(double size)
 {
     QWT_D(d);
     d->m_pointSize = size;
+    d->m_markersDirty = true;  // solid-shape geometry depends on size
     itemChanged();
 }
 
@@ -311,6 +449,22 @@ void Qwt3DLine::setPointVisible(bool on)
     itemChanged();
 }
 
+Qwt3DLine::PointShape Qwt3DLine::pointShape() const
+{
+    QWT_DC(d);
+    return d->m_pointShape;
+}
+
+void Qwt3DLine::setPointShape(PointShape shape)
+{
+    QWT_D(d);
+    if (d->m_pointShape == shape)
+        return;
+    d->m_pointShape = shape;
+    d->m_markersDirty = true;
+    itemChanged();
+}
+
 // ---------------------------------------------------------------------------
 // Color
 // ---------------------------------------------------------------------------
@@ -321,6 +475,7 @@ void Qwt3DLine::setColor(RGBA color)
     d->m_solidColor = color;
     d->m_vboDirty = true;
     d->m_pointsDirty = true;
+    d->m_markersDirty = true;
     itemChanged();
 }
 
@@ -332,6 +487,7 @@ void Qwt3DLine::setDataColor(Qwt3DColor* color)
     d->m_dataColor = color;
     d->m_vboDirty = true;
     d->m_pointsDirty = true;
+    d->m_markersDirty = true;
     itemChanged();
 }
 
@@ -346,6 +502,7 @@ void Qwt3DLine::invalidateColors()
     QWT_D(d);
     d->m_vboDirty = true;
     d->m_pointsDirty = true;
+    d->m_markersDirty = true;
     itemChanged();
 }
 
@@ -533,6 +690,124 @@ void Qwt3DLine::buildPointsVBO()
     d->m_pointsVAO.release();
 }
 
+void Qwt3DLine::buildMarkersVBO()
+{
+    QWT_D(d);
+    d->m_markerIndexCount = 0;
+
+    if (d->m_pointShape == Dot)
+        return;  // Dot uses GL_POINTS from the points VBO, no shape geometry needed
+
+    const int N = static_cast<int>(d->m_series ? d->m_series->size() : 0);
+    if (N <= 0)
+        return;
+
+    // Ensure a color functor exists
+    if (!d->m_dataColor) {
+        if (plot())
+            d->m_dataColor = new Qwt3DStandardColor();
+        else
+            return;
+    }
+    pushColorRange();
+
+    // Generate the unit-sized shape template
+    QVector<LineTubeVertex> shapeVerts;
+    QVector<unsigned int> shapeIdx;
+    switch (d->m_pointShape) {
+        case Cube: buildCubeShape(shapeVerts, shapeIdx); break;
+        case Tetrahedron: buildTetrahedronShape(shapeVerts, shapeIdx); break;
+        case Octahedron: buildOctahedronShape(shapeVerts, shapeIdx); break;
+        case Sphere: buildSphereShape(shapeVerts, shapeIdx); break;
+        default: return;
+    }
+    if (shapeVerts.isEmpty() || shapeIdx.isEmpty())
+        return;
+
+    // Per-axis scale: marker occupies the same visual fraction of each axis,
+    // so it looks 3D even when data ranges differ greatly (e.g. helix z >> x/y).
+    // baseScale × axisRange gives world-space extent; the plot's per-axis
+    // normalization then maps it to the same fraction of each axis in the view.
+    const Triple dt = d->m_hull.maxVertex - d->m_hull.minVertex;
+    const double baseScale = d->m_pointSize * 0.002;
+    const float sx = static_cast<float>(baseScale * (dt.x > 1e-6 ? dt.x : 1.0));
+    const float sy = static_cast<float>(baseScale * (dt.y > 1e-6 ? dt.y : 1.0));
+    const float sz = static_cast<float>(baseScale * (dt.z > 1e-6 ? dt.z : 1.0));
+    // Inverse scale for correct normals under non-uniform scaling (S^-T = diag(1/s))
+    const float invSx = sx > 1e-6f ? 1.0f / sx : 1.0f;
+    const float invSy = sy > 1e-6f ? 1.0f / sy : 1.0f;
+    const float invSz = sz > 1e-6f ? 1.0f / sz : 1.0f;
+
+    // Build per-point geometry: translate + non-uniform scale the template
+    const int sv = shapeVerts.size();
+    const int si = shapeIdx.size();
+    QVector<LineTubeVertex> vertices;
+    QVector<unsigned int> indices;
+    vertices.reserve(N * sv);
+    indices.reserve(N * si);
+
+    for (int i = 0; i < N; ++i) {
+        const QwtPoint3D p = d->m_series->sample(i);
+        const QVector3D center(static_cast<float>(p.x()),
+                               static_cast<float>(p.y()),
+                               static_cast<float>(p.z()));
+        const RGBA c = (*d->m_dataColor)(p.x(), p.y(), p.z());
+        const QVector4D col(static_cast<float>(c.r),
+                            static_cast<float>(c.g),
+                            static_cast<float>(c.b),
+                            static_cast<float>(c.a));
+        const unsigned int base = static_cast<unsigned int>(vertices.size());
+        for (int v = 0; v < sv; ++v) {
+            LineTubeVertex vtx;
+            const QVector3D& sp = shapeVerts[v].position;
+            vtx.position = center + QVector3D(sp.x() * sx, sp.y() * sy, sp.z() * sz);
+            // Adjust normals for non-uniform scaling: n' = normalize(n / s)
+            const QVector3D& sn = shapeVerts[v].normal;
+            vtx.normal = QVector3D(sn.x() * invSx, sn.y() * invSy, sn.z() * invSz).normalized();
+            vtx.color = col;
+            vertices.append(vtx);
+        }
+        for (int k = 0; k < si; ++k)
+            indices.append(base + shapeIdx[k]);
+    }
+
+    d->m_markerIndexCount = indices.size();
+    if (vertices.isEmpty())
+        return;
+
+    QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+    if (!f)
+        return;
+
+    if (!d->m_markerVAO.isCreated())
+        d->m_markerVAO.create();
+    d->m_markerVAO.bind();
+
+    if (!d->m_markerVertexBuffer.isCreated())
+        d->m_markerVertexBuffer.create();
+    d->m_markerVertexBuffer.bind();
+    d->m_markerVertexBuffer.allocate(vertices.constData(),
+                                     vertices.size() * sizeof(LineTubeVertex));
+
+    const int stride = sizeof(LineTubeVertex);
+    f->glEnableVertexAttribArray(0);
+    f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+    f->glEnableVertexAttribArray(1);
+    f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride,
+                             reinterpret_cast<void*>(sizeof(QVector3D)));
+    f->glEnableVertexAttribArray(2);
+    f->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride,
+                             reinterpret_cast<void*>(2 * sizeof(QVector3D)));
+
+    if (!d->m_markerIndexBuffer.isCreated())
+        d->m_markerIndexBuffer.create();
+    d->m_markerIndexBuffer.bind();
+    d->m_markerIndexBuffer.allocate(indices.constData(),
+                                     indices.size() * sizeof(unsigned int));
+
+    d->m_markerVAO.release();
+}
+
 void Qwt3DLine::draw()
 {
     QWT_D(d);
@@ -552,6 +827,10 @@ void Qwt3DLine::draw()
         buildPointsVBO();
         d->m_pointsDirty = false;
     }
+    if (d->m_markersDirty) {
+        buildMarkersVBO();
+        d->m_markersDirty = false;
+    }
 
     QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
     if (!f)
@@ -560,23 +839,54 @@ void Qwt3DLine::draw()
     const QMatrix4x4 mv = plot()->modelViewMatrix();
     const QMatrix4x4 proj = plot()->projectionMatrix();
 
-    // Draws point markers from the points VBO using the shared point shader
-    auto drawPointMarkers = [&]() {
-        if (d->m_pointCount <= 0)
-            return;
-        QOpenGLShaderProgram* sh = plot()->pointShader();
-        if (!sh)
-            return;
-        f->glEnable(GL_PROGRAM_POINT_SIZE);
-        sh->bind();
-        sh->setUniformValue("uModelView", mv);
-        sh->setUniformValue("uProjection", proj);
-        sh->setUniformValue("uPointSize", static_cast<float>(d->m_pointSize));
-        d->m_pointsVAO.bind();
-        f->glDrawArrays(GL_POINTS, 0, d->m_pointCount);
-        d->m_pointsVAO.release();
-        sh->release();
-        f->glDisable(GL_PROGRAM_POINT_SIZE);
+    // Draws markers — GL_POINTS for Dot, solid geometry for other shapes
+    auto drawMarkers = [&]() {
+        if (d->m_pointShape == Dot) {
+            if (d->m_pointCount <= 0)
+                return;
+            QOpenGLShaderProgram* sh = plot()->pointShader();
+            if (!sh)
+                return;
+            f->glEnable(GL_PROGRAM_POINT_SIZE);
+            sh->bind();
+            sh->setUniformValue("uModelView", mv);
+            sh->setUniformValue("uProjection", proj);
+            sh->setUniformValue("uPointSize", static_cast<float>(d->m_pointSize));
+            d->m_pointsVAO.bind();
+            f->glDrawArrays(GL_POINTS, 0, d->m_pointCount);
+            d->m_pointsVAO.release();
+            sh->release();
+            f->glDisable(GL_PROGRAM_POINT_SIZE);
+        } else {
+            if (d->m_markerIndexCount <= 0)
+                return;
+            if (!d->m_tubeShaderInitialized) {
+                d->m_tubeShader.addShaderFromSourceFile(
+                    QOpenGLShader::Vertex, ":/shaders/surface.vert");
+                d->m_tubeShader.addShaderFromSourceFile(
+                    QOpenGLShader::Fragment, ":/shaders/surface.frag");
+                if (!d->m_tubeShader.link())
+                    return;
+                d->m_tubeShaderInitialized = true;
+            }
+            d->m_tubeShader.bind();
+            d->m_tubeShader.setUniformValue("uModelView", mv);
+            d->m_tubeShader.setUniformValue("uProjection", proj);
+            d->m_tubeShader.setUniformValue("uNormalMatrix", mv.normalMatrix());
+            const bool useLighting = plot()->lightingEnabled();
+            d->m_tubeShader.setUniformValue("uUseLighting", useLighting);
+            if (useLighting) {
+                d->m_tubeShader.setUniformValue("uLightPos", QVector3D(0.0f, 0.0f, 10.0f));
+                d->m_tubeShader.setUniformValue("uLightColor", QVector3D(1.0f, 1.0f, 1.0f));
+                d->m_tubeShader.setUniformValue("uShininess", 32.0f);
+            }
+            d->m_tubeShader.setUniformValue("uUseOverrideColor", false);
+            d->m_markerVAO.bind();
+            f->glDrawElements(GL_TRIANGLES, d->m_markerIndexCount,
+                              GL_UNSIGNED_INT, nullptr);
+            d->m_markerVAO.release();
+            d->m_tubeShader.release();
+        }
     };
 
     switch (d->m_style) {
@@ -633,11 +943,11 @@ void Qwt3DLine::draw()
     }
 
     case Dots:
-        drawPointMarkers();
+        drawMarkers();
         break;
     }
 
     // Optional point-marker overlay on top of the Lines/Tube styles
     if (d->m_pointVisible && d->m_style != Dots)
-        drawPointMarkers();
+        drawMarkers();
 }

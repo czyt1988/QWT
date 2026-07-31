@@ -48,6 +48,7 @@ private Q_SLOTS:
     void onTubeSegments(int val);
     void onPointSize(double val);
     void onPointVisible(bool on);
+    void onPointShapeChanged(int index);
     void onColorPresetChanged(int index);
     void onColorAlpha(int val);
 
@@ -77,6 +78,7 @@ private:
     QSpinBox* m_tubeSegmentsSpin = nullptr;
     QDoubleSpinBox* m_pointSizeSpin = nullptr;
     QCheckBox* m_pointVisibleCheck = nullptr;
+    QComboBox* m_pointShapeCombo = nullptr;
 
     // Color controls
     QComboBox* m_colorPresetCombo = nullptr;

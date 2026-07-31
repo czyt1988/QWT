@@ -17,14 +17,16 @@
  *          series of QwtPoint3D samples and draws them as a connected curve.
  *
  * Three rendering styles are provided:
- *  - Tube (default): the polyline is swept with a circular cross-section to
- *    form a lit, solid tube. This gives true 3D thickness with Blinn-Phong
- *    shading and is the recommended style for trajectories and streamlines.
- *    Tube geometry is built with parallel-transport framing to avoid the
- *    degeneracies of Frenet frames on straight segments.
- *  - Lines: thin GL line strip (1px). Reliable but width is not adjustable in
- *    OpenGL Core profile (glLineWidth > 1 is not guaranteed).
- *  - Dots: per-sample point markers with configurable point size.
+ *  - Lines (default): thin GL line strip (1px). Reliable but width is not
+ *    adjustable in OpenGL Core profile (glLineWidth > 1 is not guaranteed).
+ *  - Tube: the polyline is swept with a circular cross-section to form a lit,
+ *    solid tube. This gives true 3D thickness with Blinn-Phong shading and is
+ *    the recommended style for trajectories and streamlines where the line
+ *    needs to be visible from all angles. Tube geometry is built with
+ *    parallel-transport framing to avoid degeneracies of Frenet frames on
+ *    straight segments.
+ *  - Dots: per-sample point markers with configurable point size and shape
+ *    (Dot/Cube/Tetrahedron/Octahedron/Sphere via setPointShape).
  *
  * Colors may be solid (setColor) or driven per-vertex by a Qwt3DColor functor
  * (setDataColor), e.g. to color the curve by position or arc length.
@@ -52,6 +54,16 @@ public:
         Lines,  ///< Thin GL line strip (1px)
         Tube,   ///< Solid lit tube swept along the polyline
         Dots    ///< Per-sample point markers
+    };
+
+    /// Point marker shape for the Dots style and the point-marker overlay
+    enum PointShape
+    {
+        Dot,         ///< GL_POINTS (simple screen-space dots)
+        Cube,        ///< Axis-aligned cube
+        Tetrahedron, ///< Regular 4-faced solid
+        Octahedron,  ///< 8-faced diamond solid
+        Sphere       ///< UV sphere (smooth, lit)
     };
 
     /// Constructs an empty line item
@@ -102,6 +114,11 @@ public:
     /// Draw point markers on top of Lines/Tube styles
     void setPointVisible(bool on);
 
+    /// Returns the point marker shape
+    PointShape pointShape() const;
+    /// Sets the point marker shape (Dot/Cube/Tetrahedron/Octahedron/Sphere)
+    void setPointShape(PointShape shape);
+
     // Color
 
     /// Sets the solid line color
@@ -122,6 +139,7 @@ public:
 private:
     void buildVBO();
     void buildPointsVBO();
+    void buildMarkersVBO();
     void pushColorRange() const;
 };
 

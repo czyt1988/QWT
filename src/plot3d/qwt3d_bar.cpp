@@ -190,6 +190,8 @@ void Qwt3DBar::setSamples(const QVector<QwtPoint3D>& samples)
 
     const double spx = minPositiveSpacing(xs);
     const double spy = minPositiveSpacing(ys);
+    d->m_spacingX = spx;
+    d->m_spacingY = spy;
     auto dims = resolveDims(d->m_barWidth, d->m_barDepth, spx, spy);
 
     for (const auto& p : samples) {
@@ -197,6 +199,7 @@ void Qwt3DBar::setSamples(const QVector<QwtPoint3D>& samples)
         s.center = Triple(p.x(), p.y(), 0.0);
         s.halfWidth = dims.first;
         s.halfDepth = dims.second;
+        s.height = p.z();
         const double topZ = d->m_baseline + p.z();
         s.baseZ = std::min(d->m_baseline, topZ);
         s.topZ = std::max(d->m_baseline, topZ);
@@ -228,6 +231,8 @@ void Qwt3DBar::setSamples(double** z, int columns, int rows,
 
     const double dx = (columns > 1) ? (maxX - minX) / (columns - 1) : 1.0;
     const double dy = (rows > 1) ? (maxY - minY) / (rows - 1) : 1.0;
+    d->m_spacingX = dx;
+    d->m_spacingY = dy;
     auto dims = resolveDims(d->m_barWidth, d->m_barDepth, dx, dy);
 
     for (int i = 0; i < columns; ++i) {
@@ -236,6 +241,7 @@ void Qwt3DBar::setSamples(double** z, int columns, int rows,
             s.center = Triple(minX + i * dx, minY + j * dy, 0.0);
             s.halfWidth = dims.first;
             s.halfDepth = dims.second;
+            s.height = z[i][j];
             const double topZ = d->m_baseline + z[i][j];
             s.baseZ = std::min(d->m_baseline, topZ);
             s.topZ = std::max(d->m_baseline, topZ);
@@ -282,6 +288,7 @@ void Qwt3DBar::setBarWidth(double w)
     if (d->m_barWidth == w)
         return;
     d->m_barWidth = w;
+    recomputeBarSpecs();
     d->m_vboDirty = true;
     itemChanged();
 }
@@ -298,6 +305,7 @@ void Qwt3DBar::setBarDepth(double dpt)
     if (d->m_barDepth == dpt)
         return;
     d->m_barDepth = dpt;
+    recomputeBarSpecs();
     d->m_vboDirty = true;
     itemChanged();
 }
@@ -314,6 +322,7 @@ void Qwt3DBar::setBaseline(double z)
     if (d->m_baseline == z)
         return;
     d->m_baseline = z;
+    recomputeBarSpecs();
     d->m_vboDirty = true;
     itemChanged();
 }
@@ -413,6 +422,20 @@ ParallelEpiped Qwt3DBar::hull() const
 // ---------------------------------------------------------------------------
 // GL rendering
 // ---------------------------------------------------------------------------
+
+void Qwt3DBar::recomputeBarSpecs()
+{
+    QWT_D(d);
+    auto dims = resolveDims(d->m_barWidth, d->m_barDepth, d->m_spacingX, d->m_spacingY);
+    for (auto& s : d->m_bars) {
+        s.halfWidth = dims.first;
+        s.halfDepth = dims.second;
+        const double topZ = d->m_baseline + s.height;
+        s.baseZ = std::min(d->m_baseline, topZ);
+        s.topZ = std::max(d->m_baseline, topZ);
+    }
+    d->m_hull = computeHull(d->m_bars);
+}
 
 void Qwt3DBar::buildVBO()
 {

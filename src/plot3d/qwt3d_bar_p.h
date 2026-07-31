@@ -40,6 +40,7 @@ struct Qwt3DBarSpec
     double halfDepth;
     double baseZ;
     double topZ;
+    double height;  ///< original z value, used to recompute baseZ/topZ when baseline changes
 };
 
 class Qwt3DBar::PrivateData
@@ -57,6 +58,8 @@ public:
     double m_barWidth;   // <= 0 means auto (80% of spacing)
     double m_barDepth;   // <= 0 means auto
     double m_baseline;
+    double m_spacingX;  ///< cached grid spacing for auto-width recompute
+    double m_spacingY;  ///< cached grid spacing for auto-depth recompute
 
     // Plot style and color
     Qwt3DBar::BarStyle m_barStyle;
@@ -87,6 +90,8 @@ inline Qwt3DBar::PrivateData::PrivateData(Qwt3DBar* q)
     , m_barWidth(0.0)
     , m_barDepth(0.0)
     , m_baseline(0.0)
+    , m_spacingX(0.0)
+    , m_spacingY(0.0)
     , m_barStyle(Qwt3DBar::FilledMesh)
     , m_dataColor(nullptr)
     , m_meshColor(RGBA(0.0, 0.0, 0.0, 1.0))

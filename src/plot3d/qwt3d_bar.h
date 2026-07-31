@@ -120,6 +120,8 @@ public:
 
 private:
     void buildVBO();
+    /// Recomputes bar specs and hull from current m_barWidth / m_barDepth / m_baseline
+    void recomputeBarSpecs();
     /// Pushes the plot's union z-range into the color functor (silent data input, no rebuild trigger)
     void pushColorRange() const;
 };

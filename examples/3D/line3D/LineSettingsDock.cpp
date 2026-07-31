@@ -106,6 +106,7 @@ void LineSettingsDock::reapplyAll()
     m_line->setTubeSegments(m_tubeSegmentsSpin->value());
     m_line->setPointSize(m_pointSizeSpin->value());
     m_line->setPointVisible(m_pointVisibleCheck->isChecked());
+    m_line->setPointShape(static_cast<Qwt3DLine::PointShape>(m_pointShapeCombo->currentData().toInt()));
 
     // Regenerate data with current parameters
     regenerateData();
@@ -206,6 +207,14 @@ void LineSettingsDock::onPointVisible(bool on)
     if (!m_line)
         return;
     m_line->setPointVisible(on);
+    updatePlot();
+}
+
+void LineSettingsDock::onPointShapeChanged(int index)
+{
+    if (!m_line)
+        return;
+    m_line->setPointShape(static_cast<Qwt3DLine::PointShape>(m_pointShapeCombo->itemData(index).toInt()));
     updatePlot();
 }
 
@@ -311,7 +320,7 @@ QWidget* LineSettingsDock::createContentWidget()
         m_lineStyleCombo->addItem(QStringLiteral("Lines"), int(Qwt3DLine::Lines));
         m_lineStyleCombo->addItem(QStringLiteral("Tube"), int(Qwt3DLine::Tube));
         m_lineStyleCombo->addItem(QStringLiteral("Dots"), int(Qwt3DLine::Dots));
-        m_lineStyleCombo->setCurrentIndex(1);
+        m_lineStyleCombo->setCurrentIndex(0);
         connect(m_lineStyleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &LineSettingsDock::onLineStyleChanged);
         form->addRow(QStringLiteral("Line Style:"), m_lineStyleCombo);
@@ -360,6 +369,16 @@ QWidget* LineSettingsDock::createContentWidget()
         m_pointVisibleCheck = new QCheckBox(QStringLiteral("Draw markers on top of line/tube"));
         connect(m_pointVisibleCheck, &QCheckBox::toggled, this, &LineSettingsDock::onPointVisible);
         form->addRow(QString(), m_pointVisibleCheck);
+
+        m_pointShapeCombo = new QComboBox;
+        m_pointShapeCombo->addItem(QStringLiteral("Dot (GL_POINTS)"), int(Qwt3DLine::Dot));
+        m_pointShapeCombo->addItem(QStringLiteral("Cube"), int(Qwt3DLine::Cube));
+        m_pointShapeCombo->addItem(QStringLiteral("Tetrahedron"), int(Qwt3DLine::Tetrahedron));
+        m_pointShapeCombo->addItem(QStringLiteral("Octahedron"), int(Qwt3DLine::Octahedron));
+        m_pointShapeCombo->addItem(QStringLiteral("Sphere"), int(Qwt3DLine::Sphere));
+        connect(m_pointShapeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &LineSettingsDock::onPointShapeChanged);
+        form->addRow(QStringLiteral("Marker Shape:"), m_pointShapeCombo);
 
         layout->addWidget(group);
     }
