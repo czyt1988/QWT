@@ -83,6 +83,16 @@ public:
 
     // Cached hull
     ParallelEpiped m_hull;
+
+    // 2D grid metadata (set by setSamples(double**, ...) and setSamples(const Qwt3DFunctionData&))
+    bool m_isGridData = false;
+    int m_gridColumns = 0;
+    int m_gridRows = 0;
+    double m_gridMinX = 0.0;
+    double m_gridMaxX = 0.0;
+    double m_gridMinY = 0.0;
+    double m_gridMaxY = 0.0;
+    std::vector<std::vector<double>> m_gridZ;  ///< 原始 z 矩阵的拷贝，避免依赖 m_bars 排列顺序
 };
 
 inline Qwt3DBar::PrivateData::PrivateData(Qwt3DBar* q)
