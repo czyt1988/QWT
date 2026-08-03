@@ -30,9 +30,11 @@ public:
 
     virtual void setColor(double r, double g, double b, double a = 1);
     virtual void setColor(RGBA rgba);
+    /// Returns the drawable's color
+    RGBA color() const;
 
 protected:
-    RGBA color;
+    RGBA m_color;
 
     Qwt3DDrawable();
     Qwt3DDrawable(Qwt3DDrawable&& other) noexcept;

@@ -16,6 +16,15 @@
 #include <algorithm>
 #include <vector>
 
+/**
+ * @brief 运行时类型信息
+ * @return Rtti_Plot3DBar (= 1002)
+ */
+int Qwt3DBar::rtti() const
+{
+    return Rtti_Plot3DBar;
+}
+
 // ---------------------------------------------------------------------------
 // Anonymous namespace: bar box geometry helpers
 // ---------------------------------------------------------------------------

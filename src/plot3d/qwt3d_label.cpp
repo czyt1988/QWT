@@ -72,7 +72,7 @@ Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CON
     d->m_anchor           = od->m_anchor;
     d->m_gap              = od->m_gap;
     d->m_flagForUpdate    = od->m_flagForUpdate;
-    color                 = other.color;
+    m_color               = other.m_color;
 }
 
 Qwt3DLabel::Qwt3DLabel(Qwt3DLabel&& other) noexcept : Qwt3DDrawable(std::move(other)), m_data(std::move(other.m_data))
@@ -95,7 +95,7 @@ Qwt3DLabel& Qwt3DLabel::operator=(const Qwt3DLabel& other)
         d->m_anchor           = od->m_anchor;
         d->m_gap              = od->m_gap;
         d->m_flagForUpdate    = od->m_flagForUpdate;
-        color                 = other.color;
+        m_color               = other.m_color;
     }
     return *this;
 }
@@ -147,6 +147,16 @@ void Qwt3DLabel::setString(QString const& s)
     QWT_D(d);
     d->m_text          = s;
     d->m_flagForUpdate = true;
+}
+
+/**
+ * @brief 返回标签文本
+ * @return 当前标签文本字符串
+ */
+QString Qwt3DLabel::string() const
+{
+    QWT_DC(d);
+    return d->m_text;
 }
 
 void Qwt3DLabel::setColor(double r, double g, double b, double a)
@@ -212,7 +222,7 @@ void Qwt3DLabel::update()
     p.begin(&d->m_pm);
     p.setFont(d->m_font);
     p.setPen(Qt::SolidLine);
-    p.setPen(GL2Qt(color.r, color.g, color.b));
+    p.setPen(GL2Qt(m_color.r, m_color.g, m_color.b));
 
     p.drawText(0, r.height() - fm.descent() - 1, d->m_text);
     p.end();
@@ -322,7 +332,7 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 #ifdef QWT3D_ENABLE_GL2PS
     if (deviceFonts) {
         drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(),
-                       d->m_pos, color, d->m_anchor, d->m_gap);
+                       d->m_pos, m_color, d->m_anchor, d->m_gap);
         return;
     }
 #endif
@@ -392,10 +402,10 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
     shader->setUniformValue("uProjection", ctx.projection);
     shader->setUniformValue("uTextTexture", 0);
     shader->setUniformValue("uTextColor",
-                            QVector4D(static_cast< float >(color.r),
-                                      static_cast< float >(color.g),
-                                      static_cast< float >(color.b),
-                                      static_cast< float >(color.a)));
+                            QVector4D(static_cast< float >(m_color.r),
+                                      static_cast< float >(m_color.g),
+                                      static_cast< float >(m_color.b),
+                                      static_cast< float >(m_color.a)));
 
     texture.bind(0);
 

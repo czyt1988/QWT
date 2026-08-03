@@ -181,3 +181,15 @@ void Qwt3DPlotItem::itemChanged()
 void Qwt3DPlotItem::populateLegendColors(ColorVector&) const
 {
 }
+
+/**
+ * @brief 运行时类型信息
+ * @return 返回 Rtti_Plot3DItem (= 0)，子类应 override 此方法返回各自的 RTTI 值
+ * @details 用于运行时类型识别，支持安全向下转型、设置面板工厂路由和序列化分发。
+ *          设计与 2D QwtPlotItem::rtti() 完全对齐。
+ * @sa Rtti3DValues, QwtPlotItem::rtti()
+ */
+int Qwt3DPlotItem::rtti() const
+{
+    return Rtti_Plot3DItem;
+}

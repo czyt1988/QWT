@@ -32,12 +32,18 @@ public:
 
     // Set common color for all axes
     void setAxesColor(RGBA val);
+    // Returns the common axes color
+    RGBA axesColor() const;
     // Set common font for all axis numberings
     void setNumberFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
     // Set common font for all axis numberings
     void setNumberFont(QFont const& font);
+    // Returns the common number font (delegates to first axis)
+    QFont numberFont() const;
     // Set common color for all axis numberings
     void setNumberColor(RGBA val);
+    // Returns the common number color
+    RGBA numberColor() const;
     // Sets an linear axis with real number items
     void setStandardScale();
 
@@ -48,18 +54,26 @@ public:
 
     // Sets color for the grid lines
     void setGridLinesColor(RGBA val);
+    // Returns the grid lines color
+    RGBA gridLinesColor() const;
 
     // Set common font for all axis labels
     void setLabelFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
     // Set common font for all axis labels
     void setLabelFont(QFont const& font);
+    // Returns the common label font (delegates to first axis)
+    QFont labelFont() const;
     // Set common color for all axis labels
     void setLabelColor(RGBA val);
+    // Returns the common label color
+    RGBA labelColor() const;
 
     // Set line width for tic marks and axes
     void setLineWidth(double val, double majfac = 0.9, double minfac = 0.5);
     // Set length for tic marks (explicit override; persists across data changes)
     void setTicLength(double major, double minor);
+    // Returns the explicit tic lengths (only meaningful after setTicLength(); use ticLengthScale() to check if auto)
+    void ticLength(double& major, double& minor) const;
     // Set the automatic tic-length scale: fraction of the per-axis data range in
     // the tick's own pointing direction (default 0.015). Switches back to automatic
     // per-axis derivation, clearing any explicit length set via setTicLength().
@@ -71,6 +85,8 @@ public:
 
     // Switch autoscaling of axes
     void setAutoScale(bool val = true);
+    // Returns true if autoscaling is enabled (delegates to first axis)
+    bool autoScale() const;
 
     Triple first() const;
     Triple second() const;
@@ -102,6 +118,8 @@ public:
     int interiorGrids() const;
     // Sets color for the interior grid lines
     void setInteriorGridLinesColor(RGBA val);
+    // Returns the interior grid lines color
+    RGBA interiorGridLinesColor() const;
     // Sets line width for interior grid lines
     void setInteriorGridLinesWidth(double major, double minor);
 

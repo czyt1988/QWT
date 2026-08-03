@@ -123,6 +123,8 @@ public:
 
     /// Sets the solid line color
     void setColor(RGBA color);
+    /// Returns the solid line color
+    RGBA color() const;
     /// Sets the data color functor for per-vertex coloring (takes ownership)
     void setDataColor(Qwt3DColor* color);
     /// Returns the data color functor
@@ -132,6 +134,7 @@ public:
 
     // Qwt3DPlotItem interface
 
+    int rtti() const override;
     void draw() override;
     ParallelEpiped hull() const override;
     void populateLegendColors(ColorVector& colors) const override;

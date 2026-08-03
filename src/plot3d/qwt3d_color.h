@@ -88,6 +88,13 @@ public:
 
     // Set colormap from a preset name (e.g. "viridis", "plasma", "jet")
     void setPreset(const QString& presetName, unsigned size = 100);
+
+    // Returns the current preset name (empty if set via setColorVector)
+    QString presetName() const;
+    // Returns the number of colors in the color vector
+    unsigned colorCount() const;
+    // Returns the alpha value applied by the last setAlpha() call (default 1.0)
+    double alpha() const;
 };
 
 

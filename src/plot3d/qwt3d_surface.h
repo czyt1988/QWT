@@ -142,6 +142,7 @@ public:
 
     // Qwt3DPlotItem interface
 
+    int rtti() const override;
     void draw() override;
     ParallelEpiped hull() const override;
     void populateLegendColors(ColorVector& colors) const override;

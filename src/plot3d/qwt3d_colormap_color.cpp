@@ -21,6 +21,7 @@ Qwt3DColorMapColor::Qwt3DColorMapColor(const QString& presetName, unsigned size)
     , m_manualMax(1.0)
     , m_useManualInterval(false)
     , m_alpha(1.0)
+    , m_presetName(presetName)
 {
     rebuildColorVector(size);
 }
@@ -65,6 +66,7 @@ ColorVector& Qwt3DColorMapColor::createVector(ColorVector& vec)
 
 void Qwt3DColorMapColor::setColorMap(::QwtColorMap* map)
 {
+    m_presetName.clear();
     if (map != m_colorMap) {
         delete m_colorMap;
         m_colorMap = map;
@@ -125,4 +127,58 @@ void Qwt3DColorMapColor::rebuildColorVector(unsigned size)
         rgba.b     = qBlue(rgb) / 255.0;
         rgba.a     = qAlpha(rgb) / 255.0 * m_alpha;
     }
+}
+
+/**
+ * @brief 返回构造时传入的 preset 名称
+ * @return preset 名称，如果通过 QwtColorMap* 构造则返回空字符串
+ */
+QString Qwt3DColorMapColor::presetName() const
+{
+    return m_presetName;
+}
+
+/**
+ * @brief 返回颜色向量中的颜色数量
+ * @return 颜色数量
+ */
+unsigned Qwt3DColorMapColor::colorCount() const
+{
+    return static_cast< unsigned >(m_colors.size());
+}
+
+/**
+ * @brief 返回 alpha 值
+ * @return alpha 值（0.0 ~ 1.0），默认 1.0
+ */
+double Qwt3DColorMapColor::alpha() const
+{
+    return m_alpha;
+}
+
+/**
+ * @brief 返回是否使用了手动区间
+ * @return true 如果通过 setInterval() 设置了手动区间
+ */
+bool Qwt3DColorMapColor::useManualInterval() const
+{
+    return m_useManualInterval;
+}
+
+/**
+ * @brief 返回手动区间的最小值
+ * @return 手动最小值（仅当 useManualInterval() 为 true 时有意义）
+ */
+double Qwt3DColorMapColor::manualMin() const
+{
+    return m_manualMin;
+}
+
+/**
+ * @brief 返回手动区间的最大值
+ * @return 手动最大值（仅当 useManualInterval() 为 true 时有意义）
+ */
+double Qwt3DColorMapColor::manualMax() const
+{
+    return m_manualMax;
 }

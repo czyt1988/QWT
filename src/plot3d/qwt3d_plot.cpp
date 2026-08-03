@@ -230,6 +230,18 @@ void Qwt3DPlot::setTitle(const QString& title)
     d->m_title.setString(title);
 }
 
+/**
+ * @brief 返回标题文本
+ * @return 标题字符串
+ * @details 委托到内部 Qwt3DLabel 的 string() getter。
+ *          setTitle() 通过 d->m_title.setString(title) 设置，此处返回 d->m_title.string()。
+ */
+QString Qwt3DPlot::title() const
+{
+    QWT_DC(d);
+    return d->m_title.string();
+}
+
 void Qwt3DPlot::setTheme(const Qwt3DTheme& theme)
 {
     QWT_D(d);
@@ -514,6 +526,18 @@ void Qwt3DPlot::showColorLegend(bool show)
     QWT_D(d);
     d->m_displayLegend = show;
     update();
+}
+
+/**
+ * @brief 返回颜色图例是否显示
+ * @return true 如果颜色图例已显示
+ * @details 返回 d->m_displayLegend。showColorLegend(bool) 通过
+ *          d->m_displayLegend = show 设置，此处返回该值。
+ */
+bool Qwt3DPlot::isColorLegendShown() const
+{
+    QWT_DC(d);
+    return d->m_displayLegend;
 }
 
 void Qwt3DPlot::setLegendPosition(Qwt3DColorLegend::Position pos)

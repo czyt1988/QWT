@@ -405,6 +405,16 @@ void Qwt3DAxis::setLabelString(QString const& name)
     d->m_label.setString(name);
 }
 
+/**
+ * @brief 返回轴标签文本
+ * @return 标签字符串
+ */
+QString Qwt3DAxis::labelString() const
+{
+    QWT_DC(d);
+    return d->m_label.string();
+}
+
 void Qwt3DAxis::setLabelPosition(const Triple& pos, ANCHOR an)
 {
     QWT_D(d);
@@ -415,6 +425,22 @@ void Qwt3DAxis::setLabelColor(RGBA col)
 {
     QWT_D(d);
     d->m_label.setColor(col);
+}
+
+/**
+ * @brief 返回轴标签颜色
+ * @return RGBA 颜色值
+ * @details 委托到内部 Qwt3DLabel 的 color() getter（Qwt3DDrawable 的公有 getter）。
+ *          setLabelColor() 通过 d->m_label.setColor(col) 设置，
+ *          此处返回 d->m_label.color()。
+ *          Qwt3DDrawable::color 是 protected 成员，Qwt3DAxis 和 Qwt3DLabel 是兄弟关系，
+ *          C++ 规则下 Qwt3DAxis 不能直接通过 Qwt3DLabel 对象访问 protected 成员，
+ *          必须使用公有 color() getter。
+ */
+RGBA Qwt3DAxis::labelColor() const
+{
+    QWT_DC(d);
+    return d->m_label.color();
 }
 
 void Qwt3DAxis::setScale(Qwt3DScale* val)
@@ -499,10 +525,10 @@ void Qwt3DAxis::draw(const Qwt3DRenderContext& ctx)
     {
         QVector<float> verts;
         // vertex: pos.xyz(3) + color.rgba(4) = 7 floats
-        float r = static_cast< float >(color.r);
-        float g = static_cast< float >(color.g);
-        float b = static_cast< float >(color.b);
-        float a = static_cast< float >(color.a);
+        float r = static_cast< float >(m_color.r);
+        float g = static_cast< float >(m_color.g);
+        float b = static_cast< float >(m_color.b);
+        float a = static_cast< float >(m_color.a);
         verts << static_cast< float >(d->m_beg.x) << static_cast< float >(d->m_beg.y) << static_cast< float >(d->m_beg.z) << r << g << b << a;
         verts << static_cast< float >(d->m_end.x) << static_cast< float >(d->m_end.y) << static_cast< float >(d->m_end.z) << r << g << b << a;
         drawLines(ctx, verts, d->m_lineWidth);
@@ -629,10 +655,10 @@ void Qwt3DAxis::drawTics(const Qwt3DRenderContext& ctx)
     const auto& minorsVec = d->m_scale->minorTicks();
     d->m_markerLabel.resize(majorsVec.size());
 
-    float r = static_cast< float >(color.r);
-    float g = static_cast< float >(color.g);
-    float b = static_cast< float >(color.b);
-    float a = static_cast< float >(color.a);
+    float r = static_cast< float >(m_color.r);
+    float g = static_cast< float >(m_color.g);
+    float b = static_cast< float >(m_color.b);
+    float a = static_cast< float >(m_color.a);
 
     // Collect and draw major tics
     {

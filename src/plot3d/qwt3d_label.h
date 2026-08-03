@@ -53,6 +53,8 @@ public:
 
     // Sets the labels string
     void setString(QString const& s);
+    // Returns the labels string
+    QString string() const;
     // Actual drawing
     void draw(const Qwt3DRenderContext& ctx) override;
 
