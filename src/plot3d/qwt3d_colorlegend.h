@@ -6,17 +6,18 @@
 #include "qwt3d_axis.h"
 #include "qwt3d_color.h"
 
-namespace Qwt3D
-{
+#include <QRectF>
+
+
 
 /**
  * @brief A flat color legend
  * @details The class visualizes a ColorVector together with a scale (axis)
  *          and a caption. ColorLegends are vertical or horizontal.
  */
-class QWT3D_EXPORT ColorLegend : public Drawable
+class QWT3D_EXPORT Qwt3DColorLegend : public Qwt3DDrawable
 {
-    QWT_DECLARE_PRIVATE(ColorLegend)
+    QWT_DECLARE_PRIVATE(Qwt3DColorLegend)
 
 public:
     // Possible anchor points for caption and axis
@@ -35,15 +36,36 @@ public:
         LeftRight
     };
 
-    // Standard constructor
-    ColorLegend();
-    ~ColorLegend() override;
+    // Predefined screen positions for the legend
+    enum Position
+    {
+        PosTopLeft,
+        PosTopCenter,
+        PosTopRight,
+        PosLeftCenter,
+        PosCenter,
+        PosRightCenter,
+        PosBottomLeft,
+        PosBottomCenter,
+        PosBottomRight,
+        PosCustom
+    };
 
-    // Draws the object - called by updateGL()
-    virtual void draw() override;
+    // Standard constructor
+    Qwt3DColorLegend();
+    ~Qwt3DColorLegend() override;
+
+    // Draws the object - called by paintGL()
+    void draw(const Qwt3DRenderContext& ctx) override;
 
     // Sets the relative position of the legend inside widget
-    void setRelPosition(Qwt3D::Tuple relMin, Qwt3D::Tuple relMax);
+    void setRelPosition(Tuple relMin, Tuple relMax);
+    // Sets legend to a predefined screen position
+    void setPosition(Position pos);
+    // Sets legend position using absolute pixel coordinates (Qt coordinate system, origin top-left)
+    void setAbsolutePosition(const QRectF& pixelRect);
+    // Returns the current position mode
+    Position position() const;
     // Sets legend orientation and scale position
     void setOrientation(ORIENTATION, SCALEPOSITION);
     // Sets the limit of the scale
@@ -59,9 +81,9 @@ public:
     // Sets whether the axis is autoscaled or not
     void setAutoScale(bool val);
     // Sets another scale
-    void setScale(Qwt3D::Scale* scale);
+    void setScale(Qwt3DScale* scale);
     // Sets one of the predefined scale types
-    void setScale(Qwt3D::SCALETYPE);
+    void setScale(SCALETYPE);
 
     // Sets the legends caption string
     void setTitleString(QString const& s);
@@ -70,13 +92,12 @@ public:
     void setTitleFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
 
     // The color vector
-    Qwt3D::ColorVector colors;
+    ColorVector colors;
 
 private:
-    Qwt3D::ParallelEpiped geometry() const;
-    void setGeometryInternal();
+    ParallelEpiped geometry() const;
+    void setGeometryInternal(const Qwt3DRenderContext& ctx);
 };
 
-}  // ns
 
 #endif

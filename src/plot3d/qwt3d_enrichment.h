@@ -4,11 +4,6 @@
 #include "qwt3d_global.h"
 #include "qwt3d_types.h"
 
-namespace Qwt3D
-{
-
-class Plot3D;
-
 /**
  * @brief Abstract base class for data dependent visible user objects
  * @details Enrichments provide a framework for user defined OpenGL objects. The base class has a pure virtual
@@ -16,7 +11,7 @@ class Plot3D;
  *          implementation in derived classes. They can be used for initialization issues or actions not
  *          depending on the related primitive.
  */
-class QWT3D_EXPORT Enrichment
+class QWT3D_EXPORT Qwt3DEnrichment
 {
 public:
     // Type of the Enrichment - only VERTEXENRICHMENT's are defined at this moment
@@ -28,28 +23,20 @@ public:
         VOXELENRICHMENT
     };
 
-    Enrichment() : plot(nullptr)
+    Qwt3DEnrichment()
     {
     }
-    virtual ~Enrichment()
+    virtual ~Qwt3DEnrichment()
     {
     }
     // The derived class should give back a new Derived(something) here
-    virtual Enrichment* clone() const = 0;
+    virtual Qwt3DEnrichment* clone() const = 0;
     // Empty per default. Can be overwritten
     virtual void drawBegin() {};
     // Empty per default. Can be overwritten
     virtual void drawEnd() {};
-    // Assign to existent plot
-    virtual void assign(Plot3D const& pl)
-    {
-        plot = &pl;
-    }
     // Overwrite
     virtual TYPE type() const = 0;
-
-protected:
-    const Plot3D* plot;
 };
 
 /**
@@ -58,23 +45,22 @@ protected:
  *          draw() is called, when the Plot realizes its internal OpenGL data representation
  *          for every Vertex associated to his argument.
  */
-class QWT3D_EXPORT VertexEnrichment : public Enrichment
+class QWT3D_EXPORT Qwt3DVertexEnrichment : public Qwt3DEnrichment
 {
 public:
-    VertexEnrichment() : Qwt3D::Enrichment()
+    Qwt3DVertexEnrichment() : Qwt3DEnrichment()
     {
     }
     // The derived class should give back a new Derived(something) here
-    virtual Enrichment* clone() const = 0;
+    virtual Qwt3DEnrichment* clone() const = 0;
     // Overwrite this
-    virtual void draw(Qwt3D::Triple const&) = 0;
+    virtual void draw(Triple const&) = 0;
     // This gives VERTEXENRICHMENT
     TYPE type() const override
     {
-        return Qwt3D::Enrichment::VERTEXENRICHMENT;
+        return Qwt3DEnrichment::VERTEXENRICHMENT;
     }
 };
 
-}  // ns
 
 #endif  // QWT3D_ENRICHMENT_H

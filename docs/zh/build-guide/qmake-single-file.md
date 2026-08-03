@@ -39,7 +39,7 @@
 | `printsupport` | 是 | `QwtPlotRenderer` 用于打印/导出。 |
 | `opengl` | 是 | 内联的 3D 模块和 `QwtPlotOpenGLCanvas` 需要。 |
 | `openglwidgets` | 仅 Qt 6 | Qt 6 将 OpenGL 控件拆分为独立模块；Qt 5 使用已废弃的 `QGLWidget`，不需要它。 |
-| 系统 OpenGL（`GL` + `GLU`） | 是 | 内联的 3D 模块直接调用 `gl*` 和 `glu*` 函数。GLU 始终位于独立的系统库中，而在某些 Qt 构建中（例如基于 ANGLE/OpenGL ES 的 MSVC 包）`Qt5OpenGL.lib` 也不会传递性地引入桌面 OpenGL 库，因此两者都必须显式链接：Windows 用 `-lopengl32 -lglu32`，Linux 用 `-lGL -lGLU`。macOS 上 OpenGL framework 同时提供 GL 和 GLU，已由 `QT += opengl` 引入。 |
+| 系统 OpenGL（`GL` + `GLU`） | 是 | 3D 模块使用现代 OpenGL（GLSL 着色器 + VBO/VAO），需要系统 GL 库。GLU 仅用于 gl2ps 矢量导出回退。GLU 始终位于独立的系统库中，而在某些 Qt 构建中（例如基于 ANGLE/OpenGL ES 的 MSVC 包）`Qt5OpenGL.lib` 也不会传递性地引入桌面 OpenGL 库，因此两者都必须显式链接：Windows 用 `-lopengl32 -lglu32`，Linux 用 `-lGL -lGLU`。macOS 上 OpenGL framework 同时提供 GL 和 GLU，已由 `QT += opengl` 引入。 |
 
 ## 可设置的编译宏
 

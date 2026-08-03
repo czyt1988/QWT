@@ -71,6 +71,7 @@ plugins:
                     - Coding Standards: dev-guide/coding-standards.md
                     - Comment Standards: dev-guide/comment-standards.md
                     - PIMPL Pattern: dev-guide/pimpl-pattern.md
+                    - 3D Module Refactor: dev-guide/plot3d-refactor.md
                     - Doc Writing Guide: doc-writing-guide.md
             - User Guide:
                 - Basic Usage:
@@ -110,6 +111,8 @@ plugins:
                     - Polar Plot: use-guide/polar-plot.md
                 - 3D Plot:
                     - 3D Plot Introduction: use-guide/3d-plot.md
+                    - 3D Bar Chart: use-guide/3d-bar-chart.md
+                    - 3D Line Plot: use-guide/3d-line-plot.md
                     - OpenGL Canvas: use-guide/opengl.md
                 - Control Widgets:
                     - Widgets & Controls: use-guide/widgets-controls.md
@@ -148,6 +151,7 @@ plugins:
                     - 编码规范: dev-guide/coding-standards.md
                     - 注释规范: dev-guide/comment-standards.md
                     - PIMPL模式: dev-guide/pimpl-pattern.md
+                    - 3D模块重构: dev-guide/plot3d-refactor.md
                     - 文档编写指南: doc-writing-guide.md
             - 使用指南:
                 - 基本使用:
@@ -187,6 +191,8 @@ plugins:
                     - 极坐标绘图: use-guide/polar-plot.md
                 - 3D绘图:
                     - 3D绘图简介: use-guide/3d-plot.md
+                    - 3D柱状图: use-guide/3d-bar-chart.md
+                    - 3D线图: use-guide/3d-line-plot.md
                     - OpenGL画布: use-guide/opengl.md
                 - 控件组件:
                     - 仪表盘与滑块: use-guide/widgets-controls.md

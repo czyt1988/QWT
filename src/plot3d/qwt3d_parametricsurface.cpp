@@ -1,14 +1,13 @@
 #include "qwt3d_parametricsurface.h"
-#include "qwt3d_surfaceplot.h"
 
-using namespace Qwt3D;
+#include <vector>
 
-class ParametricSurface::PrivateData
+class Qwt3DParametricSurface::PrivateData
 {
-    QWT_DECLARE_PUBLIC(ParametricSurface)
+    QWT_DECLARE_PUBLIC(Qwt3DParametricSurface)
 
 public:
-    PrivateData(ParametricSurface* q) : q_ptr(q), m_uperiodic(false), m_vperiodic(false)
+    PrivateData(Qwt3DParametricSurface* q) : q_ptr(q), m_uperiodic(false), m_vperiodic(false)
     {
     }
 
@@ -16,100 +15,74 @@ public:
     bool m_vperiodic;
 };
 
-ParametricSurface::ParametricSurface() : GridMapping(), QWT_PIMPL_CONSTRUCT
+Qwt3DParametricSurface::Qwt3DParametricSurface() : Qwt3DGridMapping(), QWT_PIMPL_CONSTRUCT
 {
 }
 
-ParametricSurface::ParametricSurface(SurfacePlot& pw) : GridMapping(), QWT_PIMPL_CONSTRUCT
-{
-    setPlotWidget(&pw);
-}
+Qwt3DParametricSurface::~Qwt3DParametricSurface() = default;
 
-ParametricSurface::ParametricSurface(SurfacePlot* pw) : GridMapping(), QWT_PIMPL_CONSTRUCT
-{
-    setPlotWidget(pw);
-}
-
-ParametricSurface::~ParametricSurface() = default;
-
-void ParametricSurface::setPeriodic(bool u, bool v)
+void Qwt3DParametricSurface::setPeriodic(bool u, bool v)
 {
     QWT_D(d);
     d->m_uperiodic = u;
     d->m_vperiodic = v;
 }
 
-void ParametricSurface::assign(SurfacePlot& plotWidget)
-{
-    if (&plotWidget != this->plotWidget())
-        setPlotWidget(&plotWidget);
-}
-
-void ParametricSurface::assign(SurfacePlot* plotWidget)
-{
-    if (plotWidget != this->plotWidget())
-        setPlotWidget(plotWidget);
-}
-
 /**
- * @brief Creates the parametric surface data and loads it into the plot widget
- * @return True on success, false if meshU() <= 2, meshV() <= 2, or plotWidget() is null
- * @details For plotWidget() != nullptr the function permanently assigns her argument (In fact, assign(plotWidget) is called)
+ * @brief Evaluates the parametric surface over the mesh grid and returns the result
+ * @return Qwt3DParametricData containing the xyz triple matrix and periodicity flags
+ * @details Allocates a triple matrix, evaluates operator()(u, v) over the
+ *          mesh grid, clips values to the range bounds, and returns the result.
+ *          The caller is responsible for feeding this to
+ *          Qwt3DSurface::loadFromData(). Returns an empty result
+ *          (columns=0) if the mesh is too small.
  */
-bool ParametricSurface::create()
+Qwt3DParametricData Qwt3DParametricSurface::create()
 {
     const unsigned int um = meshU();
     const unsigned int vm = meshV();
 
-    if ((um <= 2) || (vm <= 2) || !plotWidget())
-        return false;
+    Qwt3DParametricData result;
+    result.columns = um;
+    result.rows = vm;
 
-    /* allocate some cache for the mesh */
-    Triple** data = new Triple*[ um ];
+    QWT_D(d);
+    result.uperiodic = d->m_uperiodic;
+    result.vperiodic = d->m_vperiodic;
 
-    unsigned i, j;
-    for (i = 0; i < um; i++) {
-        data[ i ] = new Triple[ vm ];
+    if (um <= 2 || vm <= 2) {
+        result.columns = 0;
+        result.rows = 0;
+        return result;
     }
 
-    /* get the data */
+    result.vertices.resize(um);
+    for (unsigned int i = 0; i < um; ++i)
+        result.vertices[i].resize(vm);
 
-    double du = (maxU() - minU()) / (um - 1);
-    double dv = (maxV() - minV()) / (vm - 1);
+    const double du = (maxU() - minU()) / (um - 1);
+    const double dv = (maxV() - minV()) / (vm - 1);
 
-    for (i = 0; i < um; ++i) {
-        for (j = 0; j < vm; ++j) {
-            data[ i ][ j ] = operator()(minU() + i * du, minV() + j * dv);
+    for (unsigned int i = 0; i < um; ++i) {
+        for (unsigned int j = 0; j < vm; ++j) {
+            Triple val = operator()(minU() + i * du, minV() + j * dv);
 
-            if (data[ i ][ j ].x > range().maxVertex.x)
-                data[ i ][ j ].x = range().maxVertex.x;
-            else if (data[ i ][ j ].y > range().maxVertex.y)
-                data[ i ][ j ].y = range().maxVertex.y;
-            else if (data[ i ][ j ].z > range().maxVertex.z)
-                data[ i ][ j ].z = range().maxVertex.z;
-            else if (data[ i ][ j ].x < range().minVertex.x)
-                data[ i ][ j ].x = range().minVertex.x;
-            else if (data[ i ][ j ].y < range().minVertex.y)
-                data[ i ][ j ].y = range().minVertex.y;
-            else if (data[ i ][ j ].z < range().minVertex.z)
-                data[ i ][ j ].z = range().minVertex.z;
+            if (val.x > range().maxVertex.x)
+                val.x = range().maxVertex.x;
+            if (val.y > range().maxVertex.y)
+                val.y = range().maxVertex.y;
+            if (val.z > range().maxVertex.z)
+                val.z = range().maxVertex.z;
+            if (val.x < range().minVertex.x)
+                val.x = range().minVertex.x;
+            if (val.y < range().minVertex.y)
+                val.y = range().minVertex.y;
+            if (val.z < range().minVertex.z)
+                val.z = range().minVertex.z;
+
+            result.vertices[i][j] = val;
         }
     }
 
-    QWT_D(d);
-    static_cast< SurfacePlot* >(plotWidget())->loadFromData(data, um, vm, d->m_uperiodic, d->m_vperiodic);
-
-    for (i = 0; i < um; i++) {
-        delete[] data[ i ];
-    }
-
-    delete[] data;
-
-    return true;
-}
-
-bool ParametricSurface::create(SurfacePlot& pl)
-{
-    assign(pl);
-    return create();
+    return result;
 }

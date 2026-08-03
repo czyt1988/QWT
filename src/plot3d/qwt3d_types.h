@@ -13,23 +13,17 @@
 
 #include "qwt3d_global.h"
 
-#if defined(Q_OS_WIN)
-#include <windows.h>
-#endif
-
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA 120
 #endif
 
 #include "qwt3d_portability.h"
 #include "qwt3d_helper.h"
-#include "qwt3d_openglhelper.h"
 #include <QColor>
 
-namespace Qwt3D
-{
 
-const double PI = 3.14159265358979323846264338328;
+
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
  * @brief Plotting style enumeration
@@ -41,7 +35,7 @@ enum PLOTSTYLE
     HIDDENLINE,  // Hidden Line style
     FILLED,      // Color filled polygons w/o edges
     FILLEDMESH,  // Color filled polygons w/ separately colored edges
-    POINTS,      // User defined style (used by Enrichments)
+    QWT3D_POINTS,      // User defined style (used by Enrichments)
     USER         // User defined style (used by Enrichments)
 };
 
@@ -125,6 +119,43 @@ enum SIDE
     FLOOR      = 1 << 3,
     FRONT      = 1 << 4,
     BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+    NO_INTERIOR = 0,
+    X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+    Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+    Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+    TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+    TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+    AUTOFILL,   // Each axis independently scaled to fill the view (default)
+    DATARATIO   // Preserve data proportions (equal aspect ratio)
 };
 
 /**
@@ -355,7 +386,7 @@ using Cell = std::vector< unsigned >;
 using CellField = std::vector< Cell >;
 
 // Returns the sum over the sizes of the single cells
-unsigned tesselationSize(Qwt3D::CellField const& t);
+unsigned tesselationSize(CellField const& t);
 
 /**
  * @brief Red-Green-Blue-Alpha value
@@ -379,9 +410,9 @@ using ColorVector = std::vector< RGBA >;
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
 // RGB -> QColor
-QWT3D_EXPORT QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b);
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 // QColor -> RGBA
-QWT3D_EXPORT Qwt3D::RGBA Qt2GL(QColor col);
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
 using DataRow    = std::vector< Vertex >;
@@ -389,39 +420,39 @@ using DataMatrix = std::vector< DataRow >;
 
 /**
  * @brief Abstract base class for plot data
- * @details Data provides the interface for different data representations
+ * @details Qwt3DData provides the interface for different data representations
  *          used by 3D plot widgets.
  */
-class Data
+class Qwt3DData
 {
-    QWT_DECLARE_PRIVATE(Data)
+    QWT_DECLARE_PRIVATE(Qwt3DData)
 
 public:
-    Qwt3D::DATATYPE datatype;
-    Data();
-    virtual ~Data();
+    DATATYPE datatype;
+    Qwt3DData();
+    virtual ~Qwt3DData();
     // Destroy content
     virtual void clear() = 0;
     // No data
     virtual bool empty() const = 0;
-    void setHull(Qwt3D::ParallelEpiped const& h);
-    Qwt3D::ParallelEpiped const& hull() const;
+    void setHull(ParallelEpiped const& h);
+    ParallelEpiped const& hull() const;
 };
 
 /**
  * @brief Implements a matrix of z-Values with limit access functions
- * @details GridData represents data on a rectangular grid topology,
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
  */
-class GridData : public Data
+class Qwt3DGridData : public Qwt3DData
 {
-    QWT_DECLARE_PRIVATE(GridData)
+    QWT_DECLARE_PRIVATE(Qwt3DGridData)
 
 public:
-    GridData();
+    Qwt3DGridData();
     // See setSize()
-    GridData(unsigned int columns, unsigned int rows);
-    ~GridData() override;
+    Qwt3DGridData(unsigned int columns, unsigned int rows);
+    ~Qwt3DGridData() override;
 
     int columns() const;
     int rows() const;
@@ -443,17 +474,17 @@ public:
 
 /**
  * @brief Implements a graph-like cell structure with limit access functions
- * @details CellData represents data as a collection of convex polygon cells
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
  *          with associated node coordinates and normals.
  */
-class CellData : public Data
+class Qwt3DCellData : public Qwt3DData
 {
 public:
-    CellData()
+    Qwt3DCellData()
     {
-        datatype = Qwt3D::POLYGON;
+        datatype = POLYGON;
     }
-    ~CellData()
+    ~Qwt3DCellData()
     {
         clear();
     }
@@ -499,10 +530,41 @@ inline double dotProduct(Triple const& u, Triple const& v)
     return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple >& src);
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
 
-}  // ns
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+    /// z[i][j] = z-value at column i, row j
+    std::vector<std::vector<double>> z;
+    unsigned int columns = 0;
+    unsigned int rows = 0;
+    double minx = 0.0;
+    double maxx = 0.0;
+    double miny = 0.0;
+    double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+    /// vertices[i][j] = xyz position at column i, row j
+    std::vector<std::vector<Triple>> vertices;
+    unsigned int columns = 0;
+    unsigned int rows = 0;
+    bool uperiodic = false;
+    bool vperiodic = false;
+};
+
 
 #endif

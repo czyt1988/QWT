@@ -6,7 +6,6 @@
 #include <cfloat>
 #include "qwt3d_plot_p.h"
 
-using namespace Qwt3D;
 
 /**
   Set the rotation angle of the object. If you look along the respective axis towards ascending
@@ -14,7 +13,7 @@ using namespace Qwt3D;
   to rotate around the X axis @param yVal angle in \e degree to rotate around the Y axis @param zVal
   angle in \e degree to rotate around the Z axis
 */
-void Plot3D::setRotation(double xVal, double yVal, double zVal)
+void Qwt3DPlot::setRotation(double xVal, double yVal, double zVal)
 {
     QWT_D(d);
     if (d->m_xRot == xVal && d->m_yRot == yVal && d->m_zRot == zVal)
@@ -35,7 +34,7 @@ void Plot3D::setRotation(double xVal, double yVal, double zVal)
         @param zVal shift along (world) Z axis
         @see setViewportShift()
 */
-void Plot3D::setShift(double xVal, double yVal, double zVal)
+void Qwt3DPlot::setShift(double xVal, double yVal, double zVal)
 {
     QWT_D(d);
     if (d->m_xShift == xVal && d->m_yShift == yVal && d->m_zShift == zVal)
@@ -58,7 +57,7 @@ void Plot3D::setShift(double xVal, double yVal, double zVal)
         @param yVal shift along (view) Y axis
         @see setShift()
 */
-void Plot3D::setViewportShift(double xVal, double yVal)
+void Qwt3DPlot::setViewportShift(double xVal, double yVal)
 {
     QWT_D(d);
     if (d->m_xVPShift == xVal && d->m_yVPShift == yVal)
@@ -79,7 +78,7 @@ void Plot3D::setViewportShift(double xVal, double yVal)
 
         A respective value of 1 represents no scaling;
 */
-void Plot3D::setScale(double xVal, double yVal, double zVal)
+void Qwt3DPlot::setScale(double xVal, double yVal, double zVal)
 {
     QWT_D(d);
     if (d->m_xScale == xVal && d->m_yScale == yVal && d->m_zScale == zVal)
@@ -97,7 +96,7 @@ void Plot3D::setScale(double xVal, double yVal, double zVal)
   Set the (zoom in addition to scale).
         @param val zoom value (value == 1 indicates no zooming)
 */
-void Plot3D::setZoom(double val)
+void Qwt3DPlot::setZoom(double val)
 {
     QWT_D(d);
     if (d->m_zoom == val)

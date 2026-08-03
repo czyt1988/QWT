@@ -1,83 +1,110 @@
 # 3D绘图简介
 
-Qwt 7.1 将原 `QwtPlot3D` 库整合进来，提供了三维数据可视化能力。3D绘图模块支持表面图、网格图、函数绘图等类型，适合科学计算和工程分析中的三维数据展示。
+Qwt 7.1 将原 `QwtPlot3D` 库整合进来，提供了三维数据可视化能力。从 v7.3.3 起，3D模块已完全重构为 **Plot + Item** 架构，与2D模块（`QwtPlot` + `QwtPlotItem`）对称，并采用现代OpenGL渲染（VBO/VAO + GLSL 3.3 Core着色器）。
 
 ## 主要功能特性
 
 **特性**
 
-- ✅ **多种绘图类型**：表面图、网格图、参数曲面等
-- ✅ **OpenGL渲染**：利用OpenGL实现高性能三维渲染
+- ✅ **Plot + Item 架构**：`Qwt3DPlot`（渲染窗口）+ `Qwt3DPlotItem`（绘图item），与2D的 `QwtPlot` + `QwtPlotItem` 对称
+- ✅ **多种绘图类型**：表面图、网格图、参数曲面、函数绘图等
+- ✅ **现代OpenGL渲染**：VBO/VAO + GLSL 3.3 Core着色器（不使用旧版固定管线）
 - ✅ **交互操作**：支持鼠标旋转、缩放、平移
 - ✅ **光照和材质**：支持光照效果和材质配置
 - ✅ **主题系统**：一键切换视觉风格，支持10种预设主题和22种科学色彩映射
+- ✅ **多item组合**：一个 `Qwt3DPlot` 可挂载任意数量的item，在同一GL上下文中统一渲染
 
-## 3D绘图模块结构
+## 架构概述
+
+3D模块遵循与2D模块对称的 **Plot + Item** 模式：
+
+- **`Qwt3DPlot`** 是渲染窗口（`QOpenGLWidget` 子类），负责GL上下文管理、视图变换、光照、坐标系统和鼠标/键盘交互。它本身**不持有任何绘图数据**。
+- **`Qwt3DPlotItem`** 是所有3D绘图元素的抽象基类。item自行管理数据、几何和样式，通过 `attach()` / `detach()` 挂载到渲染窗口。
+- 一个 `Qwt3DPlot` 窗口可以挂载**任意数量的item**，在同一个GL上下文中统一渲染。
 
 ```mermaid
 classDiagram
-    class Plot3D {
-        +setCoordinateStyle()
-        +setPlotStyle()
+    class Qwt3DPlot {
+        +attach(Qwt3DPlotItem*)
+        +detach(Qwt3DPlotItem*)
+        +itemList()
         +setRotation()
         +setScale()
-        +updateData()
         +enableMouse()
         +showColorLegend()
-        +setDataColor()
+        +applyTheme()
     }
 
-    class SurfacePlot {
+    class Qwt3DPlotItem {
+        <<abstract>>
+        +attach(Qwt3DPlot*)
+        +detach()
+        +draw()*
+        +hull()*
+        +setZ()
+        +itemChanged()
+    }
+
+    class Qwt3DSurface {
         +loadFromData()
         +setResolution()
+        +setPlotStyle()
+        +setDataColor()
+        +addEnrichment()
     }
 
-    class Function {
-        +operator(x,y)
+    class Qwt3DFunction {
+        +operator()(x,y)*
         +create()
         +setDomain()
         +setMesh()
     }
 
-    Plot3D <|-- SurfacePlot
-    Plot3D --> Function : 使用
+    Qwt3DPlotItem <|-- Qwt3DSurface
+    Qwt3DFunction --> Qwt3DSurface : 生成数据
+    Qwt3DPlot o-- Qwt3DPlotItem : 管理
 ```
 
-!!! note "命名空间"
-    所有 3D 类均位于 `Qwt3D` 命名空间下。下表为简洁起见省略了 `Qwt3D::` 前缀，
-    在代码中需使用完整限定名（或添加 `using namespace Qwt3D;`）。
+!!! note "无命名空间"
+    所有3D类直接使用 `Qwt3D` 前缀定义在全局作用域（如 `Qwt3DPlot`、`Qwt3DSurface`）。不再有 `namespace Qwt3D`——这是相对于 v7.3.2 及更早版本的破坏性变更。
 
 ## 核心类介绍
 
 | 类名 | 说明 |
 |------|------|
-| `Qwt3D::Plot3D` | 3D绘图基类，提供基本框架和交互 |
-| `Qwt3D::SurfacePlot` | 3D表面图，显示连续曲面（同时支持网格和单元数据） |
-| `Qwt3D::Function` | 3D函数绘图，根据数学函数生成曲面 |
-| `Qwt3D::GraphPlot` | 图形类3D绘图的中间基类 |
-| `Qwt3D::Axis` | 3D坐标轴配置 |
-| `Qwt3D::ColorLegend` | 3D颜色条 |
-| `Qwt3D::Qwt3DTheme` | 3D主题系统，封装背景、网格、colormap、坐标轴、光照等全部视觉属性 |
+| `Qwt3DPlot` | 3D渲染窗口（QOpenGLWidget），管理GL上下文、视图、光照、坐标系统和item列表 |
+| `Qwt3DPlotItem` | 所有3D绘图item的抽象基类（attach/detach/draw/hull） |
+| `Qwt3DSurface` | 3D表面图item，显示连续曲面（同时支持网格和单元数据） |
+| `Qwt3DBar` | 3D柱状图item（1D序列或2D网格直方图）；逐柱立方体，扁平法向 |
+| `Qwt3DLine` | 3D线图item；Tube（扫掠圆柱、带光照）/ Lines / Dots 三种样式 |
+| `Qwt3DFunction` | 数据生成器，根据 z = f(x, y) 数学函数生成曲面 |
+| `Qwt3DParametricSurface` | 参数曲面数据生成器 r(u, v) |
+| `Qwt3DCoordinateSystem` | 3D坐标系统，12轴，支持BOX/FRAME样式 |
+| `Qwt3DColorLegend` | 3D颜色条/图例 |
+| `Qwt3DTheme` | 3D主题系统，封装背景、网格、colormap、坐标轴、光照等全部视觉属性 |
 
 ## 使用方法
 
-3D绘图的例子位于:`examples/3D/simpleplot3D`，例子截图如下：
+3D绘图的例子位于：`examples/3D/simpleplot3D`，例子截图如下：
 
 ![simpleplot3D](../../assets/screenshots-3D/simpleplot3D.png)
 
 ### 基本使用示例
 
 ```cpp
-#include <qwt3d_surfaceplot.h>
+#include <qwt3d_plot.h>
+#include <qwt3d_surface.h>
 #include <qwt3d_function.h>
 
-using namespace Qwt3D;
+// 创建渲染窗口
+Qwt3DPlot* plot = new Qwt3DPlot();
 
-// 创建表面图
-SurfacePlot* plot = new SurfacePlot();
+// 创建曲面item
+Qwt3DSurface* surface = new Qwt3DSurface();
+surface->attach(plot);
 
-// 定义函数
-class MyFunction : public Function
+// 定义数学函数
+class MyFunction : public Qwt3DFunction
 {
 public:
     double operator()(double x, double y) override
@@ -86,14 +113,10 @@ public:
     }
 };
 
-// 创建函数对象并绑定到绘图
-MyFunction* func = new MyFunction(*plot);
-
-// 设置数据范围和网格分辨率
+// 创建函数对象并绑定到曲面item
+MyFunction* func = new MyFunction(*surface);
 func->setDomain(-5, 5, -5, 5);  // x和y范围
 func->setMesh(50, 50);           // 50x50网格
-
-// 创建曲面
 func->create();
 
 // 设置旋转角度
@@ -106,12 +129,13 @@ plot->show();
 ### 数据加载
 
 ```cpp
-#include <qwt3d_surfaceplot.h>
+#include <qwt3d_plot.h>
+#include <qwt3d_surface.h>
 
-using namespace Qwt3D;
-
-// 从数据数组加载
-SurfacePlot* plot = new SurfacePlot();
+// 创建渲染窗口 + 曲面item
+Qwt3DPlot* plot = new Qwt3DPlot();
+Qwt3DSurface* surface = new Qwt3DSurface();
+surface->attach(plot);
 
 // 分配 100x100 的 Z 值数组
 double* zData[100];
@@ -120,10 +144,10 @@ for (int i = 0; i < 100; ++i)
 // ... 填充数据 ...
 
 // 加载 Z 值数据，需显式指定 X/Y 范围
-plot->loadFromData(zData, 100, 100, 0.0, 100.0, 0.0, 100.0);
+surface->loadFromData(zData, 100, 100, 0.0, 100.0, 0.0, 100.0);
 
 // 设置分辨率（1 表示使用全部数据，值越大下采样越强）
-plot->setResolution(1);
+surface->setResolution(1);
 ```
 
 ### 交互操作
@@ -149,18 +173,42 @@ plot->setRotation(45, 30, 60);  // X、Y、Z轴旋转角度（度）
 ```cpp
 #include <qwt3d_colormap_color.h>
 
-using namespace Qwt3D;
-
 // 启用颜色条
 plot->showColorLegend(true);
 
 // 使用 core 模块的 colormap 预设根据 Z 值映射颜色
-plot->setDataColor(new ColorMapColor(plot, "viridis"));
+surface->setDataColor(new Qwt3DColorMapColor(plot, "viridis"));
 ```
+
+### 多item组合绘图
+
+Plot + Item 架构的核心优势之一是能在同一个3D空间中渲染多个item：
+
+```cpp
+Qwt3DPlot* plot = new Qwt3DPlot();
+
+// 第一个曲面
+Qwt3DSurface* surface = new Qwt3DSurface();
+surface->loadFromData(gridData, cols, rows, 0, 10, 0, 10);
+surface->attach(plot);
+
+// 第二个曲面，设置不同的z-order
+Qwt3DSurface* overlay = new Qwt3DSurface();
+overlay->loadFromData(overlayData, cols2, rows2, 0, 10, 0, 10);
+overlay->setZ(1.0);  // 在上层渲染
+overlay->attach(plot);
+```
+
+### 其他 3D item 类型（v7.3.5+）
+
+除曲面外，3D 模块还提供两个 `Qwt3DPlotItem` 类型——详见各自的使用说明文档：
+
+- [3D柱状图](3d-bar-chart.md)（`Qwt3DBar`）：1D 序列或 2D 网格（3D 直方图），逐柱立方体扁平法向，`Filled`/`FilledMesh`/`Wireframe`。
+- [3D线图](3d-line-plot.md)（`Qwt3DLine`）：`Tube`（带光照扫掠圆柱）/ `Lines` / `Dots`，逐顶点 colormap。
 
 ### 主题系统（v7.3.1+）
 
-`Qwt3D::Qwt3DTheme` 类提供一键切换 3D 绘图视觉风格的能力，封装了背景色、网格色、数据色彩映射（colormap）、坐标轴颜色、标题样式、光照预设、着色模式等全部视觉属性。
+`Qwt3DTheme` 类提供一键切换 3D 绘图视觉风格的能力，封装了背景色、网格色、数据色彩映射（colormap）、坐标轴颜色、标题样式、光照预设、着色模式等全部视觉属性。
 
 #### 内置预设主题
 
@@ -183,22 +231,22 @@ plot->setDataColor(new ColorMapColor(plot, "viridis"));
 #include <qwt3d_theme.h>
 
 // 方式1：使用预设主题（推荐）
-plot->applyTheme(Qwt3D::Qwt3DTheme::Dark);
+plot->applyTheme(Qwt3DTheme::Dark);
 
 // 方式2：通过名称应用主题
 plot->applyTheme("Scientific");
 
 // 方式3：自定义主题
-Qwt3D::Qwt3DTheme theme(Qwt3D::Qwt3DTheme::Scientific);
+Qwt3DTheme theme(Qwt3DTheme::Scientific);
 theme.setDataColorPreset("plasma");  // 使用 22 种科学 colormap 预设之一
 theme.setShininess(20.0);
-theme.setLightingPreset(Qwt3D::Qwt3DTheme::Studio);
+theme.setLightingPreset(Qwt3DTheme::Studio);
 theme.apply(plot);
 ```
 
 #### 色彩映射预设
 
-`Qwt3D::Qwt3DTheme` 通过 `core` 模块的 `QwtColorMapPreset` 提供 22 种科学可视化色彩映射：
+`Qwt3DTheme` 通过 `core` 模块的 `QwtColorMapPreset` 提供 22 种科学可视化色彩映射：
 
 - 感知均匀：`viridis`、`plasma`、`inferno`、`magma`、`cividis`
 - 经典：`jet`、`hot`、`cool`、`spring`、`summer`、`autumn`、`winter`
@@ -239,28 +287,53 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 ```
 
 !!! warning "OpenGL依赖"
-    3D绘图模块依赖OpenGL和GLU库。确保系统已安装OpenGL驱动和GLU库。
+    3D绘图模块需要 **OpenGL 3.3+ Core Profile**，使用 GLSL 3.30 着色器。请确保显卡驱动支持 OpenGL 3.3 或更高版本。模块还内置 `gl2ps` 用于矢量导出（EPS/PDF），作为 Compatibility Profile 的回退选项。
 
 ## 核心方法总结
 
-| 方法 | 所属类 | 说明 |
-|------|------|------|
-| `setDomain()` | `Qwt3D::Function` / `Qwt3D::GridMapping` | 设置X/Y数据范围 |
-| `setMesh()` | `Qwt3D::Function` / `Qwt3D::GridMapping` | 设置网格分辨率（列、行） |
-| `setResolution()` | `Qwt3D::SurfacePlot` | 设置数据分辨率（1=使用全部数据） |
-| `loadFromData()` | `Qwt3D::SurfacePlot` | 加载数据数组到绘图 |
-| `create()` | `Qwt3D::Function` | 生成并附加曲面数据 |
-| `setRotation()` | `Qwt3D::Plot3D` | 设置旋转角度 |
-| `setScale()` | `Qwt3D::Plot3D` | 设置缩放比例 |
-| `enableMouse()` | `Qwt3D::Plot3D` | 启用/禁用鼠标交互 |
-| `showColorLegend()` | `Qwt3D::Plot3D` | 显示/隐藏颜色条 |
-| `setDataColor()` | `Qwt3D::Plot3D` | 设置数据颜色函数 |
-| `updateData()` | `Qwt3D::Plot3D` | 重新计算并更新数据 |
+### Qwt3DPlot 方法
+
+| 方法 | 说明 |
+|------|------|
+| `attach(item)` / `detach(item)` | 挂载/卸载绘图item |
+| `itemList()` | 获取已挂载的item列表 |
+| `setRotation(x, y, z)` | 设置旋转角度（度） |
+| `setScale(x, y, z)` | 设置缩放比例 |
+| `setZoom(z)` | 设置缩放级别 |
+| `enableMouse(bool)` | 启用/禁用鼠标交互 |
+| `showColorLegend(bool)` | 显示/隐藏颜色条 |
+| `applyTheme(preset)` / `applyTheme(name)` | 应用主题 |
+| `setBackgroundColor(RGBA)` | 设置背景色 |
+
+### Qwt3DSurface 方法
+
+| 方法 | 说明 |
+|------|------|
+| `loadFromData(...)` | 加载数据数组（3个重载：网格double**、网格Triple**、单元） |
+| `setResolution(int)` | 设置数据分辨率（1=使用全部数据，值越大下采样越强） |
+| `setPlotStyle(PLOTSTYLE)` | 设置渲染样式（WIREFRAME, HIDDENLINE, FILLED, FILLEDMESH, POINTS） |
+| `setDataColor(Qwt3DColor*)` | 设置数据颜色函数（获取所有权） |
+| `setMeshColor(RGBA)` / `setMeshLineWidth(double)` | 配置网格外观 |
+| `setFloorStyle(FLOORSTYLE)` | 设置地板投影样式 |
+| `setShading(SHADINGSTYLE)` | 设置着色模式（FLAT, GOURAUD） |
+| `addEnrichment(Qwt3DEnrichment&)` | 添加顶点/边/面装饰 |
+| `setNormalLength(double)` / `showNormals(bool)` | 配置曲面法线 |
+
+### Qwt3DFunction 方法
+
+| 方法 | 说明 |
+|------|------|
+| `operator()(x, y)` | 纯虚函数 — 用户实现 z = f(x, y) |
+| `assign(Qwt3DSurface&)` | 绑定目标曲面item |
+| `setDomain(minX, maxX, minY, maxY)` | 设置X/Y数据范围 |
+| `setMesh(columns, rows)` | 设置网格分辨率 |
+| `create()` / `create(surface&)` | 生成并加载曲面数据 |
 
 !!! tip "3D绘图建议"
     - 数据量不宜过大（推荐100x100网格以下）
     - 复杂曲面可适当降低分辨率提升性能
     - 使用光照效果增强视觉效果
+    - 多item重叠时使用 `setZ()` 控制绘制顺序
 
 !!! example "相关示例"
     - 基础3D绘图：`examples/3D/simpleplot3D`
@@ -268,6 +341,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
     - 3D增强：`examples/3D/enrichments`
     - 3D自动切换：`examples/3D/autoswitch`
     - 动态3D曲面（QwtFigure集成）：`examples/3D/figureSurface3D`
+    - 3D柱状图：`examples/3D/bar3D`
+    - 3D线图：`examples/3D/line3D`
 
 3D轴配置、3D增强、3D自动切换与动态3D曲面的例子截图如下：
 

@@ -9,6 +9,7 @@
 | [编码规范](coding-standards.md) | 代码格式化、C++11兼容性宏、命名规范等 |
 | [注释规范](comment-standards.md) | Doxygen英文注释格式、注释位置规范等 |
 | [PIMPL模式](pimpl-pattern.md) | PIMPL设计模式的使用方法和宏定义 |
+| [3D模块重构](plot3d-refactor.md) | 3D模块为何及如何重构为Plot+Item架构 |
 
 ## 开发流程概览
 

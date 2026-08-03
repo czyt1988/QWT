@@ -216,12 +216,15 @@ fig->show();
 
 ### 3D绘图与主题系统
 
-集成的 3D 模块（`qwt::plot3d`）提供表面图、网格图和函数图，基于 OpenGL 渲染，并支持完整的鼠标交互（旋转 / 缩放 / 平移）。
+集成的 3D 模块（`qwt::plot3d`）采用 **Plot + Item** 架构（`Qwt3DPlot` + `Qwt3DPlotItem`），与 2D 模块对称。提供表面图、网格图和函数图，基于现代 OpenGL 渲染（VBO/VAO + GLSL着色器），并支持完整的鼠标交互（旋转 / 缩放 / 平移）。
 
-7.3 新增的 `Qwt3D::Qwt3DTheme` 主题系统将全部视觉属性 —— 背景、网格、colormap、坐标轴、标题、光照、着色模式、材质 —— 打包为一个描述符，一行调用即可套用整套风格：
+7.3 新增的 `Qwt3DTheme` 主题系统将全部视觉属性 —— 背景、网格、colormap、坐标轴、标题、光照、着色模式、材质 —— 打包为一个描述符，一行调用即可套用整套风格：
 
 ```cpp
-using namespace Qwt3D;
+// 创建渲染窗口 + 曲面item
+Qwt3DPlot* plot = new Qwt3DPlot();
+Qwt3DSurface* surface = new Qwt3DSurface();
+surface->attach(plot);
 
 // 一行套用预设
 plot->applyTheme(Qwt3DTheme::Dark);
@@ -236,7 +239,7 @@ theme.apply(plot);
 
 - 10 种内置主题：`Default`、`Dark`、`Scientific`、`Warm`、`Cool`、`Matplotlib`、`EarthTones`、`Ocean`、`HighContrast`、`Presentation`
 - 5 种光照预设：`NoLighting`、`FlatLight`、`Studio`、`Outdoor`、`Soft`
-- `ColorMapColor` 适配器将 core 模块的 colormap 桥接到 3D 表面，因此 22 种科学预设同样可用于 3D
+- `Qwt3DColorMapColor` 适配器将 core 模块的 colormap 桥接到 3D 表面，因此 22 种科学预设同样可用于 3D
 
 具体可参见教程：[3D绘图](https://czyt1988.github.io/QWT/zh/use-guide/3d-plot/)
 

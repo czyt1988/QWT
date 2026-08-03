@@ -8,18 +8,15 @@
  *****************************************************************************/
 
 #include "qwt3d_colormap_color.h"
-#include "qwt3d_plot.h"
 #include "qwt_colormap.h"
 #include "qwt_colormap_preset.h"
 
 #include <qcolor.h>
 #include <qstring.h>
 
-using namespace Qwt3D;
 
-ColorMapColor::ColorMapColor(Plot3D* plot, const QString& presetName, unsigned size)
-    : m_plot(plot)
-    , m_colorMap(QwtColorMapPreset::create(presetName).release())
+Qwt3DColorMapColor::Qwt3DColorMapColor(const QString& presetName, unsigned size)
+    : m_colorMap(QwtColorMapPreset::create(presetName).release())
     , m_manualMin(0.0)
     , m_manualMax(1.0)
     , m_useManualInterval(false)
@@ -28,30 +25,26 @@ ColorMapColor::ColorMapColor(Plot3D* plot, const QString& presetName, unsigned s
     rebuildColorVector(size);
 }
 
-ColorMapColor::ColorMapColor(Plot3D* plot, ::QwtColorMap* colorMap, unsigned size)
-    : m_plot(plot), m_colorMap(colorMap), m_manualMin(0.0), m_manualMax(1.0), m_useManualInterval(false), m_alpha(1.0)
+Qwt3DColorMapColor::Qwt3DColorMapColor(::QwtColorMap* colorMap, unsigned size)
+    : m_colorMap(colorMap), m_manualMin(0.0), m_manualMax(1.0), m_useManualInterval(false), m_alpha(1.0)
 {
     rebuildColorVector(size);
 }
 
-ColorMapColor::~ColorMapColor()
+Qwt3DColorMapColor::~Qwt3DColorMapColor()
 {
     delete m_colorMap;
 }
 
-RGBA ColorMapColor::operator()(double, double, double z) const
+RGBA Qwt3DColorMapColor::operator()(double, double, double z) const
 {
     double zMin, zMax;
     if (m_useManualInterval) {
         zMin = m_manualMin;
         zMax = m_manualMax;
-    } else if (m_plot) {
-        const ParallelEpiped hull = m_plot->hull();
-        zMin                      = hull.minVertex.z;
-        zMax                      = hull.maxVertex.z;
     } else {
-        zMin = 0.0;
-        zMax = 1.0;
+        zMin = activeZMin();
+        zMax = activeZMax();
     }
 
     const QRgb rgb = m_colorMap->rgb(zMin, zMax, z);
@@ -63,14 +56,14 @@ RGBA ColorMapColor::operator()(double, double, double z) const
     return rgba;
 }
 
-ColorVector& ColorMapColor::createVector(ColorVector& vec)
+ColorVector& Qwt3DColorMapColor::createVector(ColorVector& vec)
 {
     rebuildColorVector(static_cast< unsigned >(m_colors.size()));
     vec = m_colors;
     return vec;
 }
 
-void ColorMapColor::setColorMap(::QwtColorMap* map)
+void Qwt3DColorMapColor::setColorMap(::QwtColorMap* map)
 {
     if (map != m_colorMap) {
         delete m_colorMap;
@@ -79,12 +72,12 @@ void ColorMapColor::setColorMap(::QwtColorMap* map)
     rebuildColorVector(static_cast< unsigned >(m_colors.size()));
 }
 
-const ::QwtColorMap* ColorMapColor::colorMap() const
+const ::QwtColorMap* Qwt3DColorMapColor::colorMap() const
 {
     return m_colorMap;
 }
 
-void ColorMapColor::setInterval(double min, double max)
+void Qwt3DColorMapColor::setInterval(double min, double max)
 {
     m_manualMin         = min;
     m_manualMax         = max;
@@ -92,12 +85,12 @@ void ColorMapColor::setInterval(double min, double max)
     rebuildColorVector(static_cast< unsigned >(m_colors.size()));
 }
 
-void ColorMapColor::reset(unsigned size)
+void Qwt3DColorMapColor::reset(unsigned size)
 {
     rebuildColorVector(size);
 }
 
-void ColorMapColor::setAlpha(double a)
+void Qwt3DColorMapColor::setAlpha(double a)
 {
     if (a < 0.0 || a > 1.0)
         return;
@@ -105,7 +98,7 @@ void ColorMapColor::setAlpha(double a)
     rebuildColorVector(static_cast< unsigned >(m_colors.size()));
 }
 
-void ColorMapColor::rebuildColorVector(unsigned size)
+void Qwt3DColorMapColor::rebuildColorVector(unsigned size)
 {
     m_colors.resize(size);
 
@@ -113,13 +106,9 @@ void ColorMapColor::rebuildColorVector(unsigned size)
     if (m_useManualInterval) {
         zMin = m_manualMin;
         zMax = m_manualMax;
-    } else if (m_plot) {
-        const ParallelEpiped hull = m_plot->hull();
-        zMin                      = hull.minVertex.z;
-        zMax                      = hull.maxVertex.z;
     } else {
-        zMin = 0.0;
-        zMax = 1.0;
+        zMin = activeZMin();
+        zMax = activeZMax();
     }
 
     if (!m_colorMap)

@@ -18,13 +18,13 @@
 
 class QwtColorMap;
 
-namespace Qwt3D
-{
 
-class Plot3D;
+
+class Qwt3DPlot;
+class Qwt3DPlotItem;
 
 /**
- * @brief Complete visual theme descriptor for Plot3D widgets.
+ * @brief Complete visual theme descriptor for Qwt3DPlot widgets.
  * @details Qwt3DTheme encapsulates all visual properties of a 3D plot:
  *          background color, mesh styling, data colormap, coordinate system colors,
  *          title styling, lighting preset, shading mode, plot style, and material
@@ -79,7 +79,7 @@ public:
     bool smoothMesh() const;
     void setSmoothMesh(bool);
 
-    // Data Color
+    // Qwt3DData Color
     QString dataColorPreset() const;
     void setDataColorPreset(const QString&);
     QwtColorMap* createColorMap() const;
@@ -93,6 +93,12 @@ public:
     void setLabelColor(RGBA);
     RGBA gridLinesColor() const;
     void setGridLinesColor(RGBA);
+    RGBA interiorGridLinesColor() const;
+    void setInteriorGridLinesColor(RGBA);
+    double interiorGridMajorWidth() const;
+    void setInteriorGridMajorWidth(double);
+    double interiorGridMinorWidth() const;
+    void setInteriorGridMinorWidth(double);
 
     // Title
     RGBA titleColor() const;
@@ -123,9 +129,11 @@ public:
     void setSpecularIntensity(double);
 
     // Apply to a plot
-    void apply(Plot3D* plot) const;
+    void apply(Qwt3DPlot* plot) const;
 
 private:
+    // Apply item-level properties to a single item
+    void applyToItem(Qwt3DPlotItem* item) const;
     RGBA m_backgroundColor;
     RGBA m_meshColor;
     double m_meshLineWidth;
@@ -135,6 +143,9 @@ private:
     RGBA m_numberColor;
     RGBA m_labelColor;
     RGBA m_gridLinesColor;
+    RGBA m_interiorGridLinesColor;
+    double m_interiorGridMajorWidth;
+    double m_interiorGridMinorWidth;
     RGBA m_titleColor;
     QString m_titleFontFamily;
     int m_titleFontSize;
@@ -146,6 +157,5 @@ private:
     double m_specularIntensity;
 };
 
-}  // namespace Qwt3D
 
 #endif

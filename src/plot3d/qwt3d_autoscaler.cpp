@@ -1,7 +1,6 @@
-﻿#include "qwt3d_helper.h"
+#include "qwt3d_helper.h"
 #include "qwt3d_autoscaler.h"
 
-using namespace Qwt3D;
 
 namespace
 {
@@ -52,33 +51,33 @@ double floor125(int& exponent, double x)
 
 /****************************
  *
- * LinearAutoScaler::PrivateData
+ * Qwt3DLinearAutoScaler::PrivateData
  *
  ****************************/
 
-class LinearAutoScaler::PrivateData
+class Qwt3DLinearAutoScaler::PrivateData
 {
-    QWT_DECLARE_PUBLIC(LinearAutoScaler)
+    QWT_DECLARE_PUBLIC(Qwt3DLinearAutoScaler)
 public:
-    explicit PrivateData(LinearAutoScaler* p);
+    explicit PrivateData(Qwt3DLinearAutoScaler* p);
 
     double m_start, m_stop;
     int m_intervals;
     std::vector< double > m_mantissi;
 };
 
-LinearAutoScaler::PrivateData::PrivateData(LinearAutoScaler* p) : q_ptr(p), m_start(0.), m_stop(0.), m_intervals(0)
+Qwt3DLinearAutoScaler::PrivateData::PrivateData(Qwt3DLinearAutoScaler* p) : q_ptr(p), m_start(0.), m_stop(0.), m_intervals(0)
 {
 }
 
 /****************************
  *
- * LinearAutoScaler
+ * Qwt3DLinearAutoScaler
  *
  ****************************/
 
 //! Initializes with an {1,2,5} sequence of mantissas
-LinearAutoScaler::LinearAutoScaler() : QWT_PIMPL_CONSTRUCT
+Qwt3DLinearAutoScaler::Qwt3DLinearAutoScaler() : QWT_PIMPL_CONSTRUCT
 {
     init(0, 1, 1);
     QWT_D(d);
@@ -93,7 +92,7 @@ LinearAutoScaler::LinearAutoScaler() : QWT_PIMPL_CONSTRUCT
 val mantisse A increasing ordered vector of values representing
 mantisse values between 1 and 9.
 */
-LinearAutoScaler::LinearAutoScaler(std::vector< double >& mantisse) : QWT_PIMPL_CONSTRUCT
+Qwt3DLinearAutoScaler::Qwt3DLinearAutoScaler(std::vector< double >& mantisse) : QWT_PIMPL_CONSTRUCT
 {
     QWT_D(d);
     init(0, 1, 1);
@@ -107,15 +106,15 @@ LinearAutoScaler::LinearAutoScaler(std::vector< double >& mantisse) : QWT_PIMPL_
     d->m_mantissi = mantisse;
 }
 
-LinearAutoScaler::~LinearAutoScaler() = default;
+Qwt3DLinearAutoScaler::~Qwt3DLinearAutoScaler() = default;
 
 /**
- * @brief Copies internal state from another LinearAutoScaler
+ * @brief Copies internal state from another Qwt3DLinearAutoScaler
  * @param other Source object to copy state from
- * @details Used by LinearScale::clone() to copy autoscaler state
+ * @details Used by Qwt3DLinearScale::clone() to copy autoscaler state
  *          without requiring a copy constructor or assignment operator.
  */
-void LinearAutoScaler::copyStateFrom(const LinearAutoScaler& other)
+void Qwt3DLinearAutoScaler::copyStateFrom(const Qwt3DLinearAutoScaler& other)
 {
     QWT_D(d);
     const auto* od = other.d_func();
@@ -127,11 +126,11 @@ void LinearAutoScaler::copyStateFrom(const LinearAutoScaler& other)
 
 /**
  * @brief Returns a deep copy of this autoscaler
- * @return A new LinearAutoScaler with identical state
+ * @return A new Qwt3DLinearAutoScaler with identical state
  */
-AutoScaler* LinearAutoScaler::clone() const
+Qwt3DAutoScaler* Qwt3DLinearAutoScaler::clone() const
 {
-    auto* copy = new LinearAutoScaler();
+    auto* copy = new Qwt3DLinearAutoScaler();
     QWT_DC(d);
     auto* copyD        = copy->d_func();
     copyD->m_start     = d->m_start;
@@ -145,7 +144,7 @@ AutoScaler* LinearAutoScaler::clone() const
 /**
         Switchs start and stop, if stop < start and sets intervals = 1 if ivals < 1
 */
-void LinearAutoScaler::init(double start, double stop, int ivals)
+void Qwt3DLinearAutoScaler::init(double start, double stop, int ivals)
 {
     QWT_D(d);
     d->m_start     = start;
@@ -172,7 +171,7 @@ void LinearAutoScaler::init(double start, double stop, int ivals)
 c 'minimal' (anchor-start < m*10^n)
 @endverbatim
 */
-double LinearAutoScaler::anchorvalue(double start, double m, int n)
+double Qwt3DLinearAutoScaler::anchorvalue(double start, double m, int n)
 {
     double stepval = m * pow(10.0, n);
     return stepval * ceil(start / stepval);
@@ -193,7 +192,7 @@ double LinearAutoScaler::anchorvalue(double start, double m, int n)
 c 'minimal' (anchor-start < m*10^n)
 @endverbatim
 */
-int LinearAutoScaler::segments(int& l_intervals, int& r_intervals, double start, double stop, double anchor, double m, int n)
+int Qwt3DLinearAutoScaler::segments(int& l_intervals, int& r_intervals, double start, double stop, double anchor, double m, int n)
 {
     double val   = m * pow(10.0, n);
     double delta = (stop - anchor) / val;
@@ -221,7 +220,7 @@ int LinearAutoScaler::segments(int& l_intervals, int& r_intervals, double start,
         If the given interval has zero length the function returns the current
         interval number and a and b remain unchanged.
 */
-int LinearAutoScaler::execute(double& a, double& b, double start, double stop, int ivals)
+int Qwt3DLinearAutoScaler::execute(double& a, double& b, double start, double stop, int ivals)
 {
     init(start, stop, ivals);
 

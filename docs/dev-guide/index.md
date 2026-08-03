@@ -9,6 +9,7 @@ This section provides detailed development standards and design pattern guidelin
 | [Coding Standards](coding-standards.md) | Code formatting, C++11 compatibility macros, naming conventions, etc. |
 | [Comment Standards](comment-standards.md) | Doxygen English comment format, comment placement rules, etc. |
 | [PIMPL Pattern](pimpl-pattern.md) | Usage and macro definitions for the PIMPL design pattern |
+| [3D Module Refactor](plot3d-refactor.md) | Why and how the 3D module was refactored to a Plot+Item architecture |
 
 ## Development Workflow Overview
 

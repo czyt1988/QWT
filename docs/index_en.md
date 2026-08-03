@@ -47,16 +47,18 @@ designed for data visualization in scientific computing and engineering applicat
 
 ## 3D Plotting Module
 
-All 3D classes live in the `Qwt3D` namespace.
+All 3D classes use the `Qwt3D` prefix in the global scope (no namespace).
 
 | Class | Description |
 |-------|-------------|
-| `Qwt3D::Plot3D` | 3D plot base class |
-| `Qwt3D::SurfacePlot` | 3D surface plot (handles both grid and cell data) |
-| `Qwt3D::Function` | 3D function plot |
-| `Qwt3D::GraphPlot` | Intermediate base class for graph-based 3D plots |
-| `Qwt3D::ColorLegend` | 3D color legend |
-| `Qwt3D::Qwt3DTheme` | 3D theme system (v7.3.1+) |
+| `Qwt3DPlot` | 3D rendering window (QOpenGLWidget), manages GL context, view, lighting, coordinate system, and item list |
+| `Qwt3DPlotItem` | Abstract base class for all 3D plot items |
+| `Qwt3DSurface` | 3D surface plot item (handles both grid and cell data) |
+| `Qwt3DFunction` | 3D function plot data generator |
+| `Qwt3DParametricSurface` | Parametric surface data generator |
+| `Qwt3DCoordinateSystem` | 3D coordinate system with 12 axes |
+| `Qwt3DColorLegend` | 3D color legend |
+| `Qwt3DTheme` | 3D theme system (v7.3.1+) |
 
 ## Key Architecture Concepts
 
@@ -94,7 +96,7 @@ Add `QwtPlot.h` and `QwtPlot.cpp` from `src-amalgamate/` to your project.
 
 Required Qt modules: `Core`, `Gui`, `Widgets` (public); `Concurrent`, `PrintSupport` (private). Optional: `Svg` and `OpenGL`/`OpenGLWidgets` (gated by `QWT_CONFIG_QWTSVG` / `QWT_CONFIG_QWTOPENGL`).
 Qt6 additional: `OpenGLWidgets`
-3D features require: `OpenGL::GLU`
+3D features require: `OpenGL` + `OpenGLWidgets` (Qt6). GLU is only needed for gl2ps vector export.
 
 ## Copyright
 

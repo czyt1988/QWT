@@ -38,9 +38,9 @@ MainWindow::MainWindow(QWidget* parent)
     statusBar()->addPermanentWidget(m_timeLabel);
 
     // Connect 3D plot signals to status bar
-    connect(m_surfacePlot, &DynamicSurfacePlot::rotationChanged,
+    connect(m_surfacePlot->plot(), &Qwt3DPlot::rotationChanged,
             this, &MainWindow::showRotation);
-    connect(m_surfacePlot, &DynamicSurfacePlot::zoomChanged,
+    connect(m_surfacePlot->plot(), &Qwt3DPlot::zoomChanged,
             this, &MainWindow::showZoom);
     connect(m_surfacePlot, &DynamicSurfacePlot::timeChanged, this, [this](double t) {
         m_timeLabel->setText(QString("t = %1").arg(t, 0, 'f', 3));
@@ -53,12 +53,12 @@ MainWindow::MainWindow(QWidget* parent)
     // Auto-rotation timer
     m_rotateTimer = new QTimer(this);
     connect(m_rotateTimer, &QTimer::timeout, this, [this]() {
-        double rx = m_surfacePlot->xRotation();
-        double ry = m_surfacePlot->yRotation();
-        m_surfacePlot->setRotation(
+        double rx = m_surfacePlot->plot()->xRotation();
+        double ry = m_surfacePlot->plot()->yRotation();
+        m_surfacePlot->plot()->setRotation(
                 int(rx + 0.5) % 360,
                 int(ry + 0.5) % 360,
-                int(m_surfacePlot->zRotation()));
+                int(m_surfacePlot->plot()->zRotation()));
     });
 
     // Initial 2D plot data
@@ -151,7 +151,7 @@ void MainWindow::createToolBar()
     auto* themeLabel = new QLabel("Theme:");
     toolbar->addWidget(themeLabel);
     m_themeCombo = new QComboBox();
-    m_themeCombo->addItems(Qwt3D::Qwt3DTheme::availablePresets());
+    m_themeCombo->addItems(Qwt3DTheme::availablePresets());
     toolbar->addWidget(m_themeCombo);
     connect(m_themeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MainWindow::onThemeChanged);
@@ -221,24 +221,24 @@ QActionGroup* MainWindow::createPlotStyleGroup()
 
     auto* wireframe = group->addAction("Wireframe");
     wireframe->setCheckable(true);
-    wireframe->setData(int(Qwt3D::WIREFRAME));
+    wireframe->setData(int(WIREFRAME));
 
     auto* filled = group->addAction("Filled");
     filled->setCheckable(true);
     filled->setChecked(true);
-    filled->setData(int(Qwt3D::FILLED));
+    filled->setData(int(FILLED));
 
     auto* filledMesh = group->addAction("FilledMesh");
     filledMesh->setCheckable(true);
-    filledMesh->setData(int(Qwt3D::FILLEDMESH));
+    filledMesh->setData(int(FILLEDMESH));
 
     auto* hiddenLine = group->addAction("HiddenLine");
     hiddenLine->setCheckable(true);
-    hiddenLine->setData(int(Qwt3D::HIDDENLINE));
+    hiddenLine->setData(int(HIDDENLINE));
 
     auto* points = group->addAction("Points");
     points->setCheckable(true);
-    points->setData(int(Qwt3D::POINTS));
+    points->setData(int(QWT3D_POINTS));
 
     return group;
 }
@@ -250,16 +250,16 @@ QActionGroup* MainWindow::createFloorStyleGroup()
 
     auto* none = group->addAction("No Floor");
     none->setCheckable(true);
-    none->setData(int(Qwt3D::NOFLOOR));
+    none->setData(int(NOFLOOR));
 
     auto* iso = group->addAction("Floor Iso");
     iso->setCheckable(true);
     iso->setChecked(true);
-    iso->setData(int(Qwt3D::FLOORISO));
+    iso->setData(int(FLOORISO));
 
     auto* data = group->addAction("Floor Data");
     data->setCheckable(true);
-    data->setData(int(Qwt3D::FLOORDATA));
+    data->setData(int(FLOORDATA));
 
     return group;
 }
@@ -272,15 +272,15 @@ QActionGroup* MainWindow::createCoordStyleGroup()
     auto* box = group->addAction("Box");
     box->setCheckable(true);
     box->setChecked(true);
-    box->setData(int(Qwt3D::BOX));
+    box->setData(int(BOX));
 
     auto* frame = group->addAction("Frame");
     frame->setCheckable(true);
-    frame->setData(int(Qwt3D::FRAME));
+    frame->setData(int(FRAME));
 
     auto* noCoord = group->addAction("None");
     noCoord->setCheckable(true);
-    noCoord->setData(int(Qwt3D::NOCOORD));
+    noCoord->setData(int(NOCOORD));
 
     return group;
 }
@@ -343,47 +343,46 @@ void MainWindow::update2DPlots()
 void MainWindow::onPlotStyleTriggered(QAction* action)
 {
     int val = action->data().toInt();
-    m_surfacePlot->setPlotStyle(static_cast<Qwt3D::PLOTSTYLE>(val));
-    m_surfacePlot->updateData();
-    m_surfacePlot->update();
+    m_surfacePlot->surface()->setPlotStyle(static_cast<PLOTSTYLE>(val));
+    m_surfacePlot->plot()->update();
 }
 
 void MainWindow::onFloorStyleTriggered(QAction* action)
 {
     int val = action->data().toInt();
-    m_surfacePlot->setFloorStyle(static_cast<Qwt3D::FLOORSTYLE>(val));
-    m_surfacePlot->updateData();
-    m_surfacePlot->update();
+    m_surfacePlot->surface()->setFloorStyle(static_cast<FLOORSTYLE>(val));
+    m_surfacePlot->plot()->update();
 }
 
 void MainWindow::onCoordStyleTriggered(QAction* action)
 {
     int val = action->data().toInt();
-    m_surfacePlot->setCoordinateStyle(static_cast<Qwt3D::COORDSTYLE>(val));
+    m_surfacePlot->plot()->coordinates()->setStyle(static_cast<COORDSTYLE>(val));
+    m_surfacePlot->plot()->update();
 }
 
 void MainWindow::onLightingToggled(bool on)
 {
-    m_surfacePlot->enableLighting(on);
-    m_surfacePlot->update();
+    m_surfacePlot->plot()->enableLighting(on);
+    m_surfacePlot->plot()->update();
 }
 
 void MainWindow::onLegendToggled(bool on)
 {
-    m_surfacePlot->showColorLegend(on);
-    m_surfacePlot->update();
+    m_surfacePlot->plot()->showColorLegend(on);
+    m_surfacePlot->plot()->update();
 }
 
 void MainWindow::onOrthoToggled(bool on)
 {
-    m_surfacePlot->setOrtho(on);
+    m_surfacePlot->plot()->setOrtho(on);
 }
 
 void MainWindow::onThemeChanged(int index)
 {
     const QString name = m_themeCombo->itemText(index);
-    m_surfacePlot->applyTheme(name);
-    m_surfacePlot->update();
+    m_surfacePlot->plot()->applyTheme(name);
+    m_surfacePlot->plot()->update();
 }
 
 void MainWindow::onResetView()

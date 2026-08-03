@@ -15,8 +15,9 @@ Qwt 7.0 是基于原版 Qwt 6.2.0 的现代化改进版本，遵循 Qwt 的开�
 
 Qwt 7.0 内置完整的3D绘图能力，支持：
 
+- ✅ **Plot + Item 架构**：`Qwt3DPlot`（渲染窗口）+ `Qwt3DPlotItem`（绘图item），与2D的 `QwtPlot` + `QwtPlotItem` 对称
 - ✅ **多种绘图类型**：表面图、网格图、参数曲面、函数绘图等
-- ✅ **OpenGL渲染**：高性能三维渲染，流畅的交互体验
+- ✅ **现代OpenGL渲染**：VBO/VAO + GLSL 3.3 Core着色器（不使用旧版固定管线）
 - ✅ **交互操作**：鼠标旋转、缩放、平移视角
 - ✅ **光照和材质**：真实感光照效果和材质配置
 - ✅ **颜色映射**：根据Z值自动映射颜色，支持颜色条
@@ -29,26 +30,30 @@ Qwt 7.0 内置完整的3D绘图能力，支持：
 
 | 类名 | 说明 |
 |------|------|
-| `Qwt3D::Plot3D` | 3D绘图基类，提供基本框架和交互 |
-| `Qwt3D::SurfacePlot` | 3D表面图，显示连续曲面（同时支持网格和单元数据） |
-| `Qwt3D::Function` | 3D函数绘图，根据数学函数生成曲面 |
+| `Qwt3DPlot` | 3D渲染窗口（QOpenGLWidget），管理GL上下文、视图、光照、坐标系统和item列表 |
+| `Qwt3DPlotItem` | 所有3D绘图item的抽象基类（attach/detach/draw/hull） |
+| `Qwt3DSurface` | 3D表面图item，显示连续曲面（同时支持网格和单元数据） |
+| `Qwt3DFunction` | 数据生成器，根据 z = f(x, y) 数学函数生成曲面 |
 
-!!! note "命名空间"
-    所有 3D 类均位于 `Qwt3D` 命名空间下。网上常见的 `Qwt3DPlot3D`/`Qwt3DSurfacePlot`/`Qwt3DFunction` 写法是**错误的**，真实类名在类本身上省略了冗余的 `Qwt3D` 前缀。
+!!! note "无命名空间"
+    所有3D类直接使用 `Qwt3D` 前缀定义在全局作用域（如 `Qwt3DPlot`、`Qwt3DSurface`）。不再有 `namespace Qwt3D`。
 
 ### 使用示例
 
 ```cpp
-#include <qwt3d_surfaceplot.h>
+#include <qwt3d_plot.h>
+#include <qwt3d_surface.h>
 #include <qwt3d_function.h>
 
-using namespace Qwt3D;
+// 创建渲染窗口
+Qwt3DPlot* plot = new Qwt3DPlot();
 
-// 创建表面图
-SurfacePlot* plot = new SurfacePlot();
+// 创建曲面item并挂载到渲染窗口
+Qwt3DSurface* surface = new Qwt3DSurface();
+surface->attach(plot);
 
 // 定义数学函数
-class MyFunction : public Function
+class MyFunction : public Qwt3DFunction
 {
 public:
     double operator()(double x, double y) override
@@ -57,7 +62,7 @@ public:
     }
 };
 
-MyFunction* func = new MyFunction(*plot);
+MyFunction* func = new MyFunction(*surface);
 func->setDomain(-5, 5, -5, 5);  // x和y范围
 func->setMesh(50, 50);           // 50x50网格
 func->create();

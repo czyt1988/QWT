@@ -13,10 +13,24 @@
 #include "qwt3d_colormap_color.h"
 #include "qwt_colormap_preset.h"
 #include "qwt_colormap.h"
+#include "qwt3d_plotitem.h"
+#include "qwt3d_surface.h"
+#include "qwt3d_bar.h"
+#include "qwt3d_line3d.h"
 
 #include <qfont.h>
 
-using namespace Qwt3D;
+// GL constants for material/light properties (used in setMaterialComponent/setLightComponent)
+#ifndef GL_AMBIENT
+#define GL_AMBIENT 0x1200
+#endif
+#ifndef GL_DIFFUSE
+#define GL_DIFFUSE 0x1201
+#endif
+#ifndef GL_SPECULAR
+#define GL_SPECULAR 0x1202
+#endif
+
 
 Qwt3DTheme::Qwt3DTheme()
     : m_backgroundColor(1.0, 1.0, 1.0, 1.0)
@@ -28,6 +42,9 @@ Qwt3DTheme::Qwt3DTheme()
     , m_numberColor(0.0, 0.0, 0.0, 1.0)
     , m_labelColor(0.0, 0.0, 0.0, 1.0)
     , m_gridLinesColor(0.2, 0.2, 0.2, 1.0)
+    , m_interiorGridLinesColor(0.6, 0.6, 0.6, 0.5)
+    , m_interiorGridMajorWidth(0.5)
+    , m_interiorGridMinorWidth(0.3)
     , m_titleColor(0.0, 0.0, 0.0, 1.0)
     , m_titleFontFamily("Courier")
     , m_titleFontSize(16)
@@ -69,6 +86,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.8, 0.8, 0.8, 1.0);
         theme.m_labelColor        = RGBA(0.9, 0.9, 0.9, 1.0);
         theme.m_gridLinesColor    = RGBA(0.35, 0.35, 0.35, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.25, 0.25, 0.25, 0.5);
         theme.m_titleColor        = RGBA(0.95, 0.95, 0.95, 1.0);
         theme.m_lightingPreset    = Soft;
         theme.m_shininess         = 5.0;
@@ -94,6 +112,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.3, 0.15, 0.0, 1.0);
         theme.m_labelColor        = RGBA(0.3, 0.15, 0.0, 1.0);
         theme.m_gridLinesColor    = RGBA(0.7, 0.55, 0.4, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.8, 0.65, 0.5, 0.5);
         theme.m_titleColor        = RGBA(0.3, 0.15, 0.0, 1.0);
         theme.m_lightingPreset    = FlatLight;
         theme.m_shininess         = 3.0;
@@ -109,6 +128,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.0, 0.15, 0.35, 1.0);
         theme.m_labelColor        = RGBA(0.0, 0.15, 0.35, 1.0);
         theme.m_gridLinesColor    = RGBA(0.5, 0.6, 0.75, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.6, 0.7, 0.85, 0.5);
         theme.m_titleColor        = RGBA(0.0, 0.15, 0.35, 1.0);
         theme.m_lightingPreset    = FlatLight;
         theme.m_shininess         = 3.0;
@@ -123,6 +143,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.2, 0.2, 0.2, 1.0);
         theme.m_labelColor        = RGBA(0.2, 0.2, 0.2, 1.0);
         theme.m_gridLinesColor    = RGBA(0.75, 0.75, 0.75, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.85, 0.85, 0.85, 0.4);
         theme.m_titleColor        = RGBA(0.2, 0.2, 0.2, 1.0);
         theme.m_titleFontFamily   = "sans-serif";
         theme.m_titleFontSize     = 14;
@@ -140,6 +161,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.35, 0.25, 0.15, 1.0);
         theme.m_labelColor        = RGBA(0.35, 0.25, 0.15, 1.0);
         theme.m_gridLinesColor    = RGBA(0.65, 0.55, 0.45, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.75, 0.65, 0.55, 0.5);
         theme.m_titleColor        = RGBA(0.35, 0.25, 0.15, 1.0);
         theme.m_lightingPreset    = Outdoor;
         theme.m_shininess         = 5.0;
@@ -155,6 +177,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor       = RGBA(0.0, 0.1, 0.3, 1.0);
         theme.m_labelColor        = RGBA(0.0, 0.1, 0.3, 1.0);
         theme.m_gridLinesColor    = RGBA(0.5, 0.65, 0.8, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.6, 0.75, 0.9, 0.5);
         theme.m_titleColor        = RGBA(0.0, 0.1, 0.3, 1.0);
         theme.m_lightingPreset    = FlatLight;
         theme.m_shininess         = 3.0;
@@ -169,6 +192,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_numberColor     = RGBA(1.0, 1.0, 1.0, 1.0);
         theme.m_labelColor      = RGBA(1.0, 1.0, 1.0, 1.0);
         theme.m_gridLinesColor  = RGBA(0.5, 0.5, 0.5, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.3, 0.3, 0.3, 0.5);
         theme.m_titleColor      = RGBA(1.0, 1.0, 1.0, 1.0);
         break;
 
@@ -176,6 +200,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
         theme.m_meshLineWidth     = 1.5;
         theme.m_dataColorPreset   = "plasma";
         theme.m_gridLinesColor    = RGBA(0.6, 0.6, 0.6, 1.0);
+        theme.m_interiorGridLinesColor = RGBA(0.7, 0.7, 0.7, 0.4);
         theme.m_titleFontFamily   = "Arial";
         theme.m_titleFontSize     = 20;
         theme.m_lightingPreset    = Studio;
@@ -305,6 +330,33 @@ void Qwt3DTheme::setGridLinesColor(RGBA c)
     m_gridLinesColor = c;
 }
 
+RGBA Qwt3DTheme::interiorGridLinesColor() const
+{
+    return m_interiorGridLinesColor;
+}
+void Qwt3DTheme::setInteriorGridLinesColor(RGBA c)
+{
+    m_interiorGridLinesColor = c;
+}
+
+double Qwt3DTheme::interiorGridMajorWidth() const
+{
+    return m_interiorGridMajorWidth;
+}
+void Qwt3DTheme::setInteriorGridMajorWidth(double w)
+{
+    m_interiorGridMajorWidth = w;
+}
+
+double Qwt3DTheme::interiorGridMinorWidth() const
+{
+    return m_interiorGridMinorWidth;
+}
+void Qwt3DTheme::setInteriorGridMinorWidth(double w)
+{
+    m_interiorGridMinorWidth = w;
+}
+
 RGBA Qwt3DTheme::titleColor() const
 {
     return m_titleColor;
@@ -386,24 +438,25 @@ void Qwt3DTheme::setSpecularIntensity(double v)
     m_specularIntensity = v;
 }
 
-void Qwt3DTheme::apply(Plot3D* plot) const
+void Qwt3DTheme::apply(Qwt3DPlot* plot) const
 {
     if (!plot)
         return;
 
     plot->setBackgroundColor(m_backgroundColor);
-    plot->setMeshColor(m_meshColor);
-    plot->setMeshLineWidth(m_meshLineWidth);
-    plot->setSmoothMesh(m_smoothMesh);
 
-    plot->setDataColor(new ColorMapColor(plot, m_dataColorPreset));
+    // Mesh color, line width, smooth mesh, data color, plot style, shading
+    // are now item-level properties — they will be set on Qwt3DSurface items
+    // in future versions. For now, only plot-level properties are applied.
 
-    CoordinateSystem* coords = plot->coordinates();
+    Qwt3DCoordinateSystem* coords = plot->coordinates();
     if (coords) {
         coords->setAxesColor(m_axesColor);
         coords->setNumberColor(m_numberColor);
         coords->setLabelColor(m_labelColor);
         coords->setGridLinesColor(m_gridLinesColor);
+        coords->setInteriorGridLinesColor(m_interiorGridLinesColor);
+        coords->setInteriorGridLinesWidth(m_interiorGridMajorWidth, m_interiorGridMinorWidth);
     }
 
     plot->setTitleColor(m_titleColor);
@@ -441,11 +494,66 @@ void Qwt3DTheme::apply(Plot3D* plot) const
         break;
     }
 
-    plot->setShading(m_shading);
-    plot->setPlotStyle(m_plotStyle);
+    // Shading, plot style, shininess, material components are stored on CPU
+    // for future shader uniform upload
     plot->setShininess(m_shininess);
     plot->setMaterialComponent(GL_SPECULAR, m_specularIntensity, m_specularIntensity, m_specularIntensity);
     plot->setMaterialComponent(GL_DIFFUSE, 1.0, 1.0, 1.0);
 
-    plot->updateData();
+    // Apply item-level properties to each attached item
+    for (auto* item : plot->itemList())
+        applyToItem(item);
+
+    plot->update();
+}
+
+/**
+ * @brief Applies item-level visual properties to a single plot item
+ * @param item The target item
+ * @details Dispatches by concrete item type. Qwt3DSurface receives mesh color,
+ *          line width, smooth mesh, data color (from preset), plot style, and
+ *          shading. Qwt3DBar receives mesh color/line width, bar style (mapped
+ *          from the theme's plot style), and the data color functor. Qwt3DLine
+ *          receives the solid color and the data color functor.
+ */
+void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item) const
+{
+    if (auto* surface = dynamic_cast<Qwt3DSurface*>(item)) {
+        surface->setMeshColor(m_meshColor);
+        surface->setMeshLineWidth(m_meshLineWidth);
+        surface->setSmoothMesh(m_smoothMesh);
+        surface->setPlotStyle(m_plotStyle);
+        surface->setShading(m_shading);
+
+        auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+        surface->setDataColor(colorMap);
+        return;
+    }
+
+    if (auto* bar = dynamic_cast<Qwt3DBar*>(item)) {
+        bar->setMeshColor(m_meshColor);
+        bar->setMeshLineWidth(m_meshLineWidth);
+        // Map the theme's PLOTSTYLE onto the closest bar style
+        switch (m_plotStyle) {
+        case WIREFRAME:
+            bar->setBarStyle(Qwt3DBar::Wireframe);
+            break;
+        case FILLED:
+            bar->setBarStyle(Qwt3DBar::Filled);
+            break;
+        default: // FILLEDMESH, HIDDENLINE, etc.
+            bar->setBarStyle(Qwt3DBar::FilledMesh);
+            break;
+        }
+        auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+        bar->setDataColor(colorMap);
+        return;
+    }
+
+    if (auto* line = dynamic_cast<Qwt3DLine*>(item)) {
+        line->setColor(m_meshColor);
+        auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+        line->setDataColor(colorMap);
+        return;
+    }
 }

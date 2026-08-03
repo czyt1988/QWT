@@ -92,16 +92,18 @@
 
 ## 3D绘图模块
 
-所有 3D 类位于 `Qwt3D` 命名空间下。
+所有 3D 类直接使用 `Qwt3D` 前缀定义在全局作用域（无命名空间）。
 
 | 类名 | 功能描述 |
 |------|----------|
-| `Qwt3D::Plot3D` | 3D绘图基类 |
-| `Qwt3D::SurfacePlot` | 3D表面图（支持网格和单元数据） |
-| `Qwt3D::Function` | 3D函数绘图 |
-| `Qwt3D::GraphPlot` | 图形类3D绘图基类 |
-| `Qwt3D::ColorLegend` | 3D颜色条 |
-| `Qwt3D::Qwt3DTheme` | 3D主题系统（v7.3.1+） |
+| `Qwt3DPlot` | 3D渲染窗口（QOpenGLWidget），管理GL上下文、视图、光照、坐标系统和item列表 |
+| `Qwt3DPlotItem` | 3D绘图item抽象基类 |
+| `Qwt3DSurface` | 3D表面图item（支持网格和单元数据） |
+| `Qwt3DFunction` | 3D函数绘图数据生成器 |
+| `Qwt3DParametricSurface` | 参数曲面数据生成器 |
+| `Qwt3DCoordinateSystem` | 3D坐标系统（12轴） |
+| `Qwt3DColorLegend` | 3D颜色条 |
+| `Qwt3DTheme` | 3D主题系统（v7.3.1+） |
 
 ## 关键架构概念
 
@@ -138,7 +140,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::core)
 依赖说明：
 - `qwt::core` 仅依赖 Qt `Core` + `Gui`
 - `qwt::plot` 依赖 Qt `Core` + `Gui` + `Widgets`（public），`Concurrent` + `PrintSupport`（private）；可选 `Svg`、`OpenGL` + `OpenGLWidgets`（由 `QWT_CONFIG_QWTSVG` / `QWT_CONFIG_QWTOPENGL` 控制）
-- `qwt::plot3d` 依赖 Qt `Core` + `Gui` + `Widgets` + `OpenGL::GLU` + Qt OpenGL Widgets
+- `qwt::plot3d` 依赖 Qt `Core` + `Gui` + `Widgets` + `Qt OpenGL` + `Qt OpenGLWidgets`(Qt6)。GLU 仅用于 gl2ps 矢量导出回退。
 - Qt6 额外需要：`OpenGLWidgets`
 
 ### 单文件直接引入

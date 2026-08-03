@@ -37,6 +37,7 @@ set(QWTPLOT_HEADER_BASE
         qwt_pixel_matrix.h
         qwt_round_scale_draw.h
         qwt_scale_draw.h
+        qwt_text_scale_draw.h
         qwt_spline.h
         qwt_spline_basis.h
         qwt_spline_parametrization.h
@@ -88,6 +89,7 @@ set(QWTPLOT_SOURCE_BASE
         qwt_pixel_matrix.cpp
         qwt_round_scale_draw.cpp
         qwt_scale_draw.cpp
+        qwt_text_scale_draw.cpp
         qwt_spline.cpp
         qwt_spline_basis.cpp
         qwt_spline_parametrization.cpp

@@ -1,8 +1,7 @@
 #ifndef QWT3D_AUTOPTR_H
 #define QWT3D_AUTOPTR_H
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief Simple auto pointer providing deep copies for raw pointer
@@ -15,27 +14,27 @@ namespace Qwt3D
  *          argument in order to be able to get ownership and control over destruction.
  */
 template< typename T >
-class ClonePtr
+class Qwt3DClonePtr
 {
 public:
     // Standard ctor
-    explicit ClonePtr(T* ptr = nullptr) : rawptr_(ptr)
+    explicit Qwt3DClonePtr(T* ptr = nullptr) : rawptr_(ptr)
     {
     }
     // Dtor (calls T::destroy)
-    ~ClonePtr()
+    ~Qwt3DClonePtr()
     {
         destroyRawPtr();
     }
 
     // Copy ctor (calls (virtual) clone())
-    ClonePtr(ClonePtr const& val)
+    Qwt3DClonePtr(Qwt3DClonePtr const& val)
     {
         rawptr_ = val.rawptr_->clone();
     }
 
     // Assignment in the same spirit as copy ctor
-    ClonePtr< T >& operator=(ClonePtr const& val)
+    Qwt3DClonePtr< T >& operator=(Qwt3DClonePtr const& val)
     {
         if (this == &val)
             return *this;
@@ -68,6 +67,5 @@ private:
     }
 };
 
-}  // ns
 
 #endif  // QWT3D_AUTOPTR_H
