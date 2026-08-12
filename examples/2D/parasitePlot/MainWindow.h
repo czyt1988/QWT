@@ -8,6 +8,7 @@ class QwtPlotSeriesDataPicker;
 class QwtPlotPanner;
 class QwtPlotCanvasZoomer;
 class QwtPlotMagnifier;
+class QwtPlotAxisWheelInteraction;
 namespace Ui
 {
 class MainWindow;
@@ -32,6 +33,7 @@ private:
     QwtPlotPanner* m_panner { nullptr };
     QwtPlotCanvasZoomer* m_zoomer { nullptr };
     QwtPlotMagnifier* m_magnifier { nullptr };
+    QwtPlotAxisWheelInteraction* m_axisWheel { nullptr };
     QLabel* mStatusBarLabel { nullptr };
 };
 

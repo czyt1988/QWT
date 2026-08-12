@@ -20,6 +20,7 @@
 #include "qwt_plot_panner.h"
 #include "qwt_plot_canvas_zoomer.h"
 #include "qwt_plot_magnifier.h"
+#include "qwt_plot_axis_wheel_interaction.h"
 // 生成示例数据
 QVector< QPointF > generateSampleData(int count = 100, double amplitude = 1.0, double frequency = 1.0)
 {
@@ -202,6 +203,9 @@ QwtPlot* MainWindow::createPlot(QWidget* par)
     //
     m_magnifier = new QwtPlotMagnifier(hostPlot->canvas());
     m_magnifier->setEnabled(false);
+    // Axis wheel interaction: Ctrl+wheel zooms XBottom axis, plain wheel pans horizontally
+    m_axisWheel = new QwtPlotAxisWheelInteraction(hostPlot->canvas());
+    m_axisWheel->setEnabled(false);
     return hostPlot;
 }
 
@@ -260,6 +264,16 @@ void MainWindow::createToolBar()
         this->m_magnifier->setEnabled(on);
         if (on) {
             mStatusBarLabel->setText(tr("Use the mouse wheel to zoom the canvas.."));  // cn:使用鼠标滚轮缩放画布
+        }
+    });
+
+    QAction* actAxisWheel = ui->toolBar->addAction("Axis Wheel");
+    actAxisWheel->setCheckable(true);
+    connect(actAxisWheel, &QAction::triggered, this, [ this ](bool on) {
+        this->m_axisWheel->setEnabled(on);
+        if (on) {
+            mStatusBarLabel->setText(tr("Ctrl+wheel: zoom XBottom axis at cursor; "
+                                        "plain wheel: pan all curves horizontally"));  // cn:Ctrl+滚轮以鼠标为中心缩放X轴，纯滚轮水平平移所有曲线
         }
     });
 }
