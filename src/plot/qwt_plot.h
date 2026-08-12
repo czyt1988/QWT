@@ -438,6 +438,10 @@ public:
     void updateAxisEdgeMargin(QwtAxisId axisId);
     // Update all axis edge margins
     void updateAllAxisEdgeMargin();
+    // Align borderDist across host and all parasite layers for the given axis
+    void alignAxisBorderDist(QwtAxisId axisId);
+    // Align borderDist for all axis positions
+    void alignAllAxisBorderDist();
     // Update items to fit scale division range
     void updateItemsToScaleDiv();
     // Enable/disable scale built-in actions
