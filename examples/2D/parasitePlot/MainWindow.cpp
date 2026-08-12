@@ -203,8 +203,10 @@ QwtPlot* MainWindow::createPlot(QWidget* par)
     //
     m_magnifier = new QwtPlotMagnifier(hostPlot->canvas());
     m_magnifier->setEnabled(false);
-    // Axis wheel interaction: Ctrl+wheel zooms XBottom axis, plain wheel pans horizontally
-    m_axisWheel = new QwtPlotAxisWheelInteraction(hostPlot->canvas());
+    // Axis wheel interaction on the XBottom axis:
+    //   plain wheel  → zoom the axis at cursor position (no need to click-select first)
+    //   Ctrl+wheel   → pan the axis left/right
+    m_axisWheel = new QwtPlotAxisWheelInteraction(hostPlot, QwtAxis::XBottom);
     m_axisWheel->setEnabled(false);
     return hostPlot;
 }
@@ -272,8 +274,9 @@ void MainWindow::createToolBar()
     connect(actAxisWheel, &QAction::triggered, this, [ this ](bool on) {
         this->m_axisWheel->setEnabled(on);
         if (on) {
-            mStatusBarLabel->setText(tr("Ctrl+wheel: zoom XBottom axis at cursor; "
-                                        "plain wheel: pan all curves horizontally"));  // cn:Ctrl+滚轮以鼠标为中心缩放X轴，纯滚轮水平平移所有曲线
+            mStatusBarLabel->setText(tr("Move the mouse over the XBottom axis: "
+                                        "plain wheel = zoom at cursor; "
+                                        "Ctrl+wheel = pan the axis"));  // cn:鼠标移到X轴上: 纯滚轮以鼠标为中心缩放轴, Ctrl+滚轮平移轴
         }
     });
 }
