@@ -164,6 +164,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_axis_zoomer.h
         qwt_plot_canvas_zoomer.h
         qwt_plot_magnifier.h
+        qwt_plot_axis_wheel_interaction.h
         qwt_plot_rescaler.h
         qwt_point_mapper.h
         qwt_vectorfield_symbol.h
@@ -243,6 +244,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_axis_zoomer.cpp
         qwt_plot_canvas_zoomer.cpp
         qwt_plot_magnifier.cpp
+        qwt_plot_axis_wheel_interaction.cpp
         qwt_plot_rescaler.cpp
         qwt_point_mapper.cpp
         qwt_vectorfield_symbol.cpp
