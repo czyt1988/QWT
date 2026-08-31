@@ -14324,7 +14324,13 @@ protected:
 	virtual void widgetMousePressEvent(QMouseEvent*);
 	virtual void widgetMouseReleaseEvent(QMouseEvent*);
 	virtual void widgetMouseMoveEvent(QMouseEvent*);
-	virtual void widgetWheelEvent(QWheelEvent*);
+	/*!
+	   Handle a wheel event for the observed widget.
+	   \return true when the event was consumed ( rescaled ), so the caller
+	           can accept it to stop propagation to parent widgets.
+	           false when the event is not handled and should propagate.
+	 */
+	virtual bool widgetWheelEvent(QWheelEvent*);
 	virtual void widgetKeyPressEvent(QKeyEvent*);
 	virtual void widgetKeyReleaseEvent(QKeyEvent*);
 

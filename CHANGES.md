@@ -18,6 +18,7 @@
 
 ### Bug Fixes
 
+- Fixed wheel events not being consumed after zoom handling — `QwtPlotScaleEventDispatcher::handleWheelEvent` now accepts the wheel event after zooming a selected axis, and `QwtMagnifier::widgetWheelEvent` returns bool (signature change: `void` → `bool`) so its event filter can accept and consume the event; previously the wheel event kept propagating to parent widgets (e.g. a `QScrollArea` viewport scrolled while the axis/canvas zoom was applied)
 - Fixed dangling pointer: recreate `Qwt3DColorMapColor` in `reapplyAll()` because `applyTheme()` replaces and destroys the old functor
 - Stabilized exposed axis label anchor positioning — replaced angle-based heuristic with outward screen vector from coordinate box center to axis midpoint, remaining consistent across viewport aspect ratio changes
 - Fixed anisotropic tic-length model — tic length was a single world-space value clobbered by `init()` on every data change; now per-axis auto mode (scale × that axis's own data range) with persistent manual override via `setTicLength()`, new `setTicLengthScale()`/`setAutoTicLength()` API (default scale 0.015)

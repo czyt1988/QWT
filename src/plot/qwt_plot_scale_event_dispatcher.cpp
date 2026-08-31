@@ -409,6 +409,9 @@ bool QwtPlotScaleEventDispatcher::handleWheelEvent(QwtPlot* bindPlot, QWheelEven
                 d->currentPlot->zoomAxis(d->currentAxisId, 1.0 / d->zoomFactor, p);
             }
             d->currentPlot->replot();
+            // Wheel zoom is handled here; accept the event to stop propagation
+            // to parent widgets (e.g. a QScrollArea viewport would scroll otherwise)
+            e->accept();
             return true;
         }
     }
