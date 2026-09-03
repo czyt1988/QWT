@@ -624,6 +624,15 @@ void QwtPlot::setAxisScaleDraw(QwtAxisId axisId, QwtScaleDraw* scaleDraw)
 {
     if (isAxisValid(axisId)) {
         axisWidget(axisId)->setScaleDraw(scaleDraw);
+
+        /*
+            A fresh scale draw has all components enabled. When the axis
+            draws its ticks inside the canvas, the outside tick component
+            must stay disabled, otherwise ticks are painted twice.
+         */
+        if (axisTickDirection(axisId) == TickInside)
+            scaleDraw->enableComponent(QwtAbstractScaleDraw::Ticks, false);
+
         autoRefresh();
     }
 }
