@@ -30,6 +30,7 @@
 #include "qwt_global.h"
 #include "qwt_axis_id.h"
 #include "qwt_plot_dict.h"
+#include "qwt_scale_widget.h"
 
 #include <qframe.h>
 
@@ -300,6 +301,15 @@ public:
     void setAxisTitle(QwtAxisId, const QwtText&);
     // Get axis title
     QwtText axisTitle(QwtAxisId) const;
+
+    // Set axis title position along the backbone
+    void setAxisTitlePosition(QwtAxisId, QwtScaleWidget::TitlePosition);
+    // Get axis title position along the backbone
+    QwtScaleWidget::TitlePosition axisTitlePosition(QwtAxisId) const;
+    // Set axis title text alignment (horizontal alignment within the title box)
+    void setAxisTitleAlignment(QwtAxisId, Qt::Alignment);
+    // Get axis title text alignment
+    Qt::Alignment axisTitleAlignment(QwtAxisId) const;
 
     // Set axis max minor ticks
     void setAxisMaxMinor(QwtAxisId, int maxMinor);

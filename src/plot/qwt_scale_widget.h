@@ -84,6 +84,31 @@ public:
     Q_DECLARE_FLAGS(LayoutFlags, LayoutFlag)
 
     /**
+     * @brief Position of the axis title along the backbone
+     * @details Controls where the title is placed along the axis backbone.
+     * The title keeps its natural orientation (vertical for Y axes, horizontal
+     * for X axes); only its position along the backbone changes.
+     *
+     * Visual mapping:
+     * @code
+     *   TitleAtStart   Y axis: bottom end   |   X axis: left end
+     *   TitleCentered  Y axis: centered     |   X axis: centered   (default)
+     *   TitleAtEnd     Y axis: top end      |   X axis: right end
+     * @endcode
+     *
+     * @sa setTitlePosition(), titlePosition()
+     */
+    enum TitlePosition
+    {
+        /// Centered along the backbone (default, equivalent to the legacy behavior).
+        TitleCentered = 0,
+        /// At the backbone start end: bottom for vertical axes, left for horizontal axes.
+        TitleAtStart,
+        /// At the backbone end: top for vertical axes, right for horizontal axes.
+        TitleAtEnd
+    };
+
+    /**
      * @brief Built-in actions
      */
     enum BuiltinActions
@@ -136,6 +161,16 @@ public:
     void setTitle(const QwtText& title);
     /// @return the title
     QwtText title() const;
+
+    /// Set the title position along the backbone
+    void setTitlePosition(TitlePosition);
+    /// @return the title position along the backbone
+    TitlePosition titlePosition() const;
+
+    /// Set the title text alignment (horizontal alignment within the title box)
+    void setTitleAlignment(Qt::Alignment);
+    /// @return the title text alignment
+    Qt::Alignment titleAlignment() const;
 
     /// Set a layout flag
     void setLayoutFlag(LayoutFlag, bool on);

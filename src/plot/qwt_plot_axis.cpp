@@ -726,6 +726,58 @@ void QwtPlot::setAxisTitle(QwtAxisId axisId, const QwtText& title)
 }
 
 /**
+ * @brief Set the position of an axis title along the backbone
+ * @param axisId Axis ID
+ * @param position Title position along the backbone
+ * @sa QwtScaleWidget::setTitlePosition(), axisTitlePosition()
+ */
+void QwtPlot::setAxisTitlePosition(QwtAxisId axisId, QwtScaleWidget::TitlePosition position)
+{
+    if (isAxisValid(axisId))
+        axisWidget(axisId)->setTitlePosition(position);
+}
+
+/**
+ * @brief Get the position of an axis title along the backbone
+ * @param axisId Axis ID
+ * @return Title position along the backbone
+ * @sa setAxisTitlePosition()
+ */
+QwtScaleWidget::TitlePosition QwtPlot::axisTitlePosition(QwtAxisId axisId) const
+{
+    if (isAxisValid(axisId))
+        return axisWidget(axisId)->titlePosition();
+
+    return QwtScaleWidget::TitleCentered;
+}
+
+/**
+ * @brief Set the horizontal alignment of an axis title
+ * @param axisId Axis ID
+ * @param alignment Horizontal alignment within the title box
+ * @sa QwtScaleWidget::setTitleAlignment(), axisTitleAlignment()
+ */
+void QwtPlot::setAxisTitleAlignment(QwtAxisId axisId, Qt::Alignment alignment)
+{
+    if (isAxisValid(axisId))
+        axisWidget(axisId)->setTitleAlignment(alignment);
+}
+
+/**
+ * @brief Get the horizontal alignment of an axis title
+ * @param axisId Axis ID
+ * @return Horizontal alignment within the title box
+ * @sa setAxisTitleAlignment()
+ */
+Qt::Alignment QwtPlot::axisTitleAlignment(QwtAxisId axisId) const
+{
+    if (isAxisValid(axisId))
+        return axisWidget(axisId)->titleAlignment();
+
+    return Qt::AlignHCenter;
+}
+
+/**
  * @brief Rebuild the axes scales
  *
  * In case of autoscaling the boundaries of a scale are calculated
