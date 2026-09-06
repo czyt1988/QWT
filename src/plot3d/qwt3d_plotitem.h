@@ -89,6 +89,9 @@ public:
     /// Check if the item is visible
     bool isVisible() const;
 
+    /// Runtime type information
+    virtual int rtti() const;
+
     /// Notify the plot that the item has changed
     virtual void itemChanged();
 

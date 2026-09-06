@@ -1207,3 +1207,12 @@ void Qwt3DSurface::draw()
     // The old enrichment code used legacy GL (glBegin/glEnd) which is
     // forbidden in Core Profile.
 }
+
+/**
+ * @brief 运行时类型信息
+ * @return Rtti_Plot3DSurface (= 1001)
+ */
+int Qwt3DSurface::rtti() const
+{
+    return Rtti_Plot3DSurface;
+}

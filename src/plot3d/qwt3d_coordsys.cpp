@@ -32,6 +32,9 @@ public:
 
     Triple m_first, m_second;
     COORDSTYLE m_style;
+    RGBA m_axesColor;
+    RGBA m_numberColor;
+    RGBA m_labelColor;
     RGBA m_gridlinecolor;
     bool m_smooth;
     bool m_autodecoration;
@@ -406,6 +409,20 @@ void Qwt3DCoordinateSystem::setTicLength(double major, double minor)
         axes[ i ].setTicLength(major, minor);
 }
 
+/**
+ * @brief 返回显式设置的 tic 长度
+ * @param[out] major 主刻度长度
+ * @param[out] minor 次刻度长度
+ * @details 仅返回通过 setTicLength() 设置的值。如果使用自动模式
+ *          (ticLengthScale())，返回的值为上次显式设置或默认值 0。
+ */
+void Qwt3DCoordinateSystem::ticLength(double& major, double& minor) const
+{
+    QWT_DC(d);
+    major = d->m_manualMajorTic;
+    minor = d->m_manualMinorTic;
+}
+
 void Qwt3DCoordinateSystem::setTicLengthScale(double scale)
 {
     QWT_D(d);
@@ -474,10 +491,31 @@ void Qwt3DCoordinateSystem::setAutoScale(bool val)
         axes[ i ].setAutoScale(val);
 }
 
+/**
+ * @brief 返回是否启用自动缩放
+ * @return true 如果自动缩放已启用（委托到第一个轴的 autoScale()）
+ */
+bool Qwt3DCoordinateSystem::autoScale() const
+{
+    return axes[ 0 ].autoScale();
+}
+
 void Qwt3DCoordinateSystem::setAxesColor(RGBA val)
 {
+    QWT_D(d);
+    d->m_axesColor = val;
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setColor(val);
+}
+
+/**
+ * @brief 返回轴线颜色
+ * @return RGBA 颜色值
+ */
+RGBA Qwt3DCoordinateSystem::axesColor() const
+{
+    QWT_DC(d);
+    return d->m_axesColor;
 }
 
 void Qwt3DCoordinateSystem::recalculateAxesTics()
@@ -498,10 +536,32 @@ void Qwt3DCoordinateSystem::setNumberFont(QFont const& font)
         axes[ i ].setNumberFont(font);
 }
 
+/**
+ * @brief 返回数字字体
+ * @return QFont 值（委托到第一个轴的 numberFont()）
+ * @details setNumberFont() 统一设置所有轴的数字字体，因此读取 axes[0] 即可代表当前值。
+ */
+QFont Qwt3DCoordinateSystem::numberFont() const
+{
+    return axes[ 0 ].numberFont();
+}
+
 void Qwt3DCoordinateSystem::setNumberColor(RGBA val)
 {
+    QWT_D(d);
+    d->m_numberColor = val;
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setNumberColor(val);
+}
+
+/**
+ * @brief 返回数字颜色
+ * @return RGBA 颜色值
+ */
+RGBA Qwt3DCoordinateSystem::numberColor() const
+{
+    QWT_DC(d);
+    return d->m_numberColor;
 }
 
 void Qwt3DCoordinateSystem::setStandardScale()
@@ -516,6 +576,15 @@ void Qwt3DCoordinateSystem::setLabelFont(QFont const& font)
         axes[ i ].setLabelFont(font);
 }
 
+/**
+ * @brief 返回标签字体
+ * @return QFont 值（委托到第一个轴的 labelFont()）
+ */
+QFont Qwt3DCoordinateSystem::labelFont() const
+{
+    return axes[ 0 ].labelFont();
+}
+
 void Qwt3DCoordinateSystem::setLabelFont(QString const& family, int pointSize, int weight, bool italic)
 {
     setLabelFont(QFont(family, pointSize, weight, italic));
@@ -523,8 +592,20 @@ void Qwt3DCoordinateSystem::setLabelFont(QString const& family, int pointSize, i
 
 void Qwt3DCoordinateSystem::setLabelColor(RGBA val)
 {
+    QWT_D(d);
+    d->m_labelColor = val;
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setLabelColor(val);
+}
+
+/**
+ * @brief 返回标签颜色
+ * @return RGBA 颜色值
+ */
+RGBA Qwt3DCoordinateSystem::labelColor() const
+{
+    QWT_DC(d);
+    return d->m_labelColor;
 }
 
 void Qwt3DCoordinateSystem::setLineWidth(double val, double majfac, double minfac)
@@ -780,6 +861,16 @@ void Qwt3DCoordinateSystem::setGridLinesColor(RGBA val)
     d->m_gridlinecolor = val;
 }
 
+/**
+ * @brief 返回网格线颜色
+ * @return RGBA 颜色值
+ */
+RGBA Qwt3DCoordinateSystem::gridLinesColor() const
+{
+    QWT_DC(d);
+    return d->m_gridlinecolor;
+}
+
 void Qwt3DCoordinateSystem::setInteriorGridLines(bool majors, bool minors, int directions)
 {
     QWT_D(d);
@@ -798,6 +889,16 @@ void Qwt3DCoordinateSystem::setInteriorGridLinesColor(RGBA val)
 {
     QWT_D(d);
     d->m_interiorGridColor = val;
+}
+
+/**
+ * @brief 返回内部网格线颜色
+ * @return RGBA 颜色值
+ */
+RGBA Qwt3DCoordinateSystem::interiorGridLinesColor() const
+{
+    QWT_DC(d);
+    return d->m_interiorGridColor;
 }
 
 void Qwt3DCoordinateSystem::setInteriorGridLinesWidth(double major, double minor)

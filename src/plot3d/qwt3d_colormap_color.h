@@ -41,6 +41,19 @@ public:
     void reset(unsigned size = 256);
     void setAlpha(double a);
 
+    // Returns the preset name passed to the constructor (empty if constructed from QwtColorMap*)
+    QString presetName() const;
+    // Returns the number of colors in the color vector
+    unsigned colorCount() const;
+    // Returns the alpha value (default 1.0)
+    double alpha() const;
+    // Returns true if a manual interval was set via setInterval()
+    bool useManualInterval() const;
+    // Returns the manual min value (only meaningful when useManualInterval() is true)
+    double manualMin() const;
+    // Returns the manual max value (only meaningful when useManualInterval() is true)
+    double manualMax() const;
+
 private:
     void rebuildColorVector(unsigned size);
 
@@ -50,6 +63,7 @@ private:
     double m_manualMax;
     bool m_useManualInterval;
     double m_alpha;
+    QString m_presetName;
 };
 
 

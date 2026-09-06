@@ -63,8 +63,12 @@ public:
 
     // Sets label content
     void setLabelString(QString const& name);
+    // Returns label content
+    QString labelString() const;
     void setLabelPosition(const Triple& pos, ANCHOR);
     void setLabelColor(RGBA col);
+    // Returns the label color
+    RGBA labelColor() const;
     // Turns label drawing on or off
     void setLabel(bool val);
     // Shifts label in device coordinates dependent on anchor

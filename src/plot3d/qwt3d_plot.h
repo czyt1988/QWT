@@ -96,6 +96,8 @@ public:
 
     // Show/hide color legend
     void showColorLegend(bool);
+    // Returns true if the color legend is shown
+    bool isColorLegendShown() const;
     // Set legend to a predefined screen position
     void setLegendPosition(Qwt3DColorLegend::Position pos);
     // Set legend position using absolute pixel coordinates
@@ -109,6 +111,8 @@ public:
     void setTitleColor(RGBA col);
     // Set caption text (one row only)
     void setTitle(const QString& title);
+    // Returns the caption text
+    QString title() const;
 
     // Set and apply a theme
     void setTheme(const Qwt3DTheme& theme);
@@ -196,8 +200,8 @@ public:
     bool hasItems() const;
 
     // Item list management
-    void attach(Qwt3DPlotItem* item);
-    void detach(Qwt3DPlotItem* item);
+    virtual void attach(Qwt3DPlotItem* item);
+    virtual void detach(Qwt3DPlotItem* item);
     const QList< Qwt3DPlotItem* >& itemList() const;
 
     // Internal: called by Qwt3DPlotItem to request a redraw

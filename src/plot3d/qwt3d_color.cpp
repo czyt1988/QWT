@@ -16,6 +16,8 @@ public:
     }
 
     ColorVector m_colors;
+    QString m_presetName;
+    double m_alpha = 1.0;
 };
 
 /**
@@ -54,6 +56,7 @@ void Qwt3DStandardColor::reset(unsigned size)
 void Qwt3DStandardColor::setColorVector(ColorVector const& cv)
 {
     QWT_D(d);
+    d->m_presetName.clear();
     d->m_colors = cv;
 }
 
@@ -67,6 +70,8 @@ void Qwt3DStandardColor::setAlpha(double a)
     QWT_D(d);
     if (a < 0 || a > 1)
         return;
+
+    d->m_alpha = a;
 
     RGBA elem;
 
@@ -120,6 +125,8 @@ void Qwt3DStandardColor::setPreset(const QString& presetName, unsigned size)
 {
     QWT_D(d);
 
+    d->m_presetName = presetName;
+
     auto colorMap = QwtColorMapPreset::create(presetName);
 
     d->m_colors.resize(size);
@@ -135,4 +142,34 @@ void Qwt3DStandardColor::setPreset(const QString& presetName, unsigned size)
 
         d->m_colors[ i ] = rgba;
     }
+}
+
+/**
+ * @brief 返回当前 preset 名称
+ * @return preset 名称字符串，如果通过 setColorVector() 设置则返回空字符串
+ */
+QString Qwt3DStandardColor::presetName() const
+{
+    QWT_DC(d);
+    return d->m_presetName;
+}
+
+/**
+ * @brief 返回颜色向量中的颜色数量
+ * @return 颜色数量
+ */
+unsigned Qwt3DStandardColor::colorCount() const
+{
+    QWT_DC(d);
+    return static_cast< unsigned >(d->m_colors.size());
+}
+
+/**
+ * @brief 返回上次 setAlpha() 设置的 alpha 值
+ * @return alpha 值（0.0 ~ 1.0），默认 1.0
+ */
+double Qwt3DStandardColor::alpha() const
+{
+    QWT_DC(d);
+    return d->m_alpha;
 }

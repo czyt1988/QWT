@@ -142,21 +142,22 @@ public:
 
     // Qwt3DPlotItem interface
 
+    int rtti() const override;
     void draw() override;
     ParallelEpiped hull() const override;
     void populateLegendColors(ColorVector& colors) const override;
 
-public Q_SLOTS:
-    /// Sets the data resolution (1 = full, higher = coarser)
-    void setResolution(int res);
-
-protected:
+    // Data accessors (public for serialization support)
     /// Returns the grid data pointer (nullptr if cell data)
     Qwt3DGridData* gridData() const;
     /// Returns the cell data pointer (nullptr if grid data)
     Qwt3DCellData* cellData() const;
     /// Returns true if the current data is grid-based
     bool isGridData() const;
+
+public Q_SLOTS:
+    /// Sets the data resolution (1 = full, higher = coarser)
+    void setResolution(int res);
 
 private:
     void buildVBO();

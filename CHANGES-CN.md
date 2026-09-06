@@ -18,6 +18,7 @@
 
 ### Bug 修复
 
+- 修复缩放处理后滚轮事件未被消费的问题 — `QwtPlotScaleEventDispatcher::handleWheelEvent` 在缩放选中的坐标轴后现在会 accept 滚轮事件；`QwtMagnifier::widgetWheelEvent` 返回值改为 bool（签名变更：`void` → `bool`），使事件过滤器能够 accept 并消费事件；此前滚轮事件会继续向父窗口传播（例如 QScrollArea 视口在坐标轴/画布缩放的同时发生滚动）
 - 修复悬空指针：`reapplyAll()` 中重建 `Qwt3DColorMapColor`，因 `applyTheme()` 会替换并销毁旧 functor
 - 稳定暴露轴标签锚点定位 — 用从坐标盒中心到轴中点的外向屏幕向量替代角度启发式，在视口纵横比变化时仍保持一致
 - 修复各向异性 tic 长度模型 — tic 长度原为单一世界空间值，每次数据变化时被 `init()` 覆盖；现为逐轴自动模式（scale × 该轴自身数据范围），手动 `setTicLength()` 为持久覆盖，新增 `setTicLengthScale()`/`setAutoTicLength()` API（默认 scale 0.015）

@@ -192,6 +192,97 @@ Qwt3DColorLegend::Position Qwt3DColorLegend::position() const
     return d->m_position;
 }
 
+/**
+ * @brief 返回绝对像素位置
+ * @return 绝对像素矩形
+ */
+QRectF Qwt3DColorLegend::absolutePosition() const
+{
+    QWT_DC(d);
+    return d->m_absoluteRect;
+}
+
+/**
+ * @brief 返回是否使用绝对定位
+ * @return true 如果使用绝对像素坐标定位
+ */
+bool Qwt3DColorLegend::useAbsolutePosition() const
+{
+    QWT_DC(d);
+    return d->m_useAbsolute;
+}
+
+/**
+ * @brief 返回图例方向
+ * @return ORIENTATION 枚举值
+ */
+Qwt3DColorLegend::ORIENTATION Qwt3DColorLegend::orientation() const
+{
+    QWT_DC(d);
+    return d->m_orientation;
+}
+
+/**
+ * @brief 返回刻度位置
+ * @return SCALEPOSITION 枚举值
+ */
+Qwt3DColorLegend::SCALEPOSITION Qwt3DColorLegend::scalePosition() const
+{
+    QWT_DC(d);
+    return d->m_axisposition;
+}
+
+/**
+ * @brief 返回是否绘制刻度
+ * @return true 如果绘制刻度
+ */
+bool Qwt3DColorLegend::drawScale() const
+{
+    QWT_DC(d);
+    return d->m_showaxis;
+}
+
+/**
+ * @brief 返回刻度范围
+ * @param[out] start 起始值
+ * @param[out] stop 终止值
+ */
+void Qwt3DColorLegend::limits(double& start, double& stop) const
+{
+    QWT_DC(d);
+    d->m_axis.limits(start, stop);
+}
+
+/**
+ * @brief 返回主刻度数
+ * @return 主刻度数
+ */
+int Qwt3DColorLegend::majors() const
+{
+    QWT_DC(d);
+    return d->m_axis.majors();
+}
+
+/**
+ * @brief 返回次刻度数
+ * @return 次刻度数
+ */
+int Qwt3DColorLegend::minors() const
+{
+    QWT_DC(d);
+    return d->m_axis.minors();
+}
+
+/**
+ * @brief 返回图例标题文本
+ * @return 标题字符串
+ */
+QString Qwt3DColorLegend::titleString() const
+{
+    QWT_DC(d);
+    return d->m_caption.string();
+}
+
 void Qwt3DColorLegend::setGeometryInternal(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);

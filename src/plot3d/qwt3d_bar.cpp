@@ -16,6 +16,15 @@
 #include <algorithm>
 #include <vector>
 
+/**
+ * @brief 运行时类型信息
+ * @return Rtti_Plot3DBar (= 1002)
+ */
+int Qwt3DBar::rtti() const
+{
+    return Rtti_Plot3DBar;
+}
+
 // ---------------------------------------------------------------------------
 // Anonymous namespace: bar box geometry helpers
 // ---------------------------------------------------------------------------
@@ -179,6 +188,7 @@ void Qwt3DBar::setSamples(const QVector<QwtPoint3D>& samples)
 {
     QWT_D(d);
     d->m_bars.clear();
+    d->m_isGridData = false;
 
     std::vector<double> xs, ys;
     xs.reserve(samples.size());
@@ -251,6 +261,23 @@ void Qwt3DBar::setSamples(double** z, int columns, int rows,
 
     d->m_hull = computeHull(d->m_bars);
     d->m_vboDirty = true;
+
+    // Record 2D grid metadata for serialization
+    d->m_isGridData = true;
+    d->m_gridColumns = columns;
+    d->m_gridRows = rows;
+    d->m_gridMinX = minX;
+    d->m_gridMaxX = maxX;
+    d->m_gridMinY = minY;
+    d->m_gridMaxY = maxY;
+    d->m_gridZ.resize(static_cast<size_t>(columns));
+    for (int i = 0; i < columns; ++i) {
+        d->m_gridZ[static_cast<size_t>(i)].resize(static_cast<size_t>(rows));
+        for (int j = 0; j < rows; ++j) {
+            d->m_gridZ[static_cast<size_t>(i)][static_cast<size_t>(j)] = z[i][j];
+        }
+    }
+
     itemChanged();
 }
 
@@ -262,6 +289,16 @@ void Qwt3DBar::setSamples(const Qwt3DFunctionData& data)
         return;
     if (data.z.size() < data.columns)
         return;
+
+    // Record 2D grid metadata for serialization before delegating to the pointer-array overload
+    d->m_isGridData = true;
+    d->m_gridColumns = static_cast<int>(data.columns);
+    d->m_gridRows = static_cast<int>(data.rows);
+    d->m_gridMinX = data.minx;
+    d->m_gridMaxX = data.maxx;
+    d->m_gridMinY = data.miny;
+    d->m_gridMaxY = data.maxy;
+    d->m_gridZ = data.z;
 
     // Build a temporary pointer array from the vector-of-vectors
     std::vector<double*> ptrs(data.columns);
@@ -625,3 +662,31 @@ void Qwt3DBar::draw()
     d->m_vao.release();
     d->m_shader.release();
 }
+
+// ---------------------------------------------------------------------------
+// Data accessors for serialization
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Returns 1D bar samples (empty if 2D grid data was loaded)
+ * @details Reconstructs QVector<QwtPoint3D> from internal bar specs.
+ */
+QVector<QwtPoint3D> Qwt3DBar::samples() const
+{
+    QWT_DC(d);
+    QVector<QwtPoint3D> result;
+    result.reserve(static_cast<int>(d->m_bars.size()));
+    for (const auto& bar : d->m_bars) {
+        result.append(QwtPoint3D(bar.center.x, bar.center.y, bar.height));
+    }
+    return result;
+}
+
+bool Qwt3DBar::isGridData() const { QWT_DC(d); return d->m_isGridData; }
+int Qwt3DBar::gridColumns() const { QWT_DC(d); return d->m_gridColumns; }
+int Qwt3DBar::gridRows() const { QWT_DC(d); return d->m_gridRows; }
+double Qwt3DBar::gridMinX() const { QWT_DC(d); return d->m_gridMinX; }
+double Qwt3DBar::gridMaxX() const { QWT_DC(d); return d->m_gridMaxX; }
+double Qwt3DBar::gridMinY() const { QWT_DC(d); return d->m_gridMinY; }
+double Qwt3DBar::gridMaxY() const { QWT_DC(d); return d->m_gridMaxY; }
+std::vector<std::vector<double>> Qwt3DBar::gridZValues() const { QWT_DC(d); return d->m_gridZ; }

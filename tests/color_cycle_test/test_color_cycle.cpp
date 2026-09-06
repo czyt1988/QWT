@@ -4,6 +4,7 @@
 #include "qwt_plot.h"
 #include "qwt_plot_curve.h"
 #include "qwt_plot_barchart.h"
+#include "qwt_plot_intervalcurve.h"
 #include "qwt_plot_grid.h"
 #include "qwt_plot_marker.h"
 #include "qwt_symbol.h"
@@ -14,6 +15,7 @@
 #include <QColor>
 #include <QPen>
 #include <QBrush>
+#include <QSize>
 
 void TestColorCycle::testDefaultPalette()
 {
@@ -139,6 +141,78 @@ void TestColorCycle::testAutoColorBarChart()
 
     // Pen should be a darker shade
     QCOMPARE(bar->pen().color(), cc.color(0).darker(150));
+}
+
+void TestColorCycle::testAutoColorCurveSymbol()
+{
+    QwtPlot plot;
+    plot.show();
+
+    QwtColorCycle cc;
+    plot.setColorCycle(cc);
+
+    // Case A: default symbol assigned AFTER attach.
+    auto* c1 = new QwtPlotCurve("Scatter 1");
+    c1->attach(&plot);
+    auto* sym1 = new QwtSymbol(QwtSymbol::Ellipse);
+    sym1->setSize(QSize(6, 6));
+    c1->setSymbol(sym1);
+
+    // Symbol brush/pen should follow the curve pen color from the cycle.
+    QCOMPARE(c1->pen().color(), cc.color(0));
+    QCOMPARE(c1->symbol()->brush().color(), cc.color(0));
+    QCOMPARE(c1->symbol()->pen().color(), cc.color(0).darker(150));
+
+    // Case B: default symbol assigned BEFORE attach.
+    auto* c2 = new QwtPlotCurve("Scatter 2");
+    auto* sym2 = new QwtSymbol(QwtSymbol::Ellipse);
+    sym2->setSize(QSize(6, 6));
+    c2->setSymbol(sym2);
+    c2->attach(&plot);
+
+    QCOMPARE(c2->pen().color(), cc.color(1));
+    QCOMPARE(c2->symbol()->brush().color(), cc.color(1));
+    QCOMPARE(c2->symbol()->pen().color(), cc.color(1).darker(150));
+}
+
+void TestColorCycle::testAutoColorIntervalCurve()
+{
+    QwtPlot plot;
+    plot.show();
+
+    QwtColorCycle cc;
+    plot.setColorCycle(cc);
+
+    auto* c1 = new QwtPlotIntervalCurve("Interval 1");
+    c1->attach(&plot);
+
+    auto* c2 = new QwtPlotIntervalCurve("Interval 2");
+    c2->attach(&plot);
+
+    QCOMPARE(c1->pen().color(), cc.color(0));
+    QCOMPARE(c2->pen().color(), cc.color(1));
+    // brush is a semi-transparent version of the pen color
+    const QColor exp(cc.color(0).red(), cc.color(0).green(), cc.color(0).blue(), 128);
+    QCOMPARE(c1->brush().color(), exp);
+}
+
+void TestColorCycle::testUserSymbolPreserved()
+{
+    QwtPlot plot;
+    plot.show();
+
+    QwtColorCycle cc;
+    plot.setColorCycle(cc);
+
+    // User explicitly customizes the symbol brush/pen -> must be preserved.
+    auto* c1 = new QwtPlotCurve("Manual Scatter");
+    auto* sym1 = new QwtSymbol(QwtSymbol::Ellipse, QBrush(Qt::red), QPen(Qt::black, 1), QSize(6, 6));
+    c1->setSymbol(sym1);
+    c1->attach(&plot);
+
+    QVERIFY(c1->symbol()->brush().color() != cc.color(0));
+    QCOMPARE(c1->symbol()->brush().color(), QColor(Qt::red));
+    QCOMPARE(c1->symbol()->pen().color(), QColor(Qt::black));
 }
 
 void TestColorCycle::testDetachReattach()

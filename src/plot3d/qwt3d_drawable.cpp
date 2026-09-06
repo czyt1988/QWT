@@ -21,7 +21,7 @@ Qwt3DDrawable::Qwt3DDrawable() : QWT_PIMPL_CONSTRUCT
 }
 
 Qwt3DDrawable::Qwt3DDrawable(Qwt3DDrawable&& other) noexcept
-    : m_data(std::move(other.m_data)), color(other.color)
+    : m_data(std::move(other.m_data)), m_color(other.m_color)
 {
 }
 
@@ -29,7 +29,7 @@ Qwt3DDrawable& Qwt3DDrawable::operator=(Qwt3DDrawable&& other) noexcept
 {
     if (this != &other) {
         m_data = std::move(other.m_data);
-        color = other.color;
+        m_color = other.m_color;
     }
     return *this;
 }
@@ -89,10 +89,23 @@ void Qwt3DDrawable::draw(const Qwt3DRenderContext& ctx)
 
 void Qwt3DDrawable::setColor(double r, double g, double b, double a)
 {
-    color = RGBA(r, g, b, a);
+    m_color = RGBA(r, g, b, a);
 }
 
 void Qwt3DDrawable::setColor(RGBA rgba)
 {
-    color = rgba;
+    m_color = rgba;
+}
+
+/**
+ * @brief 返回 drawable 的颜色
+ * @return RGBA 颜色值
+ * @details 返回 protected 成员 m_color。添加此公有 getter 是为了让兄弟类
+ *          （如 Qwt3DAxis 访问 Qwt3DLabel 的 color）能跨对象读取颜色值，
+ *          而无需直接访问 protected 成员。C++ 规则下，派生类只能通过 this
+ *          访问自身基类的 protected 成员，不能通过另一个兄弟类对象访问。
+ */
+RGBA Qwt3DDrawable::color() const
+{
+    return m_color;
 }

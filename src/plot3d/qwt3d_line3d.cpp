@@ -479,6 +479,16 @@ void Qwt3DLine::setColor(RGBA color)
     itemChanged();
 }
 
+/**
+ * @brief 返回实心线颜色
+ * @return RGBA 颜色值
+ */
+RGBA Qwt3DLine::color() const
+{
+    QWT_DC(d);
+    return d->m_solidColor;
+}
+
 void Qwt3DLine::setDataColor(Qwt3DColor* color)
 {
     QWT_D(d);
@@ -950,4 +960,13 @@ void Qwt3DLine::draw()
     // Optional point-marker overlay on top of the Lines/Tube styles
     if (d->m_pointVisible && d->m_style != Dots)
         drawMarkers();
+}
+
+/**
+ * @brief 运行时类型信息
+ * @return Rtti_Plot3DLine (= 1003)
+ */
+int Qwt3DLine::rtti() const
+{
+    return Rtti_Plot3DLine;
 }

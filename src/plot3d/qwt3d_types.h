@@ -566,5 +566,31 @@ struct QWT3D_EXPORT Qwt3DParametricData
     bool vperiodic = false;
 };
 
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+    /// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+    Rtti_Plot3DItem = 0,
+
+    /// For Qwt3DSurface
+    Rtti_Plot3DSurface = 1001,
+
+    /// For Qwt3DBar
+    Rtti_Plot3DBar = 1002,
+
+    /// For Qwt3DLine
+    Rtti_Plot3DLine = 1003
+};
+
 
 #endif

@@ -66,6 +66,24 @@ public:
     void setAbsolutePosition(const QRectF& pixelRect);
     // Returns the current position mode
     Position position() const;
+    // Returns the absolute pixel rect (only meaningful when useAbsolutePosition() is true)
+    QRectF absolutePosition() const;
+    // Returns true if absolute positioning is active
+    bool useAbsolutePosition() const;
+    // Returns the legend orientation
+    ORIENTATION orientation() const;
+    // Returns the scale position
+    SCALEPOSITION scalePosition() const;
+    // Returns whether the scale is drawn
+    bool drawScale() const;
+    // Returns the scale limits
+    void limits(double& start, double& stop) const;
+    // Returns the number of major tics
+    int majors() const;
+    // Returns the number of minor tics
+    int minors() const;
+    // Returns the legend caption string
+    QString titleString() const;
     // Sets legend orientation and scale position
     void setOrientation(ORIENTATION, SCALEPOSITION);
     // Sets the limit of the scale

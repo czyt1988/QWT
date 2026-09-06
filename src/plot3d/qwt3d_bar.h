@@ -6,6 +6,7 @@
 #include "qwt3d_color.h"
 
 #include <QVector>
+#include <vector>
 
 #include "qwt_point_3d.h"
 
@@ -114,9 +115,30 @@ public:
 
     // Qwt3DPlotItem interface
 
+    int rtti() const override;
     void draw() override;
     ParallelEpiped hull() const override;
     void populateLegendColors(ColorVector& colors) const override;
+
+    // Data accessors for serialization support
+    /// Returns 1D bar samples (empty if 2D grid data was loaded)
+    QVector<QwtPoint3D> samples() const;
+    /// Returns true if 2D grid data was loaded
+    bool isGridData() const;
+    /// Returns grid columns (valid only if isGridData())
+    int gridColumns() const;
+    /// Returns grid rows (valid only if isGridData())
+    int gridRows() const;
+    /// Returns grid x minimum (valid only if isGridData())
+    double gridMinX() const;
+    /// Returns grid x maximum (valid only if isGridData())
+    double gridMaxX() const;
+    /// Returns grid y minimum (valid only if isGridData())
+    double gridMinY() const;
+    /// Returns grid y maximum (valid only if isGridData())
+    double gridMaxY() const;
+    /// Returns the raw z matrix (valid only if isGridData(), empty otherwise)
+    std::vector<std::vector<double>> gridZValues() const;
 
 private:
     void buildVBO();
