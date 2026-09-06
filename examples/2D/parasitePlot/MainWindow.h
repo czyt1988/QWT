@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include "qwt_plot.h"
 class QLabel;
+class QActionGroup;
 class QwtPlotSeriesDataPicker;
 class QwtPlotPanner;
 class QwtPlotCanvasZoomer;
@@ -35,6 +36,13 @@ private:
     QwtPlotMagnifier* m_magnifier { nullptr };
     QwtPlotAxisWheelInteraction* m_axisWheel { nullptr };
     QLabel* mStatusBarLabel { nullptr };
+
+    // Title position / alignment verification controls
+    QActionGroup* m_titleAxisGroup { nullptr };   ///< target axis selector
+    QActionGroup* m_titlePosGroup { nullptr };    ///< title position selector
+    QActionGroup* m_titleAlignGroup { nullptr };  ///< title alignment selector
+
+    void applyTitleSettings();
 };
 
 #endif  // MAINWINDOW_H
