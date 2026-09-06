@@ -1,3 +1,19 @@
+## Unreleased
+
+### 新功能
+
+- **外置坐标轴标题（QwtScaleWidget::TitleOutside）**
+    - `QwtScaleWidget` 新增 `TitlePlacement` 枚举（`TitleInside`/`TitleOutside`）与 `setTitlePlacement()`/`titlePlacement()`；`QwtPlot` 提供便捷方法 `setAxisTitlePlacement()`/`axisTitlePlacement()`
+    - `TitleOutside` 模式下标题不再画在 scale widget 内部、也不再计入轴维度；布局在 scale widget 相邻处预留字幕条（YLeft/YRight/XBottom 为正下方、XTop 为正上方），标题以水平文字画在字幕条内，并随布局动态跟随 scale widget
+    - `QwtPlotLayout` 新增 `scaleCaptionRect()` 公开字幕条几何；多轴（parasite）场景由宿主布局聚合所有层的字幕高度需求，各层字幕在底带内按列以相邻字幕列中心为界分区，互不重叠
+    - `QwtPlotRenderer` 新增 `renderScaleCaption()`，PNG/SVG/PDF 导出包含外置标题
+    - 新增示例 `examples/2D/outsideTitle`：单 plot 与宿主+双 parasite 多轴演示，工具栏可运行时切换标题位置并导出验证；`--export <dir>` 参数可无头输出自检图与导出文件
+
+### Bug 修复
+
+- 修复 parasite 布局可能复制到过期宿主矩形的问题：宿主 `doLayout()` 在自身布局完成后刷新各 parasite 的布局，保证 parasite 复制的矩形（及其派生的字幕条）基于本轮宿主的最终布局
+- parasite plot 收到 `LayoutRequest` 时同步刷新宿主布局，使 parasite 轴标题/尺寸变化及时进入宿主的带区预留聚合
+
 ## tag:v7.3.6 (2026-07-31)
 
 ### 新功能

@@ -128,6 +128,14 @@ public:
     QRectF footerRect() const;
     QRectF legendRect() const;
     QRectF scaleRect(QwtAxisId) const;
+
+    // Geometry of the caption strip for an outside axis title
+    // (QwtScaleWidget::TitleOutside). The strip is adjacent to the scale rect:
+    // below it for YLeft/YRight/XBottom, above it for XTop. Empty if the axis
+    // has no outside title. Caption strips of all parasite layers are placed
+    // within the bands reserved by the host plot layout.
+    QRectF scaleCaptionRect(QwtAxisId) const;
+
     QRectF canvasRect() const;
 
 protected:
@@ -135,6 +143,16 @@ protected:
     void setFooterRect(const QRectF&);
     void setLegendRect(const QRectF&);
     void setScaleRect(QwtAxisId, const QRectF&);
+
+    // Set the geometry of the caption strip for an outside axis title
+    void setScaleCaptionRect(QwtAxisId, const QRectF&);
+
+    // Recompute all caption rects from the current scale rects and the
+    // title state of the scale widgets. Called at the end of doActivate().
+    // Derived layouts that replace scale rects after doActivate() (like
+    // QwtParasitePlotLayout copying the host rects) must call it again.
+    void updateScaleCaptionRects(const QwtPlot* plot);
+
     void setCanvasRect(const QRectF&);
     QwtPlotLayoutEngine* layoutEngine();
     void doActivate(const QwtPlot* plot, const QRectF& plotRect, Options options = Options());

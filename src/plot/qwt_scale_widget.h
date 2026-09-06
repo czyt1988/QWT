@@ -109,6 +109,36 @@ public:
     };
 
     /**
+     * @brief Placement of the axis title relative to the scale widget
+     * @details Controls whether the title is painted inside the scale widget
+     * (the legacy behavior, rotated for vertical axes) or outside of it as a
+     * horizontal caption. In outside mode the title is no longer part of the
+     * widget paint area: QwtPlot reserves a caption strip adjacent to the
+     * scale widget and paints the title there (see QwtPlotLayout::scaleCaptionRect()).
+     *
+     * The caption strip is located:
+     * @code
+     *   YLeft / YRight   below the scale widget (bottom band of the plot)
+     *   XBottom          below the scale widget
+     *   XTop             above the scale widget
+     * @endcode
+     *
+     * In outside mode the title does not contribute to the axis dimension
+     * (dimForLength()); instead its height is reserved in the adjacent
+     * horizontal band. TitlePosition is ignored, titleAlignment() applies
+     * as horizontal alignment within the caption rect.
+     *
+     * @sa setTitlePlacement(), titlePlacement(), TitlePosition
+     */
+    enum TitlePlacement
+    {
+        /// Title painted inside the scale widget (default, legacy behavior).
+        TitleInside = 0,
+        /// Title painted outside the scale widget as a horizontal caption.
+        TitleOutside
+    };
+
+    /**
      * @brief Built-in actions
      */
     enum BuiltinActions
@@ -166,6 +196,11 @@ public:
     void setTitlePosition(TitlePosition);
     /// @return the title position along the backbone
     TitlePosition titlePosition() const;
+
+    /// Set the title placement (inside the widget or outside as caption)
+    void setTitlePlacement(TitlePlacement);
+    /// @return the title placement
+    TitlePlacement titlePlacement() const;
 
     /// Set the title text alignment (horizontal alignment within the title box)
     void setTitleAlignment(Qt::Alignment);

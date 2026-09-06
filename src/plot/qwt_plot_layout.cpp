@@ -32,6 +32,7 @@
 #include "qwt_math.h"
 #include "qwt_plot_layout_engine.h"
 #include <qmargins.h>
+#include <algorithm>
 
 namespace
 {
@@ -41,6 +42,16 @@ public:
     LayoutHintData(const QwtPlot* plot);
 
     int alignedSize(const QwtAxisId) const;
+
+    inline int axesWidth(int axisPos) const
+    {
+        return m_scaleData[ axisPos ].w;
+    }
+
+    inline int axesHeight(int axisPos) const
+    {
+        return m_scaleData[ axisPos ].h;
+    }
 
     inline int yAxesWidth() const
     {
@@ -89,16 +100,6 @@ private:
     ScaleData& axisData(QwtAxisId axisId)
     {
         return m_scaleData[ axisId ];
-    }
-
-    inline int axesWidth(int axisPos) const
-    {
-        return m_scaleData[ axisPos ].w;
-    }
-
-    inline int axesHeight(int axisPos) const
-    {
-        return m_scaleData[ axisPos ].h;
     }
 
     int m_canvasBorder[ QwtAxis::AxisPositions ];
@@ -210,6 +211,7 @@ public:
     QRectF footerRect;
     QRectF legendRect;
     QRectF scaleRects[ QwtAxis::AxisPositions ];
+    QRectF scaleCaptionRects[ QwtAxis::AxisPositions ];
     QRectF canvasRect;
 
     // Captured canvas edge offsets (relative to the post-title/footer rect)
@@ -673,6 +675,165 @@ QRectF QwtPlotLayout::scaleRect(QwtAxisId axisId) const
 }
 
 /*!
+   @brief Set the geometry of the caption strip for an outside axis title
+
+   This method is intended to be used from derived layouts
+   overloading activate()
+
+   @param axisId Axis
+   @param rect Rectangle for the caption strip
+
+   @sa scaleCaptionRect(), updateScaleCaptionRects(), activate()
+ */
+void QwtPlotLayout::setScaleCaptionRect(QwtAxisId axisId, const QRectF& rect)
+{
+    QWT_D(d);
+    if (QwtAxis::isValid(axisId))
+        d->scaleCaptionRects[ axisId ] = rect;
+}
+
+/**
+ * @brief Get the geometry of the caption strip for an outside axis title
+ * @details The caption strip is reserved for axes whose scale widget has
+ *          QwtScaleWidget::TitleOutside placement: below the scale rect for
+ *          YLeft/YRight/XBottom, above it for XTop. Captions of Y axes are
+ *          confined to the own column of their layer (the band minus the
+ *          margin/edgeMargin offsets used by the parasite plot system).
+ * @param axisId Axis identifier
+ * @return The caption rectangle, empty if the axis has no outside title
+ * @sa updateScaleCaptionRects(), QwtScaleWidget::setTitlePlacement()
+ */
+QRectF QwtPlotLayout::scaleCaptionRect(QwtAxisId axisId) const
+{
+    QWT_DC(d);
+    if (QwtAxis::isValid(axisId))
+        return d->scaleCaptionRects[ axisId ];
+
+    return QRectF();
+}
+
+/**
+ * @brief Recompute all caption rects from the current scale rects
+ * @details For every visible axis whose scale widget has QwtScaleWidget::TitleOutside
+ *          placement and a non-empty title, the caption strip adjacent to the scale
+ *          rect is computed. Called at the end of doActivate(); derived layouts that
+ *          replace the scale rects afterwards (like QwtParasitePlotLayout copying the
+ *          rects from the host) have to call it again.
+ *
+ *          Captions of Y axes are painted below the scale widgets. All layers of a
+ *          multi axis plot (host + parasites) share the bottom band, so the band is
+ *          split between the captions of the visible layers: every caption gets the
+ *          region between the mid points of the neighboring caption columns (the
+ *          outermost captions extend to the plot border). This keeps the captions
+ *          overlap free while giving them more width than the own column.
+ * @param plot The plot owning the scale widgets
+ * @sa scaleCaptionRect(), setScaleCaptionRect()
+ */
+void QwtPlotLayout::updateScaleCaptionRects(const QwtPlot* plot)
+{
+    QWT_D(d);
+
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+        d->scaleCaptionRects[ axisPos ] = QRectF();
+
+        const QwtAxisId axisId(axisPos);
+        if (!plot->isAxisVisible(axisId))
+            continue;
+
+        const QRectF& scaleRect = d->scaleRects[ axisPos ];
+        if (!scaleRect.isValid())
+            continue;
+
+        const QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
+        if (!scaleWidget || scaleWidget->titlePlacement() != QwtScaleWidget::TitleOutside
+            || scaleWidget->title().isEmpty()) {
+            continue;
+        }
+
+        const int spacing = int(d->engine.spacing());
+
+        switch (axisPos) {
+        case QwtAxis::XBottom: {
+            const int capH = scaleWidget->titleHeightForWidth(qwtFloor(scaleRect.width()));
+            d->scaleCaptionRects[ axisPos ] = QRectF(scaleRect.left(), scaleRect.bottom() + spacing, scaleRect.width(), capH);
+            break;
+        }
+        case QwtAxis::XTop: {
+            const int capH = scaleWidget->titleHeightForWidth(qwtFloor(scaleRect.width()));
+            d->scaleCaptionRects[ axisPos ] = QRectF(scaleRect.left(), scaleRect.top() - spacing - capH, scaleRect.width(), capH);
+            break;
+        }
+        case QwtAxis::YLeft:
+        case QwtAxis::YRight: {
+            // Columns of all layers sharing this band (host + parasites), the
+            // layer offsets (margin/edgeMargin) define the column of each layer
+            struct Layer
+            {
+                qreal colX;
+                qreal colW;
+                bool isOwn;
+            };
+
+            QList< Layer > layers;
+            const QwtPlot* host = plot->isHostPlot() ? plot : plot->hostPlot();
+
+            const auto addLayer = [ &layers, &scaleRect, axisPos, plot ](const QwtPlot* p) {
+                if (!p || !p->isAxisVisible(axisPos))
+                    return;
+                const QwtScaleWidget* sw = p->axisWidget(axisPos);
+                if (!sw || sw->titlePlacement() != QwtScaleWidget::TitleOutside || sw->title().isEmpty())
+                    return;
+                const qreal colX = scaleRect.left() + ((axisPos == QwtAxis::YLeft) ? sw->edgeMargin() : sw->margin());
+                const qreal colW = qMax(qreal(0.0), scaleRect.width() - sw->margin() - sw->edgeMargin());
+                layers.append({ colX, colW, (p == plot) });
+            };
+
+            addLayer(host);
+            if (host) {
+                const QList< QwtPlot* > parasites = host->parasitePlots();
+                for (const QwtPlot* p : parasites)
+                    addLayer(p);
+            }
+
+            std::sort(layers.begin(), layers.end(), [](const Layer& a, const Layer& b) { return a.colX < b.colX; });
+
+            // Region of the own layer: between the mid points of the neighboring
+            // caption columns; the outermost regions end at the border of the
+            // axis band (the columns of all layers tile the band)
+            int idx = -1;
+            for (int i = 0; i < layers.size(); i++) {
+                if (layers[ i ].isOwn) {
+                    idx = i;
+                    break;
+                }
+            }
+            if (idx < 0)
+                break;
+
+            const qreal center = layers[ idx ].colX + layers[ idx ].colW / 2.0;
+            qreal left         = scaleRect.left();
+            qreal right        = scaleRect.right();
+            if (idx > 0) {
+                const qreal prevCenter = layers[ idx - 1 ].colX + layers[ idx - 1 ].colW / 2.0;
+                left                   = (prevCenter + center) / 2.0;
+            }
+            if (idx < layers.size() - 1) {
+                const qreal nextCenter = layers[ idx + 1 ].colX + layers[ idx + 1 ].colW / 2.0;
+                right                  = (center + nextCenter) / 2.0;
+            }
+
+            const qreal w    = qMax(qreal(1.0), right - left);
+            const int capH   = scaleWidget->titleHeightForWidth(qwtFloor(w));
+            d->scaleCaptionRects[ axisPos ] = QRectF(left, scaleRect.bottom() + spacing, w, capH);
+            break;
+        }
+        default:
+            break;
+        }
+    }
+}
+
+/*!
    @brief Set the geometry for the canvas
 
    This method is intended to be used from derived layouts
@@ -714,8 +875,10 @@ void QwtPlotLayout::invalidate()
     QWT_D(d);
     d->titleRect = d->footerRect = d->legendRect = d->canvasRect = QRectF();
 
-    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++)
-        d->scaleRects[ axisPos ] = QRect();
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+        d->scaleRects[ axisPos ]        = QRect();
+        d->scaleCaptionRects[ axisPos ] = QRect();
+    }
 }
 
 /**
@@ -744,6 +907,57 @@ QSize QwtPlotLayout::minimumSizeHint(const QwtPlot* plot) const
     int h  = hintData.xAxesHeight();
     int ch = yAxesHeight + m.top() + 1 + m.bottom() + 1;
     h += qMax(ch, minCanvasSize.height());
+
+    // Account for the caption strips of outside axis titles
+    // (QwtScaleWidget::TitleOutside). Captions of X axes extend their own
+    // band, captions of Y axes share the bottom band. Parasite plots paint
+    // into the same bands, so their demands are aggregated as well.
+    {
+        int xCapBottom = 0;  // spacing + caption height demanded below XBottom
+        int xCapTop    = 0;  // spacing + caption height demanded above XTop
+        int yCapBottom = 0;  // spacing + caption height demanded by Y axes
+
+        const auto addCaptionDemands = [ & ](const QwtPlot* p) {
+            for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+                const QwtAxisId axisId(axisPos);
+                if (!p->isAxisVisible(axisId))
+                    continue;
+
+                const QwtScaleWidget* sw = p->axisWidget(axisId);
+                if (!sw || sw->titlePlacement() != QwtScaleWidget::TitleOutside || sw->title().isEmpty())
+                    continue;
+
+                // Conservative reservation: heightForWidth of the own column width
+                int w = QWIDGETSIZE_MAX;
+                if (QwtAxis::isYAxis(axisPos)) {
+                    w = sw->dimForLength(QWIDGETSIZE_MAX, sw->font()) - sw->margin() - sw->edgeMargin();
+                    w = qMax(w, 1);
+                }
+
+                const int capH = sw->titleHeightForWidth(w) + spacing();
+                if (axisPos == QwtAxis::XTop)
+                    xCapTop = qMax(xCapTop, capH);
+                else if (axisPos == QwtAxis::XBottom)
+                    xCapBottom = qMax(xCapBottom, capH);
+                else
+                    yCapBottom = qMax(yCapBottom, capH);
+            }
+        };
+
+        addCaptionDemands(plot);
+        if (plot->isHostPlot()) {
+            const QList< QwtPlot* > parasites = plot->parasitePlots();
+            for (const QwtPlot* p : parasites) {
+                if (p)
+                    addCaptionDemands(p);
+            }
+        }
+
+        // the bottom band must fit the XBottom scale plus its caption, and at
+        // least the Y captions (painted below the protruding Y scale rects)
+        const int extraBottom = qMax(xCapBottom, yCapBottom - hintData.axesHeight(QwtAxis::XBottom));
+        h += qMax(0, extraBottom) + xCapTop;
+    }
 
     const QwtTextLabel* labels[ 2 ];
     labels[ 0 ] = plot->titleLabel();
@@ -1000,6 +1214,11 @@ void QwtPlotLayout::doActivate(const QwtPlot* plot, const QRectF& plotRect, Opti
     // left/right of the min/max ticks are moved into them.
 
     d->engine.alignScales(options, layoutData, d->canvasRect, d->scaleRects);
+
+    // caption strips for outside axis titles are derived from the final
+    // (aligned) scale rects
+
+    updateScaleCaptionRects(plot);
 
     if (!d->legendRect.isEmpty()) {
         // We prefer to align the legend to the canvas - not to

@@ -37,7 +37,17 @@ public:
         void setDimAxis(QwtAxisId axisId, int dim);
 
         // Get the dimension for an axis position (YLeft, YRight, XTop, XBottom)
+        // Includes the extra caption band reserved for outside axis titles
         int dimAxes(int axisPos) const;
+
+        // Get the extra caption band pixels reserved beyond the scale dimension
+        // of an axis position for outside axis titles (QwtScaleWidget::TitleOutside).
+        // The extra of the XBottom band also covers captions of the Y axes,
+        // which are painted below their scale widgets.
+        int captionExtra(int axisPos) const;
+
+        // Set the extra caption band pixels for an axis position
+        void setCaptionExtra(int axisPos, int extra);
 
         // Get the total width of left and right Y axes
         int dimYAxes() const;
@@ -56,6 +66,7 @@ public:
 
     private:
         int m_dimAxes[ QwtAxis::AxisPositions ];
+        int m_captionExtra[ QwtAxis::AxisPositions ];
     };
 
     /**
@@ -161,6 +172,13 @@ public:
         LegendData legendData;
         LabelData labelData[ NumLabels ];
         CanvasData canvasData;
+
+        // Outside title caption heights (QwtScaleWidget::TitleOutside) demanded by
+        // the parasite plots sharing the bands of this plot, per axis position.
+        // 0 means no caption demand. For a host plot these demands are aggregated
+        // from all parasite plots in the constructor; parasite captions are painted
+        // into the same band as the host captions.
+        int parasiteCaptionHeight[ QwtAxis::AxisPositions ];
 
     private:
         ScaleData m_scaleData[ QwtAxis::AxisPositions ];

@@ -1,3 +1,19 @@
+## Unreleased
+
+### New Features
+
+- **Outside axis titles (QwtScaleWidget::TitleOutside)**
+    - `QwtScaleWidget` gains the `TitlePlacement` enum (`TitleInside`/`TitleOutside`) with `setTitlePlacement()`/`titlePlacement()`; `QwtPlot` offers the convenience methods `setAxisTitlePlacement()`/`axisTitlePlacement()`
+    - In `TitleOutside` mode the title is no longer painted inside the scale widget and no longer contributes to the axis dimension; the layout reserves a caption strip adjacent to the scale widget (below it for YLeft/YRight/XBottom, above it for XTop) and paints the title there as horizontal text, following the scale widget through every relayout
+    - `QwtPlotLayout` exposes the caption geometry via `scaleCaptionRect()`; for multi axis (parasite) plots the host layout aggregates the caption height demands of all layers and splits the bottom band between the layer captions at the mid points of neighboring caption columns, keeping them overlap free
+    - `QwtPlotRenderer` gains `renderScaleCaption()`, so PNG/SVG/PDF exports include outside titles
+    - New example `examples/2D/outsideTitle`: single plot plus host + two parasite multi axis demo with runtime placement toggles and export buttons; the `--export <dir>` argument writes self-test grabs and renderer exports headlessly
+
+### Bug Fixes
+
+- Fixed parasite layouts copying stale host rects: the host `doLayout()` now refreshes each parasite layout after its own layout completes, so the parasite copy (and everything derived from it, like caption rects) is based on the final host rects of the current pass
+- A `LayoutRequest` received by a parasite plot now also refreshes the host layout, so parasite axis title/dimension changes enter the host band reservation aggregation promptly
+
 ## tag:v7.3.6 (2026-07-31)
 
 ### New Features

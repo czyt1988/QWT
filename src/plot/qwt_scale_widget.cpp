@@ -70,6 +70,7 @@ public:
 
     QwtScaleWidget::LayoutFlags layoutFlags;
     QwtScaleWidget::TitlePosition titlePosition { QwtScaleWidget::TitleCentered };
+    QwtScaleWidget::TitlePlacement titlePlacement { QwtScaleWidget::TitleInside };
 
     // Interaction-related members added for built-in actions
     bool isSelected { false };
@@ -392,6 +393,36 @@ QwtScaleWidget::TitlePosition QwtScaleWidget::titlePosition() const
 }
 
 /**
+ * @brief Set the placement of the title relative to the scale widget
+ * @details With @ref TitleInside (default) the title is painted inside the
+ *          widget and contributes to the axis dimension. With @ref TitleOutside
+ *          the widget does not paint the title at all: QwtPlot reserves a
+ *          caption strip adjacent to the scale widget and paints the title
+ *          there as horizontal text (below the widget for YLeft/YRight/XBottom,
+ *          above it for XTop). Changing the placement triggers a relayout of
+ *          the plot.
+ * @param placement New title placement
+ * @sa titlePlacement(), TitlePlacement
+ */
+void QwtScaleWidget::setTitlePlacement(TitlePlacement placement)
+{
+    if (placement != m_data->titlePlacement) {
+        m_data->titlePlacement = placement;
+        layoutScale();
+    }
+}
+
+/**
+ * @brief Get the placement of the title relative to the scale widget
+ * @return Title placement
+ * @sa setTitlePlacement()
+ */
+QwtScaleWidget::TitlePlacement QwtScaleWidget::titlePlacement() const
+{
+    return m_data->titlePlacement;
+}
+
+/**
  * @brief Set the horizontal alignment of the title text
  * @details The alignment flags control how the title is laid out within its
  *          drawing rectangle (the vertical direction is always pinned to the
@@ -550,7 +581,7 @@ void QwtScaleWidget::draw(QPainter* painter) const
         r.setHeight(r.height() - m_data->borderDist[ 1 ]);
     }
 
-    if (!m_data->title.isEmpty())
+    if (!m_data->title.isEmpty() && m_data->titlePlacement == TitleInside)
         drawTitle(painter, m_data->scaleDraw->alignment(), r);
 }
 
@@ -1120,7 +1151,7 @@ int QwtScaleWidget::dimForLength(int length, const QFont& scaleFont) const
 
     int dim = m_data->margin + extent + 1 + m_data->edgeMargin;
 
-    if (!m_data->title.isEmpty())
+    if (!m_data->title.isEmpty() && m_data->titlePlacement == TitleInside)
         dim += titleHeightForWidth(length) + m_data->spacing;
 
     if (m_data->colorBar.isEnabled && m_data->colorBar.interval.isValid())

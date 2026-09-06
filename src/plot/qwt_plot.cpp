@@ -124,6 +124,9 @@ public:
     PrivateData(QwtPlot* p);
     QPointer< QwtTextLabel > titleLabel;
     QPointer< QwtTextLabel > footerLabel;
+    // Labels painting the outside axis titles (QwtScaleWidget::TitleOutside),
+    // lazily created on demand, positioned into QwtPlotLayout::scaleCaptionRect()
+    QPointer< QwtTextLabel > axisTitleLabels[ QwtAxis::AxisPositions ];
     QPointer< QWidget > canvas;
     QPointer< QwtAbstractLegend > legend;
     QwtPlotLayout* layout;
@@ -325,6 +328,13 @@ bool QwtPlot::event(QEvent* event)
     switch (event->type()) {
     case QEvent::LayoutRequest:
         updateLayout();
+        // A layout request of a parasite plot may change the scale/caption
+        // demands that the host layout aggregates for the shared bands -
+        // refresh the host layout as well
+        if (isParasitePlot()) {
+            if (QwtPlot* host = hostPlot())
+                host->updateLayout();
+        }
         break;
     case QEvent::PolishRequest:
         replot();
@@ -798,6 +808,43 @@ void QwtPlot::doLayout()
         }
     }
 
+    // Outside axis titles (QwtScaleWidget::TitleOutside) are painted by
+    // dedicated labels positioned into the caption strips reserved by the
+    // layout. The scale widgets don't paint them in this mode.
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+        const QwtAxisId axisId(axisPos);
+
+        QwtScaleWidget* scaleWidget  = axisWidget(axisId);
+        const QRectF captionRect     = layout->scaleCaptionRect(axisId);
+        const bool hasCaption        = isAxisVisible(axisId) && scaleWidget
+            && scaleWidget->titlePlacement() == QwtScaleWidget::TitleOutside
+            && !scaleWidget->title().isEmpty() && captionRect.isValid();
+
+        QPointer< QwtTextLabel >& label = m_data->axisTitleLabels[ axisPos ];
+
+        if (hasCaption) {
+            if (!label) {
+                label = new QwtTextLabel(this);
+                label->setObjectName(QStringLiteral("QwtPlotAxisTitle%1").arg(axisPos));
+            }
+
+            QwtText title = scaleWidget->title();
+            int flags     = title.renderFlags() & ~(Qt::AlignTop | Qt::AlignBottom);
+            flags |= Qt::AlignVCenter;
+            title.setRenderFlags(flags);
+
+            label->setText(title);
+            label->setFont(scaleWidget->font());
+            label->setPalette(scaleWidget->palette());
+            label->setGeometry(captionRect.toRect());
+
+            if (!label->isVisibleTo(this))
+                label->show();
+        } else if (label) {
+            label->hide();
+        }
+    }
+
     if (m_data->legend) {
         if (m_data->legend->isEmpty()) {
             m_data->legend->hide();
@@ -815,6 +862,11 @@ void QwtPlot::doLayout()
         // Set dimensions first, then adjust the rest
         for (QwtPlot* p : allparasites) {
             p->setGeometry(QRect(0, 0, width(), height()));
+            // The parasite layout copies the host rects during activate(). Refresh
+            // it here so the copy - and everything derived from it, like the
+            // caption rects of outside axis titles - sees the final host layout
+            // of this pass instead of a stale one from an earlier event.
+            p->updateLayout();
         }
     }
 }

@@ -306,6 +306,10 @@ public:
     void setAxisTitlePosition(QwtAxisId, QwtScaleWidget::TitlePosition);
     // Get axis title position along the backbone
     QwtScaleWidget::TitlePosition axisTitlePosition(QwtAxisId) const;
+    // Set axis title placement (inside the scale widget or outside as caption below/above it)
+    void setAxisTitlePlacement(QwtAxisId, QwtScaleWidget::TitlePlacement);
+    // Get axis title placement
+    QwtScaleWidget::TitlePlacement axisTitlePlacement(QwtAxisId) const;
     // Set axis title text alignment (horizontal alignment within the title box)
     void setAxisTitleAlignment(QwtAxisId, Qt::Alignment);
     // Get axis title text alignment

@@ -761,6 +761,36 @@ QwtScaleWidget::TitlePosition QwtPlot::axisTitlePosition(QwtAxisId axisId) const
 }
 
 /**
+ * @brief Set the placement of an axis title (inside the scale widget or outside as caption)
+ * @details With QwtScaleWidget::TitleOutside the title is painted as a horizontal
+ *          caption below the scale widget (above it for XTop) instead of inside
+ *          the widget. The plot layout reserves the caption strip automatically,
+ *          for parasite plots the host layout aggregates the demands of all layers.
+ * @param axisId Axis ID
+ * @param placement Title placement
+ * @sa QwtScaleWidget::setTitlePlacement(), axisTitlePlacement(), QwtPlotLayout::scaleCaptionRect()
+ */
+void QwtPlot::setAxisTitlePlacement(QwtAxisId axisId, QwtScaleWidget::TitlePlacement placement)
+{
+    if (isAxisValid(axisId))
+        axisWidget(axisId)->setTitlePlacement(placement);
+}
+
+/**
+ * @brief Get the placement of an axis title
+ * @param axisId Axis ID
+ * @return Title placement
+ * @sa setAxisTitlePlacement()
+ */
+QwtScaleWidget::TitlePlacement QwtPlot::axisTitlePlacement(QwtAxisId axisId) const
+{
+    if (isAxisValid(axisId))
+        return axisWidget(axisId)->titlePlacement();
+
+    return QwtScaleWidget::TitleInside;
+}
+
+/**
  * @brief Set the horizontal alignment of an axis title
  * @param axisId Axis ID
  * @param alignment Horizontal alignment within the title box
