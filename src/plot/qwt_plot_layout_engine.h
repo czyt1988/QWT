@@ -1,6 +1,7 @@
 #ifndef QWTPLOTLAYOUTENGINE_H
 #define QWTPLOTLAYOUTENGINE_H
 #include <QRectF>
+#include <QSize>
 #include <QFont>
 class QWidget;
 // qwt
@@ -205,6 +206,28 @@ public:
     // Check if the canvas is aligned to the scale at a given axis position
     bool alignCanvas(int axisPos) const;
 
+    // Enable/disable fixed canvas size for an axis direction.
+    // YLeft/YRight fix the canvas width; XBottom/XTop fix the canvas height.
+    // When enabled, the canvas dimension is captured on the next layout and
+    // held stable against axis label growth; overflowing labels are clipped.
+    void setFixedCanvas(int axisPos, bool on);
+
+    // Check if fixed canvas size is enabled for a given axis position
+    bool isFixedCanvas(int axisPos) const;
+
+    // Set a manual fixed canvas size, overriding the auto-captured value.
+    // A component < 0 means "use auto-capture" for that direction.
+    void setFixedCanvasSize(const QSize& size);
+
+    // Get the manual fixed canvas size (-1 component = auto-capture)
+    QSize fixedCanvasSize() const;
+
+    // True if canvas width is fixed (any Y axis fixed or manual width set)
+    bool isFixedCanvasWidth() const;
+
+    // True if canvas height is fixed (any X axis fixed or manual height set)
+    bool isFixedCanvasHeight() const;
+
     // Set the margin between canvas and scale at a given axis position
     void setCanvasMargin(int axisPos, int margin);
 
@@ -238,6 +261,9 @@ private:
 
     unsigned int m_canvasMargin[ QwtAxis::AxisPositions ] = { 0, 0, 0, 0 };
     bool m_alignCanvas[ QwtAxis::AxisPositions ];
+
+    bool m_fixedCanvas[ QwtAxis::AxisPositions ] = { false, false, false, false };
+    QSize m_fixedCanvasSize { -1, -1 };
 
     unsigned int m_spacing;
 };

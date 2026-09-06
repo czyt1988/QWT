@@ -30,6 +30,7 @@
 #include "qwt_global.h"
 #include "qwt_plot.h"
 #include "qwt_axis_id.h"
+#include <QSize>
 class QwtPlotLayoutEngine;
 
 /**
@@ -92,6 +93,23 @@ public:
     void setAlignCanvasToScale(int axisId, bool);
     bool alignCanvasToScale(int axisId) const;
 
+    // Enable fixed canvas size for an axis direction (auto-lock the current
+    // dimension on the next layout). YLeft/YRight fix width; XBottom/XTop fix height.
+    void setFixedCanvasSize(int axisPos, bool on);
+    // Check if fixed canvas size is enabled for a given axis position
+    bool isFixedCanvasSize(int axisPos) const;
+
+    // Set a manual fixed canvas size, overriding the auto-captured value.
+    // A component < 0 means "use auto-capture" for that direction.
+    void setFixedCanvasSize(const QSize& size);
+    // Get the manual fixed canvas size (-1 component = auto-capture)
+    QSize fixedCanvasSize() const;
+
+    // Clear all locked canvas sizes (captured offsets and manual override),
+    // re-capturing from the current layout on the next activate(). Does not
+    // change the enabled state of each axis direction.
+    void resetFixedCanvasSize();
+
     void setSpacing(int);
     int spacing() const;
 
@@ -124,6 +142,10 @@ protected:
 private:
     QwtPlotLayout(const QwtPlotLayout&)            = delete;
     QwtPlotLayout& operator=(const QwtPlotLayout&) = delete;
+
+    // Pin the canvas rect to its locked dimension(s) after the natural layout
+    // (innerRect) has been computed. Captures the offsets on first use.
+    void applyFixedCanvas(QRectF& canvasRect, const QRectF& rect);
 
     QWT_DECLARE_PRIVATE(QwtPlotLayout)
 };

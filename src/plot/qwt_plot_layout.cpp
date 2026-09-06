@@ -212,6 +212,13 @@ public:
     QRectF scaleRects[ QwtAxis::AxisPositions ];
     QRectF canvasRect;
 
+    // Captured canvas edge offsets (relative to the post-title/footer rect)
+    // used to pin the canvas dimension(s) in auto fixed-canvas mode.
+    // [YLeft]=canvasRect.left()-rect.left(), [YRight]=rect.right()-canvasRect.right(),
+    // [XTop]=canvasRect.top()-rect.top(), [XBottom]=rect.bottom()-canvasRect.bottom().
+    // A value < 0 means "not captured yet".
+    qreal m_lockedOffset[ QwtAxis::AxisPositions ] = { -1.0, -1.0, -1.0, -1.0 };
+
     QwtPlotLayoutEngine engine;
 };
 
@@ -320,6 +327,130 @@ bool QwtPlotLayout::alignCanvasToScale(int axisPos) const
         return false;
 
     return d->engine.alignCanvas(axisPos);
+}
+
+/**
+ * @brief Enable fixed canvas size for an axis direction
+ * @param axisPos Axis position. YLeft/YRight fix the canvas width;
+ *                XBottom/XTop fix the canvas height.
+ * @param on True to hold the canvas dimension stable against axis label growth.
+ * @details When enabled, the canvas dimension is captured on the next activate()
+ *          and held stable; overflowing axis labels are clipped by the scale
+ *          widget's paint region. The captured value persists across layouts
+ *          until resetFixedCanvasSize() is called.
+ * @sa isFixedCanvasSize(), setFixedCanvasSize(QSize), resetFixedCanvasSize()
+ */
+void QwtPlotLayout::setFixedCanvasSize(int axisPos, bool on)
+{
+    QWT_D(d);
+    d->engine.setFixedCanvas(axisPos, on);
+}
+
+/**
+ * @brief Check if fixed canvas size is enabled for a given axis position
+ * @param axisPos Axis position (QwtAxis::Position)
+ * @return True if fixed canvas size is enabled for this axis direction
+ * @sa setFixedCanvasSize(int, bool)
+ */
+bool QwtPlotLayout::isFixedCanvasSize(int axisPos) const
+{
+    QWT_DC(d);
+    return d->engine.isFixedCanvas(axisPos);
+}
+
+/**
+ * @brief Set a manual fixed canvas size, overriding the auto-captured value
+ * @param size Manual canvas size. A component < 0 means "use auto-capture"
+ *             for that direction (requires setFixedCanvasSize(axisPos, true)).
+ * @details When a component is >= 0, the canvas is pinned to that exact
+ *          dimension and centered along it; otherwise the auto-captured
+ *          offsets are used.
+ * @sa fixedCanvasSize(), setFixedCanvasSize(int, bool), resetFixedCanvasSize()
+ */
+void QwtPlotLayout::setFixedCanvasSize(const QSize& size)
+{
+    QWT_D(d);
+    d->engine.setFixedCanvasSize(size);
+}
+
+/**
+ * @brief Get the manual fixed canvas size
+ * @return Manual canvas size; a component < 0 means auto-capture for that direction
+ * @sa setFixedCanvasSize(QSize)
+ */
+QSize QwtPlotLayout::fixedCanvasSize() const
+{
+    QWT_DC(d);
+    return d->engine.fixedCanvasSize();
+}
+
+/**
+ * @brief Clear all locked canvas sizes
+ * @details Clears both the auto-captured offsets and the manual override so
+ *          the next activate() re-captures from the current layout. The
+ *          enabled state of each axis direction (setFixedCanvasSize(int, bool))
+ *          is left unchanged.
+ * @sa setFixedCanvasSize(int, bool), setFixedCanvasSize(QSize)
+ */
+void QwtPlotLayout::resetFixedCanvasSize()
+{
+    QWT_D(d);
+    d->engine.setFixedCanvasSize(QSize(-1, -1));
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++)
+        d->m_lockedOffset[ axisPos ] = -1.0;
+}
+
+/**
+ * @brief Pin the canvas rect to its locked dimension(s)
+ * @param canvasRect The canvas rect produced by innerRect() (modified in place)
+ * @param rect The available rect (after title/footer have been subtracted)
+ * @details In auto mode the canvas edges are pinned to offsets captured on the
+ *          first layout; in manual mode the canvas is pinned to the given size
+ *          and centered. Real axis extents are not clamped, so scale rects may
+ *          extend beyond \a rect and be clipped by the scale widget's paint.
+ */
+void QwtPlotLayout::applyFixedCanvas(QRectF& canvasRect, const QRectF& rect)
+{
+    QWT_D(d);
+    using namespace QwtAxis;
+
+    // --- Y direction: canvas width ---
+    if (d->engine.isFixedCanvasWidth()) {
+        const int manualWidth = d->engine.fixedCanvasSize().width();
+        if (manualWidth >= 0) {
+            // Manual: pin exact size, centered horizontally.
+            const qreal fw = qMin(qreal(manualWidth), rect.width());
+            const qreal cx = rect.left() + rect.width() / 2.0;
+            canvasRect.setLeft(cx - fw / 2.0);
+            canvasRect.setRight(cx + fw / 2.0);
+        } else {
+            // Auto: pin edge offsets (capture on first layout).
+            if (d->m_lockedOffset[ YLeft ] < 0.0) {
+                d->m_lockedOffset[ YLeft ] = qMax(0.0, canvasRect.left() - rect.left());
+                d->m_lockedOffset[ YRight ] = qMax(0.0, rect.right() - canvasRect.right());
+            }
+            canvasRect.setLeft(rect.left() + d->m_lockedOffset[ YLeft ]);
+            canvasRect.setRight(rect.right() - d->m_lockedOffset[ YRight ]);
+        }
+    }
+
+    // --- X direction: canvas height ---
+    if (d->engine.isFixedCanvasHeight()) {
+        const int manualHeight = d->engine.fixedCanvasSize().height();
+        if (manualHeight >= 0) {
+            const qreal fh = qMin(qreal(manualHeight), rect.height());
+            const qreal cy = rect.top() + rect.height() / 2.0;
+            canvasRect.setTop(cy - fh / 2.0);
+            canvasRect.setBottom(cy + fh / 2.0);
+        } else {
+            if (d->m_lockedOffset[ XTop ] < 0.0) {
+                d->m_lockedOffset[ XTop ] = qMax(0.0, canvasRect.top() - rect.top());
+                d->m_lockedOffset[ XBottom ] = qMax(0.0, rect.bottom() - canvasRect.bottom());
+            }
+            canvasRect.setTop(rect.top() + d->m_lockedOffset[ XTop ]);
+            canvasRect.setBottom(rect.bottom() - d->m_lockedOffset[ XBottom ]);
+        }
+    }
 }
 
 /**
@@ -800,6 +931,11 @@ void QwtPlotLayout::doActivate(const QwtPlot* plot, const QRectF& plotRect, Opti
     }
 
     d->canvasRect = dimensions.innerRect(rect);
+
+    // Pin the canvas to its locked dimension(s) if fixed-canvas mode is on.
+    // Real axis extents are kept (not clamped), so scale rects placed below may
+    // extend beyond the plot rect and be clipped at paint time.
+    applyFixedCanvas(d->canvasRect, rect);
 
     for (int axisPos = 0; axisPos < AxisPositions; axisPos++) {
         // set the rects for the axes
