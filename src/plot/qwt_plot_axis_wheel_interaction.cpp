@@ -16,7 +16,10 @@
 
 #include <cmath>
 
+#include "qwt_math.h"
 #include "qwt_plot.h"
+#include "qwt_scale_widget.h"
+#include "qwt_plot_scale_event_dispatcher.h"
 #include "qwt_qt5qt6_compat.hpp"
 
 class QwtPlotAxisWheelInteraction::PrivateData
@@ -27,38 +30,67 @@ public:
     PrivateData(QwtPlotAxisWheelInteraction* p)
         : q_ptr(p)
         , isEnabled(false)
-        , zoomAxisId(QwtAxis::XBottom)
-        , zoomFactor(0.9)
-        , zoomModifiers(Qt::ControlModifier)
-        , panOrientation(Qt::Horizontal)
-        , panModifiers(Qt::NoModifier)
+        , plot(nullptr)
+        , scaleWidget(nullptr)
+        , axisId(QwtAxis::AxisPositions)
+        , zoomFactor(1.2)
+        , zoomModifiers(Qt::NoModifier)
+        , panModifiers(Qt::ControlModifier)
         , panFactor(30)
     {
     }
 
     bool isEnabled;
+    QwtPlot* plot;
+    QwtScaleWidget* scaleWidget;
+    QwtAxisId axisId;
 
-    QwtAxisId zoomAxisId;
     double zoomFactor;
     Qt::KeyboardModifiers zoomModifiers;
 
-    Qt::Orientation panOrientation;
     Qt::KeyboardModifiers panModifiers;
     int panFactor;
 };
 
 /**
- * @brief Constructor
- * @param[in] canvas Plot canvas to observe
+ * @brief Constructor from plot and axis id
+ * @param[in] plot The plot that owns the axis
+ * @param[in] axisId The axis to attach the interaction to
  *
- * Creates a wheel interaction handler attached to the given plot canvas.
+ * The event filter is installed on the QwtScaleWidget for the given axis.
  * The interaction is enabled by default.
  */
-QwtPlotAxisWheelInteraction::QwtPlotAxisWheelInteraction(QWidget* canvas)
-    : QObject(canvas), QWT_PIMPL_CONSTRUCT
+QwtPlotAxisWheelInteraction::QwtPlotAxisWheelInteraction(QwtPlot* plot, QwtAxisId axisId)
+    : QObject(plot), QWT_PIMPL_CONSTRUCT
 {
-    if (canvas && canvas->focusPolicy() == Qt::NoFocus)
-        canvas->setFocusPolicy(Qt::WheelFocus);
+    QWT_D(d);
+    d->plot = plot;
+    d->axisId = axisId;
+    if (plot)
+        d->scaleWidget = plot->axisWidget(axisId);
+
+    setEnabled(true);
+}
+
+/**
+ * @brief Constructor from a scale widget
+ * @param[in] scaleWidget The axis scale widget to observe
+ *
+ * The plot and axis id are auto-derived from the scale widget's parent
+ * (which must be a QwtPlot) using QwtPlotScaleEventDispatcher::findAxisIdByScaleWidget().
+ */
+QwtPlotAxisWheelInteraction::QwtPlotAxisWheelInteraction(QwtScaleWidget* scaleWidget)
+    : QObject(scaleWidget), QWT_PIMPL_CONSTRUCT
+{
+    QWT_D(d);
+    d->scaleWidget = scaleWidget;
+    if (scaleWidget) {
+        d->plot = qobject_cast< QwtPlot* >(scaleWidget->parentWidget());
+        if (d->plot) {
+            d->axisId = QwtPlotScaleEventDispatcher::findAxisIdByScaleWidget(
+                d->plot, scaleWidget);
+        }
+    }
 
     setEnabled(true);
 }
@@ -72,8 +104,10 @@ QwtPlotAxisWheelInteraction::~QwtPlotAxisWheelInteraction()
 
 /**
  * @brief Enable or disable the interaction
- * @details When enabled, an event filter is installed on the observed canvas
- *          to intercept wheel events. When disabled, the event filter is removed.
+ * @details When enabled, an event filter is installed on the observed
+ *          scale widget to intercept wheel events before they reach the
+ *          QwtPlotScaleEventDispatcher. When disabled, the filter is removed
+ *          and the dispatcher regains full control.
  * @param[in] on true to enable, false to disable
  * @sa isEnabled(), eventFilter()
  */
@@ -83,7 +117,7 @@ void QwtPlotAxisWheelInteraction::setEnabled(bool on)
     if (d->isEnabled != on) {
         d->isEnabled = on;
 
-        QObject* o = parent();
+        QObject* o = d->scaleWidget;
         if (o) {
             if (d->isEnabled)
                 o->installEventFilter(this);
@@ -105,56 +139,10 @@ bool QwtPlotAxisWheelInteraction::isEnabled() const
 }
 
 /**
- * @brief Set the axis to zoom in zoom mode
- * @param[in] axisId Axis identifier (default: QwtAxis::XBottom)
- * @sa zoomAxisId()
- */
-void QwtPlotAxisWheelInteraction::setZoomAxisId(QwtAxisId axisId)
-{
-    QWT_D(d);
-    d->zoomAxisId = axisId;
-}
-
-/**
- * @brief Return the axis being zoomed in zoom mode
- * @return Axis identifier
- * @sa setZoomAxisId()
- */
-QwtAxisId QwtPlotAxisWheelInteraction::zoomAxisId() const
-{
-    QWT_DC(d);
-    return d->zoomAxisId;
-}
-
-/**
- * @brief Set the zoom factor per wheel step
- * @details The zoom factor defines the ratio between the current axis range
- *          and the zoomed range for each wheel step. Values < 1 zoom in,
- *          values > 1 zoom out. The default is 0.9.
- * @param[in] factor Zoom factor
- * @sa zoomFactor()
- */
-void QwtPlotAxisWheelInteraction::setZoomFactor(double factor)
-{
-    QWT_D(d);
-    d->zoomFactor = factor;
-}
-
-/**
- * @brief Return the zoom factor
- * @return Zoom factor
- * @sa setZoomFactor()
- */
-double QwtPlotAxisWheelInteraction::zoomFactor() const
-{
-    QWT_DC(d);
-    return d->zoomFactor;
-}
-
-/**
- * @brief Set keyboard modifiers that activate zoom mode
- * @details When the wheel is rotated with these modifiers pressed, the
- *          configured axis is zoomed. The default is Qt::ControlModifier.
+ * @brief Set keyboard modifiers for zoom mode
+ * @details When the wheel is rotated with these modifiers on the scale
+ *          widget, the axis is zoomed. The default is Qt::NoModifier
+ *          (plain wheel).
  * @param[in] modifiers Keyboard modifiers
  * @sa zoomModifiers()
  */
@@ -176,34 +164,34 @@ Qt::KeyboardModifiers QwtPlotAxisWheelInteraction::zoomModifiers() const
 }
 
 /**
- * @brief Set the pan orientation
- * @details When pan mode is active, the canvas is panned along the given
- *          orientation. Qt::Horizontal pans left/right; Qt::Vertical pans
- *          up/down. The default is Qt::Horizontal.
- * @param[in] orientation Pan orientation
- * @sa panOrientation()
+ * @brief Set the zoom factor per wheel step
+ * @details Values > 1 zoom in (range shrinks), values < 1 zoom out
+ *          (range expands). The default is 1.2. For multi-step wheels
+ *          the factor is compounded: pow(zoomFactor, abs(delta/120)).
+ * @param[in] factor Zoom factor
+ * @sa zoomFactor()
  */
-void QwtPlotAxisWheelInteraction::setPanOrientation(Qt::Orientation orientation)
+void QwtPlotAxisWheelInteraction::setZoomFactor(double factor)
 {
     QWT_D(d);
-    d->panOrientation = orientation;
+    d->zoomFactor = factor;
 }
 
 /**
- * @brief Return the pan orientation
- * @return Pan orientation
- * @sa setPanOrientation()
+ * @brief Return the zoom factor
+ * @return Zoom factor
+ * @sa setZoomFactor()
  */
-Qt::Orientation QwtPlotAxisWheelInteraction::panOrientation() const
+double QwtPlotAxisWheelInteraction::zoomFactor() const
 {
     QWT_DC(d);
-    return d->panOrientation;
+    return d->zoomFactor;
 }
 
 /**
- * @brief Set keyboard modifiers that activate pan mode
- * @details When the wheel is rotated with these modifiers pressed, the
- *          canvas is panned. The default is Qt::NoModifier (plain wheel).
+ * @brief Set keyboard modifiers for pan mode
+ * @details When the wheel is rotated with these modifiers on the scale
+ *          widget, the axis is panned. The default is Qt::ControlModifier.
  * @param[in] modifiers Keyboard modifiers
  * @sa panModifiers()
  */
@@ -247,76 +235,79 @@ int QwtPlotAxisWheelInteraction::panFactor() const
 }
 
 /**
- * @brief Return the observed plot canvas
- * @return Pointer to the canvas widget
+ * @brief Return the observed scale widget
+ * @return Pointer to the scale widget
  */
-QWidget* QwtPlotAxisWheelInteraction::canvas()
+QwtScaleWidget* QwtPlotAxisWheelInteraction::scaleWidget()
 {
-    return qobject_cast< QWidget* >(parent());
+    QWT_DC(d);
+    return d->scaleWidget;
 }
 
 /**
- * @brief Return the observed plot canvas (const version)
- * @return Const pointer to the canvas widget
+ * @brief Return the observed scale widget (const version)
+ * @return Const pointer to the scale widget
  */
-const QWidget* QwtPlotAxisWheelInteraction::canvas() const
+const QwtScaleWidget* QwtPlotAxisWheelInteraction::scaleWidget() const
 {
-    return qobject_cast< const QWidget* >(parent());
+    QWT_DC(d);
+    return d->scaleWidget;
 }
 
 /**
- * @brief Return the plot widget containing the observed canvas
- * @return Pointer to the QwtPlot widget, or nullptr if not found
+ * @brief Return the plot that owns the axis
+ * @return Pointer to the QwtPlot widget
  */
 QwtPlot* QwtPlotAxisWheelInteraction::plot()
 {
-    QWidget* w = canvas();
-    if (w)
-        w = w->parentWidget();
-
-    return qobject_cast< QwtPlot* >(w);
+    QWT_DC(d);
+    return d->plot;
 }
 
 /**
- * @brief Return the plot widget containing the observed canvas (const version)
- * @return Const pointer to the QwtPlot widget, or nullptr if not found
+ * @brief Return the plot that owns the axis (const version)
+ * @return Const pointer to the QwtPlot widget
  */
 const QwtPlot* QwtPlotAxisWheelInteraction::plot() const
 {
-    const QWidget* w = canvas();
-    if (w)
-        w = w->parentWidget();
-
-    return qobject_cast< const QwtPlot* >(w);
+    QWT_DC(d);
+    return d->plot;
 }
 
 /**
- * @brief Event filter for wheel events on the canvas
- * @param[in] obj Object receiving the event
+ * @brief Return the axis id
+ * @return Axis identifier
+ */
+QwtAxisId QwtPlotAxisWheelInteraction::axisId() const
+{
+    QWT_DC(d);
+    return d->axisId;
+}
+
+/**
+ * @brief Event filter for wheel events on the scale widget
+ * @param[in] obj Object receiving the event (should be the scale widget)
  * @param[in] event Event
  * @return true when the wheel event was handled (consumed), false otherwise
  * @sa handleWheelEvent()
  */
 bool QwtPlotAxisWheelInteraction::eventFilter(QObject* obj, QEvent* event)
 {
-    if (obj && obj == parent() && event->type() == QEvent::Wheel) {
+    QWT_D(d);
+    if (obj && obj == d->scaleWidget && event->type() == QEvent::Wheel) {
         return handleWheelEvent(static_cast< QWheelEvent* >(event));
     }
     return QObject::eventFilter(obj, event);
 }
 
 /**
- * @brief Handle a wheel event on the canvas
+ * @brief Handle a wheel event on the scale widget
  * @details The wheel delta is read via qwt::compat::wheelEventDelta() for
  *          Qt5/Qt6 compatibility. When the current modifiers match the
- *          zoom modifiers, the configured axis is zoomed centered at the
- *          mouse position using QwtPlot::zoomAxis(). When they match the
- *          pan modifiers, the canvas is panned via QwtPlot::panCanvas().
- *
- *          Both modes operate on all plots returned by plotList(true),
- *          including parasite plots. A single replotAll() call is issued
- *          after all axis changes. Auto-replot is temporarily disabled
- *          during axis updates to avoid redundant repaints.
+ *          zoom modifiers, wheelZoom() is called. When they match the
+ *          pan modifiers, wheelPan() is called. Otherwise the event is
+ *          passed through (return false) so the
+ *          QwtPlotScaleEventDispatcher can handle it.
  *
  * @param[in] event Wheel event
  * @return true if the event was handled, false if modifiers matched
@@ -325,51 +316,83 @@ bool QwtPlotAxisWheelInteraction::eventFilter(QObject* obj, QEvent* event)
 bool QwtPlotAxisWheelInteraction::handleWheelEvent(QWheelEvent* event)
 {
     QWT_D(d);
-
-    QwtPlot* hostPlot = plot();
-    if (!hostPlot || hostPlot->isParasitePlot())
+    if (!d->plot || !d->scaleWidget)
         return false;
 
     const int wheelDelta = qwt::compat::wheelEventDelta(event);
 
     if (event->modifiers() == d->zoomModifiers) {
-        // ---- Zoom mode: zoom the configured axis at mouse position ----
+        // ---- Zoom mode: zoom the axis at cursor position ----
+        // factor > 1 → zoom in (range shrinks); factor < 1 → zoom out (range expands)
+        const double steps = qAbs(wheelDelta / 120.0);
+        double factor = std::pow(d->zoomFactor, steps);
+        if (wheelDelta < 0)
+            factor = 1.0 / factor;  // wheel down → zoom out
 
-        double f = std::pow(d->zoomFactor, qAbs(wheelDelta / 120.0));
-        if (wheelDelta > 0)
-            f = 1.0 / f;  // wheel up → zoom in
+        // Convert the event position from scale-widget coordinates to canvas coordinates
+        const QPoint scalePos = qwt::compat::eventPos(event);
+        const QPoint globalPos = d->scaleWidget->mapToGlobal(scalePos);
+        const QPoint canvasPos = d->plot->canvas()->mapFromGlobal(globalPos);
 
-        const QPoint pos = qwt::compat::eventPos(event);
-
-        const QList< QwtPlot* > allPlots = hostPlot->plotList(true);
-        for (QwtPlot* plt : allPlots) {
-            plt->saveAutoReplotState();
-            plt->setAutoReplot(false);
-            plt->zoomAxis(d->zoomAxisId, f, pos);
-            plt->restoreAutoReplotState();
-        }
-        hostPlot->replotAll();
+        wheelZoom(factor, canvasPos);
         return true;
     }
 
     if (event->modifiers() == d->panModifiers) {
-        // ---- Pan mode: pan all axes in the configured orientation ----
-
-        const int panPixels = static_cast< int >(wheelDelta / 120.0 * d->panFactor);
-        const QPoint offset = (d->panOrientation == Qt::Horizontal)
-            ? QPoint(panPixels, 0)
-            : QPoint(0, panPixels);
-
-        const QList< QwtPlot* > allPlots = hostPlot->plotList(true);
-        for (QwtPlot* plt : allPlots) {
-            plt->saveAutoReplotState();
-            plt->setAutoReplot(false);
-            plt->panCanvas(offset);
-            plt->restoreAutoReplotState();
-        }
-        hostPlot->replotAll();
+        // ---- Pan mode: pan the axis ----
+        const int deltaPixels = static_cast< int >(wheelDelta / 120.0 * d->panFactor);
+        wheelPan(deltaPixels);
         return true;
     }
 
-    return false;
+    return false;  // Modifiers matched neither mode — let the dispatcher handle it
+}
+
+/**
+ * @brief Perform a zoom on the axis
+ * @details Default implementation calls QwtPlot::zoomAxis() with the given
+ *          factor and cursor position, then replotAll(). Auto-replot is
+ *          temporarily disabled to avoid redundant repaints.
+ *
+ *          Override this method to customize zoom behavior, e.g. zoom
+ *          centered on the axis midpoint instead of the cursor position.
+ *
+ * @param[in] factor Zoom factor (>1 zoom in, <1 zoom out)
+ * @param[in] cursorPos Cursor position in canvas coordinates
+ */
+void QwtPlotAxisWheelInteraction::wheelZoom(double factor, const QPoint& cursorPos)
+{
+    QWT_D(d);
+    if (!d->plot)
+        return;
+
+    d->plot->saveAutoReplotState();
+    d->plot->setAutoReplot(false);
+    d->plot->zoomAxis(d->axisId, factor, cursorPos);
+    d->plot->restoreAutoReplotState();
+    d->plot->replotAll();
+}
+
+/**
+ * @brief Perform a pan on the axis
+ * @details Default implementation calls QwtPlot::panAxis() with the given
+ *          pixel delta, then replotAll(). Auto-replot is temporarily
+ *          disabled to avoid redundant repaints.
+ *
+ *          Override this method to customize pan behavior, e.g. invert
+ *          direction or add momentum.
+ *
+ * @param[in] deltaPixels Pixel offset (positive = right/down, negative = left/up)
+ */
+void QwtPlotAxisWheelInteraction::wheelPan(int deltaPixels)
+{
+    QWT_D(d);
+    if (!d->plot || deltaPixels == 0)
+        return;
+
+    d->plot->saveAutoReplotState();
+    d->plot->setAutoReplot(false);
+    d->plot->panAxis(d->axisId, deltaPixels);
+    d->plot->restoreAutoReplotState();
+    d->plot->replotAll();
 }

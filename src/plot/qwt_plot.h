@@ -30,6 +30,7 @@
 #include "qwt_global.h"
 #include "qwt_axis_id.h"
 #include "qwt_plot_dict.h"
+#include "qwt_scale_widget.h"
 
 #include <qframe.h>
 
@@ -301,6 +302,15 @@ public:
     // Get axis title
     QwtText axisTitle(QwtAxisId) const;
 
+    // Set axis title position along the backbone
+    void setAxisTitlePosition(QwtAxisId, QwtScaleWidget::TitlePosition);
+    // Get axis title position along the backbone
+    QwtScaleWidget::TitlePosition axisTitlePosition(QwtAxisId) const;
+    // Set axis title text alignment (horizontal alignment within the title box)
+    void setAxisTitleAlignment(QwtAxisId, Qt::Alignment);
+    // Get axis title text alignment
+    Qt::Alignment axisTitleAlignment(QwtAxisId) const;
+
     // Set axis max minor ticks
     void setAxisMaxMinor(QwtAxisId, int maxMinor);
     // Get axis max minor ticks
@@ -438,6 +448,10 @@ public:
     void updateAxisEdgeMargin(QwtAxisId axisId);
     // Update all axis edge margins
     void updateAllAxisEdgeMargin();
+    // Align borderDist across host and all parasite layers for the given axis
+    void alignAxisBorderDist(QwtAxisId axisId);
+    // Align borderDist for all axis positions
+    void alignAllAxisBorderDist();
     // Update items to fit scale division range
     void updateItemsToScaleDiv();
     // Enable/disable scale built-in actions

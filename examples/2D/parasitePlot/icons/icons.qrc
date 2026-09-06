@@ -1,0 +1,23 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>pick-y.svg</file>
+        <file>pick-point.svg</file>
+        <file>panner.svg</file>
+        <file>zoomer.svg</file>
+        <file>magnifier.svg</file>
+        <file>axis-wheel.svg</file>
+        <file>fixed-canvas.svg</file>
+        <file>long-labels.svg</file>
+        <file>axis-all.svg</file>
+        <file>axis-yleft.svg</file>
+        <file>axis-yright.svg</file>
+        <file>axis-xbottom.svg</file>
+        <file>axis-xtop.svg</file>
+        <file>pos-centered.svg</file>
+        <file>pos-start.svg</file>
+        <file>pos-end.svg</file>
+        <file>align-left.svg</file>
+        <file>align-center.svg</file>
+        <file>align-right.svg</file>
+    </qresource>
+</RCC>

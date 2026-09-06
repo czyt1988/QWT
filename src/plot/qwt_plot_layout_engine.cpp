@@ -467,7 +467,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
                     const double dx = leftOffset + leftScaleRect.width();
 
                     //! When the axis needs more space than available, the function adjusts the canvas rectangle
-                    if (m_alignCanvas[ YLeft ] && dx < 0.0) {
+                    if (m_alignCanvas[ YLeft ] && dx < 0.0 && !isFixedCanvasWidth()) {
                         /*
                            The axis needs more space than the width
                            of the left scale.
@@ -480,7 +480,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
                         axisRect.setLeft(qwtMaxF(left, minLeft));
                     }
                 } else {
-                    if (m_alignCanvas[ YLeft ] && leftOffset < 0) {
+                    if (m_alignCanvas[ YLeft ] && leftOffset < 0 && !isFixedCanvasWidth()) {
                         canvasRect.setLeft(qwtMaxF(canvasRect.left(), axisRect.left() - leftOffset));
                     } else {
                         if (leftOffset > 0)
@@ -493,7 +493,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 
                 if (rightScaleRect.isValid()) {
                     const double dx = rightOffset + rightScaleRect.width();
-                    if (m_alignCanvas[ YRight ] && dx < 0) {
+                    if (m_alignCanvas[ YRight ] && dx < 0 && !isFixedCanvasWidth()) {
                         /*
                            The axis needs more space than the width
                            of the right scale.
@@ -506,7 +506,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
                     const double right    = axisRect.right() - rightOffset;
                     axisRect.setRight(qwtMinF(right, maxRight));
                 } else {
-                    if (m_alignCanvas[ YRight ] && rightOffset < 0) {
+                    if (m_alignCanvas[ YRight ] && rightOffset < 0 && !isFixedCanvasWidth()) {
                         canvasRect.setRight(qwtMinF(canvasRect.right(), axisRect.right() + rightOffset));
                     } else {
                         if (rightOffset > 0)
@@ -520,7 +520,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 
                 if (bottomScaleRect.isValid()) {
                     const double dy = bottomOffset + bottomScaleRect.height();
-                    if (m_alignCanvas[ XBottom ] && dy < 0) {
+                    if (m_alignCanvas[ XBottom ] && dy < 0 && !isFixedCanvasHeight()) {
                         /*
                            The axis needs more space than the height
                            of the bottom scale.
@@ -533,7 +533,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
                         axisRect.setBottom(qwtMinF(bottom, maxBottom));
                     }
                 } else {
-                    if (m_alignCanvas[ XBottom ] && bottomOffset < 0) {
+                    if (m_alignCanvas[ XBottom ] && bottomOffset < 0 && !isFixedCanvasHeight()) {
                         canvasRect.setBottom(qwtMinF(canvasRect.bottom(), axisRect.bottom() + bottomOffset));
                     } else {
                         if (bottomOffset > 0)
@@ -546,7 +546,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 
                 if (topScaleRect.isValid()) {
                     const double dy = topOffset + topScaleRect.height();
-                    if (m_alignCanvas[ XTop ] && dy < 0) {
+                    if (m_alignCanvas[ XTop ] && dy < 0 && !isFixedCanvasHeight()) {
                         /*
                            The axis needs more space than the height
                            of the top scale.
@@ -560,7 +560,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
                         axisRect.setTop(qwtMaxF(top, minTop));
                     }
                 } else {
-                    if (m_alignCanvas[ XTop ] && topOffset < 0) {
+                    if (m_alignCanvas[ XTop ] && topOffset < 0 && !isFixedCanvasHeight()) {
                         canvasRect.setTop(qwtMaxF(canvasRect.top(), axisRect.top() - topOffset));
                     } else {
                         if (topOffset > 0)
@@ -1028,6 +1028,66 @@ bool QwtPlotLayoutEngine::alignCanvas(int axisPos) const
 void QwtPlotLayoutEngine::setAlignCanvas(int axisPos, bool on)
 {
     m_alignCanvas[ axisPos ] = on;
+}
+
+/**
+ * @brief Check if fixed canvas size is enabled for a given axis position
+ * @param[in] axisPos Axis position (0-3)
+ * @return True if the canvas dimension for this axis direction is fixed
+ */
+bool QwtPlotLayoutEngine::isFixedCanvas(int axisPos) const
+{
+    return QwtAxis::isValid(axisPos) ? m_fixedCanvas[ axisPos ] : false;
+}
+
+/**
+ * @brief Enable/disable fixed canvas size for an axis direction
+ * @param[in] axisPos Axis position (0-3). YLeft/YRight fix the canvas width;
+ *            XBottom/XTop fix the canvas height.
+ * @param[in] on True to hold the canvas dimension stable against label growth
+ */
+void QwtPlotLayoutEngine::setFixedCanvas(int axisPos, bool on)
+{
+    if (QwtAxis::isValid(axisPos))
+        m_fixedCanvas[ axisPos ] = on;
+}
+
+/**
+ * @brief Get the manual fixed canvas size
+ * @return Manual size; a component < 0 means auto-capture for that direction
+ */
+QSize QwtPlotLayoutEngine::fixedCanvasSize() const
+{
+    return m_fixedCanvasSize;
+}
+
+/**
+ * @brief Set a manual fixed canvas size, overriding the auto-captured value
+ * @param[in] size Manual canvas size; a component < 0 means auto-capture
+ */
+void QwtPlotLayoutEngine::setFixedCanvasSize(const QSize& size)
+{
+    m_fixedCanvasSize = size;
+}
+
+/**
+ * @brief Check if the canvas width is held fixed
+ * @return True if any Y axis is fixed or a manual width is set
+ */
+bool QwtPlotLayoutEngine::isFixedCanvasWidth() const
+{
+    return m_fixedCanvas[ QwtAxis::YLeft ] || m_fixedCanvas[ QwtAxis::YRight ]
+        || m_fixedCanvasSize.width() >= 0;
+}
+
+/**
+ * @brief Check if the canvas height is held fixed
+ * @return True if any X axis is fixed or a manual height is set
+ */
+bool QwtPlotLayoutEngine::isFixedCanvasHeight() const
+{
+    return m_fixedCanvas[ QwtAxis::XBottom ] || m_fixedCanvas[ QwtAxis::XTop ]
+        || m_fixedCanvasSize.height() >= 0;
 }
 
 /**
