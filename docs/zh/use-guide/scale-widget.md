@@ -8,6 +8,7 @@
 
 - ✅ **刻度绘制**：绘制主刻度、次刻度和刻度标签
 - ✅ **轴标题**：支持显示坐标轴标题文字
+- ✅ **外置轴标题**：支持将标题以水平文字画在 scale widget 正下方/正上方（`TitleOutside`）
 - ✅ **内置交互**：支持鼠标拖动平移和滚轮缩放（Qwt7新增）
 - ✅ **颜色条**：支持显示颜色条（用于光谱图）
 - ✅ **样式自定义**：可自定义刻度长度、标签字体等
@@ -184,6 +185,41 @@ scaleDiv.setTicks(QwtScaleDiv::MajorTick, majorTicks);
 plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 ```
 
+### 8. 坐标轴外置标题（TitleOutside）
+
+默认情况下轴标题画在 scale widget 内部（垂直轴为旋转文字）。使用 `QwtScaleWidget::TitleOutside` 后，标题改为以水平文字画在 scale widget 外侧的字幕条中：`YLeft`/`YRight`/`XBottom` 在其**正下方**，`XTop` 在其**正上方**。布局会自动预留字幕条空间，并在每次重新布局（窗口缩放、轴显隐、刻度变化等）时保持字幕条跟随 scale widget。
+
+```cpp
+#include <QwtPlot>
+#include <QwtScaleWidget>
+
+QwtPlot* plot = new QwtPlot();
+plot->setAxisTitle(QwtAxis::YLeft, "电压 (V)");
+plot->setAxisTitle(QwtAxis::YRight, "电流 (mA)");
+
+// 将 Y 轴标题以水平文字画在各自 scale widget 正下方
+plot->setAxisTitlePlacement(QwtAxis::YLeft, QwtScaleWidget::TitleOutside);
+plot->setAxisTitlePlacement(QwtAxis::YRight, QwtScaleWidget::TitleOutside);
+
+// 等价地通过 scale widget 设置（此处：X 轴标题画在底部刻度下方）
+plot->axisWidget(QwtAxis::XBottom)->setTitlePlacement(QwtScaleWidget::TitleOutside);
+
+// 随时切回传统的 widget 内部标题
+plot->setAxisTitlePlacement(QwtAxis::YLeft, QwtScaleWidget::TitleInside);
+```
+
+效果（来自示例 `examples/2D/outsideTitle`；左：单 plot，右：带 parasite 层的多轴图，每层标题位于各自轴列的正下方）：
+
+![outside-title](../../assets/screenshots/outside-title.png)
+
+**行为说明**
+
+- `TitleOutside` 模式下标题不再计入轴维度，改由布局在相邻带区预留字幕条；`QwtPlotLayout::scaleCaptionRect()` 可查询该字幕条的几何。
+- 多坐标轴（见[多坐标轴的创建](parasite-axes.md)）：所有层共享底部带区。宿主布局聚合所有层的字幕高度需求，并以相邻轴列中心为界在层间分区，因此字幕始终位于本列正下方且互不重叠。
+- 字幕文字的水平对齐遵循 `setTitleAlignment()`；`setTitlePosition()`（沿骨干线的位置）仅对 `TitleInside` 生效。
+- 字幕文字宽于其分区时会自动换行——窄列的多轴场景建议使用短标题。
+- `QwtPlotRenderer` 的 PNG/SVG/PDF 导出包含外置标题（`renderScaleCaption()`）。
+
 ## 核心方法总结
 
 ### QwtPlot坐标轴方法
@@ -191,6 +227,7 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 | 方法 | 说明 |
 |------|------|
 | `setAxisTitle()` | 设置轴标题 |
+| `setAxisTitlePlacement()` | 设置标题位置（widget 内部或外置字幕） |
 | `setAxisScale()` | 设置轴范围 |
 | `setAxisAutoScale()` | 启用自动刻度 |
 | `setAxisVisible()` | 设置轴可见性 |
@@ -203,6 +240,7 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 | 方法 | 说明 |
 |------|------|
 | `setTitle()` | 设置轴标题 |
+| `setTitlePlacement()` | 设置标题位置（`TitleInside`/`TitleOutside`） |
 | `setFont()` | 设置标签字体 |
 | `setBuiltInAction()` | 启用内置交互 |
 | `setColorBarEnabled()` | 启用颜色条 |
@@ -217,5 +255,6 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 
 !!! example "相关示例"
     - 坐标轴交互：`examples/2D` 中多个示例
+    - 外置轴标题：`examples/2D/outsideTitle`
     - 颜色条：`examples/2D/spectrogram`
     - 刻度演示：`playground/scaleengine`
