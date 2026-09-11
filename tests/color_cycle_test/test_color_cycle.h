@@ -15,6 +15,9 @@ private slots:
     void testAutoColorCurve();
     void testUserPenPreserved();
     void testAutoColorBarChart();
+    void testAutoColorCurveSymbol();
+    void testAutoColorIntervalCurve();
+    void testUserSymbolPreserved();
     void testDetachReattach();
 
     // Phase B: default style modernization

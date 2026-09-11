@@ -1,3 +1,99 @@
+## Unreleased
+
+### New Features
+
+- **Outside axis titles (QwtScaleWidget::TitleOutside)**
+    - `QwtScaleWidget` gains the `TitlePlacement` enum (`TitleInside`/`TitleOutside`) with `setTitlePlacement()`/`titlePlacement()`; `QwtPlot` offers the convenience methods `setAxisTitlePlacement()`/`axisTitlePlacement()`
+    - In `TitleOutside` mode the title is no longer painted inside the scale widget and no longer contributes to the axis dimension; the layout reserves a caption strip adjacent to the scale widget (below it for YLeft/YRight/XBottom, above it for XTop) and paints the title there as horizontal text, following the scale widget through every relayout
+    - `QwtPlotLayout` exposes the caption geometry via `scaleCaptionRect()`; for multi axis (parasite) plots the host layout aggregates the caption height demands of all layers and splits the bottom band between the layer captions at the mid points of neighboring caption columns, keeping them overlap free
+    - `QwtPlotRenderer` gains `renderScaleCaption()`, so PNG/SVG/PDF exports include outside titles
+    - New example `examples/2D/outsideTitle`: single plot plus host + two parasite multi axis demo with runtime placement toggles and export buttons; the `--export <dir>` argument writes self-test grabs and renderer exports headlessly
+
+### Bug Fixes
+
+- Fixed parasite layouts copying stale host rects: the host `doLayout()` now refreshes each parasite layout after its own layout completes, so the parasite copy (and everything derived from it, like caption rects) is based on the final host rects of the current pass
+- A `LayoutRequest` received by a parasite plot now also refreshes the host layout, so parasite axis title/dimension changes enter the host band reservation aggregation promptly
+
+## tag:v7.3.6 (2026-07-31)
+
+### New Features
+
+- **Qwt3DBar and Qwt3DLine — New 3D Plot Items**
+    - `Qwt3DBar`: 3D bar chart item, supports 1D series + 2D grid (`Qwt3DFunctionData`) data entry, per-bar flat-normal cuboids (6 faces), Filled/FilledMesh/Wireframe styles reusing the surface shader with two-pass edge overlay
+    - `Qwt3DLine`: 3D line/curve item, `setSamples` mirroring `QwtPlotCurve`, `LineStyle` supports Lines/Tube/Dots; Tube swept with parallel-transport framing (robust on straight segments) for lighting; Lines/Dots reuse shared line/point shaders
+    - Theme integration: `Qwt3DTheme::applyToItem()` extended to dispatch Qwt3DLine/Qwt3DBar (previously only Qwt3DSurface)
+    - New examples: `examples/3D/bar3D` (gaussian peak grid) and `examples/3D/line3D` (helix tube)
+
+- **3D Coordinate Box Aspect Ratio Mode**
+    - Added `AUTOFILL`/`DATARATIO` aspect ratio modes for the 3D coordinate box
+
+- **qwtplot3d Comprehensive Demo Example**
+    - New example project at `examples/3D/qwtplot3d` with MainWindow and dockable settings for surface styles, axes, legends, view/lighting, and enrichments
+    - Settings dock UI syncs with applied theme (`syncFromTheme` method)
+    - Legend position combo dynamically updates options based on orientation (vertical: Left/Right, horizontal: Top/Bottom)
+
+### Bug Fixes
+
+- Fixed wheel events not being consumed after zoom handling — `QwtPlotScaleEventDispatcher::handleWheelEvent` now accepts the wheel event after zooming a selected axis, and `QwtMagnifier::widgetWheelEvent` returns bool (signature change: `void` → `bool`) so its event filter can accept and consume the event; previously the wheel event kept propagating to parent widgets (e.g. a `QScrollArea` viewport scrolled while the axis/canvas zoom was applied)
+- Fixed dangling pointer: recreate `Qwt3DColorMapColor` in `reapplyAll()` because `applyTheme()` replaces and destroys the old functor
+- Stabilized exposed axis label anchor positioning — replaced angle-based heuristic with outward screen vector from coordinate box center to axis midpoint, remaining consistent across viewport aspect ratio changes
+- Fixed anisotropic tic-length model — tic length was a single world-space value clobbered by `init()` on every data change; now per-axis auto mode (scale × that axis's own data range) with persistent manual override via `setTicLength()`, new `setTicLengthScale()`/`setAutoTicLength()` API (default scale 0.015)
+
+### Refactoring
+
+- **3D Color Classes Become Pure Value Objects**
+    - Removed `Qwt3DSurface*`/`Qwt3DPlot*` reverse pointers and `notifyColorChanged()` from `Qwt3DColor`/`Qwt3DStandardColor`/`Qwt3DColorMapColor`; mutators are now silent; z range pushed via `setActiveRange()`; color headers no longer include/forward-declare `qwt3d_surface.h`/`qwt3d_plot.h`; in-place mutation of an attached functor now requires `surface->invalidateColors()`
+- **Eliminated Reverse-Pointer Violations (Deferred Smells Resolved)**
+    - Introduced `Qwt3DRenderContext` value struct (bundling shaders, matrices, viewport, coordinate-conversion methods); `Qwt3DDrawable::draw()` now takes `const Qwt3DRenderContext&`; removed `m_plot`/`plot()`/`setPlot()` from `Qwt3DDrawable`
+    - `Qwt3DFunction::create()` and `Qwt3DParametricSurface::create()` now return data (`Qwt3DFunctionData`/`Qwt3DParametricData`) instead of pushing via back-pointer; removed `m_surface` from `Qwt3DGridMapping`; added vector-based `loadFromData()` overloads to `Qwt3DSurface`
+    - Removed dead-code `plot` back-pointer from `Qwt3DEnrichment`
+
+### Documentation
+
+- Added 3D module refactor dev-guide (en/zh): why/how the 3D module was refactored to a Plot+Item architecture, tiered layering, migration table
+- Added dedicated Qwt3DBar and Qwt3DLine usage pages (en/zh) with key features, data shapes/styles tables, class diagrams, method tables, tips, and example links
+- Refined 3D Plot Introduction overview (en/zh), replacing inline bar/line usage subsections with pointers to the dedicated pages
+
+## tag:v7.3.5 (2026-07-24)
+
+### Breaking Changes
+
+- **3D Module Architecture Refactor — Plot + Item Pattern**
+    - Completely refactored the 3D module from the legacy widget-per-plot model to a **Plot + Item** architecture, symmetric with the 2D module (`QwtPlot` + `QwtPlotItem`):
+        - `Qwt3DPlot` (QOpenGLWidget): pure rendering window, manages GL context, view transforms, lighting, coordinate system, and item list. No longer holds plotting data.
+        - `Qwt3DPlotItem` (new): abstract base class for all 3D drawable items (attach/detach/draw/hull/z/title), mirroring `QwtPlotItem`.
+        - `Qwt3DSurface`: concrete surface item using VBO/VAO + GLSL 3.3 Core shaders. Merged logic from the old `gridplot.cpp` and `meshplot.cpp`.
+    - Removed `namespace Qwt3D` — all classes now use the `Qwt3D` prefix in the global scope (e.g., `Qwt3DPlot`, `Qwt3DSurface`, `Qwt3DFunction`).
+    - Renamed all 3D classes: `Plot3D` → `Qwt3DPlot`, `SurfacePlot` → `Qwt3DSurface`, `Function` → `Qwt3DFunction`, `CoordinateSystem` → `Qwt3DCoordinateSystem`, `Axis` → `Qwt3DAxis`, `ColorLegend` → `Qwt3DColorLegend`, `Color` → `Qwt3DColor`, `StandardColor` → `Qwt3DStandardColor`, `ColorMapColor` → `Qwt3DColorMapColor`, `Qwt3DTheme` (already prefixed, namespace removed), `Mapping` → `Qwt3DMapping`, `GridMapping` → `Qwt3DGridMapping`, `ParametricSurface` → `Qwt3DParametricSurface`, `Scale` → `Qwt3DScale`, `AutoScaler` → `Qwt3DAutoScaler`, `Enrichment` → `Qwt3DEnrichment`, `Drawable` → `Qwt3DDrawable`, `Label` → `Qwt3DLabel`.
+    - Deleted stub classes: `GraphPlot`, `MultiPlot`, `VolumePlot` — to be reimplemented as `Qwt3DPlotItem` subclasses if needed.
+    - Moved plotting methods from `Qwt3DPlot` to `Qwt3DSurface`: `setPlotStyle()`, `setDataColor()`, `loadFromData()`, `setResolution()`, `setMeshColor()`, `addEnrichment()`, `setFloorStyle()`, `setShading()`, `showNormals()`.
+    - Removed `updateData()` — use `plot->update()` or `item->itemChanged()` instead.
+    - Removed `setCoordinateStyle()` — use `Qwt3DCoordinateSystem` API directly.
+    - `Qwt3DFunction` and `Qwt3DParametricSurface` now target `Qwt3DSurface*` (item) instead of `SurfacePlot*` (widget).
+
+- **3D Module: Modern OpenGL Migration**
+    - Replaced ALL legacy OpenGL calls (immediate mode, display lists, fixed-function pipeline, GLU quadrics) with modern OpenGL:
+        - VBO (`QOpenGLBuffer`) + VAO (`QOpenGLVertexArrayObject`) for vertex data management.
+        - GLSL 3.30 Core shaders for all rendering (surface, line, point, polygon, text).
+        - CPU-side `QMatrix4x4` matrix computation (no GL matrix stack).
+        - `QOpenGLTexture` for text labels (replacing `glRasterPos3d` + `glDrawPixels`).
+        - CPU-generated triangle mesh geometry for Cone/Arrow enrichments (replacing `gluCylinder`/`gluDisk`).
+    - Deleted `qwt3d_openglhelper.h` (legacy GL state management utilities).
+    - gl2ps vector export wrapped in `QWT3D_ENABLE_GL2PS` conditional compilation (Compatibility Profile fallback).
+    - 10 new GLSL shader files in `src/plot3d/shaders/` (surface, polygon, line, point, text — vert+frag pairs).
+
+- **3D Theme System: Plot-level / Item-level Split**
+    - `Qwt3DTheme::apply()` now applies plot-level properties (background, coordinate colors, title, lighting) to `Qwt3DPlot` and item-level properties (meshColor, dataColorPreset, plotStyle, shading, smoothMesh) to attached `Qwt3DSurface` items via `dynamic_cast`.
+
+- **3D IO System Adaptation**
+    - `Qwt3DNativeReader` now searches `plot->itemList()` for a `Qwt3DSurface` item (creating one if none exists) instead of `dynamic_cast<SurfacePlot*>(plot)`.
+    - Renamed IO classes: `IO` → `Qwt3DIO`, `PixmapWriter` → `Qwt3DPixmapWriter`, `VectorWriter` → `Qwt3DVectorWriter`, `NativeReader` → `Qwt3DNativeReader`.
+
+- **3D Examples Updated**
+    - All 6 examples in `examples/3D/` updated to the new Plot + Item API.
+    - `SIGNAL()/SLOT()` connections migrated to new-style `connect()`.
+    - Legacy GL calls in example enrichments replaced with VBO + shader rendering.
+
 ## tag:v7.3.4 (2026-07-12)
 
 ### New Features

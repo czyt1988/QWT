@@ -115,3 +115,6 @@ CMakeSettings.json
 *.dll
 *.exe
 
+# Git bundle files (sync exports, not source)
+*.bundle
+

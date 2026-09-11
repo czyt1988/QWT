@@ -1,6 +1,7 @@
 #ifndef QWTPLOTLAYOUTENGINE_H
 #define QWTPLOTLAYOUTENGINE_H
 #include <QRectF>
+#include <QSize>
 #include <QFont>
 class QWidget;
 // qwt
@@ -36,7 +37,17 @@ public:
         void setDimAxis(QwtAxisId axisId, int dim);
 
         // Get the dimension for an axis position (YLeft, YRight, XTop, XBottom)
+        // Includes the extra caption band reserved for outside axis titles
         int dimAxes(int axisPos) const;
+
+        // Get the extra caption band pixels reserved beyond the scale dimension
+        // of an axis position for outside axis titles (QwtScaleWidget::TitleOutside).
+        // The extra of the XBottom band also covers captions of the Y axes,
+        // which are painted below their scale widgets.
+        int captionExtra(int axisPos) const;
+
+        // Set the extra caption band pixels for an axis position
+        void setCaptionExtra(int axisPos, int extra);
 
         // Get the total width of left and right Y axes
         int dimYAxes() const;
@@ -55,6 +66,7 @@ public:
 
     private:
         int m_dimAxes[ QwtAxis::AxisPositions ];
+        int m_captionExtra[ QwtAxis::AxisPositions ];
     };
 
     /**
@@ -161,6 +173,13 @@ public:
         LabelData labelData[ NumLabels ];
         CanvasData canvasData;
 
+        // Outside title caption heights (QwtScaleWidget::TitleOutside) demanded by
+        // the parasite plots sharing the bands of this plot, per axis position.
+        // 0 means no caption demand. For a host plot these demands are aggregated
+        // from all parasite plots in the constructor; parasite captions are painted
+        // into the same band as the host captions.
+        int parasiteCaptionHeight[ QwtAxis::AxisPositions ];
+
     private:
         ScaleData m_scaleData[ QwtAxis::AxisPositions ];
     };
@@ -205,6 +224,28 @@ public:
     // Check if the canvas is aligned to the scale at a given axis position
     bool alignCanvas(int axisPos) const;
 
+    // Enable/disable fixed canvas size for an axis direction.
+    // YLeft/YRight fix the canvas width; XBottom/XTop fix the canvas height.
+    // When enabled, the canvas dimension is captured on the next layout and
+    // held stable against axis label growth; overflowing labels are clipped.
+    void setFixedCanvas(int axisPos, bool on);
+
+    // Check if fixed canvas size is enabled for a given axis position
+    bool isFixedCanvas(int axisPos) const;
+
+    // Set a manual fixed canvas size, overriding the auto-captured value.
+    // A component < 0 means "use auto-capture" for that direction.
+    void setFixedCanvasSize(const QSize& size);
+
+    // Get the manual fixed canvas size (-1 component = auto-capture)
+    QSize fixedCanvasSize() const;
+
+    // True if canvas width is fixed (any Y axis fixed or manual width set)
+    bool isFixedCanvasWidth() const;
+
+    // True if canvas height is fixed (any X axis fixed or manual height set)
+    bool isFixedCanvasHeight() const;
+
     // Set the margin between canvas and scale at a given axis position
     void setCanvasMargin(int axisPos, int margin);
 
@@ -238,6 +279,9 @@ private:
 
     unsigned int m_canvasMargin[ QwtAxis::AxisPositions ] = { 0, 0, 0, 0 };
     bool m_alignCanvas[ QwtAxis::AxisPositions ];
+
+    bool m_fixedCanvas[ QwtAxis::AxisPositions ] = { false, false, false, false };
+    QSize m_fixedCanvasSize { -1, -1 };
 
     unsigned int m_spacing;
 };

@@ -1,0 +1,569 @@
+<?xml version="1.0"?>
+<typesystem package="qwtplot">
+    <!-- Reference PySide6's Qt types + the already-generated qwtcore types. -->
+    <load-typesystem name="typesystem_core.xml" generate="no"/>
+    <load-typesystem name="typesystem_gui.xml" generate="no"/>
+    <load-typesystem name="typesystem_widgets.xml" generate="no"/>
+    <load-typesystem name="typesystem_qwtcore.xml" generate="no"/>
+
+    <!-- ===== Rejections ===== -->
+    <!-- QwtPlot::Axis is the QWT_AXIS_COMPAT legacy enum (enabled by
+         #define QWT_AXIS_COMPAT 1 in qwt_plot.h). We bind only the new
+         QwtAxisId-based API, so drop the legacy enum entirely. -->
+    <rejection class="QwtPlot" enum-name="Axis"/>
+
+    <!-- QwtPlot methods taking C-style QwtScaleMap arrays (shiboken can't
+         synthesize minimal constructors for fixed-size array types). -->
+    <rejection class="QwtPlot" function-name="getCanvasMarginsHint"/>
+    <rejection class="QwtPlot" function-name="drawItems"/>
+    <rejection class="QwtPlot" function-name="drawInsideTicks"/>
+
+    <!-- QwtSymbol methods taking raw pointer + count (C-style array pattern). -->
+    <rejection class="QwtSymbol" function-name="drawSymbols"/>
+    <rejection class="QwtSymbol" function-name="renderSymbols"/>
+
+    <!-- ===== Value types (copyable, no polymorphism) ===== -->
+
+    <value-type name="QwtText">
+        <enum-type name="TextFormat"/>
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+        <enum-type name="LayoutAttribute"/>
+    </value-type>
+
+    <value-type name="QwtColumnRect">
+        <enum-type name="Direction"/>
+    </value-type>
+
+    <!-- QwtIntervalSymbol is copyable (explicit copy ctor). -->
+    <value-type name="QwtIntervalSymbol">
+        <enum-type name="Style"/>
+    </value-type>
+
+    <!-- QwtGraphic is copyable (explicit copy ctor), inherits QwtNullPaintDevice. -->
+    <value-type name="QwtGraphic">
+        <enum-type name="RenderHint" flags="RenderHints"/>
+        <enum-type name="CommandType" flags="CommandTypes"/>
+    </value-type>
+
+    <!-- ===== Object types (polymorphic / subclassable / non-copyable) ===== -->
+
+    <!-- QwtAxis is a namespace, not a class. Declare its enum explicitly. -->
+    <namespace-type name="QwtAxis">
+        <enum-type name="Position"/>
+    </namespace-type>
+
+    <!-- Base/mixin types -->
+    <object-type name="QwtNullPaintDevice">
+        <enum-type name="Mode"/>
+    </object-type>
+    <object-type name="QwtAbstractSeriesStore"/>
+    <object-type name="QwtPlotAbstractCanvas">
+        <enum-type name="FocusIndicator"/>
+    </object-type>
+
+    <!-- Plot widget & canvas -->
+    <object-type name="QwtPlotDict"/>
+    <object-type name="QwtPlotCanvas">
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+    </object-type>
+    <object-type name="QwtPlotTransparentCanvas"/>
+
+    <!-- QwtPlot: the central 2D plotting widget (QFrame + QwtPlotDict). -->
+    <object-type name="QwtPlot">
+        <enum-type name="LegendPosition"/>
+        <enum-type name="TickDirection"/>
+        <!-- Ownership: axis scale engine/draw setters transfer to C++. -->
+        <modify-function signature="setAxisScaleEngine(QwtAxisId,QwtScaleEngine*)">
+            <modify-argument index="2"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+        <modify-function signature="setAxisScaleDraw(QwtAxisId,QwtScaleDraw*)">
+            <modify-argument index="2"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <!-- Axes / scale draw -->
+    <object-type name="QwtAbstractScaleDraw">
+        <enum-type name="ScaleComponent" flags="ScaleComponents"/>
+        <!-- Ownership: setTransformation takes a QwtTransform. -->
+        <modify-function signature="setTransformation(QwtTransform*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+    <object-type name="QwtScaleDraw">
+        <enum-type name="Alignment"/>
+    </object-type>
+    <object-type name="QwtRoundScaleDraw"/>
+    <object-type name="QwtDateScaleDraw"/>
+    <object-type name="QwtDateScaleEngine"/>
+
+    <object-type name="QwtScaleWidget">
+        <enum-type name="LayoutFlag" flags="LayoutFlags"/>
+        <enum-type name="BuiltinActions" flags="BuiltinActionsFlags"/>
+        <!-- Ownership: setScaleDraw / setTransformation / setColorMap. -->
+        <modify-function signature="setScaleDraw(QwtScaleDraw*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+        <modify-function signature="setTransformation(QwtTransform*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+        <modify-function signature="setColorMap(const QwtInterval&amp;,QwtColorMap*)">
+            <modify-argument index="2"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <!-- Plot items (base + non-series) -->
+    <object-type name="QwtPlotItem">
+        <enum-type name="RttiValues"/>
+        <enum-type name="ItemAttribute" flags="ItemAttributes"/>
+        <enum-type name="ItemInterest" flags="ItemInterests"/>
+        <enum-type name="RenderHint" flags="RenderHints"/>
+    </object-type>
+    <object-type name="QwtPlotSeriesItem"/>
+    <object-type name="QwtPlotGrid"/>
+    <object-type name="QwtPlotMarker">
+        <enum-type name="LineStyle"/>
+        <!-- Ownership: setSymbol takes a const QwtSymbol*. -->
+        <modify-function signature="setSymbol(const QwtSymbol*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+    <object-type name="QwtPlotArrowMarker">
+        <enum-type name="EndpointStyle"/>
+        <enum-type name="PositionMode"/>
+    </object-type>
+
+    <!-- Symbols -->
+    <object-type name="QwtSymbol">
+        <enum-type name="Style"/>
+        <enum-type name="CachePolicy"/>
+    </object-type>
+    <object-type name="QwtColumnSymbol">
+        <enum-type name="Style"/>
+        <enum-type name="FrameStyle"/>
+    </object-type>
+
+    <!-- Text label (QWidget) -->
+    <object-type name="QwtTextLabel"/>
+
+    <!-- Layout / renderer / painter -->
+    <object-type name="QwtPlotLayout">
+        <enum-type name="Option" flags="Options"/>
+    </object-type>
+    <object-type name="QwtPlotRenderer">
+        <enum-type name="DiscardFlag" flags="DiscardFlags"/>
+        <enum-type name="LayoutFlag" flags="LayoutFlags"/>
+    </object-type>
+    <object-type name="QwtPlotDirectPainter">
+        <enum-type name="Attribute" flags="Attributes"/>
+    </object-type>
+
+    <!-- Curve fitters -->
+    <object-type name="QwtCurveFitter">
+        <enum-type name="Mode"/>
+    </object-type>
+    <object-type name="QwtSplineCurveFitter"/>
+    <object-type name="QwtWeedingCurveFitter"/>
+
+    <!-- ===== Task 3: Series items + legends ===== -->
+
+    <!-- Rejections: QwtPlotCurve C-style array setRawSamples/setSamples overloads. -->
+    <rejection class="QwtPlotCurve" function-name="setRawSamples"/>
+
+    <!-- Reject dataSize() on all series items: shiboken generates a virtual
+         override wrapper that calls back to Python, but the method is on the
+         unresolvable QwtSeriesStore<T> template base. We re-expose it as
+         size() via add-function calling dataSize() directly. -->
+    <rejection class="QwtPlotCurve" function-name="dataSize"/>
+    <rejection class="QwtPlotHistogram" function-name="dataSize"/>
+    <rejection class="QwtPlotBarChart" function-name="dataSize"/>
+    <rejection class="QwtPlotMultiBarChart" function-name="dataSize"/>
+    <rejection class="QwtPlotIntervalCurve" function-name="dataSize"/>
+    <rejection class="QwtPlotTradingCurve" function-name="dataSize"/>
+    <rejection class="QwtPlotBoxChart" function-name="dataSize"/>
+    <rejection class="QwtPlotSpectroCurve" function-name="dataSize"/>
+    <rejection class="QwtPlotVectorField" function-name="dataSize"/>
+
+    <!-- Raster items -->
+    <object-type name="QwtPlotRasterItem">
+        <enum-type name="CachePolicy"/>
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+    </object-type>
+    <object-type name="QwtPlotSpectrogram">
+        <enum-type name="DisplayMode" flags="DisplayModes"/>
+        <modify-function signature="setData(QwtRasterData*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+        <modify-function signature="setColorMap(QwtColorMap*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <!-- Series items: each needs template-inherited size()/sample() re-exposure
+         because QwtSeriesStore<T>'s base QwtArraySeriesData<T> is unresolvable
+         by shiboken. The add-functions call through to the C++ method. -->
+    <object-type name="QwtPlotCurve">
+        <inject-code class="native" position="beginning">
+        #include "glue_plot.h"
+        </inject-code>
+        <enum-type name="CurveStyle"/>
+        <enum-type name="CurveAttribute" flags="CurveAttributes"/>
+        <enum-type name="LegendAttribute" flags="LegendAttributes"/>
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+        <add-function signature="size()" return-type="size_t">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    size_t _result = %CPPSELF->QwtPlotCurve::data()->size();
+    %PYARG_0 = Shiboken::Conversions::copyToPython(Shiboken::Conversions::PrimitiveTypeConverter<size_t>(), &_result);
+]]>
+            </inject-code>
+        </add-function>
+        <add-function signature="sample(size_t)" return-type="QPointF">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    %PYARG_0 = glue_QwtPlotCurve_sample(%CPPSELF, %1);
+]]>
+            </inject-code>
+        </add-function>
+        <modify-function signature="setSymbol(QwtSymbol*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+        <modify-function signature="setCurveFitter(QwtCurveFitter*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <object-type name="QwtPlotHistogram">
+        <inject-code class="native" position="beginning">
+        #include "glue_plot.h"
+        </inject-code>
+        <enum-type name="HistogramStyle"/>
+        <add-function signature="size()" return-type="size_t">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    size_t _result = %CPPSELF->QwtPlotHistogram::data()->size();
+    %PYARG_0 = Shiboken::Conversions::copyToPython(Shiboken::Conversions::PrimitiveTypeConverter<size_t>(), &_result);
+]]>
+            </inject-code>
+        </add-function>
+        <add-function signature="sample(size_t)" return-type="QwtIntervalSample">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    %PYARG_0 = glue_QwtPlotHistogram_sample(%CPPSELF, %1);
+]]>
+            </inject-code>
+        </add-function>
+        <modify-function signature="setSymbol(const QwtColumnSymbol*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <object-type name="QwtPlotAbstractBarChart">
+        <enum-type name="LayoutPolicy"/>
+    </object-type>
+    <object-type name="QwtPlotBarChart">
+        <inject-code class="native" position="beginning">
+        #include "glue_plot.h"
+        </inject-code>
+        <enum-type name="LegendMode"/>
+        <add-function signature="size()" return-type="size_t">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    size_t _result = %CPPSELF->QwtPlotBarChart::data()->size();
+    %PYARG_0 = Shiboken::Conversions::copyToPython(Shiboken::Conversions::PrimitiveTypeConverter<size_t>(), &_result);
+]]>
+            </inject-code>
+        </add-function>
+        <add-function signature="sample(size_t)" return-type="QPointF">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    %PYARG_0 = glue_QwtPlotBarChart_sample(%CPPSELF, %1);
+]]>
+            </inject-code>
+        </add-function>
+        <modify-function signature="setSymbol(QwtColumnSymbol*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <object-type name="QwtPlotMultiBarChart">
+        <inject-code class="native" position="beginning">
+        #include "glue_plot.h"
+        </inject-code>
+        <enum-type name="ChartStyle"/>
+        <add-function signature="size()" return-type="size_t">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    size_t _result = %CPPSELF->QwtPlotMultiBarChart::data()->size();
+    %PYARG_0 = Shiboken::Conversions::copyToPython(Shiboken::Conversions::PrimitiveTypeConverter<size_t>(), &_result);
+]]>
+            </inject-code>
+        </add-function>
+        <add-function signature="sample(size_t)" return-type="QwtSetSample">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    %PYARG_0 = glue_QwtPlotMultiBarChart_sample(%CPPSELF, %1);
+]]>
+            </inject-code>
+        </add-function>
+        <modify-function signature="setSymbol(int,QwtColumnSymbol*)">
+            <modify-argument index="2"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <object-type name="QwtPlotIntervalCurve">
+        <inject-code class="native" position="beginning">
+        #include "glue_plot.h"
+        </inject-code>
+        <enum-type name="CurveStyle"/>
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+        <add-function signature="size()" return-type="size_t">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    size_t _result = %CPPSELF->QwtPlotIntervalCurve::data()->size();
+    %PYARG_0 = Shiboken::Conversions::copyToPython(Shiboken::Conversions::PrimitiveTypeConverter<size_t>(), &_result);
+]]>
+            </inject-code>
+        </add-function>
+        <add-function signature="sample(size_t)" return-type="QwtIntervalSample">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    %PYARG_0 = glue_QwtPlotIntervalCurve_sample(%CPPSELF, %1);
+]]>
+            </inject-code>
+        </add-function>
+        <modify-function signature="setSymbol(const QwtIntervalSymbol*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <object-type name="QwtPlotTradingCurve">
+        <inject-code class="native" position="beginning">
+        #include "glue_plot.h"
+        </inject-code>
+        <enum-type name="SymbolStyle"/>
+        <enum-type name="Direction"/>
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+        <add-function signature="size()" return-type="size_t">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    size_t _result = %CPPSELF->QwtPlotTradingCurve::data()->size();
+    %PYARG_0 = Shiboken::Conversions::copyToPython(Shiboken::Conversions::PrimitiveTypeConverter<size_t>(), &_result);
+]]>
+            </inject-code>
+        </add-function>
+        <add-function signature="sample(size_t)" return-type="QwtOHLCSample">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    %PYARG_0 = glue_QwtPlotTradingCurve_sample(%CPPSELF, %1);
+]]>
+            </inject-code>
+        </add-function>
+    </object-type>
+
+    <object-type name="QwtPlotBoxChart">
+        <inject-code class="native" position="beginning">
+        #include "glue_plot.h"
+        </inject-code>
+        <enum-type name="BoxStyle"/>
+        <enum-type name="WhiskerStyle"/>
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+        <add-function signature="size()" return-type="size_t">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    size_t _result = %CPPSELF->QwtPlotBoxChart::data()->size();
+    %PYARG_0 = Shiboken::Conversions::copyToPython(Shiboken::Conversions::PrimitiveTypeConverter<size_t>(), &_result);
+]]>
+            </inject-code>
+        </add-function>
+        <add-function signature="sample(size_t)" return-type="QwtBoxSample">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    %PYARG_0 = glue_QwtPlotBoxChart_sample(%CPPSELF, %1);
+]]>
+            </inject-code>
+        </add-function>
+        <modify-function signature="setOutlierSymbol(const QwtSymbol*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+        <modify-function signature="setMeanSymbol(const QwtSymbol*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <object-type name="QwtPlotSpectroCurve">
+        <inject-code class="native" position="beginning">
+        #include "glue_plot.h"
+        </inject-code>
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+        <add-function signature="size()" return-type="size_t">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    size_t _result = %CPPSELF->QwtPlotSpectroCurve::data()->size();
+    %PYARG_0 = Shiboken::Conversions::copyToPython(Shiboken::Conversions::PrimitiveTypeConverter<size_t>(), &_result);
+]]>
+            </inject-code>
+        </add-function>
+        <add-function signature="sample(size_t)" return-type="QwtPoint3D">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    %PYARG_0 = glue_QwtPlotSpectroCurve_sample(%CPPSELF, %1);
+]]>
+            </inject-code>
+        </add-function>
+        <modify-function signature="setColorMap(QwtColorMap*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <object-type name="QwtPlotVectorField">
+        <inject-code class="native" position="beginning">
+        #include "glue_plot.h"
+        </inject-code>
+        <enum-type name="IndicatorOrigin"/>
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+        <enum-type name="MagnitudeMode" flags="MagnitudeModes"/>
+        <add-function signature="size()" return-type="size_t">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    size_t _result = %CPPSELF->QwtPlotVectorField::data()->size();
+    %PYARG_0 = Shiboken::Conversions::copyToPython(Shiboken::Conversions::PrimitiveTypeConverter<size_t>(), &_result);
+]]>
+            </inject-code>
+        </add-function>
+        <add-function signature="sample(size_t)" return-type="QwtVectorFieldSample">
+            <inject-code class="target" position="beginning">
+<![CDATA[
+    %PYARG_0 = glue_QwtPlotVectorField_sample(%CPPSELF, %1);
+]]>
+            </inject-code>
+        </add-function>
+        <modify-function signature="setSymbol(QwtVectorFieldSymbol*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+        <modify-function signature="setColorMap(QwtColorMap*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+
+    <!-- Vector field symbols -->
+    <object-type name="QwtVectorFieldSymbol"/>
+    <object-type name="QwtVectorFieldArrow"/>
+    <object-type name="QwtVectorFieldThinArrow"/>
+
+    <!-- Non-series items -->
+    <object-type name="QwtPlotShapeItem">
+        <enum-type name="PaintAttribute" flags="PaintAttributes"/>
+        <enum-type name="LegendMode"/>
+    </object-type>
+    <object-type name="QwtPlotZoneItem"/>
+    <object-type name="QwtPlotTextLabel"/>
+    <object-type name="QwtPlotScaleItem">
+        <modify-function signature="setScaleDraw(QwtScaleDraw*)">
+            <modify-argument index="1"><define-ownership owner="c++"/></modify-argument>
+        </modify-function>
+    </object-type>
+    <object-type name="QwtPlotGraphicItem"/>
+    <object-type name="QwtPlotLegendItem">
+        <enum-type name="BackgroundMode"/>
+    </object-type>
+
+    <!-- Legends -->
+    <object-type name="QwtAbstractLegend"/>
+    <object-type name="QwtLegend"/>
+    <value-type name="QwtLegendData">
+        <enum-type name="Mode"/>
+        <enum-type name="Role"/>
+    </value-type>
+    <object-type name="QwtLegendLabel"/>
+    <!-- QwtDynGridLayout deferred: shiboken generates addLayoutOwnership calls
+         that are not available in the current shiboken6 version (QLayout
+         ownership tracking). The legend layout is an internal detail. -->
+
+    <!-- ===== Task 4: Interaction + figure + utilities + facade ===== -->
+
+    <!-- Event pattern + picker machines -->
+    <object-type name="QwtEventPattern">
+        <enum-type name="MousePatternCode"/>
+        <enum-type name="KeyPatternCode"/>
+    </object-type>
+    <object-type name="QwtPickerMachine">
+        <enum-type name="SelectionType"/>
+        <enum-type name="Command"/>
+    </object-type>
+    <object-type name="QwtPickerTrackerMachine"/>
+    <object-type name="QwtPickerClickPointMachine"/>
+    <object-type name="QwtPickerDragPointMachine"/>
+    <object-type name="QwtPickerClickRectMachine"/>
+    <object-type name="QwtPickerDragRectMachine"/>
+    <object-type name="QwtPickerDragLineMachine"/>
+    <object-type name="QwtPickerPolygonMachine"/>
+
+    <!-- Pickers -->
+    <object-type name="QwtPicker">
+        <enum-type name="RubberBand"/>
+        <enum-type name="DisplayMode"/>
+        <enum-type name="ResizeMode"/>
+    </object-type>
+    <object-type name="QwtPlotPicker"/>
+    <object-type name="QwtCanvasPicker"/>
+    <object-type name="QwtPlotSeriesDataPicker">
+        <enum-type name="PickSeriesMode"/>
+        <enum-type name="TextPlacement"/>
+        <enum-type name="InterpolationMode"/>
+    </object-type>
+    <object-type name="QwtPlotSeriesDataPickerGroup"/>
+
+    <!-- Zoomers / panners / magnifier -->
+    <object-type name="QwtPlotAxisZoomer"/>
+    <object-type name="QwtPlotCanvasZoomer">
+        <!-- zoomStateIndex() is declared but not defined in the .cpp; reject it. -->
+        <rejection class="QwtPlotCanvasZoomer" function-name="zoomStateIndex"/>
+    </object-type>
+    <!-- QwtPlotCanvasZoomState deferred: has a QwtInterval[4] C-style array member
+         that shiboken cannot synthesize a minimal constructor for. -->
+    <!-- <object-type name="QwtPlotCanvasZoomState"/> -->
+    <object-type name="QwtPlotPanner"/>
+    <object-type name="QwtPlotCachePanner"/>
+    <object-type name="QwtCachePanner"/>
+    <object-type name="QwtMagnifier"/>
+    <object-type name="QwtPlotMagnifier"/>
+    <object-type name="QwtPlotRescaler">
+        <enum-type name="RescalePolicy"/>
+        <enum-type name="ExpandingDirection"/>
+        <rejection class="QwtPlotRescaler" function-name="updateScales"/>
+    </object-type>
+
+    <!-- Overlays -->
+    <object-type name="QwtWidgetOverlay"/>
+    <object-type name="QwtFigureWidgetOverlay"/>
+
+    <!-- Figure / parasite framework (QwtPlotTransparentCanvas already bound in Task 2) -->
+    <object-type name="QwtFigure"/>
+    <!-- QwtFigureLayout deferred: same addLayoutOwnership issue as QwtDynGridLayout
+         (QLayout subclass, shiboken6 generates unavailable ownership calls). -->
+    <object-type name="QwtParasitePlotLayout"/>
+    <object-type name="QwtPlotScaleEventDispatcher"/>
+    <object-type name="QwtSamplingThread"/>
+    <object-type name="QwtPlotLayoutEngine"/>
+
+    <!-- Utility static classes -->
+    <object-type name="QwtPlotFactory"/>
+    <object-type name="QwtPlotItemInfo"/>
+    <object-type name="QwtPlotDataAccess"/>
+    <object-type name="QwtPlotStyling"/>
+    <object-type name="QwtPlotTransform"/>
+
+    <!-- Splines -->
+    <object-type name="QwtSpline"/>
+    <object-type name="QwtSplineBasis"/>
+    <object-type name="QwtSplineCubic"/>
+    <object-type name="QwtSplineLocal"/>
+    <object-type name="QwtSplinePleasing"/>
+    <object-type name="QwtSplineParametrization">
+        <enum-type name="Type"/>
+    </object-type>
+    <value-type name="QwtSplinePolynomial"/>
+
+    <!-- Point mapper (helper, may not generate a wrapper) -->
+    <object-type name="QwtPointMapper"/>
+</typesystem>

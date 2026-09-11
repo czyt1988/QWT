@@ -64,6 +64,12 @@ void QwtParasitePlotLayout::activate(const QwtPlot* plot, const QRectF& plotRect
             setCanvasMargin(hostLayout->canvasMargin(axisPos), axisPos);
             setScaleRect(axisPos, hostLayout->scaleRect(axisPos));
         }
+        // Caption rects for outside axis titles depend on the scale rects and
+        // the own layer offsets (margin/edgeMargin), so they have to be
+        // recomputed from the copied host rects. The bands have already been
+        // reserved by the host layout (it aggregates the caption heights of
+        // all parasite plots).
+        updateScaleCaptionRects(plot);
     }
 }
 

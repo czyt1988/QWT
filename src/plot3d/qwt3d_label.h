@@ -8,28 +8,28 @@
 #include <qfontmetrics.h>
 
 #include "qwt3d_drawable.h"
+#include "qwt3d_io_gl2ps.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief A Qt string or an output device dependent string
- * @details Label provides text rendering on 3D plots, supporting both Qt string
+ * @details Qwt3DLabel provides text rendering on 3D plots, supporting both Qt string
  *          representation and device-dependent string output.
  */
-class QWT3D_EXPORT Label : public Drawable
+class QWT3D_EXPORT Qwt3DLabel : public Qwt3DDrawable
 {
-    QWT_DECLARE_PRIVATE(Label)
+    QWT_DECLARE_PRIVATE(Qwt3DLabel)
 
 public:
-    Label();
-    ~Label() override;
-    Label(const Label& other);
-    Label(Label&& other) noexcept;
-    Label& operator=(const Label& other);
-    Label& operator=(Label&& other) noexcept;
+    Qwt3DLabel();
+    ~Qwt3DLabel() override;
+    Qwt3DLabel(const Qwt3DLabel& other);
+    Qwt3DLabel(Qwt3DLabel&& other) noexcept;
+    Qwt3DLabel& operator=(const Qwt3DLabel& other);
+    Qwt3DLabel& operator=(Qwt3DLabel&& other) noexcept;
     // Construct label and initialize with font
-    Label(const QString& family, int pointSize, int weight = QFont::Normal, bool italic = false);
+    Qwt3DLabel(const QString& family, int pointSize, int weight = QFont::Normal, bool italic = false);
 
     // Sets the labels font
     void setFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
@@ -39,22 +39,24 @@ public:
     // Returns the gap caused by adjust()
     double gap() const;
     // Sets the labels position
-    void setPosition(Qwt3D::Triple pos, ANCHOR a = BottomLeft);
+    void setPosition(Triple pos, ANCHOR a = BottomLeft);
     // Sets the labels position relative to screen
-    void setRelPosition(Tuple rpos, ANCHOR a);
+    void setRelPosition(Tuple rpos, ANCHOR a, const Qwt3DRenderContext& ctx);
     // Receives bottom left label position
-    Qwt3D::Triple first() const;
+    Triple first() const;
     // Receives top right label position
-    Qwt3D::Triple second() const;
+    Triple second() const;
     // Defines an anchor point for the labels surrounding rectangle
     ANCHOR anchor() const;
     virtual void setColor(double r, double g, double b, double a = 1) override;
-    virtual void setColor(Qwt3D::RGBA rgba) override;
+    virtual void setColor(RGBA rgba) override;
 
     // Sets the labels string
     void setString(QString const& s);
+    // Returns the labels string
+    QString string() const;
     // Actual drawing
-    virtual void draw() override;
+    void draw(const Qwt3DRenderContext& ctx) override;
 
     // Decides about use of PDF standard fonts for PDF output
     static void useDeviceFonts(bool val);
@@ -63,11 +65,10 @@ private:
     void init();
     void init(const QString& family, int pointSize, int weight = QFont::Normal, bool italic = false);
     void update();
-    void convert2screen();
+    void convert2screen(const Qwt3DRenderContext& ctx);
     double width() const;
     double height() const;
 };
 
-}  // ns
 
 #endif  // QWT3D_LABEL_H

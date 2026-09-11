@@ -2,50 +2,43 @@
 #define QWT3D_DRAWABLE_H
 
 #include "qwt3d_global.h"
+#include "qwt3d_render_context.h"
 #include "qwt3d_types.h"
-#include "qwt3d_io_gl2ps.h"
-
-namespace Qwt3D
-{
 
 /**
  * @brief Abstract base class for Drawables
+ * @details Drawables are scene-graph nodes rendered during paintGL.
+ *          They no longer manage legacy GL state. Each drawable receives
+ *          its rendering resources (shaders, matrices, viewport, coordinate
+ *          conversion) through a Qwt3DRenderContext passed to draw(),
+ *          eliminating the former Qwt3DPlot* back-pointer (deferred smell #1,
+ *          resolved).
  */
-class QWT3D_EXPORT Drawable
+class QWT3D_EXPORT Qwt3DDrawable
 {
-    QWT_DECLARE_PRIVATE(Drawable)
+    QWT_DECLARE_PRIVATE(Qwt3DDrawable)
 
 public:
-    virtual ~Drawable() = 0;
+    virtual ~Qwt3DDrawable() = 0;
 
-    virtual void draw();
+    // Draws the drawable and all attached children
+    virtual void draw(const Qwt3DRenderContext& ctx);
 
-    virtual void saveGLState();
-    virtual void restoreGLState();
-
-    void attach(Drawable*);
-    void detach(Drawable*);
+    void attach(Qwt3DDrawable*);
+    void detach(Qwt3DDrawable*);
     void detachAll();
 
     virtual void setColor(double r, double g, double b, double a = 1);
-    virtual void setColor(Qwt3D::RGBA rgba);
-    Qwt3D::Triple relativePosition(Qwt3D::Triple rel);
+    virtual void setColor(RGBA rgba);
+    /// Returns the drawable's color
+    RGBA color() const;
 
 protected:
-    Qwt3D::RGBA color;
-    void Enable(GLenum what, GLboolean val);
-    Qwt3D::Triple ViewPort2World(Qwt3D::Triple win, bool* err = nullptr);
-    Qwt3D::Triple World2ViewPort(Qwt3D::Triple obj, bool* err = nullptr);
+    RGBA m_color;
 
-    Drawable();
-    Drawable(Drawable&& other) noexcept;
-    Drawable& operator=(Drawable&& other) noexcept;
-
-    GLdouble modelMatrix[ 16 ];
-    GLdouble projMatrix[ 16 ];
-    GLint viewport[ 4 ];
+    Qwt3DDrawable();
+    Qwt3DDrawable(Qwt3DDrawable&& other) noexcept;
+    Qwt3DDrawable& operator=(Qwt3DDrawable&& other) noexcept;
 };
-
-}  // ns
 
 #endif

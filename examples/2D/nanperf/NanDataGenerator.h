@@ -13,6 +13,7 @@ enum class NanCase
     Trailing,         ///< Signal first, NaN at the end
     XyNan,            ///< NaN in both X and Y at the middle (breaks monotonic X)
     XyInterleavedNan, ///< Alternating X-only and Y-only NaN in the middle
+    AllNan,           ///< Every Y value is NaN (X stays as the finite monotonic index)
     Baseline          ///< No NaN (reference)
 };
 
@@ -20,7 +21,8 @@ enum class NanCase
 /// For most cases X is the monotonic finite index 0..N-1 and NaN is placed
 /// only in Y. XyNan injects NaN into both X and Y simultaneously.
 /// XyInterleavedNan alternates X-only and Y-only NaN so no point has both
-/// coordinates NaN.
+/// coordinates NaN. AllNan sets every Y value to NaN (X stays finite),
+/// exercising the fully-degenerate all-NaN curve path.
 class NanDataGenerator
 {
 public:

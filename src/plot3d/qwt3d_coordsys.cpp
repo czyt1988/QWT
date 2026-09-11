@@ -1,14 +1,19 @@
 #include "qwt3d_coordsys.h"
 
-using namespace std;
-using namespace Qwt3D;
+#include <QOpenGLFunctions>
+#include <QOpenGLBuffer>
+#include <QOpenGLShaderProgram>
 
-class CoordinateSystem::PrivateData
+#include <cmath>
+
+using namespace std;
+
+class Qwt3DCoordinateSystem::PrivateData
 {
-    QWT_DECLARE_PUBLIC(CoordinateSystem)
+    QWT_DECLARE_PUBLIC(Qwt3DCoordinateSystem)
 
 public:
-    PrivateData(CoordinateSystem* p)
+    PrivateData(Qwt3DCoordinateSystem* p)
         : q_ptr(p)
         , m_style(BOX)
         , m_smooth(true)
@@ -16,27 +21,42 @@ public:
         , m_majorgridlines(false)
         , m_minorgridlines(false)
         , m_sides(0)
+        , m_tickPosition(TICK_BOTTOM)
+        , m_interiorMajor(false)
+        , m_interiorMinor(false)
+        , m_interiorSides(NO_INTERIOR)
+        , m_interiorMajWidth(0.5)
+        , m_interiorMinWidth(0.3)
     {
     }
 
     Triple m_first, m_second;
     COORDSTYLE m_style;
+    RGBA m_axesColor;
+    RGBA m_numberColor;
+    RGBA m_labelColor;
     RGBA m_gridlinecolor;
     bool m_smooth;
     bool m_autodecoration;
     bool m_majorgridlines, m_minorgridlines;
     int m_sides;
+    TICKPOSITION m_tickPosition;
+    bool m_interiorMajor, m_interiorMinor;
+    int m_interiorSides;
+    RGBA m_interiorGridColor;
+    double m_interiorMajWidth, m_interiorMinWidth;
+
+    // Tic-length model: automatic per-axis derivation (scale-based) by default,
+    // or an explicit manual override that survives init() (data changes).
+    double m_ticLengthScale = 0.015;   // auto: fraction of per-axis perpendicular range
+    bool m_manualTicLength = false;     // user set an explicit length via setTicLength()
+    double m_manualMajorTic = 0.0;
+    double m_manualMinorTic = 0.0;
 };
 
-/**
- * @brief Constructs a coordinate system with specified boundaries and style
- * @param first Minimum vertex of the coordinate system box
- * @param second Maximum vertex of the coordinate system box
- * @param st Coordinate system style (NOCOORD, BOX, or FRAME)
- */
-CoordinateSystem::CoordinateSystem(Triple first, Triple second, COORDSTYLE st) : QWT_PIMPL_CONSTRUCT
+Qwt3DCoordinateSystem::Qwt3DCoordinateSystem(Triple first, Triple second, COORDSTYLE st) : QWT_PIMPL_CONSTRUCT
 {
-    axes = std::vector< Axis >(12);
+    axes = std::vector< Qwt3DAxis >(12);
     setStyle(st);
     init(first, second);
 
@@ -46,17 +66,15 @@ CoordinateSystem::CoordinateSystem(Triple first, Triple second, COORDSTYLE st) :
     setNumberColor(RGBA(0, 0, 0));
     setLabelFont("Courier", 14, QFont::Bold);
     setGridLines(false, false);
+    setInteriorGridLinesColor(RGBA(0.6, 0.6, 0.6, 0.5));
 }
 
-/**
- * @brief Destructor
- */
-CoordinateSystem::~CoordinateSystem()
+Qwt3DCoordinateSystem::~Qwt3DCoordinateSystem()
 {
     destroy();
 }
 
-void CoordinateSystem::destroy()
+void Qwt3DCoordinateSystem::destroy()
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setLabelString("");
@@ -64,7 +82,7 @@ void CoordinateSystem::destroy()
     detachAll();
 }
 
-void CoordinateSystem::init(Triple first, Triple second)
+void Qwt3DCoordinateSystem::init(Triple first, Triple second)
 {
     QWT_D(d);
 
@@ -77,12 +95,9 @@ void CoordinateSystem::init(Triple first, Triple second)
 
     setPosition(first, second);
 
-    double majl = dv.length() / 100;  // 1 %
-    setTicLength(majl, 0.6 * majl);
-
-    axes[ X1 ].setPosition(first, first + Triple(dv.x, 0, 0));                          // front bottom x
-    axes[ Y1 ].setPosition(first, first + Triple(0, dv.y, 0));                          // bottom left  y
-    axes[ Z1 ].setPosition(first + Triple(0, dv.y, 0), first + Triple(0, dv.y, dv.z));  // back left z
+    axes[ X1 ].setPosition(first, first + Triple(dv.x, 0, 0));
+    axes[ Y1 ].setPosition(first, first + Triple(0, dv.y, 0));
+    axes[ Z1 ].setPosition(first + Triple(0, dv.y, 0), first + Triple(0, dv.y, dv.z));
     axes[ X1 ].setTicOrientation(0, -1, 0);
     axes[ Y1 ].setTicOrientation(-1, 0, 0);
     axes[ Z1 ].setTicOrientation(-1, 0, 0);
@@ -102,81 +117,123 @@ void CoordinateSystem::init(Triple first, Triple second)
     axes[ Z3 ].setLimits(first.z, second.z);
     axes[ Z4 ].setLimits(first.z, second.z);
 
-    // remaining x axes
-    axes[ X2 ].setPosition(first + Triple(0, 0, dv.z), first + Triple(dv.x, 0, dv.z));  // front top x
-    axes[ X3 ].setPosition(first + Triple(0, dv.y, dv.z), second);                      // back top x
-    axes[ X4 ].setPosition(first + Triple(0, dv.y, 0), first + Triple(dv.x, dv.y, 0));  // back bottom x
+    axes[ X2 ].setPosition(first + Triple(0, 0, dv.z), first + Triple(dv.x, 0, dv.z));
+    axes[ X3 ].setPosition(first + Triple(0, dv.y, dv.z), second);
+    axes[ X4 ].setPosition(first + Triple(0, dv.y, 0), first + Triple(dv.x, dv.y, 0));
     axes[ X2 ].setTicOrientation(0, -1, 0);
     axes[ X3 ].setTicOrientation(0, 1, 0);
     axes[ X4 ].setTicOrientation(0, 1, 0);
 
-    // remaining y axes
-    axes[ Y2 ].setPosition(first + Triple(dv.x, 0, 0), first + Triple(dv.x, dv.y, 0));  // bottom right y
-    axes[ Y3 ].setPosition(first + Triple(dv.x, 0, dv.z), second);                      // top right y
-    axes[ Y4 ].setPosition(first + Triple(0, 0, dv.z), first + Triple(0, dv.y, dv.z));  // top left y
+    axes[ Y2 ].setPosition(first + Triple(dv.x, 0, 0), first + Triple(dv.x, dv.y, 0));
+    axes[ Y3 ].setPosition(first + Triple(dv.x, 0, dv.z), second);
+    axes[ Y4 ].setPosition(first + Triple(0, 0, dv.z), first + Triple(0, dv.y, dv.z));
     axes[ Y2 ].setTicOrientation(1, 0, 0);
     axes[ Y3 ].setTicOrientation(1, 0, 0);
     axes[ Y4 ].setTicOrientation(-1, 0, 0);
 
-    // remaining z axes
-    axes[ Z2 ].setPosition(first, first + Triple(0, 0, dv.z));                          // front left z
-    axes[ Z4 ].setPosition(first + Triple(dv.x, dv.y, 0), second);                      // back right z
-    axes[ Z3 ].setPosition(first + Triple(dv.x, 0, 0), first + Triple(dv.x, 0, dv.z));  // front right z
+    axes[ Z2 ].setPosition(first, first + Triple(0, 0, dv.z));
+    axes[ Z4 ].setPosition(first + Triple(dv.x, dv.y, 0), second);
+    axes[ Z3 ].setPosition(first + Triple(dv.x, 0, 0), first + Triple(dv.x, 0, dv.z));
     axes[ Z2 ].setTicOrientation(-1, 0, 0);
     axes[ Z4 ].setTicOrientation(1, 0, 0);
     axes[ Z3 ].setTicOrientation(1, 0, 0);
+
+    // Apply the tic-length model now that all orientations are set. This respects
+    // an explicit override (setTicLength) and otherwise derives per-axis lengths
+    // from the data range in each tick's pointing direction (anisotropy-proof).
+    applyTicLengths();
 
     setStyle(d->m_style);
 }
 
 /**
- * @brief Draws the coordinate system, including grid lines if enabled
- * @details Chooses visible axes automatically when auto-decoration is on,
- *          then draws major and minor grid lines as configured.
+ * @brief Helper: draws a set of line segments using VBO + line shader
+ * @param ctx Render context providing shader and matrices
  */
-void CoordinateSystem::draw()
+void Qwt3DCoordinateSystem::drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth, const RGBA& lineColor)
+{
+    if (vertices.isEmpty())
+        return;
+
+    auto* shader = ctx.lineShader;
+    if (!shader)
+        return;
+
+    auto* f = QOpenGLContext::currentContext()->functions();
+
+    // TODO: glLineWidth > 1.0 not guaranteed in Core Profile (Plan B)
+    f->glLineWidth(static_cast< GLfloat >(std::max(1.0, lineWidth)));
+
+    QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
+    vbo.create();
+    vbo.bind();
+    vbo.allocate(vertices.constData(), vertices.size() * sizeof(float));
+
+    shader->bind();
+    shader->setUniformValue("uModelView", ctx.modelView);
+    shader->setUniformValue("uProjection", ctx.projection);
+
+    int stride = 7 * sizeof(float);
+    shader->enableAttributeArray(0);
+    shader->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
+    shader->enableAttributeArray(1);
+    shader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 4, stride);
+
+    f->glDrawArrays(GL_LINES, 0, vertices.size() / 7);
+
+    shader->disableAttributeArray(0);
+    shader->disableAttributeArray(1);
+    shader->release();
+    vbo.release();
+    vbo.destroy();
+}
+
+/**
+ * @brief Draws the coordinate system, including grid lines if enabled
+ * @param ctx Render context providing shaders, matrices, and coordinate conversion
+ */
+void Qwt3DCoordinateSystem::draw(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
-    GLStateBewarer sb(GL_LINE_SMOOTH, true);
-
-    if (!d->m_smooth)
-        sb.turnOff();
-
     if (d->m_autodecoration)
-        chooseAxes();
+        chooseAxes(ctx);
 
-    Drawable::draw();
+    Qwt3DDrawable::draw(ctx);
 
     if (d->m_style == NOCOORD)
         return;
 
-    if (d->m_majorgridlines || d->m_minorgridlines)
+    if (d->m_majorgridlines || d->m_minorgridlines
+        || d->m_interiorMajor || d->m_interiorMinor)
         recalculateAxesTics();
     if (d->m_majorgridlines)
-        drawMajorGridLines();
+        drawMajorGridLines(ctx);
     if (d->m_minorgridlines)
-        drawMinorGridLines();
+        drawMinorGridLines(ctx);
+    if (d->m_interiorMajor)
+        drawInteriorMajorGridLines(ctx);
+    if (d->m_interiorMinor)
+        drawInteriorMinorGridLines(ctx);
 }
 
-void CoordinateSystem::chooseAxes()
+void Qwt3DCoordinateSystem::chooseAxes(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
-    vector< Triple > beg(axes.size());
-    vector< Triple > end(axes.size());
+    vector< QPointF > beg(axes.size());
+    vector< QPointF > end(axes.size());
     vector< Tuple > src(2 * axes.size());
 
     unsigned i;
-    // collect axes viewport coordinates and initialize
     for (i = 0; i != axes.size(); ++i) {
         if (d->m_style != NOCOORD)
             attach(&axes[ i ]);
 
-        beg[ i ]               = World2ViewPort(axes[ i ].begin());
-        end[ i ]               = World2ViewPort(axes[ i ].end());
-        src[ i ]               = Tuple(beg[ i ].x, beg[ i ].y);
-        src[ axes.size() + i ] = Tuple(end[ i ].x, end[ i ].y);
+        beg[ i ]               = ctx.worldToScreen(axes[ i ].begin());
+        end[ i ]               = ctx.worldToScreen(axes[ i ].end());
+        src[ i ]               = Tuple(beg[ i ].x(), beg[ i ].y());
+        src[ axes.size() + i ] = Tuple(end[ i ].x(), end[ i ].y());
 
         axes[ i ].setScaling(false);
         axes[ i ].setNumbers(false);
@@ -200,16 +257,15 @@ void CoordinateSystem::chooseAxes()
     int other_y = -1;
     int other_z = -1;
 
-    // traverse convex hull
     for (unsigned k = 0; k != idx.size(); ++k) {
-        Triple one, two;
+        QPointF one, two;
 
-        if (idx[ k ] >= axes.size())  // is end point
+        if (idx[ k ] >= axes.size())
             one = end[ idx[ k ] - axes.size() ];
-        else  // is begin point
+        else
             one = beg[ idx[ k ] ];
 
-        unsigned int next = idx[ (k + 1) % idx.size() ];  // next point in cv (considered as ring buffer of points)
+        unsigned int next = idx[ (k + 1) % idx.size() ];
 
         if (next >= axes.size())
             two = end[ next - axes.size() ];
@@ -218,72 +274,77 @@ void CoordinateSystem::chooseAxes()
 
         for (i = 0; i != axes.size(); ++i) {
             if ((one == beg[ i ] && two == end[ i ]) || (two == beg[ i ] && one == end[ i ])) {
-                if (i == X1 || i == X2 || i == X3 || i == X4)  // x axes
+                if (i == X1 || i == X2 || i == X3 || i == X4)
                 {
-                    if (rem_x >= 0)  // already second axis of the convex hull?
+                    if (rem_x >= 0)
                     {
-                        // lower of the two x axes
-                        double y = min(min(end[ rem_x ].y, end[ i ].y), min(beg[ rem_x ].y, beg[ i ].y));
-                        choice_x = (y == beg[ i ].y || y == end[ i ].y) ? i : rem_x;
+                        // Screen y increases downward; max y = visually lower, min y = visually upper
+                        double y;
+                        if (d->m_tickPosition == TICK_BOTTOM) {
+                            y = max(max(end[ rem_x ].y(), end[ i ].y()), max(beg[ rem_x ].y(), beg[ i ].y()));
+                        } else {
+                            y = min(min(end[ rem_x ].y(), end[ i ].y()), min(beg[ rem_x ].y(), beg[ i ].y()));
+                        }
+                        choice_x = (y == beg[ i ].y() || y == end[ i ].y()) ? static_cast< int >(i) : rem_x;
 
                         other_x = (choice_x == static_cast< int >(i)) ? rem_x : static_cast< int >(i);
-                        left = (beg[ choice_x ].x < beg[ other_x ].x || end[ choice_x ].x < end[ other_x ].x) ? true : false;
+                        left = (beg[ choice_x ].x() < beg[ other_x ].x() || end[ choice_x ].x() < end[ other_x ].x()) ? true : false;
 
-                        autoDecorateExposedAxis(axes[ choice_x ], left);
+                        autoDecorateExposedAxis(ctx, axes[ choice_x ], left);
 
                         rem_x = -1;
                     } else {
-                        rem_x = i;
+                        rem_x = static_cast< int >(i);
                     }
                 } else if (i == Y1 || i == Y2 || i == Y3 || i == Y4) {
                     if (rem_y >= 0) {
-                        // lower of the two y axes
-                        double y = min(min(end[ rem_y ].y, end[ i ].y), min(beg[ rem_y ].y, beg[ i ].y));
-                        choice_y = (y == beg[ i ].y || y == end[ i ].y) ? i : rem_y;
+                        // Screen y increases downward; max y = visually lower, min y = visually upper
+                        double y;
+                        if (d->m_tickPosition == TICK_BOTTOM) {
+                            y = max(max(end[ rem_y ].y(), end[ i ].y()), max(beg[ rem_y ].y(), beg[ i ].y()));
+                        } else {
+                            y = min(min(end[ rem_y ].y(), end[ i ].y()), min(beg[ rem_y ].y(), beg[ i ].y()));
+                        }
+                        choice_y = (y == beg[ i ].y() || y == end[ i ].y()) ? static_cast< int >(i) : rem_y;
 
                         other_y = (choice_y == static_cast< int >(i)) ? rem_y : static_cast< int >(i);
-                        left = (beg[ choice_y ].x < beg[ other_y ].x || end[ choice_y ].x < end[ other_y ].x) ? true : false;
-                        autoDecorateExposedAxis(axes[ choice_y ], left);
+                        left = (beg[ choice_y ].x() < beg[ other_y ].x() || end[ choice_y ].x() < end[ other_y ].x()) ? true : false;
+                        autoDecorateExposedAxis(ctx, axes[ choice_y ], left);
 
                         rem_y = -1;
                     } else {
-                        rem_y = i;
+                        rem_y = static_cast< int >(i);
                     }
                 } else if (i == Z1 || i == Z2 || i == Z3 || i == Z4) {
                     if (rem_z >= 0) {
-                        // rear of the two z axes
-                        double z = max(max(end[ rem_z ].z, end[ i ].z), max(beg[ rem_z ].z, beg[ i ].z));
-                        choice_z = (z == beg[ i ].z || z == end[ i ].z) ? i : rem_z;
-
-                        other_z = (choice_z == static_cast< int >(i)) ? rem_z : static_cast< int >(i);
-
+                        // Two Z axes found on hull — track for post-loop connection check
+                        choice_z = rem_z;
+                        other_z = static_cast< int >(i);
                         rem_z = -1;
-
                     } else {
-                        rem_z = i;
+                        rem_z = static_cast< int >(i);
                     }
                 }
             }
-        }  // for axes
-    }      // for idx
-
-    // fit z axis in - the onthewall axis if the decorated axes build a continous line, the opposite
-    // else
-    if (choice_x >= 0 && choice_y >= 0 && choice_z >= 0) {
-        left = (beg[ choice_z ].x < beg[ other_z ].x || end[ choice_z ].x < end[ other_z ].x) ? true : false;
-
-        if (axes[ choice_z ].begin() == axes[ choice_x ].begin() || axes[ choice_z ].begin() == axes[ choice_x ].end()
-            || axes[ choice_z ].begin() == axes[ choice_y ].begin() || axes[ choice_z ].begin() == axes[ choice_y ].end()
-            || axes[ choice_z ].end() == axes[ choice_x ].begin() || axes[ choice_z ].end() == axes[ choice_x ].end()
-            || axes[ choice_z ].end() == axes[ choice_y ].begin() || axes[ choice_z ].end() == axes[ choice_y ].end()
-
-        ) {
-            autoDecorateExposedAxis(axes[ choice_z ], left);
         }
+    }
 
-        else {
-            autoDecorateExposedAxis(axes[ other_z ], !left);
-            choice_z = other_z;  // for FRAME
+    if (choice_x >= 0 && choice_y >= 0 && choice_z >= 0) {
+        if (static_cast< int >(axes[ choice_z ].begin() == axes[ choice_x ].begin() ||
+            axes[ choice_z ].begin() == axes[ choice_x ].end() ||
+            axes[ choice_z ].begin() == axes[ choice_y ].begin() ||
+            axes[ choice_z ].begin() == axes[ choice_y ].end() ||
+            axes[ choice_z ].end() == axes[ choice_x ].begin() ||
+            axes[ choice_z ].end() == axes[ choice_x ].end() ||
+            axes[ choice_z ].end() == axes[ choice_y ].begin() ||
+            axes[ choice_z ].end() == axes[ choice_y ].end()))
+        {
+            autoDecorateExposedAxis(ctx, axes[ choice_z ], left);
+        }
+        else
+        {
+            autoDecorateExposedAxis(ctx, axes[ other_z ], !left);
+            choice_z = other_z;
         }
     }
 
@@ -295,13 +356,22 @@ void CoordinateSystem::chooseAxes()
     }
 }
 
-void CoordinateSystem::autoDecorateExposedAxis(Axis& ax, bool left)
+void Qwt3DCoordinateSystem::autoDecorateExposedAxis(const Qwt3DRenderContext& ctx, Qwt3DAxis& ax, bool left)
 {
-    Triple diff = World2ViewPort(ax.end()) - World2ViewPort(ax.begin());
+    (void)left;  // polarity is now derived from the outward direction below
 
-    diff = Triple(diff.x, diff.y, 0);  // projection
+    // The exposed axis lies on the projected box silhouette, so the screen
+    // vector from the box center to the axis midpoint always points outward.
+    // This is independent of the axis' own screen direction (which is what the
+    // previous sina-vs-SQRT_2 heuristic used) and therefore does not flip when
+    // the axis projects near 45 degrees or when the viewport aspect changes.
+    Triple midWorld = ax.begin() + (ax.end() - ax.begin()) / 2.0;
+    Triple centerWorld = first() + (second() - first()) / 2.0;
+    QPointF midScreen = ctx.worldToScreen(midWorld);
+    QPointF centerScreen = ctx.worldToScreen(centerWorld);
+    QPointF outward = midScreen - centerScreen;  // screen y grows downward
 
-    double s = diff.length();
+    double s = sqrt(outward.x() * outward.x() + outward.y() * outward.y());
 
     if (!s)
         return;
@@ -310,228 +380,241 @@ void CoordinateSystem::autoDecorateExposedAxis(Axis& ax, bool left)
     ax.setNumbers(true);
     ax.setLabel(true);
 
-    const double SQRT_2 = 0.7071067;
-    double sina         = fabs(diff.y / s);
-
-    if (left)  // leftmost (compared with antagonist in CV)  axis -> draw decorations on the left
-               // side
-    {
-        if (diff.x >= 0 && diff.y >= 0 && sina < SQRT_2)  // 0..Pi/4
-        {
-            ax.setNumberAnchor(BottomCenter);
-        } else if (diff.x >= 0 && diff.y >= 0 && !left)  // octant 2
-        {
-            ax.setNumberAnchor(CenterRight);
-        } else if (diff.x <= 0 && diff.y >= 0 && sina >= SQRT_2)  // octant 3
-        {
-            ax.setNumberAnchor(CenterRight);
-        } else if (diff.x <= 0 && diff.y >= 0)  // octant 4
-        {
-            ax.setNumberAnchor(TopCenter);
-        } else if (diff.x <= 0 && diff.y <= 0 && sina <= SQRT_2)  // octant 5
-        {
-            ax.setNumberAnchor(BottomCenter);
-        } else if (diff.x <= 0 && diff.y <= 0)  // octant 6
-        {
-            ax.setNumberAnchor(CenterRight);
-        } else if (diff.x >= 0 && diff.y <= 0 && sina >= SQRT_2)  // octant 7
-        {
-            ax.setNumberAnchor(CenterRight);
-        } else if (diff.x >= 0 && diff.y <= 0)  // octant 8
-        {
-            ax.setNumberAnchor(TopCenter);
-        }
-    } else  // rightmost axis
-    {
-        if (diff.x >= 0 && diff.y >= 0 && sina <= SQRT_2) {
-            ax.setNumberAnchor(TopCenter);
-        } else if (diff.x >= 0 && diff.y >= 0 && !left) {
-            ax.setNumberAnchor(CenterLeft);
-        } else if (diff.x <= 0 && diff.y >= 0 && sina >= SQRT_2) {
-            ax.setNumberAnchor(CenterLeft);
-        } else if (diff.x <= 0 && diff.y >= 0) {
-            ax.setNumberAnchor(BottomCenter);
-        } else if (diff.x <= 0 && diff.y <= 0 && sina <= SQRT_2) {
-            ax.setNumberAnchor(TopCenter);
-        } else if (diff.x <= 0 && diff.y <= 0) {
-            ax.setNumberAnchor(CenterLeft);
-        } else if (diff.x >= 0 && diff.y <= 0 && sina >= SQRT_2) {
-            ax.setNumberAnchor(CenterLeft);
-        } else if (diff.x >= 0 && diff.y <= 0) {
-            ax.setNumberAnchor(BottomCenter);
-        }
-    }
+    // Map the outward screen direction to an anchor so the label text extends
+    // outward (away from the box). Screen y is downward, hence outward.y() > 0
+    // means the axis is visually below the center and the text must extend
+    // further down; the horizontal cases are symmetric.
+    if (fabs(outward.y()) >= fabs(outward.x()))
+        ax.setNumberAnchor(outward.y() > 0 ? BottomCenter : TopCenter);
+    else
+        ax.setNumberAnchor(outward.x() > 0 ? CenterLeft : CenterRight);
 }
 
-/**
- * @brief Sets the position of the coordinate system box
- * @param first Front-left-bottom corner of the bounding box
- * @param second Back-right-top corner of the bounding box
- */
-void CoordinateSystem::setPosition(Triple first, Triple second)
+void Qwt3DCoordinateSystem::setPosition(Triple first, Triple second)
 {
     QWT_D(d);
     d->m_first  = first;
     d->m_second = second;
 }
 
-/**
- * @brief Sets the length of major and minor tic marks for all axes
- * @param major Length of major tic marks
- * @param minor Length of minor tic marks
- */
-void CoordinateSystem::setTicLength(double major, double minor)
+void Qwt3DCoordinateSystem::setTicLength(double major, double minor)
 {
+    QWT_D(d);
+    // Store as an explicit override so init() (re-run on every data change) honors
+    // it instead of clobbering it with the automatic per-axis derivation.
+    d->m_manualTicLength = true;
+    d->m_manualMajorTic = major;
+    d->m_manualMinorTic = minor;
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setTicLength(major, minor);
 }
 
 /**
- * @brief Adjusts the distance between axis numbering and axis body for all axes
- * @param val Offset value to fine-tune number positioning
+ * @brief 返回显式设置的 tic 长度
+ * @param[out] major 主刻度长度
+ * @param[out] minor 次刻度长度
+ * @details 仅返回通过 setTicLength() 设置的值。如果使用自动模式
+ *          (ticLengthScale())，返回的值为上次显式设置或默认值 0。
  */
-void CoordinateSystem::adjustNumbers(int val)
+void Qwt3DCoordinateSystem::ticLength(double& major, double& minor) const
+{
+    QWT_DC(d);
+    major = d->m_manualMajorTic;
+    minor = d->m_manualMinorTic;
+}
+
+void Qwt3DCoordinateSystem::setTicLengthScale(double scale)
+{
+    QWT_D(d);
+    if (scale < 0.0)
+        scale = 0.0;
+    d->m_ticLengthScale = scale;
+    d->m_manualTicLength = false;  // back to automatic per-axis derivation
+    applyTicLengths();
+}
+
+double Qwt3DCoordinateSystem::ticLengthScale() const
+{
+    QWT_DC(d);
+    return d->m_ticLengthScale;
+}
+
+void Qwt3DCoordinateSystem::setAutoTicLength()
+{
+    QWT_D(d);
+    d->m_manualTicLength = false;
+    applyTicLengths();
+}
+
+void Qwt3DCoordinateSystem::applyTicLengths()
+{
+    QWT_D(d);
+
+    if (d->m_manualTicLength) {
+        // Explicit user override: identical length on every axis, preserved across init()
+        for (unsigned i = 0; i != axes.size(); ++i)
+            axes[ i ].setTicLength(d->m_manualMajorTic, d->m_manualMinorTic);
+        return;
+    }
+
+    // Automatic per-axis derivation: each tick's length is a fraction of the data
+    // range in the direction the tick points. Under AUTOFILL the visual length
+    // then collapses to scale * maxRange on every axis (anisotropy-proof); under
+    // DATARATIO it is scale * that axis's own range (consistent per axis).
+    const Triple dv = d->m_second - d->m_first;
+    const double scale = d->m_ticLengthScale;
+    for (unsigned i = 0; i != axes.size(); ++i) {
+        const Triple o = axes[ i ].ticOrientation();
+        double rangeDir = std::abs(o.x) * dv.x + std::abs(o.y) * dv.y + std::abs(o.z) * dv.z;
+        if (!(rangeDir > 0.0))
+            rangeDir = 1.0;
+        const double majl = scale * rangeDir;
+        axes[ i ].setTicLength(majl, 0.6 * majl);
+    }
+}
+
+void Qwt3DCoordinateSystem::adjustNumbers(int val)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].adjustNumbers(val);
 }
 
-/**
- * @brief Adjusts the distance between axis labels and axis body for all axes
- * @param val Offset value to fine-tune label positioning
- */
-void CoordinateSystem::adjustLabels(int val)
+void Qwt3DCoordinateSystem::adjustLabels(int val)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].adjustLabel(val);
 }
 
-/**
- * @brief Enables or disables automatic scaling for all axes
- * @param val True to enable auto-scaling, false to disable
- */
-void CoordinateSystem::setAutoScale(bool val)
+void Qwt3DCoordinateSystem::setAutoScale(bool val)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setAutoScale(val);
 }
 
 /**
- * @brief Sets a common color for all axes
- * @param val RGBA color value to apply to all axes
+ * @brief 返回是否启用自动缩放
+ * @return true 如果自动缩放已启用（委托到第一个轴的 autoScale()）
  */
-void CoordinateSystem::setAxesColor(RGBA val)
+bool Qwt3DCoordinateSystem::autoScale() const
 {
+    return axes[ 0 ].autoScale();
+}
+
+void Qwt3DCoordinateSystem::setAxesColor(RGBA val)
+{
+    QWT_D(d);
+    d->m_axesColor = val;
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setColor(val);
 }
 
 /**
- * @brief Recalculates tic positions for all axes
+ * @brief 返回轴线颜色
+ * @return RGBA 颜色值
  */
-void CoordinateSystem::recalculateAxesTics()
+RGBA Qwt3DCoordinateSystem::axesColor() const
+{
+    QWT_DC(d);
+    return d->m_axesColor;
+}
+
+void Qwt3DCoordinateSystem::recalculateAxesTics()
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].recalculateTics();
 }
 
-/**
- * @brief Sets the font used for axis numbering across all axes
- * @param family Font family name
- * @param pointSize Font size in points
- * @param weight Font weight (e.g., QFont::Normal, QFont::Bold)
- * @param italic Whether to use italic style
- */
-void CoordinateSystem::setNumberFont(QString const& family, int pointSize, int weight, bool italic)
+void Qwt3DCoordinateSystem::setNumberFont(QString const& family, int pointSize, int weight, bool italic)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setNumberFont(family, pointSize, weight, italic);
 }
 
-/**
- * @brief Sets the font used for axis numbering across all axes
- * @param font QFont object to apply to all axis numberings
- */
-void CoordinateSystem::setNumberFont(QFont const& font)
+void Qwt3DCoordinateSystem::setNumberFont(QFont const& font)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setNumberFont(font);
 }
 
 /**
- * @brief Sets a common color for all axis numberings
- * @param val RGBA color value to apply to axis numbers
+ * @brief 返回数字字体
+ * @return QFont 值（委托到第一个轴的 numberFont()）
+ * @details setNumberFont() 统一设置所有轴的数字字体，因此读取 axes[0] 即可代表当前值。
  */
-void CoordinateSystem::setNumberColor(RGBA val)
+QFont Qwt3DCoordinateSystem::numberFont() const
 {
+    return axes[ 0 ].numberFont();
+}
+
+void Qwt3DCoordinateSystem::setNumberColor(RGBA val)
+{
+    QWT_D(d);
+    d->m_numberColor = val;
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setNumberColor(val);
 }
 
 /**
- * @brief Sets all axes to use linear scaling with real number items
+ * @brief 返回数字颜色
+ * @return RGBA 颜色值
  */
-void CoordinateSystem::setStandardScale()
+RGBA Qwt3DCoordinateSystem::numberColor() const
+{
+    QWT_DC(d);
+    return d->m_numberColor;
+}
+
+void Qwt3DCoordinateSystem::setStandardScale()
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setScale(LINEARSCALE);
 }
 
-/**
- * @brief Sets the font used for axis labels across all axes
- * @param font QFont object to apply to all axis labels
- */
-void CoordinateSystem::setLabelFont(QFont const& font)
+void Qwt3DCoordinateSystem::setLabelFont(QFont const& font)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setLabelFont(font);
 }
 
 /**
- * @brief Sets the font used for axis labels across all axes
- * @param family Font family name
- * @param pointSize Font size in points
- * @param weight Font weight (e.g., QFont::Normal, QFont::Bold)
- * @param italic Whether to use italic style
+ * @brief 返回标签字体
+ * @return QFont 值（委托到第一个轴的 labelFont()）
  */
-void CoordinateSystem::setLabelFont(QString const& family, int pointSize, int weight, bool italic)
+QFont Qwt3DCoordinateSystem::labelFont() const
+{
+    return axes[ 0 ].labelFont();
+}
+
+void Qwt3DCoordinateSystem::setLabelFont(QString const& family, int pointSize, int weight, bool italic)
 {
     setLabelFont(QFont(family, pointSize, weight, italic));
 }
 
-/**
- * @brief Sets a common color for all axis labels
- * @param val RGBA color value to apply to axis labels
- */
-void CoordinateSystem::setLabelColor(RGBA val)
+void Qwt3DCoordinateSystem::setLabelColor(RGBA val)
 {
+    QWT_D(d);
+    d->m_labelColor = val;
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setLabelColor(val);
 }
 
 /**
- * @brief Sets line width for axes and tic marks
- * @param val Base line width for axes
- * @param majfac Scaling factor for major tic line width
- * @param minfac Scaling factor for minor tic line width
+ * @brief 返回标签颜色
+ * @return RGBA 颜色值
  */
-void CoordinateSystem::setLineWidth(double val, double majfac, double minfac)
+RGBA Qwt3DCoordinateSystem::labelColor() const
+{
+    QWT_DC(d);
+    return d->m_labelColor;
+}
+
+void Qwt3DCoordinateSystem::setLineWidth(double val, double majfac, double minfac)
 {
     for (unsigned i = 0; i != axes.size(); ++i)
         axes[ i ].setLineWidth(val, majfac, minfac);
 }
 
-/**
- * @brief Sets the coordinate system style and selects which axes to display in FRAME mode
- * @param s Coordinate system style (NOCOORD, BOX, or FRAME)
- * @param frame_1 First axis to display when using FRAME style
- * @param frame_2 Second axis to display when using FRAME style
- * @param frame_3 Third axis to display when using FRAME style
- * @details In BOX mode all 12 axes are drawn. In FRAME mode only the three
- *          specified axes are drawn (unless auto-decoration is enabled).
- *          NOCOORD disables all coordinate system rendering.
- */
-void CoordinateSystem::setStyle(COORDSTYLE s, AXIS frame_1, AXIS frame_2, AXIS frame_3)
+void Qwt3DCoordinateSystem::setStyle(COORDSTYLE s, AXIS frame_1, AXIS frame_2, AXIS frame_3)
 {
     QWT_D(d);
     d->m_style = s;
@@ -559,15 +642,7 @@ void CoordinateSystem::setStyle(COORDSTYLE s, AXIS frame_1, AXIS frame_2, AXIS f
     }
 }
 
-/**
- * @brief Sets grid line visibility
- * @param majors Draw grid between major tics
- * @param minors Draw grid between minor tics
- * @param sides Side(s) where the grid should be drawn
- * @details The axis used for tic calculation is chosen randomly from the respective pair.
- *          For most cases an identical tic distribution is therefore recommended.
- */
-void CoordinateSystem::setGridLines(bool majors, bool minors, int sides)
+void Qwt3DCoordinateSystem::setGridLines(bool majors, bool minors, int sides)
 {
     QWT_D(d);
     d->m_sides          = sides;
@@ -575,147 +650,313 @@ void CoordinateSystem::setGridLines(bool majors, bool minors, int sides)
     d->m_minorgridlines = minors;
 }
 
-void CoordinateSystem::drawMajorGridLines()
+void Qwt3DCoordinateSystem::drawMajorGridLines(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4d(d->m_gridlinecolor.r, d->m_gridlinecolor.g, d->m_gridlinecolor.b, d->m_gridlinecolor.a);
-    setDeviceLineWidth(axes[ X1 ].majLineWidth());
+    float r = static_cast< float >(d->m_gridlinecolor.r);
+    float g = static_cast< float >(d->m_gridlinecolor.g);
+    float b = static_cast< float >(d->m_gridlinecolor.b);
+    float a = static_cast< float >(d->m_gridlinecolor.a);
 
-    glBegin(GL_LINES);
-    if (d->m_sides & Qwt3D::FLOOR) {
-        drawMajorGridLines(axes[ X1 ], axes[ X4 ]);
-        drawMajorGridLines(axes[ Y1 ], axes[ Y2 ]);
+    QVector<float> verts;
+
+    if (d->m_sides & FLOOR) {
+        drawMajorGridLines(axes[ X1 ], axes[ X4 ], verts);
+        drawMajorGridLines(axes[ Y1 ], axes[ Y2 ], verts);
     }
-    if (d->m_sides & Qwt3D::CEIL) {
-        drawMajorGridLines(axes[ X2 ], axes[ X3 ]);
-        drawMajorGridLines(axes[ Y3 ], axes[ Y4 ]);
+    if (d->m_sides & CEIL) {
+        drawMajorGridLines(axes[ X2 ], axes[ X3 ], verts);
+        drawMajorGridLines(axes[ Y3 ], axes[ Y4 ], verts);
     }
-    if (d->m_sides & Qwt3D::LEFT) {
-        drawMajorGridLines(axes[ Y1 ], axes[ Y4 ]);
-        drawMajorGridLines(axes[ Z1 ], axes[ Z2 ]);
+    if (d->m_sides & LEFT) {
+        drawMajorGridLines(axes[ Y1 ], axes[ Y4 ], verts);
+        drawMajorGridLines(axes[ Z1 ], axes[ Z2 ], verts);
     }
-    if (d->m_sides & Qwt3D::RIGHT) {
-        drawMajorGridLines(axes[ Y2 ], axes[ Y3 ]);
-        drawMajorGridLines(axes[ Z3 ], axes[ Z4 ]);
+    if (d->m_sides & RIGHT) {
+        drawMajorGridLines(axes[ Y2 ], axes[ Y3 ], verts);
+        drawMajorGridLines(axes[ Z3 ], axes[ Z4 ], verts);
     }
-    if (d->m_sides & Qwt3D::FRONT) {
-        drawMajorGridLines(axes[ X1 ], axes[ X2 ]);
-        drawMajorGridLines(axes[ Z2 ], axes[ Z3 ]);
+    if (d->m_sides & FRONT) {
+        drawMajorGridLines(axes[ X1 ], axes[ X2 ], verts);
+        drawMajorGridLines(axes[ Z2 ], axes[ Z3 ], verts);
     }
-    if (d->m_sides & Qwt3D::BACK) {
-        drawMajorGridLines(axes[ X3 ], axes[ X4 ]);
-        drawMajorGridLines(axes[ Z4 ], axes[ Z1 ]);
+    if (d->m_sides & BACK) {
+        drawMajorGridLines(axes[ X3 ], axes[ X4 ], verts);
+        drawMajorGridLines(axes[ Z4 ], axes[ Z1 ], verts);
     }
-    glEnd();
+
+    drawGridLines(ctx, verts, axes[ X1 ].majLineWidth(), d->m_gridlinecolor);
 }
 
-void CoordinateSystem::drawMinorGridLines()
+void Qwt3DCoordinateSystem::drawMinorGridLines(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4d(d->m_gridlinecolor.r, d->m_gridlinecolor.g, d->m_gridlinecolor.b, d->m_gridlinecolor.a);
-    setDeviceLineWidth(axes[ X1 ].minLineWidth());
+    float r = static_cast< float >(d->m_gridlinecolor.r);
+    float g = static_cast< float >(d->m_gridlinecolor.g);
+    float b = static_cast< float >(d->m_gridlinecolor.b);
+    float a = static_cast< float >(d->m_gridlinecolor.a);
 
-    glBegin(GL_LINES);
-    if (d->m_sides & Qwt3D::FLOOR) {
-        drawMinorGridLines(axes[ X1 ], axes[ X4 ]);
-        drawMinorGridLines(axes[ Y1 ], axes[ Y2 ]);
+    QVector<float> verts;
+
+    if (d->m_sides & FLOOR) {
+        drawMinorGridLines(axes[ X1 ], axes[ X4 ], verts);
+        drawMinorGridLines(axes[ Y1 ], axes[ Y2 ], verts);
     }
-    if (d->m_sides & Qwt3D::CEIL) {
-        drawMinorGridLines(axes[ X2 ], axes[ X3 ]);
-        drawMinorGridLines(axes[ Y3 ], axes[ Y4 ]);
+    if (d->m_sides & CEIL) {
+        drawMinorGridLines(axes[ X2 ], axes[ X3 ], verts);
+        drawMinorGridLines(axes[ Y3 ], axes[ Y4 ], verts);
     }
-    if (d->m_sides & Qwt3D::LEFT) {
-        drawMinorGridLines(axes[ Y1 ], axes[ Y4 ]);
-        drawMinorGridLines(axes[ Z1 ], axes[ Z2 ]);
+    if (d->m_sides & LEFT) {
+        drawMinorGridLines(axes[ Y1 ], axes[ Y4 ], verts);
+        drawMinorGridLines(axes[ Z1 ], axes[ Z2 ], verts);
     }
-    if (d->m_sides & Qwt3D::RIGHT) {
-        drawMinorGridLines(axes[ Y2 ], axes[ Y3 ]);
-        drawMinorGridLines(axes[ Z3 ], axes[ Z4 ]);
+    if (d->m_sides & RIGHT) {
+        drawMinorGridLines(axes[ Y2 ], axes[ Y3 ], verts);
+        drawMinorGridLines(axes[ Z3 ], axes[ Z4 ], verts);
     }
-    if (d->m_sides & Qwt3D::FRONT) {
-        drawMinorGridLines(axes[ X1 ], axes[ X2 ]);
-        drawMinorGridLines(axes[ Z2 ], axes[ Z3 ]);
+    if (d->m_sides & FRONT) {
+        drawMinorGridLines(axes[ X1 ], axes[ X2 ], verts);
+        drawMinorGridLines(axes[ Z2 ], axes[ Z3 ], verts);
     }
-    if (d->m_sides & Qwt3D::BACK) {
-        drawMinorGridLines(axes[ X3 ], axes[ X4 ]);
-        drawMinorGridLines(axes[ Z4 ], axes[ Z1 ]);
+    if (d->m_sides & BACK) {
+        drawMinorGridLines(axes[ X3 ], axes[ X4 ], verts);
+        drawMinorGridLines(axes[ Z4 ], axes[ Z1 ], verts);
     }
-    glEnd();
+
+    drawGridLines(ctx, verts, axes[ X1 ].minLineWidth(), d->m_gridlinecolor);
 }
 
-void CoordinateSystem::drawMajorGridLines(Axis& a0, Axis& a1)
+void Qwt3DCoordinateSystem::drawMajorGridLines(Qwt3DAxis& a0, Qwt3DAxis& a1, QVector<float>& verts)
 {
-    Triple d = a1.begin() - a0.begin();
+    QWT_D(d);
+    Triple diff = a1.begin() - a0.begin();
 
     for (unsigned int i = 0; i != a0.majorPositions().size(); ++i) {
-        glVertex3d(a0.majorPositions()[ i ].x, a0.majorPositions()[ i ].y, a0.majorPositions()[ i ].z);
-        glVertex3d(a0.majorPositions()[ i ].x + d.x, a0.majorPositions()[ i ].y + d.y, a0.majorPositions()[ i ].z + d.z);
+        const Triple& p = a0.majorPositions()[ i ];
+        verts << static_cast< float >(p.x) << static_cast< float >(p.y) << static_cast< float >(p.z);
+        verts << static_cast< float >(d->m_gridlinecolor.r) << static_cast< float >(d->m_gridlinecolor.g)
+              << static_cast< float >(d->m_gridlinecolor.b) << static_cast< float >(d->m_gridlinecolor.a);
+        verts << static_cast< float >(p.x + diff.x) << static_cast< float >(p.y + diff.y) << static_cast< float >(p.z + diff.z);
+        verts << static_cast< float >(d->m_gridlinecolor.r) << static_cast< float >(d->m_gridlinecolor.g)
+              << static_cast< float >(d->m_gridlinecolor.b) << static_cast< float >(d->m_gridlinecolor.a);
     }
 }
 
-void CoordinateSystem::drawMinorGridLines(Axis& a0, Axis& a1)
+void Qwt3DCoordinateSystem::drawMinorGridLines(Qwt3DAxis& a0, Qwt3DAxis& a1, QVector<float>& verts)
 {
-    Triple d = a1.begin() - a0.begin();
+    QWT_D(d);
+    Triple diff = a1.begin() - a0.begin();
 
     for (unsigned int i = 0; i != a0.minorPositions().size(); ++i) {
-        glVertex3d(a0.minorPositions()[ i ].x, a0.minorPositions()[ i ].y, a0.minorPositions()[ i ].z);
-        glVertex3d(a0.minorPositions()[ i ].x + d.x, a0.minorPositions()[ i ].y + d.y, a0.minorPositions()[ i ].z + d.z);
+        const Triple& p = a0.minorPositions()[ i ];
+        verts << static_cast< float >(p.x) << static_cast< float >(p.y) << static_cast< float >(p.z);
+        verts << static_cast< float >(d->m_gridlinecolor.r) << static_cast< float >(d->m_gridlinecolor.g)
+              << static_cast< float >(d->m_gridlinecolor.b) << static_cast< float >(d->m_gridlinecolor.a);
+        verts << static_cast< float >(p.x + diff.x) << static_cast< float >(p.y + diff.y) << static_cast< float >(p.z + diff.z);
+        verts << static_cast< float >(d->m_gridlinecolor.r) << static_cast< float >(d->m_gridlinecolor.g)
+              << static_cast< float >(d->m_gridlinecolor.b) << static_cast< float >(d->m_gridlinecolor.a);
     }
 }
 
-Qwt3D::COORDSTYLE CoordinateSystem::style() const
+void Qwt3DCoordinateSystem::drawInteriorMajorGridLines(const Qwt3DRenderContext& ctx)
+{
+    QWT_D(d);
+
+    QVector<float> verts;
+
+    if (d->m_interiorSides & Z_INNER) {
+        drawInteriorGridLines(axes[ X1 ], axes[ Y1 ], 2, true, verts);
+    }
+    if (d->m_interiorSides & X_INNER) {
+        drawInteriorGridLines(axes[ Y1 ], axes[ Z2 ], 0, true, verts);
+    }
+    if (d->m_interiorSides & Y_INNER) {
+        drawInteriorGridLines(axes[ X1 ], axes[ Z2 ], 1, true, verts);
+    }
+
+    drawGridLines(ctx, verts, d->m_interiorMajWidth, d->m_interiorGridColor);
+}
+
+void Qwt3DCoordinateSystem::drawInteriorMinorGridLines(const Qwt3DRenderContext& ctx)
+{
+    QWT_D(d);
+
+    QVector<float> verts;
+
+    if (d->m_interiorSides & Z_INNER) {
+        drawInteriorGridLines(axes[ X1 ], axes[ Y1 ], 2, false, verts);
+    }
+    if (d->m_interiorSides & X_INNER) {
+        drawInteriorGridLines(axes[ Y1 ], axes[ Z2 ], 0, false, verts);
+    }
+    if (d->m_interiorSides & Y_INNER) {
+        drawInteriorGridLines(axes[ X1 ], axes[ Z2 ], 1, false, verts);
+    }
+
+    drawGridLines(ctx, verts, d->m_interiorMinWidth, d->m_interiorGridColor);
+}
+
+void Qwt3DCoordinateSystem::drawInteriorGridLines(
+    Qwt3DAxis& axisA, Qwt3DAxis& axisB, int dirAxis, bool major, QVector<float>& verts)
+{
+    QWT_D(d);
+
+    Triple begA = axisA.begin(), endA = axisA.end();
+    Triple begB = axisB.begin(), endB = axisB.end();
+
+    int dimA = (!isPracticallyZero(endA.x - begA.x)) ? 0
+             : (!isPracticallyZero(endA.y - begA.y)) ? 1 : 2;
+    int dimB = (!isPracticallyZero(endB.x - begB.x)) ? 0
+             : (!isPracticallyZero(endB.y - begB.y)) ? 1 : 2;
+
+    if (dimA == dirAxis || dimB == dirAxis || dimA == dimB)
+        return;
+
+    Triple bmin = first();
+    Triple bmax = second();
+
+    float r = static_cast< float >(d->m_interiorGridColor.r);
+    float g = static_cast< float >(d->m_interiorGridColor.g);
+    float bl = static_cast< float >(d->m_interiorGridColor.b);
+    float al = static_cast< float >(d->m_interiorGridColor.a);
+
+    const auto& positionsA = major ? axisA.majorPositions() : axisA.minorPositions();
+    const auto& positionsB = major ? axisB.majorPositions() : axisB.minorPositions();
+
+    for (const auto& pa : positionsA) {
+        double coordA = (dimA == 0) ? pa.x : (dimA == 1) ? pa.y : pa.z;
+        for (const auto& pb : positionsB) {
+            double coordB = (dimB == 0) ? pb.x : (dimB == 1) ? pb.y : pb.z;
+
+            Triple p1 = bmin;
+            Triple p2 = bmax;
+
+            if (dimA == 0) { p1.x = coordA; p2.x = coordA; }
+            else if (dimA == 1) { p1.y = coordA; p2.y = coordA; }
+            else { p1.z = coordA; p2.z = coordA; }
+
+            if (dimB == 0) { p1.x = coordB; p2.x = coordB; }
+            else if (dimB == 1) { p1.y = coordB; p2.y = coordB; }
+            else { p1.z = coordB; p2.z = coordB; }
+
+            verts << static_cast< float >(p1.x) << static_cast< float >(p1.y) << static_cast< float >(p1.z)
+                  << r << g << bl << al;
+            verts << static_cast< float >(p2.x) << static_cast< float >(p2.y) << static_cast< float >(p2.z)
+                  << r << g << bl << al;
+        }
+    }
+}
+
+COORDSTYLE Qwt3DCoordinateSystem::style() const
 {
     QWT_DC(d);
     return d->m_style;
 }
 
-void CoordinateSystem::setGridLinesColor(Qwt3D::RGBA val)
+void Qwt3DCoordinateSystem::setGridLinesColor(RGBA val)
 {
     QWT_D(d);
     d->m_gridlinecolor = val;
 }
 
-Qwt3D::Triple CoordinateSystem::first() const
+/**
+ * @brief 返回网格线颜色
+ * @return RGBA 颜色值
+ */
+RGBA Qwt3DCoordinateSystem::gridLinesColor() const
+{
+    QWT_DC(d);
+    return d->m_gridlinecolor;
+}
+
+void Qwt3DCoordinateSystem::setInteriorGridLines(bool majors, bool minors, int directions)
+{
+    QWT_D(d);
+    d->m_interiorSides  = directions;
+    d->m_interiorMajor  = majors;
+    d->m_interiorMinor  = minors;
+}
+
+int Qwt3DCoordinateSystem::interiorGrids() const
+{
+    QWT_DC(d);
+    return d->m_interiorSides;
+}
+
+void Qwt3DCoordinateSystem::setInteriorGridLinesColor(RGBA val)
+{
+    QWT_D(d);
+    d->m_interiorGridColor = val;
+}
+
+/**
+ * @brief 返回内部网格线颜色
+ * @return RGBA 颜色值
+ */
+RGBA Qwt3DCoordinateSystem::interiorGridLinesColor() const
+{
+    QWT_DC(d);
+    return d->m_interiorGridColor;
+}
+
+void Qwt3DCoordinateSystem::setInteriorGridLinesWidth(double major, double minor)
+{
+    QWT_D(d);
+    d->m_interiorMajWidth = major;
+    d->m_interiorMinWidth = minor;
+}
+
+Triple Qwt3DCoordinateSystem::first() const
 {
     QWT_DC(d);
     return d->m_first;
 }
 
-Qwt3D::Triple CoordinateSystem::second() const
+Triple Qwt3DCoordinateSystem::second() const
 {
     QWT_DC(d);
     return d->m_second;
 }
 
-void CoordinateSystem::setAutoDecoration(bool val)
+void Qwt3DCoordinateSystem::setAutoDecoration(bool val)
 {
     QWT_D(d);
     d->m_autodecoration = val;
 }
 
-bool CoordinateSystem::autoDecoration() const
+bool Qwt3DCoordinateSystem::autoDecoration() const
 {
     QWT_DC(d);
     return d->m_autodecoration;
 }
 
-void CoordinateSystem::setLineSmooth(bool val)
+void Qwt3DCoordinateSystem::setTickPosition(TICKPOSITION val)
+{
+    QWT_D(d);
+    d->m_tickPosition = val;
+}
+
+TICKPOSITION Qwt3DCoordinateSystem::tickPosition() const
+{
+    QWT_DC(d);
+    return d->m_tickPosition;
+}
+
+void Qwt3DCoordinateSystem::setLineSmooth(bool val)
 {
     QWT_D(d);
     d->m_smooth = val;
 }
 
-bool CoordinateSystem::lineSmooth() const
+bool Qwt3DCoordinateSystem::lineSmooth() const
 {
     QWT_DC(d);
     return d->m_smooth;
 }
 
-int CoordinateSystem::grids() const
+int Qwt3DCoordinateSystem::grids() const
 {
     QWT_DC(d);
     return d->m_sides;

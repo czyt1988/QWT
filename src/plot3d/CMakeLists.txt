@@ -1,4 +1,4 @@
-﻿# qwt
+# qwt
 cmake_minimum_required(VERSION 3.5)
 
 set(QWTPLOT3D_LIB_NAME "plot3d")
@@ -32,9 +32,12 @@ set(QWTPLOT3D_HEADER_PLOT_3D
     qwt3d_drawable.h
     qwt3d_helper.h
     qwt3d_label.h
-    qwt3d_openglhelper.h
     qwt3d_colorlegend.h
     qwt3d_plot.h
+    qwt3d_plotitem.h
+    qwt3d_surface.h
+    qwt3d_bar.h
+    qwt3d_line3d.h
     qwt3d_enrichment.h
     qwt3d_enrichment_std.h
     qwt3d_autoscaler.h
@@ -47,13 +50,11 @@ set(QWTPLOT3D_HEADER_PLOT_3D
     qwt3d_gridmapping.h
     qwt3d_parametricsurface.h
     qwt3d_function.h
-    qwt3d_surfaceplot.h
-    qwt3d_volumeplot.h
-    qwt3d_graphplot.h
-    qwt3d_multiplot.h
     qwt3d_io_gl2ps.h
     qwt3d_colormap_color.h
     qwt3d_theme.h
+    qwt3d_render_context.h
+    qwt3d_serialize.h
 )
 set(QWTPLOT3D_SOURCE_PLOT_3D
     qwt3d_axis.cpp
@@ -65,6 +66,10 @@ set(QWTPLOT3D_SOURCE_PLOT_3D
     qwt3d_lighting.cpp
     qwt3d_colorlegend.cpp
     qwt3d_plot.cpp
+    qwt3d_plotitem.cpp
+    qwt3d_surface.cpp
+    qwt3d_bar.cpp
+    qwt3d_line3d.cpp
     qwt3d_label.cpp
     qwt3d_types.cpp
     qwt3d_enrichment_std.cpp
@@ -75,12 +80,12 @@ set(QWTPLOT3D_SOURCE_PLOT_3D
     qwt3d_gridmapping.cpp
     qwt3d_parametricsurface.cpp
     qwt3d_function.cpp
-    qwt3d_surfaceplot.cpp
-    qwt3d_gridplot.cpp
-    qwt3d_meshplot.cpp
     qwt3d_io_gl2ps.cpp
     qwt3d_colormap_color.cpp
     qwt3d_theme.cpp
+    qwt3d_render_context.cpp
+    qwt3d_serialize.cpp
+    shaders/shaders.qrc
 )
 list(APPEND QWTPLOT3D_HEADER_FILES ${QWTPLOT3D_HEADER_PLOT_3D})
 list(APPEND QWTPLOT3D_SOURCE_FILES ${QWTPLOT3D_SOURCE_PLOT_3D})
@@ -142,6 +147,10 @@ else()
     target_link_libraries(${QWTPLOT3D_LIB_NAME} ${GL2PS_LIBRARY})
     target_include_directories(${QWTPLOT3D_LIB_NAME} PRIVATE ${GL2PS_INCLUDE_DIR})
 endif()
+
+# gl2ps is always available (system or bundled) — enable vector export
+# PUBLIC because qwt3d_plot.h exposes Qwt3DVectorWriter types in saveVector()
+target_compile_definitions(${QWTPLOT3D_LIB_NAME} PUBLIC QWT3D_ENABLE_GL2PS)
 
 ########################################################
 # target properties

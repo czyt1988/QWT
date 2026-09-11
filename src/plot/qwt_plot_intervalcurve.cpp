@@ -63,7 +63,7 @@ class QwtPlotIntervalCurve::PrivateData
     QWT_DECLARE_PUBLIC(QwtPlotIntervalCurve)
 public:
     PrivateData(QwtPlotIntervalCurve* p)
-        : q_ptr(p), style(QwtPlotIntervalCurve::Tube), symbol(nullptr), pen(QColor("#555555")), brush(Qt::NoBrush)
+        : q_ptr(p), style(QwtPlotIntervalCurve::Tube), symbol(nullptr), pen(Qt::black), brush(Qt::NoBrush)
     {
         paintAttributes = QwtPlotIntervalCurve::ClipPolygons;
         paintAttributes |= QwtPlotIntervalCurve::ClipSymbol;

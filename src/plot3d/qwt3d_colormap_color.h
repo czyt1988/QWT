@@ -16,26 +16,23 @@
 class QwtColorMap;
 class QString;
 
-namespace Qwt3D
-{
 
-class Plot3D;
 
 /**
- * @brief Adapts a QwtColorMap (from qwt::core) for use as a Qwt3D::Color.
+ * @brief Adapts a QwtColorMap (from qwt::core) for use as a Qwt3DColor.
  * @details Bridges the 2D colormap infrastructure into the 3D color functor system.
  */
-class QWT3D_EXPORT ColorMapColor : public Color
+class QWT3D_EXPORT Qwt3DColorMapColor : public Qwt3DColor
 {
 public:
-    explicit ColorMapColor(Plot3D* plot, const QString& presetName = QString("viridis"), unsigned size = 256);
+    explicit Qwt3DColorMapColor(const QString& presetName = QString("viridis"), unsigned size = 256);
 
-    ColorMapColor(Plot3D* plot, ::QwtColorMap* colorMap, unsigned size = 256);
+    Qwt3DColorMapColor(::QwtColorMap* colorMap, unsigned size = 256);
 
-    ~ColorMapColor() override;
+    ~Qwt3DColorMapColor() override;
 
-    Qwt3D::RGBA operator()(double x, double y, double z) const override;
-    Qwt3D::ColorVector& createVector(Qwt3D::ColorVector& vec) override;
+    RGBA operator()(double x, double y, double z) const override;
+    ColorVector& createVector(ColorVector& vec) override;
 
     void setColorMap(::QwtColorMap* map);
     const ::QwtColorMap* colorMap() const;
@@ -44,18 +41,30 @@ public:
     void reset(unsigned size = 256);
     void setAlpha(double a);
 
+    // Returns the preset name passed to the constructor (empty if constructed from QwtColorMap*)
+    QString presetName() const;
+    // Returns the number of colors in the color vector
+    unsigned colorCount() const;
+    // Returns the alpha value (default 1.0)
+    double alpha() const;
+    // Returns true if a manual interval was set via setInterval()
+    bool useManualInterval() const;
+    // Returns the manual min value (only meaningful when useManualInterval() is true)
+    double manualMin() const;
+    // Returns the manual max value (only meaningful when useManualInterval() is true)
+    double manualMax() const;
+
 private:
     void rebuildColorVector(unsigned size);
 
-    Plot3D* m_plot;
     ::QwtColorMap* m_colorMap;
     ColorVector m_colors;
     double m_manualMin;
     double m_manualMax;
     bool m_useManualInterval;
     double m_alpha;
+    QString m_presetName;
 };
 
-}  // namespace Qwt3D
 
 #endif

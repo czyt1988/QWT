@@ -8,29 +8,28 @@
 #include <qstringlist.h>
 #include "qwt3d_global.h"
 
-namespace Qwt3D
-{
 
-class Plot3D;
+
+class Qwt3DPlot;
 
 /**
  * @brief Generic interface for standard and user written I/O handlers
- * @details IO provides a generic interface for standard and user written I/O handlers.
+ * @details Qwt3DIO provides a generic interface for standard and user written I/O handlers.
  *          It also provides functionality for the registering of such handlers in the
  *          framework. The interface mimics roughly Qt's QImageIO functions for defining
  *          image input/output functions.
  */
-class QWT3D_EXPORT IO
+class QWT3D_EXPORT Qwt3DIO
 {
 
 public:
     // The function type that can be processed by the define... members
-    using Function = bool (*)(Plot3D*, QString const& fname);
+    using Function = bool (*)(Qwt3DPlot*, QString const& fname);
 
     /**
      * @brief Functor class for more flexible IO handler implementation
      * @details This class gives more flexibility in implementing userdefined IO handlers
-     *          than the simple IO::Function type.
+     *          than the simple Qwt3DIO::Function type.
      */
     class Functor
     {
@@ -41,7 +40,7 @@ public:
         // Must clone the content of *this for an object of a derived class
         virtual Functor* clone() const = 0;
         // The workhorse of the user-defined implementation
-        virtual bool operator()(Plot3D* plot, QString const& fname) = 0;
+        virtual bool operator()(Qwt3DPlot* plot, QString const& fname) = 0;
     };
 
     // Define an input handler for a format with a function
@@ -53,9 +52,9 @@ public:
     // Define an output handler for a format with a functor
     static bool defineOutputHandler(QString const& format, Functor const& func);
     // Save plot to file in specified format
-    static bool save(Plot3D*, QString const& fname, QString const& format);
+    static bool save(Qwt3DPlot*, QString const& fname, QString const& format);
     // Load plot from file in specified format
-    static bool load(Plot3D*, QString const& fname, QString const& format);
+    static bool load(Qwt3DPlot*, QString const& fname, QString const& format);
     // Returns list of available input formats
     static QStringList inputFormatList();
     // Returns list of available output formats
@@ -66,11 +65,11 @@ public:
     static Functor* inputHandler(QString const& format);
 
 private:
-    IO()
+    Qwt3DIO()
     {
     }
 
-    // Lightweight Functor encapsulating an IO::Function
+    // Lightweight Functor encapsulating a Qwt3DIO::Function
     class Wrapper : public Functor
     {
     public:
@@ -84,7 +83,7 @@ private:
         {
         }
         // Returns a pointer to the wrapped function
-        bool operator()(Plot3D* plot, QString const& fname) override
+        bool operator()(Qwt3DPlot* plot, QString const& fname) override
         {
             return (hdl) ? (*hdl)(plot, fname) : false;
         }
@@ -137,23 +136,22 @@ private:
 /**
  * @brief Provides Qt's Pixmap output facilities
  */
-class QWT3D_EXPORT PixmapWriter : public IO::Functor
+class QWT3D_EXPORT Qwt3DPixmapWriter : public Qwt3DIO::Functor
 {
-    friend class IO;
-    QWT_DECLARE_PRIVATE(PixmapWriter)
+    friend class Qwt3DIO;
+    QWT_DECLARE_PRIVATE(Qwt3DPixmapWriter)
 
 public:
-    PixmapWriter();
-    ~PixmapWriter() override;
+    Qwt3DPixmapWriter();
+    ~Qwt3DPixmapWriter() override;
 
     // Set output quality
     void setQuality(int val);
 
 private:
-    IO::Functor* clone() const override;
-    bool operator()(Plot3D* plot, QString const& fname) override;
+    Qwt3DIO::Functor* clone() const override;
+    bool operator()(Qwt3DPlot* plot, QString const& fname) override;
 };
 
-}  // ns
 
 #endif

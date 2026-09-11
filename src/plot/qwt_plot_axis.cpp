@@ -624,6 +624,15 @@ void QwtPlot::setAxisScaleDraw(QwtAxisId axisId, QwtScaleDraw* scaleDraw)
 {
     if (isAxisValid(axisId)) {
         axisWidget(axisId)->setScaleDraw(scaleDraw);
+
+        /*
+            A fresh scale draw has all components enabled. When the axis
+            draws its ticks inside the canvas, the outside tick component
+            must stay disabled, otherwise ticks are painted twice.
+         */
+        if (axisTickDirection(axisId) == TickInside)
+            scaleDraw->enableComponent(QwtAbstractScaleDraw::Ticks, false);
+
         autoRefresh();
     }
 }
@@ -723,6 +732,88 @@ void QwtPlot::setAxisTitle(QwtAxisId axisId, const QwtText& title)
 {
     if (isAxisValid(axisId))
         axisWidget(axisId)->setTitle(title);
+}
+
+/**
+ * @brief Set the position of an axis title along the backbone
+ * @param axisId Axis ID
+ * @param position Title position along the backbone
+ * @sa QwtScaleWidget::setTitlePosition(), axisTitlePosition()
+ */
+void QwtPlot::setAxisTitlePosition(QwtAxisId axisId, QwtScaleWidget::TitlePosition position)
+{
+    if (isAxisValid(axisId))
+        axisWidget(axisId)->setTitlePosition(position);
+}
+
+/**
+ * @brief Get the position of an axis title along the backbone
+ * @param axisId Axis ID
+ * @return Title position along the backbone
+ * @sa setAxisTitlePosition()
+ */
+QwtScaleWidget::TitlePosition QwtPlot::axisTitlePosition(QwtAxisId axisId) const
+{
+    if (isAxisValid(axisId))
+        return axisWidget(axisId)->titlePosition();
+
+    return QwtScaleWidget::TitleCentered;
+}
+
+/**
+ * @brief Set the placement of an axis title (inside the scale widget or outside as caption)
+ * @details With QwtScaleWidget::TitleOutside the title is painted as a horizontal
+ *          caption below the scale widget (above it for XTop) instead of inside
+ *          the widget. The plot layout reserves the caption strip automatically,
+ *          for parasite plots the host layout aggregates the demands of all layers.
+ * @param axisId Axis ID
+ * @param placement Title placement
+ * @sa QwtScaleWidget::setTitlePlacement(), axisTitlePlacement(), QwtPlotLayout::scaleCaptionRect()
+ */
+void QwtPlot::setAxisTitlePlacement(QwtAxisId axisId, QwtScaleWidget::TitlePlacement placement)
+{
+    if (isAxisValid(axisId))
+        axisWidget(axisId)->setTitlePlacement(placement);
+}
+
+/**
+ * @brief Get the placement of an axis title
+ * @param axisId Axis ID
+ * @return Title placement
+ * @sa setAxisTitlePlacement()
+ */
+QwtScaleWidget::TitlePlacement QwtPlot::axisTitlePlacement(QwtAxisId axisId) const
+{
+    if (isAxisValid(axisId))
+        return axisWidget(axisId)->titlePlacement();
+
+    return QwtScaleWidget::TitleInside;
+}
+
+/**
+ * @brief Set the horizontal alignment of an axis title
+ * @param axisId Axis ID
+ * @param alignment Horizontal alignment within the title box
+ * @sa QwtScaleWidget::setTitleAlignment(), axisTitleAlignment()
+ */
+void QwtPlot::setAxisTitleAlignment(QwtAxisId axisId, Qt::Alignment alignment)
+{
+    if (isAxisValid(axisId))
+        axisWidget(axisId)->setTitleAlignment(alignment);
+}
+
+/**
+ * @brief Get the horizontal alignment of an axis title
+ * @param axisId Axis ID
+ * @return Horizontal alignment within the title box
+ * @sa setAxisTitleAlignment()
+ */
+Qt::Alignment QwtPlot::axisTitleAlignment(QwtAxisId axisId) const
+{
+    if (isAxisValid(axisId))
+        return axisWidget(axisId)->titleAlignment();
+
+    return Qt::AlignHCenter;
 }
 
 /**

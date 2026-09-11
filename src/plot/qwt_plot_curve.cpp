@@ -93,7 +93,7 @@ public:
     QwtPlotCurve::CurveStyle style;
     double baseline;
 
-    const QwtSymbol* symbol;
+    QwtSymbol* symbol;
     QwtCurveFitter* curveFitter;
 
     QPen pen;
@@ -158,8 +158,10 @@ int QwtPlotCurve::rtti() const
  * @brief Attach the curve to a plot
  * @details If the pen has not been explicitly set by the user via setPen(),
  *          the curve automatically receives a color from the plot's color cycle.
+ *          If an uncustomized symbol (default brush/pen) has been assigned, it is
+ *          auto-colored to match the curve pen as well.
  * @param plot Plot to attach to (nullptr to detach)
- * @sa QwtPlot::nextColorForItem(), QwtPlot::setColorCycle()
+ * @sa QwtPlot::nextColorForItem(), QwtPlot::setColorCycle(), setSymbol()
  */
 void QwtPlotCurve::attach(QwtPlot* plot)
 {
@@ -167,6 +169,15 @@ void QwtPlotCurve::attach(QwtPlot* plot)
     if (plot && !d->m_userSetPen && d->pen.color() == QColor(Qt::black)) {
         const QColor c = plot->nextColorForItem(rtti());
         d->pen         = QPen(c, d->pen.widthF(), d->pen.style());
+    }
+    // Auto-color an uncustomized symbol to match the curve pen. This covers the
+    // case where a default symbol was assigned before attach; symbols assigned
+    // after attach are handled in setSymbol().
+    if (plot && d->symbol && d->symbol->brush().style() == Qt::NoBrush
+        && d->symbol->pen().color() == QColor("#555555")) {
+        const QColor c = d->pen.color();
+        d->symbol->setBrush(QBrush(c));
+        d->symbol->setPen(QPen(c.darker(150), 1));
     }
     QwtPlotItem::attach(plot);
 }
@@ -289,14 +300,27 @@ QwtPlotCurve::CurveStyle QwtPlotCurve::style() const
  * @details The curve will take the ownership of the symbol, hence the previously
  *          set symbol will be deleted by setting a new one. If symbol is nullptr
  *          no symbol will be drawn.
+ *
+ *          If the curve is already attached and the new symbol is in its default
+ *          (uncustomized) state, it is auto-colored to match the curve pen, so that
+ *          a scatter-style curve inherits the color cycle color of its pen.
  * @param[in] symbol Symbol
- * @sa symbol()
+ * @sa symbol(), attach()
  */
 void QwtPlotCurve::setSymbol(QwtSymbol* symbol)
 {
     QWT_D(d);
     if (symbol != d->symbol) {
         delete d->symbol;
+        // Auto-color an uncustomized symbol to match the curve pen when the
+        // curve is already attached. A symbol assigned before attach is colored
+        // later in attach().
+        if (symbol && plot() && symbol->brush().style() == Qt::NoBrush
+            && symbol->pen().color() == QColor("#555555")) {
+            const QColor c = d->pen.color();
+            symbol->setBrush(QBrush(c));
+            symbol->setPen(QPen(c.darker(150), 1));
+        }
         d->symbol = symbol;
 
         qwtUpdateLegendIconSize(this);

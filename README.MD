@@ -252,12 +252,15 @@ For details, refer to the tutorial: [QwtPyPlot — Matplotlib-style API](https:/
 
 ### 3D Plotting with Theme System
 
-The integrated 3D module (`qwt::plot3d`) provides surface plots, mesh plots, and function plots with OpenGL rendering and full mouse interaction (rotate / zoom / pan).
+The integrated 3D module (`qwt::plot3d`) uses a **Plot + Item** architecture (`Qwt3DPlot` + `Qwt3DPlotItem`), symmetric with the 2D module. It provides surface plots, mesh plots, and function plots with modern OpenGL rendering (VBO/VAO + GLSL shaders) and full mouse interaction (rotate / zoom / pan).
 
-New in 7.3, the `Qwt3D::Qwt3DTheme` system packages every visual property — background, mesh, colormap, axes, title, lighting, shading, and material — into a single descriptor, so a complete look can be applied in one call:
+New in 7.3, the `Qwt3DTheme` system packages every visual property — background, mesh, colormap, axes, title, lighting, shading, and material — into a single descriptor, so a complete look can be applied in one call:
 
 ```cpp
-using namespace Qwt3D;
+// Create plot + surface item
+Qwt3DPlot* plot = new Qwt3DPlot();
+Qwt3DSurface* surface = new Qwt3DSurface();
+surface->attach(plot);
 
 // One-call preset
 plot->applyTheme(Qwt3DTheme::Dark);
@@ -272,7 +275,7 @@ theme.apply(plot);
 
 - 10 built-in themes: `Default`, `Dark`, `Scientific`, `Warm`, `Cool`, `Matplotlib`, `EarthTones`, `Ocean`, `HighContrast`, `Presentation`
 - 5 lighting presets: `NoLighting`, `FlatLight`, `Studio`, `Outdoor`, `Soft`
-- A `ColorMapColor` adapter bridges the core colormaps to 3D surfaces, so all 22 scientific presets work in 3D as well
+- A `Qwt3DColorMapColor` adapter bridges the core colormaps to 3D surfaces, so all 22 scientific presets work in 3D as well
 
 For details, refer to the tutorial: [3D Plotting](https://czyt1988.github.io/QWT/zh/use-guide/3d-plot/)
 

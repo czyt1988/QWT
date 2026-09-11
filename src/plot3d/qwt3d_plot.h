@@ -2,42 +2,54 @@
 #define QWT3D_PLOT_H
 
 #include <QOpenGLWidget>
+#include <QMatrix4x4>
+#include <QOpenGLShaderProgram>
 
 #include "qwt3d_coordsys.h"
-#include "qwt3d_enrichment_std.h"
 #include "qwt3d_theme.h"
+#include "qwt3d_io_gl2ps.h"
 
-namespace Qwt3D
-{
+class Qwt3DPlotItem;
 
 /**
- * @brief Base class for all plotting widgets
- * @details Plot3D handles all the common features for plotting widgets -
- *          coordinate system, transformations, mouse/keyboard handling,
- *          labeling etc. It contains some pure virtual functions and is,
- *          in so far, an abstract base class. The class provides interfaces
- *          for data handling and implements basic data controlled color allocation.
+ * @brief Pure rendering window for 3D plots
+ * @details Qwt3DPlot is the central rendering window (a QOpenGLWidget subclass).
+ *          It manages GL context, view transformation, lighting, coordinate system,
+ *          legend, title, and mouse/keyboard interaction. It does NOT hold any
+ *          plotting data — data is managed by Qwt3DPlotItem subclasses that are
+ *          attached via attach().
+ *
+ * The rendering pipeline in paintGL():
+ *   1. Clear color + depth buffer
+ *   2. Calculate view/projection matrices on CPU (QMatrix4x4)
+ *   3. For each attached item (sorted by z): item->draw()
+ *   4. Draw coordinate system (legacy GL temporarily)
+ *   5. Draw legend and title
+ *
+ * @code
+ * auto plot = new Qwt3DPlot(parent);
+ * auto item = new MySurfaceItem();
+ * item->attach(plot);
+ * @endcode
  */
-class QWT3D_EXPORT Plot3D : public QOpenGLWidget
+class QWT3D_EXPORT Qwt3DPlot : public QOpenGLWidget
 {
     Q_OBJECT
 
 public:
     // Constructor
-    Plot3D(QWidget* parent = nullptr);
+    Qwt3DPlot(QWidget* parent = nullptr);
     // Destructor
-    ~Plot3D() override;
+    ~Qwt3DPlot() override;
 
     // Render to pixmap
     QPixmap renderPixmap(int w = 0, int h = 0, bool useContext = false);
-    // Recalculate data
-    void updateData();
     // Create coordinate system between two points
-    void createCoordinateSystem(Qwt3D::Triple beg, Qwt3D::Triple end);
+    void createCoordinateSystem(Triple beg, Triple end);
     // Returns pointer to CoordinateSystem object
-    Qwt3D::CoordinateSystem* coordinates();
+    Qwt3DCoordinateSystem* coordinates();
     // Returns pointer to ColorLegend object
-    Qwt3D::ColorLegend* legend();
+    Qwt3DColorLegend* legend();
 
     // Returns rotation around X axis [-360..360] (some angles are equivalent)
     double xRotation() const;
@@ -70,70 +82,37 @@ public:
 
     // Returns orthogonal (true) or perspective (false) projection
     bool ortho() const;
-    // Set plot style
-    void setPlotStyle(Qwt3D::PLOTSTYLE val);
-    // Set plot style with Enrichment
-    Qwt3D::Enrichment* setPlotStyle(Qwt3D::Enrichment const& val);
-    // Returns plotting style
-    Qwt3D::PLOTSTYLE plotStyle() const;
-    // Returns current Enrichment object used for plotting styles (if set, zero else)
-    Qwt3D::Enrichment* userStyle() const;
-    // Set shading style
-    void setShading(Qwt3D::SHADINGSTYLE val);
-    // Returns shading style
-    Qwt3D::SHADINGSTYLE shading() const;
-    // Set number of isolines
-    void setIsolines(int isolines);
-    // Returns number of isolines
-    int isolines() const;
 
-    // Enables/disables smooth data mesh lines. Default is false
-    void setSmoothMesh(bool val);
-    // True if mesh antialiasing is on
-    bool smoothDataMesh() const;
+    // Returns the current aspect ratio mode
+    ASPECTRATIOMODE aspectRatioMode() const;
+
     // Sets widgets background color
-    void setBackgroundColor(Qwt3D::RGBA rgba);
+    void setBackgroundColor(RGBA rgba);
     // Returns the widgets background color
-    Qwt3D::RGBA backgroundRGBAColor() const;
-    // Sets color for data mesh
-    void setMeshColor(Qwt3D::RGBA rgba);
-    // Returns color for data mesh
-    Qwt3D::RGBA meshColor() const;
-    // Sets line width for data mesh
-    void setMeshLineWidth(double lw);
-    // Returns line width for data mesh
-    double meshLineWidth() const;
-    // Sets new data color object
-    void setDataColor(Color* col);
-    // Returns data color object
-    const Color* dataColor() const;
+    RGBA backgroundRGBAColor() const;
 
-    // Add an Enrichment
-    virtual Qwt3D::Enrichment* addEnrichment(Qwt3D::Enrichment const&);
-    // Remove an Enrichment
-    virtual bool degrade(Qwt3D::Enrichment*);
-
-    // Returns rectangular hull
-    Qwt3D::ParallelEpiped hull() const;
+    // Returns rectangular hull (union of all attached items' hulls)
+    ParallelEpiped hull() const;
 
     // Show/hide color legend
     void showColorLegend(bool);
-
-    // Sets style of coordinate system
-    void setCoordinateStyle(Qwt3D::COORDSTYLE st);
-    // Set polygon offset
-    void setPolygonOffset(double d);
-    // Returns relative value for polygon offset [0..1]
-    double polygonOffset() const;
+    // Returns true if the color legend is shown
+    bool isColorLegendShown() const;
+    // Set legend to a predefined screen position
+    void setLegendPosition(Qwt3DColorLegend::Position pos);
+    // Set legend position using absolute pixel coordinates
+    void setLegendAbsolutePosition(const QRectF& pixelRect);
 
     // Set title position
-    void setTitlePosition(double rely, double relx = 0.5, Qwt3D::ANCHOR = Qwt3D::TopCenter);
+    void setTitlePosition(double rely, double relx = 0.5, ANCHOR = TopCenter);
     // Set title font
     void setTitleFont(const QString& family, int pointSize, int weight = QFont::Normal, bool italic = false);
     // Set caption color
-    void setTitleColor(Qwt3D::RGBA col);
+    void setTitleColor(RGBA col);
     // Set caption text (one row only)
     void setTitle(const QString& title);
+    // Returns the caption text
+    QString title() const;
 
     // Set and apply a theme
     void setTheme(const Qwt3DTheme& theme);
@@ -146,37 +125,37 @@ public:
     void applyTheme(const QString& presetName);
 
     // Assign mouse states for rotations, scales, zoom and shifts
-    void assignMouse(MouseState xrot,
-                     MouseState yrot,
-                     MouseState zrot,
-                     MouseState xscale,
-                     MouseState yscale,
-                     MouseState zscale,
-                     MouseState zoom,
-                     MouseState xshift,
-                     MouseState yshift);
+    void assignMouse(Qwt3DMouseState xrot,
+                     Qwt3DMouseState yrot,
+                     Qwt3DMouseState zrot,
+                     Qwt3DMouseState xscale,
+                     Qwt3DMouseState yscale,
+                     Qwt3DMouseState zscale,
+                     Qwt3DMouseState zoom,
+                     Qwt3DMouseState xshift,
+                     Qwt3DMouseState yshift);
 
     // Returns true, if the widget accept mouse input from the user
     bool mouseEnabled() const;
     // Assign keyboard states for rotations, scales, zoom and shifts
-    void assignKeyboard(KeyboardState xrot_n,
-                        KeyboardState xrot_p,
-                        KeyboardState yrot_n,
-                        KeyboardState yrot_p,
-                        KeyboardState zrot_n,
-                        KeyboardState zrot_p,
-                        KeyboardState xscale_n,
-                        KeyboardState xscale_p,
-                        KeyboardState yscale_n,
-                        KeyboardState yscale_p,
-                        KeyboardState zscale_n,
-                        KeyboardState zscale_p,
-                        KeyboardState zoom_n,
-                        KeyboardState zoom_p,
-                        KeyboardState xshift_n,
-                        KeyboardState xshift_p,
-                        KeyboardState yshift_n,
-                        KeyboardState yshift_p);
+    void assignKeyboard(Qwt3DKeyboardState xrot_n,
+                        Qwt3DKeyboardState xrot_p,
+                        Qwt3DKeyboardState yrot_n,
+                        Qwt3DKeyboardState yrot_p,
+                        Qwt3DKeyboardState zrot_n,
+                        Qwt3DKeyboardState zrot_p,
+                        Qwt3DKeyboardState xscale_n,
+                        Qwt3DKeyboardState xscale_p,
+                        Qwt3DKeyboardState yscale_n,
+                        Qwt3DKeyboardState yscale_p,
+                        Qwt3DKeyboardState zscale_n,
+                        Qwt3DKeyboardState zscale_p,
+                        Qwt3DKeyboardState zoom_n,
+                        Qwt3DKeyboardState zoom_p,
+                        Qwt3DKeyboardState xshift_n,
+                        Qwt3DKeyboardState xshift_p,
+                        Qwt3DKeyboardState yshift_n,
+                        Qwt3DKeyboardState yshift_p);
 
     // Returns true, if the widget accept keyboard input from the user
     bool keyboardEnabled() const;
@@ -193,15 +172,15 @@ public:
     void blowout(unsigned light = 0);
 
     // Set material component (RGBA)
-    void setMaterialComponent(GLenum property, double r, double g, double b, double a = 1.0);
+    void setMaterialComponent(unsigned int property, double r, double g, double b, double a = 1.0);
     // Set material component (intensity)
-    void setMaterialComponent(GLenum property, double intensity);
+    void setMaterialComponent(unsigned int property, double intensity);
     // Set shininess exponent
     void setShininess(double exponent);
     // Set light component (RGBA)
-    void setLightComponent(GLenum property, double r, double g, double b, double a = 1.0, unsigned light = 0);
+    void setLightComponent(unsigned int property, double r, double g, double b, double a = 1.0, unsigned light = 0);
     // Set light component (intensity)
-    void setLightComponent(GLenum property, double intensity, unsigned light = 0);
+    void setLightComponent(unsigned int property, double intensity, unsigned light = 0);
 
     // Returns Light 'idx' rotation around X axis [-360..360] (some angles are equivalent)
     double xLightRotation(unsigned idx = 0) const;
@@ -216,8 +195,39 @@ public:
     double yLightShift(unsigned idx = 0) const;
     // Returns shift of Light 'idx' along Z axis (object coordinates)
     double zLightShift(unsigned idx = 0) const;
-    // Returns true if valid data available, false else
-    bool hasData() const;
+
+    // Returns true if the plot has attached items
+    bool hasItems() const;
+
+    // Item list management
+    virtual void attach(Qwt3DPlotItem* item);
+    virtual void detach(Qwt3DPlotItem* item);
+    const QList< Qwt3DPlotItem* >& itemList() const;
+
+    // Internal: called by Qwt3DPlotItem to request a redraw
+    void itemChanged(Qwt3DPlotItem* item);
+
+    // Returns true if GL has been initialized
+    bool initializedGL() const;
+
+    // Returns the current model-view matrix (computed in paintGL)
+    QMatrix4x4 modelViewMatrix() const;
+    // Returns the current projection matrix (computed in paintGL)
+    QMatrix4x4 projectionMatrix() const;
+
+    // Converts a world coordinate to screen (viewport) coordinates
+    QPointF worldToScreen(const Triple& world) const;
+    // Converts screen (viewport) coordinates to a world coordinate
+    Triple screenToWorld(const QPointF& screen) const;
+
+    // Returns the viewport size (width, height) in pixels
+    QSize viewportSize() const;
+
+    // Shared shader accessors for drawables and items
+    QOpenGLShaderProgram* lineShader() const;
+    QOpenGLShaderProgram* pointShader() const;
+    QOpenGLShaderProgram* polygonShader() const;
+    QOpenGLShaderProgram* textShader() const;
 
 Q_SIGNALS:
 
@@ -264,6 +274,12 @@ Q_SIGNALS:
      */
     void projectionChanged(bool);
 
+    /**
+     * @brief Signal emitted when the aspect ratio mode is changed
+     * @param mode The new aspect ratio mode (AUTOFILL or DATARATIO)
+     */
+    void aspectRatioModeChanged(ASPECTRATIOMODE mode);
+
 public Q_SLOTS:
 
     // Set rotation values
@@ -279,6 +295,9 @@ public Q_SLOTS:
 
     // Set orthogonal/perspective projection
     void setOrtho(bool);
+
+    // Set the aspect ratio mode (AUTOFILL or DATARATIO)
+    void setAspectRatioMode(ASPECTRATIOMODE mode);
 
     // Enable mouse input
     void enableMouse(bool val = true);
@@ -304,16 +323,13 @@ public Q_SLOTS:
     // Saves content to vector format
     virtual bool saveVector(QString const& fileName,
                             QString const& format,
-                            VectorWriter::TEXTMODE text,
-                            VectorWriter::SORTMODE sortmode);
+                            Qwt3DVectorWriter::TEXTMODE text,
+                            Qwt3DVectorWriter::SORTMODE sortmode);
     // Saves content
     virtual bool save(QString const& fileName, QString const& format);
 
 protected:
-    QWT_DECLARE_PRIVATE(Plot3D)
-
-    using EnrichmentList = std::list< Qwt3D::Enrichment* >;
-    using ELIT           = EnrichmentList::iterator;
+    QWT_DECLARE_PRIVATE(Qwt3DPlot)
 
     void initializeGL() override;
     void paintGL() override;
@@ -326,44 +342,18 @@ protected:
 
     void keyPressEvent(QKeyEvent* e) override;
 
-    // Protected accessors for derived classes
-    std::vector< GLuint >& displayLists();
-    Qwt3D::Data* actualData() const;
-    void setActualData(Qwt3D::Data* data);
-
-    virtual void calculateHull() = 0;
-    virtual void createData()    = 0;
-    virtual void createEnrichment(Qwt3D::Enrichment&)
-    {
-    }
-    virtual void createEnrichments();
-
-    void createCoordinateSystem();
-    void setHull(Qwt3D::ParallelEpiped p);
-
-    bool initializedGL() const;
-
-    enum OBJECTS
-    {
-        DataObject,
-        LegendObject,
-        NormalObject,
-        DisplayListSize  // only to have a vector length ...
-    };
-
 private:
-    void setRotationMouse(MouseState bstate, double accel, QPoint diff);
-    void setScaleMouse(MouseState bstate, double accel, QPoint diff);
-    void setShiftMouse(MouseState bstate, double accel, QPoint diff);
+    void setRotationMouse(Qwt3DMouseState bstate, double accel, QPoint diff);
+    void setScaleMouse(Qwt3DMouseState bstate, double accel, QPoint diff);
+    void setShiftMouse(Qwt3DMouseState bstate, double accel, QPoint diff);
 
-    void setRotationKeyboard(KeyboardState kseq, double speed);
-    void setScaleKeyboard(KeyboardState kseq, double speed);
-    void setShiftKeyboard(KeyboardState kseq, double speed);
+    void setRotationKeyboard(Qwt3DKeyboardState kseq, double speed);
+    void setScaleKeyboard(Qwt3DKeyboardState kseq, double speed);
+    void setShiftKeyboard(Qwt3DKeyboardState kseq, double speed);
 
     void applyLight(unsigned idx);
     void applyLights();
 };
 
-}  // ns
 
 #endif  // QWT3D_PLOT_H

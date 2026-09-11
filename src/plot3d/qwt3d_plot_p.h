@@ -5,16 +5,20 @@
 #include "qwt3d_portability.h"
 
 #include <QPoint>
+#include <QMatrix4x4>
+#include <QList>
+#include <QOpenGLShaderProgram>
+#include <memory>
 
-namespace Qwt3D
-{
 
-class Plot3D::PrivateData
+class Qwt3DPlotItem;
+
+class Qwt3DPlot::PrivateData
 {
-    QWT_DECLARE_PUBLIC(Plot3D)
+    QWT_DECLARE_PUBLIC(Qwt3DPlot)
 
 public:
-    PrivateData(Plot3D* q);
+    PrivateData(Qwt3DPlot* q);
 
     struct Light
     {
@@ -26,55 +30,44 @@ public:
         Triple shift;
     };
 
-    CoordinateSystem m_coordinates;
-    Color* m_dataColor;
-    Enrichment* m_userPlotStyle;
-    std::list< Enrichment* > m_enrichmentList;
-    std::vector< GLuint > m_displayLists;
-    Data* m_actualData;
+    Qwt3DCoordinateSystem m_coordinates;
 
     std::vector< Light > m_lights;
 
-    GLdouble m_xRot, m_yRot, m_zRot;
-    GLdouble m_xShift, m_yShift, m_zShift;
-    GLdouble m_zoom;
-    GLdouble m_xScale, m_yScale, m_zScale;
-    GLdouble m_xVPShift, m_yVPShift;
+    double m_xRot, m_yRot, m_zRot;
+    double m_xShift, m_yShift, m_zShift;
+    double m_zoom;
+    double m_xScale, m_yScale, m_zScale;
+    double m_xVPShift, m_yVPShift;
 
-    RGBA m_meshColor;
-    double m_meshLineWidth;
     RGBA m_bgColor;
-    PLOTSTYLE m_plotStyle;
-    SHADINGSTYLE m_shading;
-    FLOORSTYLE m_floorStyle;
     bool m_ortho;
-    double m_polygonOffset;
-    int m_isolines;
+    ASPECTRATIOMODE m_aspectRatioMode = AUTOFILL;
+
     bool m_displayLegend;
-    bool m_smoothDataMesh;
 
     ParallelEpiped m_hull;
 
-    ColorLegend m_legend;
+    Qwt3DColorLegend m_legend;
 
-    Label m_title;
+    Qwt3DLabel m_title;
     Tuple m_titleRel;
     ANCHOR m_titleAnchor;
 
     QPoint m_lastMouseMovePosition;
     bool m_pressed;
 
-    MouseState m_xrotMState, m_yrotMState, m_zrotMState;
-    MouseState m_xscaleMState, m_yscaleMState, m_zscaleMState;
-    MouseState m_zoomMState;
-    MouseState m_xshiftMState, m_yshiftMState;
+    Qwt3DMouseState m_xrotMState, m_yrotMState, m_zrotMState;
+    Qwt3DMouseState m_xscaleMState, m_yscaleMState, m_zscaleMState;
+    Qwt3DMouseState m_zoomMState;
+    Qwt3DMouseState m_xshiftMState, m_yshiftMState;
 
     bool m_mouseInputEnabled;
 
-    KeyboardState m_xrotKState[ 2 ], m_yrotKState[ 2 ], m_zrotKState[ 2 ];
-    KeyboardState m_xscaleKState[ 2 ], m_yscaleKState[ 2 ], m_zscaleKState[ 2 ];
-    KeyboardState m_zoomKState[ 2 ];
-    KeyboardState m_xshiftKState[ 2 ], m_yshiftKState[ 2 ];
+    Qwt3DKeyboardState m_xrotKState[ 2 ], m_yrotKState[ 2 ], m_zrotKState[ 2 ];
+    Qwt3DKeyboardState m_xscaleKState[ 2 ], m_yscaleKState[ 2 ], m_zscaleKState[ 2 ];
+    Qwt3DKeyboardState m_zoomKState[ 2 ];
+    Qwt3DKeyboardState m_xshiftKState[ 2 ], m_yshiftKState[ 2 ];
 
     bool m_kPressed;
     bool m_kbdInputEnabled;
@@ -85,8 +78,24 @@ public:
     bool m_renderPixmapRequest;
 
     Qwt3DTheme m_theme;
+
+    // CPU-side transformation matrices
+    QMatrix4x4 m_modelView;
+    QMatrix4x4 m_projection;
+
+    // Viewport dimensions
+    int m_viewportWidth = 0;
+    int m_viewportHeight = 0;
+
+    // Shared generic shaders
+    std::unique_ptr< QOpenGLShaderProgram > m_lineShader;
+    std::unique_ptr< QOpenGLShaderProgram > m_pointShader;
+    std::unique_ptr< QOpenGLShaderProgram > m_polygonShader;
+    std::unique_ptr< QOpenGLShaderProgram > m_textShader;
+
+    // Attached items list (sorted by z-order)
+    QList< Qwt3DPlotItem* > m_items;
 };
 
-}  // ns
 
 #endif  // QWT3D_PLOT_P_H

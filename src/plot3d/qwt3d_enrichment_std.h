@@ -3,73 +3,70 @@
 
 #include "qwt3d_enrichment.h"
 
-namespace Qwt3D
-{
 
-class Plot3D;
 
 /**
  * @brief The Cross Hair Style
  */
-class QWT3D_EXPORT CrossHair : public VertexEnrichment
+class QWT3D_EXPORT Qwt3DCrossHair : public Qwt3DVertexEnrichment
 {
 public:
-    CrossHair();
-    CrossHair(double rad, double linewidth, bool smooth, bool boxed);
-    CrossHair(const CrossHair& other);
-    ~CrossHair() override;
+    Qwt3DCrossHair();
+    Qwt3DCrossHair(double rad, double linewidth, bool smooth, bool boxed);
+    Qwt3DCrossHair(const Qwt3DCrossHair& other);
+    ~Qwt3DCrossHair() override;
 
-    Qwt3D::Enrichment* clone() const override;
+    Qwt3DEnrichment* clone() const override;
 
     void configure(double rad, double linewidth, bool smooth, bool boxed);
     void drawBegin() override;
     void drawEnd() override;
-    void draw(Qwt3D::Triple const&) override;
+    void draw(Triple const&) override;
 
 private:
-    QWT_DECLARE_PRIVATE(CrossHair)
+    QWT_DECLARE_PRIVATE(Qwt3DCrossHair)
 };
 
 /**
  * @brief The Point Style
  */
-class QWT3D_EXPORT Dot : public VertexEnrichment
+class QWT3D_EXPORT Qwt3DDot : public Qwt3DVertexEnrichment
 {
 public:
-    Dot();
-    Dot(double pointsize, bool smooth);
-    Dot(const Dot& other);
-    ~Dot() override;
+    Qwt3DDot();
+    Qwt3DDot(double pointsize, bool smooth);
+    Qwt3DDot(const Qwt3DDot& other);
+    ~Qwt3DDot() override;
 
-    Qwt3D::Enrichment* clone() const override;
+    Qwt3DEnrichment* clone() const override;
 
     void configure(double pointsize, bool smooth);
     void drawBegin() override;
     void drawEnd() override;
-    void draw(Qwt3D::Triple const&) override;
+    void draw(Triple const&) override;
 
 private:
-    QWT_DECLARE_PRIVATE(Dot)
+    QWT_DECLARE_PRIVATE(Qwt3DDot)
 };
 
 /**
  * @brief The Cone Style
  */
-class QWT3D_EXPORT Cone : public VertexEnrichment
+class QWT3D_EXPORT Qwt3DCone : public Qwt3DVertexEnrichment
 {
 public:
-    Cone();
-    Cone(double rad, unsigned quality);
-    Cone(const Cone& other);
-    ~Cone() override;
+    Qwt3DCone();
+    Qwt3DCone(double rad, unsigned quality);
+    Qwt3DCone(const Qwt3DCone& other);
+    ~Qwt3DCone() override;
 
-    Qwt3D::Enrichment* clone() const override;
+    Qwt3DEnrichment* clone() const override;
 
     void configure(double rad, unsigned quality);
-    void draw(Qwt3D::Triple const&) override;
+    void draw(Triple const&) override;
 
 private:
-    QWT_DECLARE_PRIVATE(Cone)
+    QWT_DECLARE_PRIVATE(Qwt3DCone)
 };
 
 /**
@@ -77,28 +74,27 @@ private:
  * @details The class encapsulates a vector field including its OpenGL representation as arrow field.
  *          The arrows can be configured in different aspects (color, shape, painting quality).
  */
-class QWT3D_EXPORT Arrow : public VertexEnrichment
+class QWT3D_EXPORT Qwt3DArrow : public Qwt3DVertexEnrichment
 {
 public:
-    Arrow();
-    Arrow(const Arrow& other);
-    ~Arrow() override;
+    Qwt3DArrow();
+    Qwt3DArrow(const Qwt3DArrow& other);
+    ~Qwt3DArrow() override;
 
-    Qwt3D::Enrichment* clone() const override;
+    Qwt3DEnrichment* clone() const override;
 
     void configure(int segs, double relconelength, double relconerad, double relstemrad);
     void setQuality(int val);
-    void draw(Qwt3D::Triple const&) override;
+    void draw(Triple const&) override;
 
-    void setTop(Qwt3D::Triple t);
-    void setColor(Qwt3D::RGBA rgba);
+    void setTop(Triple t);
+    void setColor(RGBA rgba);
 
 private:
-    QWT_DECLARE_PRIVATE(Arrow)
+    QWT_DECLARE_PRIVATE(Qwt3DArrow)
 
-    double calcRotation(Qwt3D::Triple& axis, Qwt3D::FreeVector const& vec);
+    double calcRotation(Triple& axis, FreeVector const& vec);
 };
 
-}  // ns
 
 #endif  // QWT3D_ENRICHMENT_STD_H

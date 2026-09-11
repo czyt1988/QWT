@@ -165,6 +165,9 @@ public:
     virtual void
     renderScale(const QwtPlot*, QPainter*, QwtAxisId, int startDist, int endDist, int baseDist, const QRectF& scaleRect) const;
 
+    // Render the caption of an outside axis title (QwtScaleWidget::TitleOutside)
+    virtual void renderScaleCaption(const QwtPlot*, QPainter*, QwtAxisId, const QRectF& captionRect) const;
+
     // Render the canvas
     virtual void renderCanvas(const QwtPlot*, QPainter*, const QRectF& canvasRect, const QwtScaleMap* maps) const;
 

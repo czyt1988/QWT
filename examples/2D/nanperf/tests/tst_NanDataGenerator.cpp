@@ -12,6 +12,7 @@ private Q_SLOTS:
     void testTrailingNan();
     void testXyNan();
     void testXyInterleavedNan();
+    void testAllNan();
     void testBaselineNoNan();
     void testXAlwaysFinite();
 };
@@ -105,6 +106,21 @@ void TestNanDataGenerator::testXyInterleavedNan()
     // Outside NaN region: everything finite
     QVERIFY(!std::isnan(x[ 249 ]) && !std::isnan(y[ 249 ]));
     QVERIFY(!std::isnan(x[ 750 ]) && !std::isnan(y[ 750 ]));
+}
+
+void TestNanDataGenerator::testAllNan()
+{
+    QVector< double > x, y;
+    NanDataGenerator::generate(NanCase::AllNan, 1000, 0.5, x, y);
+    QCOMPARE(x.size(), 1000);
+    QCOMPARE(y.size(), 1000);
+    QCOMPARE(NanDataGenerator::nanCount(NanCase::AllNan, 1000, 0.5), 1000);
+    // Every Y is NaN; nanFraction is irrelevant for this case.
+    for (int i = 0; i < y.size(); ++i)
+        QVERIFY2(std::isnan(y[ i ]), qPrintable(QString("y[%1] is not NaN").arg(i)));
+    // X stays as the finite monotonic index.
+    for (int i = 0; i < x.size(); ++i)
+        QCOMPARE(x[ i ], double(i));
 }
 
 void TestNanDataGenerator::testXAlwaysFinite()

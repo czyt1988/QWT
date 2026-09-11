@@ -124,6 +124,9 @@ public:
     PrivateData(QwtPlot* p);
     QPointer< QwtTextLabel > titleLabel;
     QPointer< QwtTextLabel > footerLabel;
+    // Labels painting the outside axis titles (QwtScaleWidget::TitleOutside),
+    // lazily created on demand, positioned into QwtPlotLayout::scaleCaptionRect()
+    QPointer< QwtTextLabel > axisTitleLabels[ QwtAxis::AxisPositions ];
     QPointer< QWidget > canvas;
     QPointer< QwtAbstractLegend > legend;
     QwtPlotLayout* layout;
@@ -325,6 +328,13 @@ bool QwtPlot::event(QEvent* event)
     switch (event->type()) {
     case QEvent::LayoutRequest:
         updateLayout();
+        // A layout request of a parasite plot may change the scale/caption
+        // demands that the host layout aggregates for the shared bands -
+        // refresh the host layout as well
+        if (isParasitePlot()) {
+            if (QwtPlot* host = hostPlot())
+                host->updateLayout();
+        }
         break;
     case QEvent::PolishRequest:
         replot();
@@ -700,6 +710,13 @@ void QwtPlot::replotAll()
     for (QwtPlot* plot : allPlot) {
         plot->replot();
     }
+    // After all replots, borderDist and edgeMargin may have changed (new scale
+    // divs produce new label sizes). Realign so host and parasite layers stay
+    // consistent, keeping canvasMap paint intervals identical.
+    QwtPlot* host = isHostPlot() ? this : hostPlot();
+    if (host && host->parasitePlotCount() > 0) {
+        host->updateAllAxisEdgeMargin();
+    }
 }
 
 void QwtPlot::autoRefreshAll()
@@ -791,6 +808,43 @@ void QwtPlot::doLayout()
         }
     }
 
+    // Outside axis titles (QwtScaleWidget::TitleOutside) are painted by
+    // dedicated labels positioned into the caption strips reserved by the
+    // layout. The scale widgets don't paint them in this mode.
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+        const QwtAxisId axisId(axisPos);
+
+        QwtScaleWidget* scaleWidget  = axisWidget(axisId);
+        const QRectF captionRect     = layout->scaleCaptionRect(axisId);
+        const bool hasCaption        = isAxisVisible(axisId) && scaleWidget
+            && scaleWidget->titlePlacement() == QwtScaleWidget::TitleOutside
+            && !scaleWidget->title().isEmpty() && captionRect.isValid();
+
+        QPointer< QwtTextLabel >& label = m_data->axisTitleLabels[ axisPos ];
+
+        if (hasCaption) {
+            if (!label) {
+                label = new QwtTextLabel(this);
+                label->setObjectName(QStringLiteral("QwtPlotAxisTitle%1").arg(axisPos));
+            }
+
+            QwtText title = scaleWidget->title();
+            int flags     = title.renderFlags() & ~(Qt::AlignTop | Qt::AlignBottom);
+            flags |= Qt::AlignVCenter;
+            title.setRenderFlags(flags);
+
+            label->setText(title);
+            label->setFont(scaleWidget->font());
+            label->setPalette(scaleWidget->palette());
+            label->setGeometry(captionRect.toRect());
+
+            if (!label->isVisibleTo(this))
+                label->show();
+        } else if (label) {
+            label->hide();
+        }
+    }
+
     if (m_data->legend) {
         if (m_data->legend->isEmpty()) {
             m_data->legend->hide();
@@ -808,6 +862,11 @@ void QwtPlot::doLayout()
         // Set dimensions first, then adjust the rest
         for (QwtPlot* p : allparasites) {
             p->setGeometry(QRect(0, 0, width(), height()));
+            // The parasite layout copies the host rects during activate(). Refresh
+            // it here so the copy - and everything derived from it, like the
+            // caption rects of outside axis titles - sees the final host layout
+            // of this pass instead of a stale one from an earlier event.
+            p->updateLayout();
         }
     }
 }
@@ -1087,6 +1146,25 @@ QwtScaleMap QwtPlot::canvasMap(QwtAxisId axisId) const
     QwtScaleMap map;
     if (!m_data->canvas)
         return map;
+
+    // For parasite plots, use the host's paint interval (p1, p2) to ensure
+    // curves are mapped to the correct pixel range. The host and parasite
+    // share the same canvas geometry, so the paint interval must be identical.
+    // Computing it from the parasite's own borderDist (which may differ from
+    // the host's due to different label sizes) causes curves to be misaligned,
+    // compressed, or rendered outside the canvas. The parasite's own scale
+    // interval (s1, s2) is still used so data maps correctly.
+    if (isParasitePlot()) {
+        QwtPlot* host = hostPlot();
+        if (host) {
+            QwtScaleMap hostMap = host->canvasMap(axisId);
+            map.setTransformation(axisScaleEngine(axisId)->transformation());
+            const QwtScaleDiv& sd = axisScaleDiv(axisId);
+            map.setScaleInterval(sd.lowerBound(), sd.upperBound());
+            map.setPaintInterval(hostMap.p1(), hostMap.p2());
+            return map;
+        }
+    }
 
     map.setTransformation(axisScaleEngine(axisId)->transformation());
 
@@ -2211,9 +2289,75 @@ void QwtPlot::updateAllAxisEdgeMargin()
     for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; ++axisPos) {
         updateAxisEdgeMargin(axisPos);
     }
+    // Align borderDist across all layers so that canvasMap paint intervals match
+    alignAllAxisBorderDist();
     if (m_data->scaleEventDispatcher) {
         // Update cache after updateAllAxisEdgeMargin
         m_data->scaleEventDispatcher->updateCache();
+    }
+}
+
+/**
+ * @brief Align borderDist across host and all parasite layers for one axis
+ *
+ * For each axis position, the host and every parasite compute their own
+ * borderDist hint (endpoint label spacing) independently. If they differ,
+ * canvasMap produces different paint intervals for host vs. parasite, which
+ * causes parasite curves to be misaligned, compressed, or rendered outside
+ * the canvas.
+ *
+ * This method computes the maximum start/end borderDist across all layers
+ * (host + parasites) and applies it to every layer, ensuring all canvasMap
+ * paint intervals are identical. Setting minBorderDist as well prevents
+ * subsequent doLayout / updateAxes calls from reverting below this value.
+ *
+ * @param axisId Axis ID to align
+ */
+void QwtPlot::alignAxisBorderDist(QwtAxisId axisId)
+{
+    QwtPlot* host = isHostPlot() ? this : hostPlot();
+    if (!host || host->parasitePlotCount() == 0) {
+        return;
+    }
+
+    // Collect the maximum borderDist hint across all layers
+    int maxStart = 0;
+    int maxEnd   = 0;
+    auto collect = [&](QwtPlot* p) {
+        if (p && p->isAxisVisible(axisId)) {
+            int s = 0, e = 0;
+            p->axisWidget(axisId)->getBorderDistHint(s, e);
+            maxStart = qMax(maxStart, s);
+            maxEnd   = qMax(maxEnd, e);
+        }
+    };
+    collect(host);
+    for (QwtPlot* p : host->parasitePlots()) {
+        collect(p);
+    }
+
+    // Apply the maximum to all layers so paint intervals match exactly
+    auto apply = [&](QwtPlot* p) {
+        if (p && p->isAxisVisible(axisId)) {
+            QwtScaleWidget* sw = p->axisWidget(axisId);
+            sw->setMinBorderDist(maxStart, maxEnd);
+            sw->setBorderDist(maxStart, maxEnd);
+        }
+    };
+    apply(host);
+    for (QwtPlot* p : host->parasitePlots()) {
+        apply(p);
+    }
+}
+
+/**
+ * @brief Align borderDist for all axis positions
+ * @sa alignAxisBorderDist()
+ */
+void QwtPlot::alignAllAxisBorderDist()
+{
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; ++axisPos) {
+        alignAxisBorderDist(axisPos);
     }
 }
 
@@ -2444,6 +2588,14 @@ void QwtPlot::zoomAxis(QwtAxisId axisId, double factor, const QPoint& centerPosP
         // For linear axes, convert the screen center point to the data center point (invTransform)
         center = scaleMap.invTransform(center);
     }
+    // Ensure currentMin <= currentMax so the clamp/zoom math below works correctly.
+    // This handles two cases:
+    // 1. Inverted data axes (e.g., setAxisScale(yRight, 500, 0) where s1 > s2)
+    // 2. Non-linear Y axes where pixel-space is always inverted (p1 > p2 for Y)
+    const bool inverted = (currentMin > currentMax);
+    if (inverted) {
+        std::swap(currentMin, currentMax);
+    }
     // Clamp center between currentMin and currentMax; for C++11 compatibility we avoid std::clamp here.
     // If C++17 or later is explicitly required, this can be changed to center = std::clamp(center, currentMin, currentMax);
     center = std::max(currentMin, std::min(center, currentMax));
@@ -2465,6 +2617,11 @@ void QwtPlot::zoomAxis(QwtAxisId axisId, double factor, const QPoint& centerPosP
             // The two points have become extremely close after zooming
             currentMax = currentMin + 1e-8;
         }
+    }
+    // Restore original ordering to preserve the axis inversion direction
+    // (e.g., an axis set to [500, 0] should remain [newMax, newMin] after zoom)
+    if (inverted) {
+        std::swap(currentMin, currentMax);
     }
     setAxisScale(axisId, currentMin, currentMax);
 }

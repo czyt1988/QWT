@@ -106,6 +106,56 @@ bool aligned = layout->alignCanvasToScale(QwtAxis::YRight);
     - **Aligned mode**: Canvas boundaries precisely align with axis tick marks; tick labels may extend beyond the canvas
     - **Non-aligned mode**: Canvas maintains a fixed size; axis areas are calculated independently; tick labels are fully displayed
 
+### Fixed Canvas Size
+
+Normally the canvas shrinks when axis tick labels grow (the layout reserves
+more space for the wider scale widget). **Fixed canvas size** mode decouples
+the canvas dimension from label growth: once locked, the canvas dimension is
+held stable, and labels that no longer fit overflow beyond the plot rect and
+are clipped by the scale widget's paint region.
+
+The feature is controlled per axis *direction*: `YLeft`/`YRight` fix the canvas
+**width**, `XBottom`/`XTop` fix the canvas **height**. Enabling either Y
+position pins the width; enabling either X position pins the height.
+
+```cpp
+QwtPlotLayout* layout = plot->plotLayout();
+
+// Auto-lock mode: capture the current canvas width on the next layout and
+// hold it stable against subsequent label growth.
+layout->setFixedCanvasSize(QwtAxis::YLeft, true);
+
+// Check whether fixed canvas is enabled for a direction
+bool on = layout->isFixedCanvasSize(QwtAxis::YLeft);
+
+// Manual mode: pin the canvas to an exact size (centered along each fixed
+// direction). A component < 0 means "use auto-capture" for that direction.
+layout->setFixedCanvasSize(QSize(400, 300));
+
+// Clear all locked values so the next layout re-captures from the current
+// geometry. Does not change the enabled state of each direction.
+layout->resetFixedCanvasSize();
+
+// Disable the feature for a direction (also stops holding the lock)
+layout->setFixedCanvasSize(QwtAxis::YLeft, false);
+```
+
+!!! tip "When to use it"
+    This is mainly intended for **parasite plot** setups where the host and
+    parasite share the canvas area. Locking the host canvas prevents the two
+    from drifting out of alignment when one of them grows axis labels.
+
+!!! note "How it behaves"
+    - **Auto mode**: the canvas edge offsets (relative to the plot rect) are
+      captured on the first layout after enabling and then pinned. The canvas
+      neither moves nor shrinks when labels grow; on window resize the offsets
+      are preserved so the canvas grows or shrinks with the window.
+    - **Manual mode**: the canvas is pinned to the exact given size and centered
+      along each fixed direction.
+    - Axis thickness is *not* clamped, so a scale widget whose labels grew past
+      the available space extends beyond the plot rect and its overflow is
+      clipped. This is the intended trade-off for a stable canvas.
+
 ### Legend Position Configuration
 
 QwtPlotLayout supports placing the legend at four boundary positions:

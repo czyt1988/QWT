@@ -598,6 +598,10 @@ void QwtPlotRenderer::render(QwtPlot* plot, QPainter* painter, const QRectF& plo
                 scaleWidget->getBorderDistHint(startDist, endDist);
 
                 renderScale(plot, painter, axisId, startDist, endDist, baseDist, layout->scaleRect(axisId));
+
+                const QRectF captionRect = layout->scaleCaptionRect(axisId);
+                if (!captionRect.isEmpty())
+                    renderScaleCaption(plot, painter, axisId, captionRect);
             }
         }
     }
@@ -742,7 +746,11 @@ void QwtPlotRenderer::renderScale(const QwtPlot* plot,
         return;
     }
 
-    scaleWidget->drawTitle(painter, align, scaleRect);
+    // outside titles are painted by renderScaleCaption() into the
+    // caption strip reserved by the layout
+
+    if (scaleWidget->titlePlacement() == QwtScaleWidget::TitleInside)
+        scaleWidget->drawTitle(painter, align, scaleRect);
 
     painter->setFont(qwtResolvedFont(scaleWidget));
 
@@ -767,6 +775,42 @@ void QwtPlotRenderer::renderScale(const QwtPlot* plot,
     sd->setLength(sdLength);
     sd->enableComponent(QwtAbstractScaleDraw::Backbone, hasBackbone);
 
+    painter->restore();
+}
+
+/**
+ * @brief Render the caption of an outside axis title into a given rectangle
+ * @details Paints the title of a scale widget with QwtScaleWidget::TitleOutside
+ *          placement as horizontal text into the caption strip reserved by
+ *          QwtPlotLayout. Font and text color are taken from the scale widget,
+ *          the horizontal alignment from the title render flags, vertically the
+ *          text is centered.
+ * @param[in] plot Plot widget
+ * @param[in] painter Painter
+ * @param[in] axisId Axis identifier
+ * @param[in] captionRect Bounding rectangle for the caption
+ * @sa QwtPlotLayout::scaleCaptionRect(), QwtScaleWidget::setTitlePlacement()
+ */
+void QwtPlotRenderer::renderScaleCaption(const QwtPlot* plot, QPainter* painter, QwtAxisId axisId, const QRectF& captionRect) const
+{
+    if (!plot->isAxisVisible(axisId))
+        return;
+
+    const QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
+    if (!scaleWidget || scaleWidget->titlePlacement() != QwtScaleWidget::TitleOutside
+        || scaleWidget->title().isEmpty()) {
+        return;
+    }
+
+    QwtText title = scaleWidget->title();
+    int flags     = title.renderFlags() & ~(Qt::AlignTop | Qt::AlignBottom);
+    flags |= Qt::AlignVCenter;
+    title.setRenderFlags(flags);
+
+    painter->save();
+    painter->setFont(qwtResolvedFont(scaleWidget));
+    painter->setPen(scaleWidget->palette().color(QPalette::Active, QPalette::Text));
+    title.draw(painter, captionRect);
     painter->restore();
 }
 

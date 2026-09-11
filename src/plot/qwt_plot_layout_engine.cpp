@@ -17,8 +17,10 @@
 QwtPlotLayoutEngine::Dimensions::Dimensions()
 {
     dimTitle = dimFooter = 0;
-    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++)
-        m_dimAxes[ axisPos ] = 0;
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+        m_dimAxes[ axisPos ]     = 0;
+        m_captionExtra[ axisPos ] = 0;
+    }
 }
 
 /**
@@ -43,12 +45,35 @@ void QwtPlotLayoutEngine::Dimensions::setDimAxis(QwtAxisId axisId, int dim)
 
 /**
  * @brief Read dimension by axis position index
+ * @details Includes the extra caption band reserved for outside axis titles
+ *          (QwtScaleWidget::TitleOutside), so that innerRect() and the axis
+ *          length calculations see the full band.
  * @param axisPos Axis position enum value (YLeft, YRight, XTop, XBottom)
- * @return Pixel size of the axis at the given position
+ * @return Pixel size of the band at the given position
  */
 int QwtPlotLayoutEngine::Dimensions::dimAxes(int axisPos) const
 {
-    return m_dimAxes[ axisPos ];
+    return m_dimAxes[ axisPos ] + m_captionExtra[ axisPos ];
+}
+
+/**
+ * @brief Read the extra caption band pixels for an axis position
+ * @param axisPos Axis position enum value (YLeft, YRight, XTop, XBottom)
+ * @return Extra pixels reserved beyond the scale dimension, 0 if none
+ */
+int QwtPlotLayoutEngine::Dimensions::captionExtra(int axisPos) const
+{
+    return m_captionExtra[ axisPos ];
+}
+
+/**
+ * @brief Set the extra caption band pixels for an axis position
+ * @param axisPos Axis position enum value (YLeft, YRight, XTop, XBottom)
+ * @param extra Extra pixels reserved beyond the scale dimension
+ */
+void QwtPlotLayoutEngine::Dimensions::setCaptionExtra(int axisPos, int extra)
+{
+    m_captionExtra[ axisPos ] = qMax(0, extra);
 }
 
 /**
@@ -196,7 +221,7 @@ void QwtPlotLayoutEngine::LayoutData::ScaleData::init(const QwtScaleWidget* axis
         tickOffset += axisWidget->scaleDraw()->maxTickLength();
 
     dimWithoutTitle = axisWidget->dimForLength(QWIDGETSIZE_MAX, scaleFont);
-    if (!axisWidget->title().isEmpty())
+    if (!axisWidget->title().isEmpty() && axisWidget->titlePlacement() == QwtScaleWidget::TitleInside)
         dimWithoutTitle -= axisWidget->titleHeightForWidth(QWIDGETSIZE_MAX);
 }
 
@@ -239,6 +264,9 @@ void QwtPlotLayoutEngine::LayoutData::CanvasData::init(const QWidget* canvas)
 /**
  * @brief Construct LayoutData from a QwtPlot
  * @details Initializes all layout data by extracting information from the plot's components including legend, labels, axes and canvas.
+ *          For a host plot the outside title caption heights demanded by all parasite plots
+ *          sharing its bands are aggregated as well, so that the host layout reserves
+ *          enough space for the captions of every layer.
  * @param plot Pointer to the QwtPlot
  */
 QwtPlotLayoutEngine::LayoutData::LayoutData(const QwtPlot* plot)
@@ -259,10 +287,42 @@ QwtPlotLayoutEngine::LayoutData::LayoutData(const QwtPlot* plot)
             } else {
                 scaleData.reset();
             }
+
+            parasiteCaptionHeight[ axisPos ] = 0;
         }
     }
 
     canvasData.init(plot->canvas());
+
+    if (plot->isHostPlot() && plot->parasitePlotCount() > 0) {
+        const QList< QwtPlot* > parasites = plot->parasitePlots();
+        for (const QwtPlot* p : parasites) {
+            if (!p)
+                continue;
+
+            for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+                const QwtAxisId axisId(axisPos);
+                if (!p->isAxisVisible(axisId))
+                    continue;
+
+                const QwtScaleWidget* sw = p->axisWidget(axisId);
+                if (!sw || sw->titlePlacement() != QwtScaleWidget::TitleOutside || sw->title().isEmpty())
+                    continue;
+
+                // Conservative reservation: heightForWidth of the own column width.
+                // For parasite layers the column is estimated from the natural
+                // dimension without the shared band offsets (margin/edgeMargin);
+                // the offsets may be stale here (they are recalculated after the
+                // host layout) but they cancel out in the subtraction.
+                int w = QWIDGETSIZE_MAX;
+                if (QwtAxis::isYAxis(axisPos)) {
+                    w = sw->dimForLength(QWIDGETSIZE_MAX, sw->font()) - sw->margin() - sw->edgeMargin();
+                    w = qMax(w, 1);
+                }
+                parasiteCaptionHeight[ axisPos ] = qMax(parasiteCaptionHeight[ axisPos ], sw->titleHeightForWidth(w));
+            }
+        }
+    }
 }
 
 /**
@@ -467,7 +527,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
                     const double dx = leftOffset + leftScaleRect.width();
 
                     //! When the axis needs more space than available, the function adjusts the canvas rectangle
-                    if (m_alignCanvas[ YLeft ] && dx < 0.0) {
+                    if (m_alignCanvas[ YLeft ] && dx < 0.0 && !isFixedCanvasWidth()) {
                         /*
                            The axis needs more space than the width
                            of the left scale.
@@ -480,7 +540,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
                         axisRect.setLeft(qwtMaxF(left, minLeft));
                     }
                 } else {
-                    if (m_alignCanvas[ YLeft ] && leftOffset < 0) {
+                    if (m_alignCanvas[ YLeft ] && leftOffset < 0 && !isFixedCanvasWidth()) {
                         canvasRect.setLeft(qwtMaxF(canvasRect.left(), axisRect.left() - leftOffset));
                     } else {
                         if (leftOffset > 0)
@@ -493,7 +553,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 
                 if (rightScaleRect.isValid()) {
                     const double dx = rightOffset + rightScaleRect.width();
-                    if (m_alignCanvas[ YRight ] && dx < 0) {
+                    if (m_alignCanvas[ YRight ] && dx < 0 && !isFixedCanvasWidth()) {
                         /*
                            The axis needs more space than the width
                            of the right scale.
@@ -506,7 +566,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
                     const double right    = axisRect.right() - rightOffset;
                     axisRect.setRight(qwtMinF(right, maxRight));
                 } else {
-                    if (m_alignCanvas[ YRight ] && rightOffset < 0) {
+                    if (m_alignCanvas[ YRight ] && rightOffset < 0 && !isFixedCanvasWidth()) {
                         canvasRect.setRight(qwtMinF(canvasRect.right(), axisRect.right() + rightOffset));
                     } else {
                         if (rightOffset > 0)
@@ -520,7 +580,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 
                 if (bottomScaleRect.isValid()) {
                     const double dy = bottomOffset + bottomScaleRect.height();
-                    if (m_alignCanvas[ XBottom ] && dy < 0) {
+                    if (m_alignCanvas[ XBottom ] && dy < 0 && !isFixedCanvasHeight()) {
                         /*
                            The axis needs more space than the height
                            of the bottom scale.
@@ -533,7 +593,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
                         axisRect.setBottom(qwtMinF(bottom, maxBottom));
                     }
                 } else {
-                    if (m_alignCanvas[ XBottom ] && bottomOffset < 0) {
+                    if (m_alignCanvas[ XBottom ] && bottomOffset < 0 && !isFixedCanvasHeight()) {
                         canvasRect.setBottom(qwtMinF(canvasRect.bottom(), axisRect.bottom() + bottomOffset));
                     } else {
                         if (bottomOffset > 0)
@@ -546,7 +606,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 
                 if (topScaleRect.isValid()) {
                     const double dy = topOffset + topScaleRect.height();
-                    if (m_alignCanvas[ XTop ] && dy < 0) {
+                    if (m_alignCanvas[ XTop ] && dy < 0 && !isFixedCanvasHeight()) {
                         /*
                            The axis needs more space than the height
                            of the top scale.
@@ -560,7 +620,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
                         axisRect.setTop(qwtMaxF(top, minTop));
                     }
                 } else {
-                    if (m_alignCanvas[ XTop ] && topOffset < 0) {
+                    if (m_alignCanvas[ XTop ] && topOffset < 0 && !isFixedCanvasHeight()) {
                         canvasRect.setTop(qwtMaxF(canvasRect.top(), axisRect.top() - topOffset));
                     } else {
                         if (topOffset > 0)
@@ -931,7 +991,8 @@ QwtPlotLayoutEngine::layoutDimensions(int plotLayoutOptions, const LayoutData& l
                     }
 
                     int d = scaleData.dimWithoutTitle;
-                    if (!scaleData.scaleWidget->title().isEmpty()) {
+                    if (!scaleData.scaleWidget->title().isEmpty()
+                        && scaleData.scaleWidget->titlePlacement() == QwtScaleWidget::TitleInside) {
                         d += scaleData.scaleWidget->titleHeightForWidth(qwtFloor(length));
                     }
 
@@ -940,6 +1001,68 @@ QwtPlotLayoutEngine::layoutDimensions(int plotLayoutOptions, const LayoutData& l
                         done = false;
                     }
                 }
+            }
+        }
+
+        // Outside title captions (QwtScaleWidget::TitleOutside) are painted in a
+        // strip adjacent to the scale widgets, outside of them:
+        // - captions of X axes extend the band of their own axis position
+        // - captions of Y axes are painted below their scale widgets and share
+        //   the XBottom band. The Y scale rects protrude into that band by the
+        //   tick offset of the bottom axis (see alignScales), so the protrusion
+        //   has to be reserved as well.
+        // Caption heights demanded by parasite plots are aggregated in LayoutData.
+        {
+            int reqBottom = dimensions.dimAxis(QwtAxis::XBottom);
+            int reqTop    = dimensions.dimAxis(QwtAxis::XTop);
+
+            int yCaptionOffset = 0;
+            if (layoutData.axisData(QwtAxis::XBottom).isVisible)
+                yCaptionOffset = qwtCeil(layoutData.tickOffset(QwtAxis::XBottom));
+
+            for (int axisPos = 0; axisPos < AxisPositions; axisPos++) {
+                int capH = 0;
+
+                const LayoutData::ScaleData& scaleData = layoutData.axisData(axisPos);
+                if (scaleData.isVisible && scaleData.scaleWidget
+                    && scaleData.scaleWidget->titlePlacement() == QwtScaleWidget::TitleOutside
+                    && !scaleData.scaleWidget->title().isEmpty()) {
+                    if (isXAxis(axisPos)) {
+                        const double length = rect.width() - dimensions.dimYAxes();
+                        capH                = scaleData.scaleWidget->titleHeightForWidth(qwtFloor(qwtMaxF(length, 1.0)));
+                    } else {
+                        // Y captions are painted below the scale widget into the
+                        // bottom band. The reserved height is conservative: the
+                        // caption gets at least the width of the own column
+                        // (the placement may grant it more, see
+                        // QwtPlotLayout::updateScaleCaptionRects)
+                        int w = dimensions.dimAxis(axisPos) - scaleData.baseLineOffset - scaleData.edgeMargin;
+                        capH  = scaleData.scaleWidget->titleHeightForWidth(qMax(w, 1));
+                    }
+                }
+
+                capH = qMax(capH, layoutData.parasiteCaptionHeight[ axisPos ]);
+                if (capH <= 0)
+                    continue;
+
+                if (isXAxis(axisPos)) {
+                    int& req = (axisPos == XTop) ? reqTop : reqBottom;
+                    req      = qMax(req, dimensions.dimAxis(axisPos) + int(m_spacing) + capH);
+                } else {
+                    reqBottom = qMax(reqBottom, yCaptionOffset + int(m_spacing) + capH);
+                }
+            }
+
+            const int extraBottom = qMax(0, reqBottom - dimensions.dimAxis(QwtAxis::XBottom));
+            if (extraBottom != dimensions.captionExtra(XBottom)) {
+                dimensions.setCaptionExtra(XBottom, extraBottom);
+                done = false;
+            }
+
+            const int extraTop = qMax(0, reqTop - dimensions.dimAxis(QwtAxis::XTop));
+            if (extraTop != dimensions.captionExtra(XTop)) {
+                dimensions.setCaptionExtra(XTop, extraTop);
+                done = false;
             }
         }
     }
@@ -1028,6 +1151,66 @@ bool QwtPlotLayoutEngine::alignCanvas(int axisPos) const
 void QwtPlotLayoutEngine::setAlignCanvas(int axisPos, bool on)
 {
     m_alignCanvas[ axisPos ] = on;
+}
+
+/**
+ * @brief Check if fixed canvas size is enabled for a given axis position
+ * @param[in] axisPos Axis position (0-3)
+ * @return True if the canvas dimension for this axis direction is fixed
+ */
+bool QwtPlotLayoutEngine::isFixedCanvas(int axisPos) const
+{
+    return QwtAxis::isValid(axisPos) ? m_fixedCanvas[ axisPos ] : false;
+}
+
+/**
+ * @brief Enable/disable fixed canvas size for an axis direction
+ * @param[in] axisPos Axis position (0-3). YLeft/YRight fix the canvas width;
+ *            XBottom/XTop fix the canvas height.
+ * @param[in] on True to hold the canvas dimension stable against label growth
+ */
+void QwtPlotLayoutEngine::setFixedCanvas(int axisPos, bool on)
+{
+    if (QwtAxis::isValid(axisPos))
+        m_fixedCanvas[ axisPos ] = on;
+}
+
+/**
+ * @brief Get the manual fixed canvas size
+ * @return Manual size; a component < 0 means auto-capture for that direction
+ */
+QSize QwtPlotLayoutEngine::fixedCanvasSize() const
+{
+    return m_fixedCanvasSize;
+}
+
+/**
+ * @brief Set a manual fixed canvas size, overriding the auto-captured value
+ * @param[in] size Manual canvas size; a component < 0 means auto-capture
+ */
+void QwtPlotLayoutEngine::setFixedCanvasSize(const QSize& size)
+{
+    m_fixedCanvasSize = size;
+}
+
+/**
+ * @brief Check if the canvas width is held fixed
+ * @return True if any Y axis is fixed or a manual width is set
+ */
+bool QwtPlotLayoutEngine::isFixedCanvasWidth() const
+{
+    return m_fixedCanvas[ QwtAxis::YLeft ] || m_fixedCanvas[ QwtAxis::YRight ]
+        || m_fixedCanvasSize.width() >= 0;
+}
+
+/**
+ * @brief Check if the canvas height is held fixed
+ * @return True if any X axis is fixed or a manual height is set
+ */
+bool QwtPlotLayoutEngine::isFixedCanvasHeight() const
+{
+    return m_fixedCanvas[ QwtAxis::XBottom ] || m_fixedCanvas[ QwtAxis::XTop ]
+        || m_fixedCanvasSize.height() >= 0;
 }
 
 /**

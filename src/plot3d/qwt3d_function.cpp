@@ -1,58 +1,19 @@
-#include "qwt3d_surfaceplot.h"
 #include "qwt3d_function.h"
 
-using namespace Qwt3D;
+#include <vector>
 
 /**
  * @brief Default constructor
  */
-Function::Function() : GridMapping()
+Qwt3DFunction::Qwt3DFunction() : Qwt3DGridMapping()
 {
-}
-
-/**
- * @brief Constructs a Function object and assigns a SurfacePlot
- * @param pw Reference to a SurfacePlot widget
- */
-Function::Function(SurfacePlot& pw) : GridMapping()
-{
-    setPlotWidget(&pw);
-}
-
-/**
- * @brief Constructs a Function object and assigns a SurfacePlot
- * @param pw Pointer to a SurfacePlot widget
- */
-Function::Function(SurfacePlot* pw) : GridMapping()
-{
-    setPlotWidget(pw);
-}
-
-/**
- * @brief Assigns the object to another widget - call before create()
- * @param plotWidget Reference to a SurfacePlot widget
- */
-void Function::assign(SurfacePlot& plotWidget)
-{
-    if (&plotWidget != this->plotWidget())
-        setPlotWidget(&plotWidget);
-}
-
-/**
- * @brief Assigns the object to another widget - call before create()
- * @param plotWidget Pointer to a SurfacePlot widget
- */
-void Function::assign(SurfacePlot* plotWidget)
-{
-    if (plotWidget != this->plotWidget())
-        setPlotWidget(plotWidget);
 }
 
 /**
  * @brief Sets minimum z value for the function
  * @param val Minimum z value
  */
-void Function::setMinZ(double val)
+void Qwt3DFunction::setMinZ(double val)
 {
     range().minVertex.z = val;
 }
@@ -61,73 +22,58 @@ void Function::setMinZ(double val)
  * @brief Sets maximum z value for the function
  * @param val Maximum z value
  */
-void Function::setMaxZ(double val)
+void Qwt3DFunction::setMaxZ(double val)
 {
     range().maxVertex.z = val;
 }
 
 /**
- * @brief Creates data representation for the actual assigned SurfacePlot
- * @return True on success, false if mesh is too small or no widget assigned
- * @details Allocates data arrays, evaluates the function operator() over the
- *          mesh grid, clips values to the min/max z range, and loads data
- *          into the assigned SurfacePlot.
+ * @brief Evaluates the function over the mesh grid and returns the result
+ * @return Qwt3DFunctionData containing the z-value matrix and domain bounds
+ * @details Allocates a z-value matrix, evaluates operator() over the
+ *          mesh grid, clips values to the min/max z range, and returns
+ *          the result. The caller is responsible for feeding this to
+ *          Qwt3DSurface::loadFromData(). Returns an empty result
+ *          (columns=0) if the mesh is too small.
  */
-bool Function::create()
+Qwt3DFunctionData Qwt3DFunction::create()
 {
     const unsigned int um = meshU();
     const unsigned int vm = meshV();
 
-    if ((um <= 2) || (vm <= 2) || !plotWidget())
-        return false;
+    Qwt3DFunctionData result;
+    result.columns = um;
+    result.rows = vm;
+    result.minx = minU();
+    result.maxx = maxU();
+    result.miny = minV();
+    result.maxy = maxV();
 
-    /* allocate some space for the mesh */
-    double** data = new double*[ um ];
-
-    unsigned i, j;
-    for (i = 0; i < um; i++) {
-        data[ i ] = new double[ vm ];
+    if (um <= 2 || vm <= 2) {
+        result.columns = 0;
+        result.rows = 0;
+        return result;
     }
 
-    /* get the data */
+    result.z.resize(um);
+    for (unsigned int i = 0; i < um; ++i)
+        result.z[i].resize(vm);
 
-    double dx = (maxU() - minU()) / (um - 1);
-    double dy = (maxV() - minV()) / (vm - 1);
+    const double dx = (maxU() - minU()) / (um - 1);
+    const double dy = (maxV() - minV()) / (vm - 1);
 
-    for (i = 0; i < um; ++i) {
-        for (j = 0; j < vm; ++j) {
-            data[ i ][ j ] = operator()(minU() + i * dx, minV() + j * dy);
+    for (unsigned int i = 0; i < um; ++i) {
+        for (unsigned int j = 0; j < vm; ++j) {
+            double val = operator()(minU() + i * dx, minV() + j * dy);
 
-            if (data[ i ][ j ] > range().maxVertex.z)
-                data[ i ][ j ] = range().maxVertex.z;
-            else if (data[ i ][ j ] < range().minVertex.z)
-                data[ i ][ j ] = range().minVertex.z;
+            if (val > range().maxVertex.z)
+                val = range().maxVertex.z;
+            else if (val < range().minVertex.z)
+                val = range().minVertex.z;
+
+            result.z[i][j] = val;
         }
     }
 
-    Q_ASSERT(plotWidget());
-    if (!plotWidget()) {
-        fprintf(stderr, "Function: no valid Plot3D Widget assigned");
-    } else {
-        static_cast< SurfacePlot* >(plotWidget())->loadFromData(data, um, vm, minU(), maxU(), minV(), maxV());
-    }
-
-    for (i = 0; i < um; i++) {
-        delete[] data[ i ];
-    }
-
-    delete[] data;
-
-    return true;
-}
-
-/**
- * @brief Assigns a new SurfacePlot and creates a data representation for it
- * @param pl Reference to a SurfacePlot widget
- * @return True on success
- */
-bool Function::create(SurfacePlot& pl)
-{
-    assign(pl);
-    return create();
+    return result;
 }

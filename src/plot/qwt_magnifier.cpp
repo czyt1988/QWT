@@ -340,7 +340,12 @@ bool QwtMagnifier::eventFilter(QObject* object, QEvent* event)
             break;
         }
         case QEvent::Wheel: {
-            widgetWheelEvent(static_cast< QWheelEvent* >(event));
+            if (widgetWheelEvent(static_cast< QWheelEvent* >(event))) {
+                // Consume the event to stop propagation to parent widgets
+                // (e.g. a QScrollArea viewport would scroll otherwise)
+                event->accept();
+                return true;
+            }
             break;
         }
         case QEvent::KeyPress: {
@@ -426,13 +431,14 @@ void QwtMagnifier::widgetMouseMoveEvent(QMouseEvent* mouseEvent)
    Handle a wheel event for the observed widget.
 
    @param wheelEvent Wheel event
+   @return true when the event was consumed ( rescaled ), false otherwise
    @sa eventFilter()
  */
-void QwtMagnifier::widgetWheelEvent(QWheelEvent* wheelEvent)
+bool QwtMagnifier::widgetWheelEvent(QWheelEvent* wheelEvent)
 {
     QWT_D(d);
     if (wheelEvent->modifiers() != d->wheelModifiers) {
-        return;
+        return false;
     }
 
     if (d->wheelFactor != 0.0) {
@@ -458,7 +464,9 @@ void QwtMagnifier::widgetWheelEvent(QWheelEvent* wheelEvent)
             f = 1 / f;
 
         rescale(f);
+        return true;
     }
+    return false;
 }
 
 /*!

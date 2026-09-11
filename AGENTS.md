@@ -54,12 +54,12 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="..."
 
 - **core**（`src/core/`）：完整基础工具库，21 个模块，详见下方 "Core Module Structure"
 - **plot**（`src/plot/`）：2D 绘图全套功能，通过 `target_link_libraries(plot PUBLIC qwt::core)` 链接 core
-- **plot3d**（`src/plot3d/`）：3D 绘图模块，通过 `QWT_CONFIG_QWTPLOT_3D` 控制，同样链接 core，包含 `Qwt3D::Qwt3DTheme` 主题系统和 `ColorMapColor` 适配器
+- **plot3d**（`src/plot3d/`）：3D 绘图模块，通过 `QWT_CONFIG_QWTPLOT_3D` 控制，同样链接 core，采用 Plot+Item 架构（`Qwt3DPlot` + `Qwt3DPlotItem`），包含 `Qwt3DTheme` 主题系统和 `Qwt3DColorMapColor` 适配器
 
 各模块 Qt 依赖：
 - core：`Core Gui`(public)
 - 2D：`Core Gui Widgets`(public) + `Concurrent PrintSupport`(private)，可选 `OpenGL OpenGLWidgets Svg`
-- 3D：`OpenGL::GLU` + `Qt OpenGL Widgets`，内置 `gl2ps` 回退
+- 3D：`Qt OpenGL OpenGLWidgets`(public)，内置 `gl2ps` 回退（GLU 仅用于 gl2ps 矢量导出）
 
 ### Core Module Structure
 
@@ -245,6 +245,36 @@ QWT_DC(d);    // const PrivateData* d = d_func()
 | - | `QwtPlotPanner`（新增：实时拖动，基于 QwtPicker） |
 | `QwtColorMap::rgb(const QwtInterval&, double)` | `QwtColorMap::rgb(double vMin, double vMax, double value)`（v7.3.1+，已移至 core 模块） |
 
+### 3D 模块命名变更（v7.3.3+）
+
+3D 模块已完全重构，去除了 `namespace Qwt3D`，所有类使用 `Qwt3D` 前缀：
+
+| 已废弃的旧名 | 当前使用的新名 | 说明 |
+|-------------|--------------|------|
+| `namespace Qwt3D { ... }` | （无命名空间） | 所有类在全局作用域 |
+| `Qwt3D::Plot3D` | `Qwt3DPlot` | 纯渲染窗口，不再持有数据 |
+| `Qwt3D::SurfacePlot` | `Qwt3DSurface` | 从 widget 变为 item |
+| `Qwt3D::Function` | `Qwt3DFunction` | target 改为 `Qwt3DSurface*` |
+| `Qwt3D::ParametricSurface` | `Qwt3DParametricSurface` | 同上 |
+| `Qwt3D::CoordinateSystem` | `Qwt3DCoordinateSystem` | |
+| `Qwt3D::Axis` | `Qwt3DAxis` | |
+| `Qwt3D::ColorLegend` | `Qwt3DColorLegend` | |
+| `Qwt3D::Color` | `Qwt3DColor` | |
+| `Qwt3D::StandardColor` | `Qwt3DStandardColor` | |
+| `Qwt3D::ColorMapColor` | `Qwt3DColorMapColor` | |
+| `Qwt3D::Qwt3DTheme` | `Qwt3DTheme` | |
+| `Qwt3D::GraphPlot` | （已删除） | stub 移除 |
+| `Qwt3D::Mapping` / `GridMapping` | `Qwt3DMapping` / `Qwt3DGridMapping` | |
+| `Qwt3D::Scale` / `AutoScaler` | `Qwt3DScale` / `Qwt3DAutoScaler` | |
+| `Qwt3D::Enrichment` | `Qwt3DEnrichment` | |
+| `Qwt3D::Drawable` / `Label` | `Qwt3DDrawable` / `Qwt3DLabel` | |
+| `using namespace Qwt3D;` | （删除） | 无命名空间 |
+| `qwt3d_surfaceplot.h` | `qwt3d_surface.h` | 头文件改名 |
+| `plot->updateData()` | `plot->update()` / `item->itemChanged()` | API 变更 |
+| `plot->setPlotStyle()` | `surface->setPlotStyle()` | 方法从 Plot 移到 Surface item |
+| `plot->setDataColor()` | `surface->setDataColor()` | 同上 |
+| `plot->loadFromData()` | `surface->loadFromData()` | 同上 |
+
 ## 关键架构概念
 
 ### 坐标轴系统
@@ -262,25 +292,42 @@ QWT_DC(d);    // const PrivateData* d = d_func()
 
 类似 matplotlib Figure 的多绘图布局容器，支持网格排列。通过 `QwtFigureWidgetOverlay` 提供交互操作（拖动、缩放子绘图）。
 
+### 3D 模块架构（Plot + Item）
+
+v7.3.3+ 起，3D 模块从旧的 widget-per-plot 模式重构为与 2D 对称的 Plot + Item 架构：
+
+- **`Qwt3DPlot`**（`QOpenGLWidget` 子类）：纯渲染窗口，管理 GL 上下文、视图变换、光照、坐标系统、item 列表。**不持有绘图数据**。
+- **`Qwt3DPlotItem`**：所有 3D 绘图 item 的抽象基类（非 widget），通过 `attach()` / `detach()` 挂载到 `Qwt3DPlot`。
+- **`Qwt3DSurface`**：曲面 item，使用 VBO/VAO + GLSL 3.3 Core 着色器渲染。
+
+```cpp
+Qwt3DPlot* plot = new Qwt3DPlot(parent);
+Qwt3DSurface* surface = new Qwt3DSurface();
+surface->loadFromData(data, cols, rows, minX, maxX, minY, maxY);
+surface->attach(plot);
+```
+
+**关键原则**：不再有 `namespace Qwt3D`，所有类用 `Qwt3D` 前缀。禁止 legacy OpenGL API（`glBegin/glEnd`、display list、`glRotatef` 等），全部使用 VBO/VAO + GLSL shader。
+
 ### 3D 主题系统
 
-`Qwt3D::Qwt3DTheme` 封装 3D 绘图的全部视觉属性（背景色、网格色/线宽、数据 colormap、坐标轴颜色、标题样式、光照预设、着色模式、绘图样式、材质参数）。10 种内置预设：`Default`、`Dark`、`Scientific`、`Warm`、`Cool`、`Matplotlib`、`EarthTones`、`Ocean`、`HighContrast`、`Presentation`。
+`Qwt3DTheme` 封装 3D 绘图的全部视觉属性（背景色、网格色/线宽、数据 colormap、坐标轴颜色、标题样式、光照预设、着色模式、绘图样式、材质参数）。10 种内置预设：`Default`、`Dark`、`Scientific`、`Warm`、`Cool`、`Matplotlib`、`EarthTones`、`Ocean`、`HighContrast`、`Presentation`。
 
 ```cpp
 // 使用预设
-plot->applyTheme(Qwt3D::Qwt3DTheme::Dark);
+plot->applyTheme(Qwt3DTheme::Dark);
 plot->applyTheme("Scientific");
 
 // 手动定制
-Qwt3D::Qwt3DTheme theme(Qwt3D::Qwt3DTheme::Scientific);
+Qwt3DTheme theme(Qwt3DTheme::Scientific);
 theme.setDataColorPreset("plasma");  // 使用 core 模块的 colormap 预设
 theme.setShininess(20.0);
-theme.apply(plot);  // plot 是 Qwt3D::Plot3D* 指针
+theme.apply(plot);  // plot 是 Qwt3DPlot* 指针
 ```
 
-`ColorMapColor` 适配器桥接 core 模块的 `QwtColorMap` 到 3D 的 `Qwt3D::Color` 接口，使得 22 种科学 colormap 预设（viridis, plasma, jet, hot 等）可直接用于 3D 表面图。
+`Qwt3DColorMapColor` 适配器桥接 core 模块的 `QwtColorMap` 到 3D 的 `Qwt3DColor` 接口，使得 22 种科学 colormap 预设（viridis, plasma, jet, hot 等）可直接用于 3D 表面图。
 
-光照预设（`Qwt3D::Qwt3DTheme::LightingPreset`）：`NoLighting`、`FlatLight`、`Studio`、`Outdoor`、`Soft`。
+光照预设（`Qwt3DTheme::LightingPreset`）：`NoLighting`、`FlatLight`、`Studio`、`Outdoor`、`Soft`。
 
 ## 不可触碰的文件
 

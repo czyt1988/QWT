@@ -3,6 +3,7 @@
 #include "qwt_plot_curve.h"
 #include "qwt_plot_grid.h"
 #include "qwt_scale_widget.h"
+#include "qwt_plot_layout.h"
 #include "qwt_figure.h"
 #include "qwt_plot_histogram.h"
 #include "qwt_plot_vectorfield.h"
@@ -14,12 +15,15 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QActionGroup>
+#include <QAction>
+#include <QIcon>
 #include <QLabel>
 
 #include "qwt_plot_series_data_picker.h"
 #include "qwt_plot_panner.h"
 #include "qwt_plot_canvas_zoomer.h"
 #include "qwt_plot_magnifier.h"
+#include "qwt_plot_axis_wheel_interaction.h"
 // 生成示例数据
 QVector< QPointF > generateSampleData(int count = 100, double amplitude = 1.0, double frequency = 1.0)
 {
@@ -189,6 +193,17 @@ QwtPlot* MainWindow::createPlot(QWidget* par)
     parasitePlot2->axisWidget(QwtAxis::YRight)->setScaleColor(curColor2);
     parasitePlot2->axisWidget(QwtAxis::XBottom)->setScaleColor(curColor2);
 
+    // Set the initial title position for every axis to TitleAtEnd so the stacked
+    // YLeft titles sit at the top of each backbone and no longer overlap. The
+    // toolbar "Title Pos" action group starts in the End state to match this.
+    for (QwtPlot* p : hostPlot->plotList()) {
+        for (int pos = 0; pos < QwtAxis::AxisPositions; pos++) {
+            const QwtAxisId axisId(pos);
+            if (p->isAxisValid(axisId) && p->isAxisVisible(axisId))
+                p->setAxisTitlePosition(axisId, QwtScaleWidget::TitleAtEnd);
+        }
+    }
+
     // 建立其他附加工具，picker要在宿主绘图的canvas那里，否则会无法捕获到事件（寄生绘图对鼠标透明）
     m_dataPicker = new QwtPlotSeriesDataPicker(hostPlot->canvas());
     m_dataPicker->setEnabled(false);
@@ -202,13 +217,21 @@ QwtPlot* MainWindow::createPlot(QWidget* par)
     //
     m_magnifier = new QwtPlotMagnifier(hostPlot->canvas());
     m_magnifier->setEnabled(false);
+    // Axis wheel interaction on the XBottom axis:
+    //   plain wheel  → zoom the axis at cursor position (no need to click-select first)
+    //   Ctrl+wheel   → pan the axis left/right
+    m_axisWheel = new QwtPlotAxisWheelInteraction(hostPlot, QwtAxis::XBottom);
+    m_axisWheel->setEnabled(false);
     return hostPlot;
 }
 
 void MainWindow::createToolBar()
 {
+    // -----------------------------------------------------------------------
+    // 1. Picker mode (exclusive group)
+    // -----------------------------------------------------------------------
     QActionGroup* group    = new QActionGroup(this);
-    QAction* actPickYValue = ui->toolBar->addAction("Pick Y Value");
+    QAction* actPickYValue = ui->toolBar->addAction(QIcon(":/icons/pick-y.svg"), "Pick Y Value");
     actPickYValue->setCheckable(true);
     connect(actPickYValue, &QAction::triggered, this, [ this ](bool on) {
         if (!(this->m_dataPicker->isEnabled())) {
@@ -219,7 +242,7 @@ void MainWindow::createToolBar()
         }
     });
 
-    QAction* actPickNearestPoint = ui->toolBar->addAction("Pick Nearest Point");
+    QAction* actPickNearestPoint = ui->toolBar->addAction(QIcon(":/icons/pick-point.svg"), "Pick Nearest Point");
     actPickNearestPoint->setCheckable(true);
     connect(actPickNearestPoint, &QAction::triggered, this, [ this ](bool on) {
         if (!(this->m_dataPicker->isEnabled())) {
@@ -233,16 +256,21 @@ void MainWindow::createToolBar()
     group->addAction(actPickNearestPoint);
     group->setExclusive(true);
 
-    QAction* actPanner = ui->toolBar->addAction("Panner");
+    ui->toolBar->addSeparator();
+
+    // -----------------------------------------------------------------------
+    // 2. Canvas interactions
+    // -----------------------------------------------------------------------
+    QAction* actPanner = ui->toolBar->addAction(QIcon(":/icons/panner.svg"), "Panner");
     actPanner->setCheckable(true);
     connect(actPanner, &QAction::triggered, this, [ this ](bool on) {
         this->m_panner->setEnabled(on);
         if (on) {
-            this->mStatusBarLabel->setText(tr("Use the middle mouse button to drag the canvas"));  // cn:使用鼠标左键拖动画布
+            mStatusBarLabel->setText(tr("Use the middle mouse button to drag the canvas"));  // cn:使用鼠标左键拖动画布
         }
     });
 
-    QAction* actZoomer = ui->toolBar->addAction("Zoomer");
+    QAction* actZoomer = ui->toolBar->addAction(QIcon(":/icons/zoomer.svg"), "Zoomer");
     actZoomer->setCheckable(true);
     connect(actZoomer, &QAction::triggered, this, [ this ](bool on) {
         this->m_zoomer->setEnabled(on);
@@ -254,7 +282,7 @@ void MainWindow::createToolBar()
         }
     });
 
-    QAction* actMagnifier = ui->toolBar->addAction("Magnifier");
+    QAction* actMagnifier = ui->toolBar->addAction(QIcon(":/icons/magnifier.svg"), "Magnifier");
     actMagnifier->setCheckable(true);
     connect(actMagnifier, &QAction::triggered, this, [ this ](bool on) {
         this->m_magnifier->setEnabled(on);
@@ -262,4 +290,148 @@ void MainWindow::createToolBar()
             mStatusBarLabel->setText(tr("Use the mouse wheel to zoom the canvas.."));  // cn:使用鼠标滚轮缩放画布
         }
     });
+
+    QAction* actAxisWheel = ui->toolBar->addAction(QIcon(":/icons/axis-wheel.svg"), "Axis Wheel");
+    actAxisWheel->setCheckable(true);
+    connect(actAxisWheel, &QAction::triggered, this, [ this ](bool on) {
+        this->m_axisWheel->setEnabled(on);
+        if (on) {
+            mStatusBarLabel->setText(tr("Move the mouse over the XBottom axis: "
+                                        "plain wheel = zoom at cursor; "
+                                        "Ctrl+wheel = pan the axis"));  // cn:鼠标移到X轴上: 纯滚轮以鼠标为中心缩放轴, Ctrl+滚轮平移轴
+        }
+    });
+
+    ui->toolBar->addSeparator();
+
+    // -----------------------------------------------------------------------
+    // 3. Title position / alignment verification
+    //    Three exclusive action groups: target axis, position, alignment.
+    //    Selecting any action re-applies the current combo to the host + every
+    //    parasite plot, so all 4 sides x 3 positions x 3 alignments can be
+    //    inspected live.
+    // -----------------------------------------------------------------------
+
+    // 3a. Target axis
+    m_titleAxisGroup = new QActionGroup(this);
+    m_titleAxisGroup->setExclusive(true);
+    auto addAxisAction = [ this ](const QString& text, const QIcon& icon, QwtAxisId axisId) {
+        QAction* a = ui->toolBar->addAction(icon, text);
+        a->setCheckable(true);
+        a->setData(QVariant::fromValue(axisId));
+        connect(a, &QAction::triggered, this, [ this ]() { applyTitleSettings(); });
+        m_titleAxisGroup->addAction(a);
+        return a;
+    };
+    QAction* actAxisAll    = addAxisAction("Title Axis: All", QIcon(":/icons/axis-all.svg"), QwtAxisId(-1));
+    QAction* actAxisYLeft  = addAxisAction("Title Axis: YLeft", QIcon(":/icons/axis-yleft.svg"), QwtAxis::YLeft);
+    QAction* actAxisYRight = addAxisAction("Title Axis: YRight", QIcon(":/icons/axis-yright.svg"), QwtAxis::YRight);
+    QAction* actAxisXBottom = addAxisAction("Title Axis: XBottom", QIcon(":/icons/axis-xbottom.svg"), QwtAxis::XBottom);
+    QAction* actAxisXTop   = addAxisAction("Title Axis: XTop", QIcon(":/icons/axis-xtop.svg"), QwtAxis::XTop);
+    actAxisAll->setChecked(true);
+
+    ui->toolBar->addSeparator();
+
+    // 3b. Title position
+    m_titlePosGroup = new QActionGroup(this);
+    m_titlePosGroup->setExclusive(true);
+    auto addPosAction = [ this ](const QString& text, const QIcon& icon, QwtScaleWidget::TitlePosition pos) {
+        QAction* a = ui->toolBar->addAction(icon, text);
+        a->setCheckable(true);
+        a->setData(static_cast< int >(pos));
+        connect(a, &QAction::triggered, this, [ this ]() { applyTitleSettings(); });
+        m_titlePosGroup->addAction(a);
+        return a;
+    };
+    QAction* actPosCentered = addPosAction("Title Pos: Center", QIcon(":/icons/pos-centered.svg"), QwtScaleWidget::TitleCentered);
+    QAction* actPosStart    = addPosAction("Title Pos: Start", QIcon(":/icons/pos-start.svg"), QwtScaleWidget::TitleAtStart);
+    QAction* actPosEnd      = addPosAction("Title Pos: End", QIcon(":/icons/pos-end.svg"), QwtScaleWidget::TitleAtEnd);
+    actPosEnd->setChecked(true);  // matches the initial state set in createPlot()
+
+    ui->toolBar->addSeparator();
+
+    // 3c. Title text alignment
+    m_titleAlignGroup = new QActionGroup(this);
+    m_titleAlignGroup->setExclusive(true);
+    auto addAlignAction = [ this ](const QString& text, const QIcon& icon, Qt::Alignment align) {
+        QAction* a = ui->toolBar->addAction(icon, text);
+        a->setCheckable(true);
+        a->setData(static_cast< int >(align));
+        connect(a, &QAction::triggered, this, [ this ]() { applyTitleSettings(); });
+        m_titleAlignGroup->addAction(a);
+        return a;
+    };
+    QAction* actAlignLeft   = addAlignAction("Title Align: Left", QIcon(":/icons/align-left.svg"), Qt::AlignLeft);
+    QAction* actAlignCenter = addAlignAction("Title Align: Center", QIcon(":/icons/align-center.svg"), Qt::AlignHCenter);
+    QAction* actAlignRight  = addAlignAction("Title Align: Right", QIcon(":/icons/align-right.svg"), Qt::AlignRight);
+    actAlignCenter->setChecked(true);
+
+    ui->toolBar->addSeparator();
+
+    // -----------------------------------------------------------------------
+    // 4. Fixed-canvas / long-label demo
+    // -----------------------------------------------------------------------
+    QAction* actFixedCanvas = ui->toolBar->addAction(QIcon(":/icons/fixed-canvas.svg"), "Fixed Canvas");
+    actFixedCanvas->setCheckable(true);
+    connect(actFixedCanvas, &QAction::triggered, this, [ this ](bool on) {
+        m_plot->plotLayout()->setFixedCanvasSize(QwtAxis::YLeft, on);
+        if (!on)
+            m_plot->plotLayout()->resetFixedCanvasSize();
+        m_plot->replot();
+        mStatusBarLabel->setText(
+            on ? tr("Fixed canvas ON: Y-axis labels that grow will overflow "
+                    "and be clipped instead of shrinking the canvas.")
+               : tr("Fixed canvas OFF: canvas shrinks with label growth."));
+    });
+
+    QAction* actLongLabels = ui->toolBar->addAction(QIcon(":/icons/long-labels.svg"), "Long Y Labels");
+    actLongLabels->setCheckable(true);
+    connect(actLongLabels, &QAction::triggered, this, [ this ](bool on) {
+        if (on)
+            m_plot->setAxisScale(QwtAxis::YLeft, -1000000.0, 1000000.0);
+        else
+            m_plot->setAxisScale(QwtAxis::YLeft, -1.5, 1.5);
+        m_plot->replot();
+        mStatusBarLabel->setText(
+            on ? tr("YLeft labels switched to large values (long text).")
+               : tr("YLeft labels switched back to short values."));
+    });
+}
+
+void MainWindow::applyTitleSettings()
+{
+    if (!m_titleAxisGroup || !m_titlePosGroup || !m_titleAlignGroup)
+        return;
+
+    QAction* axisAction = m_titleAxisGroup->checkedAction();
+    QAction* posAction = m_titlePosGroup->checkedAction();
+    QAction* alignAction = m_titleAlignGroup->checkedAction();
+    if (!axisAction || !posAction || !alignAction)
+        return;
+
+    const QwtAxisId targetAxis = axisAction->data().value< QwtAxisId >();
+    const QwtScaleWidget::TitlePosition pos = static_cast< QwtScaleWidget::TitlePosition >(posAction->data().toInt());
+    const Qt::Alignment align = static_cast< Qt::Alignment >(alignAction->data().toInt());
+
+    // Apply to the host and every parasite plot. targetAxis == -1 means "all".
+    for (QwtPlot* p : m_plot->plotList()) {
+        if (targetAxis == QwtAxisId(-1)) {
+            for (int axPos = 0; axPos < QwtAxis::AxisPositions; axPos++) {
+                const QwtAxisId axisId(axPos);
+                if (p->isAxisValid(axisId) && p->isAxisVisible(axisId)) {
+                    p->setAxisTitlePosition(axisId, pos);
+                    p->setAxisTitleAlignment(axisId, align);
+                }
+            }
+        } else {
+            if (p->isAxisValid(targetAxis) && p->isAxisVisible(targetAxis)) {
+                p->setAxisTitlePosition(targetAxis, pos);
+                p->setAxisTitleAlignment(targetAxis, align);
+            }
+        }
+        p->replot();
+    }
+
+    mStatusBarLabel->setText(tr("Title applied — axis: %1 | pos: %2 | align: %3")
+        .arg(axisAction->text(), posAction->text(), alignAction->text()));
 }

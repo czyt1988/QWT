@@ -2,41 +2,50 @@
 #define QWT3D_PARAMETRICSURFACE_H
 
 #include "qwt3d_gridmapping.h"
+#include "qwt3d_types.h"
 
-namespace Qwt3D
-{
 
-class SurfacePlot;
 
 /**
  * @brief Abstract base class for parametric surfaces
+ * @details A Qwt3DParametricSurface encapsulates a parametric surface
+ *          defined by operator()(u, v). The user overrides operator() to
+ *          produce a working object. setDomain, setMesh and create should
+ *          be called for reasonable operating conditions.
+ *
+ *          create() returns a Qwt3DParametricData struct that the caller
+ *          feeds to Qwt3DSurface::loadFromData(). The class no longer holds
+ *          a back-pointer to the surface item (deferred smell #2, resolved).
+ *
+ * @code
+ * class Torus : public Qwt3DParametricSurface
+ * {
+ * public:
+ *     Triple operator()(double u, double v) override { ... }
+ * };
+ *
+ * Torus torus;
+ * torus.setMesh(40, 40);
+ * torus.setDomain(0, 2*PI, 0, 2*PI);
+ * torus.setPeriodic(true, true);
+ * auto data = torus.create();
+ * surface->loadFromData(data);
+ * @endcode
  */
-class QWT3D_EXPORT ParametricSurface : public GridMapping
+class QWT3D_EXPORT Qwt3DParametricSurface : public Qwt3DGridMapping
 {
-    QWT_DECLARE_PRIVATE(ParametricSurface)
+    QWT_DECLARE_PRIVATE(Qwt3DParametricSurface)
 
 public:
-    // Constructs ParametricSurface object w/o assigned SurfacePlot
-    ParametricSurface();
-    // Constructs ParametricSurface object and assigns a SurfacePlot
-    explicit ParametricSurface(Qwt3D::SurfacePlot& plotWidget);
-    // Constructs ParametricSurface object and assigns a SurfacePlot
-    explicit ParametricSurface(Qwt3D::SurfacePlot* plotWidget);
-    ~ParametricSurface() override;
+    // Constructs Qwt3DParametricSurface object
+    Qwt3DParametricSurface();
+    ~Qwt3DParametricSurface() override;
     // Overwrite this
-    virtual Qwt3D::Triple operator()(double u, double v) = 0;
-    // Assigns a new SurfacePlot and creates a data representation for it
-    virtual bool create(Qwt3D::SurfacePlot& plotWidget);
-    // Creates data representation for the actual assigned SurfacePlot
-    virtual bool create();
-    // Assigns the object to another widget - call before create()
-    void assign(Qwt3D::SurfacePlot& plotWidget);
-    // Assigns the object to another widget - call before create()
-    void assign(Qwt3D::SurfacePlot* plotWidget);
+    virtual Triple operator()(double u, double v) = 0;
+    // Evaluates the parametric surface over the mesh grid and returns the result
+    virtual Qwt3DParametricData create();
     // Provide information about periodicity of the 'u' resp. 'v' domains
     void setPeriodic(bool u, bool v);
 };
 
-}  // ns
-
-#endif  // QWT3D_PARAMETRICSURFACE_H
+#endif

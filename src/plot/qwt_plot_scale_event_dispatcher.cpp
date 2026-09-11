@@ -401,18 +401,26 @@ bool QwtPlotScaleEventDispatcher::handleWheelEvent(QwtPlot* bindPlot, QWheelEven
     QwtScaleWidget* targetScale = findTargetOnScale(qwt::compat::eventPos(e));
     if (d->currentScale && d->currentScale == targetScale) {
         if (d->currentScale->testBuildinActions(QwtScaleWidget::ActionWheelZoom)) {
+            // Map the global position to canvas-relative coordinates.
+            // zoomAxis expects centerPosPixels relative to the canvas, not the
+            // scale widget (the two have different origins due to title/margin).
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
             QPoint p = e->globalPosition().toPoint();
 #else
             QPoint p = e->globalPos();
 #endif
-            p        = d->currentScale->mapFromGlobal(p);
+            p        = d->currentPlot->canvas()->mapFromGlobal(p);
             if (qwt::compat::wheelEventDelta(e) > 0) {
                 d->currentPlot->zoomAxis(d->currentAxisId, d->zoomFactor, p);
             } else {
                 d->currentPlot->zoomAxis(d->currentAxisId, 1.0 / d->zoomFactor, p);
             }
-            d->currentPlot->replot();
+            // Use replotAll so shared/parasite plots refresh together, consistent
+            // with handleMouseMove which also calls replotAll.
+            d->currentPlot->replotAll();
+            // Wheel zoom is handled here; accept the event to stop propagation
+            // to parent widgets (e.g. a QScrollArea viewport would scroll otherwise)
+            e->accept();
             return true;
         }
     }

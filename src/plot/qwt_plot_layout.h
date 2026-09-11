@@ -30,6 +30,7 @@
 #include "qwt_global.h"
 #include "qwt_plot.h"
 #include "qwt_axis_id.h"
+#include <QSize>
 class QwtPlotLayoutEngine;
 
 /**
@@ -92,6 +93,23 @@ public:
     void setAlignCanvasToScale(int axisId, bool);
     bool alignCanvasToScale(int axisId) const;
 
+    // Enable fixed canvas size for an axis direction (auto-lock the current
+    // dimension on the next layout). YLeft/YRight fix width; XBottom/XTop fix height.
+    void setFixedCanvasSize(int axisPos, bool on);
+    // Check if fixed canvas size is enabled for a given axis position
+    bool isFixedCanvasSize(int axisPos) const;
+
+    // Set a manual fixed canvas size, overriding the auto-captured value.
+    // A component < 0 means "use auto-capture" for that direction.
+    void setFixedCanvasSize(const QSize& size);
+    // Get the manual fixed canvas size (-1 component = auto-capture)
+    QSize fixedCanvasSize() const;
+
+    // Clear all locked canvas sizes (captured offsets and manual override),
+    // re-capturing from the current layout on the next activate(). Does not
+    // change the enabled state of each axis direction.
+    void resetFixedCanvasSize();
+
     void setSpacing(int);
     int spacing() const;
 
@@ -110,6 +128,14 @@ public:
     QRectF footerRect() const;
     QRectF legendRect() const;
     QRectF scaleRect(QwtAxisId) const;
+
+    // Geometry of the caption strip for an outside axis title
+    // (QwtScaleWidget::TitleOutside). The strip is adjacent to the scale rect:
+    // below it for YLeft/YRight/XBottom, above it for XTop. Empty if the axis
+    // has no outside title. Caption strips of all parasite layers are placed
+    // within the bands reserved by the host plot layout.
+    QRectF scaleCaptionRect(QwtAxisId) const;
+
     QRectF canvasRect() const;
 
 protected:
@@ -117,6 +143,16 @@ protected:
     void setFooterRect(const QRectF&);
     void setLegendRect(const QRectF&);
     void setScaleRect(QwtAxisId, const QRectF&);
+
+    // Set the geometry of the caption strip for an outside axis title
+    void setScaleCaptionRect(QwtAxisId, const QRectF&);
+
+    // Recompute all caption rects from the current scale rects and the
+    // title state of the scale widgets. Called at the end of doActivate().
+    // Derived layouts that replace scale rects after doActivate() (like
+    // QwtParasitePlotLayout copying the host rects) must call it again.
+    void updateScaleCaptionRects(const QwtPlot* plot);
+
     void setCanvasRect(const QRectF&);
     QwtPlotLayoutEngine* layoutEngine();
     void doActivate(const QwtPlot* plot, const QRectF& plotRect, Options options = Options());
@@ -124,6 +160,10 @@ protected:
 private:
     QwtPlotLayout(const QwtPlotLayout&)            = delete;
     QwtPlotLayout& operator=(const QwtPlotLayout&) = delete;
+
+    // Pin the canvas rect to its locked dimension(s) after the natural layout
+    // (innerRect) has been computed. Captures the offsets on first use.
+    void applyFixedCanvas(QRectF& canvasRect, const QRectF& rect);
 
     QWT_DECLARE_PRIVATE(QwtPlotLayout)
 };

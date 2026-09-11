@@ -37,6 +37,7 @@ set(QWTPLOT_HEADER_BASE
         qwt_pixel_matrix.h
         qwt_round_scale_draw.h
         qwt_scale_draw.h
+        qwt_text_scale_draw.h
         qwt_spline.h
         qwt_spline_basis.h
         qwt_spline_parametrization.h
@@ -88,6 +89,7 @@ set(QWTPLOT_SOURCE_BASE
         qwt_pixel_matrix.cpp
         qwt_round_scale_draw.cpp
         qwt_scale_draw.cpp
+        qwt_text_scale_draw.cpp
         qwt_spline.cpp
         qwt_spline_basis.cpp
         qwt_spline_parametrization.cpp
@@ -162,6 +164,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_axis_zoomer.h
         qwt_plot_canvas_zoomer.h
         qwt_plot_magnifier.h
+        qwt_plot_axis_wheel_interaction.h
         qwt_plot_rescaler.h
         qwt_point_mapper.h
         qwt_vectorfield_symbol.h
@@ -241,6 +244,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_plot_axis_zoomer.cpp
         qwt_plot_canvas_zoomer.cpp
         qwt_plot_magnifier.cpp
+        qwt_plot_axis_wheel_interaction.cpp
         qwt_plot_rescaler.cpp
         qwt_point_mapper.cpp
         qwt_vectorfield_symbol.cpp

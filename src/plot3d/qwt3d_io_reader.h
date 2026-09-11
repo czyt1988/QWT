@@ -3,25 +3,24 @@
 
 #include "qwt3d_io.h"
 
-namespace Qwt3D
-{
+
 
 /**
  * @brief Functor for reading of native files containing grid data
  * @details As a standard input functor associated with "mes" and "MES" file extensions.
  */
-class QWT3D_EXPORT NativeReader : public IO::Functor
+class QWT3D_EXPORT Qwt3DNativeReader : public Qwt3DIO::Functor
 {
-    friend class IO;
-    QWT_DECLARE_PRIVATE(NativeReader)
+    friend class Qwt3DIO;
+    QWT_DECLARE_PRIVATE(Qwt3DNativeReader)
 
 public:
-    NativeReader();
-    ~NativeReader() override;
+    Qwt3DNativeReader();
+    ~Qwt3DNativeReader() override;
 
 private:
-    IO::Functor* clone() const override;
-    bool operator()(Plot3D* plot, QString const& fname) override;
+    Qwt3DIO::Functor* clone() const override;
+    bool operator()(Qwt3DPlot* plot, QString const& fname) override;
     static const char* magicstring;
     bool collectInfo(FILE*& file,
                      QString const& fname,
@@ -33,6 +32,5 @@ private:
                      double& maxy);
 };
 
-}  // ns
 
 #endif  // QWT3D_IO_READER_H
