@@ -161,7 +161,7 @@ All legacy GL was replaced with modern, Core-Profile-safe rendering:
 - **CPU-side `QMatrix4x4`** matrix computation — no GL matrix stack.
 - **`QOpenGLTexture`** for text labels — replacing `glRasterPos3d` + `glDrawPixels`.
 - **CPU-generated geometry** for Cone/Arrow enrichments — replacing `gluCylinder`/`gluDisk`.
-- `gl2ps` vector export wrapped behind `QWT3D_ENABLE_GL2PS` (Compatibility Profile fallback).
+- `gl2ps` vector export kept as a Compatibility Profile fallback, compiled in unconditionally (system gl2ps, or the bundled copy under `src/plot3d/3rdparty/gl2ps/`).
 - Deleted `qwt3d_openglhelper.h`.
 
 ### 4.3 De-namespace + `Qwt3D` prefix

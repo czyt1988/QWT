@@ -66,6 +66,11 @@
 - 新增 xmake 构建配置（`xmake.lua`）作为 CMake 之外的替代方案，含 core 库所需的 `QWTCORE_MAKEDLL`/`QWTCORE_DLL` 宏定义
 - Qt 5 兼容：核心头文件中 `constexpr` 替换为 `Q_DECL_CONSTEXPR`；`QwtPlotBoxChart` 离群点抖动在 Qt < 5.10 回退到 `qrand()`（画布与刻度事件分发头文件增加版本保护）
 - 单文件合并源码（`src-amalgamate/QwtPlot.{h,cpp}`）完整再生成并修复合并模板：移除对 3D Plot+Item 重构中已删除文件的引用，纳入新的 `QwtTextScaleDraw`、`QwtPlotAxisWheelInteraction`、`Qwt3DPlotItem`/`Qwt3DSurface`/`Qwt3DBar`/`Qwt3DLine`、`Qwt3DRenderContext` 与序列化源码 — 单文件构建在当前 7.x API 下恢复可编译
+- plot3d：gl2ps 矢量导出改为无条件编译，移除 `QWT3D_ENABLE_GL2PS` 宏守卫及 `qwt::plot3d` 对外传播的 PUBLIC 定义（该宏本就是事实必需 —— `qwt3d_plot.h`/`qwt3d_io.cpp` 的 `saveVector()` 无条件引用 `Qwt3DVectorWriter`，不定义宏根本编不过）；合成单文件构建（`staticExample`）不再需要额外定义
+
+### 重构
+
+- plot3d：移除 `Qwt3DSurface::setResolution()` 前无意义的 `public Q_SLOTS:` 段落；`Qwt3DSurface` 不是 `QObject`，现在就是一个普通 public 方法
 
 ### 文档
 

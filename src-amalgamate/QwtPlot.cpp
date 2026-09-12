@@ -91715,13 +91715,11 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 	convert2screen(ctx);
 
 	// gl2ps vector export path: use device text for vector output
-#ifdef QWT3D_ENABLE_GL2PS
 	if (deviceFonts) {
 		drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(),
 					   d->m_pos, m_color, d->m_anchor, d->m_gap);
 		return;
 	}
-#endif
 
 	auto* shader = ctx.textShader;
 	if (!shader)
@@ -93314,7 +93312,6 @@ void Qwt3DIO::setupHandler()
 		qtw.d_func()->m_fmt = fmt;
 		defineOutputHandler(fmt, qtw);
 	}
-#ifdef QWT3D_ENABLE_GL2PS
 	Qwt3DVectorWriter vecfunc;
 	vecfunc.setCompressed(false);
 	vecfunc.setFormat("EPS");
@@ -93335,7 +93332,6 @@ void Qwt3DIO::setupHandler()
 	defineOutputHandler("SVG", vecfunc);
 	vecfunc.setFormat("PGF");
 	defineOutputHandler("PGF", vecfunc);
-#endif // QWT3D_ENABLE_GL2PS
 
 	defineInputHandler("mes", Qwt3DNativeReader());
 	defineInputHandler("MES", Qwt3DNativeReader());
@@ -93355,7 +93351,6 @@ void Qwt3DIO::setupHandler()
  */
 bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, Qwt3DVectorWriter::TEXTMODE text, Qwt3DVectorWriter::SORTMODE sortmode)
 {
-#ifdef QWT3D_ENABLE_GL2PS
 	if (format == "EPS" || format == "EPS_GZ" || format == "PS" || format == "PS_GZ" || format == "PDF"
 		|| format == "SVG" || format == "PGF") {
 		Qwt3DVectorWriter* gl2ps = static_cast< Qwt3DVectorWriter* >(Qwt3DIO::outputHandler(format));
@@ -93365,10 +93360,6 @@ bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, Qwt3D
 		}
 		return Qwt3DIO::save(this, fileName, format);
 	}
-#else
-	(void)text;
-	(void)sortmode;
-#endif
 	return false;
 }
 /**
@@ -98171,8 +98162,6 @@ QDataStream& operator>>(QDataStream& in, Qwt3DTheme& theme)
 #pragma warning(disable : 4786)
 #endif
 
-#ifdef QWT3D_ENABLE_GL2PS
-
 #include <ctime>
 
 // GL types are provided by gl2ps.h which includes <GL/gl.h>
@@ -98560,8 +98549,6 @@ void setDevicePolygonOffset(float factor, float units)
 	glPolygonOffset(factor, units);
 	gl2psEnable(GL2PS_POLYGON_OFFSET_FILL);
 }
-
-#endif // QWT3D_ENABLE_GL2PS
 
 /*** End of inlined file: qwt3d_io_gl2ps.cpp ***/
 

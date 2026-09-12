@@ -154,8 +154,6 @@ public:
     Qwt3DCellData* cellData() const;
     /// Returns true if the current data is grid-based
     bool isGridData() const;
-
-public Q_SLOTS:
     /// Sets the data resolution (1 = full, higher = coarser)
     void setResolution(int res);
 

@@ -304,7 +304,6 @@ void Qwt3DIO::setupHandler()
         qtw.d_func()->m_fmt = fmt;
         defineOutputHandler(fmt, qtw);
     }
-#ifdef QWT3D_ENABLE_GL2PS
     Qwt3DVectorWriter vecfunc;
     vecfunc.setCompressed(false);
     vecfunc.setFormat("EPS");
@@ -325,7 +324,6 @@ void Qwt3DIO::setupHandler()
     defineOutputHandler("SVG", vecfunc);
     vecfunc.setFormat("PGF");
     defineOutputHandler("PGF", vecfunc);
-#endif // QWT3D_ENABLE_GL2PS
 
     defineInputHandler("mes", Qwt3DNativeReader());
     defineInputHandler("MES", Qwt3DNativeReader());
@@ -345,7 +343,6 @@ void Qwt3DIO::setupHandler()
  */
 bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, Qwt3DVectorWriter::TEXTMODE text, Qwt3DVectorWriter::SORTMODE sortmode)
 {
-#ifdef QWT3D_ENABLE_GL2PS
     if (format == "EPS" || format == "EPS_GZ" || format == "PS" || format == "PS_GZ" || format == "PDF"
         || format == "SVG" || format == "PGF") {
         Qwt3DVectorWriter* gl2ps = static_cast< Qwt3DVectorWriter* >(Qwt3DIO::outputHandler(format));
@@ -355,10 +352,6 @@ bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, Qwt3D
         }
         return Qwt3DIO::save(this, fileName, format);
     }
-#else
-    (void)text;
-    (void)sortmode;
-#endif
     return false;
 }
 /**

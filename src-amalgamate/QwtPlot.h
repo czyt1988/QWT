@@ -28177,8 +28177,6 @@ private:
 
 /*** End of inlined file: qwt3d_io.h ***/
 
-#ifdef QWT3D_ENABLE_GL2PS
-
 /**
  * @brief Provides EPS, PS, PDF, SVG, PGF and TeX output
  * @details Qwt3DVectorWriter provides vector graphics output through the gl2ps library,
@@ -28258,8 +28256,6 @@ int drawDeviceText(const char* str,
 				   ANCHOR align,
 				   double gap);
 void setDevicePolygonOffset(float factor, float units);
-
-#endif // QWT3D_ENABLE_GL2PS
 
 #endif  // QWT3D_IO_GL2PS_H
 
@@ -34039,8 +34035,6 @@ public:
 	Qwt3DCellData* cellData() const;
 	/// Returns true if the current data is grid-based
 	bool isGridData() const;
-
-public Q_SLOTS:
 	/// Sets the data resolution (1 = full, higher = coarser)
 	void setResolution(int res);
 

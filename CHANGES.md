@@ -66,6 +66,11 @@
 - New xmake build configuration (`xmake.lua`) as an alternative to CMake, including the `QWTCORE_MAKEDLL`/`QWTCORE_DLL` defines for core library support
 - Qt 5 compatibility: `constexpr` replaced with `Q_DECL_CONSTEXPR` in core headers, and `QwtPlotBoxChart` outlier jitter falls back to `qrand()` on Qt < 5.10 (plus version guards in the canvas and scale dispatcher headers)
 - Amalgamated single-file sources (`src-amalgamate/QwtPlot.{h,cpp}`) fully regenerated and the amalgamation templates repaired: references to files deleted by the 3D Plot+Item refactor were removed and the new `QwtTextScaleDraw`, `QwtPlotAxisWheelInteraction`, `Qwt3DPlotItem`/`Qwt3DSurface`/`Qwt3DBar`/`Qwt3DLine`, `Qwt3DRenderContext` and serialization sources are now included — the single-file build compiles again with the current 7.x API
+- plot3d: gl2ps vector export is now compiled in unconditionally — the `QWT3D_ENABLE_GL2PS` guard and the PUBLIC define handed out by `qwt::plot3d` are gone. The macro was de-facto required anyway (`qwt3d_plot.h`/`qwt3d_io.cpp` reference `Qwt3DVectorWriter` in `saveVector()` regardless of the macro, so a macro-free build could never compile), and the amalgamated single-file build (`staticExample`) no longer needs any extra define
+
+### Refactoring
+
+- plot3d: dropped the meaningless `public Q_SLOTS:` section above `Qwt3DSurface::setResolution()`; `Qwt3DSurface` is not a `QObject`, so it is simply a public method now
 
 ### Documentation
 

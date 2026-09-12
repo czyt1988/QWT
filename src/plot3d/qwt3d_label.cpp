@@ -329,13 +329,11 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
     convert2screen(ctx);
 
     // gl2ps vector export path: use device text for vector output
-#ifdef QWT3D_ENABLE_GL2PS
     if (deviceFonts) {
         drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(),
                        d->m_pos, m_color, d->m_anchor, d->m_gap);
         return;
     }
-#endif
 
     auto* shader = ctx.textShader;
     if (!shader)

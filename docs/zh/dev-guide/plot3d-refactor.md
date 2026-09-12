@@ -161,7 +161,7 @@ classDiagram
 - **CPU 端 `QMatrix4x4`** 矩阵计算 —— 不再用 GL 矩阵栈。
 - **`QOpenGLTexture`** 渲染文本标签 —— 取代 `glRasterPos3d` + `glDrawPixels`。
 - **CPU 生成几何体**用于 Cone/Arrow 扩展 —— 取代 `gluCylinder`/`gluDisk`。
-- `gl2ps` 矢量导出包裹在 `QWT3D_ENABLE_GL2PS` 条件编译后（Compatibility Profile 回退）。
+- `gl2ps` 矢量导出作为 Compatibility Profile 回退保留，无条件编译（系统 gl2ps，或 `src/plot3d/3rdparty/gl2ps/` 内置副本）。
 - 删除 `qwt3d_openglhelper.h`。
 
 ### 4.3 去命名空间 + `Qwt3D` 前缀

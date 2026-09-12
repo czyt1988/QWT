@@ -2,8 +2,6 @@
 #pragma warning(disable : 4786)
 #endif
 
-#ifdef QWT3D_ENABLE_GL2PS
-
 #include <ctime>
 #include "gl2ps.h"
 #include "qwt3d_io_gl2ps.h"
@@ -396,5 +394,3 @@ void setDevicePolygonOffset(float factor, float units)
     glPolygonOffset(factor, units);
     gl2psEnable(GL2PS_POLYGON_OFFSET_FILL);
 }
-
-#endif // QWT3D_ENABLE_GL2PS
