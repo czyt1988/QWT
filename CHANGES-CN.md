@@ -1,4 +1,4 @@
-## Unreleased
+## tag:v7.4.1 (2026-09-11)
 
 ### 新功能
 
@@ -9,10 +9,68 @@
     - `QwtPlotRenderer` 新增 `renderScaleCaption()`，PNG/SVG/PDF 导出包含外置标题
     - 新增示例 `examples/2D/outsideTitle`：单 plot 与宿主+双 parasite 多轴演示，工具栏可运行时切换标题位置并导出验证；`--export <dir>` 参数可无头输出自检图与导出文件
 
+- **坐标轴标题位置与对齐控制**
+    - `QwtScaleWidget` 新增 `TitlePosition` 枚举（`TitleCentered`/`TitleAtStart`/`TitleAtEnd`）控制标题沿轴骨干的绘制位置，新增 `setTitleAlignment()`/`titleAlignment()` 控制标题框内的水平对齐；`QwtPlot` 通过 `setAxisTitlePosition()`/`setAxisTitleAlignment()` 转发
+    - `TitleCentered`（默认）完全复现旧版布局；`TitleAtStart` 为垂直轴的底端/水平轴的左端，`TitleAtEnd` 为顶端/右端；标题保持自然方向，仅沿骨干的位置变化
+    - `parasitePlot` 示例可运行时演示标题位置与对齐
+
+- **QwtPlotLayout 固定画布尺寸模式**
+    - `setFixedCanvasSize(axisPos, on)` 将画布尺寸与刻度标签增长解耦：锁定后画布尺寸保持稳定，溢出的标签被 scale widget 绘制区域裁剪（YLeft/YRight 固定画布宽度，XBottom/XTop 固定高度）
+    - 自动模式在启用后的首次布局时捕获画布边缘偏移；手动模式 `setFixedCanvasSize(QSize)` 固定精确尺寸（负分量表示该方向自动捕获）；`resetFixedCanvasSize()` 清除捕获的偏移与手动覆盖
+    - `alignScales()` 在对齐画布模式会缩小已固定维度时不再扩展画布
+    - 主要面向宿主与 parasite 共享画布区域、不希望因标签增长而相互漂移的寄生绘图场景
+
+- **QwtPlotAxisWheelInteraction — 轴级滚轮缩放与平移**
+    - 新增交互类，直接在 `QwtScaleWidget`（轴刻度区域）上安装事件过滤器：普通滚轮以光标为中心通过 `QwtPlot::zoomAxis()` 缩放该轴，Ctrl+滚轮通过 `QwtPlot::panAxis()` 平移该轴
+    - 无需先点击选中坐标轴（不同于 `QwtPlotScaleEventDispatcher`）；匹配缩放/平移的滚轮事件被消费，其余透传给 dispatcher
+    - 完全可配置：缩放/平移修饰键、缩放因子（默认每步 1.2）、平移因子（默认每步 30 像素）、启用/禁用开关
+    - 为继承设计，提供三个虚函数覆写点：`handleWheelEvent()`、`wheelZoom()`、`wheelPan()`
+    - `parasitePlot` 示例新增 "Axis Wheel" 工具栏动作演示该类
+
+- **QwtTextScaleDraw — 自定义文本刻度标签**
+    - 新增 `QwtTextScaleDraw` 类，通过 `QMap` 将数值刻度值映射为自定义字符串标签，为坐标轴显示分类文本或特定文字提供更灵活的方式
+
+- **曲线符号自动配色**
+    - `QwtPlotCurve` 未定制的符号（默认无画刷 + `#555555` 画笔）在曲线画笔于 `attach()` 时已自动取色后自动同步为同色（符号画刷取画笔颜色，符号画笔取 `darker(150)`），散点符号跟随颜色循环；用户自定义的符号保持不变
+
+- **3D item：RTTI、序列化与数据访问**
+    - 新增 `Rtti3DValues` 枚举（`Rtti_Plot3DItem`、`Rtti_Plot3DSurface`、`Rtti_Plot3DBar`、`Rtti_Plot3DLine`），所有 3D 绘图 item 覆写 `rtti()`，与 2D `QwtPlotItem` 模式对齐；`Qwt3DPlot::attach()`/`detach()` 改为 virtual
+    - 新增 `qwt3d_serialize.h/.cpp`：`Triple`、`RGBA`、`ParallelEpiped`、`Qwt3DFunctionData`、`Qwt3DParametricData`、`Qwt3DTheme` 的 `QDataStream` 运算符
+    - 3D API 补充公有 getter（颜色类、颜色图例、坐标系、轴、标签、drawable、plot）；`Qwt3DSurface::gridData()`/`cellData()`/`isGridData()` 从 protected 移到 public
+    - `Qwt3DBar` 新增 `samples()`、`isGridData()` 及网格元数据 / z 矩阵 getter（`gridZValues()` 等）
+
+- **3D 线条点形状**
+    - `Qwt3DLine` 新增 `PointShape` 枚举（Dot、Cube、Tetrahedron、Octahedron、Sphere）及 `setPointShape()`/`pointShape()`，Dots 样式下渲染 3D 标记
+    - `line3D` 示例新增标记形状选择器
+
+- **qwtplot 的 PySide6 绑定**
+    - 绑定 CMake 重构为多模块编排结构（`bindings/core/`、`bindings/plot/`），Shiboken6 工具垫片参数化
+    - 新增约 95 个类的绑定：picker 与 picker machine、zoomer、panner、放大器、rescaler、overlay、`QwtFigure`、寄生绘图框架、工具静态类、样条和 `QwtPointMapper`
+    - 全面的测试覆盖：52 个测试（11 core + 41 plot），涵盖离屏渲染、信号与交互（zoomer、panner、magnifier、picker machine）
+
 ### Bug 修复
 
+- 修复寄生绘图坐标轴的四个问题：
+    - 共享轴拖动后 parasite 曲线被压缩或画到画布外 — parasite 的 `canvasMap()` 现在使用宿主的绘制区间，同时保留 parasite 自身的刻度区间
+    - 共享轴上滚轮缩放范围错误或不刷新 — 滚轮位置现在映射到画布坐标，`replotAll()` 刷新宿主与所有 parasite
+    - 选中拖动期间 parasite 轴标签被截断 — 新增 `alignAxisBorderDist()`/`alignAllAxisBorderDist()` 计算宿主与所有 parasite 的最大边距并在每次完整重绘后重新对齐
+    - `zoomAxis()` 对反转轴无效（如 `setAxisScale(yRight, 500, 0)`）— 检测并处理反转范围，同时修复像素空间始终反转的非线性 Y 轴
 - 修复 parasite 布局可能复制到过期宿主矩形的问题：宿主 `doLayout()` 在自身布局完成后刷新各 parasite 的布局，保证 parasite 复制的矩形（及其派生的字幕条）基于本轮宿主的最终布局
 - parasite plot 收到 `LayoutRequest` 时同步刷新宿主布局，使 parasite 轴标题/尺寸变化及时进入宿主的带区预留聚合
+- `QwtPlot::setAxisScaleDraw()` 不再在 `TickInside` 模式下静默重新启用外侧刻度（此前替换 scale draw 会导致刻度被双重绘制）
+- `QwtPlotIntervalCurve` 默认画笔由 `#555555` 改为黑色，使 attach 时的自动配色对默认构造实例也生效
+- `Qwt3DBar::setSamples()` 补上缺失的间距与高度属性赋值，保证柱体尺寸正确
+
+### 构建
+
+- 新增 xmake 构建配置（`xmake.lua`）作为 CMake 之外的替代方案，含 core 库所需的 `QWTCORE_MAKEDLL`/`QWTCORE_DLL` 宏定义
+- Qt 5 兼容：核心头文件中 `constexpr` 替换为 `Q_DECL_CONSTEXPR`；`QwtPlotBoxChart` 离群点抖动在 Qt < 5.10 回退到 `qrand()`（画布与刻度事件分发头文件增加版本保护）
+- 单文件合并源码（`src-amalgamate/QwtPlot.{h,cpp}`）完整再生成并修复合并模板：移除对 3D Plot+Item 重构中已删除文件的引用，纳入新的 `QwtTextScaleDraw`、`QwtPlotAxisWheelInteraction`、`Qwt3DPlotItem`/`Qwt3DSurface`/`Qwt3DBar`/`Qwt3DLine`、`Qwt3DRenderContext` 与序列化源码 — 单文件构建在当前 7.x API 下恢复可编译
+
+### 文档
+
+- 新增固定画布尺寸模式使用文档
+- 新增外置坐标轴标题（TitleOutside）使用指南
 
 ## tag:v7.3.6 (2026-07-31)
 

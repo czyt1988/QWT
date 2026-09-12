@@ -25,21 +25,21 @@
  * @def Qwt numeric version MAJ.{MIN}.PAT
  */
 #ifndef QWT_VERSION_MIN
-#define QWT_VERSION_MIN 3
+#define QWT_VERSION_MIN 4
 #endif
 
 /**
  * @def Qwt numeric version MAJ.MIN.{PAT}
  */
 #ifndef QWT_VERSION_PAT
-#define QWT_VERSION_PAT 4
+#define QWT_VERSION_PAT 1
 #endif
 
 /**
  * @def Version string
  */
 #ifndef QWT_VERSION_STR
-#define QWT_VERSION_STR "7.3.4"
+#define QWT_VERSION_STR "7.4.1"
 #endif
 
 #endif // QWT_VERSION_INFO_H
@@ -883,8 +883,8 @@ public:
 	//! Border flags
 	Q_DECLARE_FLAGS(BorderFlags, BorderFlag)
 
-	constexpr QwtInterval() noexcept;
-	constexpr QwtInterval(double minValue, double maxValue, BorderFlags = IncludeBorders) noexcept;
+	Q_DECL_CONSTEXPR QwtInterval() noexcept;
+	Q_DECL_CONSTEXPR QwtInterval(double minValue, double maxValue, BorderFlags = IncludeBorders) noexcept;
 
 	// Assign the limits of the interval
 	void setInterval(double minValue, double maxValue, BorderFlags = IncludeBorders) noexcept;
@@ -902,14 +902,14 @@ public:
 	bool operator!=(const QwtInterval&) const;
 
 	void setBorderFlags(BorderFlags) noexcept;
-	constexpr BorderFlags borderFlags() const noexcept;
+	Q_DECL_CONSTEXPR BorderFlags borderFlags() const noexcept;
 
-	constexpr double minValue() const noexcept;
-	constexpr double maxValue() const noexcept;
-	constexpr double centerValue() const noexcept;
+	Q_DECL_CONSTEXPR double minValue() const noexcept;
+	Q_DECL_CONSTEXPR double maxValue() const noexcept;
+	Q_DECL_CONSTEXPR double centerValue() const noexcept;
 
-	constexpr double width() const noexcept;
-	constexpr long double widthL() const noexcept;
+	Q_DECL_CONSTEXPR double width() const noexcept;
+	Q_DECL_CONSTEXPR long double widthL() const noexcept;
 
 	void setMinValue(double) noexcept;
 	void setMaxValue(double) noexcept;
@@ -943,8 +943,8 @@ public:
 	// Extend an interval with a value
 	QwtInterval& operator|=(double);
 
-	constexpr bool isValid() const noexcept;
-	constexpr bool isNull() const noexcept;
+	Q_DECL_CONSTEXPR bool isValid() const noexcept;
+	Q_DECL_CONSTEXPR bool isNull() const noexcept;
 	void invalidate() noexcept;
 
 	// Symmetrize the interval around a value
@@ -965,7 +965,7 @@ Q_DECLARE_TYPEINFO(QwtInterval, Q_MOVABLE_TYPE);
  * @details Creates an invalid interval [0.0, -1.0]
  * @sa setInterval(), isValid()
  */
-inline constexpr QwtInterval::QwtInterval() noexcept : m_minValue(0.0), m_maxValue(-1.0), m_borderFlags(IncludeBorders)
+inline Q_DECL_CONSTEXPR QwtInterval::QwtInterval() noexcept : m_minValue(0.0), m_maxValue(-1.0), m_borderFlags(IncludeBorders)
 {
 }
 
@@ -975,7 +975,7 @@ inline constexpr QwtInterval::QwtInterval() noexcept : m_minValue(0.0), m_maxVal
  * @param maxValue Maximum value
  * @param borderFlags Include/Exclude borders
  */
-inline constexpr QwtInterval::QwtInterval(double minValue, double maxValue, BorderFlags borderFlags) noexcept
+inline Q_DECL_CONSTEXPR QwtInterval::QwtInterval(double minValue, double maxValue, BorderFlags borderFlags) noexcept
 	: m_minValue(minValue), m_maxValue(maxValue), m_borderFlags(borderFlags)
 {
 }
@@ -1007,7 +1007,7 @@ inline void QwtInterval::setBorderFlags(BorderFlags borderFlags) noexcept
  * @return Border flags
  * @sa setBorderFlags()
  */
-inline constexpr QwtInterval::BorderFlags QwtInterval::borderFlags() const noexcept
+inline Q_DECL_CONSTEXPR QwtInterval::BorderFlags QwtInterval::borderFlags() const noexcept
 {
 	return m_borderFlags;
 }
@@ -1034,7 +1034,7 @@ inline void QwtInterval::setMaxValue(double maxValue) noexcept
  * @return Minimum value of the interval
  * @sa setMinValue()
  */
-inline constexpr double QwtInterval::minValue() const noexcept
+inline Q_DECL_CONSTEXPR double QwtInterval::minValue() const noexcept
 {
 	return m_minValue;
 }
@@ -1043,7 +1043,7 @@ inline constexpr double QwtInterval::minValue() const noexcept
  * @return Maximum value of the interval
  * @sa setMaxValue()
  */
-inline constexpr double QwtInterval::maxValue() const noexcept
+inline Q_DECL_CONSTEXPR double QwtInterval::maxValue() const noexcept
 {
 	return m_maxValue;
 }
@@ -1052,7 +1052,7 @@ inline constexpr double QwtInterval::maxValue() const noexcept
  * @return Center of the interval
  * @sa width()
  */
-inline constexpr double QwtInterval::centerValue() const noexcept
+inline Q_DECL_CONSTEXPR double QwtInterval::centerValue() const noexcept
 {
 	return isValid() ? (m_minValue + (m_maxValue - m_minValue) * 0.5) : 0.0;
 }
@@ -1064,7 +1064,7 @@ inline constexpr double QwtInterval::centerValue() const noexcept
  * @return True, if the interval is valid
  * @sa isValid()
  */
-inline constexpr bool QwtInterval::isValid() const noexcept
+inline Q_DECL_CONSTEXPR bool QwtInterval::isValid() const noexcept
 {
 	return ((m_borderFlags & ExcludeBorders) == 0) ? (m_minValue <= m_maxValue) : (m_minValue < m_maxValue);
 }
@@ -1075,7 +1075,7 @@ inline constexpr bool QwtInterval::isValid() const noexcept
  * @return Interval width
  * @sa isValid()
  */
-inline constexpr double QwtInterval::width() const noexcept
+inline Q_DECL_CONSTEXPR double QwtInterval::width() const noexcept
 {
 	return isValid() ? (m_maxValue - m_minValue) : 0.0;
 }
@@ -1087,7 +1087,7 @@ inline constexpr double QwtInterval::width() const noexcept
  * @return Interval width
  * @sa isValid()
  */
-inline constexpr long double QwtInterval::widthL() const noexcept
+inline Q_DECL_CONSTEXPR long double QwtInterval::widthL() const noexcept
 {
 	return isValid() ? static_cast< long double >(m_maxValue) - static_cast< long double >(m_minValue) : 0.0L;
 }
@@ -1149,7 +1149,7 @@ inline QwtInterval QwtInterval::operator|(double value) const
  * @brief Check if interval is null
  * @return True if isValid() && (minValue() >= maxValue())
  */
-inline constexpr bool QwtInterval::isNull() const noexcept
+inline Q_DECL_CONSTEXPR bool QwtInterval::isNull() const noexcept
 {
 	return isValid() && m_minValue >= m_maxValue;
 }
@@ -1397,6 +1397,7 @@ inline QwtColorMap::Format QwtColorMap::format() const
 #define QWT_COLOR_CYCLE_H
 
 #include <qcolor.h>
+#include <qvector.h>
 
 #if QT_VERSION < 0x060000
 template< typename T >
@@ -1784,19 +1785,19 @@ public:
 	double invTransform(double p) const;
 
 	//! Return first border of paint interval
-	constexpr double p1() const noexcept;
+	Q_DECL_CONSTEXPR double p1() const noexcept { return m_p1; }
 	//! Return second border of paint interval
-	constexpr double p2() const noexcept;
+	Q_DECL_CONSTEXPR double p2() const noexcept { return m_p2; }
 
 	//! Return first border of scale interval
-	constexpr double s1() const noexcept;
+	Q_DECL_CONSTEXPR double s1() const noexcept { return m_s1; }
 	//! Return second border of scale interval
-	constexpr double s2() const noexcept;
+	Q_DECL_CONSTEXPR double s2() const noexcept { return m_s2; }
 
 	//! Return distance between paint interval boundaries
-	double pDist() const;
+	double pDist() const { return qAbs(m_p2 - m_p1); }
 	//! Return distance between scale interval boundaries
-	double sDist() const;
+	double sDist() const { return qAbs(m_s2 - m_s1); }
 
 	//! Transform a rectangle from scale to paint coordinates
 	static QRectF transform(const QwtScaleMap&, const QwtScaleMap&, const QRectF&);
@@ -1814,16 +1815,16 @@ public:
 	static bool isLinerScale(const QwtScaleMap& sm);
 
 	//! Check if this scale has no nonlinear transformation
-	constexpr bool isLinear() const noexcept;
+	Q_DECL_CONSTEXPR bool isLinear() const noexcept { return m_transform == nullptr; }
 
 	//! Check if the mapping direction is inverted
-	constexpr bool isInverting() const noexcept;
+	Q_DECL_CONSTEXPR bool isInverting() const noexcept { return ((m_p1 < m_p2) != (m_s1 < m_s2)); }
 
 	//! Conversion factor for linear fast-path: result = p1() + (value - ts1()) * cnv()
-	constexpr double cnv() const noexcept;
+	Q_DECL_CONSTEXPR double cnv() const noexcept { return m_cnv; }
 
 	//! Transformed scale origin for linear fast-path
-	constexpr double ts1() const noexcept;
+	Q_DECL_CONSTEXPR double ts1() const noexcept { return m_ts1; }
 
 protected:
 	void swap(QwtScaleMap& other) noexcept;  // helper
@@ -1838,54 +1839,6 @@ private:
 
 	QwtTransform* m_transform { nullptr };
 };
-
-/**
- * @brief Return first border of the scale interval
- */
-inline constexpr double QwtScaleMap::s1() const noexcept
-{
-	return m_s1;
-}
-
-/**
- * @brief Return second border of the scale interval
- */
-inline constexpr double QwtScaleMap::s2() const noexcept
-{
-	return m_s2;
-}
-
-/**
- * @brief Return first border of the paint interval
- */
-inline constexpr double QwtScaleMap::p1() const noexcept
-{
-	return m_p1;
-}
-
-/**
- * @brief Return second border of the paint interval
- */
-inline constexpr double QwtScaleMap::p2() const noexcept
-{
-	return m_p2;
-}
-
-/**
- * @brief Return qwtAbs(p2() - p1())
- */
-inline double QwtScaleMap::pDist() const
-{
-	return qAbs(m_p2 - m_p1);
-}
-
-/**
- * @brief Return qwtAbs(s2() - s1())
- */
-inline double QwtScaleMap::sDist() const
-{
-	return qAbs(m_s2 - m_s1);
-}
 
 /**
  * @brief Transform a point related to the scale interval into a point related to the paint device interval
@@ -1914,30 +1867,6 @@ inline double QwtScaleMap::invTransform(double p) const
 		s = m_transform->invTransform(s);
 
 	return s;
-}
-
-//! Return true when ( p1() < p2() ) != ( s1() < s2() )
-inline constexpr bool QwtScaleMap::isInverting() const noexcept
-{
-	return ((m_p1 < m_p2) != (m_s1 < m_s2));
-}
-
-//! Return true when there is no nonlinear transformation
-inline constexpr bool QwtScaleMap::isLinear() const noexcept
-{
-	return m_transform == nullptr;
-}
-
-//! Return the conversion factor for linear fast-path transform
-inline constexpr double QwtScaleMap::cnv() const noexcept
-{
-	return m_cnv;
-}
-
-//! Return the transformed scale origin for linear fast-path transform
-inline constexpr double QwtScaleMap::ts1() const noexcept
-{
-	return m_ts1;
 }
 
 #ifndef QT_NO_DEBUG_STREAM
@@ -5619,25 +5548,25 @@ enum
 	AxisPositions = XTop + 1
 };
 
-constexpr bool isValid(int axisPos) noexcept;
-constexpr bool isYAxis(int axisPos) noexcept;
-constexpr bool isXAxis(int axisPos) noexcept;
+Q_DECL_CONSTEXPR bool isValid(int axisPos) noexcept;
+Q_DECL_CONSTEXPR bool isYAxis(int axisPos) noexcept;
+Q_DECL_CONSTEXPR bool isXAxis(int axisPos) noexcept;
 }
 
 // Return true, when axisPos is in the valid range [ YLeft, XTop ]
-inline constexpr bool QwtAxis::isValid(int axisPos) noexcept
+inline Q_DECL_CONSTEXPR bool QwtAxis::isValid(int axisPos) noexcept
 {
 	return (axisPos >= 0 && axisPos < AxisPositions);
 }
 
 // Return true, when axisPos is XBottom or XTop
-inline constexpr bool QwtAxis::isXAxis(int axisPos) noexcept
+inline Q_DECL_CONSTEXPR bool QwtAxis::isXAxis(int axisPos) noexcept
 {
 	return (axisPos == XBottom) || (axisPos == XTop);
 }
 
 // Return true, when axisPos is YLeft or YRight
-inline constexpr bool QwtAxis::isYAxis(int axisPos) noexcept
+inline Q_DECL_CONSTEXPR bool QwtAxis::isYAxis(int axisPos) noexcept
 {
 	return (axisPos == YLeft) || (axisPos == YRight);
 }
@@ -10702,6 +10631,61 @@ public:
 	Q_DECLARE_FLAGS(LayoutFlags, LayoutFlag)
 
 	/**
+	 * @brief Position of the axis title along the backbone
+	 * @details Controls where the title is placed along the axis backbone.
+	 * The title keeps its natural orientation (vertical for Y axes, horizontal
+	 * for X axes); only its position along the backbone changes.
+	 *
+	 * Visual mapping:
+	 * @code
+	 *   TitleAtStart   Y axis: bottom end   |   X axis: left end
+	 *   TitleCentered  Y axis: centered     |   X axis: centered   (default)
+	 *   TitleAtEnd     Y axis: top end      |   X axis: right end
+	 * @endcode
+	 *
+	 * @sa setTitlePosition(), titlePosition()
+	 */
+	enum TitlePosition
+	{
+		/// Centered along the backbone (default, equivalent to the legacy behavior).
+		TitleCentered = 0,
+		/// At the backbone start end: bottom for vertical axes, left for horizontal axes.
+		TitleAtStart,
+		/// At the backbone end: top for vertical axes, right for horizontal axes.
+		TitleAtEnd
+	};
+
+	/**
+	 * @brief Placement of the axis title relative to the scale widget
+	 * @details Controls whether the title is painted inside the scale widget
+	 * (the legacy behavior, rotated for vertical axes) or outside of it as a
+	 * horizontal caption. In outside mode the title is no longer part of the
+	 * widget paint area: QwtPlot reserves a caption strip adjacent to the
+	 * scale widget and paints the title there (see QwtPlotLayout::scaleCaptionRect()).
+	 *
+	 * The caption strip is located:
+	 * @code
+	 *   YLeft / YRight   below the scale widget (bottom band of the plot)
+	 *   XBottom          below the scale widget
+	 *   XTop             above the scale widget
+	 * @endcode
+	 *
+	 * In outside mode the title does not contribute to the axis dimension
+	 * (dimForLength()); instead its height is reserved in the adjacent
+	 * horizontal band. TitlePosition is ignored, titleAlignment() applies
+	 * as horizontal alignment within the caption rect.
+	 *
+	 * @sa setTitlePlacement(), titlePlacement(), TitlePosition
+	 */
+	enum TitlePlacement
+	{
+		/// Title painted inside the scale widget (default, legacy behavior).
+		TitleInside = 0,
+		/// Title painted outside the scale widget as a horizontal caption.
+		TitleOutside
+	};
+
+	/**
 	 * @brief Built-in actions
 	 */
 	enum BuiltinActions
@@ -10754,6 +10738,21 @@ public:
 	void setTitle(const QwtText& title);
 	/// @return the title
 	QwtText title() const;
+
+	/// Set the title position along the backbone
+	void setTitlePosition(TitlePosition);
+	/// @return the title position along the backbone
+	TitlePosition titlePosition() const;
+
+	/// Set the title placement (inside the widget or outside as caption)
+	void setTitlePlacement(TitlePlacement);
+	/// @return the title placement
+	TitlePlacement titlePlacement() const;
+
+	/// Set the title text alignment (horizontal alignment within the title box)
+	void setTitleAlignment(Qt::Alignment);
+	/// @return the title text alignment
+	Qt::Alignment titleAlignment() const;
 
 	/// Set a layout flag
 	void setLayoutFlag(LayoutFlag, bool on);
@@ -13397,6 +13396,68 @@ inline void QwtRoundScaleDraw::moveCenter(double x, double y)
 /*** End of inlined file: qwt_round_scale_draw.h ***/
 
 
+/*** Start of inlined file: qwt_text_scale_draw.h ***/
+#ifndef QWT_TEXT_SCALE_DRAW_H
+#define QWT_TEXT_SCALE_DRAW_H
+
+class QString;
+template< class Key, class T >
+class QMap;
+
+/**
+ * @brief A scale draw that maps values to arbitrary text labels
+ * @details QwtTextScaleDraw displays user-defined text labels at specific
+ *          numeric tick positions. It keeps a map from double values to
+ *          strings and returns the matching string for each major tick
+ *          value, so a linear axis can show category text (e.g. "Mon",
+ *          "Tue", "Wed") instead of numbers.
+ *
+ *          The numeric tick positions are controlled by the scale engine
+ *          and the QwtScaleDiv like a plain QwtScaleDraw. Only the label
+ *          text is replaced through the value-to-string map. Values that
+ *          do not match any key produce an empty label.
+ *
+ *          Usually the scale draw is combined with an explicit QwtScaleDiv
+ *          whose major ticks match the map keys.
+ * @code
+ *          QMap< double, QString > labels;
+ *          labels.insert(0.0, "Mon");
+ *          labels.insert(1.0, "Tue");
+ *          labels.insert(2.0, "Wed");
+ *          plot->setAxisScaleDraw(QwtPlot::xBottom, new QwtTextScaleDraw(labels));
+ * @endcode
+ * @sa QwtScaleDraw, QwtPlot::setAxisScaleDraw()
+ */
+class QWT_EXPORT QwtTextScaleDraw : public QwtScaleDraw
+{
+public:
+	// Constructs an empty text scale draw (no labels are displayed)
+	explicit QwtTextScaleDraw();
+
+	// Constructs a text scale draw with a custom value-to-label map
+	explicit QwtTextScaleDraw(const QMap< double, QString >& map);
+
+	// Destructor
+	~QwtTextScaleDraw() override;
+
+	// Sets the map that maps numeric values to text labels
+	void setLabelMap(const QMap< double, QString >& map);
+
+	// Returns the map that maps numeric values to text labels
+	QMap< double, QString > labelMap() const;
+
+	// Returns the label for a given value by looking up the label map
+	virtual QwtText label(double value) const override;
+
+private:
+	QWT_DECLARE_PRIVATE(QwtTextScaleDraw)
+};
+
+#endif
+
+/*** End of inlined file: qwt_text_scale_draw.h ***/
+
+
 /*** Start of inlined file: qwt_point_mapper.h ***/
 #ifndef QWT_POINT_MAPPER_H
 #define QWT_POINT_MAPPER_H
@@ -14327,8 +14388,8 @@ protected:
 	/*!
 	   Handle a wheel event for the observed widget.
 	   \return true when the event was consumed ( rescaled ), so the caller
-	           can accept it to stop propagation to parent widgets.
-	           false when the event is not handled and should propagate.
+			   can accept it to stop propagation to parent widgets.
+			   false when the event is not handled and should propagate.
 	 */
 	virtual bool widgetWheelEvent(QWheelEvent*);
 	virtual void widgetKeyPressEvent(QKeyEvent*);
@@ -15165,6 +15226,9 @@ public:
 	virtual void
 	renderScale(const QwtPlot*, QPainter*, QwtAxisId, int startDist, int endDist, int baseDist, const QRectF& scaleRect) const;
 
+	// Render the caption of an outside axis title (QwtScaleWidget::TitleOutside)
+	virtual void renderScaleCaption(const QwtPlot*, QPainter*, QwtAxisId, const QRectF& captionRect) const;
+
 	// Render the canvas
 	virtual void renderCanvas(const QwtPlot*, QPainter*, const QRectF& canvasRect, const QwtScaleMap* maps) const;
 
@@ -15455,6 +15519,7 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(QwtPlotAbstractGLCanvas::PaintAttributes)
 #define QWT_PLOT_CANVAS_H
 
 #include <qframe.h>
+#include <qpainterpath.h>
 
 class QwtPlot;
 class QPixmap;
@@ -15631,6 +15696,7 @@ protected:
 #include <QOpenGLWidget>
 #endif
 #include <QSurfaceFormat>
+#include <QPainterPath>
 
 class QwtPlot;
 
@@ -15738,6 +15804,7 @@ private:
 #define QWT_PLOT_GLCANVAS_H
 
 #include <qgl.h>
+#include <qpainterpath.h>
 
 class QwtPlot;
 
@@ -21566,6 +21633,19 @@ public:
 	// Get axis title
 	QwtText axisTitle(QwtAxisId) const;
 
+	// Set axis title position along the backbone
+	void setAxisTitlePosition(QwtAxisId, QwtScaleWidget::TitlePosition);
+	// Get axis title position along the backbone
+	QwtScaleWidget::TitlePosition axisTitlePosition(QwtAxisId) const;
+	// Set axis title placement (inside the scale widget or outside as caption below/above it)
+	void setAxisTitlePlacement(QwtAxisId, QwtScaleWidget::TitlePlacement);
+	// Get axis title placement
+	QwtScaleWidget::TitlePlacement axisTitlePlacement(QwtAxisId) const;
+	// Set axis title text alignment (horizontal alignment within the title box)
+	void setAxisTitleAlignment(QwtAxisId, Qt::Alignment);
+	// Get axis title text alignment
+	Qt::Alignment axisTitleAlignment(QwtAxisId) const;
+
 	// Set axis max minor ticks
 	void setAxisMaxMinor(QwtAxisId, int maxMinor);
 	// Get axis max minor ticks
@@ -21703,6 +21783,10 @@ public:
 	void updateAxisEdgeMargin(QwtAxisId axisId);
 	// Update all axis edge margins
 	void updateAllAxisEdgeMargin();
+	// Align borderDist across host and all parasite layers for the given axis
+	void alignAxisBorderDist(QwtAxisId axisId);
+	// Align borderDist for all axis positions
+	void alignAllAxisBorderDist();
 	// Update items to fit scale division range
 	void updateItemsToScaleDiv();
 	// Enable/disable scale built-in actions
@@ -21835,6 +21919,7 @@ private:
 #ifndef QWTPLOTLAYOUTENGINE_H
 #define QWTPLOTLAYOUTENGINE_H
 #include <QRectF>
+#include <QSize>
 #include <QFont>
 class QWidget;
 // qwt
@@ -21866,7 +21951,17 @@ public:
 		void setDimAxis(QwtAxisId axisId, int dim);
 
 		// Get the dimension for an axis position (YLeft, YRight, XTop, XBottom)
+		// Includes the extra caption band reserved for outside axis titles
 		int dimAxes(int axisPos) const;
+
+		// Get the extra caption band pixels reserved beyond the scale dimension
+		// of an axis position for outside axis titles (QwtScaleWidget::TitleOutside).
+		// The extra of the XBottom band also covers captions of the Y axes,
+		// which are painted below their scale widgets.
+		int captionExtra(int axisPos) const;
+
+		// Set the extra caption band pixels for an axis position
+		void setCaptionExtra(int axisPos, int extra);
 
 		// Get the total width of left and right Y axes
 		int dimYAxes() const;
@@ -21885,6 +21980,7 @@ public:
 
 	private:
 		int m_dimAxes[ QwtAxis::AxisPositions ];
+		int m_captionExtra[ QwtAxis::AxisPositions ];
 	};
 
 	/**
@@ -21991,6 +22087,13 @@ public:
 		LabelData labelData[ NumLabels ];
 		CanvasData canvasData;
 
+		// Outside title caption heights (QwtScaleWidget::TitleOutside) demanded by
+		// the parasite plots sharing the bands of this plot, per axis position.
+		// 0 means no caption demand. For a host plot these demands are aggregated
+		// from all parasite plots in the constructor; parasite captions are painted
+		// into the same band as the host captions.
+		int parasiteCaptionHeight[ QwtAxis::AxisPositions ];
+
 	private:
 		ScaleData m_scaleData[ QwtAxis::AxisPositions ];
 	};
@@ -22035,6 +22138,28 @@ public:
 	// Check if the canvas is aligned to the scale at a given axis position
 	bool alignCanvas(int axisPos) const;
 
+	// Enable/disable fixed canvas size for an axis direction.
+	// YLeft/YRight fix the canvas width; XBottom/XTop fix the canvas height.
+	// When enabled, the canvas dimension is captured on the next layout and
+	// held stable against axis label growth; overflowing labels are clipped.
+	void setFixedCanvas(int axisPos, bool on);
+
+	// Check if fixed canvas size is enabled for a given axis position
+	bool isFixedCanvas(int axisPos) const;
+
+	// Set a manual fixed canvas size, overriding the auto-captured value.
+	// A component < 0 means "use auto-capture" for that direction.
+	void setFixedCanvasSize(const QSize& size);
+
+	// Get the manual fixed canvas size (-1 component = auto-capture)
+	QSize fixedCanvasSize() const;
+
+	// True if canvas width is fixed (any Y axis fixed or manual width set)
+	bool isFixedCanvasWidth() const;
+
+	// True if canvas height is fixed (any X axis fixed or manual height set)
+	bool isFixedCanvasHeight() const;
+
 	// Set the margin between canvas and scale at a given axis position
 	void setCanvasMargin(int axisPos, int margin);
 
@@ -22069,6 +22194,9 @@ private:
 	unsigned int m_canvasMargin[ QwtAxis::AxisPositions ] = { 0, 0, 0, 0 };
 	bool m_alignCanvas[ QwtAxis::AxisPositions ];
 
+	bool m_fixedCanvas[ QwtAxis::AxisPositions ] = { false, false, false, false };
+	QSize m_fixedCanvasSize { -1, -1 };
+
 	unsigned int m_spacing;
 };
 
@@ -22081,6 +22209,7 @@ private:
 #ifndef QWT_PLOT_LAYOUT_H
 #define QWT_PLOT_LAYOUT_H
 
+#include <QSize>
 class QwtPlotLayoutEngine;
 
 /**
@@ -22143,6 +22272,23 @@ public:
 	void setAlignCanvasToScale(int axisId, bool);
 	bool alignCanvasToScale(int axisId) const;
 
+	// Enable fixed canvas size for an axis direction (auto-lock the current
+	// dimension on the next layout). YLeft/YRight fix width; XBottom/XTop fix height.
+	void setFixedCanvasSize(int axisPos, bool on);
+	// Check if fixed canvas size is enabled for a given axis position
+	bool isFixedCanvasSize(int axisPos) const;
+
+	// Set a manual fixed canvas size, overriding the auto-captured value.
+	// A component < 0 means "use auto-capture" for that direction.
+	void setFixedCanvasSize(const QSize& size);
+	// Get the manual fixed canvas size (-1 component = auto-capture)
+	QSize fixedCanvasSize() const;
+
+	// Clear all locked canvas sizes (captured offsets and manual override),
+	// re-capturing from the current layout on the next activate(). Does not
+	// change the enabled state of each axis direction.
+	void resetFixedCanvasSize();
+
 	void setSpacing(int);
 	int spacing() const;
 
@@ -22161,6 +22307,14 @@ public:
 	QRectF footerRect() const;
 	QRectF legendRect() const;
 	QRectF scaleRect(QwtAxisId) const;
+
+	// Geometry of the caption strip for an outside axis title
+	// (QwtScaleWidget::TitleOutside). The strip is adjacent to the scale rect:
+	// below it for YLeft/YRight/XBottom, above it for XTop. Empty if the axis
+	// has no outside title. Caption strips of all parasite layers are placed
+	// within the bands reserved by the host plot layout.
+	QRectF scaleCaptionRect(QwtAxisId) const;
+
 	QRectF canvasRect() const;
 
 protected:
@@ -22168,6 +22322,16 @@ protected:
 	void setFooterRect(const QRectF&);
 	void setLegendRect(const QRectF&);
 	void setScaleRect(QwtAxisId, const QRectF&);
+
+	// Set the geometry of the caption strip for an outside axis title
+	void setScaleCaptionRect(QwtAxisId, const QRectF&);
+
+	// Recompute all caption rects from the current scale rects and the
+	// title state of the scale widgets. Called at the end of doActivate().
+	// Derived layouts that replace scale rects after doActivate() (like
+	// QwtParasitePlotLayout copying the host rects) must call it again.
+	void updateScaleCaptionRects(const QwtPlot* plot);
+
 	void setCanvasRect(const QRectF&);
 	QwtPlotLayoutEngine* layoutEngine();
 	void doActivate(const QwtPlot* plot, const QRectF& plotRect, Options options = Options());
@@ -22175,6 +22339,10 @@ protected:
 private:
 	QwtPlotLayout(const QwtPlotLayout&)            = delete;
 	QwtPlotLayout& operator=(const QwtPlotLayout&) = delete;
+
+	// Pin the canvas rect to its locked dimension(s) after the natural layout
+	// (innerRect) has been computed. Captures the offsets on first use.
+	void applyFixedCanvas(QRectF& canvasRect, const QRectF& rect);
 
 	QWT_DECLARE_PRIVATE(QwtPlotLayout)
 };
@@ -22275,6 +22443,154 @@ protected:
 #endif  // QWTPLOTSCALEEVENTDISPATCHER_H
 
 /*** End of inlined file: qwt_plot_scale_event_dispatcher.h ***/
+
+
+/*** Start of inlined file: qwt_plot_axis_wheel_interaction.h ***/
+#ifndef QWT_PLOT_AXIS_WHEEL_INTERACTION_H
+#define QWT_PLOT_AXIS_WHEEL_INTERACTION_H
+
+#include <qobject.h>
+
+class QWheelEvent;
+class QEvent;
+class QWidget;
+class QwtPlot;
+class QwtScaleWidget;
+
+/**
+ * @brief Configurable wheel interaction for a single plot axis
+ *
+ * @details QwtPlotAxisWheelInteraction installs an event filter on a
+ *          QwtScaleWidget (the axis tick area) and provides two
+ *          configurable wheel actions:
+ *
+ *          - <b>Zoom</b> (plain wheel by default): zooms the axis centered
+ *            at the cursor position using QwtPlot::zoomAxis().
+ *          - <b>Pan</b> (Ctrl+wheel by default): pans the axis by a fixed
+ *            pixel amount per step using QwtPlot::panAxis().
+ *
+ *          Unlike the built-in QwtPlotScaleEventDispatcher (which hardcodes
+ *          wheel=zoom and requires the axis to be clicked/selected first),
+ *          this class:
+ *          - Supports keyboard modifiers to switch between zoom and pan.
+ *          - Works immediately without needing to select the axis first.
+ *          - Is fully configurable (modifiers, factors, enable/disable).
+ *          - Is designed for inheritance — override wheelZoom(),
+ *            wheelPan(), or handleWheelEvent() to implement custom behavior.
+ *
+ *          When the modifier matches zoom or pan, the event is consumed
+ *          (return true) so the dispatcher does not also process it.
+ *          When the modifier matches neither, the event is passed through
+ *          to the dispatcher for default handling.
+ *
+ *          Typical usage:
+ *          @code
+ *          // Plain wheel zooms XBottom at cursor; Ctrl+wheel pans it
+ *          new QwtPlotAxisWheelInteraction(plot, QwtAxis::XBottom);
+ *
+ *          // Customize: Shift+wheel zooms YLeft, plain wheel pans
+ *          auto* ix = new QwtPlotAxisWheelInteraction(plot, QwtAxis::YLeft);
+ *          ix->setZoomModifiers(Qt::ShiftModifier);
+ *          ix->setPanModifiers(Qt::NoModifier);
+ *          @endcode
+ *
+ *          Inheritance example:
+ *          @code
+ *          class CenterZoom : public QwtPlotAxisWheelInteraction {
+ *          public:
+ *              using QwtPlotAxisWheelInteraction::QwtPlotAxisWheelInteraction;
+ *          protected:
+ *              void wheelZoom(double factor, const QPoint&) override {
+ *                  // Zoom centered on axis midpoint instead of cursor
+ *                  const QwtScaleMap m = plot()->canvasMap(axisId());
+ *                  const int mid = static_cast<int>((m.p1() + m.p2()) / 2);
+ *                  QwtPlotAxisWheelInteraction::wheelZoom(factor, QPoint(mid, 0));
+ *              }
+ *          };
+ *          @endcode
+ *
+ * @sa QwtPlotScaleEventDispatcher, QwtPlot::zoomAxis(), QwtPlot::panAxis()
+ */
+class QWT_EXPORT QwtPlotAxisWheelInteraction : public QObject
+{
+	Q_OBJECT
+
+public:
+	// Construct from a plot and axis id
+	explicit QwtPlotAxisWheelInteraction(QwtPlot* plot, QwtAxisId axisId);
+
+	// Construct from a scale widget (auto-derives plot and axis id)
+	explicit QwtPlotAxisWheelInteraction(QwtScaleWidget* scaleWidget);
+
+	// Destructor
+	~QwtPlotAxisWheelInteraction() override;
+
+	// Enable or disable the interaction
+	void setEnabled(bool on);
+	// Return whether the interaction is enabled
+	bool isEnabled() const;
+
+	// ---- Zoom configuration (plain wheel by default) ----
+
+	// Set keyboard modifiers for zoom mode (default: Qt::NoModifier)
+	void setZoomModifiers(Qt::KeyboardModifiers modifiers);
+	// Return the zoom modifiers
+	Qt::KeyboardModifiers zoomModifiers() const;
+
+	// Set the zoom factor per wheel step (default: 1.2; >1 zoom in, <1 zoom out)
+	void setZoomFactor(double factor);
+	// Return the zoom factor
+	double zoomFactor() const;
+
+	// ---- Pan configuration (Ctrl+wheel by default) ----
+
+	// Set keyboard modifiers for pan mode (default: Qt::ControlModifier)
+	void setPanModifiers(Qt::KeyboardModifiers modifiers);
+	// Return the pan modifiers
+	Qt::KeyboardModifiers panModifiers() const;
+
+	// Set pixels to pan per wheel step (default: 30)
+	void setPanFactor(int pixelsPerStep);
+	// Return the pan factor in pixels
+	int panFactor() const;
+
+	// Return the observed scale widget
+	QwtScaleWidget* scaleWidget();
+	// Return the observed scale widget (const version)
+	const QwtScaleWidget* scaleWidget() const;
+
+	// Return the plot that owns the axis
+	QwtPlot* plot();
+	// Return the plot that owns the axis (const version)
+	const QwtPlot* plot() const;
+
+	// Return the axis id
+	QwtAxisId axisId() const;
+
+protected:
+	// Event filter — intercepts wheel events on the scale widget
+	virtual bool eventFilter(QObject* obj, QEvent* event) override;
+
+	// Top-level wheel handler. Override for completely custom behavior.
+	// Return true if handled (event consumed), false to pass through.
+	virtual bool handleWheelEvent(QWheelEvent* event);
+
+	// Called when zoom action is triggered. Override to customize zoom.
+	// @param factor Zoom factor (>1 zoom in, <1 zoom out)
+	// @param cursorPos Cursor position in canvas coordinates
+	virtual void wheelZoom(double factor, const QPoint& cursorPos);
+
+	// Called when pan action is triggered. Override to customize pan.
+	// @param deltaPixels Pixel offset (positive = right/down, negative = left/up)
+	virtual void wheelPan(int deltaPixels);
+
+private:
+	QWT_DECLARE_PRIVATE(QwtPlotAxisWheelInteraction)
+};
+
+#endif  // QWT_PLOT_AXIS_WHEEL_INTERACTION_H
+
+/*** End of inlined file: qwt_plot_axis_wheel_interaction.h ***/
 
 
 /*** Start of inlined file: qwt_plot_rescaler.h ***/
@@ -23538,10 +23854,6 @@ private Q_SLOTS:
 
 #include <string>
 
-#if defined(Q_OS_WIN)
-#include <windows.h>
-#endif
-
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA 120
 #endif
@@ -23555,9 +23867,6 @@ private Q_SLOTS:
 
 #include <QMouseEvent>
 
-namespace Qwt3D
-{
-
 #define QWT3DLOCAL8BIT(qstring) (qstring.toLocal8Bit().constData())
 
 const Qt::TextFlag SingleLine = Qt::TextSingleLine;
@@ -23567,23 +23876,23 @@ const Qt::TextFlag SingleLine = Qt::TextSingleLine;
  * @details This class encapsulates a combination of mouse buttons and keyboard modifiers,
  *          used for defining mouse interaction states in 3D plots.
  */
-class MouseState
+class Qwt3DMouseState
 {
 public:
-	MouseState(Qt::MouseButtons mb = Qt::NoButton, Qt::KeyboardModifiers km = Qt::NoModifier) : mb_(mb), km_(km)
+	Qwt3DMouseState(Qt::MouseButtons mb = Qt::NoButton, Qt::KeyboardModifiers km = Qt::NoModifier) : mb_(mb), km_(km)
 	{
 	}
 
-	MouseState(Qt::MouseButton mb, Qt::KeyboardModifiers km = Qt::NoModifier) : mb_(mb), km_(km)
+	Qwt3DMouseState(Qt::MouseButton mb, Qt::KeyboardModifiers km = Qt::NoModifier) : mb_(mb), km_(km)
 	{
 	}
 
-	bool operator==(const MouseState& ms)
+	bool operator==(const Qwt3DMouseState& ms)
 	{
 		return mb_ == ms.mb_ && km_ == ms.km_;
 	}
 
-	bool operator!=(const MouseState& ms)
+	bool operator!=(const Qwt3DMouseState& ms)
 	{
 		return !operator==(ms);
 	}
@@ -23598,19 +23907,19 @@ private:
  * @details This class encapsulates a combination of keyboard keys and modifiers,
  *          used for defining keyboard interaction states in 3D plots.
  */
-class KeyboardState
+class Qwt3DKeyboardState
 {
 public:
-	KeyboardState(int key = Qt::Key_unknown, Qt::KeyboardModifiers km = Qt::NoModifier) : key_(key), km_(km)
+	Qwt3DKeyboardState(int key = Qt::Key_unknown, Qt::KeyboardModifiers km = Qt::NoModifier) : key_(key), km_(km)
 	{
 	}
 
-	bool operator==(const KeyboardState& ms)
+	bool operator==(const Qwt3DKeyboardState& ms)
 	{
 		return key_ == ms.key_ && km_ == ms.km_;
 	}
 
-	bool operator!=(const KeyboardState& ms)
+	bool operator!=(const Qwt3DKeyboardState& ms)
 	{
 		return !operator==(ms);
 	}
@@ -23619,7 +23928,6 @@ private:
 	int key_;
 	Qt::KeyboardModifiers km_;
 };
-}  // ns
 
 #endif  // QWT3D_PORTABILITY_H
 /*** End of inlined file: qwt3d_portability.h ***/
@@ -23643,9 +23951,6 @@ inline double Min_(double a, double b)
 }
 }
 
-namespace Qwt3D
-{
-
 // Checks if a value is practically zero (within floating-point epsilon)
 inline bool isPracticallyZero(double a, double b = 0)
 {
@@ -23655,153 +23960,12 @@ inline bool isPracticallyZero(double a, double b = 0)
 	return (fabs(a - b) <= Min_(fabs(a), fabs(b)) * DBL_EPSILON);
 }
 
-}  // ns
-
 #endif
 /*** End of inlined file: qwt3d_helper.h ***/
 
-
-/*** Start of inlined file: qwt3d_openglhelper.h ***/
-#ifndef QWT3D_OPENGLHELPER_H
-#define QWT3D_OPENGLHELPER_H
-
-#include "qglobal.h"
-
-#ifdef __APPLE__
-#include <OpenGL/glu.h>
-#else
-#ifdef Q_OS_WIN
-#include "windows.h"
-#endif
-#include <GL/glu.h>
-#endif
-
-namespace Qwt3D
-{
-
-#ifndef QWT3D_NOT_FOR_DOXYGEN
-
-/**
- * @brief Helper class for managing OpenGL state enable/disable
- * @details Saves and restores OpenGL enable/disable state. Useful for temporarily
- *          changing GL states within a drawing context.
- */
-class GLStateBewarer
-{
-public:
-	GLStateBewarer(GLenum what, bool on, bool persist = false)
-	{
-		state_    = what;
-		stateval_ = glIsEnabled(what);
-		if (on)
-			turnOn(persist);
-		else
-			turnOff(persist);
-	}
-
-	~GLStateBewarer()
-	{
-		if (stateval_)
-			glEnable(state_);
-		else
-			glDisable(state_);
-	}
-
-	void turnOn(bool persist = false)
-	{
-		glEnable(state_);
-		if (persist)
-			stateval_ = true;
-	}
-
-	void turnOff(bool persist = false)
-	{
-		glDisable(state_);
-		if (persist)
-			stateval_ = false;
-	}
-
-private:
-	GLenum state_;
-	bool stateval_;
-};
-
-// Returns OpenGL error string if an error occurred
-inline const GLubyte* gl_error()
-{
-	GLenum errcode;
-	const GLubyte* err = nullptr;
-
-	if ((errcode = glGetError()) != GL_NO_ERROR) {
-		err = gluErrorString(errcode);
-	}
-	return err;
-}
-
-// Safely deletes OpenGL display lists
-inline void SaveGlDeleteLists(GLuint& lstidx, GLsizei range)
-{
-	if (glIsList(lstidx))
-		glDeleteLists(lstidx, range);
-	lstidx = 0;
-}
-
-/**
- * @brief Get OpenGL transformation matrices
- * @details Don't rely on (use) this in display lists!
- */
-inline void getMatrices(GLdouble* modelMatrix, GLdouble* projMatrix, GLint* viewport)
-{
-	glGetIntegerv(GL_VIEWPORT, viewport);
-	glGetDoublev(GL_MODELVIEW_MATRIX, modelMatrix);
-	glGetDoublev(GL_PROJECTION_MATRIX, projMatrix);
-}
-
-/**
- * @brief Simplified glut routine (glUnProject): window coordinates -> object coordinates
- * @details Don't rely on (use) this in display lists!
- */
-inline bool ViewPort2World(double& objx, double& objy, double& objz, double winx, double winy, double winz)
-{
-	GLdouble modelMatrix[ 16 ];
-	GLdouble projMatrix[ 16 ];
-	GLint viewport[ 4 ];
-
-	getMatrices(modelMatrix, projMatrix, viewport);
-	int res = gluUnProject(winx, winy, winz, modelMatrix, projMatrix, viewport, &objx, &objy, &objz);
-
-	return (res == GL_FALSE) ? false : true;
-}
-
-/**
- * @brief Simplified glut routine (glProject): object coordinates -> window coordinates
- * @details Don't rely on (use) this in display lists!
- */
-inline bool World2ViewPort(double& winx, double& winy, double& winz, double objx, double objy, double objz)
-{
-	GLdouble modelMatrix[ 16 ];
-	GLdouble projMatrix[ 16 ];
-	GLint viewport[ 4 ];
-
-	getMatrices(modelMatrix, projMatrix, viewport);
-	int res = gluProject(objx, objy, objz, modelMatrix, projMatrix, viewport, &winx, &winy, &winz);
-
-	return (res == GL_FALSE) ? false : true;
-}
-
-#endif  // QWT3D_NOT_FOR_DOXYGEN
-
-}  // ns
-
-#endif  // QWT3D_OPENGLHELPER_H
-/*** End of inlined file: qwt3d_openglhelper.h ***/
-
 #include <QColor>
 
-namespace Qwt3D
-{
-
-const double PI = 3.14159265358979323846264338328;
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
  * @brief Plotting style enumeration
@@ -23813,7 +23977,7 @@ enum PLOTSTYLE
 	HIDDENLINE,  // Hidden Line style
 	FILLED,      // Color filled polygons w/o edges
 	FILLEDMESH,  // Color filled polygons w/ separately colored edges
-	POINTS,      // User defined style (used by Enrichments)
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
 	USER         // User defined style (used by Enrichments)
 };
 
@@ -23897,6 +24061,43 @@ enum SIDE
 	FLOOR      = 1 << 3,
 	FRONT      = 1 << 4,
 	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
 };
 
 /**
@@ -24127,7 +24328,7 @@ using Cell = std::vector< unsigned >;
 using CellField = std::vector< Cell >;
 
 // Returns the sum over the sizes of the single cells
-unsigned tesselationSize(Qwt3D::CellField const& t);
+unsigned tesselationSize(CellField const& t);
 
 /**
  * @brief Red-Green-Blue-Alpha value
@@ -24151,9 +24352,9 @@ using ColorVector = std::vector< RGBA >;
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
 // RGB -> QColor
-QWT3D_EXPORT QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b);
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 // QColor -> RGBA
-QWT3D_EXPORT Qwt3D::RGBA Qt2GL(QColor col);
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
 using DataRow    = std::vector< Vertex >;
@@ -24161,39 +24362,39 @@ using DataMatrix = std::vector< DataRow >;
 
 /**
  * @brief Abstract base class for plot data
- * @details Data provides the interface for different data representations
+ * @details Qwt3DData provides the interface for different data representations
  *          used by 3D plot widgets.
  */
-class Data
+class Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(Data)
+	QWT_DECLARE_PRIVATE(Qwt3DData)
 
 public:
-	Qwt3D::DATATYPE datatype;
-	Data();
-	virtual ~Data();
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
 	// Destroy content
 	virtual void clear() = 0;
 	// No data
 	virtual bool empty() const = 0;
-	void setHull(Qwt3D::ParallelEpiped const& h);
-	Qwt3D::ParallelEpiped const& hull() const;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
 };
 
 /**
  * @brief Implements a matrix of z-Values with limit access functions
- * @details GridData represents data on a rectangular grid topology,
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
  */
-class GridData : public Data
+class Qwt3DGridData : public Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(GridData)
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
 
 public:
-	GridData();
+	Qwt3DGridData();
 	// See setSize()
-	GridData(unsigned int columns, unsigned int rows);
-	~GridData() override;
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
 
 	int columns() const;
 	int rows() const;
@@ -24215,17 +24416,17 @@ public:
 
 /**
  * @brief Implements a graph-like cell structure with limit access functions
- * @details CellData represents data as a collection of convex polygon cells
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
  *          with associated node coordinates and normals.
  */
-class CellData : public Data
+class Qwt3DCellData : public Qwt3DData
 {
 public:
-	CellData()
+	Qwt3DCellData()
 	{
-		datatype = Qwt3D::POLYGON;
+		datatype = POLYGON;
 	}
-	~CellData()
+	~Qwt3DCellData()
 	{
 		clear();
 	}
@@ -24271,11 +24472,67 @@ inline double dotProduct(Triple const& u, Triple const& v)
 	return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple >& src);
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
 
-}  // ns
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
 
 #endif
 /*** End of inlined file: qwt3d_types.h ***/
@@ -24302,20 +24559,13 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple 
 
 #include <string>
 
-#if defined(Q_OS_WIN)
-#include <windows.h>
-#endif
-
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA 120
 #endif
 
 #include <QColor>
 
-namespace Qwt3D
-{
-
-const double PI = 3.14159265358979323846264338328;
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
  * @brief Plotting style enumeration
@@ -24327,7 +24577,7 @@ enum PLOTSTYLE
 	HIDDENLINE,  // Hidden Line style
 	FILLED,      // Color filled polygons w/o edges
 	FILLEDMESH,  // Color filled polygons w/ separately colored edges
-	POINTS,      // User defined style (used by Enrichments)
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
 	USER         // User defined style (used by Enrichments)
 };
 
@@ -24411,6 +24661,43 @@ enum SIDE
 	FLOOR      = 1 << 3,
 	FRONT      = 1 << 4,
 	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
 };
 
 /**
@@ -24641,7 +24928,7 @@ using Cell = std::vector< unsigned >;
 using CellField = std::vector< Cell >;
 
 // Returns the sum over the sizes of the single cells
-unsigned tesselationSize(Qwt3D::CellField const& t);
+unsigned tesselationSize(CellField const& t);
 
 /**
  * @brief Red-Green-Blue-Alpha value
@@ -24665,9 +24952,9 @@ using ColorVector = std::vector< RGBA >;
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
 // RGB -> QColor
-QWT3D_EXPORT QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b);
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 // QColor -> RGBA
-QWT3D_EXPORT Qwt3D::RGBA Qt2GL(QColor col);
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
 using DataRow    = std::vector< Vertex >;
@@ -24675,39 +24962,39 @@ using DataMatrix = std::vector< DataRow >;
 
 /**
  * @brief Abstract base class for plot data
- * @details Data provides the interface for different data representations
+ * @details Qwt3DData provides the interface for different data representations
  *          used by 3D plot widgets.
  */
-class Data
+class Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(Data)
+	QWT_DECLARE_PRIVATE(Qwt3DData)
 
 public:
-	Qwt3D::DATATYPE datatype;
-	Data();
-	virtual ~Data();
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
 	// Destroy content
 	virtual void clear() = 0;
 	// No data
 	virtual bool empty() const = 0;
-	void setHull(Qwt3D::ParallelEpiped const& h);
-	Qwt3D::ParallelEpiped const& hull() const;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
 };
 
 /**
  * @brief Implements a matrix of z-Values with limit access functions
- * @details GridData represents data on a rectangular grid topology,
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
  */
-class GridData : public Data
+class Qwt3DGridData : public Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(GridData)
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
 
 public:
-	GridData();
+	Qwt3DGridData();
 	// See setSize()
-	GridData(unsigned int columns, unsigned int rows);
-	~GridData() override;
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
 
 	int columns() const;
 	int rows() const;
@@ -24729,17 +25016,17 @@ public:
 
 /**
  * @brief Implements a graph-like cell structure with limit access functions
- * @details CellData represents data as a collection of convex polygon cells
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
  *          with associated node coordinates and normals.
  */
-class CellData : public Data
+class Qwt3DCellData : public Qwt3DData
 {
 public:
-	CellData()
+	Qwt3DCellData()
 	{
-		datatype = Qwt3D::POLYGON;
+		datatype = POLYGON;
 	}
-	~CellData()
+	~Qwt3DCellData()
 	{
 		clear();
 	}
@@ -24785,36 +25072,97 @@ inline double dotProduct(Triple const& u, Triple const& v)
 	return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple >& src);
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
 
-}  // ns
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
 
 #endif
 /*** End of inlined file: qwt3d_types.h ***/
-
-namespace Qwt3D
-{
 
 /**
  * @brief Abstract base class for color functors
  * @details Use your own color model by providing an implementation of
  *          operator()(double x, double y, double z). Colors destructor has been
  *          declared protected, in order to use only heap based objects. Plot3D
- *          will handle the objects destruction. See StandardColor for an example.
+ *          will handle the objects destruction. See Qwt3DStandardColor for an example.
+ *
+ * Qwt3DColor is a pure value object: it holds no back-pointer to its owner and
+ * never notifies anyone when its state mutates. The owning Qwt3DPlotItem is
+ * responsible for triggering a rebuild after an in-place mutation (see
+ * Qwt3DSurface::invalidateColors). The active z-range used for color
+ * normalization is pushed in by the owner via setActiveRange() before the
+ * functor is queried. This mirrors the 2D module, where QwtColorMap is a silent
+ * value object and QwtPlotSpectrogram::setColorMap() drives the notification.
  */
-class QWT3D_EXPORT Color
+class QWT3D_EXPORT Qwt3DColor
 {
 public:
 	// Implement your color model here
-	virtual Qwt3D::RGBA operator()(double x, double y, double z) const = 0;
-	virtual Qwt3D::RGBA operator()(Qwt3D::Triple const& t) const
+	virtual RGBA operator()(double x, double y, double z) const = 0;
+	virtual RGBA operator()(Triple const& t) const
 	{
 		return this->operator()(t.x, t.y, t.z);
 	}
-	// Should create a color vector usable by ColorLegend. The default implementation returns its argument
-	virtual Qwt3D::ColorVector& createVector(Qwt3D::ColorVector& vec)
+	// Should create a color vector usable by Qwt3DColorLegend. The default implementation returns its argument
+	virtual ColorVector& createVector(ColorVector& vec)
 	{
 		return vec;
 	}
@@ -24824,44 +25172,64 @@ public:
 		delete this;
 	}
 
+	/// Sets the active z-range used for color normalization (pushed by the owning Qwt3DPlotItem before VBO/legend build)
+	void setActiveRange(double zMin, double zMax)
+	{
+		m_zMin = zMin;
+		m_zMax = zMax;
+	}
+
 protected:
-	virtual ~Color()
+	virtual ~Qwt3DColor()
 	{
 	}
+
+	/// Lower bound of the active z-range (default 0.0)
+	double activeZMin() const { return m_zMin; }
+	/// Upper bound of the active z-range (default 1.0)
+	double activeZMax() const { return m_zMax; }
+
+private:
+	double m_zMin = 0.0;
+	double m_zMax = 1.0;
 };
 
-class Plot3D;
-
 /**
- * @brief Standard color model for Plot3D - implements the data driven operator()(double x, double y, double z)
+ * @brief Standard color model for Qwt3DPlot - implements the data driven operator()(double x, double y, double z)
  * @details The class has a ColorVector representing z values, which will be used by
  *          operator()(double x, double y, double z)
  */
-class QWT3D_EXPORT StandardColor : public Color
+class QWT3D_EXPORT Qwt3DStandardColor : public Qwt3DColor
 {
-	QWT_DECLARE_PRIVATE(StandardColor)
+	QWT_DECLARE_PRIVATE(Qwt3DStandardColor)
 
 public:
-	// Initializes with data and set up a ColorVector with a size of 100 z values (default)
-	explicit StandardColor(Qwt3D::Plot3D* data, unsigned size = 100);
-	~StandardColor() override;
+	// Initializes with a ColorVector of the given size sampled from the viridis colormap (default)
+	explicit Qwt3DStandardColor(unsigned size = 100);
+	~Qwt3DStandardColor() override;
 	// Receives z-dependent color from ColorVector
-	Qwt3D::RGBA operator()(double x, double y, double z) const override;
-	void setColorVector(Qwt3D::ColorVector const& cv);
+	RGBA operator()(double x, double y, double z) const override;
+	void setColorVector(ColorVector const& cv);
 	// Resets the standard colors
 	void reset(unsigned size = 100);
 	// Sets unitary alpha value for all colors
 	void setAlpha(double a);
-	// Creates color vector for ColorLegend - essentially a copy from the internal vector
-	Qwt3D::ColorVector& createVector(Qwt3D::ColorVector& vec) override;
+	// Creates color vector for Qwt3DColorLegend - essentially a copy from the internal vector
+	ColorVector& createVector(ColorVector& vec) override;
 
 	// Set colormap from a preset name (e.g. "viridis", "plasma", "jet")
 	void setPreset(const QString& presetName, unsigned size = 100);
+
+	// Returns the current preset name (empty if set via setColorVector)
+	QString presetName() const;
+	// Returns the number of colors in the color vector
+	unsigned colorCount() const;
+	// Returns the alpha value applied by the last setAlpha() call (default 1.0)
+	double alpha() const;
 };
 
-}  // ns
-
 #endif
+
 /*** End of inlined file: qwt3d_color.h ***/
 
 
@@ -24872,26 +25240,21 @@ public:
 class QwtColorMap;
 class QString;
 
-namespace Qwt3D
-{
-
-class Plot3D;
-
 /**
- * @brief Adapts a QwtColorMap (from qwt::core) for use as a Qwt3D::Color.
+ * @brief Adapts a QwtColorMap (from qwt::core) for use as a Qwt3DColor.
  * @details Bridges the 2D colormap infrastructure into the 3D color functor system.
  */
-class QWT3D_EXPORT ColorMapColor : public Color
+class QWT3D_EXPORT Qwt3DColorMapColor : public Qwt3DColor
 {
 public:
-	explicit ColorMapColor(Plot3D* plot, const QString& presetName = QString("viridis"), unsigned size = 256);
+	explicit Qwt3DColorMapColor(const QString& presetName = QString("viridis"), unsigned size = 256);
 
-	ColorMapColor(Plot3D* plot, ::QwtColorMap* colorMap, unsigned size = 256);
+	Qwt3DColorMapColor(::QwtColorMap* colorMap, unsigned size = 256);
 
-	~ColorMapColor() override;
+	~Qwt3DColorMapColor() override;
 
-	Qwt3D::RGBA operator()(double x, double y, double z) const override;
-	Qwt3D::ColorVector& createVector(Qwt3D::ColorVector& vec) override;
+	RGBA operator()(double x, double y, double z) const override;
+	ColorVector& createVector(ColorVector& vec) override;
 
 	void setColorMap(::QwtColorMap* map);
 	const ::QwtColorMap* colorMap() const;
@@ -24900,19 +25263,30 @@ public:
 	void reset(unsigned size = 256);
 	void setAlpha(double a);
 
+	// Returns the preset name passed to the constructor (empty if constructed from QwtColorMap*)
+	QString presetName() const;
+	// Returns the number of colors in the color vector
+	unsigned colorCount() const;
+	// Returns the alpha value (default 1.0)
+	double alpha() const;
+	// Returns true if a manual interval was set via setInterval()
+	bool useManualInterval() const;
+	// Returns the manual min value (only meaningful when useManualInterval() is true)
+	double manualMin() const;
+	// Returns the manual max value (only meaningful when useManualInterval() is true)
+	double manualMax() const;
+
 private:
 	void rebuildColorVector(unsigned size);
 
-	Plot3D* m_plot;
 	::QwtColorMap* m_colorMap;
 	ColorVector m_colors;
 	double m_manualMin;
 	double m_manualMax;
 	bool m_useManualInterval;
 	double m_alpha;
+	QString m_presetName;
 };
-
-}  // namespace Qwt3D
 
 #endif
 
@@ -24938,20 +25312,13 @@ private:
 
 #include <string>
 
-#if defined(Q_OS_WIN)
-#include <windows.h>
-#endif
-
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA 120
 #endif
 
 #include <QColor>
 
-namespace Qwt3D
-{
-
-const double PI = 3.14159265358979323846264338328;
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
  * @brief Plotting style enumeration
@@ -24963,7 +25330,7 @@ enum PLOTSTYLE
 	HIDDENLINE,  // Hidden Line style
 	FILLED,      // Color filled polygons w/o edges
 	FILLEDMESH,  // Color filled polygons w/ separately colored edges
-	POINTS,      // User defined style (used by Enrichments)
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
 	USER         // User defined style (used by Enrichments)
 };
 
@@ -25047,6 +25414,43 @@ enum SIDE
 	FLOOR      = 1 << 3,
 	FRONT      = 1 << 4,
 	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
 };
 
 /**
@@ -25277,7 +25681,7 @@ using Cell = std::vector< unsigned >;
 using CellField = std::vector< Cell >;
 
 // Returns the sum over the sizes of the single cells
-unsigned tesselationSize(Qwt3D::CellField const& t);
+unsigned tesselationSize(CellField const& t);
 
 /**
  * @brief Red-Green-Blue-Alpha value
@@ -25301,9 +25705,9 @@ using ColorVector = std::vector< RGBA >;
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
 // RGB -> QColor
-QWT3D_EXPORT QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b);
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 // QColor -> RGBA
-QWT3D_EXPORT Qwt3D::RGBA Qt2GL(QColor col);
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
 using DataRow    = std::vector< Vertex >;
@@ -25311,39 +25715,39 @@ using DataMatrix = std::vector< DataRow >;
 
 /**
  * @brief Abstract base class for plot data
- * @details Data provides the interface for different data representations
+ * @details Qwt3DData provides the interface for different data representations
  *          used by 3D plot widgets.
  */
-class Data
+class Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(Data)
+	QWT_DECLARE_PRIVATE(Qwt3DData)
 
 public:
-	Qwt3D::DATATYPE datatype;
-	Data();
-	virtual ~Data();
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
 	// Destroy content
 	virtual void clear() = 0;
 	// No data
 	virtual bool empty() const = 0;
-	void setHull(Qwt3D::ParallelEpiped const& h);
-	Qwt3D::ParallelEpiped const& hull() const;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
 };
 
 /**
  * @brief Implements a matrix of z-Values with limit access functions
- * @details GridData represents data on a rectangular grid topology,
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
  */
-class GridData : public Data
+class Qwt3DGridData : public Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(GridData)
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
 
 public:
-	GridData();
+	Qwt3DGridData();
 	// See setSize()
-	GridData(unsigned int columns, unsigned int rows);
-	~GridData() override;
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
 
 	int columns() const;
 	int rows() const;
@@ -25365,17 +25769,17 @@ public:
 
 /**
  * @brief Implements a graph-like cell structure with limit access functions
- * @details CellData represents data as a collection of convex polygon cells
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
  *          with associated node coordinates and normals.
  */
-class CellData : public Data
+class Qwt3DCellData : public Qwt3DData
 {
 public:
-	CellData()
+	Qwt3DCellData()
 	{
-		datatype = Qwt3D::POLYGON;
+		datatype = POLYGON;
 	}
-	~CellData()
+	~Qwt3DCellData()
 	{
 		clear();
 	}
@@ -25421,11 +25825,67 @@ inline double dotProduct(Triple const& u, Triple const& v)
 	return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple >& src);
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
 
-}  // ns
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
 
 #endif
 /*** End of inlined file: qwt3d_types.h ***/
@@ -25435,13 +25895,11 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple 
 
 class QwtColorMap;
 
-namespace Qwt3D
-{
-
-class Plot3D;
+class Qwt3DPlot;
+class Qwt3DPlotItem;
 
 /**
- * @brief Complete visual theme descriptor for Plot3D widgets.
+ * @brief Complete visual theme descriptor for Qwt3DPlot widgets.
  * @details Qwt3DTheme encapsulates all visual properties of a 3D plot:
  *          background color, mesh styling, data colormap, coordinate system colors,
  *          title styling, lighting preset, shading mode, plot style, and material
@@ -25496,7 +25954,7 @@ public:
 	bool smoothMesh() const;
 	void setSmoothMesh(bool);
 
-	// Data Color
+	// Qwt3DData Color
 	QString dataColorPreset() const;
 	void setDataColorPreset(const QString&);
 	QwtColorMap* createColorMap() const;
@@ -25510,6 +25968,12 @@ public:
 	void setLabelColor(RGBA);
 	RGBA gridLinesColor() const;
 	void setGridLinesColor(RGBA);
+	RGBA interiorGridLinesColor() const;
+	void setInteriorGridLinesColor(RGBA);
+	double interiorGridMajorWidth() const;
+	void setInteriorGridMajorWidth(double);
+	double interiorGridMinorWidth() const;
+	void setInteriorGridMinorWidth(double);
 
 	// Title
 	RGBA titleColor() const;
@@ -25540,9 +26004,11 @@ public:
 	void setSpecularIntensity(double);
 
 	// Apply to a plot
-	void apply(Plot3D* plot) const;
+	void apply(Qwt3DPlot* plot) const;
 
 private:
+	// Apply item-level properties to a single item
+	void applyToItem(Qwt3DPlotItem* item) const;
 	RGBA m_backgroundColor;
 	RGBA m_meshColor;
 	double m_meshLineWidth;
@@ -25552,6 +26018,9 @@ private:
 	RGBA m_numberColor;
 	RGBA m_labelColor;
 	RGBA m_gridLinesColor;
+	RGBA m_interiorGridLinesColor;
+	double m_interiorGridMajorWidth;
+	double m_interiorGridMinorWidth;
 	RGBA m_titleColor;
 	QString m_titleFontFamily;
 	int m_titleFontSize;
@@ -25562,8 +26031,6 @@ private:
 	double m_shininess;
 	double m_specularIntensity;
 };
-
-}  // namespace Qwt3D
 
 #endif
 
@@ -25579,9 +26046,6 @@ private:
 #ifndef QWT3D_AUTOPTR_H
 #define QWT3D_AUTOPTR_H
 
-namespace Qwt3D
-{
-
 /**
  * @brief Simple auto pointer providing deep copies for raw pointer
  * @details Requirements:\n
@@ -25593,27 +26057,27 @@ namespace Qwt3D
  *          argument in order to be able to get ownership and control over destruction.
  */
 template< typename T >
-class ClonePtr
+class Qwt3DClonePtr
 {
 public:
 	// Standard ctor
-	explicit ClonePtr(T* ptr = nullptr) : rawptr_(ptr)
+	explicit Qwt3DClonePtr(T* ptr = nullptr) : rawptr_(ptr)
 	{
 	}
 	// Dtor (calls T::destroy)
-	~ClonePtr()
+	~Qwt3DClonePtr()
 	{
 		destroyRawPtr();
 	}
 
 	// Copy ctor (calls (virtual) clone())
-	ClonePtr(ClonePtr const& val)
+	Qwt3DClonePtr(Qwt3DClonePtr const& val)
 	{
 		rawptr_ = val.rawptr_->clone();
 	}
 
 	// Assignment in the same spirit as copy ctor
-	ClonePtr< T >& operator=(ClonePtr const& val)
+	Qwt3DClonePtr< T >& operator=(Qwt3DClonePtr const& val)
 	{
 		if (this == &val)
 			return *this;
@@ -25646,9 +26110,8 @@ private:
 	}
 };
 
-}  // ns
-
 #endif  // QWT3D_AUTOPTR_H
+
 /*** End of inlined file: qwt3d_autoptr.h ***/
 
 
@@ -25668,6 +26131,11 @@ private:
 #define QWT3D_DRAWABLE_H
 
 
+/*** Start of inlined file: qwt3d_render_context.h ***/
+#ifndef QWT3D_RENDER_CONTEXT_H
+#define QWT3D_RENDER_CONTEXT_H
+
+
 /*** Start of inlined file: qwt3d_types.h ***/
 #if defined(_MSC_VER) /* MSVC Compiler */
 #pragma warning(disable : 4786)
@@ -25682,20 +26150,13 @@ private:
 
 #include <string>
 
-#if defined(Q_OS_WIN)
-#include <windows.h>
-#endif
-
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA 120
 #endif
 
 #include <QColor>
 
-namespace Qwt3D
-{
-
-const double PI = 3.14159265358979323846264338328;
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
  * @brief Plotting style enumeration
@@ -25707,7 +26168,7 @@ enum PLOTSTYLE
 	HIDDENLINE,  // Hidden Line style
 	FILLED,      // Color filled polygons w/o edges
 	FILLEDMESH,  // Color filled polygons w/ separately colored edges
-	POINTS,      // User defined style (used by Enrichments)
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
 	USER         // User defined style (used by Enrichments)
 };
 
@@ -25791,6 +26252,43 @@ enum SIDE
 	FLOOR      = 1 << 3,
 	FRONT      = 1 << 4,
 	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
 };
 
 /**
@@ -26021,7 +26519,7 @@ using Cell = std::vector< unsigned >;
 using CellField = std::vector< Cell >;
 
 // Returns the sum over the sizes of the single cells
-unsigned tesselationSize(Qwt3D::CellField const& t);
+unsigned tesselationSize(CellField const& t);
 
 /**
  * @brief Red-Green-Blue-Alpha value
@@ -26045,9 +26543,9 @@ using ColorVector = std::vector< RGBA >;
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
 // RGB -> QColor
-QWT3D_EXPORT QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b);
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 // QColor -> RGBA
-QWT3D_EXPORT Qwt3D::RGBA Qt2GL(QColor col);
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
 using DataRow    = std::vector< Vertex >;
@@ -26055,39 +26553,39 @@ using DataMatrix = std::vector< DataRow >;
 
 /**
  * @brief Abstract base class for plot data
- * @details Data provides the interface for different data representations
+ * @details Qwt3DData provides the interface for different data representations
  *          used by 3D plot widgets.
  */
-class Data
+class Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(Data)
+	QWT_DECLARE_PRIVATE(Qwt3DData)
 
 public:
-	Qwt3D::DATATYPE datatype;
-	Data();
-	virtual ~Data();
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
 	// Destroy content
 	virtual void clear() = 0;
 	// No data
 	virtual bool empty() const = 0;
-	void setHull(Qwt3D::ParallelEpiped const& h);
-	Qwt3D::ParallelEpiped const& hull() const;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
 };
 
 /**
  * @brief Implements a matrix of z-Values with limit access functions
- * @details GridData represents data on a rectangular grid topology,
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
  */
-class GridData : public Data
+class Qwt3DGridData : public Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(GridData)
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
 
 public:
-	GridData();
+	Qwt3DGridData();
 	// See setSize()
-	GridData(unsigned int columns, unsigned int rows);
-	~GridData() override;
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
 
 	int columns() const;
 	int rows() const;
@@ -26109,17 +26607,17 @@ public:
 
 /**
  * @brief Implements a graph-like cell structure with limit access functions
- * @details CellData represents data as a collection of convex polygon cells
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
  *          with associated node coordinates and normals.
  */
-class CellData : public Data
+class Qwt3DCellData : public Qwt3DData
 {
 public:
-	CellData()
+	Qwt3DCellData()
 	{
-		datatype = Qwt3D::POLYGON;
+		datatype = POLYGON;
 	}
-	~CellData()
+	~Qwt3DCellData()
 	{
 		clear();
 	}
@@ -26165,14 +26663,761 @@ inline double dotProduct(Triple const& u, Triple const& v)
 	return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple >& src);
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
 
-}  // ns
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
 
 #endif
 /*** End of inlined file: qwt3d_types.h ***/
+
+#include <QMatrix4x4>
+#include <QOpenGLShaderProgram>
+#include <QPointF>
+#include <QSize>
+
+/**
+ * @brief Bundles all widget resources that drawables need during rendering
+ * @details A value struct constructed per-call-site in Qwt3DPlot::paintGL()
+ *          with the matrices, viewport, and shared shader programs current
+ *          at that moment. Passed by const reference down the drawable draw
+ *          chain, replacing the former Qwt3DPlot* back-pointer baked into
+ *          Qwt3DDrawable (deferred smell #1, resolved).
+ *
+ * The coordinate-conversion methods (worldToScreen, screenToWorld,
+ * relativePosition) are pure CPU math over the stored matrices and viewport
+ * — no OpenGL calls — so the context is self-contained and copyable.
+ *
+ * @code
+ * // Constructed in paintGL() per draw phase:
+ * Qwt3DRenderContext ctx;
+ * ctx.modelView = d->m_modelView;
+ * ctx.projection = d->m_projection;
+ * ctx.viewport = viewportSize();
+ * ctx.lineShader = d->m_lineShader;
+ * ctx.polygonShader = d->m_polygonShader;
+ * ctx.textShader = d->m_textShader;
+ *
+ * d->m_coordinates.draw(ctx);
+ * @endcode
+ */
+struct QWT3D_EXPORT Qwt3DRenderContext
+{
+	// Matrices — current at time of construction (per-call-site in paintGL)
+	QMatrix4x4 modelView;
+	QMatrix4x4 projection;
+
+	// Viewport in pixels (already resolved from widget size fallback)
+	QSize viewport;
+
+	// Shared shader programs (non-owning pointers, valid during paintGL)
+	QOpenGLShaderProgram* lineShader = nullptr;
+	QOpenGLShaderProgram* polygonShader = nullptr;
+	QOpenGLShaderProgram* textShader = nullptr;
+
+	// Projects a world-space point to screen (viewport) pixel coordinates
+	QPointF worldToScreen(const Triple& world) const;
+
+	// Unprojects a screen (viewport) pixel point to world-space coordinates
+	Triple screenToWorld(const QPointF& screen) const;
+
+	// Converts a relative viewport position [0..1] to world coordinates
+	Triple relativePosition(Triple rel) const;
+};
+
+#endif
+
+/*** End of inlined file: qwt3d_render_context.h ***/
+
+
+/*** Start of inlined file: qwt3d_types.h ***/
+#if defined(_MSC_VER) /* MSVC Compiler */
+#pragma warning(disable : 4786)
+#endif
+
+#ifndef QWT3D_TYPES_H
+#define QWT3D_TYPES_H
+
+#ifdef _DEBUG
+#include <fstream>
+#endif
+
+#include <string>
+
+#ifndef WHEEL_DELTA
+#define WHEEL_DELTA 120
+#endif
+
+#include <QColor>
+
+const double Qwt3D_PI = 3.14159265358979323846264338328;
+
+/**
+ * @brief Plotting style enumeration
+ */
+enum PLOTSTYLE
+{
+	NOPLOT,      // No visible data
+	WIREFRAME,   // Wireframe style
+	HIDDENLINE,  // Hidden Line style
+	FILLED,      // Color filled polygons w/o edges
+	FILLEDMESH,  // Color filled polygons w/ separately colored edges
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
+	USER         // User defined style (used by Enrichments)
+};
+
+/**
+ * @brief Shading style enumeration
+ */
+enum SHADINGSTYLE
+{
+	FLAT,    // Flat shading (OpenGL)
+	GOURAUD  // Gouraud Shading (OpenGL)
+};
+
+/**
+ * @brief Style of coordinate system enumeration
+ */
+enum COORDSTYLE
+{
+	NOCOORD,  // Coordinate system is not visible
+	BOX,      // Boxed
+	FRAME     // Frame - 3 visible axes
+};
+
+/**
+ * @brief Different types of axis scales
+ */
+enum SCALETYPE
+{
+	LINEARSCALE,  // Linear scaling
+	LOG10SCALE,   // Logarithmic scaling (base 10)
+	USERSCALE     // User-defined (for extensions)
+};
+
+/**
+ * @brief Plotting style for floor data (projections)
+ */
+enum FLOORSTYLE
+{
+	NOFLOOR,   // Empty floor
+	FLOORISO,  // Isoline projections visible
+	FLOORDATA  // Projected polygons visible
+};
+
+/**
+ * @brief Mesh type enumeration
+ */
+enum DATATYPE
+{
+	GRID,    // Rectangular grid
+	POLYGON  // Convex polygon
+};
+
+/**
+ * @brief The 12 axes
+ * @image html axes.png
+ */
+enum AXIS
+{
+	X1 = 0,   // 1st x-axis
+	X2 = 3,   // 2nd x-axis
+	X3 = 4,   // 3rd x-axis
+	X4 = 5,   // 4th x-axis
+	Y1 = 1,   // 1st y-axis
+	Y2 = 8,   // 2nd y-axis
+	Y3 = 7,   // 3rd y-axis
+	Y4 = 6,   // 4th y-axis
+	Z1 = 2,   // 1st z-axis
+	Z2 = 9,   // 2nd z-axis
+	Z3 = 11,  // 3rd z-axis
+	Z4 = 10   // 4th z-axis
+};
+
+/**
+ * @brief The 6 sides of a plot box
+ */
+enum SIDE
+{
+	NOSIDEGRID = 0,
+	LEFT       = 1 << 0,
+	RIGHT      = 1 << 1,
+	CEIL       = 1 << 2,
+	FLOOR      = 1 << 3,
+	FRONT      = 1 << 4,
+	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
+};
+
+/**
+ * @brief Possible anchor points for drawing operations
+ */
+enum ANCHOR
+{
+	BottomLeft,
+	BottomRight,
+	BottomCenter,
+	TopLeft,
+	TopRight,
+	TopCenter,
+	CenterLeft,
+	CenterRight,
+	Center
+};
+
+/**
+ * @brief Tuple [x,y]
+ * @details A 2D point/vector represented by x and y coordinates.
+ */
+struct QWT3D_EXPORT Tuple
+{
+	// Calls Tuple(0,0)
+	Tuple() : x(0), y(0)
+	{
+	}
+	// Initialize Tuple with x and y
+	Tuple(double X, double Y) : x(X), y(Y)
+	{
+	}
+	// Tuple coordinates
+	double x, y;
+};
+
+/**
+ * @brief Triple [x,y,z]
+ * @details Consider Triples also as vectors in R^3. Provides basic vector operations
+ *          including addition, subtraction, scaling, normalization, and length calculation.
+ */
+struct QWT3D_EXPORT Triple
+{
+	// Initialize Triple with x,y and z
+	explicit Triple(double xv = 0, double yv = 0, double zv = 0) : x(xv), y(yv), z(zv)
+	{
+	}
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+#ifdef Q_OS_IRIX
+	Triple(const Triple& val)
+	{
+		if (&val == this)
+			return;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+	}
+	const Triple& operator=(const Triple& val)
+	{
+		if (&val == this)
+			return *this;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+		return *this;
+	}
+#endif
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+	// Triple coordinates
+	double x, y, z;
+
+	Triple& operator+=(Triple t)
+	{
+		x += t.x;
+		y += t.y;
+		z += t.z;
+
+		return *this;
+	}
+
+	Triple& operator-=(Triple t)
+	{
+		x -= t.x;
+		y -= t.y;
+		z -= t.z;
+
+		return *this;
+	}
+	Triple& operator*=(double d)
+	{
+		x *= d;
+		y *= d;
+		z *= d;
+
+		return *this;
+	}
+	Triple& operator/=(double d)
+	{
+		x /= d;
+		y /= d;
+		z /= d;
+
+		return *this;
+	}
+	Triple& operator*=(Triple t)  // scale
+	{
+		x *= t.x;
+		y *= t.y;
+		z *= t.z;
+
+		return *this;
+	}
+
+	bool operator!=(Triple t) const
+	{
+		return !isPracticallyZero(x, t.x) || !isPracticallyZero(y, t.y) || !isPracticallyZero(z, t.z);
+	}
+
+	bool operator==(Triple t) const
+	{
+		return !operator!=(t);
+	}
+
+	double length() const
+	{
+		double l2 = x * x + y * y + z * z;
+		return (isPracticallyZero(l2)) ? 0 : sqrt(l2);
+	}
+
+	void normalize()
+	{
+		double l = length();
+		if (l)
+			*this /= l;
+	}
+};
+
+inline const Triple operator+(const Triple& t, const Triple& t2)
+{
+	return Triple(t) += t2;
+}
+inline const Triple operator-(const Triple& t, const Triple& t2)
+{
+	return Triple(t) -= t2;
+}
+inline const Triple operator*(double d, const Triple& t)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator*(const Triple& t, double d)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator/(double d, const Triple& t)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator/(const Triple& t, double d)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator*(const Triple& t, const Triple& t2)
+{
+	return Triple(t) *= t2;
+}
+
+/**
+ * @brief Parallelepiped spanned by 2 Triples
+ * @details Please use normalized Parallelepipeds:
+ *          minVertex.x <= maxVertex.x, minVertex.y <= maxVertex.y,
+ *          minVertex.z <= maxVertex.z
+ */
+struct QWT3D_EXPORT ParallelEpiped
+{
+	// Construct non-initialized Parallelepiped
+	ParallelEpiped()
+	{
+	}
+
+	// Construct initialized Parallelepiped: minv -> minVertex, maxv -> maxVertex
+	ParallelEpiped(Triple minv, Triple maxv) : minVertex(minv), maxVertex(maxv)
+	{
+	}
+
+	Triple minVertex;
+	Triple maxVertex;
+};
+
+/**
+ * @brief Free vector
+ * @details FreeVectors represent objects like normal vectors and other vector fields inside R^3.
+ */
+struct QWT3D_EXPORT FreeVector
+{
+	FreeVector()
+	{
+	}
+
+	// Construct initialized vector: b -> base, e -> top
+	FreeVector(Triple b, Triple t) : base(b), top(t)
+	{
+	}
+
+	Triple base;
+	Triple top;
+};
+
+/**
+ * @brief A free vector field in R^3
+ */
+using FreeVectorField = std::vector< FreeVector >;
+
+/**
+ * @brief A point field in R^3
+ */
+using TripleField = std::vector< Triple >;
+
+/**
+ * @brief Holds indices in a TripleField interpreted as counterclockwise node numbering for a convex polygon
+ */
+using Cell = std::vector< unsigned >;
+
+/**
+ * @brief Vector of convex polygons. You need a TripleField as base for the node data
+ */
+using CellField = std::vector< Cell >;
+
+// Returns the sum over the sizes of the single cells
+unsigned tesselationSize(CellField const& t);
+
+/**
+ * @brief Red-Green-Blue-Alpha value
+ */
+struct QWT3D_EXPORT RGBA
+{
+	RGBA() : r(0), g(0), b(0), a(1)
+	{
+	}
+	RGBA(double rr, double gg, double bb, double aa = 1) : r(rr), g(gg), b(bb), a(aa)
+	{
+	}
+	double r, g, b, a;
+};
+
+/**
+ * @brief A Color field
+ */
+using ColorVector = std::vector< RGBA >;
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+
+// RGB -> QColor
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
+// QColor -> RGBA
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
+
+using Vertex     = double*;
+using DataRow    = std::vector< Vertex >;
+using DataMatrix = std::vector< DataRow >;
+
+/**
+ * @brief Abstract base class for plot data
+ * @details Qwt3DData provides the interface for different data representations
+ *          used by 3D plot widgets.
+ */
+class Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DData)
+
+public:
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
+	// Destroy content
+	virtual void clear() = 0;
+	// No data
+	virtual bool empty() const = 0;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
+};
+
+/**
+ * @brief Implements a matrix of z-Values with limit access functions
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
+ *          providing z-values organized in a matrix with associated normals.
+ */
+class Qwt3DGridData : public Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
+
+public:
+	Qwt3DGridData();
+	// See setSize()
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
+
+	int columns() const;
+	int rows() const;
+
+	// Destroy content
+	void clear();
+	bool empty() const;
+	// Destroys content and set new size, elements are uninitialized
+	void setSize(unsigned int columns, unsigned int rows);
+
+	// Mesh vertices
+	DataMatrix vertices;
+	// Mesh normals
+	DataMatrix normals;
+	void setPeriodic(bool u, bool v);
+	bool uperiodic() const;
+	bool vperiodic() const;
+};
+
+/**
+ * @brief Implements a graph-like cell structure with limit access functions
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
+ *          with associated node coordinates and normals.
+ */
+class Qwt3DCellData : public Qwt3DData
+{
+public:
+	Qwt3DCellData()
+	{
+		datatype = POLYGON;
+	}
+	~Qwt3DCellData()
+	{
+		clear();
+	}
+
+	// Destroy content
+	void clear();
+	bool empty() const
+	{
+		return cells.empty();
+	}
+
+	Triple const& operator()(unsigned cellnumber, unsigned vertexnumber);
+
+	// Polygon/cell mesh
+	CellField cells;
+	TripleField nodes;
+	// Mesh normals
+	TripleField normals;
+};
+
+inline Triple normalizedcross(Triple const& u, Triple const& v)
+{
+	Triple n;
+
+	/* compute the cross product (u x v for right-handed [ccw]) */
+	n.x = u.y * v.z - u.z * v.y;
+	n.y = u.z * v.x - u.x * v.z;
+	n.z = u.x * v.y - u.y * v.x;
+
+	/* normalize */
+	double l = n.length();
+	if (l) {
+		n /= l;
+	} else {
+		n = Triple(0, 0, 0);
+	}
+
+	return n;
+}
+
+inline double dotProduct(Triple const& u, Triple const& v)
+{
+	return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
+
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
+
+#endif
+/*** End of inlined file: qwt3d_types.h ***/
+
+/**
+ * @brief Abstract base class for Drawables
+ * @details Drawables are scene-graph nodes rendered during paintGL.
+ *          They no longer manage legacy GL state. Each drawable receives
+ *          its rendering resources (shaders, matrices, viewport, coordinate
+ *          conversion) through a Qwt3DRenderContext passed to draw(),
+ *          eliminating the former Qwt3DPlot* back-pointer (deferred smell #1,
+ *          resolved).
+ */
+class QWT3D_EXPORT Qwt3DDrawable
+{
+	QWT_DECLARE_PRIVATE(Qwt3DDrawable)
+
+public:
+	virtual ~Qwt3DDrawable() = 0;
+
+	// Draws the drawable and all attached children
+	virtual void draw(const Qwt3DRenderContext& ctx);
+
+	void attach(Qwt3DDrawable*);
+	void detach(Qwt3DDrawable*);
+	void detachAll();
+
+	virtual void setColor(double r, double g, double b, double a = 1);
+	virtual void setColor(RGBA rgba);
+	/// Returns the drawable's color
+	RGBA color() const;
+
+protected:
+	RGBA m_color;
+
+	Qwt3DDrawable();
+	Qwt3DDrawable(Qwt3DDrawable&& other) noexcept;
+	Qwt3DDrawable& operator=(Qwt3DDrawable&& other) noexcept;
+};
+
+#endif
+
+/*** End of inlined file: qwt3d_drawable.h ***/
 
 
 /*** Start of inlined file: qwt3d_io_gl2ps.h ***/
@@ -26196,20 +27441,13 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple 
 
 #include <string>
 
-#if defined(Q_OS_WIN)
-#include <windows.h>
-#endif
-
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA 120
 #endif
 
 #include <QColor>
 
-namespace Qwt3D
-{
-
-const double PI = 3.14159265358979323846264338328;
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
  * @brief Plotting style enumeration
@@ -26221,7 +27459,7 @@ enum PLOTSTYLE
 	HIDDENLINE,  // Hidden Line style
 	FILLED,      // Color filled polygons w/o edges
 	FILLEDMESH,  // Color filled polygons w/ separately colored edges
-	POINTS,      // User defined style (used by Enrichments)
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
 	USER         // User defined style (used by Enrichments)
 };
 
@@ -26305,6 +27543,43 @@ enum SIDE
 	FLOOR      = 1 << 3,
 	FRONT      = 1 << 4,
 	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
 };
 
 /**
@@ -26535,7 +27810,7 @@ using Cell = std::vector< unsigned >;
 using CellField = std::vector< Cell >;
 
 // Returns the sum over the sizes of the single cells
-unsigned tesselationSize(Qwt3D::CellField const& t);
+unsigned tesselationSize(CellField const& t);
 
 /**
  * @brief Red-Green-Blue-Alpha value
@@ -26559,9 +27834,9 @@ using ColorVector = std::vector< RGBA >;
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
 // RGB -> QColor
-QWT3D_EXPORT QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b);
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 // QColor -> RGBA
-QWT3D_EXPORT Qwt3D::RGBA Qt2GL(QColor col);
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
 using DataRow    = std::vector< Vertex >;
@@ -26569,39 +27844,39 @@ using DataMatrix = std::vector< DataRow >;
 
 /**
  * @brief Abstract base class for plot data
- * @details Data provides the interface for different data representations
+ * @details Qwt3DData provides the interface for different data representations
  *          used by 3D plot widgets.
  */
-class Data
+class Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(Data)
+	QWT_DECLARE_PRIVATE(Qwt3DData)
 
 public:
-	Qwt3D::DATATYPE datatype;
-	Data();
-	virtual ~Data();
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
 	// Destroy content
 	virtual void clear() = 0;
 	// No data
 	virtual bool empty() const = 0;
-	void setHull(Qwt3D::ParallelEpiped const& h);
-	Qwt3D::ParallelEpiped const& hull() const;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
 };
 
 /**
  * @brief Implements a matrix of z-Values with limit access functions
- * @details GridData represents data on a rectangular grid topology,
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
  */
-class GridData : public Data
+class Qwt3DGridData : public Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(GridData)
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
 
 public:
-	GridData();
+	Qwt3DGridData();
 	// See setSize()
-	GridData(unsigned int columns, unsigned int rows);
-	~GridData() override;
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
 
 	int columns() const;
 	int rows() const;
@@ -26623,17 +27898,17 @@ public:
 
 /**
  * @brief Implements a graph-like cell structure with limit access functions
- * @details CellData represents data as a collection of convex polygon cells
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
  *          with associated node coordinates and normals.
  */
-class CellData : public Data
+class Qwt3DCellData : public Qwt3DData
 {
 public:
-	CellData()
+	Qwt3DCellData()
 	{
-		datatype = Qwt3D::POLYGON;
+		datatype = POLYGON;
 	}
-	~CellData()
+	~Qwt3DCellData()
 	{
 		clear();
 	}
@@ -26679,11 +27954,67 @@ inline double dotProduct(Triple const& u, Triple const& v)
 	return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple >& src);
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
 
-}  // ns
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
 
 #endif
 /*** End of inlined file: qwt3d_types.h ***/
@@ -26699,29 +28030,26 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple 
 #include <qstring.h>
 #include <qstringlist.h>
 
-namespace Qwt3D
-{
-
-class Plot3D;
+class Qwt3DPlot;
 
 /**
  * @brief Generic interface for standard and user written I/O handlers
- * @details IO provides a generic interface for standard and user written I/O handlers.
+ * @details Qwt3DIO provides a generic interface for standard and user written I/O handlers.
  *          It also provides functionality for the registering of such handlers in the
  *          framework. The interface mimics roughly Qt's QImageIO functions for defining
  *          image input/output functions.
  */
-class QWT3D_EXPORT IO
+class QWT3D_EXPORT Qwt3DIO
 {
 
 public:
 	// The function type that can be processed by the define... members
-	using Function = bool (*)(Plot3D*, QString const& fname);
+	using Function = bool (*)(Qwt3DPlot*, QString const& fname);
 
 	/**
 	 * @brief Functor class for more flexible IO handler implementation
 	 * @details This class gives more flexibility in implementing userdefined IO handlers
-	 *          than the simple IO::Function type.
+	 *          than the simple Qwt3DIO::Function type.
 	 */
 	class Functor
 	{
@@ -26732,7 +28060,7 @@ public:
 		// Must clone the content of *this for an object of a derived class
 		virtual Functor* clone() const = 0;
 		// The workhorse of the user-defined implementation
-		virtual bool operator()(Plot3D* plot, QString const& fname) = 0;
+		virtual bool operator()(Qwt3DPlot* plot, QString const& fname) = 0;
 	};
 
 	// Define an input handler for a format with a function
@@ -26744,9 +28072,9 @@ public:
 	// Define an output handler for a format with a functor
 	static bool defineOutputHandler(QString const& format, Functor const& func);
 	// Save plot to file in specified format
-	static bool save(Plot3D*, QString const& fname, QString const& format);
+	static bool save(Qwt3DPlot*, QString const& fname, QString const& format);
 	// Load plot from file in specified format
-	static bool load(Plot3D*, QString const& fname, QString const& format);
+	static bool load(Qwt3DPlot*, QString const& fname, QString const& format);
 	// Returns list of available input formats
 	static QStringList inputFormatList();
 	// Returns list of available output formats
@@ -26757,11 +28085,11 @@ public:
 	static Functor* inputHandler(QString const& format);
 
 private:
-	IO()
+	Qwt3DIO()
 	{
 	}
 
-	// Lightweight Functor encapsulating an IO::Function
+	// Lightweight Functor encapsulating a Qwt3DIO::Function
 	class Wrapper : public Functor
 	{
 	public:
@@ -26775,7 +28103,7 @@ private:
 		{
 		}
 		// Returns a pointer to the wrapped function
-		bool operator()(Plot3D* plot, QString const& fname) override
+		bool operator()(Qwt3DPlot* plot, QString const& fname) override
 		{
 			return (hdl) ? (*hdl)(plot, fname) : false;
 		}
@@ -26828,40 +28156,43 @@ private:
 /**
  * @brief Provides Qt's Pixmap output facilities
  */
-class QWT3D_EXPORT PixmapWriter : public IO::Functor
+class QWT3D_EXPORT Qwt3DPixmapWriter : public Qwt3DIO::Functor
 {
-	friend class IO;
-	QWT_DECLARE_PRIVATE(PixmapWriter)
+	friend class Qwt3DIO;
+	QWT_DECLARE_PRIVATE(Qwt3DPixmapWriter)
 
 public:
-	PixmapWriter();
-	~PixmapWriter() override;
+	Qwt3DPixmapWriter();
+	~Qwt3DPixmapWriter() override;
 
 	// Set output quality
 	void setQuality(int val);
 
 private:
-	IO::Functor* clone() const override;
-	bool operator()(Plot3D* plot, QString const& fname) override;
+	Qwt3DIO::Functor* clone() const override;
+	bool operator()(Qwt3DPlot* plot, QString const& fname) override;
 };
 
-}  // ns
-
 #endif
+
 /*** End of inlined file: qwt3d_io.h ***/
 
-namespace Qwt3D
-{
+#ifdef QWT3D_ENABLE_GL2PS
 
 /**
  * @brief Provides EPS, PS, PDF, SVG, PGF and TeX output
- * @details VectorWriter provides vector graphics output through the gl2ps library,
+ * @details Qwt3DVectorWriter provides vector graphics output through the gl2ps library,
  *          supporting EPS, PS, PDF, SVG, PGF and TeX formats.
+ *
+ * @note gl2ps relies on the Compatibility Profile GL state. In the modernized
+ *       Core Profile renderer, vector export may not reflect the correct
+ *       transformation. This is a known limitation; full modernization requires
+ *       generating vector output from VBO vertex data directly.
  */
-class QWT3D_EXPORT VectorWriter : public IO::Functor
+class QWT3D_EXPORT Qwt3DVectorWriter : public Qwt3DIO::Functor
 {
-	friend class IO;
-	QWT_DECLARE_PRIVATE(VectorWriter)
+	friend class Qwt3DIO;
+	QWT_DECLARE_PRIVATE(Qwt3DVectorWriter)
 
 public:
 	// The possible output formats for the text parts of the scene
@@ -26888,8 +28219,8 @@ public:
 		BSPSORT
 	};
 
-	VectorWriter();
-	~VectorWriter() override;
+	Qwt3DVectorWriter();
+	~Qwt3DVectorWriter() override;
 
 	// Sets landscape mode
 	void setLandscape(LANDSCAPEMODE val);
@@ -26912,94 +28243,46 @@ public:
 	bool setFormat(QString const& format);
 
 private:
-	IO::Functor* clone() const override;
-	bool operator()(Plot3D* plot, QString const& fname) override;
+	Qwt3DIO::Functor* clone() const override;
+	bool operator()(Qwt3DPlot* plot, QString const& fname) override;
 };
 
-GLint setDeviceLineWidth(GLfloat val);
-GLint setDevicePointSize(GLfloat val);
-GLint drawDevicePixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels);
-GLint drawDeviceText(const char* str,
-					 const char* fontname,
-					 int fontsize,
-					 Qwt3D::Triple pos,
-					 Qwt3D::RGBA rgba,
-					 Qwt3D::ANCHOR align,
-					 double gap);
-void setDevicePolygonOffset(GLfloat factor, GLfloat units);
+int setDeviceLineWidth(float val);
+int setDevicePointSize(float val);
+int drawDevicePixels(int width, int height, unsigned int format, unsigned int type, const void* pixels);
+int drawDeviceText(const char* str,
+				   const char* fontname,
+				   int fontsize,
+				   Triple pos,
+				   RGBA rgba,
+				   ANCHOR align,
+				   double gap);
+void setDevicePolygonOffset(float factor, float units);
 
-}  // ns
+#endif // QWT3D_ENABLE_GL2PS
 
 #endif  // QWT3D_IO_GL2PS_H
+
 /*** End of inlined file: qwt3d_io_gl2ps.h ***/
-
-namespace Qwt3D
-{
-
-/**
- * @brief Abstract base class for Drawables
- */
-class QWT3D_EXPORT Drawable
-{
-	QWT_DECLARE_PRIVATE(Drawable)
-
-public:
-	virtual ~Drawable() = 0;
-
-	virtual void draw();
-
-	virtual void saveGLState();
-	virtual void restoreGLState();
-
-	void attach(Drawable*);
-	void detach(Drawable*);
-	void detachAll();
-
-	virtual void setColor(double r, double g, double b, double a = 1);
-	virtual void setColor(Qwt3D::RGBA rgba);
-	Qwt3D::Triple relativePosition(Qwt3D::Triple rel);
-
-protected:
-	Qwt3D::RGBA color;
-	void Enable(GLenum what, GLboolean val);
-	Qwt3D::Triple ViewPort2World(Qwt3D::Triple win, bool* err = nullptr);
-	Qwt3D::Triple World2ViewPort(Qwt3D::Triple obj, bool* err = nullptr);
-
-	Drawable();
-	Drawable(Drawable&& other) noexcept;
-	Drawable& operator=(Drawable&& other) noexcept;
-
-	GLdouble modelMatrix[ 16 ];
-	GLdouble projMatrix[ 16 ];
-	GLint viewport[ 4 ];
-};
-
-}  // ns
-
-#endif
-/*** End of inlined file: qwt3d_drawable.h ***/
-
-namespace Qwt3D
-{
 
 /**
  * @brief A Qt string or an output device dependent string
- * @details Label provides text rendering on 3D plots, supporting both Qt string
+ * @details Qwt3DLabel provides text rendering on 3D plots, supporting both Qt string
  *          representation and device-dependent string output.
  */
-class QWT3D_EXPORT Label : public Drawable
+class QWT3D_EXPORT Qwt3DLabel : public Qwt3DDrawable
 {
-	QWT_DECLARE_PRIVATE(Label)
+	QWT_DECLARE_PRIVATE(Qwt3DLabel)
 
 public:
-	Label();
-	~Label() override;
-	Label(const Label& other);
-	Label(Label&& other) noexcept;
-	Label& operator=(const Label& other);
-	Label& operator=(Label&& other) noexcept;
+	Qwt3DLabel();
+	~Qwt3DLabel() override;
+	Qwt3DLabel(const Qwt3DLabel& other);
+	Qwt3DLabel(Qwt3DLabel&& other) noexcept;
+	Qwt3DLabel& operator=(const Qwt3DLabel& other);
+	Qwt3DLabel& operator=(Qwt3DLabel&& other) noexcept;
 	// Construct label and initialize with font
-	Label(const QString& family, int pointSize, int weight = QFont::Normal, bool italic = false);
+	Qwt3DLabel(const QString& family, int pointSize, int weight = QFont::Normal, bool italic = false);
 
 	// Sets the labels font
 	void setFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
@@ -27009,22 +28292,24 @@ public:
 	// Returns the gap caused by adjust()
 	double gap() const;
 	// Sets the labels position
-	void setPosition(Qwt3D::Triple pos, ANCHOR a = BottomLeft);
+	void setPosition(Triple pos, ANCHOR a = BottomLeft);
 	// Sets the labels position relative to screen
-	void setRelPosition(Tuple rpos, ANCHOR a);
+	void setRelPosition(Tuple rpos, ANCHOR a, const Qwt3DRenderContext& ctx);
 	// Receives bottom left label position
-	Qwt3D::Triple first() const;
+	Triple first() const;
 	// Receives top right label position
-	Qwt3D::Triple second() const;
+	Triple second() const;
 	// Defines an anchor point for the labels surrounding rectangle
 	ANCHOR anchor() const;
 	virtual void setColor(double r, double g, double b, double a = 1) override;
-	virtual void setColor(Qwt3D::RGBA rgba) override;
+	virtual void setColor(RGBA rgba) override;
 
 	// Sets the labels string
 	void setString(QString const& s);
+	// Returns the labels string
+	QString string() const;
 	// Actual drawing
-	virtual void draw() override;
+	void draw(const Qwt3DRenderContext& ctx) override;
 
 	// Decides about use of PDF standard fonts for PDF output
 	static void useDeviceFonts(bool val);
@@ -27033,14 +28318,13 @@ private:
 	void init();
 	void init(const QString& family, int pointSize, int weight = QFont::Normal, bool italic = false);
 	void update();
-	void convert2screen();
+	void convert2screen(const Qwt3DRenderContext& ctx);
 	double width() const;
 	double height() const;
 };
 
-}  // ns
-
 #endif  // QWT3D_LABEL_H
+
 /*** End of inlined file: qwt3d_label.h ***/
 
 
@@ -27065,20 +28349,13 @@ private:
 
 #include <string>
 
-#if defined(Q_OS_WIN)
-#include <windows.h>
-#endif
-
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA 120
 #endif
 
 #include <QColor>
 
-namespace Qwt3D
-{
-
-const double PI = 3.14159265358979323846264338328;
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
  * @brief Plotting style enumeration
@@ -27090,7 +28367,7 @@ enum PLOTSTYLE
 	HIDDENLINE,  // Hidden Line style
 	FILLED,      // Color filled polygons w/o edges
 	FILLEDMESH,  // Color filled polygons w/ separately colored edges
-	POINTS,      // User defined style (used by Enrichments)
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
 	USER         // User defined style (used by Enrichments)
 };
 
@@ -27174,6 +28451,43 @@ enum SIDE
 	FLOOR      = 1 << 3,
 	FRONT      = 1 << 4,
 	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
 };
 
 /**
@@ -27404,7 +28718,7 @@ using Cell = std::vector< unsigned >;
 using CellField = std::vector< Cell >;
 
 // Returns the sum over the sizes of the single cells
-unsigned tesselationSize(Qwt3D::CellField const& t);
+unsigned tesselationSize(CellField const& t);
 
 /**
  * @brief Red-Green-Blue-Alpha value
@@ -27428,9 +28742,9 @@ using ColorVector = std::vector< RGBA >;
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
 // RGB -> QColor
-QWT3D_EXPORT QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b);
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 // QColor -> RGBA
-QWT3D_EXPORT Qwt3D::RGBA Qt2GL(QColor col);
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
 using DataRow    = std::vector< Vertex >;
@@ -27438,39 +28752,39 @@ using DataMatrix = std::vector< DataRow >;
 
 /**
  * @brief Abstract base class for plot data
- * @details Data provides the interface for different data representations
+ * @details Qwt3DData provides the interface for different data representations
  *          used by 3D plot widgets.
  */
-class Data
+class Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(Data)
+	QWT_DECLARE_PRIVATE(Qwt3DData)
 
 public:
-	Qwt3D::DATATYPE datatype;
-	Data();
-	virtual ~Data();
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
 	// Destroy content
 	virtual void clear() = 0;
 	// No data
 	virtual bool empty() const = 0;
-	void setHull(Qwt3D::ParallelEpiped const& h);
-	Qwt3D::ParallelEpiped const& hull() const;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
 };
 
 /**
  * @brief Implements a matrix of z-Values with limit access functions
- * @details GridData represents data on a rectangular grid topology,
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
  */
-class GridData : public Data
+class Qwt3DGridData : public Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(GridData)
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
 
 public:
-	GridData();
+	Qwt3DGridData();
 	// See setSize()
-	GridData(unsigned int columns, unsigned int rows);
-	~GridData() override;
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
 
 	int columns() const;
 	int rows() const;
@@ -27492,17 +28806,17 @@ public:
 
 /**
  * @brief Implements a graph-like cell structure with limit access functions
- * @details CellData represents data as a collection of convex polygon cells
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
  *          with associated node coordinates and normals.
  */
-class CellData : public Data
+class Qwt3DCellData : public Qwt3DData
 {
 public:
-	CellData()
+	Qwt3DCellData()
 	{
-		datatype = Qwt3D::POLYGON;
+		datatype = POLYGON;
 	}
-	~CellData()
+	~Qwt3DCellData()
 	{
 		clear();
 	}
@@ -27548,38 +28862,91 @@ inline double dotProduct(Triple const& u, Triple const& v)
 	return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple >& src);
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
 
-}  // ns
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
 
 #endif
 /*** End of inlined file: qwt3d_types.h ***/
 
 
-namespace Qwt3D
-{
-
 /**
  * @brief Non-visual scale class encapsulating tic generation
- * @details The class encapsulates non-visual scales. It is utilized by Axis and also
- *          collaborates closely with AutoScaler. A Scale allows control over all aspects
+ * @details The class encapsulates non-visual scales. It is utilized by Qwt3DAxis and also
+ *          collaborates closely with Qwt3DAutoScaler. A Qwt3DScale allows control over all aspects
  *          of tic generation including arbitrary transformations of tic values into corresponding
  *          strings. The strings contain what eventually will be shown as tic labels.
- *          Standard linear and logarithmic scales have been integrated into the Axis interface.
- *          User-defined axes can be derived from Scale, LinearScale et al.
+ *          Standard linear and logarithmic scales have been integrated into the Qwt3DAxis interface.
+ *          User-defined axes can be derived from Qwt3DScale, Qwt3DLinearScale et al.
  */
-class QWT3D_EXPORT Scale
+class QWT3D_EXPORT Qwt3DScale
 {
-	friend class Axis;
-	friend class ClonePtr< Scale >;
+	friend class Qwt3DAxis;
+	friend class Qwt3DClonePtr< Qwt3DScale >;
 
 protected:
-	QWT_DECLARE_PRIVATE(Scale)
+	QWT_DECLARE_PRIVATE(Qwt3DScale)
 
-	Scale();
-	virtual ~Scale();
+	Qwt3DScale();
+	virtual ~Qwt3DScale();
 	virtual QString ticLabel(unsigned int idx) const;
 
 	virtual void setLimits(double start, double stop);
@@ -27595,7 +28962,7 @@ protected:
 	int minors() const;
 
 	// Derived classes should return a new heap based object here
-	virtual Scale* clone() const = 0;
+	virtual Qwt3DScale* clone() const = 0;
 	// This function should setup the 2 vectors for major and minor positions
 	virtual void calculate() = 0;
 	virtual int autoscale(double& a, double& b, double start, double stop, int ivals);
@@ -27605,8 +28972,8 @@ protected:
 	// Returns const reference to minor tic positions
 	const std::vector< double >& minorTicks() const;
 
-	// Copies Scale base state from another Scale (used by derived clone())
-	void copyFrom(const Scale& other);
+	// Copies Qwt3DScale base state from another Qwt3DScale (used by derived clone())
+	void copyFrom(const Qwt3DScale& other);
 
 private:
 	void destroy() const;
@@ -27615,47 +28982,46 @@ private:
 /**
  * @brief The standard (1:1) mapping class for axis numbering
  */
-class QWT3D_EXPORT LinearScale : public Scale
+class QWT3D_EXPORT Qwt3DLinearScale : public Qwt3DScale
 {
-	friend class Axis;
-	friend class ClonePtr< Scale >;
+	friend class Qwt3DAxis;
+	friend class Qwt3DClonePtr< Qwt3DScale >;
 
 protected:
-	QWT_DECLARE_PRIVATE(LinearScale)
+	QWT_DECLARE_PRIVATE(Qwt3DLinearScale)
 
-	LinearScale();
-	~LinearScale() override;
+	Qwt3DLinearScale();
+	~Qwt3DLinearScale() override;
 	int autoscale(double& a, double& b, double start, double stop, int ivals) override;
-	// Returns a new heap based object utilized from ClonePtr
-	Scale* clone() const override;
+	// Returns a new heap based object utilized from Qwt3DClonePtr
+	Qwt3DScale* clone() const override;
 	void calculate() override;
 };
 
 /**
  * @brief Log10 scale
  */
-class QWT3D_EXPORT LogScale : public Scale
+class QWT3D_EXPORT Qwt3DLogScale : public Qwt3DScale
 {
-	friend class Axis;
-	friend class ClonePtr< Scale >;
+	friend class Qwt3DAxis;
+	friend class Qwt3DClonePtr< Qwt3DScale >;
 
 protected:
 	QString ticLabel(unsigned int idx) const override;
 	void setMinors(int val) override;
 	// Standard ctor
-	LogScale();
-	~LogScale() override;
-	// Returns a new heap based object utilized from ClonePtr
-	Scale* clone() const override;
+	Qwt3DLogScale();
+	~Qwt3DLogScale() override;
+	// Returns a new heap based object utilized from Qwt3DClonePtr
+	Qwt3DScale* clone() const override;
 	void calculate() override;
 
 private:
 	void setupCounter(double& k, int& step);
 };
 
-}  // namespace Qwt3D
-
 #endif  // QWT3D_SCALE_H
+
 /*** End of inlined file: qwt3d_scale.h ***/
 
 
@@ -27665,20 +29031,17 @@ private:
 
 #include <vector>
 
-namespace Qwt3D
-{
-
 /**
  * @brief Abstract base class for autoscaler
  */
-class QWT3D_EXPORT AutoScaler
+class QWT3D_EXPORT Qwt3DAutoScaler
 {
-	friend class ClonePtr< AutoScaler >;
+	friend class Qwt3DClonePtr< Qwt3DAutoScaler >;
 
 protected:
-	virtual AutoScaler* clone() const                                               = 0;
+	virtual Qwt3DAutoScaler* clone() const                                        = 0;
 	virtual int execute(double& a, double& b, double start, double stop, int ivals) = 0;
-	virtual ~AutoScaler()
+	virtual ~Qwt3DAutoScaler()
 	{
 	}
 
@@ -27692,21 +29055,21 @@ private:
 /**
  * @brief Automatic beautifying of linear scales
  */
-class QWT3D_EXPORT LinearAutoScaler : public AutoScaler
+class QWT3D_EXPORT Qwt3DLinearAutoScaler : public Qwt3DAutoScaler
 {
-	friend class LinearScale;
+	friend class Qwt3DLinearScale;
 
 protected:
-	QWT_DECLARE_PRIVATE(LinearAutoScaler)
+	QWT_DECLARE_PRIVATE(Qwt3DLinearAutoScaler)
 
-	LinearAutoScaler();
-	explicit LinearAutoScaler(std::vector< double >& mantisses);
-	~LinearAutoScaler() override;
-	AutoScaler* clone() const override;
+	Qwt3DLinearAutoScaler();
+	explicit Qwt3DLinearAutoScaler(std::vector< double >& mantisses);
+	~Qwt3DLinearAutoScaler() override;
+	Qwt3DAutoScaler* clone() const override;
 	int execute(double& a, double& b, double start, double stop, int ivals) override;
 
-	// Copies state from another LinearAutoScaler (used by LinearScale::clone)
-	void copyStateFrom(const LinearAutoScaler& other);
+	// Copies state from another Qwt3DLinearAutoScaler (used by Qwt3DLinearScale::clone)
+	void copyStateFrom(const Qwt3DLinearAutoScaler& other);
 
 private:
 	void init(double start, double stop, int ivals);
@@ -27714,42 +29077,38 @@ private:
 	int segments(int& l_intervals, int& r_intervals, double start, double stop, double anchor, double mantissa, int exponent);
 };
 
-}  // ns
-
 #endif
-/*** End of inlined file: qwt3d_autoscaler.h ***/
 
-namespace Qwt3D
-{
+/*** End of inlined file: qwt3d_autoscaler.h ***/
 
 /**
  * @brief Autoscalable axis with caption
  * @details Axes are highly customizable especially in terms
  *          of labeling and scaling.
  */
-class QWT3D_EXPORT Axis : public Drawable
+class QWT3D_EXPORT Qwt3DAxis : public Qwt3DDrawable
 {
-	QWT_DECLARE_PRIVATE(Axis)
+	QWT_DECLARE_PRIVATE(Qwt3DAxis)
 
 public:
 	// Constructs standard axis
-	Axis();
+	Qwt3DAxis();
 	// Constructs a new axis with specified limits
-	Axis(Qwt3D::Triple beg, Qwt3D::Triple end);
+	Qwt3DAxis(Triple beg, Triple end);
 	// Destructor
-	~Axis() override;
+	~Qwt3DAxis() override;
 
 	// Draws axis
-	void draw() override;
+	void draw(const Qwt3DRenderContext& ctx) override;
 
 	// Positionate axis
-	void setPosition(const Qwt3D::Triple& beg, const Qwt3D::Triple& end);
+	void setPosition(const Triple& beg, const Triple& end);
 	// Returns axis' position
-	void position(Qwt3D::Triple& beg, Qwt3D::Triple& end) const;
+	void position(Triple& beg, Triple& end) const;
 	// Returns axis' beginning position
-	Qwt3D::Triple begin() const;
+	Triple begin() const;
 	// Returns axis' ending position
-	Qwt3D::Triple end() const;
+	Triple end() const;
 	// Returns axis' length
 	double length() const;
 
@@ -27760,9 +29119,9 @@ public:
 	// Sets tic orientation
 	void setTicOrientation(double tx, double ty, double tz);
 	// Same function as above
-	void setTicOrientation(const Qwt3D::Triple& val);
+	void setTicOrientation(const Triple& val);
 	// Returns tic orientation
-	Qwt3D::Triple ticOrientation() const;
+	Triple ticOrientation() const;
 	// Sets two-sided tics (default is false)
 	void setSymmetricTics(bool b);
 
@@ -27775,8 +29134,12 @@ public:
 
 	// Sets label content
 	void setLabelString(QString const& name);
-	void setLabelPosition(const Qwt3D::Triple& pos, Qwt3D::ANCHOR);
-	void setLabelColor(Qwt3D::RGBA col);
+	// Returns label content
+	QString labelString() const;
+	void setLabelPosition(const Triple& pos, ANCHOR);
+	void setLabelColor(RGBA col);
+	// Returns the label color
+	RGBA labelColor() const;
 	// Turns label drawing on or off
 	void setLabel(bool val);
 	// Shifts label in device coordinates dependent on anchor
@@ -27786,16 +29149,16 @@ public:
 	void setScaling(bool val);
 	// Returns, if scale drawing is on or off
 	bool scaling() const;
-	void setScale(Qwt3D::SCALETYPE);
-	void setScale(Scale* item);
+	void setScale(SCALETYPE);
+	void setScale(Qwt3DScale* item);
 	// Turns number drawing on or off
 	void setNumbers(bool val);
 	// Returns, if number drawing is on or off
 	bool numbers() const;
 	// Sets the color for axes numbers
-	void setNumberColor(Qwt3D::RGBA col);
+	void setNumberColor(RGBA col);
 	// Returns the color for axes numbers
-	Qwt3D::RGBA numberColor() const;
+	RGBA numberColor() const;
 	// Sets font for numbering
 	void setNumberFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
 	// Overloaded member, works like the above function
@@ -27803,7 +29166,7 @@ public:
 	// Returns current numbering font
 	QFont const& numberFont() const;
 	// Sets anchor position for numbers
-	void setNumberAnchor(Qwt3D::ANCHOR a);
+	void setNumberAnchor(ANCHOR a);
 	// Shifts axis numbers in device coordinates dependent on anchor
 	void adjustNumbers(int val);
 
@@ -27821,9 +29184,9 @@ public:
 	// Returns number of minor intervals
 	int minors() const;
 	// Returns positions for actual major tics (also if invisible)
-	Qwt3D::TripleField const& majorPositions() const;
+	TripleField const& majorPositions() const;
 	// Returns positions for actual minor tics (also if invisible)
-	Qwt3D::TripleField const& minorPositions() const;
+	TripleField const& minorPositions() const;
 
 	// Sets line width for axis components
 	void setLineWidth(double val, double majfac = 0.9, double minfac = 0.5);
@@ -27843,17 +29206,17 @@ public:
 
 private:
 	void init();
-	void drawBase();
-	void drawTics();
-	void drawTicLabel(Qwt3D::Triple Pos, int mtic);
-	Qwt3D::Triple drawTic(Qwt3D::Triple nadir, double length);
-	void drawLabel();
+	void drawBase(const Qwt3DRenderContext& ctx);
+	void drawTics(const Qwt3DRenderContext& ctx);
+	void drawTicLabel(const Qwt3DRenderContext& ctx, Triple Pos, int mtic);
+	Triple drawTic(Triple nadir, double length);
+	void drawLabel(const Qwt3DRenderContext& ctx);
 	bool prepTicCalculation(Triple& startpoint);
 
-	Qwt3D::Triple biggestNumberString();
-};
+	Triple biggestNumberString(const Qwt3DRenderContext& ctx);
 
-}  // ns
+	void drawLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth);
+};
 
 #endif
 
@@ -27869,17 +29232,16 @@ private:
 #ifndef QWT3D_COLORLEGEND_H
 #define QWT3D_COLORLEGEND_H
 
-namespace Qwt3D
-{
+#include <QRectF>
 
 /**
  * @brief A flat color legend
  * @details The class visualizes a ColorVector together with a scale (axis)
  *          and a caption. ColorLegends are vertical or horizontal.
  */
-class QWT3D_EXPORT ColorLegend : public Drawable
+class QWT3D_EXPORT Qwt3DColorLegend : public Qwt3DDrawable
 {
-	QWT_DECLARE_PRIVATE(ColorLegend)
+	QWT_DECLARE_PRIVATE(Qwt3DColorLegend)
 
 public:
 	// Possible anchor points for caption and axis
@@ -27898,15 +29260,54 @@ public:
 		LeftRight
 	};
 
-	// Standard constructor
-	ColorLegend();
-	~ColorLegend() override;
+	// Predefined screen positions for the legend
+	enum Position
+	{
+		PosTopLeft,
+		PosTopCenter,
+		PosTopRight,
+		PosLeftCenter,
+		PosCenter,
+		PosRightCenter,
+		PosBottomLeft,
+		PosBottomCenter,
+		PosBottomRight,
+		PosCustom
+	};
 
-	// Draws the object - called by updateGL()
-	virtual void draw() override;
+	// Standard constructor
+	Qwt3DColorLegend();
+	~Qwt3DColorLegend() override;
+
+	// Draws the object - called by paintGL()
+	void draw(const Qwt3DRenderContext& ctx) override;
 
 	// Sets the relative position of the legend inside widget
-	void setRelPosition(Qwt3D::Tuple relMin, Qwt3D::Tuple relMax);
+	void setRelPosition(Tuple relMin, Tuple relMax);
+	// Sets legend to a predefined screen position
+	void setPosition(Position pos);
+	// Sets legend position using absolute pixel coordinates (Qt coordinate system, origin top-left)
+	void setAbsolutePosition(const QRectF& pixelRect);
+	// Returns the current position mode
+	Position position() const;
+	// Returns the absolute pixel rect (only meaningful when useAbsolutePosition() is true)
+	QRectF absolutePosition() const;
+	// Returns true if absolute positioning is active
+	bool useAbsolutePosition() const;
+	// Returns the legend orientation
+	ORIENTATION orientation() const;
+	// Returns the scale position
+	SCALEPOSITION scalePosition() const;
+	// Returns whether the scale is drawn
+	bool drawScale() const;
+	// Returns the scale limits
+	void limits(double& start, double& stop) const;
+	// Returns the number of major tics
+	int majors() const;
+	// Returns the number of minor tics
+	int minors() const;
+	// Returns the legend caption string
+	QString titleString() const;
 	// Sets legend orientation and scale position
 	void setOrientation(ORIENTATION, SCALEPOSITION);
 	// Sets the limit of the scale
@@ -27922,9 +29323,9 @@ public:
 	// Sets whether the axis is autoscaled or not
 	void setAutoScale(bool val);
 	// Sets another scale
-	void setScale(Qwt3D::Scale* scale);
+	void setScale(Qwt3DScale* scale);
 	// Sets one of the predefined scale types
-	void setScale(Qwt3D::SCALETYPE);
+	void setScale(SCALETYPE);
 
 	// Sets the legends caption string
 	void setTitleString(QString const& s);
@@ -27933,54 +29334,55 @@ public:
 	void setTitleFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
 
 	// The color vector
-	Qwt3D::ColorVector colors;
+	ColorVector colors;
 
 private:
-	Qwt3D::ParallelEpiped geometry() const;
-	void setGeometryInternal();
+	ParallelEpiped geometry() const;
+	void setGeometryInternal(const Qwt3DRenderContext& ctx);
 };
-
-}  // ns
 
 #endif
 
 /*** End of inlined file: qwt3d_colorlegend.h ***/
 
-namespace Qwt3D
-{
-
 /**
  * @brief A coordinate system with different styles (BOX, FRAME)
  */
-class QWT3D_EXPORT CoordinateSystem : public Drawable
+class QWT3D_EXPORT Qwt3DCoordinateSystem : public Qwt3DDrawable
 {
-	QWT_DECLARE_PRIVATE(CoordinateSystem)
+	QWT_DECLARE_PRIVATE(Qwt3DCoordinateSystem)
 
 public:
-	explicit CoordinateSystem(Qwt3D::Triple blb = Qwt3D::Triple(0, 0, 0),
-							  Qwt3D::Triple ftr = Qwt3D::Triple(0, 0, 0),
-							  Qwt3D::COORDSTYLE = Qwt3D::BOX);
-	~CoordinateSystem() override;
+	explicit Qwt3DCoordinateSystem(Triple blb = Triple(0, 0, 0),
+							  Triple ftr = Triple(0, 0, 0),
+							  COORDSTYLE = BOX);
+	~Qwt3DCoordinateSystem() override;
 
-	void init(Qwt3D::Triple beg = Qwt3D::Triple(0, 0, 0), Qwt3D::Triple end = Qwt3D::Triple(0, 0, 0));
+	void init(Triple beg = Triple(0, 0, 0), Triple end = Triple(0, 0, 0));
 	// Set style for the coordinate system (NOCOORD, FRAME or BOX)
-	void setStyle(Qwt3D::COORDSTYLE s,
-				  Qwt3D::AXIS frame_1 = Qwt3D::X1,
-				  Qwt3D::AXIS frame_2 = Qwt3D::Y1,
-				  Qwt3D::AXIS frame_3 = Qwt3D::Z1);
+	void setStyle(COORDSTYLE s,
+				  AXIS frame_1 = X1,
+				  AXIS frame_2 = Y1,
+				  AXIS frame_3 = Z1);
 	// Return style of the coordinate system
-	Qwt3D::COORDSTYLE style() const;
+	COORDSTYLE style() const;
 	// first == front_left_bottom, second == back_right_top
-	void setPosition(Qwt3D::Triple first, Qwt3D::Triple second);
+	void setPosition(Triple first, Triple second);
 
 	// Set common color for all axes
-	void setAxesColor(Qwt3D::RGBA val);
+	void setAxesColor(RGBA val);
+	// Returns the common axes color
+	RGBA axesColor() const;
 	// Set common font for all axis numberings
 	void setNumberFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
 	// Set common font for all axis numberings
 	void setNumberFont(QFont const& font);
+	// Returns the common number font (delegates to first axis)
+	QFont numberFont() const;
 	// Set common color for all axis numberings
-	void setNumberColor(Qwt3D::RGBA val);
+	void setNumberColor(RGBA val);
+	// Returns the common number color
+	RGBA numberColor() const;
 	// Sets an linear axis with real number items
 	void setStandardScale();
 
@@ -27990,56 +29392,96 @@ public:
 	void adjustLabels(int val);
 
 	// Sets color for the grid lines
-	void setGridLinesColor(Qwt3D::RGBA val);
+	void setGridLinesColor(RGBA val);
+	// Returns the grid lines color
+	RGBA gridLinesColor() const;
 
 	// Set common font for all axis labels
 	void setLabelFont(QString const& family, int pointSize, int weight = QFont::Normal, bool italic = false);
 	// Set common font for all axis labels
 	void setLabelFont(QFont const& font);
+	// Returns the common label font (delegates to first axis)
+	QFont labelFont() const;
 	// Set common color for all axis labels
-	void setLabelColor(Qwt3D::RGBA val);
+	void setLabelColor(RGBA val);
+	// Returns the common label color
+	RGBA labelColor() const;
 
 	// Set line width for tic marks and axes
 	void setLineWidth(double val, double majfac = 0.9, double minfac = 0.5);
-	// Set length for tic marks
+	// Set length for tic marks (explicit override; persists across data changes)
 	void setTicLength(double major, double minor);
+	// Returns the explicit tic lengths (only meaningful after setTicLength(); use ticLengthScale() to check if auto)
+	void ticLength(double& major, double& minor) const;
+	// Set the automatic tic-length scale: fraction of the per-axis data range in
+	// the tick's own pointing direction (default 0.015). Switches back to automatic
+	// per-axis derivation, clearing any explicit length set via setTicLength().
+	void setTicLengthScale(double scale);
+	// Returns the automatic tic-length scale
+	double ticLengthScale() const;
+	// Switch to automatic per-axis tic-length derivation (clears explicit override)
+	void setAutoTicLength();
 
 	// Switch autoscaling of axes
 	void setAutoScale(bool val = true);
+	// Returns true if autoscaling is enabled (delegates to first axis)
+	bool autoScale() const;
 
-	Qwt3D::Triple first() const;
-	Qwt3D::Triple second() const;
+	Triple first() const;
+	Triple second() const;
 
 	void setAutoDecoration(bool val = true);
 	bool autoDecoration() const;
+
+	// Set tick position preference for auto-decorated axes
+	// TICK_BOTTOM (default): ticks on visually lower axis; TICK_TOP: ticks on visually upper axis
+	void setTickPosition(TICKPOSITION val);
+	// Returns tick position preference
+	TICKPOSITION tickPosition() const;
 
 	// Draw smooth axes
 	void setLineSmooth(bool val = true);
 	// Smooth axes enabled?
 	bool lineSmooth() const;
 
-	void draw() override;
+	void draw(const Qwt3DRenderContext& ctx) override;
 
 	// Defines whether a grid between the major and/or minor tics should be drawn
-	void setGridLines(bool majors, bool minors, int sides = Qwt3D::NOSIDEGRID);
+	void setGridLines(bool majors, bool minors, int sides = NOSIDEGRID);
 	// Returns grids switched on
 	int grids() const;
 
+	// Set interior grid lines through the box volume
+	void setInteriorGridLines(bool majors, bool minors, int directions = NO_INTERIOR);
+	// Returns interior grid directions switched on
+	int interiorGrids() const;
+	// Sets color for the interior grid lines
+	void setInteriorGridLinesColor(RGBA val);
+	// Returns the interior grid lines color
+	RGBA interiorGridLinesColor() const;
+	// Sets line width for interior grid lines
+	void setInteriorGridLinesWidth(double major, double minor);
+
 	// The vector of all 12 axes - use them to set axis properties individually
-	std::vector< Axis > axes;
+	std::vector< Qwt3DAxis > axes;
 
 private:
 	void destroy();
-	void chooseAxes();
-	void autoDecorateExposedAxis(Axis& ax, bool left);
-	void drawMajorGridLines();
-	void drawMinorGridLines();
-	void drawMajorGridLines(Qwt3D::Axis&, Qwt3D::Axis&);
-	void drawMinorGridLines(Qwt3D::Axis&, Qwt3D::Axis&);
+	void chooseAxes(const Qwt3DRenderContext& ctx);
+	void autoDecorateExposedAxis(const Qwt3DRenderContext& ctx, Qwt3DAxis& ax, bool left);
+	void drawMajorGridLines(const Qwt3DRenderContext& ctx);
+	void drawMinorGridLines(const Qwt3DRenderContext& ctx);
+	void drawMajorGridLines(Qwt3DAxis&, Qwt3DAxis&, QVector<float>& verts);
+	void drawMinorGridLines(Qwt3DAxis&, Qwt3DAxis&, QVector<float>& verts);
+	void drawInteriorMajorGridLines(const Qwt3DRenderContext& ctx);
+	void drawInteriorMinorGridLines(const Qwt3DRenderContext& ctx);
+	void drawInteriorGridLines(Qwt3DAxis& axisA, Qwt3DAxis& axisB,
+							   int dirAxis, bool major, QVector<float>& verts);
 	void recalculateAxesTics();
+	// Applies the current tic-length model (auto per-axis, or explicit manual) to all axes
+	void applyTicLengths();
+	void drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth, const RGBA& color);
 };
-
-}  // ns
 
 #endif
 
@@ -28077,20 +29519,13 @@ private:
 
 #include <string>
 
-#if defined(Q_OS_WIN)
-#include <windows.h>
-#endif
-
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA 120
 #endif
 
 #include <QColor>
 
-namespace Qwt3D
-{
-
-const double PI = 3.14159265358979323846264338328;
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
  * @brief Plotting style enumeration
@@ -28102,7 +29537,7 @@ enum PLOTSTYLE
 	HIDDENLINE,  // Hidden Line style
 	FILLED,      // Color filled polygons w/o edges
 	FILLEDMESH,  // Color filled polygons w/ separately colored edges
-	POINTS,      // User defined style (used by Enrichments)
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
 	USER         // User defined style (used by Enrichments)
 };
 
@@ -28186,6 +29621,43 @@ enum SIDE
 	FLOOR      = 1 << 3,
 	FRONT      = 1 << 4,
 	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
 };
 
 /**
@@ -28416,7 +29888,7 @@ using Cell = std::vector< unsigned >;
 using CellField = std::vector< Cell >;
 
 // Returns the sum over the sizes of the single cells
-unsigned tesselationSize(Qwt3D::CellField const& t);
+unsigned tesselationSize(CellField const& t);
 
 /**
  * @brief Red-Green-Blue-Alpha value
@@ -28440,9 +29912,9 @@ using ColorVector = std::vector< RGBA >;
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
 // RGB -> QColor
-QWT3D_EXPORT QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b);
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 // QColor -> RGBA
-QWT3D_EXPORT Qwt3D::RGBA Qt2GL(QColor col);
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
 using DataRow    = std::vector< Vertex >;
@@ -28450,39 +29922,39 @@ using DataMatrix = std::vector< DataRow >;
 
 /**
  * @brief Abstract base class for plot data
- * @details Data provides the interface for different data representations
+ * @details Qwt3DData provides the interface for different data representations
  *          used by 3D plot widgets.
  */
-class Data
+class Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(Data)
+	QWT_DECLARE_PRIVATE(Qwt3DData)
 
 public:
-	Qwt3D::DATATYPE datatype;
-	Data();
-	virtual ~Data();
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
 	// Destroy content
 	virtual void clear() = 0;
 	// No data
 	virtual bool empty() const = 0;
-	void setHull(Qwt3D::ParallelEpiped const& h);
-	Qwt3D::ParallelEpiped const& hull() const;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
 };
 
 /**
  * @brief Implements a matrix of z-Values with limit access functions
- * @details GridData represents data on a rectangular grid topology,
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
  */
-class GridData : public Data
+class Qwt3DGridData : public Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(GridData)
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
 
 public:
-	GridData();
+	Qwt3DGridData();
 	// See setSize()
-	GridData(unsigned int columns, unsigned int rows);
-	~GridData() override;
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
 
 	int columns() const;
 	int rows() const;
@@ -28504,17 +29976,17 @@ public:
 
 /**
  * @brief Implements a graph-like cell structure with limit access functions
- * @details CellData represents data as a collection of convex polygon cells
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
  *          with associated node coordinates and normals.
  */
-class CellData : public Data
+class Qwt3DCellData : public Qwt3DData
 {
 public:
-	CellData()
+	Qwt3DCellData()
 	{
-		datatype = Qwt3D::POLYGON;
+		datatype = POLYGON;
 	}
-	~CellData()
+	~Qwt3DCellData()
 	{
 		clear();
 	}
@@ -28560,27 +30032,80 @@ inline double dotProduct(Triple const& u, Triple const& v)
 	return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple >& src);
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
 
-}  // ns
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
 
 #endif
 /*** End of inlined file: qwt3d_types.h ***/
 
-namespace Qwt3D
-{
-
 /**
  * @brief Abstract base class for general mappings
  */
-class QWT3D_EXPORT Mapping
+class QWT3D_EXPORT Qwt3DMapping
 {
 
 public:
 	// Destructor
-	virtual ~Mapping()
+	virtual ~Qwt3DMapping()
 	{
 	}
 	// Descriptive String
@@ -28590,42 +30115,32 @@ public:
 	}
 };
 
-}  // ns
-
 #endif  // QWT3D_MAPPING_H
+
 /*** End of inlined file: qwt3d_mapping.h ***/
-
-namespace Qwt3D
-{
-
-class SurfacePlot;
 
 /**
  * @brief Abstract base class for mappings acting on rectangular grids
  */
-class QWT3D_EXPORT GridMapping : public Mapping
+class QWT3D_EXPORT Qwt3DGridMapping : public Qwt3DMapping
 {
 public:
-	// Constructs GridMapping object w/o assigned SurfacePlot
-	GridMapping();
-	~GridMapping() override;
+	// Constructs Qwt3DGridMapping object
+	Qwt3DGridMapping();
+	~Qwt3DGridMapping() override;
 
 	// Sets number of rows and columns
 	void setMesh(unsigned int columns, unsigned int rows);
 	// Sets u-v domain boundaries
 	void setDomain(double minu, double maxu, double minv, double maxv);
 	// Restrict the mappings range to the parallelepiped
-	void restrictRange(Qwt3D::ParallelEpiped const&);
+	void restrictRange(ParallelEpiped const&);
 
 protected:
-	QWT_DECLARE_PRIVATE(GridMapping)
+	QWT_DECLARE_PRIVATE(Qwt3DGridMapping)
 
-	// Accessors for subclasses
-	Qwt3D::SurfacePlot* plotWidget() const;
-	void setPlotWidget(Qwt3D::SurfacePlot* pw);
-
-	Qwt3D::ParallelEpiped& range();
-	const Qwt3D::ParallelEpiped& range() const;
+	ParallelEpiped& range();
+	const ParallelEpiped& range() const;
 
 	unsigned int meshU() const;
 	unsigned int meshV() const;
@@ -28636,33 +30151,633 @@ protected:
 	double maxV() const;
 };
 
-}  // ns
-
-#endif  // QWT3D_GRIDMAPPING_H
+#endif
 
 /*** End of inlined file: qwt3d_gridmapping.h ***/
 
-namespace Qwt3D
-{
 
-class SurfacePlot;
+/*** Start of inlined file: qwt3d_types.h ***/
+#if defined(_MSC_VER) /* MSVC Compiler */
+#pragma warning(disable : 4786)
+#endif
+
+#ifndef QWT3D_TYPES_H
+#define QWT3D_TYPES_H
+
+#ifdef _DEBUG
+#include <fstream>
+#endif
+
+#include <string>
+
+#ifndef WHEEL_DELTA
+#define WHEEL_DELTA 120
+#endif
+
+#include <QColor>
+
+const double Qwt3D_PI = 3.14159265358979323846264338328;
+
+/**
+ * @brief Plotting style enumeration
+ */
+enum PLOTSTYLE
+{
+	NOPLOT,      // No visible data
+	WIREFRAME,   // Wireframe style
+	HIDDENLINE,  // Hidden Line style
+	FILLED,      // Color filled polygons w/o edges
+	FILLEDMESH,  // Color filled polygons w/ separately colored edges
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
+	USER         // User defined style (used by Enrichments)
+};
+
+/**
+ * @brief Shading style enumeration
+ */
+enum SHADINGSTYLE
+{
+	FLAT,    // Flat shading (OpenGL)
+	GOURAUD  // Gouraud Shading (OpenGL)
+};
+
+/**
+ * @brief Style of coordinate system enumeration
+ */
+enum COORDSTYLE
+{
+	NOCOORD,  // Coordinate system is not visible
+	BOX,      // Boxed
+	FRAME     // Frame - 3 visible axes
+};
+
+/**
+ * @brief Different types of axis scales
+ */
+enum SCALETYPE
+{
+	LINEARSCALE,  // Linear scaling
+	LOG10SCALE,   // Logarithmic scaling (base 10)
+	USERSCALE     // User-defined (for extensions)
+};
+
+/**
+ * @brief Plotting style for floor data (projections)
+ */
+enum FLOORSTYLE
+{
+	NOFLOOR,   // Empty floor
+	FLOORISO,  // Isoline projections visible
+	FLOORDATA  // Projected polygons visible
+};
+
+/**
+ * @brief Mesh type enumeration
+ */
+enum DATATYPE
+{
+	GRID,    // Rectangular grid
+	POLYGON  // Convex polygon
+};
+
+/**
+ * @brief The 12 axes
+ * @image html axes.png
+ */
+enum AXIS
+{
+	X1 = 0,   // 1st x-axis
+	X2 = 3,   // 2nd x-axis
+	X3 = 4,   // 3rd x-axis
+	X4 = 5,   // 4th x-axis
+	Y1 = 1,   // 1st y-axis
+	Y2 = 8,   // 2nd y-axis
+	Y3 = 7,   // 3rd y-axis
+	Y4 = 6,   // 4th y-axis
+	Z1 = 2,   // 1st z-axis
+	Z2 = 9,   // 2nd z-axis
+	Z3 = 11,  // 3rd z-axis
+	Z4 = 10   // 4th z-axis
+};
+
+/**
+ * @brief The 6 sides of a plot box
+ */
+enum SIDE
+{
+	NOSIDEGRID = 0,
+	LEFT       = 1 << 0,
+	RIGHT      = 1 << 1,
+	CEIL       = 1 << 2,
+	FLOOR      = 1 << 3,
+	FRONT      = 1 << 4,
+	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
+};
+
+/**
+ * @brief Possible anchor points for drawing operations
+ */
+enum ANCHOR
+{
+	BottomLeft,
+	BottomRight,
+	BottomCenter,
+	TopLeft,
+	TopRight,
+	TopCenter,
+	CenterLeft,
+	CenterRight,
+	Center
+};
+
+/**
+ * @brief Tuple [x,y]
+ * @details A 2D point/vector represented by x and y coordinates.
+ */
+struct QWT3D_EXPORT Tuple
+{
+	// Calls Tuple(0,0)
+	Tuple() : x(0), y(0)
+	{
+	}
+	// Initialize Tuple with x and y
+	Tuple(double X, double Y) : x(X), y(Y)
+	{
+	}
+	// Tuple coordinates
+	double x, y;
+};
+
+/**
+ * @brief Triple [x,y,z]
+ * @details Consider Triples also as vectors in R^3. Provides basic vector operations
+ *          including addition, subtraction, scaling, normalization, and length calculation.
+ */
+struct QWT3D_EXPORT Triple
+{
+	// Initialize Triple with x,y and z
+	explicit Triple(double xv = 0, double yv = 0, double zv = 0) : x(xv), y(yv), z(zv)
+	{
+	}
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+#ifdef Q_OS_IRIX
+	Triple(const Triple& val)
+	{
+		if (&val == this)
+			return;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+	}
+	const Triple& operator=(const Triple& val)
+	{
+		if (&val == this)
+			return *this;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+		return *this;
+	}
+#endif
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+	// Triple coordinates
+	double x, y, z;
+
+	Triple& operator+=(Triple t)
+	{
+		x += t.x;
+		y += t.y;
+		z += t.z;
+
+		return *this;
+	}
+
+	Triple& operator-=(Triple t)
+	{
+		x -= t.x;
+		y -= t.y;
+		z -= t.z;
+
+		return *this;
+	}
+	Triple& operator*=(double d)
+	{
+		x *= d;
+		y *= d;
+		z *= d;
+
+		return *this;
+	}
+	Triple& operator/=(double d)
+	{
+		x /= d;
+		y /= d;
+		z /= d;
+
+		return *this;
+	}
+	Triple& operator*=(Triple t)  // scale
+	{
+		x *= t.x;
+		y *= t.y;
+		z *= t.z;
+
+		return *this;
+	}
+
+	bool operator!=(Triple t) const
+	{
+		return !isPracticallyZero(x, t.x) || !isPracticallyZero(y, t.y) || !isPracticallyZero(z, t.z);
+	}
+
+	bool operator==(Triple t) const
+	{
+		return !operator!=(t);
+	}
+
+	double length() const
+	{
+		double l2 = x * x + y * y + z * z;
+		return (isPracticallyZero(l2)) ? 0 : sqrt(l2);
+	}
+
+	void normalize()
+	{
+		double l = length();
+		if (l)
+			*this /= l;
+	}
+};
+
+inline const Triple operator+(const Triple& t, const Triple& t2)
+{
+	return Triple(t) += t2;
+}
+inline const Triple operator-(const Triple& t, const Triple& t2)
+{
+	return Triple(t) -= t2;
+}
+inline const Triple operator*(double d, const Triple& t)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator*(const Triple& t, double d)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator/(double d, const Triple& t)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator/(const Triple& t, double d)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator*(const Triple& t, const Triple& t2)
+{
+	return Triple(t) *= t2;
+}
+
+/**
+ * @brief Parallelepiped spanned by 2 Triples
+ * @details Please use normalized Parallelepipeds:
+ *          minVertex.x <= maxVertex.x, minVertex.y <= maxVertex.y,
+ *          minVertex.z <= maxVertex.z
+ */
+struct QWT3D_EXPORT ParallelEpiped
+{
+	// Construct non-initialized Parallelepiped
+	ParallelEpiped()
+	{
+	}
+
+	// Construct initialized Parallelepiped: minv -> minVertex, maxv -> maxVertex
+	ParallelEpiped(Triple minv, Triple maxv) : minVertex(minv), maxVertex(maxv)
+	{
+	}
+
+	Triple minVertex;
+	Triple maxVertex;
+};
+
+/**
+ * @brief Free vector
+ * @details FreeVectors represent objects like normal vectors and other vector fields inside R^3.
+ */
+struct QWT3D_EXPORT FreeVector
+{
+	FreeVector()
+	{
+	}
+
+	// Construct initialized vector: b -> base, e -> top
+	FreeVector(Triple b, Triple t) : base(b), top(t)
+	{
+	}
+
+	Triple base;
+	Triple top;
+};
+
+/**
+ * @brief A free vector field in R^3
+ */
+using FreeVectorField = std::vector< FreeVector >;
+
+/**
+ * @brief A point field in R^3
+ */
+using TripleField = std::vector< Triple >;
+
+/**
+ * @brief Holds indices in a TripleField interpreted as counterclockwise node numbering for a convex polygon
+ */
+using Cell = std::vector< unsigned >;
+
+/**
+ * @brief Vector of convex polygons. You need a TripleField as base for the node data
+ */
+using CellField = std::vector< Cell >;
+
+// Returns the sum over the sizes of the single cells
+unsigned tesselationSize(CellField const& t);
+
+/**
+ * @brief Red-Green-Blue-Alpha value
+ */
+struct QWT3D_EXPORT RGBA
+{
+	RGBA() : r(0), g(0), b(0), a(1)
+	{
+	}
+	RGBA(double rr, double gg, double bb, double aa = 1) : r(rr), g(gg), b(bb), a(aa)
+	{
+	}
+	double r, g, b, a;
+};
+
+/**
+ * @brief A Color field
+ */
+using ColorVector = std::vector< RGBA >;
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+
+// RGB -> QColor
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
+// QColor -> RGBA
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
+
+using Vertex     = double*;
+using DataRow    = std::vector< Vertex >;
+using DataMatrix = std::vector< DataRow >;
+
+/**
+ * @brief Abstract base class for plot data
+ * @details Qwt3DData provides the interface for different data representations
+ *          used by 3D plot widgets.
+ */
+class Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DData)
+
+public:
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
+	// Destroy content
+	virtual void clear() = 0;
+	// No data
+	virtual bool empty() const = 0;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
+};
+
+/**
+ * @brief Implements a matrix of z-Values with limit access functions
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
+ *          providing z-values organized in a matrix with associated normals.
+ */
+class Qwt3DGridData : public Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
+
+public:
+	Qwt3DGridData();
+	// See setSize()
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
+
+	int columns() const;
+	int rows() const;
+
+	// Destroy content
+	void clear();
+	bool empty() const;
+	// Destroys content and set new size, elements are uninitialized
+	void setSize(unsigned int columns, unsigned int rows);
+
+	// Mesh vertices
+	DataMatrix vertices;
+	// Mesh normals
+	DataMatrix normals;
+	void setPeriodic(bool u, bool v);
+	bool uperiodic() const;
+	bool vperiodic() const;
+};
+
+/**
+ * @brief Implements a graph-like cell structure with limit access functions
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
+ *          with associated node coordinates and normals.
+ */
+class Qwt3DCellData : public Qwt3DData
+{
+public:
+	Qwt3DCellData()
+	{
+		datatype = POLYGON;
+	}
+	~Qwt3DCellData()
+	{
+		clear();
+	}
+
+	// Destroy content
+	void clear();
+	bool empty() const
+	{
+		return cells.empty();
+	}
+
+	Triple const& operator()(unsigned cellnumber, unsigned vertexnumber);
+
+	// Polygon/cell mesh
+	CellField cells;
+	TripleField nodes;
+	// Mesh normals
+	TripleField normals;
+};
+
+inline Triple normalizedcross(Triple const& u, Triple const& v)
+{
+	Triple n;
+
+	/* compute the cross product (u x v for right-handed [ccw]) */
+	n.x = u.y * v.z - u.z * v.y;
+	n.y = u.z * v.x - u.x * v.z;
+	n.z = u.x * v.y - u.y * v.x;
+
+	/* normalize */
+	double l = n.length();
+	if (l) {
+		n /= l;
+	} else {
+		n = Triple(0, 0, 0);
+	}
+
+	return n;
+}
+
+inline double dotProduct(Triple const& u, Triple const& v)
+{
+	return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
+
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
+
+#endif
+/*** End of inlined file: qwt3d_types.h ***/
 
 /**
  * @brief Abstract base class for mathematical functions
- * @details A Function encapsulates a mathematical function with rectangular domain. The user has to
+ * @details A Qwt3DFunction encapsulates a mathematical function with rectangular domain. The user has to
  *          adapt the pure virtual operator() to get a working object. Also, the client code should call
  *          setDomain, setMesh and create for reasonable operating conditions.
+ *
+ *          create() returns a Qwt3DFunctionData struct that the caller feeds to
+ *          Qwt3DSurface::loadFromData(). The function no longer holds a back-pointer
+ *          to the surface item (deferred smell #2, resolved).
+ *
+ * @code
+ * class MyFunction : public Qwt3DFunction
+ * {
+ * public:
+ *     double operator()(double x, double y) override { return std::sin(x + y); }
+ * };
+ *
+ * MyFunction func;
+ * func.setMesh(50, 50);
+ * func.setDomain(-3, 3, -3, 3);
+ * auto data = func.create();
+ * surface->loadFromData(data);
+ * @endcode
  */
-class QWT3D_EXPORT Function : public GridMapping
+class QWT3D_EXPORT Qwt3DFunction : public Qwt3DGridMapping
 {
 
 public:
-	// Constructs Function object w/o assigned SurfacePlot
-	Function();
-	// Constructs Function object and assigns a SurfacePlot
-	explicit Function(Qwt3D::SurfacePlot& plotWidget);
-	// Constructs Function object and assigns a SurfacePlot
-	explicit Function(Qwt3D::SurfacePlot* plotWidget);
+	// Constructs Qwt3DFunction object
+	Qwt3DFunction();
 	// Overwrite this
 	virtual double operator()(double x, double y) = 0;
 
@@ -28671,19 +30786,12 @@ public:
 	// Sets maximal z value
 	void setMaxZ(double val);
 
-	// Assigns a new SurfacePlot and creates a data representation for it
-	virtual bool create(Qwt3D::SurfacePlot& plotWidget);
-	// Creates data representation for the actual assigned SurfacePlot
-	virtual bool create();
-	// Assigns the object to another widget - call before create()
-	void assign(Qwt3D::SurfacePlot& plotWidget);
-	// Assigns the object to another widget - call before create()
-	void assign(Qwt3D::SurfacePlot* plotWidget);
+	// Evaluates the function over the mesh grid and returns the result
+	virtual Qwt3DFunctionData create();
 };
 
-}  // ns
-
 #endif  // QWT3D_FUNCTION_H
+
 /*** End of inlined file: qwt3d_function.h ***/
 
 
@@ -28706,20 +30814,13 @@ public:
 
 #include <string>
 
-#if defined(Q_OS_WIN)
-#include <windows.h>
-#endif
-
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA 120
 #endif
 
 #include <QColor>
 
-namespace Qwt3D
-{
-
-const double PI = 3.14159265358979323846264338328;
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
  * @brief Plotting style enumeration
@@ -28731,7 +30832,7 @@ enum PLOTSTYLE
 	HIDDENLINE,  // Hidden Line style
 	FILLED,      // Color filled polygons w/o edges
 	FILLEDMESH,  // Color filled polygons w/ separately colored edges
-	POINTS,      // User defined style (used by Enrichments)
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
 	USER         // User defined style (used by Enrichments)
 };
 
@@ -28815,6 +30916,43 @@ enum SIDE
 	FLOOR      = 1 << 3,
 	FRONT      = 1 << 4,
 	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
 };
 
 /**
@@ -29045,7 +31183,7 @@ using Cell = std::vector< unsigned >;
 using CellField = std::vector< Cell >;
 
 // Returns the sum over the sizes of the single cells
-unsigned tesselationSize(Qwt3D::CellField const& t);
+unsigned tesselationSize(CellField const& t);
 
 /**
  * @brief Red-Green-Blue-Alpha value
@@ -29069,9 +31207,9 @@ using ColorVector = std::vector< RGBA >;
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
 // RGB -> QColor
-QWT3D_EXPORT QColor GL2Qt(GLdouble r, GLdouble g, GLdouble b);
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 // QColor -> RGBA
-QWT3D_EXPORT Qwt3D::RGBA Qt2GL(QColor col);
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
 using DataRow    = std::vector< Vertex >;
@@ -29079,39 +31217,39 @@ using DataMatrix = std::vector< DataRow >;
 
 /**
  * @brief Abstract base class for plot data
- * @details Data provides the interface for different data representations
+ * @details Qwt3DData provides the interface for different data representations
  *          used by 3D plot widgets.
  */
-class Data
+class Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(Data)
+	QWT_DECLARE_PRIVATE(Qwt3DData)
 
 public:
-	Qwt3D::DATATYPE datatype;
-	Data();
-	virtual ~Data();
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
 	// Destroy content
 	virtual void clear() = 0;
 	// No data
 	virtual bool empty() const = 0;
-	void setHull(Qwt3D::ParallelEpiped const& h);
-	Qwt3D::ParallelEpiped const& hull() const;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
 };
 
 /**
  * @brief Implements a matrix of z-Values with limit access functions
- * @details GridData represents data on a rectangular grid topology,
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
  */
-class GridData : public Data
+class Qwt3DGridData : public Qwt3DData
 {
-	QWT_DECLARE_PRIVATE(GridData)
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
 
 public:
-	GridData();
+	Qwt3DGridData();
 	// See setSize()
-	GridData(unsigned int columns, unsigned int rows);
-	~GridData() override;
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
 
 	int columns() const;
 	int rows() const;
@@ -29133,17 +31271,17 @@ public:
 
 /**
  * @brief Implements a graph-like cell structure with limit access functions
- * @details CellData represents data as a collection of convex polygon cells
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
  *          with associated node coordinates and normals.
  */
-class CellData : public Data
+class Qwt3DCellData : public Qwt3DData
 {
 public:
-	CellData()
+	Qwt3DCellData()
 	{
-		datatype = Qwt3D::POLYGON;
+		datatype = POLYGON;
 	}
-	~CellData()
+	~Qwt3DCellData()
 	{
 		clear();
 	}
@@ -29189,19 +31327,70 @@ inline double dotProduct(Triple const& u, Triple const& v)
 	return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-void convexhull2d(std::vector< unsigned >& idx, const std::vector< Qwt3D::Tuple >& src);
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
 
 #endif  // QWT3D_NOT_FOR_DOXYGEN
 
-}  // ns
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
 
 #endif
 /*** End of inlined file: qwt3d_types.h ***/
-
-namespace Qwt3D
-{
-
-class Plot3D;
 
 /**
  * @brief Abstract base class for data dependent visible user objects
@@ -29210,7 +31399,7 @@ class Plot3D;
  *          implementation in derived classes. They can be used for initialization issues or actions not
  *          depending on the related primitive.
  */
-class QWT3D_EXPORT Enrichment
+class QWT3D_EXPORT Qwt3DEnrichment
 {
 public:
 	// Type of the Enrichment - only VERTEXENRICHMENT's are defined at this moment
@@ -29222,28 +31411,20 @@ public:
 		VOXELENRICHMENT
 	};
 
-	Enrichment() : plot(nullptr)
+	Qwt3DEnrichment()
 	{
 	}
-	virtual ~Enrichment()
+	virtual ~Qwt3DEnrichment()
 	{
 	}
 	// The derived class should give back a new Derived(something) here
-	virtual Enrichment* clone() const = 0;
+	virtual Qwt3DEnrichment* clone() const = 0;
 	// Empty per default. Can be overwritten
 	virtual void drawBegin() {};
 	// Empty per default. Can be overwritten
 	virtual void drawEnd() {};
-	// Assign to existent plot
-	virtual void assign(Plot3D const& pl)
-	{
-		plot = &pl;
-	}
 	// Overwrite
 	virtual TYPE type() const = 0;
-
-protected:
-	const Plot3D* plot;
 };
 
 /**
@@ -29252,26 +31433,25 @@ protected:
  *          draw() is called, when the Plot realizes its internal OpenGL data representation
  *          for every Vertex associated to his argument.
  */
-class QWT3D_EXPORT VertexEnrichment : public Enrichment
+class QWT3D_EXPORT Qwt3DVertexEnrichment : public Qwt3DEnrichment
 {
 public:
-	VertexEnrichment() : Qwt3D::Enrichment()
+	Qwt3DVertexEnrichment() : Qwt3DEnrichment()
 	{
 	}
 	// The derived class should give back a new Derived(something) here
-	virtual Enrichment* clone() const = 0;
+	virtual Qwt3DEnrichment* clone() const = 0;
 	// Overwrite this
-	virtual void draw(Qwt3D::Triple const&) = 0;
+	virtual void draw(Triple const&) = 0;
 	// This gives VERTEXENRICHMENT
 	TYPE type() const override
 	{
-		return Qwt3D::Enrichment::VERTEXENRICHMENT;
+		return Qwt3DEnrichment::VERTEXENRICHMENT;
 	}
 };
 
-}  // ns
-
 #endif  // QWT3D_ENRICHMENT_H
+
 /*** End of inlined file: qwt3d_enrichment.h ***/
 
 
@@ -29279,73 +31459,68 @@ public:
 #ifndef QWT3D_ENRICHMENT_STD_H
 #define QWT3D_ENRICHMENT_STD_H
 
-namespace Qwt3D
-{
-
-class Plot3D;
-
 /**
  * @brief The Cross Hair Style
  */
-class QWT3D_EXPORT CrossHair : public VertexEnrichment
+class QWT3D_EXPORT Qwt3DCrossHair : public Qwt3DVertexEnrichment
 {
 public:
-	CrossHair();
-	CrossHair(double rad, double linewidth, bool smooth, bool boxed);
-	CrossHair(const CrossHair& other);
-	~CrossHair() override;
+	Qwt3DCrossHair();
+	Qwt3DCrossHair(double rad, double linewidth, bool smooth, bool boxed);
+	Qwt3DCrossHair(const Qwt3DCrossHair& other);
+	~Qwt3DCrossHair() override;
 
-	Qwt3D::Enrichment* clone() const override;
+	Qwt3DEnrichment* clone() const override;
 
 	void configure(double rad, double linewidth, bool smooth, bool boxed);
 	void drawBegin() override;
 	void drawEnd() override;
-	void draw(Qwt3D::Triple const&) override;
+	void draw(Triple const&) override;
 
 private:
-	QWT_DECLARE_PRIVATE(CrossHair)
+	QWT_DECLARE_PRIVATE(Qwt3DCrossHair)
 };
 
 /**
  * @brief The Point Style
  */
-class QWT3D_EXPORT Dot : public VertexEnrichment
+class QWT3D_EXPORT Qwt3DDot : public Qwt3DVertexEnrichment
 {
 public:
-	Dot();
-	Dot(double pointsize, bool smooth);
-	Dot(const Dot& other);
-	~Dot() override;
+	Qwt3DDot();
+	Qwt3DDot(double pointsize, bool smooth);
+	Qwt3DDot(const Qwt3DDot& other);
+	~Qwt3DDot() override;
 
-	Qwt3D::Enrichment* clone() const override;
+	Qwt3DEnrichment* clone() const override;
 
 	void configure(double pointsize, bool smooth);
 	void drawBegin() override;
 	void drawEnd() override;
-	void draw(Qwt3D::Triple const&) override;
+	void draw(Triple const&) override;
 
 private:
-	QWT_DECLARE_PRIVATE(Dot)
+	QWT_DECLARE_PRIVATE(Qwt3DDot)
 };
 
 /**
  * @brief The Cone Style
  */
-class QWT3D_EXPORT Cone : public VertexEnrichment
+class QWT3D_EXPORT Qwt3DCone : public Qwt3DVertexEnrichment
 {
 public:
-	Cone();
-	Cone(double rad, unsigned quality);
-	Cone(const Cone& other);
-	~Cone() override;
+	Qwt3DCone();
+	Qwt3DCone(double rad, unsigned quality);
+	Qwt3DCone(const Qwt3DCone& other);
+	~Qwt3DCone() override;
 
-	Qwt3D::Enrichment* clone() const override;
+	Qwt3DEnrichment* clone() const override;
 
 	void configure(double rad, unsigned quality);
-	void draw(Qwt3D::Triple const&) override;
+	void draw(Triple const&) override;
 
 private:
-	QWT_DECLARE_PRIVATE(Cone)
+	QWT_DECLARE_PRIVATE(Qwt3DCone)
 };
 
 /**
@@ -29353,29 +31528,27 @@ private:
  * @details The class encapsulates a vector field including its OpenGL representation as arrow field.
  *          The arrows can be configured in different aspects (color, shape, painting quality).
  */
-class QWT3D_EXPORT Arrow : public VertexEnrichment
+class QWT3D_EXPORT Qwt3DArrow : public Qwt3DVertexEnrichment
 {
 public:
-	Arrow();
-	Arrow(const Arrow& other);
-	~Arrow() override;
+	Qwt3DArrow();
+	Qwt3DArrow(const Qwt3DArrow& other);
+	~Qwt3DArrow() override;
 
-	Qwt3D::Enrichment* clone() const override;
+	Qwt3DEnrichment* clone() const override;
 
 	void configure(int segs, double relconelength, double relconerad, double relstemrad);
 	void setQuality(int val);
-	void draw(Qwt3D::Triple const&) override;
+	void draw(Triple const&) override;
 
-	void setTop(Qwt3D::Triple t);
-	void setColor(Qwt3D::RGBA rgba);
+	void setTop(Triple t);
+	void setColor(RGBA rgba);
 
 private:
-	QWT_DECLARE_PRIVATE(Arrow)
+	QWT_DECLARE_PRIVATE(Qwt3DArrow)
 
-	double calcRotation(Qwt3D::Triple& axis, Qwt3D::FreeVector const& vec);
+	double calcRotation(Triple& axis, FreeVector const& vec);
 };
-
-}  // ns
 
 #endif  // QWT3D_ENRICHMENT_STD_H
 
@@ -29386,25 +31559,22 @@ private:
 #ifndef QWT3D_IO_READER_H
 #define QWT3D_IO_READER_H
 
-namespace Qwt3D
-{
-
 /**
  * @brief Functor for reading of native files containing grid data
  * @details As a standard input functor associated with "mes" and "MES" file extensions.
  */
-class QWT3D_EXPORT NativeReader : public IO::Functor
+class QWT3D_EXPORT Qwt3DNativeReader : public Qwt3DIO::Functor
 {
-	friend class IO;
-	QWT_DECLARE_PRIVATE(NativeReader)
+	friend class Qwt3DIO;
+	QWT_DECLARE_PRIVATE(Qwt3DNativeReader)
 
 public:
-	NativeReader();
-	~NativeReader() override;
+	Qwt3DNativeReader();
+	~Qwt3DNativeReader() override;
 
 private:
-	IO::Functor* clone() const override;
-	bool operator()(Plot3D* plot, QString const& fname) override;
+	Qwt3DIO::Functor* clone() const override;
+	bool operator()(Qwt3DPlot* plot, QString const& fname) override;
 	static const char* magicstring;
 	bool collectInfo(FILE*& file,
 					 QString const& fname,
@@ -29416,9 +31586,8 @@ private:
 					 double& maxy);
 };
 
-}  // ns
-
 #endif  // QWT3D_IO_READER_H
+
 /*** End of inlined file: qwt3d_io_reader.h ***/
 
 
@@ -29426,44 +31595,1344 @@ private:
 #ifndef QWT3D_PARAMETRICSURFACE_H
 #define QWT3D_PARAMETRICSURFACE_H
 
-namespace Qwt3D
-{
 
-class SurfacePlot;
+/*** Start of inlined file: qwt3d_types.h ***/
+#if defined(_MSC_VER) /* MSVC Compiler */
+#pragma warning(disable : 4786)
+#endif
+
+#ifndef QWT3D_TYPES_H
+#define QWT3D_TYPES_H
+
+#ifdef _DEBUG
+#include <fstream>
+#endif
+
+#include <string>
+
+#ifndef WHEEL_DELTA
+#define WHEEL_DELTA 120
+#endif
+
+#include <QColor>
+
+const double Qwt3D_PI = 3.14159265358979323846264338328;
+
+/**
+ * @brief Plotting style enumeration
+ */
+enum PLOTSTYLE
+{
+	NOPLOT,      // No visible data
+	WIREFRAME,   // Wireframe style
+	HIDDENLINE,  // Hidden Line style
+	FILLED,      // Color filled polygons w/o edges
+	FILLEDMESH,  // Color filled polygons w/ separately colored edges
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
+	USER         // User defined style (used by Enrichments)
+};
+
+/**
+ * @brief Shading style enumeration
+ */
+enum SHADINGSTYLE
+{
+	FLAT,    // Flat shading (OpenGL)
+	GOURAUD  // Gouraud Shading (OpenGL)
+};
+
+/**
+ * @brief Style of coordinate system enumeration
+ */
+enum COORDSTYLE
+{
+	NOCOORD,  // Coordinate system is not visible
+	BOX,      // Boxed
+	FRAME     // Frame - 3 visible axes
+};
+
+/**
+ * @brief Different types of axis scales
+ */
+enum SCALETYPE
+{
+	LINEARSCALE,  // Linear scaling
+	LOG10SCALE,   // Logarithmic scaling (base 10)
+	USERSCALE     // User-defined (for extensions)
+};
+
+/**
+ * @brief Plotting style for floor data (projections)
+ */
+enum FLOORSTYLE
+{
+	NOFLOOR,   // Empty floor
+	FLOORISO,  // Isoline projections visible
+	FLOORDATA  // Projected polygons visible
+};
+
+/**
+ * @brief Mesh type enumeration
+ */
+enum DATATYPE
+{
+	GRID,    // Rectangular grid
+	POLYGON  // Convex polygon
+};
+
+/**
+ * @brief The 12 axes
+ * @image html axes.png
+ */
+enum AXIS
+{
+	X1 = 0,   // 1st x-axis
+	X2 = 3,   // 2nd x-axis
+	X3 = 4,   // 3rd x-axis
+	X4 = 5,   // 4th x-axis
+	Y1 = 1,   // 1st y-axis
+	Y2 = 8,   // 2nd y-axis
+	Y3 = 7,   // 3rd y-axis
+	Y4 = 6,   // 4th y-axis
+	Z1 = 2,   // 1st z-axis
+	Z2 = 9,   // 2nd z-axis
+	Z3 = 11,  // 3rd z-axis
+	Z4 = 10   // 4th z-axis
+};
+
+/**
+ * @brief The 6 sides of a plot box
+ */
+enum SIDE
+{
+	NOSIDEGRID = 0,
+	LEFT       = 1 << 0,
+	RIGHT      = 1 << 1,
+	CEIL       = 1 << 2,
+	FLOOR      = 1 << 3,
+	FRONT      = 1 << 4,
+	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
+};
+
+/**
+ * @brief Possible anchor points for drawing operations
+ */
+enum ANCHOR
+{
+	BottomLeft,
+	BottomRight,
+	BottomCenter,
+	TopLeft,
+	TopRight,
+	TopCenter,
+	CenterLeft,
+	CenterRight,
+	Center
+};
+
+/**
+ * @brief Tuple [x,y]
+ * @details A 2D point/vector represented by x and y coordinates.
+ */
+struct QWT3D_EXPORT Tuple
+{
+	// Calls Tuple(0,0)
+	Tuple() : x(0), y(0)
+	{
+	}
+	// Initialize Tuple with x and y
+	Tuple(double X, double Y) : x(X), y(Y)
+	{
+	}
+	// Tuple coordinates
+	double x, y;
+};
+
+/**
+ * @brief Triple [x,y,z]
+ * @details Consider Triples also as vectors in R^3. Provides basic vector operations
+ *          including addition, subtraction, scaling, normalization, and length calculation.
+ */
+struct QWT3D_EXPORT Triple
+{
+	// Initialize Triple with x,y and z
+	explicit Triple(double xv = 0, double yv = 0, double zv = 0) : x(xv), y(yv), z(zv)
+	{
+	}
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+#ifdef Q_OS_IRIX
+	Triple(const Triple& val)
+	{
+		if (&val == this)
+			return;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+	}
+	const Triple& operator=(const Triple& val)
+	{
+		if (&val == this)
+			return *this;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+		return *this;
+	}
+#endif
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+	// Triple coordinates
+	double x, y, z;
+
+	Triple& operator+=(Triple t)
+	{
+		x += t.x;
+		y += t.y;
+		z += t.z;
+
+		return *this;
+	}
+
+	Triple& operator-=(Triple t)
+	{
+		x -= t.x;
+		y -= t.y;
+		z -= t.z;
+
+		return *this;
+	}
+	Triple& operator*=(double d)
+	{
+		x *= d;
+		y *= d;
+		z *= d;
+
+		return *this;
+	}
+	Triple& operator/=(double d)
+	{
+		x /= d;
+		y /= d;
+		z /= d;
+
+		return *this;
+	}
+	Triple& operator*=(Triple t)  // scale
+	{
+		x *= t.x;
+		y *= t.y;
+		z *= t.z;
+
+		return *this;
+	}
+
+	bool operator!=(Triple t) const
+	{
+		return !isPracticallyZero(x, t.x) || !isPracticallyZero(y, t.y) || !isPracticallyZero(z, t.z);
+	}
+
+	bool operator==(Triple t) const
+	{
+		return !operator!=(t);
+	}
+
+	double length() const
+	{
+		double l2 = x * x + y * y + z * z;
+		return (isPracticallyZero(l2)) ? 0 : sqrt(l2);
+	}
+
+	void normalize()
+	{
+		double l = length();
+		if (l)
+			*this /= l;
+	}
+};
+
+inline const Triple operator+(const Triple& t, const Triple& t2)
+{
+	return Triple(t) += t2;
+}
+inline const Triple operator-(const Triple& t, const Triple& t2)
+{
+	return Triple(t) -= t2;
+}
+inline const Triple operator*(double d, const Triple& t)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator*(const Triple& t, double d)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator/(double d, const Triple& t)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator/(const Triple& t, double d)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator*(const Triple& t, const Triple& t2)
+{
+	return Triple(t) *= t2;
+}
+
+/**
+ * @brief Parallelepiped spanned by 2 Triples
+ * @details Please use normalized Parallelepipeds:
+ *          minVertex.x <= maxVertex.x, minVertex.y <= maxVertex.y,
+ *          minVertex.z <= maxVertex.z
+ */
+struct QWT3D_EXPORT ParallelEpiped
+{
+	// Construct non-initialized Parallelepiped
+	ParallelEpiped()
+	{
+	}
+
+	// Construct initialized Parallelepiped: minv -> minVertex, maxv -> maxVertex
+	ParallelEpiped(Triple minv, Triple maxv) : minVertex(minv), maxVertex(maxv)
+	{
+	}
+
+	Triple minVertex;
+	Triple maxVertex;
+};
+
+/**
+ * @brief Free vector
+ * @details FreeVectors represent objects like normal vectors and other vector fields inside R^3.
+ */
+struct QWT3D_EXPORT FreeVector
+{
+	FreeVector()
+	{
+	}
+
+	// Construct initialized vector: b -> base, e -> top
+	FreeVector(Triple b, Triple t) : base(b), top(t)
+	{
+	}
+
+	Triple base;
+	Triple top;
+};
+
+/**
+ * @brief A free vector field in R^3
+ */
+using FreeVectorField = std::vector< FreeVector >;
+
+/**
+ * @brief A point field in R^3
+ */
+using TripleField = std::vector< Triple >;
+
+/**
+ * @brief Holds indices in a TripleField interpreted as counterclockwise node numbering for a convex polygon
+ */
+using Cell = std::vector< unsigned >;
+
+/**
+ * @brief Vector of convex polygons. You need a TripleField as base for the node data
+ */
+using CellField = std::vector< Cell >;
+
+// Returns the sum over the sizes of the single cells
+unsigned tesselationSize(CellField const& t);
+
+/**
+ * @brief Red-Green-Blue-Alpha value
+ */
+struct QWT3D_EXPORT RGBA
+{
+	RGBA() : r(0), g(0), b(0), a(1)
+	{
+	}
+	RGBA(double rr, double gg, double bb, double aa = 1) : r(rr), g(gg), b(bb), a(aa)
+	{
+	}
+	double r, g, b, a;
+};
+
+/**
+ * @brief A Color field
+ */
+using ColorVector = std::vector< RGBA >;
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+
+// RGB -> QColor
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
+// QColor -> RGBA
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
+
+using Vertex     = double*;
+using DataRow    = std::vector< Vertex >;
+using DataMatrix = std::vector< DataRow >;
+
+/**
+ * @brief Abstract base class for plot data
+ * @details Qwt3DData provides the interface for different data representations
+ *          used by 3D plot widgets.
+ */
+class Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DData)
+
+public:
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
+	// Destroy content
+	virtual void clear() = 0;
+	// No data
+	virtual bool empty() const = 0;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
+};
+
+/**
+ * @brief Implements a matrix of z-Values with limit access functions
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
+ *          providing z-values organized in a matrix with associated normals.
+ */
+class Qwt3DGridData : public Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
+
+public:
+	Qwt3DGridData();
+	// See setSize()
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
+
+	int columns() const;
+	int rows() const;
+
+	// Destroy content
+	void clear();
+	bool empty() const;
+	// Destroys content and set new size, elements are uninitialized
+	void setSize(unsigned int columns, unsigned int rows);
+
+	// Mesh vertices
+	DataMatrix vertices;
+	// Mesh normals
+	DataMatrix normals;
+	void setPeriodic(bool u, bool v);
+	bool uperiodic() const;
+	bool vperiodic() const;
+};
+
+/**
+ * @brief Implements a graph-like cell structure with limit access functions
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
+ *          with associated node coordinates and normals.
+ */
+class Qwt3DCellData : public Qwt3DData
+{
+public:
+	Qwt3DCellData()
+	{
+		datatype = POLYGON;
+	}
+	~Qwt3DCellData()
+	{
+		clear();
+	}
+
+	// Destroy content
+	void clear();
+	bool empty() const
+	{
+		return cells.empty();
+	}
+
+	Triple const& operator()(unsigned cellnumber, unsigned vertexnumber);
+
+	// Polygon/cell mesh
+	CellField cells;
+	TripleField nodes;
+	// Mesh normals
+	TripleField normals;
+};
+
+inline Triple normalizedcross(Triple const& u, Triple const& v)
+{
+	Triple n;
+
+	/* compute the cross product (u x v for right-handed [ccw]) */
+	n.x = u.y * v.z - u.z * v.y;
+	n.y = u.z * v.x - u.x * v.z;
+	n.z = u.x * v.y - u.y * v.x;
+
+	/* normalize */
+	double l = n.length();
+	if (l) {
+		n /= l;
+	} else {
+		n = Triple(0, 0, 0);
+	}
+
+	return n;
+}
+
+inline double dotProduct(Triple const& u, Triple const& v)
+{
+	return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
+
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
+
+#endif
+/*** End of inlined file: qwt3d_types.h ***/
 
 /**
  * @brief Abstract base class for parametric surfaces
+ * @details A Qwt3DParametricSurface encapsulates a parametric surface
+ *          defined by operator()(u, v). The user overrides operator() to
+ *          produce a working object. setDomain, setMesh and create should
+ *          be called for reasonable operating conditions.
+ *
+ *          create() returns a Qwt3DParametricData struct that the caller
+ *          feeds to Qwt3DSurface::loadFromData(). The class no longer holds
+ *          a back-pointer to the surface item (deferred smell #2, resolved).
+ *
+ * @code
+ * class Torus : public Qwt3DParametricSurface
+ * {
+ * public:
+ *     Triple operator()(double u, double v) override { ... }
+ * };
+ *
+ * Torus torus;
+ * torus.setMesh(40, 40);
+ * torus.setDomain(0, 2*PI, 0, 2*PI);
+ * torus.setPeriodic(true, true);
+ * auto data = torus.create();
+ * surface->loadFromData(data);
+ * @endcode
  */
-class QWT3D_EXPORT ParametricSurface : public GridMapping
+class QWT3D_EXPORT Qwt3DParametricSurface : public Qwt3DGridMapping
 {
-	QWT_DECLARE_PRIVATE(ParametricSurface)
+	QWT_DECLARE_PRIVATE(Qwt3DParametricSurface)
 
 public:
-	// Constructs ParametricSurface object w/o assigned SurfacePlot
-	ParametricSurface();
-	// Constructs ParametricSurface object and assigns a SurfacePlot
-	explicit ParametricSurface(Qwt3D::SurfacePlot& plotWidget);
-	// Constructs ParametricSurface object and assigns a SurfacePlot
-	explicit ParametricSurface(Qwt3D::SurfacePlot* plotWidget);
-	~ParametricSurface() override;
+	// Constructs Qwt3DParametricSurface object
+	Qwt3DParametricSurface();
+	~Qwt3DParametricSurface() override;
 	// Overwrite this
-	virtual Qwt3D::Triple operator()(double u, double v) = 0;
-	// Assigns a new SurfacePlot and creates a data representation for it
-	virtual bool create(Qwt3D::SurfacePlot& plotWidget);
-	// Creates data representation for the actual assigned SurfacePlot
-	virtual bool create();
-	// Assigns the object to another widget - call before create()
-	void assign(Qwt3D::SurfacePlot& plotWidget);
-	// Assigns the object to another widget - call before create()
-	void assign(Qwt3D::SurfacePlot* plotWidget);
+	virtual Triple operator()(double u, double v) = 0;
+	// Evaluates the parametric surface over the mesh grid and returns the result
+	virtual Qwt3DParametricData create();
 	// Provide information about periodicity of the 'u' resp. 'v' domains
 	void setPeriodic(bool u, bool v);
 };
 
-}  // ns
+#endif
 
-#endif  // QWT3D_PARAMETRICSURFACE_H
 /*** End of inlined file: qwt3d_parametricsurface.h ***/
+
+
+/*** Start of inlined file: qwt3d_plotitem.h ***/
+#ifndef QWT3D_PLOTITEM_H
+#define QWT3D_PLOTITEM_H
+
+#include <QString>
+
+
+/*** Start of inlined file: qwt3d_types.h ***/
+#if defined(_MSC_VER) /* MSVC Compiler */
+#pragma warning(disable : 4786)
+#endif
+
+#ifndef QWT3D_TYPES_H
+#define QWT3D_TYPES_H
+
+#ifdef _DEBUG
+#include <fstream>
+#endif
+
+#include <string>
+
+#ifndef WHEEL_DELTA
+#define WHEEL_DELTA 120
+#endif
+
+#include <QColor>
+
+const double Qwt3D_PI = 3.14159265358979323846264338328;
+
+/**
+ * @brief Plotting style enumeration
+ */
+enum PLOTSTYLE
+{
+	NOPLOT,      // No visible data
+	WIREFRAME,   // Wireframe style
+	HIDDENLINE,  // Hidden Line style
+	FILLED,      // Color filled polygons w/o edges
+	FILLEDMESH,  // Color filled polygons w/ separately colored edges
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
+	USER         // User defined style (used by Enrichments)
+};
+
+/**
+ * @brief Shading style enumeration
+ */
+enum SHADINGSTYLE
+{
+	FLAT,    // Flat shading (OpenGL)
+	GOURAUD  // Gouraud Shading (OpenGL)
+};
+
+/**
+ * @brief Style of coordinate system enumeration
+ */
+enum COORDSTYLE
+{
+	NOCOORD,  // Coordinate system is not visible
+	BOX,      // Boxed
+	FRAME     // Frame - 3 visible axes
+};
+
+/**
+ * @brief Different types of axis scales
+ */
+enum SCALETYPE
+{
+	LINEARSCALE,  // Linear scaling
+	LOG10SCALE,   // Logarithmic scaling (base 10)
+	USERSCALE     // User-defined (for extensions)
+};
+
+/**
+ * @brief Plotting style for floor data (projections)
+ */
+enum FLOORSTYLE
+{
+	NOFLOOR,   // Empty floor
+	FLOORISO,  // Isoline projections visible
+	FLOORDATA  // Projected polygons visible
+};
+
+/**
+ * @brief Mesh type enumeration
+ */
+enum DATATYPE
+{
+	GRID,    // Rectangular grid
+	POLYGON  // Convex polygon
+};
+
+/**
+ * @brief The 12 axes
+ * @image html axes.png
+ */
+enum AXIS
+{
+	X1 = 0,   // 1st x-axis
+	X2 = 3,   // 2nd x-axis
+	X3 = 4,   // 3rd x-axis
+	X4 = 5,   // 4th x-axis
+	Y1 = 1,   // 1st y-axis
+	Y2 = 8,   // 2nd y-axis
+	Y3 = 7,   // 3rd y-axis
+	Y4 = 6,   // 4th y-axis
+	Z1 = 2,   // 1st z-axis
+	Z2 = 9,   // 2nd z-axis
+	Z3 = 11,  // 3rd z-axis
+	Z4 = 10   // 4th z-axis
+};
+
+/**
+ * @brief The 6 sides of a plot box
+ */
+enum SIDE
+{
+	NOSIDEGRID = 0,
+	LEFT       = 1 << 0,
+	RIGHT      = 1 << 1,
+	CEIL       = 1 << 2,
+	FLOOR      = 1 << 3,
+	FRONT      = 1 << 4,
+	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
+};
+
+/**
+ * @brief Possible anchor points for drawing operations
+ */
+enum ANCHOR
+{
+	BottomLeft,
+	BottomRight,
+	BottomCenter,
+	TopLeft,
+	TopRight,
+	TopCenter,
+	CenterLeft,
+	CenterRight,
+	Center
+};
+
+/**
+ * @brief Tuple [x,y]
+ * @details A 2D point/vector represented by x and y coordinates.
+ */
+struct QWT3D_EXPORT Tuple
+{
+	// Calls Tuple(0,0)
+	Tuple() : x(0), y(0)
+	{
+	}
+	// Initialize Tuple with x and y
+	Tuple(double X, double Y) : x(X), y(Y)
+	{
+	}
+	// Tuple coordinates
+	double x, y;
+};
+
+/**
+ * @brief Triple [x,y,z]
+ * @details Consider Triples also as vectors in R^3. Provides basic vector operations
+ *          including addition, subtraction, scaling, normalization, and length calculation.
+ */
+struct QWT3D_EXPORT Triple
+{
+	// Initialize Triple with x,y and z
+	explicit Triple(double xv = 0, double yv = 0, double zv = 0) : x(xv), y(yv), z(zv)
+	{
+	}
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+#ifdef Q_OS_IRIX
+	Triple(const Triple& val)
+	{
+		if (&val == this)
+			return;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+	}
+	const Triple& operator=(const Triple& val)
+	{
+		if (&val == this)
+			return *this;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+		return *this;
+	}
+#endif
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+	// Triple coordinates
+	double x, y, z;
+
+	Triple& operator+=(Triple t)
+	{
+		x += t.x;
+		y += t.y;
+		z += t.z;
+
+		return *this;
+	}
+
+	Triple& operator-=(Triple t)
+	{
+		x -= t.x;
+		y -= t.y;
+		z -= t.z;
+
+		return *this;
+	}
+	Triple& operator*=(double d)
+	{
+		x *= d;
+		y *= d;
+		z *= d;
+
+		return *this;
+	}
+	Triple& operator/=(double d)
+	{
+		x /= d;
+		y /= d;
+		z /= d;
+
+		return *this;
+	}
+	Triple& operator*=(Triple t)  // scale
+	{
+		x *= t.x;
+		y *= t.y;
+		z *= t.z;
+
+		return *this;
+	}
+
+	bool operator!=(Triple t) const
+	{
+		return !isPracticallyZero(x, t.x) || !isPracticallyZero(y, t.y) || !isPracticallyZero(z, t.z);
+	}
+
+	bool operator==(Triple t) const
+	{
+		return !operator!=(t);
+	}
+
+	double length() const
+	{
+		double l2 = x * x + y * y + z * z;
+		return (isPracticallyZero(l2)) ? 0 : sqrt(l2);
+	}
+
+	void normalize()
+	{
+		double l = length();
+		if (l)
+			*this /= l;
+	}
+};
+
+inline const Triple operator+(const Triple& t, const Triple& t2)
+{
+	return Triple(t) += t2;
+}
+inline const Triple operator-(const Triple& t, const Triple& t2)
+{
+	return Triple(t) -= t2;
+}
+inline const Triple operator*(double d, const Triple& t)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator*(const Triple& t, double d)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator/(double d, const Triple& t)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator/(const Triple& t, double d)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator*(const Triple& t, const Triple& t2)
+{
+	return Triple(t) *= t2;
+}
+
+/**
+ * @brief Parallelepiped spanned by 2 Triples
+ * @details Please use normalized Parallelepipeds:
+ *          minVertex.x <= maxVertex.x, minVertex.y <= maxVertex.y,
+ *          minVertex.z <= maxVertex.z
+ */
+struct QWT3D_EXPORT ParallelEpiped
+{
+	// Construct non-initialized Parallelepiped
+	ParallelEpiped()
+	{
+	}
+
+	// Construct initialized Parallelepiped: minv -> minVertex, maxv -> maxVertex
+	ParallelEpiped(Triple minv, Triple maxv) : minVertex(minv), maxVertex(maxv)
+	{
+	}
+
+	Triple minVertex;
+	Triple maxVertex;
+};
+
+/**
+ * @brief Free vector
+ * @details FreeVectors represent objects like normal vectors and other vector fields inside R^3.
+ */
+struct QWT3D_EXPORT FreeVector
+{
+	FreeVector()
+	{
+	}
+
+	// Construct initialized vector: b -> base, e -> top
+	FreeVector(Triple b, Triple t) : base(b), top(t)
+	{
+	}
+
+	Triple base;
+	Triple top;
+};
+
+/**
+ * @brief A free vector field in R^3
+ */
+using FreeVectorField = std::vector< FreeVector >;
+
+/**
+ * @brief A point field in R^3
+ */
+using TripleField = std::vector< Triple >;
+
+/**
+ * @brief Holds indices in a TripleField interpreted as counterclockwise node numbering for a convex polygon
+ */
+using Cell = std::vector< unsigned >;
+
+/**
+ * @brief Vector of convex polygons. You need a TripleField as base for the node data
+ */
+using CellField = std::vector< Cell >;
+
+// Returns the sum over the sizes of the single cells
+unsigned tesselationSize(CellField const& t);
+
+/**
+ * @brief Red-Green-Blue-Alpha value
+ */
+struct QWT3D_EXPORT RGBA
+{
+	RGBA() : r(0), g(0), b(0), a(1)
+	{
+	}
+	RGBA(double rr, double gg, double bb, double aa = 1) : r(rr), g(gg), b(bb), a(aa)
+	{
+	}
+	double r, g, b, a;
+};
+
+/**
+ * @brief A Color field
+ */
+using ColorVector = std::vector< RGBA >;
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+
+// RGB -> QColor
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
+// QColor -> RGBA
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
+
+using Vertex     = double*;
+using DataRow    = std::vector< Vertex >;
+using DataMatrix = std::vector< DataRow >;
+
+/**
+ * @brief Abstract base class for plot data
+ * @details Qwt3DData provides the interface for different data representations
+ *          used by 3D plot widgets.
+ */
+class Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DData)
+
+public:
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
+	// Destroy content
+	virtual void clear() = 0;
+	// No data
+	virtual bool empty() const = 0;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
+};
+
+/**
+ * @brief Implements a matrix of z-Values with limit access functions
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
+ *          providing z-values organized in a matrix with associated normals.
+ */
+class Qwt3DGridData : public Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
+
+public:
+	Qwt3DGridData();
+	// See setSize()
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
+
+	int columns() const;
+	int rows() const;
+
+	// Destroy content
+	void clear();
+	bool empty() const;
+	// Destroys content and set new size, elements are uninitialized
+	void setSize(unsigned int columns, unsigned int rows);
+
+	// Mesh vertices
+	DataMatrix vertices;
+	// Mesh normals
+	DataMatrix normals;
+	void setPeriodic(bool u, bool v);
+	bool uperiodic() const;
+	bool vperiodic() const;
+};
+
+/**
+ * @brief Implements a graph-like cell structure with limit access functions
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
+ *          with associated node coordinates and normals.
+ */
+class Qwt3DCellData : public Qwt3DData
+{
+public:
+	Qwt3DCellData()
+	{
+		datatype = POLYGON;
+	}
+	~Qwt3DCellData()
+	{
+		clear();
+	}
+
+	// Destroy content
+	void clear();
+	bool empty() const
+	{
+		return cells.empty();
+	}
+
+	Triple const& operator()(unsigned cellnumber, unsigned vertexnumber);
+
+	// Polygon/cell mesh
+	CellField cells;
+	TripleField nodes;
+	// Mesh normals
+	TripleField normals;
+};
+
+inline Triple normalizedcross(Triple const& u, Triple const& v)
+{
+	Triple n;
+
+	/* compute the cross product (u x v for right-handed [ccw]) */
+	n.x = u.y * v.z - u.z * v.y;
+	n.y = u.z * v.x - u.x * v.z;
+	n.z = u.x * v.y - u.y * v.x;
+
+	/* normalize */
+	double l = n.length();
+	if (l) {
+		n /= l;
+	} else {
+		n = Triple(0, 0, 0);
+	}
+
+	return n;
+}
+
+inline double dotProduct(Triple const& u, Triple const& v)
+{
+	return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
+
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
+
+#endif
+/*** End of inlined file: qwt3d_types.h ***/
+
+class Qwt3DPlot;
+
+/**
+ * @brief Base class for all 3D plot items
+ *
+ * @details A Qwt3DPlotItem is "something", that can be drawn within the
+ *          GL context of a Qwt3DPlot widget. Items are not widgets themselves;
+ *          they are pure data + drawing logic objects that are attached to
+ *          a Qwt3DPlot via attach() and rendered during Qwt3DPlot::paintGL().
+ *
+ * The rendering pipeline calls draw() for each attached item in order of
+ * ascending z-value. Items manage their own data, geometry caching
+ * (VBO/VAO), and color/style. The view transformation, projection, and
+ * lighting are set up by Qwt3DPlot before draw() is called.
+ *
+ * To implement a custom 3D plot item, derive from Qwt3DPlotItem and
+ * implement the pure virtual draw() and hull() methods:
+ *
+ * @code
+ * class MyItem : public Qwt3DPlotItem
+ * {
+ * public:
+ *     void draw() override
+ *     {
+ *         // Issue GL drawing calls using the current GL context
+ *     }
+ *
+ *     ParallelEpiped hull() const override
+ *     {
+ *         return m_hull;
+ *     }
+ *
+ * private:
+ *     ParallelEpiped m_hull;
+ * };
+ *
+ * // Usage:
+ * auto plot = new Qwt3DPlot(parent);
+ * auto item = new MyItem();
+ * item->attach(plot);
+ * @endcode
+ *
+ * @sa Qwt3DPlot, QwtPlotItem (2D counterpart)
+ */
+class QWT3D_EXPORT Qwt3DPlotItem
+{
+	QWT_DECLARE_PRIVATE(Qwt3DPlotItem)
+
+public:
+	/// Default constructor
+	Qwt3DPlotItem();
+	/// Destructor — detaches from any plot
+	virtual ~Qwt3DPlotItem();
+
+	/// Attach the item to a plot
+	void attach(Qwt3DPlot* plot);
+	/// Detach the item from its plot
+	void detach();
+
+	/// Get the plot this item is attached to
+	Qwt3DPlot* plot() const;
+
+	/// Draw the item using the current GL context
+	virtual void draw() = 0;
+	/// Get the bounding hull of the item in 3D space
+	virtual ParallelEpiped hull() const = 0;
+
+	/// Set the item title
+	void setTitle(const QString& title);
+	/// Get the item title
+	QString title() const;
+
+	/// Set the z-order value (controls draw sequence)
+	void setZ(double z);
+	/// Get the z-order value
+	double z() const;
+
+	/// Set item visibility
+	void setVisible(bool on);
+	/// Check if the item is visible
+	bool isVisible() const;
+
+	/// Runtime type information
+	virtual int rtti() const;
+
+	/// Notify the plot that the item has changed
+	virtual void itemChanged();
+
+	/// Populate the legend color vector from the item's color functor
+	virtual void populateLegendColors(ColorVector& colors) const;
+
+private:
+	Qwt3DPlotItem(const Qwt3DPlotItem&) = delete;
+	Qwt3DPlotItem& operator=(const Qwt3DPlotItem&) = delete;
+};
+
+#endif // QWT3D_PLOTITEM_H
+
+/*** End of inlined file: qwt3d_plotitem.h ***/
 
 
 /*** Start of inlined file: qwt3d_plot.h ***/
@@ -29471,38 +32940,50 @@ public:
 #define QWT3D_PLOT_H
 
 #include <QOpenGLWidget>
+#include <QMatrix4x4>
+#include <QOpenGLShaderProgram>
 
-namespace Qwt3D
-{
+class Qwt3DPlotItem;
 
 /**
- * @brief Base class for all plotting widgets
- * @details Plot3D handles all the common features for plotting widgets -
- *          coordinate system, transformations, mouse/keyboard handling,
- *          labeling etc. It contains some pure virtual functions and is,
- *          in so far, an abstract base class. The class provides interfaces
- *          for data handling and implements basic data controlled color allocation.
+ * @brief Pure rendering window for 3D plots
+ * @details Qwt3DPlot is the central rendering window (a QOpenGLWidget subclass).
+ *          It manages GL context, view transformation, lighting, coordinate system,
+ *          legend, title, and mouse/keyboard interaction. It does NOT hold any
+ *          plotting data — data is managed by Qwt3DPlotItem subclasses that are
+ *          attached via attach().
+ *
+ * The rendering pipeline in paintGL():
+ *   1. Clear color + depth buffer
+ *   2. Calculate view/projection matrices on CPU (QMatrix4x4)
+ *   3. For each attached item (sorted by z): item->draw()
+ *   4. Draw coordinate system (legacy GL temporarily)
+ *   5. Draw legend and title
+ *
+ * @code
+ * auto plot = new Qwt3DPlot(parent);
+ * auto item = new MySurfaceItem();
+ * item->attach(plot);
+ * @endcode
  */
-class QWT3D_EXPORT Plot3D : public QOpenGLWidget
+class QWT3D_EXPORT Qwt3DPlot : public QOpenGLWidget
 {
 	Q_OBJECT
 
 public:
 	// Constructor
-	Plot3D(QWidget* parent = nullptr);
+	Qwt3DPlot(QWidget* parent = nullptr);
 	// Destructor
-	~Plot3D() override;
+	~Qwt3DPlot() override;
 
 	// Render to pixmap
 	QPixmap renderPixmap(int w = 0, int h = 0, bool useContext = false);
-	// Recalculate data
-	void updateData();
 	// Create coordinate system between two points
-	void createCoordinateSystem(Qwt3D::Triple beg, Qwt3D::Triple end);
+	void createCoordinateSystem(Triple beg, Triple end);
 	// Returns pointer to CoordinateSystem object
-	Qwt3D::CoordinateSystem* coordinates();
+	Qwt3DCoordinateSystem* coordinates();
 	// Returns pointer to ColorLegend object
-	Qwt3D::ColorLegend* legend();
+	Qwt3DColorLegend* legend();
 
 	// Returns rotation around X axis [-360..360] (some angles are equivalent)
 	double xRotation() const;
@@ -29535,70 +33016,37 @@ public:
 
 	// Returns orthogonal (true) or perspective (false) projection
 	bool ortho() const;
-	// Set plot style
-	void setPlotStyle(Qwt3D::PLOTSTYLE val);
-	// Set plot style with Enrichment
-	Qwt3D::Enrichment* setPlotStyle(Qwt3D::Enrichment const& val);
-	// Returns plotting style
-	Qwt3D::PLOTSTYLE plotStyle() const;
-	// Returns current Enrichment object used for plotting styles (if set, zero else)
-	Qwt3D::Enrichment* userStyle() const;
-	// Set shading style
-	void setShading(Qwt3D::SHADINGSTYLE val);
-	// Returns shading style
-	Qwt3D::SHADINGSTYLE shading() const;
-	// Set number of isolines
-	void setIsolines(int isolines);
-	// Returns number of isolines
-	int isolines() const;
 
-	// Enables/disables smooth data mesh lines. Default is false
-	void setSmoothMesh(bool val);
-	// True if mesh antialiasing is on
-	bool smoothDataMesh() const;
+	// Returns the current aspect ratio mode
+	ASPECTRATIOMODE aspectRatioMode() const;
+
 	// Sets widgets background color
-	void setBackgroundColor(Qwt3D::RGBA rgba);
+	void setBackgroundColor(RGBA rgba);
 	// Returns the widgets background color
-	Qwt3D::RGBA backgroundRGBAColor() const;
-	// Sets color for data mesh
-	void setMeshColor(Qwt3D::RGBA rgba);
-	// Returns color for data mesh
-	Qwt3D::RGBA meshColor() const;
-	// Sets line width for data mesh
-	void setMeshLineWidth(double lw);
-	// Returns line width for data mesh
-	double meshLineWidth() const;
-	// Sets new data color object
-	void setDataColor(Color* col);
-	// Returns data color object
-	const Color* dataColor() const;
+	RGBA backgroundRGBAColor() const;
 
-	// Add an Enrichment
-	virtual Qwt3D::Enrichment* addEnrichment(Qwt3D::Enrichment const&);
-	// Remove an Enrichment
-	virtual bool degrade(Qwt3D::Enrichment*);
-
-	// Returns rectangular hull
-	Qwt3D::ParallelEpiped hull() const;
+	// Returns rectangular hull (union of all attached items' hulls)
+	ParallelEpiped hull() const;
 
 	// Show/hide color legend
 	void showColorLegend(bool);
-
-	// Sets style of coordinate system
-	void setCoordinateStyle(Qwt3D::COORDSTYLE st);
-	// Set polygon offset
-	void setPolygonOffset(double d);
-	// Returns relative value for polygon offset [0..1]
-	double polygonOffset() const;
+	// Returns true if the color legend is shown
+	bool isColorLegendShown() const;
+	// Set legend to a predefined screen position
+	void setLegendPosition(Qwt3DColorLegend::Position pos);
+	// Set legend position using absolute pixel coordinates
+	void setLegendAbsolutePosition(const QRectF& pixelRect);
 
 	// Set title position
-	void setTitlePosition(double rely, double relx = 0.5, Qwt3D::ANCHOR = Qwt3D::TopCenter);
+	void setTitlePosition(double rely, double relx = 0.5, ANCHOR = TopCenter);
 	// Set title font
 	void setTitleFont(const QString& family, int pointSize, int weight = QFont::Normal, bool italic = false);
 	// Set caption color
-	void setTitleColor(Qwt3D::RGBA col);
+	void setTitleColor(RGBA col);
 	// Set caption text (one row only)
 	void setTitle(const QString& title);
+	// Returns the caption text
+	QString title() const;
 
 	// Set and apply a theme
 	void setTheme(const Qwt3DTheme& theme);
@@ -29611,37 +33059,37 @@ public:
 	void applyTheme(const QString& presetName);
 
 	// Assign mouse states for rotations, scales, zoom and shifts
-	void assignMouse(MouseState xrot,
-					 MouseState yrot,
-					 MouseState zrot,
-					 MouseState xscale,
-					 MouseState yscale,
-					 MouseState zscale,
-					 MouseState zoom,
-					 MouseState xshift,
-					 MouseState yshift);
+	void assignMouse(Qwt3DMouseState xrot,
+					 Qwt3DMouseState yrot,
+					 Qwt3DMouseState zrot,
+					 Qwt3DMouseState xscale,
+					 Qwt3DMouseState yscale,
+					 Qwt3DMouseState zscale,
+					 Qwt3DMouseState zoom,
+					 Qwt3DMouseState xshift,
+					 Qwt3DMouseState yshift);
 
 	// Returns true, if the widget accept mouse input from the user
 	bool mouseEnabled() const;
 	// Assign keyboard states for rotations, scales, zoom and shifts
-	void assignKeyboard(KeyboardState xrot_n,
-						KeyboardState xrot_p,
-						KeyboardState yrot_n,
-						KeyboardState yrot_p,
-						KeyboardState zrot_n,
-						KeyboardState zrot_p,
-						KeyboardState xscale_n,
-						KeyboardState xscale_p,
-						KeyboardState yscale_n,
-						KeyboardState yscale_p,
-						KeyboardState zscale_n,
-						KeyboardState zscale_p,
-						KeyboardState zoom_n,
-						KeyboardState zoom_p,
-						KeyboardState xshift_n,
-						KeyboardState xshift_p,
-						KeyboardState yshift_n,
-						KeyboardState yshift_p);
+	void assignKeyboard(Qwt3DKeyboardState xrot_n,
+						Qwt3DKeyboardState xrot_p,
+						Qwt3DKeyboardState yrot_n,
+						Qwt3DKeyboardState yrot_p,
+						Qwt3DKeyboardState zrot_n,
+						Qwt3DKeyboardState zrot_p,
+						Qwt3DKeyboardState xscale_n,
+						Qwt3DKeyboardState xscale_p,
+						Qwt3DKeyboardState yscale_n,
+						Qwt3DKeyboardState yscale_p,
+						Qwt3DKeyboardState zscale_n,
+						Qwt3DKeyboardState zscale_p,
+						Qwt3DKeyboardState zoom_n,
+						Qwt3DKeyboardState zoom_p,
+						Qwt3DKeyboardState xshift_n,
+						Qwt3DKeyboardState xshift_p,
+						Qwt3DKeyboardState yshift_n,
+						Qwt3DKeyboardState yshift_p);
 
 	// Returns true, if the widget accept keyboard input from the user
 	bool keyboardEnabled() const;
@@ -29658,15 +33106,15 @@ public:
 	void blowout(unsigned light = 0);
 
 	// Set material component (RGBA)
-	void setMaterialComponent(GLenum property, double r, double g, double b, double a = 1.0);
+	void setMaterialComponent(unsigned int property, double r, double g, double b, double a = 1.0);
 	// Set material component (intensity)
-	void setMaterialComponent(GLenum property, double intensity);
+	void setMaterialComponent(unsigned int property, double intensity);
 	// Set shininess exponent
 	void setShininess(double exponent);
 	// Set light component (RGBA)
-	void setLightComponent(GLenum property, double r, double g, double b, double a = 1.0, unsigned light = 0);
+	void setLightComponent(unsigned int property, double r, double g, double b, double a = 1.0, unsigned light = 0);
 	// Set light component (intensity)
-	void setLightComponent(GLenum property, double intensity, unsigned light = 0);
+	void setLightComponent(unsigned int property, double intensity, unsigned light = 0);
 
 	// Returns Light 'idx' rotation around X axis [-360..360] (some angles are equivalent)
 	double xLightRotation(unsigned idx = 0) const;
@@ -29681,8 +33129,39 @@ public:
 	double yLightShift(unsigned idx = 0) const;
 	// Returns shift of Light 'idx' along Z axis (object coordinates)
 	double zLightShift(unsigned idx = 0) const;
-	// Returns true if valid data available, false else
-	bool hasData() const;
+
+	// Returns true if the plot has attached items
+	bool hasItems() const;
+
+	// Item list management
+	virtual void attach(Qwt3DPlotItem* item);
+	virtual void detach(Qwt3DPlotItem* item);
+	const QList< Qwt3DPlotItem* >& itemList() const;
+
+	// Internal: called by Qwt3DPlotItem to request a redraw
+	void itemChanged(Qwt3DPlotItem* item);
+
+	// Returns true if GL has been initialized
+	bool initializedGL() const;
+
+	// Returns the current model-view matrix (computed in paintGL)
+	QMatrix4x4 modelViewMatrix() const;
+	// Returns the current projection matrix (computed in paintGL)
+	QMatrix4x4 projectionMatrix() const;
+
+	// Converts a world coordinate to screen (viewport) coordinates
+	QPointF worldToScreen(const Triple& world) const;
+	// Converts screen (viewport) coordinates to a world coordinate
+	Triple screenToWorld(const QPointF& screen) const;
+
+	// Returns the viewport size (width, height) in pixels
+	QSize viewportSize() const;
+
+	// Shared shader accessors for drawables and items
+	QOpenGLShaderProgram* lineShader() const;
+	QOpenGLShaderProgram* pointShader() const;
+	QOpenGLShaderProgram* polygonShader() const;
+	QOpenGLShaderProgram* textShader() const;
 
 Q_SIGNALS:
 
@@ -29729,6 +33208,12 @@ Q_SIGNALS:
 	 */
 	void projectionChanged(bool);
 
+	/**
+	 * @brief Signal emitted when the aspect ratio mode is changed
+	 * @param mode The new aspect ratio mode (AUTOFILL or DATARATIO)
+	 */
+	void aspectRatioModeChanged(ASPECTRATIOMODE mode);
+
 public Q_SLOTS:
 
 	// Set rotation values
@@ -29744,6 +33229,9 @@ public Q_SLOTS:
 
 	// Set orthogonal/perspective projection
 	void setOrtho(bool);
+
+	// Set the aspect ratio mode (AUTOFILL or DATARATIO)
+	void setAspectRatioMode(ASPECTRATIOMODE mode);
 
 	// Enable mouse input
 	void enableMouse(bool val = true);
@@ -29769,16 +33257,13 @@ public Q_SLOTS:
 	// Saves content to vector format
 	virtual bool saveVector(QString const& fileName,
 							QString const& format,
-							VectorWriter::TEXTMODE text,
-							VectorWriter::SORTMODE sortmode);
+							Qwt3DVectorWriter::TEXTMODE text,
+							Qwt3DVectorWriter::SORTMODE sortmode);
 	// Saves content
 	virtual bool save(QString const& fileName, QString const& format);
 
 protected:
-	QWT_DECLARE_PRIVATE(Plot3D)
-
-	using EnrichmentList = std::list< Qwt3D::Enrichment* >;
-	using ELIT           = EnrichmentList::iterator;
+	QWT_DECLARE_PRIVATE(Qwt3DPlot)
 
 	void initializeGL() override;
 	void paintGL() override;
@@ -29791,270 +33276,2923 @@ protected:
 
 	void keyPressEvent(QKeyEvent* e) override;
 
-	// Protected accessors for derived classes
-	std::vector< GLuint >& displayLists();
-	Qwt3D::Data* actualData() const;
-	void setActualData(Qwt3D::Data* data);
-
-	virtual void calculateHull() = 0;
-	virtual void createData()    = 0;
-	virtual void createEnrichment(Qwt3D::Enrichment&)
-	{
-	}
-	virtual void createEnrichments();
-
-	void createCoordinateSystem();
-	void setHull(Qwt3D::ParallelEpiped p);
-
-	bool initializedGL() const;
-
-	enum OBJECTS
-	{
-		DataObject,
-		LegendObject,
-		NormalObject,
-		DisplayListSize  // only to have a vector length ...
-	};
-
 private:
-	void setRotationMouse(MouseState bstate, double accel, QPoint diff);
-	void setScaleMouse(MouseState bstate, double accel, QPoint diff);
-	void setShiftMouse(MouseState bstate, double accel, QPoint diff);
+	void setRotationMouse(Qwt3DMouseState bstate, double accel, QPoint diff);
+	void setScaleMouse(Qwt3DMouseState bstate, double accel, QPoint diff);
+	void setShiftMouse(Qwt3DMouseState bstate, double accel, QPoint diff);
 
-	void setRotationKeyboard(KeyboardState kseq, double speed);
-	void setScaleKeyboard(KeyboardState kseq, double speed);
-	void setShiftKeyboard(KeyboardState kseq, double speed);
+	void setRotationKeyboard(Qwt3DKeyboardState kseq, double speed);
+	void setScaleKeyboard(Qwt3DKeyboardState kseq, double speed);
+	void setShiftKeyboard(Qwt3DKeyboardState kseq, double speed);
 
 	void applyLight(unsigned idx);
 	void applyLights();
 };
-
-}  // ns
 
 #endif  // QWT3D_PLOT_H
 
 /*** End of inlined file: qwt3d_plot.h ***/
 
 
-/*** Start of inlined file: qwt3d_surfaceplot.h ***/
-#ifndef QWT3D_SURFACEPLOT_H
-#define QWT3D_SURFACEPLOT_H
+/*** Start of inlined file: qwt3d_surface.h ***/
+#ifndef QWT3D_SURFACE_H
+#define QWT3D_SURFACE_H
 
-namespace Qwt3D
-{
+
+/*** Start of inlined file: qwt3d_types.h ***/
+#if defined(_MSC_VER) /* MSVC Compiler */
+#pragma warning(disable : 4786)
+#endif
+
+#ifndef QWT3D_TYPES_H
+#define QWT3D_TYPES_H
+
+#ifdef _DEBUG
+#include <fstream>
+#endif
+
+#include <string>
+
+#ifndef WHEEL_DELTA
+#define WHEEL_DELTA 120
+#endif
+
+#include <QColor>
+
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
- * @brief A class representing surfaces
- * @details SurfacePlot provides visualization of surface data in 3D space,
- *          supporting both grid-based and cell-based data representations.
- *
+ * @brief Plotting style enumeration
  */
-class QWT3D_EXPORT SurfacePlot : public Plot3D
+enum PLOTSTYLE
 {
-	Q_OBJECT
+	NOPLOT,      // No visible data
+	WIREFRAME,   // Wireframe style
+	HIDDENLINE,  // Hidden Line style
+	FILLED,      // Color filled polygons w/o edges
+	FILLEDMESH,  // Color filled polygons w/ separately colored edges
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
+	USER         // User defined style (used by Enrichments)
+};
+
+/**
+ * @brief Shading style enumeration
+ */
+enum SHADINGSTYLE
+{
+	FLAT,    // Flat shading (OpenGL)
+	GOURAUD  // Gouraud Shading (OpenGL)
+};
+
+/**
+ * @brief Style of coordinate system enumeration
+ */
+enum COORDSTYLE
+{
+	NOCOORD,  // Coordinate system is not visible
+	BOX,      // Boxed
+	FRAME     // Frame - 3 visible axes
+};
+
+/**
+ * @brief Different types of axis scales
+ */
+enum SCALETYPE
+{
+	LINEARSCALE,  // Linear scaling
+	LOG10SCALE,   // Logarithmic scaling (base 10)
+	USERSCALE     // User-defined (for extensions)
+};
+
+/**
+ * @brief Plotting style for floor data (projections)
+ */
+enum FLOORSTYLE
+{
+	NOFLOOR,   // Empty floor
+	FLOORISO,  // Isoline projections visible
+	FLOORDATA  // Projected polygons visible
+};
+
+/**
+ * @brief Mesh type enumeration
+ */
+enum DATATYPE
+{
+	GRID,    // Rectangular grid
+	POLYGON  // Convex polygon
+};
+
+/**
+ * @brief The 12 axes
+ * @image html axes.png
+ */
+enum AXIS
+{
+	X1 = 0,   // 1st x-axis
+	X2 = 3,   // 2nd x-axis
+	X3 = 4,   // 3rd x-axis
+	X4 = 5,   // 4th x-axis
+	Y1 = 1,   // 1st y-axis
+	Y2 = 8,   // 2nd y-axis
+	Y3 = 7,   // 3rd y-axis
+	Y4 = 6,   // 4th y-axis
+	Z1 = 2,   // 1st z-axis
+	Z2 = 9,   // 2nd z-axis
+	Z3 = 11,  // 3rd z-axis
+	Z4 = 10   // 4th z-axis
+};
+
+/**
+ * @brief The 6 sides of a plot box
+ */
+enum SIDE
+{
+	NOSIDEGRID = 0,
+	LEFT       = 1 << 0,
+	RIGHT      = 1 << 1,
+	CEIL       = 1 << 2,
+	FLOOR      = 1 << 3,
+	FRONT      = 1 << 4,
+	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
+};
+
+/**
+ * @brief Possible anchor points for drawing operations
+ */
+enum ANCHOR
+{
+	BottomLeft,
+	BottomRight,
+	BottomCenter,
+	TopLeft,
+	TopRight,
+	TopCenter,
+	CenterLeft,
+	CenterRight,
+	Center
+};
+
+/**
+ * @brief Tuple [x,y]
+ * @details A 2D point/vector represented by x and y coordinates.
+ */
+struct QWT3D_EXPORT Tuple
+{
+	// Calls Tuple(0,0)
+	Tuple() : x(0), y(0)
+	{
+	}
+	// Initialize Tuple with x and y
+	Tuple(double X, double Y) : x(X), y(Y)
+	{
+	}
+	// Tuple coordinates
+	double x, y;
+};
+
+/**
+ * @brief Triple [x,y,z]
+ * @details Consider Triples also as vectors in R^3. Provides basic vector operations
+ *          including addition, subtraction, scaling, normalization, and length calculation.
+ */
+struct QWT3D_EXPORT Triple
+{
+	// Initialize Triple with x,y and z
+	explicit Triple(double xv = 0, double yv = 0, double zv = 0) : x(xv), y(yv), z(zv)
+	{
+	}
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+#ifdef Q_OS_IRIX
+	Triple(const Triple& val)
+	{
+		if (&val == this)
+			return;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+	}
+	const Triple& operator=(const Triple& val)
+	{
+		if (&val == this)
+			return *this;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+		return *this;
+	}
+#endif
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+	// Triple coordinates
+	double x, y, z;
+
+	Triple& operator+=(Triple t)
+	{
+		x += t.x;
+		y += t.y;
+		z += t.z;
+
+		return *this;
+	}
+
+	Triple& operator-=(Triple t)
+	{
+		x -= t.x;
+		y -= t.y;
+		z -= t.z;
+
+		return *this;
+	}
+	Triple& operator*=(double d)
+	{
+		x *= d;
+		y *= d;
+		z *= d;
+
+		return *this;
+	}
+	Triple& operator/=(double d)
+	{
+		x /= d;
+		y /= d;
+		z /= d;
+
+		return *this;
+	}
+	Triple& operator*=(Triple t)  // scale
+	{
+		x *= t.x;
+		y *= t.y;
+		z *= t.z;
+
+		return *this;
+	}
+
+	bool operator!=(Triple t) const
+	{
+		return !isPracticallyZero(x, t.x) || !isPracticallyZero(y, t.y) || !isPracticallyZero(z, t.z);
+	}
+
+	bool operator==(Triple t) const
+	{
+		return !operator!=(t);
+	}
+
+	double length() const
+	{
+		double l2 = x * x + y * y + z * z;
+		return (isPracticallyZero(l2)) ? 0 : sqrt(l2);
+	}
+
+	void normalize()
+	{
+		double l = length();
+		if (l)
+			*this /= l;
+	}
+};
+
+inline const Triple operator+(const Triple& t, const Triple& t2)
+{
+	return Triple(t) += t2;
+}
+inline const Triple operator-(const Triple& t, const Triple& t2)
+{
+	return Triple(t) -= t2;
+}
+inline const Triple operator*(double d, const Triple& t)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator*(const Triple& t, double d)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator/(double d, const Triple& t)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator/(const Triple& t, double d)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator*(const Triple& t, const Triple& t2)
+{
+	return Triple(t) *= t2;
+}
+
+/**
+ * @brief Parallelepiped spanned by 2 Triples
+ * @details Please use normalized Parallelepipeds:
+ *          minVertex.x <= maxVertex.x, minVertex.y <= maxVertex.y,
+ *          minVertex.z <= maxVertex.z
+ */
+struct QWT3D_EXPORT ParallelEpiped
+{
+	// Construct non-initialized Parallelepiped
+	ParallelEpiped()
+	{
+	}
+
+	// Construct initialized Parallelepiped: minv -> minVertex, maxv -> maxVertex
+	ParallelEpiped(Triple minv, Triple maxv) : minVertex(minv), maxVertex(maxv)
+	{
+	}
+
+	Triple minVertex;
+	Triple maxVertex;
+};
+
+/**
+ * @brief Free vector
+ * @details FreeVectors represent objects like normal vectors and other vector fields inside R^3.
+ */
+struct QWT3D_EXPORT FreeVector
+{
+	FreeVector()
+	{
+	}
+
+	// Construct initialized vector: b -> base, e -> top
+	FreeVector(Triple b, Triple t) : base(b), top(t)
+	{
+	}
+
+	Triple base;
+	Triple top;
+};
+
+/**
+ * @brief A free vector field in R^3
+ */
+using FreeVectorField = std::vector< FreeVector >;
+
+/**
+ * @brief A point field in R^3
+ */
+using TripleField = std::vector< Triple >;
+
+/**
+ * @brief Holds indices in a TripleField interpreted as counterclockwise node numbering for a convex polygon
+ */
+using Cell = std::vector< unsigned >;
+
+/**
+ * @brief Vector of convex polygons. You need a TripleField as base for the node data
+ */
+using CellField = std::vector< Cell >;
+
+// Returns the sum over the sizes of the single cells
+unsigned tesselationSize(CellField const& t);
+
+/**
+ * @brief Red-Green-Blue-Alpha value
+ */
+struct QWT3D_EXPORT RGBA
+{
+	RGBA() : r(0), g(0), b(0), a(1)
+	{
+	}
+	RGBA(double rr, double gg, double bb, double aa = 1) : r(rr), g(gg), b(bb), a(aa)
+	{
+	}
+	double r, g, b, a;
+};
+
+/**
+ * @brief A Color field
+ */
+using ColorVector = std::vector< RGBA >;
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+
+// RGB -> QColor
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
+// QColor -> RGBA
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
+
+using Vertex     = double*;
+using DataRow    = std::vector< Vertex >;
+using DataMatrix = std::vector< DataRow >;
+
+/**
+ * @brief Abstract base class for plot data
+ * @details Qwt3DData provides the interface for different data representations
+ *          used by 3D plot widgets.
+ */
+class Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DData)
 
 public:
-	SurfacePlot(QWidget* parent = nullptr);
-	~SurfacePlot() override;
-	// Recalculates surface normals
-	void updateNormals();
-	// Returns data resolution (1 means all data)
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
+	// Destroy content
+	virtual void clear() = 0;
+	// No data
+	virtual bool empty() const = 0;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
+};
+
+/**
+ * @brief Implements a matrix of z-Values with limit access functions
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
+ *          providing z-values organized in a matrix with associated normals.
+ */
+class Qwt3DGridData : public Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
+
+public:
+	Qwt3DGridData();
+	// See setSize()
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
+
+	int columns() const;
+	int rows() const;
+
+	// Destroy content
+	void clear();
+	bool empty() const;
+	// Destroys content and set new size, elements are uninitialized
+	void setSize(unsigned int columns, unsigned int rows);
+
+	// Mesh vertices
+	DataMatrix vertices;
+	// Mesh normals
+	DataMatrix normals;
+	void setPeriodic(bool u, bool v);
+	bool uperiodic() const;
+	bool vperiodic() const;
+};
+
+/**
+ * @brief Implements a graph-like cell structure with limit access functions
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
+ *          with associated node coordinates and normals.
+ */
+class Qwt3DCellData : public Qwt3DData
+{
+public:
+	Qwt3DCellData()
+	{
+		datatype = POLYGON;
+	}
+	~Qwt3DCellData()
+	{
+		clear();
+	}
+
+	// Destroy content
+	void clear();
+	bool empty() const
+	{
+		return cells.empty();
+	}
+
+	Triple const& operator()(unsigned cellnumber, unsigned vertexnumber);
+
+	// Polygon/cell mesh
+	CellField cells;
+	TripleField nodes;
+	// Mesh normals
+	TripleField normals;
+};
+
+inline Triple normalizedcross(Triple const& u, Triple const& v)
+{
+	Triple n;
+
+	/* compute the cross product (u x v for right-handed [ccw]) */
+	n.x = u.y * v.z - u.z * v.y;
+	n.y = u.z * v.x - u.x * v.z;
+	n.z = u.x * v.y - u.y * v.x;
+
+	/* normalize */
+	double l = n.length();
+	if (l) {
+		n /= l;
+	} else {
+		n = Triple(0, 0, 0);
+	}
+
+	return n;
+}
+
+inline double dotProduct(Triple const& u, Triple const& v)
+{
+	return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
+
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
+
+#endif
+/*** End of inlined file: qwt3d_types.h ***/
+
+#include <list>
+
+class Qwt3DGridData;
+class Qwt3DCellData;
+
+/**
+ * @brief 3D surface plot item with VBO/VAO rendering
+ * @details Qwt3DSurface is a Qwt3DPlotItem that renders 3D surface data using
+ *          modern OpenGL (VBO/VAO + GLSL shaders). It supports both grid-based
+ *          (regular mesh) and cell-based (polygon mesh) data, with multiple
+ *          rendering styles (filled, wireframe, hiddenline, points).
+ *
+ * The item manages its own data storage, color mapping, and GL resources
+ * (VBO, VAO, EBO, shader program). Data is uploaded to GPU memory when dirty
+ * and reused across frames until the data changes.
+ *
+ * @code
+ * auto plot = new Qwt3DPlot(parent);
+ *
+ * auto surface = new Qwt3DSurface();
+ * surface->loadFromData(data, columns, rows, minX, maxX, minY, maxY);
+ * surface->setPlotStyle(FILLEDMESH);
+ * surface->attach(plot);
+ * @endcode
+ *
+ * @sa Qwt3DPlotItem, Qwt3DPlot, Qwt3DColor
+ */
+class QWT3D_EXPORT Qwt3DSurface : public Qwt3DPlotItem
+{
+	QWT_DECLARE_PRIVATE(Qwt3DSurface)
+
+public:
+	/// Constructs an empty surface item
+	Qwt3DSurface();
+	/// Destructor — releases GL resources and data
+	~Qwt3DSurface() override;
+
+	// Data loading — grid data
+
+	/// Load grid data from Triple array (x, y, z per vertex)
+	void loadFromData(Triple** data, unsigned int columns, unsigned int rows,
+					  bool uperiodic = false, bool vperiodic = false);
+	/// Load grid data from z-value matrix with explicit x/y domain
+	void loadFromData(double** data, unsigned int columns, unsigned int rows,
+					  double minx, double maxx, double miny, double maxy);
+	/// Load grid data from a Qwt3DFunctionData result (modern vector API)
+	void loadFromData(const Qwt3DFunctionData& data);
+	/// Load grid data from a Qwt3DParametricData result (modern vector API)
+	void loadFromData(const Qwt3DParametricData& data);
+
+	// Data loading — cell data
+
+	/// Load cell (polygon) data from node coordinates and cell indices
+	void loadFromData(TripleField const& nodes, CellField const& poly);
+
+	// Resolution
+
+	/// Returns data resolution (1 = all data, higher = coarser)
 	int resolution() const;
-	// Returns the number of mesh cells for the ORIGINAL data
-	std::pair< int, int > facets() const;
-	bool loadFromData(Qwt3D::Triple** data, unsigned int columns, unsigned int rows, bool uperiodic = false, bool vperiodic = false);
-	bool loadFromData(double** data, unsigned int columns, unsigned int rows, double minx, double maxx, double miny, double maxy);
-	bool loadFromData(Qwt3D::TripleField const& data, Qwt3D::CellField const& poly);
 
-	// Deprecated - Use loadFromData instead
-	bool createDataRepresentation(Qwt3D::Triple** data,
-								  unsigned int columns,
-								  unsigned int rows,
-								  bool uperiodic = false,
-								  bool vperiodic = false)
-	{
-		return loadFromData(data, columns, rows, uperiodic, vperiodic);
-	}
-	// Deprecated - Use loadFromData instead
-	bool createDataRepresentation(double** data,
-								  unsigned int columns,
-								  unsigned int rows,
-								  double minx,
-								  double maxx,
-								  double miny,
-								  double maxy)
-	{
-		return loadFromData(data, columns, rows, minx, maxx, miny, maxy);
-	}
-	// Deprecated - Use loadFromData instead
-	bool createDataRepresentation(Qwt3D::TripleField const& data, Qwt3D::CellField const& poly)
-	{
-		return loadFromData(data, poly);
-	}
+	// Floor style
 
-	// Return floor style
-	Qwt3D::FLOORSTYLE floorStyle() const;
-	// Sets floor style
-	void setFloorStyle(Qwt3D::FLOORSTYLE val);
-	// Draw normals to every vertex
-	void showNormals(bool);
-	// Returns true, if normal drawing is on
+	/// Returns the current floor projection style
+	FLOORSTYLE floorStyle() const;
+	/// Sets the floor projection style
+	void setFloorStyle(FLOORSTYLE style);
+
+	// Normals
+
+	/// Returns true if normal vectors are drawn
 	bool normals() const;
-
-	// Sets length of normals in percent per hull diagonale
-	void setNormalLength(double val);
-	// Returns relative length of normals
+	/// Show or hide normal vectors at each vertex
+	void showNormals(bool b);
+	/// Returns the relative length of drawn normals (0..1)
 	double normalLength() const;
-	// Increases plotting quality of normal arrows
-	void setNormalQuality(int val);
-	// Returns plotting quality of normal arrows
+	/// Sets the relative length of drawn normals
+	void setNormalLength(double val);
+	/// Returns the quality of normal arrow rendering
 	int normalQuality() const;
+	/// Sets the quality of normal arrow rendering (minimum 3)
+	void setNormalQuality(int val);
 
-Q_SIGNALS:
-	/**
-	 * @brief Signal emitted when the resolution changes
-	 * @param resolution The new resolution value
-	 *
-	 */
-	void resolutionChanged(int);
+	/// Returns the number of mesh cells in the original data
+	std::pair<int, int> facets() const;
+
+	/// Recalculates surface normals from current data
+	void updateNormals();
+
+	// Style (moved from Plot3D)
+
+	/// Returns the current plotting style
+	PLOTSTYLE plotStyle() const;
+	/// Sets the plotting style
+	void setPlotStyle(PLOTSTYLE style);
+	/// Sets the data color functor (takes ownership)
+	void setDataColor(Qwt3DColor* color);
+	/// Returns the data color functor
+	const Qwt3DColor* dataColor() const;
+	/// Marks per-vertex colors as stale, triggering a VBO rebuild on the next draw
+	void invalidateColors();
+	/// Returns the mesh line color
+	RGBA meshColor() const;
+	/// Sets the mesh line color
+	void setMeshColor(RGBA color);
+	/// Returns the mesh line width
+	double meshLineWidth() const;
+	/// Sets the mesh line width
+	void setMeshLineWidth(double width);
+	/// Returns the number of isolines
+	int isolines() const;
+	/// Sets the number of isolines
+	void setIsolines(int n);
+	/// Returns true if smooth mesh lines are enabled
+	bool smoothMesh() const;
+	/// Enables or disables smooth mesh lines
+	void setSmoothMesh(bool smooth);
+	/// Returns the polygon offset for filled rendering
+	double polygonOffset() const;
+	/// Sets the polygon offset for filled rendering
+	void setPolygonOffset(double offset);
+
+	// Shading
+	/// Returns the shading style
+	SHADINGSTYLE shading() const;
+	/// Sets the shading style
+	void setShading(SHADINGSTYLE style);
+
+	// Enrichments (moved from Plot3D)
+
+	/// Adds an enrichment to the surface (clones the argument)
+	Qwt3DEnrichment* addEnrichment(Qwt3DEnrichment const& enrichment);
+	/// Removes an enrichment from the surface
+	bool degrade(Qwt3DEnrichment* enrichment);
+
+	// Qwt3DPlotItem interface
+
+	int rtti() const override;
+	void draw() override;
+	ParallelEpiped hull() const override;
+	void populateLegendColors(ColorVector& colors) const override;
+
+	// Data accessors (public for serialization support)
+	/// Returns the grid data pointer (nullptr if cell data)
+	Qwt3DGridData* gridData() const;
+	/// Returns the cell data pointer (nullptr if grid data)
+	Qwt3DCellData* cellData() const;
+	/// Returns true if the current data is grid-based
+	bool isGridData() const;
 
 public Q_SLOTS:
-	void setResolution(int);
-
-protected:
-	QWT_DECLARE_PRIVATE(SurfacePlot)
-
-	void calculateHull() override;
-	void createData() override;
-	void createEnrichment(Qwt3D::Enrichment& p) override;
-	virtual void createFloorData();
-	void createNormals();
-	void createPoints();
-
-	void readIn(Qwt3D::GridData& gdata, Triple** data, unsigned int columns, unsigned int rows);
-	void readIn(Qwt3D::GridData& gdata,
-				double** data,
-				unsigned int columns,
-				unsigned int rows,
-				double minx,
-				double maxx,
-				double miny,
-				double maxy);
-	void calcNormals(GridData& gdata);
-	void sewPeriodic(GridData& gdata);
+	/// Sets the data resolution (1 = full, higher = coarser)
+	void setResolution(int res);
 
 private:
-	void Data2Floor();
-	void Isolines2Floor();
-
-	virtual void createDataG();
-	virtual void createFloorDataG();
-	void createNormalsG();
-	void Data2FloorG();
-	void Isolines2FloorG();
-	void setColorFromVertexG(int ix, int iy, bool skip = false);
-
-	virtual void createDataC();
-	virtual void createFloorDataC();
-	void createNormalsC();
-	void Data2FloorC();
-	void Isolines2FloorC();
-	void setColorFromVertexC(int node, bool skip = false);
+	void buildVBO();
+	/// Pushes the plot's union z-range into the color functor (silent data input, no rebuild trigger)
+	void pushColorRange() const;
 };
 
-}  // ns
+#endif // QWT3D_SURFACE_H
 
-#endif  // QWT3D_SURFACEPLOT_H
-
-/*** End of inlined file: qwt3d_surfaceplot.h ***/
+/*** End of inlined file: qwt3d_surface.h ***/
 
 
-/*** Start of inlined file: qwt3d_volumeplot.h ***/
-#ifndef QWT3D_VOLUMEPLOT_H
-#define QWT3D_VOLUMEPLOT_H
+/*** Start of inlined file: qwt3d_bar.h ***/
+#ifndef QWT3D_BAR_H
+#define QWT3D_BAR_H
 
-namespace Qwt3D
-{
+
+/*** Start of inlined file: qwt3d_types.h ***/
+#if defined(_MSC_VER) /* MSVC Compiler */
+#pragma warning(disable : 4786)
+#endif
+
+#ifndef QWT3D_TYPES_H
+#define QWT3D_TYPES_H
+
+#ifdef _DEBUG
+#include <fstream>
+#endif
+
+#include <string>
+
+#ifndef WHEEL_DELTA
+#define WHEEL_DELTA 120
+#endif
+
+#include <QColor>
+
+const double Qwt3D_PI = 3.14159265358979323846264338328;
 
 /**
- * @brief Volume plot widget (TODO: not yet fully implemented)
- * @details VolumePlot is intended to provide 3D volume visualization capabilities.
- *          This class is a placeholder for future implementation.
+ * @brief Plotting style enumeration
  */
-class QWT3D_EXPORT VolumePlot : public Plot3D
+enum PLOTSTYLE
 {
-public:
-	// Constructor
-	explicit VolumePlot(QWidget* parent = nullptr)
+	NOPLOT,      // No visible data
+	WIREFRAME,   // Wireframe style
+	HIDDENLINE,  // Hidden Line style
+	FILLED,      // Color filled polygons w/o edges
+	FILLEDMESH,  // Color filled polygons w/ separately colored edges
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
+	USER         // User defined style (used by Enrichments)
+};
+
+/**
+ * @brief Shading style enumeration
+ */
+enum SHADINGSTYLE
+{
+	FLAT,    // Flat shading (OpenGL)
+	GOURAUD  // Gouraud Shading (OpenGL)
+};
+
+/**
+ * @brief Style of coordinate system enumeration
+ */
+enum COORDSTYLE
+{
+	NOCOORD,  // Coordinate system is not visible
+	BOX,      // Boxed
+	FRAME     // Frame - 3 visible axes
+};
+
+/**
+ * @brief Different types of axis scales
+ */
+enum SCALETYPE
+{
+	LINEARSCALE,  // Linear scaling
+	LOG10SCALE,   // Logarithmic scaling (base 10)
+	USERSCALE     // User-defined (for extensions)
+};
+
+/**
+ * @brief Plotting style for floor data (projections)
+ */
+enum FLOORSTYLE
+{
+	NOFLOOR,   // Empty floor
+	FLOORISO,  // Isoline projections visible
+	FLOORDATA  // Projected polygons visible
+};
+
+/**
+ * @brief Mesh type enumeration
+ */
+enum DATATYPE
+{
+	GRID,    // Rectangular grid
+	POLYGON  // Convex polygon
+};
+
+/**
+ * @brief The 12 axes
+ * @image html axes.png
+ */
+enum AXIS
+{
+	X1 = 0,   // 1st x-axis
+	X2 = 3,   // 2nd x-axis
+	X3 = 4,   // 3rd x-axis
+	X4 = 5,   // 4th x-axis
+	Y1 = 1,   // 1st y-axis
+	Y2 = 8,   // 2nd y-axis
+	Y3 = 7,   // 3rd y-axis
+	Y4 = 6,   // 4th y-axis
+	Z1 = 2,   // 1st z-axis
+	Z2 = 9,   // 2nd z-axis
+	Z3 = 11,  // 3rd z-axis
+	Z4 = 10   // 4th z-axis
+};
+
+/**
+ * @brief The 6 sides of a plot box
+ */
+enum SIDE
+{
+	NOSIDEGRID = 0,
+	LEFT       = 1 << 0,
+	RIGHT      = 1 << 1,
+	CEIL       = 1 << 2,
+	FLOOR      = 1 << 3,
+	FRONT      = 1 << 4,
+	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
+};
+
+/**
+ * @brief Possible anchor points for drawing operations
+ */
+enum ANCHOR
+{
+	BottomLeft,
+	BottomRight,
+	BottomCenter,
+	TopLeft,
+	TopRight,
+	TopCenter,
+	CenterLeft,
+	CenterRight,
+	Center
+};
+
+/**
+ * @brief Tuple [x,y]
+ * @details A 2D point/vector represented by x and y coordinates.
+ */
+struct QWT3D_EXPORT Tuple
+{
+	// Calls Tuple(0,0)
+	Tuple() : x(0), y(0)
+	{
+	}
+	// Initialize Tuple with x and y
+	Tuple(double X, double Y) : x(X), y(Y)
+	{
+	}
+	// Tuple coordinates
+	double x, y;
+};
+
+/**
+ * @brief Triple [x,y,z]
+ * @details Consider Triples also as vectors in R^3. Provides basic vector operations
+ *          including addition, subtraction, scaling, normalization, and length calculation.
+ */
+struct QWT3D_EXPORT Triple
+{
+	// Initialize Triple with x,y and z
+	explicit Triple(double xv = 0, double yv = 0, double zv = 0) : x(xv), y(yv), z(zv)
 	{
 	}
 
-protected:
-	virtual void createData() override = 0;
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+#ifdef Q_OS_IRIX
+	Triple(const Triple& val)
+	{
+		if (&val == this)
+			return;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+	}
+	const Triple& operator=(const Triple& val)
+	{
+		if (&val == this)
+			return *this;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+		return *this;
+	}
+#endif
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+	// Triple coordinates
+	double x, y, z;
+
+	Triple& operator+=(Triple t)
+	{
+		x += t.x;
+		y += t.y;
+		z += t.z;
+
+		return *this;
+	}
+
+	Triple& operator-=(Triple t)
+	{
+		x -= t.x;
+		y -= t.y;
+		z -= t.z;
+
+		return *this;
+	}
+	Triple& operator*=(double d)
+	{
+		x *= d;
+		y *= d;
+		z *= d;
+
+		return *this;
+	}
+	Triple& operator/=(double d)
+	{
+		x /= d;
+		y /= d;
+		z /= d;
+
+		return *this;
+	}
+	Triple& operator*=(Triple t)  // scale
+	{
+		x *= t.x;
+		y *= t.y;
+		z *= t.z;
+
+		return *this;
+	}
+
+	bool operator!=(Triple t) const
+	{
+		return !isPracticallyZero(x, t.x) || !isPracticallyZero(y, t.y) || !isPracticallyZero(z, t.z);
+	}
+
+	bool operator==(Triple t) const
+	{
+		return !operator!=(t);
+	}
+
+	double length() const
+	{
+		double l2 = x * x + y * y + z * z;
+		return (isPracticallyZero(l2)) ? 0 : sqrt(l2);
+	}
+
+	void normalize()
+	{
+		double l = length();
+		if (l)
+			*this /= l;
+	}
 };
 
-}  // ns
-
-#endif  // QWT3D_VOLUMEPLOT_H
-/*** End of inlined file: qwt3d_volumeplot.h ***/
-
-
-/*** Start of inlined file: qwt3d_graphplot.h ***/
-#ifndef QWT3D_GRAPHPLOT_H
-#define QWT3D_GRAPHPLOT_H
-
-namespace Qwt3D
+inline const Triple operator+(const Triple& t, const Triple& t2)
 {
+	return Triple(t) += t2;
+}
+inline const Triple operator-(const Triple& t, const Triple& t2)
+{
+	return Triple(t) -= t2;
+}
+inline const Triple operator*(double d, const Triple& t)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator*(const Triple& t, double d)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator/(double d, const Triple& t)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator/(const Triple& t, double d)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator*(const Triple& t, const Triple& t2)
+{
+	return Triple(t) *= t2;
+}
 
 /**
- * @brief Base class for graph plotting widgets
- * @details GraphPlot is an intermediate class between Plot3D and concrete graph plot types.
- *          It provides a common base for different graph plotting implementations.
+ * @brief Parallelepiped spanned by 2 Triples
+ * @details Please use normalized Parallelepipeds:
+ *          minVertex.x <= maxVertex.x, minVertex.y <= maxVertex.y,
+ *          minVertex.z <= maxVertex.z
  */
-class QWT3D_EXPORT GraphPlot : public Plot3D
+struct QWT3D_EXPORT ParallelEpiped
 {
-public:
-	// Constructor
-	explicit GraphPlot(QWidget* parent = nullptr);
-
-protected:
-	virtual void createData() override = 0;
-};
-
-}  // ns
-
-#endif  // QWT3D_GRAPHPLOT_H
-/*** End of inlined file: qwt3d_graphplot.h ***/
-
-
-/*** Start of inlined file: qwt3d_multiplot.h ***/
-#ifndef QWT3D_MULTIPLOT_H
-#define QWT3D_MULTIPLOT_H
-
-namespace Qwt3D
-{
-
-/**
- * @brief Multi-plot widget for combining multiple plot areas
- * @details MultiPlot is an intermediate class between Plot3D and concrete multi-plot
- *          implementations, allowing multiple plot areas in a single widget.
- */
-class QWT3D_EXPORT MultiPlot : public Plot3D
-{
-public:
-	// Constructor
-	explicit MultiPlot(QWidget* parent = nullptr)
+	// Construct non-initialized Parallelepiped
+	ParallelEpiped()
 	{
 	}
 
-protected:
-	virtual void createData() override = 0;
+	// Construct initialized Parallelepiped: minv -> minVertex, maxv -> maxVertex
+	ParallelEpiped(Triple minv, Triple maxv) : minVertex(minv), maxVertex(maxv)
+	{
+	}
+
+	Triple minVertex;
+	Triple maxVertex;
 };
 
-}  // ns
+/**
+ * @brief Free vector
+ * @details FreeVectors represent objects like normal vectors and other vector fields inside R^3.
+ */
+struct QWT3D_EXPORT FreeVector
+{
+	FreeVector()
+	{
+	}
 
-#endif  // QWT3D_MULTIPLOT_H
-/*** End of inlined file: qwt3d_multiplot.h ***/
+	// Construct initialized vector: b -> base, e -> top
+	FreeVector(Triple b, Triple t) : base(b), top(t)
+	{
+	}
+
+	Triple base;
+	Triple top;
+};
+
+/**
+ * @brief A free vector field in R^3
+ */
+using FreeVectorField = std::vector< FreeVector >;
+
+/**
+ * @brief A point field in R^3
+ */
+using TripleField = std::vector< Triple >;
+
+/**
+ * @brief Holds indices in a TripleField interpreted as counterclockwise node numbering for a convex polygon
+ */
+using Cell = std::vector< unsigned >;
+
+/**
+ * @brief Vector of convex polygons. You need a TripleField as base for the node data
+ */
+using CellField = std::vector< Cell >;
+
+// Returns the sum over the sizes of the single cells
+unsigned tesselationSize(CellField const& t);
+
+/**
+ * @brief Red-Green-Blue-Alpha value
+ */
+struct QWT3D_EXPORT RGBA
+{
+	RGBA() : r(0), g(0), b(0), a(1)
+	{
+	}
+	RGBA(double rr, double gg, double bb, double aa = 1) : r(rr), g(gg), b(bb), a(aa)
+	{
+	}
+	double r, g, b, a;
+};
+
+/**
+ * @brief A Color field
+ */
+using ColorVector = std::vector< RGBA >;
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+
+// RGB -> QColor
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
+// QColor -> RGBA
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
+
+using Vertex     = double*;
+using DataRow    = std::vector< Vertex >;
+using DataMatrix = std::vector< DataRow >;
+
+/**
+ * @brief Abstract base class for plot data
+ * @details Qwt3DData provides the interface for different data representations
+ *          used by 3D plot widgets.
+ */
+class Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DData)
+
+public:
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
+	// Destroy content
+	virtual void clear() = 0;
+	// No data
+	virtual bool empty() const = 0;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
+};
+
+/**
+ * @brief Implements a matrix of z-Values with limit access functions
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
+ *          providing z-values organized in a matrix with associated normals.
+ */
+class Qwt3DGridData : public Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
+
+public:
+	Qwt3DGridData();
+	// See setSize()
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
+
+	int columns() const;
+	int rows() const;
+
+	// Destroy content
+	void clear();
+	bool empty() const;
+	// Destroys content and set new size, elements are uninitialized
+	void setSize(unsigned int columns, unsigned int rows);
+
+	// Mesh vertices
+	DataMatrix vertices;
+	// Mesh normals
+	DataMatrix normals;
+	void setPeriodic(bool u, bool v);
+	bool uperiodic() const;
+	bool vperiodic() const;
+};
+
+/**
+ * @brief Implements a graph-like cell structure with limit access functions
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
+ *          with associated node coordinates and normals.
+ */
+class Qwt3DCellData : public Qwt3DData
+{
+public:
+	Qwt3DCellData()
+	{
+		datatype = POLYGON;
+	}
+	~Qwt3DCellData()
+	{
+		clear();
+	}
+
+	// Destroy content
+	void clear();
+	bool empty() const
+	{
+		return cells.empty();
+	}
+
+	Triple const& operator()(unsigned cellnumber, unsigned vertexnumber);
+
+	// Polygon/cell mesh
+	CellField cells;
+	TripleField nodes;
+	// Mesh normals
+	TripleField normals;
+};
+
+inline Triple normalizedcross(Triple const& u, Triple const& v)
+{
+	Triple n;
+
+	/* compute the cross product (u x v for right-handed [ccw]) */
+	n.x = u.y * v.z - u.z * v.y;
+	n.y = u.z * v.x - u.x * v.z;
+	n.z = u.x * v.y - u.y * v.x;
+
+	/* normalize */
+	double l = n.length();
+	if (l) {
+		n /= l;
+	} else {
+		n = Triple(0, 0, 0);
+	}
+
+	return n;
+}
+
+inline double dotProduct(Triple const& u, Triple const& v)
+{
+	return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
+
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
+
+#endif
+/*** End of inlined file: qwt3d_types.h ***/
+
+#include <QVector>
+#include <vector>
+
+/**
+ * @brief 3D bar chart item with VBO/VAO rendering
+ * @details Qwt3DBar is a Qwt3DPlotItem that renders 3D bar chart data using
+ *          modern OpenGL (VBO/VAO + GLSL shaders). Each sample becomes an
+ *          axis-aligned cuboid ("bar") whose height encodes the scalar value.
+ *
+ * Two data shapes are supported:
+ *  - A 1D series of bars placed freely on the xy-plane
+ *    (setSamples with QwtPoint3D, where (x,y) is the footprint center and
+ *    z is the bar height).
+ *  - A 2D grid of bars (bar3 / 3D histogram) sampled over a rectangular
+ *    x/y domain, where z[i][j] is the height at cell (i,j).
+ *
+ * The item manages its own bar specifications, color mapping, and GL
+ * resources (VBO, VAO, EBO, shader program). Geometry is uploaded to GPU
+ * memory when dirty and reused across frames until the data changes.
+ *
+ * Bars reuse the lit surface shader (Blinn-Phong) with flat per-face
+ * normals, so they respond to Qwt3DPlot::enableLighting(). An optional
+ * edge mesh is drawn in a second pass for the FilledMesh / Wireframe
+ * styles.
+ *
+ * @code
+ * auto plot = new Qwt3DPlot(parent);
+ *
+ * auto bars = new Qwt3DBar();
+ * bars->setSamples(zMatrix, columns, rows, minX, maxX, minY, maxY);
+ * bars->setBarStyle(Qwt3DBar::FilledMesh);
+ * bars->setDataColor(new Qwt3DColorMapColor("viridis"));
+ * bars->attach(plot);
+ * @endcode
+ *
+ * @sa Qwt3DPlotItem, Qwt3DPlot, Qwt3DColor
+ */
+class QWT3D_EXPORT Qwt3DBar : public Qwt3DPlotItem
+{
+	QWT_DECLARE_PRIVATE(Qwt3DBar)
+
+public:
+	/// Bar rendering style
+	enum BarStyle
+	{
+		Filled,      ///< Filled bars, no edges
+		FilledMesh,  ///< Filled bars with separately colored edge lines
+		Wireframe    ///< Edge lines only
+	};
+
+	/// Constructs an empty bar chart item
+	Qwt3DBar();
+	/// Destructor — releases GL resources and data
+	~Qwt3DBar() override;
+
+	// 1D series — bars placed freely on the xy-plane
+
+	/// Set bar positions and heights from 3D points (x,y = footprint center, z = height)
+	void setSamples(const QVector<QwtPoint3D>& samples);
+	/// Set bar positions (x) and heights along the y = 0 row
+	void setSamples(const QVector<double>& x, const QVector<double>& heights);
+
+	// 2D grid — 3D histogram (bar3 style)
+
+	/// Set a grid of bars from a z-value matrix with an explicit x/y domain
+	void setSamples(double** z, int columns, int rows,
+					double minX, double maxX, double minY, double maxY);
+	/// Set a grid of bars from a Qwt3DFunctionData result (modern vector API)
+	void setSamples(const Qwt3DFunctionData& data);
+
+	// Bar footprint and baseline
+
+	/// Returns the bar footprint width (<= 0 means auto)
+	double barWidth() const;
+	/// Sets the bar footprint width (<= 0 selects auto = 80% of spacing)
+	void setBarWidth(double w);
+	/// Returns the bar footprint depth (<= 0 means auto)
+	double barDepth() const;
+	/// Sets the bar footprint depth (<= 0 selects auto = 80% of spacing)
+	void setBarDepth(double d);
+	/// Returns the baseline z value (bottom of positive bars)
+	double baseline() const;
+	/// Sets the baseline z value
+	void setBaseline(double z);
+
+	// Style and color
+
+	/// Returns the bar rendering style
+	BarStyle barStyle() const;
+	/// Sets the bar rendering style
+	void setBarStyle(BarStyle style);
+	/// Sets the data color functor (takes ownership)
+	void setDataColor(Qwt3DColor* color);
+	/// Returns the data color functor
+	const Qwt3DColor* dataColor() const;
+	/// Marks per-vertex colors as stale, triggering a VBO rebuild on the next draw
+	void invalidateColors();
+	/// Returns the mesh line color
+	RGBA meshColor() const;
+	/// Sets the mesh line color
+	void setMeshColor(RGBA color);
+	/// Returns the mesh line width
+	double meshLineWidth() const;
+	/// Sets the mesh line width
+	void setMeshLineWidth(double width);
+
+	// Qwt3DPlotItem interface
+
+	int rtti() const override;
+	void draw() override;
+	ParallelEpiped hull() const override;
+	void populateLegendColors(ColorVector& colors) const override;
+
+	// Data accessors for serialization support
+	/// Returns 1D bar samples (empty if 2D grid data was loaded)
+	QVector<QwtPoint3D> samples() const;
+	/// Returns true if 2D grid data was loaded
+	bool isGridData() const;
+	/// Returns grid columns (valid only if isGridData())
+	int gridColumns() const;
+	/// Returns grid rows (valid only if isGridData())
+	int gridRows() const;
+	/// Returns grid x minimum (valid only if isGridData())
+	double gridMinX() const;
+	/// Returns grid x maximum (valid only if isGridData())
+	double gridMaxX() const;
+	/// Returns grid y minimum (valid only if isGridData())
+	double gridMinY() const;
+	/// Returns grid y maximum (valid only if isGridData())
+	double gridMaxY() const;
+	/// Returns the raw z matrix (valid only if isGridData(), empty otherwise)
+	std::vector<std::vector<double>> gridZValues() const;
+
+private:
+	void buildVBO();
+	/// Recomputes bar specs and hull from current m_barWidth / m_barDepth / m_baseline
+	void recomputeBarSpecs();
+	/// Pushes the plot's union z-range into the color functor (silent data input, no rebuild trigger)
+	void pushColorRange() const;
+};
+
+#endif // QWT3D_BAR_H
+
+/*** End of inlined file: qwt3d_bar.h ***/
+
+
+/*** Start of inlined file: qwt3d_line3d.h ***/
+#ifndef QWT3D_LINE3D_H
+#define QWT3D_LINE3D_H
+
+
+/*** Start of inlined file: qwt3d_types.h ***/
+#if defined(_MSC_VER) /* MSVC Compiler */
+#pragma warning(disable : 4786)
+#endif
+
+#ifndef QWT3D_TYPES_H
+#define QWT3D_TYPES_H
+
+#ifdef _DEBUG
+#include <fstream>
+#endif
+
+#include <string>
+
+#ifndef WHEEL_DELTA
+#define WHEEL_DELTA 120
+#endif
+
+#include <QColor>
+
+const double Qwt3D_PI = 3.14159265358979323846264338328;
+
+/**
+ * @brief Plotting style enumeration
+ */
+enum PLOTSTYLE
+{
+	NOPLOT,      // No visible data
+	WIREFRAME,   // Wireframe style
+	HIDDENLINE,  // Hidden Line style
+	FILLED,      // Color filled polygons w/o edges
+	FILLEDMESH,  // Color filled polygons w/ separately colored edges
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
+	USER         // User defined style (used by Enrichments)
+};
+
+/**
+ * @brief Shading style enumeration
+ */
+enum SHADINGSTYLE
+{
+	FLAT,    // Flat shading (OpenGL)
+	GOURAUD  // Gouraud Shading (OpenGL)
+};
+
+/**
+ * @brief Style of coordinate system enumeration
+ */
+enum COORDSTYLE
+{
+	NOCOORD,  // Coordinate system is not visible
+	BOX,      // Boxed
+	FRAME     // Frame - 3 visible axes
+};
+
+/**
+ * @brief Different types of axis scales
+ */
+enum SCALETYPE
+{
+	LINEARSCALE,  // Linear scaling
+	LOG10SCALE,   // Logarithmic scaling (base 10)
+	USERSCALE     // User-defined (for extensions)
+};
+
+/**
+ * @brief Plotting style for floor data (projections)
+ */
+enum FLOORSTYLE
+{
+	NOFLOOR,   // Empty floor
+	FLOORISO,  // Isoline projections visible
+	FLOORDATA  // Projected polygons visible
+};
+
+/**
+ * @brief Mesh type enumeration
+ */
+enum DATATYPE
+{
+	GRID,    // Rectangular grid
+	POLYGON  // Convex polygon
+};
+
+/**
+ * @brief The 12 axes
+ * @image html axes.png
+ */
+enum AXIS
+{
+	X1 = 0,   // 1st x-axis
+	X2 = 3,   // 2nd x-axis
+	X3 = 4,   // 3rd x-axis
+	X4 = 5,   // 4th x-axis
+	Y1 = 1,   // 1st y-axis
+	Y2 = 8,   // 2nd y-axis
+	Y3 = 7,   // 3rd y-axis
+	Y4 = 6,   // 4th y-axis
+	Z1 = 2,   // 1st z-axis
+	Z2 = 9,   // 2nd z-axis
+	Z3 = 11,  // 3rd z-axis
+	Z4 = 10   // 4th z-axis
+};
+
+/**
+ * @brief The 6 sides of a plot box
+ */
+enum SIDE
+{
+	NOSIDEGRID = 0,
+	LEFT       = 1 << 0,
+	RIGHT      = 1 << 1,
+	CEIL       = 1 << 2,
+	FLOOR      = 1 << 3,
+	FRONT      = 1 << 4,
+	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
+};
+
+/**
+ * @brief Possible anchor points for drawing operations
+ */
+enum ANCHOR
+{
+	BottomLeft,
+	BottomRight,
+	BottomCenter,
+	TopLeft,
+	TopRight,
+	TopCenter,
+	CenterLeft,
+	CenterRight,
+	Center
+};
+
+/**
+ * @brief Tuple [x,y]
+ * @details A 2D point/vector represented by x and y coordinates.
+ */
+struct QWT3D_EXPORT Tuple
+{
+	// Calls Tuple(0,0)
+	Tuple() : x(0), y(0)
+	{
+	}
+	// Initialize Tuple with x and y
+	Tuple(double X, double Y) : x(X), y(Y)
+	{
+	}
+	// Tuple coordinates
+	double x, y;
+};
+
+/**
+ * @brief Triple [x,y,z]
+ * @details Consider Triples also as vectors in R^3. Provides basic vector operations
+ *          including addition, subtraction, scaling, normalization, and length calculation.
+ */
+struct QWT3D_EXPORT Triple
+{
+	// Initialize Triple with x,y and z
+	explicit Triple(double xv = 0, double yv = 0, double zv = 0) : x(xv), y(yv), z(zv)
+	{
+	}
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+#ifdef Q_OS_IRIX
+	Triple(const Triple& val)
+	{
+		if (&val == this)
+			return;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+	}
+	const Triple& operator=(const Triple& val)
+	{
+		if (&val == this)
+			return *this;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+		return *this;
+	}
+#endif
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+	// Triple coordinates
+	double x, y, z;
+
+	Triple& operator+=(Triple t)
+	{
+		x += t.x;
+		y += t.y;
+		z += t.z;
+
+		return *this;
+	}
+
+	Triple& operator-=(Triple t)
+	{
+		x -= t.x;
+		y -= t.y;
+		z -= t.z;
+
+		return *this;
+	}
+	Triple& operator*=(double d)
+	{
+		x *= d;
+		y *= d;
+		z *= d;
+
+		return *this;
+	}
+	Triple& operator/=(double d)
+	{
+		x /= d;
+		y /= d;
+		z /= d;
+
+		return *this;
+	}
+	Triple& operator*=(Triple t)  // scale
+	{
+		x *= t.x;
+		y *= t.y;
+		z *= t.z;
+
+		return *this;
+	}
+
+	bool operator!=(Triple t) const
+	{
+		return !isPracticallyZero(x, t.x) || !isPracticallyZero(y, t.y) || !isPracticallyZero(z, t.z);
+	}
+
+	bool operator==(Triple t) const
+	{
+		return !operator!=(t);
+	}
+
+	double length() const
+	{
+		double l2 = x * x + y * y + z * z;
+		return (isPracticallyZero(l2)) ? 0 : sqrt(l2);
+	}
+
+	void normalize()
+	{
+		double l = length();
+		if (l)
+			*this /= l;
+	}
+};
+
+inline const Triple operator+(const Triple& t, const Triple& t2)
+{
+	return Triple(t) += t2;
+}
+inline const Triple operator-(const Triple& t, const Triple& t2)
+{
+	return Triple(t) -= t2;
+}
+inline const Triple operator*(double d, const Triple& t)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator*(const Triple& t, double d)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator/(double d, const Triple& t)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator/(const Triple& t, double d)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator*(const Triple& t, const Triple& t2)
+{
+	return Triple(t) *= t2;
+}
+
+/**
+ * @brief Parallelepiped spanned by 2 Triples
+ * @details Please use normalized Parallelepipeds:
+ *          minVertex.x <= maxVertex.x, minVertex.y <= maxVertex.y,
+ *          minVertex.z <= maxVertex.z
+ */
+struct QWT3D_EXPORT ParallelEpiped
+{
+	// Construct non-initialized Parallelepiped
+	ParallelEpiped()
+	{
+	}
+
+	// Construct initialized Parallelepiped: minv -> minVertex, maxv -> maxVertex
+	ParallelEpiped(Triple minv, Triple maxv) : minVertex(minv), maxVertex(maxv)
+	{
+	}
+
+	Triple minVertex;
+	Triple maxVertex;
+};
+
+/**
+ * @brief Free vector
+ * @details FreeVectors represent objects like normal vectors and other vector fields inside R^3.
+ */
+struct QWT3D_EXPORT FreeVector
+{
+	FreeVector()
+	{
+	}
+
+	// Construct initialized vector: b -> base, e -> top
+	FreeVector(Triple b, Triple t) : base(b), top(t)
+	{
+	}
+
+	Triple base;
+	Triple top;
+};
+
+/**
+ * @brief A free vector field in R^3
+ */
+using FreeVectorField = std::vector< FreeVector >;
+
+/**
+ * @brief A point field in R^3
+ */
+using TripleField = std::vector< Triple >;
+
+/**
+ * @brief Holds indices in a TripleField interpreted as counterclockwise node numbering for a convex polygon
+ */
+using Cell = std::vector< unsigned >;
+
+/**
+ * @brief Vector of convex polygons. You need a TripleField as base for the node data
+ */
+using CellField = std::vector< Cell >;
+
+// Returns the sum over the sizes of the single cells
+unsigned tesselationSize(CellField const& t);
+
+/**
+ * @brief Red-Green-Blue-Alpha value
+ */
+struct QWT3D_EXPORT RGBA
+{
+	RGBA() : r(0), g(0), b(0), a(1)
+	{
+	}
+	RGBA(double rr, double gg, double bb, double aa = 1) : r(rr), g(gg), b(bb), a(aa)
+	{
+	}
+	double r, g, b, a;
+};
+
+/**
+ * @brief A Color field
+ */
+using ColorVector = std::vector< RGBA >;
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+
+// RGB -> QColor
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
+// QColor -> RGBA
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
+
+using Vertex     = double*;
+using DataRow    = std::vector< Vertex >;
+using DataMatrix = std::vector< DataRow >;
+
+/**
+ * @brief Abstract base class for plot data
+ * @details Qwt3DData provides the interface for different data representations
+ *          used by 3D plot widgets.
+ */
+class Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DData)
+
+public:
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
+	// Destroy content
+	virtual void clear() = 0;
+	// No data
+	virtual bool empty() const = 0;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
+};
+
+/**
+ * @brief Implements a matrix of z-Values with limit access functions
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
+ *          providing z-values organized in a matrix with associated normals.
+ */
+class Qwt3DGridData : public Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
+
+public:
+	Qwt3DGridData();
+	// See setSize()
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
+
+	int columns() const;
+	int rows() const;
+
+	// Destroy content
+	void clear();
+	bool empty() const;
+	// Destroys content and set new size, elements are uninitialized
+	void setSize(unsigned int columns, unsigned int rows);
+
+	// Mesh vertices
+	DataMatrix vertices;
+	// Mesh normals
+	DataMatrix normals;
+	void setPeriodic(bool u, bool v);
+	bool uperiodic() const;
+	bool vperiodic() const;
+};
+
+/**
+ * @brief Implements a graph-like cell structure with limit access functions
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
+ *          with associated node coordinates and normals.
+ */
+class Qwt3DCellData : public Qwt3DData
+{
+public:
+	Qwt3DCellData()
+	{
+		datatype = POLYGON;
+	}
+	~Qwt3DCellData()
+	{
+		clear();
+	}
+
+	// Destroy content
+	void clear();
+	bool empty() const
+	{
+		return cells.empty();
+	}
+
+	Triple const& operator()(unsigned cellnumber, unsigned vertexnumber);
+
+	// Polygon/cell mesh
+	CellField cells;
+	TripleField nodes;
+	// Mesh normals
+	TripleField normals;
+};
+
+inline Triple normalizedcross(Triple const& u, Triple const& v)
+{
+	Triple n;
+
+	/* compute the cross product (u x v for right-handed [ccw]) */
+	n.x = u.y * v.z - u.z * v.y;
+	n.y = u.z * v.x - u.x * v.z;
+	n.z = u.x * v.y - u.y * v.x;
+
+	/* normalize */
+	double l = n.length();
+	if (l) {
+		n /= l;
+	} else {
+		n = Triple(0, 0, 0);
+	}
+
+	return n;
+}
+
+inline double dotProduct(Triple const& u, Triple const& v)
+{
+	return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
+
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
+
+#endif
+/*** End of inlined file: qwt3d_types.h ***/
+
+#include <QVector>
+
+/**
+ * @brief 3D line/curve plot item with VBO/VAO rendering
+ * @details Qwt3DLine is a Qwt3DPlotItem that renders a polyline through 3D
+ *          space using modern OpenGL (VBO/VAO + GLSL shaders). It accepts a
+ *          series of QwtPoint3D samples and draws them as a connected curve.
+ *
+ * Three rendering styles are provided:
+ *  - Lines (default): thin GL line strip (1px). Reliable but width is not
+ *    adjustable in OpenGL Core profile (glLineWidth > 1 is not guaranteed).
+ *  - Tube: the polyline is swept with a circular cross-section to form a lit,
+ *    solid tube. This gives true 3D thickness with Blinn-Phong shading and is
+ *    the recommended style for trajectories and streamlines where the line
+ *    needs to be visible from all angles. Tube geometry is built with
+ *    parallel-transport framing to avoid degeneracies of Frenet frames on
+ *    straight segments.
+ *  - Dots: per-sample point markers with configurable point size and shape
+ *    (Dot/Cube/Tetrahedron/Octahedron/Sphere via setPointShape).
+ *
+ * Colors may be solid (setColor) or driven per-vertex by a Qwt3DColor functor
+ * (setDataColor), e.g. to color the curve by position or arc length.
+ *
+ * @code
+ * auto plot = new Qwt3DPlot(parent);
+ *
+ * auto line = new Qwt3DLine();
+ * line->setSamples(samples);           // QVector<QwtPoint3D>
+ * line->setLineStyle(Qwt3DLine::Tube);
+ * line->setDataColor(new Qwt3DColorMapColor("plasma"));
+ * line->attach(plot);
+ * @endcode
+ *
+ * @sa Qwt3DPlotItem, Qwt3DPlot, Qwt3DColor
+ */
+class QWT3D_EXPORT Qwt3DLine : public Qwt3DPlotItem
+{
+	QWT_DECLARE_PRIVATE(Qwt3DLine)
+
+public:
+	/// Line rendering style
+	enum LineStyle
+	{
+		Lines,  ///< Thin GL line strip (1px)
+		Tube,   ///< Solid lit tube swept along the polyline
+		Dots    ///< Per-sample point markers
+	};
+
+	/// Point marker shape for the Dots style and the point-marker overlay
+	enum PointShape
+	{
+		Dot,         ///< GL_POINTS (simple screen-space dots)
+		Cube,        ///< Axis-aligned cube
+		Tetrahedron, ///< Regular 4-faced solid
+		Octahedron,  ///< 8-faced diamond solid
+		Sphere       ///< UV sphere (smooth, lit)
+	};
+
+	/// Constructs an empty line item
+	Qwt3DLine();
+	/// Destructor — releases GL resources and data
+	~Qwt3DLine() override;
+
+	// Data — setSamples mirrors the 2D QwtPlotCurve API; data is stored as
+	// a QwtSeriesData<QwtPoint3D> owned by the item.
+
+	/// Set samples from a vector of 3D points
+	void setSamples(const QVector<QwtPoint3D>& samples);
+	/// Set samples from parallel x, y, z arrays
+	void setSamples(const QVector<double>& x, const QVector<double>& y, const QVector<double>& z);
+	/// Set samples from a raw array of 3D points (not held; copied internally)
+	void setSamples(const QwtPoint3D* samples, size_t count);
+	/// Set the series data object (item takes ownership)
+	void setSamples(QwtSeriesData<QwtPoint3D>* data);
+	/// Returns the series data
+	const QwtSeriesData<QwtPoint3D>* data() const;
+	/// Returns the number of samples
+	size_t dataSize() const;
+
+	// Style
+
+	/// Returns the line style
+	LineStyle lineStyle() const;
+	/// Sets the line style
+	void setLineStyle(LineStyle style);
+	/// Returns the GL line width (Lines style only; > 1 not guaranteed in Core)
+	double lineWidth() const;
+	/// Sets the GL line width (Lines style only)
+	void setLineWidth(double width);
+	/// Returns the tube radius (<= 0 means auto = 0.5% of hull diagonal)
+	double tubeRadius() const;
+	/// Sets the tube radius (<= 0 selects auto)
+	void setTubeRadius(double radius);
+	/// Returns the tube ring segment count
+	int tubeSegments() const;
+	/// Sets the tube ring segment count (minimum 3)
+	void setTubeSegments(int segments);
+	/// Returns the point size (Dots style / point markers)
+	double pointSize() const;
+	/// Sets the point size (Dots style / point markers)
+	void setPointSize(double size);
+	/// Returns true if point markers are drawn on top of Lines/Tube styles
+	bool pointVisible() const;
+	/// Draw point markers on top of Lines/Tube styles
+	void setPointVisible(bool on);
+
+	/// Returns the point marker shape
+	PointShape pointShape() const;
+	/// Sets the point marker shape (Dot/Cube/Tetrahedron/Octahedron/Sphere)
+	void setPointShape(PointShape shape);
+
+	// Color
+
+	/// Sets the solid line color
+	void setColor(RGBA color);
+	/// Returns the solid line color
+	RGBA color() const;
+	/// Sets the data color functor for per-vertex coloring (takes ownership)
+	void setDataColor(Qwt3DColor* color);
+	/// Returns the data color functor
+	const Qwt3DColor* dataColor() const;
+	/// Marks per-vertex colors as stale, triggering a VBO rebuild on the next draw
+	void invalidateColors();
+
+	// Qwt3DPlotItem interface
+
+	int rtti() const override;
+	void draw() override;
+	ParallelEpiped hull() const override;
+	void populateLegendColors(ColorVector& colors) const override;
+
+private:
+	void buildVBO();
+	void buildPointsVBO();
+	void buildMarkersVBO();
+	void pushColorRange() const;
+};
+
+#endif // QWT3D_LINE3D_H
+
+/*** End of inlined file: qwt3d_line3d.h ***/
+
+
+/*** Start of inlined file: qwt3d_serialize.h ***/
+#ifndef QWT3D_SERIALIZE_H
+#define QWT3D_SERIALIZE_H
+
+#include <QDataStream>
+
+
+/*** Start of inlined file: qwt3d_types.h ***/
+#if defined(_MSC_VER) /* MSVC Compiler */
+#pragma warning(disable : 4786)
+#endif
+
+#ifndef QWT3D_TYPES_H
+#define QWT3D_TYPES_H
+
+#ifdef _DEBUG
+#include <fstream>
+#endif
+
+#include <string>
+
+#ifndef WHEEL_DELTA
+#define WHEEL_DELTA 120
+#endif
+
+#include <QColor>
+
+const double Qwt3D_PI = 3.14159265358979323846264338328;
+
+/**
+ * @brief Plotting style enumeration
+ */
+enum PLOTSTYLE
+{
+	NOPLOT,      // No visible data
+	WIREFRAME,   // Wireframe style
+	HIDDENLINE,  // Hidden Line style
+	FILLED,      // Color filled polygons w/o edges
+	FILLEDMESH,  // Color filled polygons w/ separately colored edges
+	QWT3D_POINTS,      // User defined style (used by Enrichments)
+	USER         // User defined style (used by Enrichments)
+};
+
+/**
+ * @brief Shading style enumeration
+ */
+enum SHADINGSTYLE
+{
+	FLAT,    // Flat shading (OpenGL)
+	GOURAUD  // Gouraud Shading (OpenGL)
+};
+
+/**
+ * @brief Style of coordinate system enumeration
+ */
+enum COORDSTYLE
+{
+	NOCOORD,  // Coordinate system is not visible
+	BOX,      // Boxed
+	FRAME     // Frame - 3 visible axes
+};
+
+/**
+ * @brief Different types of axis scales
+ */
+enum SCALETYPE
+{
+	LINEARSCALE,  // Linear scaling
+	LOG10SCALE,   // Logarithmic scaling (base 10)
+	USERSCALE     // User-defined (for extensions)
+};
+
+/**
+ * @brief Plotting style for floor data (projections)
+ */
+enum FLOORSTYLE
+{
+	NOFLOOR,   // Empty floor
+	FLOORISO,  // Isoline projections visible
+	FLOORDATA  // Projected polygons visible
+};
+
+/**
+ * @brief Mesh type enumeration
+ */
+enum DATATYPE
+{
+	GRID,    // Rectangular grid
+	POLYGON  // Convex polygon
+};
+
+/**
+ * @brief The 12 axes
+ * @image html axes.png
+ */
+enum AXIS
+{
+	X1 = 0,   // 1st x-axis
+	X2 = 3,   // 2nd x-axis
+	X3 = 4,   // 3rd x-axis
+	X4 = 5,   // 4th x-axis
+	Y1 = 1,   // 1st y-axis
+	Y2 = 8,   // 2nd y-axis
+	Y3 = 7,   // 3rd y-axis
+	Y4 = 6,   // 4th y-axis
+	Z1 = 2,   // 1st z-axis
+	Z2 = 9,   // 2nd z-axis
+	Z3 = 11,  // 3rd z-axis
+	Z4 = 10   // 4th z-axis
+};
+
+/**
+ * @brief The 6 sides of a plot box
+ */
+enum SIDE
+{
+	NOSIDEGRID = 0,
+	LEFT       = 1 << 0,
+	RIGHT      = 1 << 1,
+	CEIL       = 1 << 2,
+	FLOOR      = 1 << 3,
+	FRONT      = 1 << 4,
+	BACK       = 1 << 5
+};
+
+/**
+ * @brief Interior grid line directions
+ * @details Controls which interior grid lines are drawn through the box volume.
+ *          Interior lines connect grid intersection points on opposite faces.
+ */
+enum INTERIOR_DIRECTION
+{
+	NO_INTERIOR = 0,
+	X_INNER     = 1 << 0,  ///< Lines in X direction through the interior (left to right)
+	Y_INNER     = 1 << 1,  ///< Lines in Y direction through the interior (front to back)
+	Z_INNER     = 1 << 2   ///< Lines in Z direction through the interior (floor to ceil)
+};
+
+/**
+ * @brief Tick position preference for auto-decorated axes
+ * @details Controls whether ticks appear on the visually lower or upper axis
+ *          when auto-decoration is enabled. In screen coordinates, y increases
+ *          downward, so TICK_BOTTOM selects the axis with the largest screen y.
+ */
+enum TICKPOSITION
+{
+	TICK_BOTTOM,  // Ticks on the visually lower axis (default)
+	TICK_TOP      // Ticks on the visually upper axis
+};
+
+/**
+ * @brief Aspect ratio mode for the 3D coordinate box
+ * @details Controls whether each axis is independently scaled to fill the
+ *          viewport (AUTOFILL) or whether the original data proportions are
+ *          preserved (DATARATIO).
+ */
+enum ASPECTRATIOMODE
+{
+	AUTOFILL,   // Each axis independently scaled to fill the view (default)
+	DATARATIO   // Preserve data proportions (equal aspect ratio)
+};
+
+/**
+ * @brief Possible anchor points for drawing operations
+ */
+enum ANCHOR
+{
+	BottomLeft,
+	BottomRight,
+	BottomCenter,
+	TopLeft,
+	TopRight,
+	TopCenter,
+	CenterLeft,
+	CenterRight,
+	Center
+};
+
+/**
+ * @brief Tuple [x,y]
+ * @details A 2D point/vector represented by x and y coordinates.
+ */
+struct QWT3D_EXPORT Tuple
+{
+	// Calls Tuple(0,0)
+	Tuple() : x(0), y(0)
+	{
+	}
+	// Initialize Tuple with x and y
+	Tuple(double X, double Y) : x(X), y(Y)
+	{
+	}
+	// Tuple coordinates
+	double x, y;
+};
+
+/**
+ * @brief Triple [x,y,z]
+ * @details Consider Triples also as vectors in R^3. Provides basic vector operations
+ *          including addition, subtraction, scaling, normalization, and length calculation.
+ */
+struct QWT3D_EXPORT Triple
+{
+	// Initialize Triple with x,y and z
+	explicit Triple(double xv = 0, double yv = 0, double zv = 0) : x(xv), y(yv), z(zv)
+	{
+	}
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+#ifdef Q_OS_IRIX
+	Triple(const Triple& val)
+	{
+		if (&val == this)
+			return;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+	}
+	const Triple& operator=(const Triple& val)
+	{
+		if (&val == this)
+			return *this;
+		x = val.x;
+		y = val.y;
+		z = val.z;
+		return *this;
+	}
+#endif
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+	// Triple coordinates
+	double x, y, z;
+
+	Triple& operator+=(Triple t)
+	{
+		x += t.x;
+		y += t.y;
+		z += t.z;
+
+		return *this;
+	}
+
+	Triple& operator-=(Triple t)
+	{
+		x -= t.x;
+		y -= t.y;
+		z -= t.z;
+
+		return *this;
+	}
+	Triple& operator*=(double d)
+	{
+		x *= d;
+		y *= d;
+		z *= d;
+
+		return *this;
+	}
+	Triple& operator/=(double d)
+	{
+		x /= d;
+		y /= d;
+		z /= d;
+
+		return *this;
+	}
+	Triple& operator*=(Triple t)  // scale
+	{
+		x *= t.x;
+		y *= t.y;
+		z *= t.z;
+
+		return *this;
+	}
+
+	bool operator!=(Triple t) const
+	{
+		return !isPracticallyZero(x, t.x) || !isPracticallyZero(y, t.y) || !isPracticallyZero(z, t.z);
+	}
+
+	bool operator==(Triple t) const
+	{
+		return !operator!=(t);
+	}
+
+	double length() const
+	{
+		double l2 = x * x + y * y + z * z;
+		return (isPracticallyZero(l2)) ? 0 : sqrt(l2);
+	}
+
+	void normalize()
+	{
+		double l = length();
+		if (l)
+			*this /= l;
+	}
+};
+
+inline const Triple operator+(const Triple& t, const Triple& t2)
+{
+	return Triple(t) += t2;
+}
+inline const Triple operator-(const Triple& t, const Triple& t2)
+{
+	return Triple(t) -= t2;
+}
+inline const Triple operator*(double d, const Triple& t)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator*(const Triple& t, double d)
+{
+	return Triple(t) *= d;
+}
+inline const Triple operator/(double d, const Triple& t)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator/(const Triple& t, double d)
+{
+	return Triple(t) /= d;
+}
+inline const Triple operator*(const Triple& t, const Triple& t2)
+{
+	return Triple(t) *= t2;
+}
+
+/**
+ * @brief Parallelepiped spanned by 2 Triples
+ * @details Please use normalized Parallelepipeds:
+ *          minVertex.x <= maxVertex.x, minVertex.y <= maxVertex.y,
+ *          minVertex.z <= maxVertex.z
+ */
+struct QWT3D_EXPORT ParallelEpiped
+{
+	// Construct non-initialized Parallelepiped
+	ParallelEpiped()
+	{
+	}
+
+	// Construct initialized Parallelepiped: minv -> minVertex, maxv -> maxVertex
+	ParallelEpiped(Triple minv, Triple maxv) : minVertex(minv), maxVertex(maxv)
+	{
+	}
+
+	Triple minVertex;
+	Triple maxVertex;
+};
+
+/**
+ * @brief Free vector
+ * @details FreeVectors represent objects like normal vectors and other vector fields inside R^3.
+ */
+struct QWT3D_EXPORT FreeVector
+{
+	FreeVector()
+	{
+	}
+
+	// Construct initialized vector: b -> base, e -> top
+	FreeVector(Triple b, Triple t) : base(b), top(t)
+	{
+	}
+
+	Triple base;
+	Triple top;
+};
+
+/**
+ * @brief A free vector field in R^3
+ */
+using FreeVectorField = std::vector< FreeVector >;
+
+/**
+ * @brief A point field in R^3
+ */
+using TripleField = std::vector< Triple >;
+
+/**
+ * @brief Holds indices in a TripleField interpreted as counterclockwise node numbering for a convex polygon
+ */
+using Cell = std::vector< unsigned >;
+
+/**
+ * @brief Vector of convex polygons. You need a TripleField as base for the node data
+ */
+using CellField = std::vector< Cell >;
+
+// Returns the sum over the sizes of the single cells
+unsigned tesselationSize(CellField const& t);
+
+/**
+ * @brief Red-Green-Blue-Alpha value
+ */
+struct QWT3D_EXPORT RGBA
+{
+	RGBA() : r(0), g(0), b(0), a(1)
+	{
+	}
+	RGBA(double rr, double gg, double bb, double aa = 1) : r(rr), g(gg), b(bb), a(aa)
+	{
+	}
+	double r, g, b, a;
+};
+
+/**
+ * @brief A Color field
+ */
+using ColorVector = std::vector< RGBA >;
+
+#ifndef QWT3D_NOT_FOR_DOXYGEN
+
+// RGB -> QColor
+QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
+// QColor -> RGBA
+QWT3D_EXPORT RGBA Qt2GL(QColor col);
+
+using Vertex     = double*;
+using DataRow    = std::vector< Vertex >;
+using DataMatrix = std::vector< DataRow >;
+
+/**
+ * @brief Abstract base class for plot data
+ * @details Qwt3DData provides the interface for different data representations
+ *          used by 3D plot widgets.
+ */
+class Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DData)
+
+public:
+	DATATYPE datatype;
+	Qwt3DData();
+	virtual ~Qwt3DData();
+	// Destroy content
+	virtual void clear() = 0;
+	// No data
+	virtual bool empty() const = 0;
+	void setHull(ParallelEpiped const& h);
+	ParallelEpiped const& hull() const;
+};
+
+/**
+ * @brief Implements a matrix of z-Values with limit access functions
+ * @details Qwt3DGridData represents data on a rectangular grid topology,
+ *          providing z-values organized in a matrix with associated normals.
+ */
+class Qwt3DGridData : public Qwt3DData
+{
+	QWT_DECLARE_PRIVATE(Qwt3DGridData)
+
+public:
+	Qwt3DGridData();
+	// See setSize()
+	Qwt3DGridData(unsigned int columns, unsigned int rows);
+	~Qwt3DGridData() override;
+
+	int columns() const;
+	int rows() const;
+
+	// Destroy content
+	void clear();
+	bool empty() const;
+	// Destroys content and set new size, elements are uninitialized
+	void setSize(unsigned int columns, unsigned int rows);
+
+	// Mesh vertices
+	DataMatrix vertices;
+	// Mesh normals
+	DataMatrix normals;
+	void setPeriodic(bool u, bool v);
+	bool uperiodic() const;
+	bool vperiodic() const;
+};
+
+/**
+ * @brief Implements a graph-like cell structure with limit access functions
+ * @details Qwt3DCellData represents data as a collection of convex polygon cells
+ *          with associated node coordinates and normals.
+ */
+class Qwt3DCellData : public Qwt3DData
+{
+public:
+	Qwt3DCellData()
+	{
+		datatype = POLYGON;
+	}
+	~Qwt3DCellData()
+	{
+		clear();
+	}
+
+	// Destroy content
+	void clear();
+	bool empty() const
+	{
+		return cells.empty();
+	}
+
+	Triple const& operator()(unsigned cellnumber, unsigned vertexnumber);
+
+	// Polygon/cell mesh
+	CellField cells;
+	TripleField nodes;
+	// Mesh normals
+	TripleField normals;
+};
+
+inline Triple normalizedcross(Triple const& u, Triple const& v)
+{
+	Triple n;
+
+	/* compute the cross product (u x v for right-handed [ccw]) */
+	n.x = u.y * v.z - u.z * v.y;
+	n.y = u.z * v.x - u.x * v.z;
+	n.z = u.x * v.y - u.y * v.x;
+
+	/* normalize */
+	double l = n.length();
+	if (l) {
+		n /= l;
+	} else {
+		n = Triple(0, 0, 0);
+	}
+
+	return n;
+}
+
+inline double dotProduct(Triple const& u, Triple const& v)
+{
+	return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src);
+
+#endif  // QWT3D_NOT_FOR_DOXYGEN
+
+/**
+ * @brief Result of evaluating a Qwt3DFunction over its grid
+ * @details Contains the z-value matrix and x/y domain bounds produced by
+ *          Qwt3DFunction::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DFunctionData
+{
+	/// z[i][j] = z-value at column i, row j
+	std::vector<std::vector<double>> z;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	double minx = 0.0;
+	double maxx = 0.0;
+	double miny = 0.0;
+	double maxy = 0.0;
+};
+
+/**
+ * @brief Result of evaluating a Qwt3DParametricSurface over its grid
+ * @details Contains the xyz triple matrix and periodicity flags produced by
+ *          Qwt3DParametricSurface::create(). Feed this to Qwt3DSurface::loadFromData().
+ */
+struct QWT3D_EXPORT Qwt3DParametricData
+{
+	/// vertices[i][j] = xyz position at column i, row j
+	std::vector<std::vector<Triple>> vertices;
+	unsigned int columns = 0;
+	unsigned int rows = 0;
+	bool uperiodic = false;
+	bool vperiodic = false;
+};
+
+/**
+ * @brief Runtime type identification values for 3D plot items
+ * @details Mirrors the 2D QwtPlotItem::RttiValues pattern. Concrete subclass
+ *          values start at 1001 to avoid collision with 2D concrete subclass
+ *          values (which range from 0 to ~19, with Rtti_PlotUserItem = 1000 as
+ *          the user-defined boundary). The base class value 0 mirrors 2D's
+ *          Rtti_PlotItem = 0, which is safe because 2D and 3D items are never
+ *          type-checked through the same pointer. Use rtti() to query an item's
+ *          type at runtime for safe downcasting, setting panel factory routing,
+ *          and serialization dispatch.
+ */
+enum Rtti3DValues
+{
+	/// Unspecific value for base Qwt3DPlotItem, can be used when type doesn't matter
+	Rtti_Plot3DItem = 0,
+
+	/// For Qwt3DSurface
+	Rtti_Plot3DSurface = 1001,
+
+	/// For Qwt3DBar
+	Rtti_Plot3DBar = 1002,
+
+	/// For Qwt3DLine
+	Rtti_Plot3DLine = 1003
+};
+
+#endif
+/*** End of inlined file: qwt3d_types.h ***/
+
+class Qwt3DTheme;
+
+// 序列化版本号
+constexpr int qwt3d_serialize_version = 1;
+
+// 序列化魔数（用于块级校验）
+constexpr quint32 qwt3d_magic_mark  = 0x3D5A4BF1;  // '3D' + magic
+constexpr quint32 qwt3d_magic_mark2 = 0xAA3D1234;
+constexpr quint32 qwt3d_magic_mark3 = 0x3D5678AB;
+
+// QDataStream 版本（与 2D DAChartSerialize 保持一致）
+constexpr QDataStream::Version qwt3d_datastream_version = QDataStream::Qt_5_12;
+
+// ============================================================
+// 值类型序列化（本计划唯一声明和实现）
+// 08 计划的 DAChart3DSerialize.h 通过 #include "qwt3d_serialize.h"
+// 直接使用这些 operator，不再重复声明或实现。
+// ============================================================
+
+// Triple 序列化
+QWT3D_EXPORT QDataStream& operator<<(QDataStream& out, const Triple& t);
+QWT3D_EXPORT QDataStream& operator>>(QDataStream& in, Triple& t);
+
+// RGBA 序列化
+QWT3D_EXPORT QDataStream& operator<<(QDataStream& out, const RGBA& c);
+QWT3D_EXPORT QDataStream& operator>>(QDataStream& in, RGBA& c);
+
+// ParallelEpiped 序列化
+QWT3D_EXPORT QDataStream& operator<<(QDataStream& out, const ParallelEpiped& p);
+QWT3D_EXPORT QDataStream& operator>>(QDataStream& in, ParallelEpiped& p);
+
+// Qwt3DFunctionData 序列化
+QWT3D_EXPORT QDataStream& operator<<(QDataStream& out, const Qwt3DFunctionData& d);
+QWT3D_EXPORT QDataStream& operator>>(QDataStream& in, Qwt3DFunctionData& d);
+
+// Qwt3DParametricData 序列化
+QWT3D_EXPORT QDataStream& operator<<(QDataStream& out, const Qwt3DParametricData& d);
+QWT3D_EXPORT QDataStream& operator>>(QDataStream& in, Qwt3DParametricData& d);
+
+// ============================================================
+// Qwt3DTheme 序列化（本计划唯一声明和实现）
+// ============================================================
+
+QWT3D_EXPORT QDataStream& operator<<(QDataStream& out, const Qwt3DTheme& theme);
+QWT3D_EXPORT QDataStream& operator>>(QDataStream& in, Qwt3DTheme& theme);
+
+// ============================================================
+// Item/Plot 级 operator（Qwt3DPlotItem*, Qwt3DSurface*, Qwt3DBar*,
+// Qwt3DLine*, Qwt3DPlot*）和 Qwt3DPlot::saveState/restoreState
+// 不在本计划声明。由 08 计划在 DAFigure 模块（DAFIGURE_API）
+// 负责声明和实现。
+// ============================================================
+
+#endif  // QWT3D_SERIALIZE_H
+
+/*** End of inlined file: qwt3d_serialize.h ***/
 
 /*** End of inlined file: QWTAmalgamTemplatePublicHeaders.h ***/
 

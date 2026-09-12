@@ -1,4 +1,4 @@
-## Unreleased
+## tag:v7.4.1 (2026-09-11)
 
 ### New Features
 
@@ -9,10 +9,68 @@
     - `QwtPlotRenderer` gains `renderScaleCaption()`, so PNG/SVG/PDF exports include outside titles
     - New example `examples/2D/outsideTitle`: single plot plus host + two parasite multi axis demo with runtime placement toggles and export buttons; the `--export <dir>` argument writes self-test grabs and renderer exports headlessly
 
+- **Axis title position and alignment control**
+    - `QwtScaleWidget` gains the `TitlePosition` enum (`TitleCentered`/`TitleAtStart`/`TitleAtEnd`) controlling where the title is painted along the axis backbone, plus `setTitleAlignment()`/`titleAlignment()` for the horizontal alignment inside the title box; `QwtPlot` forwards both via `setAxisTitlePosition()`/`setAxisTitleAlignment()`
+    - `TitleCentered` (default) reproduces the legacy layout exactly; `TitleAtStart` is the bottom end for vertical axes / the left end for horizontal axes, `TitleAtEnd` the top/right end; the title keeps its natural orientation, only its position along the backbone changes
+    - The `parasitePlot` example demonstrates title position and alignment at runtime
+
+- **Fixed canvas size mode for QwtPlotLayout**
+    - `setFixedCanvasSize(axisPos, on)` decouples the canvas dimension from tick label growth: once locked, the canvas dimension stays stable and overflowing labels are clipped by the scale widget paint region (YLeft/YRight fix the canvas width, XBottom/XTop the height)
+    - Auto mode captures the canvas edge offsets on the first layout pass after enabling; manual mode `setFixedCanvasSize(QSize)` pins an exact size (a negative component means auto-capture for that direction); `resetFixedCanvasSize()` clears the captured offsets and the manual override
+    - `alignScales()` no longer expands the canvas when align-canvas mode would shrink a fixed dimension
+    - Mainly intended for parasite plot setups where host and parasite share the canvas area and must not drift apart on label growth
+
+- **QwtPlotAxisWheelInteraction — axis-level wheel zoom and pan**
+    - New interaction class installing an event filter directly on the `QwtScaleWidget` (the axis tick area): plain wheel zooms that axis centered at the cursor via `QwtPlot::zoomAxis()`, Ctrl+wheel pans it via `QwtPlot::panAxis()`
+    - Works immediately without click-selecting the axis first (unlike `QwtPlotScaleEventDispatcher`); wheel events matching zoom/pan are consumed, all others pass through to the dispatcher
+    - Fully configurable: zoom/pan modifiers, zoom factor (default 1.2 per step), pan factor (default 30 pixels per step), enable/disable toggle
+    - Designed for inheritance with three virtual override points: `handleWheelEvent()`, `wheelZoom()`, `wheelPan()`
+    - The `parasitePlot` example gains an "Axis Wheel" toolbar action demonstrating the class
+
+- **QwtTextScaleDraw — custom text tick labels**
+    - New `QwtTextScaleDraw` class maps numerical tick values to custom string labels via a `QMap`, providing more flexibility for displaying categorical or specific text on plot axes
+
+- **Curve symbol auto coloring**
+    - `QwtPlotCurve` symbols left at their default (no brush, `#555555` pen) now automatically follow the curve pen color once the curve pen has been auto-colored on `attach()` (symbol brush takes the pen color, symbol pen takes `darker(150)`), so scatter symbols follow the color cycle; user-customized symbols are preserved
+
+- **3D items: RTTI, serialization and data access**
+    - New `Rtti3DValues` enum (`Rtti_Plot3DItem`, `Rtti_Plot3DSurface`, `Rtti_Plot3DBar`, `Rtti_Plot3DLine`) with `rtti()` overrides on all 3D plot items, mirroring the 2D `QwtPlotItem` pattern; `Qwt3DPlot::attach()`/`detach()` are now virtual
+    - New `qwt3d_serialize.h/.cpp` with `QDataStream` operators for `Triple`, `RGBA`, `ParallelEpiped`, `Qwt3DFunctionData`, `Qwt3DParametricData` and `Qwt3DTheme`
+    - Public getters added across the 3D API (color classes, color legend, coordinate system, axis, label, drawable, plot); `Qwt3DSurface::gridData()`/`cellData()`/`isGridData()` moved from protected to public
+    - `Qwt3DBar` gains `samples()`, `isGridData()` and grid metadata / z-matrix getters (`gridZValues()` etc.)
+
+- **3D line point shapes**
+    - `Qwt3DLine` gains the `PointShape` enum (Dot, Cube, Tetrahedron, Octahedron, Sphere) with `setPointShape()`/`pointShape()` for marker rendering in Dots style
+    - The `line3D` example adds a marker shape selector
+
+- **PySide6 bindings for qwtplot**
+    - Bindings CMake refactored to a multi-module orchestrator layout (`bindings/core/`, `bindings/plot/`) with a parameterized Shiboken6 tools shim
+    - Roughly 95 additional classes bound: pickers and picker machines, zoomers, panners, magnifier, rescaler, overlays, `QwtFigure`, the parasite framework, utility static classes, splines and `QwtPointMapper`
+    - Comprehensive test coverage: 52 tests (11 core + 41 plot) including offscreen rendering, signals, and interaction (zoomer, panner, magnifier, picker machines)
+
 ### Bug Fixes
 
+- Fixed four parasite plot axis issues:
+    - Parasite curves compressed or rendered outside the canvas after a shared-axis drag — the parasite `canvasMap()` now uses the host's paint interval while keeping the parasite's own scale interval
+    - Wheel zoom producing wrong ranges or no refresh on shared axes — the wheel position is now mapped to canvas coordinates and `replotAll()` refreshes host and parasites
+    - Parasite axis labels truncated during a selection-move drag — new `alignAxisBorderDist()`/`alignAllAxisBorderDist()` compute the maximum border distance across host and parasites; borders realign after every full replot
+    - `zoomAxis()` ineffective on inverted axes (e.g. `setAxisScale(yRight, 500, 0)`) — inverted ranges are detected and handled, which also fixes non-linear Y axes where pixel space is always inverted
 - Fixed parasite layouts copying stale host rects: the host `doLayout()` now refreshes each parasite layout after its own layout completes, so the parasite copy (and everything derived from it, like caption rects) is based on the final host rects of the current pass
 - A `LayoutRequest` received by a parasite plot now also refreshes the host layout, so parasite axis title/dimension changes enter the host band reservation aggregation promptly
+- `QwtPlot::setAxisScaleDraw()` no longer silently re-enables outside ticks on axes in `TickInside` mode (previously replacing the scale draw produced double-painted ticks)
+- `QwtPlotIntervalCurve` default pen changed from `#555555` to black so the attach-time auto coloring also applies to default-constructed instances
+- `Qwt3DBar::setSamples()` now assigns the missing spacing and height properties, ensuring correct bar dimensions
+
+### Build
+
+- New xmake build configuration (`xmake.lua`) as an alternative to CMake, including the `QWTCORE_MAKEDLL`/`QWTCORE_DLL` defines for core library support
+- Qt 5 compatibility: `constexpr` replaced with `Q_DECL_CONSTEXPR` in core headers, and `QwtPlotBoxChart` outlier jitter falls back to `qrand()` on Qt < 5.10 (plus version guards in the canvas and scale dispatcher headers)
+- Amalgamated single-file sources (`src-amalgamate/QwtPlot.{h,cpp}`) fully regenerated and the amalgamation templates repaired: references to files deleted by the 3D Plot+Item refactor were removed and the new `QwtTextScaleDraw`, `QwtPlotAxisWheelInteraction`, `Qwt3DPlotItem`/`Qwt3DSurface`/`Qwt3DBar`/`Qwt3DLine`, `Qwt3DRenderContext` and serialization sources are now included — the single-file build compiles again with the current 7.x API
+
+### Documentation
+
+- Added fixed canvas size mode usage documentation
+- Added outside axis title (TitleOutside) usage guide
 
 ## tag:v7.3.6 (2026-07-31)
 

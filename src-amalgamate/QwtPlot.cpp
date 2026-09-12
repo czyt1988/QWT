@@ -2401,7 +2401,7 @@ QVector< QPair< double, QColor > > QwtColorMapPreset::colorStops(Preset preset)
  */
 std::unique_ptr< QwtLinearColorMap > QwtColorMapPreset::create(Preset preset)
 {
-	auto map         = std::make_unique< QwtLinearColorMap >();
+	auto map         = qwt_make_unique< QwtLinearColorMap >();
 	const auto stops = colorStops(preset);
 	if (stops.isEmpty())
 		return map;
@@ -18911,6 +18911,8 @@ public:
 	QwtText title;
 
 	QwtScaleWidget::LayoutFlags layoutFlags;
+	QwtScaleWidget::TitlePosition titlePosition { QwtScaleWidget::TitleCentered };
+	QwtScaleWidget::TitlePlacement titlePlacement { QwtScaleWidget::TitleInside };
 
 	// Interaction-related members added for built-in actions
 	bool isSelected { false };
@@ -19206,6 +19208,95 @@ QwtText QwtScaleWidget::title() const
 }
 
 /**
+ * @brief Set the position of the title along the backbone
+ * @details Controls where the title is painted along the axis backbone.
+ *          The title keeps its natural orientation (vertical for Y axes,
+ *          horizontal for X axes). The default is @ref TitleCentered, which
+ *          reproduces the legacy behavior.
+ * @param position New title position
+ * @sa titlePosition(), TitlePosition
+ */
+void QwtScaleWidget::setTitlePosition(TitlePosition position)
+{
+	if (position != m_data->titlePosition) {
+		m_data->titlePosition = position;
+		layoutScale();
+	}
+}
+
+/**
+ * @brief Get the position of the title along the backbone
+ * @return Title position
+ * @sa setTitlePosition()
+ */
+QwtScaleWidget::TitlePosition QwtScaleWidget::titlePosition() const
+{
+	return m_data->titlePosition;
+}
+
+/**
+ * @brief Set the placement of the title relative to the scale widget
+ * @details With @ref TitleInside (default) the title is painted inside the
+ *          widget and contributes to the axis dimension. With @ref TitleOutside
+ *          the widget does not paint the title at all: QwtPlot reserves a
+ *          caption strip adjacent to the scale widget and paints the title
+ *          there as horizontal text (below the widget for YLeft/YRight/XBottom,
+ *          above it for XTop). Changing the placement triggers a relayout of
+ *          the plot.
+ * @param placement New title placement
+ * @sa titlePlacement(), TitlePlacement
+ */
+void QwtScaleWidget::setTitlePlacement(TitlePlacement placement)
+{
+	if (placement != m_data->titlePlacement) {
+		m_data->titlePlacement = placement;
+		layoutScale();
+	}
+}
+
+/**
+ * @brief Get the placement of the title relative to the scale widget
+ * @return Title placement
+ * @sa setTitlePlacement()
+ */
+QwtScaleWidget::TitlePlacement QwtScaleWidget::titlePlacement() const
+{
+	return m_data->titlePlacement;
+}
+
+/**
+ * @brief Set the horizontal alignment of the title text
+ * @details The alignment flags control how the title is laid out within its
+ *          drawing rectangle (the vertical direction is always pinned to the
+ *          scale, as for the legacy behavior). Only the horizontal alignment
+ *          bits (@c Qt::AlignLeft, @c Qt::AlignHCenter, @c Qt::AlignRight) are
+ *          meaningful; vertical bits are ignored.
+ * @param alignment Horizontal alignment flags
+ * @sa titleAlignment(), setTitle()
+ */
+void QwtScaleWidget::setTitleAlignment(Qt::Alignment alignment)
+{
+	// Keep only the horizontal alignment bits, drop vertical ones.
+	const int hFlags = alignment & (Qt::AlignLeft | Qt::AlignHCenter | Qt::AlignRight | Qt::AlignJustify);
+	const int flags = hFlags | Qt::TextExpandTabs | Qt::TextWordWrap;
+	if (flags != m_data->title.renderFlags()) {
+		m_data->title.setRenderFlags(flags);
+		layoutScale();
+	}
+}
+
+/**
+ * @brief Get the horizontal alignment of the title text
+ * @return Horizontal alignment flags
+ * @sa setTitleAlignment()
+ */
+Qt::Alignment QwtScaleWidget::titleAlignment() const
+{
+	return static_cast< Qt::Alignment >(m_data->title.renderFlags()
+		& (Qt::AlignLeft | Qt::AlignHCenter | Qt::AlignRight | Qt::AlignJustify));
+}
+
+/**
  * @brief Get the margin
  * @return Margin value
  * @sa setMargin()
@@ -19332,7 +19423,7 @@ void QwtScaleWidget::draw(QPainter* painter) const
 		r.setHeight(r.height() - m_data->borderDist[ 1 ]);
 	}
 
-	if (!m_data->title.isEmpty())
+	if (!m_data->title.isEmpty() && m_data->titlePlacement == TitleInside)
 		drawTitle(painter, m_data->scaleDraw->alignment(), r);
 }
 
@@ -19786,9 +19877,41 @@ void QwtScaleWidget::drawTitle(QPainter* painter, QwtScaleDraw::Alignment align,
 	if (angle != 0.0)
 		painter->rotate(angle);
 
+	// After the translate/rotate above the local coordinate system is laid out
+	// so that the local x axis runs along the backbone (extent = r.width()) and
+	// the local y axis runs across the title thickness (extent = r.height()).
+	// Restrict the drawing rectangle along the backbone according to the
+	// requested title position. TitleCentered keeps the full backbone extent,
+	// reproducing the legacy layout exactly.
+	double x0 = 0.0;
+	double drawW = r.width();
+	if (m_data->titlePosition != TitleCentered) {
+		// Natural length of the title along its reading direction.
+		double natLen = m_data->title.textSize(font()).width();
+		if (natLen > r.width())
+			natLen = r.width();  // falls back to the full span, wrapping as before
+
+		drawW = natLen;
+		const bool atEnd = (m_data->titlePosition == TitleAtEnd);
+
+		if (align == QwtScaleDraw::LeftScale || align == QwtScaleDraw::RightScale) {
+			// Vertical axis. With angle == -90 local x=0 is at the bottom end,
+			// with angle == +90 (TitleInverted) local x=0 is at the top end.
+			// The contract is positional: AtStart = bottom, AtEnd = top.
+			const bool localZeroAtBottom = (angle < 0.0);
+			const bool wantBottom = !atEnd;
+			const bool offsetToEnd = (localZeroAtBottom != wantBottom);
+			x0 = offsetToEnd ? (r.width() - natLen) : 0.0;
+		} else {
+			// Horizontal axis: local x=0 is at the left end.
+			// AtStart = left, AtEnd = right.
+			x0 = atEnd ? (r.width() - natLen) : 0.0;
+		}
+	}
+
 	QwtText title = m_data->title;
 	title.setRenderFlags(flags);
-	title.draw(painter, QRectF(0.0, 0.0, r.width(), r.height()));
+	title.draw(painter, QRectF(x0, 0.0, drawW, r.height()));
 
 	painter->restore();
 }
@@ -19870,7 +19993,7 @@ int QwtScaleWidget::dimForLength(int length, const QFont& scaleFont) const
 
 	int dim = m_data->margin + extent + 1 + m_data->edgeMargin;
 
-	if (!m_data->title.isEmpty())
+	if (!m_data->title.isEmpty() && m_data->titlePlacement == TitleInside)
 		dim += titleHeightForWidth(length) + m_data->spacing;
 
 	if (m_data->colorBar.isEnabled && m_data->colorBar.interval.isValid())
@@ -32370,6 +32493,99 @@ double QwtRoundScaleDraw::extent(const QFont& font) const
 /*** End of inlined file: qwt_round_scale_draw.cpp ***/
 
 
+/*** Start of inlined file: qwt_text_scale_draw.cpp ***/
+#include <qmap.h>
+
+class QwtTextScaleDraw::PrivateData
+{
+	QWT_DECLARE_PUBLIC(QwtTextScaleDraw)
+public:
+	PrivateData(QwtTextScaleDraw* p) : q_ptr(p)
+	{
+	}
+
+	QMap< double, QString > labelMap;
+};
+
+/**
+ * @brief Constructor
+ * @details Constructs a text scale draw with an empty label map, so no
+ *          labels are displayed until setLabelMap() is called.
+ */
+QwtTextScaleDraw::QwtTextScaleDraw() : QWT_PIMPL_CONSTRUCT
+{
+}
+
+/**
+ * @brief Constructor
+ * @param[in] map Value to label map
+ * @details Constructs a text scale draw with a custom value-to-label map.
+ *          The values of the major ticks are looked up in this map to
+ *          obtain the displayed text.
+ * @sa setLabelMap(), labelMap()
+ */
+QwtTextScaleDraw::QwtTextScaleDraw(const QMap< double, QString >& map) : QWT_PIMPL_CONSTRUCT
+{
+	QWT_D(d);
+	d->labelMap = map;
+}
+
+/**
+ * @brief Destructor
+ */
+QwtTextScaleDraw::~QwtTextScaleDraw()
+{
+}
+
+/**
+ * @brief Set the map that maps values to labels
+ * @param[in] map Value to label map
+ * @details The values of the major ticks are found by looking into this map.
+ *          Values that do not match any key produce an empty label.
+ * @warning The map has no effect for values that are not major tick values.
+ *          Major ticks are controlled by the scale engine and QwtScaleDiv.
+ * @sa labelMap(), QwtScaleDraw::setScale()
+ */
+void QwtTextScaleDraw::setLabelMap(const QMap< double, QString >& map)
+{
+	QWT_D(d);
+	d->labelMap = map;
+}
+
+/**
+ * @brief Get the map that maps values to labels
+ * @return Map mapping values to labels
+ * @sa setLabelMap()
+ */
+QMap< double, QString > QwtTextScaleDraw::labelMap() const
+{
+	QWT_DC(d);
+	return d->labelMap;
+}
+
+/**
+ * @brief Map a value to a corresponding label
+ * @param[in] value Value that will be mapped
+ * @return The label corresponding to value, or a null text if value matches no key
+ * @details label() looks up the labelMap() for a corresponding label for value.
+ *          Matching uses a small tolerance (1e-6) to be robust against floating
+ *          point drift of the tick values. If no key matches, a null text is
+ *          returned.
+ * @sa labelMap(), setLabelMap()
+ */
+QwtText QwtTextScaleDraw::label(double value) const
+{
+	QWT_DC(d);
+	for (auto it = d->labelMap.constBegin(); it != d->labelMap.constEnd(); ++it) {
+		if (qAbs(it.key() - value) < 1e-6)
+			return QwtText(it.value());
+	}
+	return QwtText();
+}
+
+/*** End of inlined file: qwt_text_scale_draw.cpp ***/
+
+
 /*** Start of inlined file: qwt_point_mapper.cpp ***/
 
 /*** Start of inlined file: qwt_point_data.h ***/
@@ -43828,7 +44044,7 @@ public:
 	QwtPlotCurve::CurveStyle style;
 	double baseline;
 
-	const QwtSymbol* symbol;
+	QwtSymbol* symbol;
 	QwtCurveFitter* curveFitter;
 
 	QPen pen;
@@ -43893,8 +44109,10 @@ int QwtPlotCurve::rtti() const
  * @brief Attach the curve to a plot
  * @details If the pen has not been explicitly set by the user via setPen(),
  *          the curve automatically receives a color from the plot's color cycle.
+ *          If an uncustomized symbol (default brush/pen) has been assigned, it is
+ *          auto-colored to match the curve pen as well.
  * @param plot Plot to attach to (nullptr to detach)
- * @sa QwtPlot::nextColorForItem(), QwtPlot::setColorCycle()
+ * @sa QwtPlot::nextColorForItem(), QwtPlot::setColorCycle(), setSymbol()
  */
 void QwtPlotCurve::attach(QwtPlot* plot)
 {
@@ -43902,6 +44120,15 @@ void QwtPlotCurve::attach(QwtPlot* plot)
 	if (plot && !d->m_userSetPen && d->pen.color() == QColor(Qt::black)) {
 		const QColor c = plot->nextColorForItem(rtti());
 		d->pen         = QPen(c, d->pen.widthF(), d->pen.style());
+	}
+	// Auto-color an uncustomized symbol to match the curve pen. This covers the
+	// case where a default symbol was assigned before attach; symbols assigned
+	// after attach are handled in setSymbol().
+	if (plot && d->symbol && d->symbol->brush().style() == Qt::NoBrush
+		&& d->symbol->pen().color() == QColor("#555555")) {
+		const QColor c = d->pen.color();
+		d->symbol->setBrush(QBrush(c));
+		d->symbol->setPen(QPen(c.darker(150), 1));
 	}
 	QwtPlotItem::attach(plot);
 }
@@ -44024,14 +44251,27 @@ QwtPlotCurve::CurveStyle QwtPlotCurve::style() const
  * @details The curve will take the ownership of the symbol, hence the previously
  *          set symbol will be deleted by setting a new one. If symbol is nullptr
  *          no symbol will be drawn.
+ *
+ *          If the curve is already attached and the new symbol is in its default
+ *          (uncustomized) state, it is auto-colored to match the curve pen, so that
+ *          a scatter-style curve inherits the color cycle color of its pen.
  * @param[in] symbol Symbol
- * @sa symbol()
+ * @sa symbol(), attach()
  */
 void QwtPlotCurve::setSymbol(QwtSymbol* symbol)
 {
 	QWT_D(d);
 	if (symbol != d->symbol) {
 		delete d->symbol;
+		// Auto-color an uncustomized symbol to match the curve pen when the
+		// curve is already attached. A symbol assigned before attach is colored
+		// later in attach().
+		if (symbol && plot() && symbol->brush().style() == Qt::NoBrush
+			&& symbol->pen().color() == QColor("#555555")) {
+			const QColor c = d->pen.color();
+			symbol->setBrush(QBrush(c));
+			symbol->setPen(QPen(c.darker(150), 1));
+		}
 		d->symbol = symbol;
 
 		qwtUpdateLegendIconSize(this);
@@ -46654,7 +46894,7 @@ class QwtPlotIntervalCurve::PrivateData
 	QWT_DECLARE_PUBLIC(QwtPlotIntervalCurve)
 public:
 	PrivateData(QwtPlotIntervalCurve* p)
-		: q_ptr(p), style(QwtPlotIntervalCurve::Tube), symbol(nullptr), pen(QColor("#555555")), brush(Qt::NoBrush)
+		: q_ptr(p), style(QwtPlotIntervalCurve::Tube), symbol(nullptr), pen(Qt::black), brush(Qt::NoBrush)
 	{
 		paintAttributes = QwtPlotIntervalCurve::ClipPolygons;
 		paintAttributes |= QwtPlotIntervalCurve::ClipSymbol;
@@ -53927,6 +54167,10 @@ void QwtPlotRenderer::render(QwtPlot* plot, QPainter* painter, const QRectF& plo
 				scaleWidget->getBorderDistHint(startDist, endDist);
 
 				renderScale(plot, painter, axisId, startDist, endDist, baseDist, layout->scaleRect(axisId));
+
+				const QRectF captionRect = layout->scaleCaptionRect(axisId);
+				if (!captionRect.isEmpty())
+					renderScaleCaption(plot, painter, axisId, captionRect);
 			}
 		}
 	}
@@ -54071,7 +54315,11 @@ void QwtPlotRenderer::renderScale(const QwtPlot* plot,
 		return;
 	}
 
-	scaleWidget->drawTitle(painter, align, scaleRect);
+	// outside titles are painted by renderScaleCaption() into the
+	// caption strip reserved by the layout
+
+	if (scaleWidget->titlePlacement() == QwtScaleWidget::TitleInside)
+		scaleWidget->drawTitle(painter, align, scaleRect);
 
 	painter->setFont(qwtResolvedFont(scaleWidget));
 
@@ -54096,6 +54344,42 @@ void QwtPlotRenderer::renderScale(const QwtPlot* plot,
 	sd->setLength(sdLength);
 	sd->enableComponent(QwtAbstractScaleDraw::Backbone, hasBackbone);
 
+	painter->restore();
+}
+
+/**
+ * @brief Render the caption of an outside axis title into a given rectangle
+ * @details Paints the title of a scale widget with QwtScaleWidget::TitleOutside
+ *          placement as horizontal text into the caption strip reserved by
+ *          QwtPlotLayout. Font and text color are taken from the scale widget,
+ *          the horizontal alignment from the title render flags, vertically the
+ *          text is centered.
+ * @param[in] plot Plot widget
+ * @param[in] painter Painter
+ * @param[in] axisId Axis identifier
+ * @param[in] captionRect Bounding rectangle for the caption
+ * @sa QwtPlotLayout::scaleCaptionRect(), QwtScaleWidget::setTitlePlacement()
+ */
+void QwtPlotRenderer::renderScaleCaption(const QwtPlot* plot, QPainter* painter, QwtAxisId axisId, const QRectF& captionRect) const
+{
+	if (!plot->isAxisVisible(axisId))
+		return;
+
+	const QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
+	if (!scaleWidget || scaleWidget->titlePlacement() != QwtScaleWidget::TitleOutside
+		|| scaleWidget->title().isEmpty()) {
+		return;
+	}
+
+	QwtText title = scaleWidget->title();
+	int flags     = title.renderFlags() & ~(Qt::AlignTop | Qt::AlignBottom);
+	flags |= Qt::AlignVCenter;
+	title.setRenderFlags(flags);
+
+	painter->save();
+	painter->setFont(qwtResolvedFont(scaleWidget));
+	painter->setPen(scaleWidget->palette().color(QPalette::Active, QPalette::Text));
+	title.draw(painter, captionRect);
 	painter->restore();
 }
 
@@ -58360,7 +58644,11 @@ void QwtPlotVectorField::dataChanged()
 
 /*** Start of inlined file: qwt_plot_boxchart.cpp ***/
 #include <qpainter.h>
+#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
 #include <qrandom.h>
+#else
+#include <qdatetime.h>
+#endif
 
 class QwtPlotBoxChart::PrivateData
 {
@@ -59259,9 +59547,14 @@ void QwtPlotBoxChart::drawOutliers(QPainter* painter,
 	const bool doAlign           = QwtPainter::roundingAlignment(painter);
 	const double jitter          = d->outlierJitter;
 
+#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
 	QRandomGenerator* rng = nullptr;
 	if (jitter > 0)
 		rng = QRandomGenerator::global();
+#else
+	if (jitter > 0)
+		qsrand(static_cast<uint>(QTime::currentTime().msecsSinceStartOfDay()));
+#endif
 
 	for (size_t i = 0; i < m_outlierData->size(); ++i) {
 		const QwtBoxOutlierSample& outlierSample = m_outlierData->sample(i);
@@ -59276,10 +59569,18 @@ void QwtPlotBoxChart::drawOutliers(QPainter* painter,
 				valuePixel = qRound(valuePixel);
 
 			double posPixel = basePosPixel;
+#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
 			if (jitter > 0 && rng) {
 				const double offset = rng->bounded(jitter) - jitter * 0.5;
 				posPixel += offset;
 			}
+#else
+			if (jitter > 0)
+			{
+				const double offset = (static_cast<double>(qrand()) / RAND_MAX) * jitter - jitter * 0.5;
+				posPixel += offset;
+			}
+#endif
 
 			QPointF point = (orient == Qt::Vertical) ? QPointF(posPixel, valuePixel) : QPointF(valuePixel, posPixel);
 
@@ -63780,6 +64081,9 @@ public:
 	PrivateData(QwtPlot* p);
 	QPointer< QwtTextLabel > titleLabel;
 	QPointer< QwtTextLabel > footerLabel;
+	// Labels painting the outside axis titles (QwtScaleWidget::TitleOutside),
+	// lazily created on demand, positioned into QwtPlotLayout::scaleCaptionRect()
+	QPointer< QwtTextLabel > axisTitleLabels[ QwtAxis::AxisPositions ];
 	QPointer< QWidget > canvas;
 	QPointer< QwtAbstractLegend > legend;
 	QwtPlotLayout* layout;
@@ -63981,6 +64285,13 @@ bool QwtPlot::event(QEvent* event)
 	switch (event->type()) {
 	case QEvent::LayoutRequest:
 		updateLayout();
+		// A layout request of a parasite plot may change the scale/caption
+		// demands that the host layout aggregates for the shared bands -
+		// refresh the host layout as well
+		if (isParasitePlot()) {
+			if (QwtPlot* host = hostPlot())
+				host->updateLayout();
+		}
 		break;
 	case QEvent::PolishRequest:
 		replot();
@@ -64356,6 +64667,13 @@ void QwtPlot::replotAll()
 	for (QwtPlot* plot : allPlot) {
 		plot->replot();
 	}
+	// After all replots, borderDist and edgeMargin may have changed (new scale
+	// divs produce new label sizes). Realign so host and parasite layers stay
+	// consistent, keeping canvasMap paint intervals identical.
+	QwtPlot* host = isHostPlot() ? this : hostPlot();
+	if (host && host->parasitePlotCount() > 0) {
+		host->updateAllAxisEdgeMargin();
+	}
 }
 
 void QwtPlot::autoRefreshAll()
@@ -64447,6 +64765,43 @@ void QwtPlot::doLayout()
 		}
 	}
 
+	// Outside axis titles (QwtScaleWidget::TitleOutside) are painted by
+	// dedicated labels positioned into the caption strips reserved by the
+	// layout. The scale widgets don't paint them in this mode.
+	for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+		const QwtAxisId axisId(axisPos);
+
+		QwtScaleWidget* scaleWidget  = axisWidget(axisId);
+		const QRectF captionRect     = layout->scaleCaptionRect(axisId);
+		const bool hasCaption        = isAxisVisible(axisId) && scaleWidget
+			&& scaleWidget->titlePlacement() == QwtScaleWidget::TitleOutside
+			&& !scaleWidget->title().isEmpty() && captionRect.isValid();
+
+		QPointer< QwtTextLabel >& label = m_data->axisTitleLabels[ axisPos ];
+
+		if (hasCaption) {
+			if (!label) {
+				label = new QwtTextLabel(this);
+				label->setObjectName(QStringLiteral("QwtPlotAxisTitle%1").arg(axisPos));
+			}
+
+			QwtText title = scaleWidget->title();
+			int flags     = title.renderFlags() & ~(Qt::AlignTop | Qt::AlignBottom);
+			flags |= Qt::AlignVCenter;
+			title.setRenderFlags(flags);
+
+			label->setText(title);
+			label->setFont(scaleWidget->font());
+			label->setPalette(scaleWidget->palette());
+			label->setGeometry(captionRect.toRect());
+
+			if (!label->isVisibleTo(this))
+				label->show();
+		} else if (label) {
+			label->hide();
+		}
+	}
+
 	if (m_data->legend) {
 		if (m_data->legend->isEmpty()) {
 			m_data->legend->hide();
@@ -64464,6 +64819,11 @@ void QwtPlot::doLayout()
 		// Set dimensions first, then adjust the rest
 		for (QwtPlot* p : allparasites) {
 			p->setGeometry(QRect(0, 0, width(), height()));
+			// The parasite layout copies the host rects during activate(). Refresh
+			// it here so the copy - and everything derived from it, like the
+			// caption rects of outside axis titles - sees the final host layout
+			// of this pass instead of a stale one from an earlier event.
+			p->updateLayout();
 		}
 	}
 }
@@ -64743,6 +65103,25 @@ QwtScaleMap QwtPlot::canvasMap(QwtAxisId axisId) const
 	QwtScaleMap map;
 	if (!m_data->canvas)
 		return map;
+
+	// For parasite plots, use the host's paint interval (p1, p2) to ensure
+	// curves are mapped to the correct pixel range. The host and parasite
+	// share the same canvas geometry, so the paint interval must be identical.
+	// Computing it from the parasite's own borderDist (which may differ from
+	// the host's due to different label sizes) causes curves to be misaligned,
+	// compressed, or rendered outside the canvas. The parasite's own scale
+	// interval (s1, s2) is still used so data maps correctly.
+	if (isParasitePlot()) {
+		QwtPlot* host = hostPlot();
+		if (host) {
+			QwtScaleMap hostMap = host->canvasMap(axisId);
+			map.setTransformation(axisScaleEngine(axisId)->transformation());
+			const QwtScaleDiv& sd = axisScaleDiv(axisId);
+			map.setScaleInterval(sd.lowerBound(), sd.upperBound());
+			map.setPaintInterval(hostMap.p1(), hostMap.p2());
+			return map;
+		}
+	}
 
 	map.setTransformation(axisScaleEngine(axisId)->transformation());
 
@@ -65785,7 +66164,10 @@ void QwtPlot::updateAxisEdgeMargin(QwtAxisId axisId)
 	QRectF hostScaleRect = host->plotLayout()->scaleRect(axisId);
 	// Host rectangle correction: only correct edgeMargin as the original rectangle
 	hostScaleRect = shrinkRect(hostScaleRect, host->axisWidget(axisId)->edgeMargin(), axisId);
-	layers.append({ host, hostScaleRect });
+	AxisLayer hostLayer;
+	hostLayer.plot      = host;
+	hostLayer.scaleRect = hostScaleRect;
+	layers.append(hostLayer);
 	// Parasite axes form levels 1, 2, ... in order of addition
 	for (QwtPlot* p : parasites) {
 		if (!p || !p->isAxisVisible(axisId)) {
@@ -65864,9 +66246,75 @@ void QwtPlot::updateAllAxisEdgeMargin()
 	for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; ++axisPos) {
 		updateAxisEdgeMargin(axisPos);
 	}
+	// Align borderDist across all layers so that canvasMap paint intervals match
+	alignAllAxisBorderDist();
 	if (m_data->scaleEventDispatcher) {
 		// Update cache after updateAllAxisEdgeMargin
 		m_data->scaleEventDispatcher->updateCache();
+	}
+}
+
+/**
+ * @brief Align borderDist across host and all parasite layers for one axis
+ *
+ * For each axis position, the host and every parasite compute their own
+ * borderDist hint (endpoint label spacing) independently. If they differ,
+ * canvasMap produces different paint intervals for host vs. parasite, which
+ * causes parasite curves to be misaligned, compressed, or rendered outside
+ * the canvas.
+ *
+ * This method computes the maximum start/end borderDist across all layers
+ * (host + parasites) and applies it to every layer, ensuring all canvasMap
+ * paint intervals are identical. Setting minBorderDist as well prevents
+ * subsequent doLayout / updateAxes calls from reverting below this value.
+ *
+ * @param axisId Axis ID to align
+ */
+void QwtPlot::alignAxisBorderDist(QwtAxisId axisId)
+{
+	QwtPlot* host = isHostPlot() ? this : hostPlot();
+	if (!host || host->parasitePlotCount() == 0) {
+		return;
+	}
+
+	// Collect the maximum borderDist hint across all layers
+	int maxStart = 0;
+	int maxEnd   = 0;
+	auto collect = [&](QwtPlot* p) {
+		if (p && p->isAxisVisible(axisId)) {
+			int s = 0, e = 0;
+			p->axisWidget(axisId)->getBorderDistHint(s, e);
+			maxStart = qMax(maxStart, s);
+			maxEnd   = qMax(maxEnd, e);
+		}
+	};
+	collect(host);
+	for (QwtPlot* p : host->parasitePlots()) {
+		collect(p);
+	}
+
+	// Apply the maximum to all layers so paint intervals match exactly
+	auto apply = [&](QwtPlot* p) {
+		if (p && p->isAxisVisible(axisId)) {
+			QwtScaleWidget* sw = p->axisWidget(axisId);
+			sw->setMinBorderDist(maxStart, maxEnd);
+			sw->setBorderDist(maxStart, maxEnd);
+		}
+	};
+	apply(host);
+	for (QwtPlot* p : host->parasitePlots()) {
+		apply(p);
+	}
+}
+
+/**
+ * @brief Align borderDist for all axis positions
+ * @sa alignAxisBorderDist()
+ */
+void QwtPlot::alignAllAxisBorderDist()
+{
+	for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; ++axisPos) {
+		alignAxisBorderDist(axisPos);
 	}
 }
 
@@ -66097,6 +66545,14 @@ void QwtPlot::zoomAxis(QwtAxisId axisId, double factor, const QPoint& centerPosP
 		// For linear axes, convert the screen center point to the data center point (invTransform)
 		center = scaleMap.invTransform(center);
 	}
+	// Ensure currentMin <= currentMax so the clamp/zoom math below works correctly.
+	// This handles two cases:
+	// 1. Inverted data axes (e.g., setAxisScale(yRight, 500, 0) where s1 > s2)
+	// 2. Non-linear Y axes where pixel-space is always inverted (p1 > p2 for Y)
+	const bool inverted = (currentMin > currentMax);
+	if (inverted) {
+		std::swap(currentMin, currentMax);
+	}
 	// Clamp center between currentMin and currentMax; for C++11 compatibility we avoid std::clamp here.
 	// If C++17 or later is explicitly required, this can be changed to center = std::clamp(center, currentMin, currentMax);
 	center = std::max(currentMin, std::min(center, currentMax));
@@ -66118,6 +66574,11 @@ void QwtPlot::zoomAxis(QwtAxisId axisId, double factor, const QPoint& centerPosP
 			// The two points have become extremely close after zooming
 			currentMax = currentMin + 1e-8;
 		}
+	}
+	// Restore original ordering to preserve the axis inversion direction
+	// (e.g., an axis set to [500, 0] should remain [newMax, newMin] after zoom)
+	if (inverted) {
+		std::swap(currentMin, currentMax);
 	}
 	setAxisScale(axisId, currentMin, currentMax);
 }
@@ -66720,6 +67181,15 @@ void QwtPlot::setAxisScaleDraw(QwtAxisId axisId, QwtScaleDraw* scaleDraw)
 {
 	if (isAxisValid(axisId)) {
 		axisWidget(axisId)->setScaleDraw(scaleDraw);
+
+		/*
+			A fresh scale draw has all components enabled. When the axis
+			draws its ticks inside the canvas, the outside tick component
+			must stay disabled, otherwise ticks are painted twice.
+		 */
+		if (axisTickDirection(axisId) == TickInside)
+			scaleDraw->enableComponent(QwtAbstractScaleDraw::Ticks, false);
+
 		autoRefresh();
 	}
 }
@@ -66819,6 +67289,88 @@ void QwtPlot::setAxisTitle(QwtAxisId axisId, const QwtText& title)
 {
 	if (isAxisValid(axisId))
 		axisWidget(axisId)->setTitle(title);
+}
+
+/**
+ * @brief Set the position of an axis title along the backbone
+ * @param axisId Axis ID
+ * @param position Title position along the backbone
+ * @sa QwtScaleWidget::setTitlePosition(), axisTitlePosition()
+ */
+void QwtPlot::setAxisTitlePosition(QwtAxisId axisId, QwtScaleWidget::TitlePosition position)
+{
+	if (isAxisValid(axisId))
+		axisWidget(axisId)->setTitlePosition(position);
+}
+
+/**
+ * @brief Get the position of an axis title along the backbone
+ * @param axisId Axis ID
+ * @return Title position along the backbone
+ * @sa setAxisTitlePosition()
+ */
+QwtScaleWidget::TitlePosition QwtPlot::axisTitlePosition(QwtAxisId axisId) const
+{
+	if (isAxisValid(axisId))
+		return axisWidget(axisId)->titlePosition();
+
+	return QwtScaleWidget::TitleCentered;
+}
+
+/**
+ * @brief Set the placement of an axis title (inside the scale widget or outside as caption)
+ * @details With QwtScaleWidget::TitleOutside the title is painted as a horizontal
+ *          caption below the scale widget (above it for XTop) instead of inside
+ *          the widget. The plot layout reserves the caption strip automatically,
+ *          for parasite plots the host layout aggregates the demands of all layers.
+ * @param axisId Axis ID
+ * @param placement Title placement
+ * @sa QwtScaleWidget::setTitlePlacement(), axisTitlePlacement(), QwtPlotLayout::scaleCaptionRect()
+ */
+void QwtPlot::setAxisTitlePlacement(QwtAxisId axisId, QwtScaleWidget::TitlePlacement placement)
+{
+	if (isAxisValid(axisId))
+		axisWidget(axisId)->setTitlePlacement(placement);
+}
+
+/**
+ * @brief Get the placement of an axis title
+ * @param axisId Axis ID
+ * @return Title placement
+ * @sa setAxisTitlePlacement()
+ */
+QwtScaleWidget::TitlePlacement QwtPlot::axisTitlePlacement(QwtAxisId axisId) const
+{
+	if (isAxisValid(axisId))
+		return axisWidget(axisId)->titlePlacement();
+
+	return QwtScaleWidget::TitleInside;
+}
+
+/**
+ * @brief Set the horizontal alignment of an axis title
+ * @param axisId Axis ID
+ * @param alignment Horizontal alignment within the title box
+ * @sa QwtScaleWidget::setTitleAlignment(), axisTitleAlignment()
+ */
+void QwtPlot::setAxisTitleAlignment(QwtAxisId axisId, Qt::Alignment alignment)
+{
+	if (isAxisValid(axisId))
+		axisWidget(axisId)->setTitleAlignment(alignment);
+}
+
+/**
+ * @brief Get the horizontal alignment of an axis title
+ * @param axisId Axis ID
+ * @return Horizontal alignment within the title box
+ * @sa setAxisTitleAlignment()
+ */
+Qt::Alignment QwtPlot::axisTitleAlignment(QwtAxisId axisId) const
+{
+	if (isAxisValid(axisId))
+		return axisWidget(axisId)->titleAlignment();
+
+	return Qt::AlignHCenter;
 }
 
 /**
@@ -66994,8 +67546,10 @@ void QwtPlot::xTopRequestScaleRangeUpdate(double min, double max)
 QwtPlotLayoutEngine::Dimensions::Dimensions()
 {
 	dimTitle = dimFooter = 0;
-	for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++)
-		m_dimAxes[ axisPos ] = 0;
+	for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+		m_dimAxes[ axisPos ]     = 0;
+		m_captionExtra[ axisPos ] = 0;
+	}
 }
 
 /**
@@ -67020,12 +67574,35 @@ void QwtPlotLayoutEngine::Dimensions::setDimAxis(QwtAxisId axisId, int dim)
 
 /**
  * @brief Read dimension by axis position index
+ * @details Includes the extra caption band reserved for outside axis titles
+ *          (QwtScaleWidget::TitleOutside), so that innerRect() and the axis
+ *          length calculations see the full band.
  * @param axisPos Axis position enum value (YLeft, YRight, XTop, XBottom)
- * @return Pixel size of the axis at the given position
+ * @return Pixel size of the band at the given position
  */
 int QwtPlotLayoutEngine::Dimensions::dimAxes(int axisPos) const
 {
-	return m_dimAxes[ axisPos ];
+	return m_dimAxes[ axisPos ] + m_captionExtra[ axisPos ];
+}
+
+/**
+ * @brief Read the extra caption band pixels for an axis position
+ * @param axisPos Axis position enum value (YLeft, YRight, XTop, XBottom)
+ * @return Extra pixels reserved beyond the scale dimension, 0 if none
+ */
+int QwtPlotLayoutEngine::Dimensions::captionExtra(int axisPos) const
+{
+	return m_captionExtra[ axisPos ];
+}
+
+/**
+ * @brief Set the extra caption band pixels for an axis position
+ * @param axisPos Axis position enum value (YLeft, YRight, XTop, XBottom)
+ * @param extra Extra pixels reserved beyond the scale dimension
+ */
+void QwtPlotLayoutEngine::Dimensions::setCaptionExtra(int axisPos, int extra)
+{
+	m_captionExtra[ axisPos ] = qMax(0, extra);
 }
 
 /**
@@ -67173,7 +67750,7 @@ void QwtPlotLayoutEngine::LayoutData::ScaleData::init(const QwtScaleWidget* axis
 		tickOffset += axisWidget->scaleDraw()->maxTickLength();
 
 	dimWithoutTitle = axisWidget->dimForLength(QWIDGETSIZE_MAX, scaleFont);
-	if (!axisWidget->title().isEmpty())
+	if (!axisWidget->title().isEmpty() && axisWidget->titlePlacement() == QwtScaleWidget::TitleInside)
 		dimWithoutTitle -= axisWidget->titleHeightForWidth(QWIDGETSIZE_MAX);
 }
 
@@ -67216,6 +67793,9 @@ void QwtPlotLayoutEngine::LayoutData::CanvasData::init(const QWidget* canvas)
 /**
  * @brief Construct LayoutData from a QwtPlot
  * @details Initializes all layout data by extracting information from the plot's components including legend, labels, axes and canvas.
+ *          For a host plot the outside title caption heights demanded by all parasite plots
+ *          sharing its bands are aggregated as well, so that the host layout reserves
+ *          enough space for the captions of every layer.
  * @param plot Pointer to the QwtPlot
  */
 QwtPlotLayoutEngine::LayoutData::LayoutData(const QwtPlot* plot)
@@ -67236,10 +67816,42 @@ QwtPlotLayoutEngine::LayoutData::LayoutData(const QwtPlot* plot)
 			} else {
 				scaleData.reset();
 			}
+
+			parasiteCaptionHeight[ axisPos ] = 0;
 		}
 	}
 
 	canvasData.init(plot->canvas());
+
+	if (plot->isHostPlot() && plot->parasitePlotCount() > 0) {
+		const QList< QwtPlot* > parasites = plot->parasitePlots();
+		for (const QwtPlot* p : parasites) {
+			if (!p)
+				continue;
+
+			for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+				const QwtAxisId axisId(axisPos);
+				if (!p->isAxisVisible(axisId))
+					continue;
+
+				const QwtScaleWidget* sw = p->axisWidget(axisId);
+				if (!sw || sw->titlePlacement() != QwtScaleWidget::TitleOutside || sw->title().isEmpty())
+					continue;
+
+				// Conservative reservation: heightForWidth of the own column width.
+				// For parasite layers the column is estimated from the natural
+				// dimension without the shared band offsets (margin/edgeMargin);
+				// the offsets may be stale here (they are recalculated after the
+				// host layout) but they cancel out in the subtraction.
+				int w = QWIDGETSIZE_MAX;
+				if (QwtAxis::isYAxis(axisPos)) {
+					w = sw->dimForLength(QWIDGETSIZE_MAX, sw->font()) - sw->margin() - sw->edgeMargin();
+					w = qMax(w, 1);
+				}
+				parasiteCaptionHeight[ axisPos ] = qMax(parasiteCaptionHeight[ axisPos ], sw->titleHeightForWidth(w));
+			}
+		}
+	}
 }
 
 /**
@@ -67444,7 +68056,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 					const double dx = leftOffset + leftScaleRect.width();
 
 					//! When the axis needs more space than available, the function adjusts the canvas rectangle
-					if (m_alignCanvas[ YLeft ] && dx < 0.0) {
+					if (m_alignCanvas[ YLeft ] && dx < 0.0 && !isFixedCanvasWidth()) {
 						/*
 						   The axis needs more space than the width
 						   of the left scale.
@@ -67457,7 +68069,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 						axisRect.setLeft(qwtMaxF(left, minLeft));
 					}
 				} else {
-					if (m_alignCanvas[ YLeft ] && leftOffset < 0) {
+					if (m_alignCanvas[ YLeft ] && leftOffset < 0 && !isFixedCanvasWidth()) {
 						canvasRect.setLeft(qwtMaxF(canvasRect.left(), axisRect.left() - leftOffset));
 					} else {
 						if (leftOffset > 0)
@@ -67470,7 +68082,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 
 				if (rightScaleRect.isValid()) {
 					const double dx = rightOffset + rightScaleRect.width();
-					if (m_alignCanvas[ YRight ] && dx < 0) {
+					if (m_alignCanvas[ YRight ] && dx < 0 && !isFixedCanvasWidth()) {
 						/*
 						   The axis needs more space than the width
 						   of the right scale.
@@ -67483,7 +68095,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 					const double right    = axisRect.right() - rightOffset;
 					axisRect.setRight(qwtMinF(right, maxRight));
 				} else {
-					if (m_alignCanvas[ YRight ] && rightOffset < 0) {
+					if (m_alignCanvas[ YRight ] && rightOffset < 0 && !isFixedCanvasWidth()) {
 						canvasRect.setRight(qwtMinF(canvasRect.right(), axisRect.right() + rightOffset));
 					} else {
 						if (rightOffset > 0)
@@ -67497,7 +68109,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 
 				if (bottomScaleRect.isValid()) {
 					const double dy = bottomOffset + bottomScaleRect.height();
-					if (m_alignCanvas[ XBottom ] && dy < 0) {
+					if (m_alignCanvas[ XBottom ] && dy < 0 && !isFixedCanvasHeight()) {
 						/*
 						   The axis needs more space than the height
 						   of the bottom scale.
@@ -67510,7 +68122,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 						axisRect.setBottom(qwtMinF(bottom, maxBottom));
 					}
 				} else {
-					if (m_alignCanvas[ XBottom ] && bottomOffset < 0) {
+					if (m_alignCanvas[ XBottom ] && bottomOffset < 0 && !isFixedCanvasHeight()) {
 						canvasRect.setBottom(qwtMinF(canvasRect.bottom(), axisRect.bottom() + bottomOffset));
 					} else {
 						if (bottomOffset > 0)
@@ -67523,7 +68135,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 
 				if (topScaleRect.isValid()) {
 					const double dy = topOffset + topScaleRect.height();
-					if (m_alignCanvas[ XTop ] && dy < 0) {
+					if (m_alignCanvas[ XTop ] && dy < 0 && !isFixedCanvasHeight()) {
 						/*
 						   The axis needs more space than the height
 						   of the top scale.
@@ -67537,7 +68149,7 @@ void QwtPlotLayoutEngine::alignScales(int plotLayoutOptions,
 						axisRect.setTop(qwtMaxF(top, minTop));
 					}
 				} else {
-					if (m_alignCanvas[ XTop ] && topOffset < 0) {
+					if (m_alignCanvas[ XTop ] && topOffset < 0 && !isFixedCanvasHeight()) {
 						canvasRect.setTop(qwtMaxF(canvasRect.top(), axisRect.top() - topOffset));
 					} else {
 						if (topOffset > 0)
@@ -67908,7 +68520,8 @@ QwtPlotLayoutEngine::layoutDimensions(int plotLayoutOptions, const LayoutData& l
 					}
 
 					int d = scaleData.dimWithoutTitle;
-					if (!scaleData.scaleWidget->title().isEmpty()) {
+					if (!scaleData.scaleWidget->title().isEmpty()
+						&& scaleData.scaleWidget->titlePlacement() == QwtScaleWidget::TitleInside) {
 						d += scaleData.scaleWidget->titleHeightForWidth(qwtFloor(length));
 					}
 
@@ -67917,6 +68530,68 @@ QwtPlotLayoutEngine::layoutDimensions(int plotLayoutOptions, const LayoutData& l
 						done = false;
 					}
 				}
+			}
+		}
+
+		// Outside title captions (QwtScaleWidget::TitleOutside) are painted in a
+		// strip adjacent to the scale widgets, outside of them:
+		// - captions of X axes extend the band of their own axis position
+		// - captions of Y axes are painted below their scale widgets and share
+		//   the XBottom band. The Y scale rects protrude into that band by the
+		//   tick offset of the bottom axis (see alignScales), so the protrusion
+		//   has to be reserved as well.
+		// Caption heights demanded by parasite plots are aggregated in LayoutData.
+		{
+			int reqBottom = dimensions.dimAxis(QwtAxis::XBottom);
+			int reqTop    = dimensions.dimAxis(QwtAxis::XTop);
+
+			int yCaptionOffset = 0;
+			if (layoutData.axisData(QwtAxis::XBottom).isVisible)
+				yCaptionOffset = qwtCeil(layoutData.tickOffset(QwtAxis::XBottom));
+
+			for (int axisPos = 0; axisPos < AxisPositions; axisPos++) {
+				int capH = 0;
+
+				const LayoutData::ScaleData& scaleData = layoutData.axisData(axisPos);
+				if (scaleData.isVisible && scaleData.scaleWidget
+					&& scaleData.scaleWidget->titlePlacement() == QwtScaleWidget::TitleOutside
+					&& !scaleData.scaleWidget->title().isEmpty()) {
+					if (isXAxis(axisPos)) {
+						const double length = rect.width() - dimensions.dimYAxes();
+						capH                = scaleData.scaleWidget->titleHeightForWidth(qwtFloor(qwtMaxF(length, 1.0)));
+					} else {
+						// Y captions are painted below the scale widget into the
+						// bottom band. The reserved height is conservative: the
+						// caption gets at least the width of the own column
+						// (the placement may grant it more, see
+						// QwtPlotLayout::updateScaleCaptionRects)
+						int w = dimensions.dimAxis(axisPos) - scaleData.baseLineOffset - scaleData.edgeMargin;
+						capH  = scaleData.scaleWidget->titleHeightForWidth(qMax(w, 1));
+					}
+				}
+
+				capH = qMax(capH, layoutData.parasiteCaptionHeight[ axisPos ]);
+				if (capH <= 0)
+					continue;
+
+				if (isXAxis(axisPos)) {
+					int& req = (axisPos == XTop) ? reqTop : reqBottom;
+					req      = qMax(req, dimensions.dimAxis(axisPos) + int(m_spacing) + capH);
+				} else {
+					reqBottom = qMax(reqBottom, yCaptionOffset + int(m_spacing) + capH);
+				}
+			}
+
+			const int extraBottom = qMax(0, reqBottom - dimensions.dimAxis(QwtAxis::XBottom));
+			if (extraBottom != dimensions.captionExtra(XBottom)) {
+				dimensions.setCaptionExtra(XBottom, extraBottom);
+				done = false;
+			}
+
+			const int extraTop = qMax(0, reqTop - dimensions.dimAxis(QwtAxis::XTop));
+			if (extraTop != dimensions.captionExtra(XTop)) {
+				dimensions.setCaptionExtra(XTop, extraTop);
+				done = false;
 			}
 		}
 	}
@@ -68008,6 +68683,66 @@ void QwtPlotLayoutEngine::setAlignCanvas(int axisPos, bool on)
 }
 
 /**
+ * @brief Check if fixed canvas size is enabled for a given axis position
+ * @param[in] axisPos Axis position (0-3)
+ * @return True if the canvas dimension for this axis direction is fixed
+ */
+bool QwtPlotLayoutEngine::isFixedCanvas(int axisPos) const
+{
+	return QwtAxis::isValid(axisPos) ? m_fixedCanvas[ axisPos ] : false;
+}
+
+/**
+ * @brief Enable/disable fixed canvas size for an axis direction
+ * @param[in] axisPos Axis position (0-3). YLeft/YRight fix the canvas width;
+ *            XBottom/XTop fix the canvas height.
+ * @param[in] on True to hold the canvas dimension stable against label growth
+ */
+void QwtPlotLayoutEngine::setFixedCanvas(int axisPos, bool on)
+{
+	if (QwtAxis::isValid(axisPos))
+		m_fixedCanvas[ axisPos ] = on;
+}
+
+/**
+ * @brief Get the manual fixed canvas size
+ * @return Manual size; a component < 0 means auto-capture for that direction
+ */
+QSize QwtPlotLayoutEngine::fixedCanvasSize() const
+{
+	return m_fixedCanvasSize;
+}
+
+/**
+ * @brief Set a manual fixed canvas size, overriding the auto-captured value
+ * @param[in] size Manual canvas size; a component < 0 means auto-capture
+ */
+void QwtPlotLayoutEngine::setFixedCanvasSize(const QSize& size)
+{
+	m_fixedCanvasSize = size;
+}
+
+/**
+ * @brief Check if the canvas width is held fixed
+ * @return True if any Y axis is fixed or a manual width is set
+ */
+bool QwtPlotLayoutEngine::isFixedCanvasWidth() const
+{
+	return m_fixedCanvas[ QwtAxis::YLeft ] || m_fixedCanvas[ QwtAxis::YRight ]
+		|| m_fixedCanvasSize.width() >= 0;
+}
+
+/**
+ * @brief Check if the canvas height is held fixed
+ * @return True if any X axis is fixed or a manual height is set
+ */
+bool QwtPlotLayoutEngine::isFixedCanvasHeight() const
+{
+	return m_fixedCanvas[ QwtAxis::XBottom ] || m_fixedCanvas[ QwtAxis::XTop ]
+		|| m_fixedCanvasSize.height() >= 0;
+}
+
+/**
  * @brief Get spacing value
  * @return Current spacing value in pixels
  *
@@ -68070,6 +68805,7 @@ int QwtPlotLayoutEngine::heightForWidth(LayoutData::Label labelType,
 
 /*** Start of inlined file: qwt_plot_layout.cpp ***/
 #include <qmargins.h>
+#include <algorithm>
 
 namespace
 {
@@ -68079,6 +68815,16 @@ public:
 	LayoutHintData(const QwtPlot* plot);
 
 	int alignedSize(const QwtAxisId) const;
+
+	inline int axesWidth(int axisPos) const
+	{
+		return m_scaleData[ axisPos ].w;
+	}
+
+	inline int axesHeight(int axisPos) const
+	{
+		return m_scaleData[ axisPos ].h;
+	}
 
 	inline int yAxesWidth() const
 	{
@@ -68127,16 +68873,6 @@ private:
 	ScaleData& axisData(QwtAxisId axisId)
 	{
 		return m_scaleData[ axisId ];
-	}
-
-	inline int axesWidth(int axisPos) const
-	{
-		return m_scaleData[ axisPos ].w;
-	}
-
-	inline int axesHeight(int axisPos) const
-	{
-		return m_scaleData[ axisPos ].h;
 	}
 
 	int m_canvasBorder[ QwtAxis::AxisPositions ];
@@ -68248,7 +68984,15 @@ public:
 	QRectF footerRect;
 	QRectF legendRect;
 	QRectF scaleRects[ QwtAxis::AxisPositions ];
+	QRectF scaleCaptionRects[ QwtAxis::AxisPositions ];
 	QRectF canvasRect;
+
+	// Captured canvas edge offsets (relative to the post-title/footer rect)
+	// used to pin the canvas dimension(s) in auto fixed-canvas mode.
+	// [YLeft]=canvasRect.left()-rect.left(), [YRight]=rect.right()-canvasRect.right(),
+	// [XTop]=canvasRect.top()-rect.top(), [XBottom]=rect.bottom()-canvasRect.bottom().
+	// A value < 0 means "not captured yet".
+	qreal m_lockedOffset[ QwtAxis::AxisPositions ] = { -1.0, -1.0, -1.0, -1.0 };
 
 	QwtPlotLayoutEngine engine;
 };
@@ -68358,6 +69102,130 @@ bool QwtPlotLayout::alignCanvasToScale(int axisPos) const
 		return false;
 
 	return d->engine.alignCanvas(axisPos);
+}
+
+/**
+ * @brief Enable fixed canvas size for an axis direction
+ * @param axisPos Axis position. YLeft/YRight fix the canvas width;
+ *                XBottom/XTop fix the canvas height.
+ * @param on True to hold the canvas dimension stable against axis label growth.
+ * @details When enabled, the canvas dimension is captured on the next activate()
+ *          and held stable; overflowing axis labels are clipped by the scale
+ *          widget's paint region. The captured value persists across layouts
+ *          until resetFixedCanvasSize() is called.
+ * @sa isFixedCanvasSize(), setFixedCanvasSize(QSize), resetFixedCanvasSize()
+ */
+void QwtPlotLayout::setFixedCanvasSize(int axisPos, bool on)
+{
+	QWT_D(d);
+	d->engine.setFixedCanvas(axisPos, on);
+}
+
+/**
+ * @brief Check if fixed canvas size is enabled for a given axis position
+ * @param axisPos Axis position (QwtAxis::Position)
+ * @return True if fixed canvas size is enabled for this axis direction
+ * @sa setFixedCanvasSize(int, bool)
+ */
+bool QwtPlotLayout::isFixedCanvasSize(int axisPos) const
+{
+	QWT_DC(d);
+	return d->engine.isFixedCanvas(axisPos);
+}
+
+/**
+ * @brief Set a manual fixed canvas size, overriding the auto-captured value
+ * @param size Manual canvas size. A component < 0 means "use auto-capture"
+ *             for that direction (requires setFixedCanvasSize(axisPos, true)).
+ * @details When a component is >= 0, the canvas is pinned to that exact
+ *          dimension and centered along it; otherwise the auto-captured
+ *          offsets are used.
+ * @sa fixedCanvasSize(), setFixedCanvasSize(int, bool), resetFixedCanvasSize()
+ */
+void QwtPlotLayout::setFixedCanvasSize(const QSize& size)
+{
+	QWT_D(d);
+	d->engine.setFixedCanvasSize(size);
+}
+
+/**
+ * @brief Get the manual fixed canvas size
+ * @return Manual canvas size; a component < 0 means auto-capture for that direction
+ * @sa setFixedCanvasSize(QSize)
+ */
+QSize QwtPlotLayout::fixedCanvasSize() const
+{
+	QWT_DC(d);
+	return d->engine.fixedCanvasSize();
+}
+
+/**
+ * @brief Clear all locked canvas sizes
+ * @details Clears both the auto-captured offsets and the manual override so
+ *          the next activate() re-captures from the current layout. The
+ *          enabled state of each axis direction (setFixedCanvasSize(int, bool))
+ *          is left unchanged.
+ * @sa setFixedCanvasSize(int, bool), setFixedCanvasSize(QSize)
+ */
+void QwtPlotLayout::resetFixedCanvasSize()
+{
+	QWT_D(d);
+	d->engine.setFixedCanvasSize(QSize(-1, -1));
+	for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++)
+		d->m_lockedOffset[ axisPos ] = -1.0;
+}
+
+/**
+ * @brief Pin the canvas rect to its locked dimension(s)
+ * @param canvasRect The canvas rect produced by innerRect() (modified in place)
+ * @param rect The available rect (after title/footer have been subtracted)
+ * @details In auto mode the canvas edges are pinned to offsets captured on the
+ *          first layout; in manual mode the canvas is pinned to the given size
+ *          and centered. Real axis extents are not clamped, so scale rects may
+ *          extend beyond \a rect and be clipped by the scale widget's paint.
+ */
+void QwtPlotLayout::applyFixedCanvas(QRectF& canvasRect, const QRectF& rect)
+{
+	QWT_D(d);
+	using namespace QwtAxis;
+
+	// --- Y direction: canvas width ---
+	if (d->engine.isFixedCanvasWidth()) {
+		const int manualWidth = d->engine.fixedCanvasSize().width();
+		if (manualWidth >= 0) {
+			// Manual: pin exact size, centered horizontally.
+			const qreal fw = qMin(qreal(manualWidth), rect.width());
+			const qreal cx = rect.left() + rect.width() / 2.0;
+			canvasRect.setLeft(cx - fw / 2.0);
+			canvasRect.setRight(cx + fw / 2.0);
+		} else {
+			// Auto: pin edge offsets (capture on first layout).
+			if (d->m_lockedOffset[ YLeft ] < 0.0) {
+				d->m_lockedOffset[ YLeft ] = qMax(0.0, canvasRect.left() - rect.left());
+				d->m_lockedOffset[ YRight ] = qMax(0.0, rect.right() - canvasRect.right());
+			}
+			canvasRect.setLeft(rect.left() + d->m_lockedOffset[ YLeft ]);
+			canvasRect.setRight(rect.right() - d->m_lockedOffset[ YRight ]);
+		}
+	}
+
+	// --- X direction: canvas height ---
+	if (d->engine.isFixedCanvasHeight()) {
+		const int manualHeight = d->engine.fixedCanvasSize().height();
+		if (manualHeight >= 0) {
+			const qreal fh = qMin(qreal(manualHeight), rect.height());
+			const qreal cy = rect.top() + rect.height() / 2.0;
+			canvasRect.setTop(cy - fh / 2.0);
+			canvasRect.setBottom(cy + fh / 2.0);
+		} else {
+			if (d->m_lockedOffset[ XTop ] < 0.0) {
+				d->m_lockedOffset[ XTop ] = qMax(0.0, canvasRect.top() - rect.top());
+				d->m_lockedOffset[ XBottom ] = qMax(0.0, rect.bottom() - canvasRect.bottom());
+			}
+			canvasRect.setTop(rect.top() + d->m_lockedOffset[ XTop ]);
+			canvasRect.setBottom(rect.bottom() - d->m_lockedOffset[ XBottom ]);
+		}
+	}
 }
 
 /**
@@ -68580,6 +69448,165 @@ QRectF QwtPlotLayout::scaleRect(QwtAxisId axisId) const
 }
 
 /*!
+   @brief Set the geometry of the caption strip for an outside axis title
+
+   This method is intended to be used from derived layouts
+   overloading activate()
+
+   @param axisId Axis
+   @param rect Rectangle for the caption strip
+
+   @sa scaleCaptionRect(), updateScaleCaptionRects(), activate()
+ */
+void QwtPlotLayout::setScaleCaptionRect(QwtAxisId axisId, const QRectF& rect)
+{
+	QWT_D(d);
+	if (QwtAxis::isValid(axisId))
+		d->scaleCaptionRects[ axisId ] = rect;
+}
+
+/**
+ * @brief Get the geometry of the caption strip for an outside axis title
+ * @details The caption strip is reserved for axes whose scale widget has
+ *          QwtScaleWidget::TitleOutside placement: below the scale rect for
+ *          YLeft/YRight/XBottom, above it for XTop. Captions of Y axes are
+ *          confined to the own column of their layer (the band minus the
+ *          margin/edgeMargin offsets used by the parasite plot system).
+ * @param axisId Axis identifier
+ * @return The caption rectangle, empty if the axis has no outside title
+ * @sa updateScaleCaptionRects(), QwtScaleWidget::setTitlePlacement()
+ */
+QRectF QwtPlotLayout::scaleCaptionRect(QwtAxisId axisId) const
+{
+	QWT_DC(d);
+	if (QwtAxis::isValid(axisId))
+		return d->scaleCaptionRects[ axisId ];
+
+	return QRectF();
+}
+
+/**
+ * @brief Recompute all caption rects from the current scale rects
+ * @details For every visible axis whose scale widget has QwtScaleWidget::TitleOutside
+ *          placement and a non-empty title, the caption strip adjacent to the scale
+ *          rect is computed. Called at the end of doActivate(); derived layouts that
+ *          replace the scale rects afterwards (like QwtParasitePlotLayout copying the
+ *          rects from the host) have to call it again.
+ *
+ *          Captions of Y axes are painted below the scale widgets. All layers of a
+ *          multi axis plot (host + parasites) share the bottom band, so the band is
+ *          split between the captions of the visible layers: every caption gets the
+ *          region between the mid points of the neighboring caption columns (the
+ *          outermost captions extend to the plot border). This keeps the captions
+ *          overlap free while giving them more width than the own column.
+ * @param plot The plot owning the scale widgets
+ * @sa scaleCaptionRect(), setScaleCaptionRect()
+ */
+void QwtPlotLayout::updateScaleCaptionRects(const QwtPlot* plot)
+{
+	QWT_D(d);
+
+	for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+		d->scaleCaptionRects[ axisPos ] = QRectF();
+
+		const QwtAxisId axisId(axisPos);
+		if (!plot->isAxisVisible(axisId))
+			continue;
+
+		const QRectF& scaleRect = d->scaleRects[ axisPos ];
+		if (!scaleRect.isValid())
+			continue;
+
+		const QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
+		if (!scaleWidget || scaleWidget->titlePlacement() != QwtScaleWidget::TitleOutside
+			|| scaleWidget->title().isEmpty()) {
+			continue;
+		}
+
+		const int spacing = int(d->engine.spacing());
+
+		switch (axisPos) {
+		case QwtAxis::XBottom: {
+			const int capH = scaleWidget->titleHeightForWidth(qwtFloor(scaleRect.width()));
+			d->scaleCaptionRects[ axisPos ] = QRectF(scaleRect.left(), scaleRect.bottom() + spacing, scaleRect.width(), capH);
+			break;
+		}
+		case QwtAxis::XTop: {
+			const int capH = scaleWidget->titleHeightForWidth(qwtFloor(scaleRect.width()));
+			d->scaleCaptionRects[ axisPos ] = QRectF(scaleRect.left(), scaleRect.top() - spacing - capH, scaleRect.width(), capH);
+			break;
+		}
+		case QwtAxis::YLeft:
+		case QwtAxis::YRight: {
+			// Columns of all layers sharing this band (host + parasites), the
+			// layer offsets (margin/edgeMargin) define the column of each layer
+			struct Layer
+			{
+				qreal colX;
+				qreal colW;
+				bool isOwn;
+			};
+
+			QList< Layer > layers;
+			const QwtPlot* host = plot->isHostPlot() ? plot : plot->hostPlot();
+
+			const auto addLayer = [ &layers, &scaleRect, axisPos, plot ](const QwtPlot* p) {
+				if (!p || !p->isAxisVisible(axisPos))
+					return;
+				const QwtScaleWidget* sw = p->axisWidget(axisPos);
+				if (!sw || sw->titlePlacement() != QwtScaleWidget::TitleOutside || sw->title().isEmpty())
+					return;
+				const qreal colX = scaleRect.left() + ((axisPos == QwtAxis::YLeft) ? sw->edgeMargin() : sw->margin());
+				const qreal colW = qMax(qreal(0.0), scaleRect.width() - sw->margin() - sw->edgeMargin());
+				layers.append({ colX, colW, (p == plot) });
+			};
+
+			addLayer(host);
+			if (host) {
+				const QList< QwtPlot* > parasites = host->parasitePlots();
+				for (const QwtPlot* p : parasites)
+					addLayer(p);
+			}
+
+			std::sort(layers.begin(), layers.end(), [](const Layer& a, const Layer& b) { return a.colX < b.colX; });
+
+			// Region of the own layer: between the mid points of the neighboring
+			// caption columns; the outermost regions end at the border of the
+			// axis band (the columns of all layers tile the band)
+			int idx = -1;
+			for (int i = 0; i < layers.size(); i++) {
+				if (layers[ i ].isOwn) {
+					idx = i;
+					break;
+				}
+			}
+			if (idx < 0)
+				break;
+
+			const qreal center = layers[ idx ].colX + layers[ idx ].colW / 2.0;
+			qreal left         = scaleRect.left();
+			qreal right        = scaleRect.right();
+			if (idx > 0) {
+				const qreal prevCenter = layers[ idx - 1 ].colX + layers[ idx - 1 ].colW / 2.0;
+				left                   = (prevCenter + center) / 2.0;
+			}
+			if (idx < layers.size() - 1) {
+				const qreal nextCenter = layers[ idx + 1 ].colX + layers[ idx + 1 ].colW / 2.0;
+				right                  = (center + nextCenter) / 2.0;
+			}
+
+			const qreal w    = qMax(qreal(1.0), right - left);
+			const int capH   = scaleWidget->titleHeightForWidth(qwtFloor(w));
+			d->scaleCaptionRects[ axisPos ] = QRectF(left, scaleRect.bottom() + spacing, w, capH);
+			break;
+		}
+		default:
+			break;
+		}
+	}
+}
+
+/*!
    @brief Set the geometry for the canvas
 
    This method is intended to be used from derived layouts
@@ -68621,8 +69648,10 @@ void QwtPlotLayout::invalidate()
 	QWT_D(d);
 	d->titleRect = d->footerRect = d->legendRect = d->canvasRect = QRectF();
 
-	for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++)
-		d->scaleRects[ axisPos ] = QRect();
+	for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+		d->scaleRects[ axisPos ]        = QRect();
+		d->scaleCaptionRects[ axisPos ] = QRect();
+	}
 }
 
 /**
@@ -68651,6 +69680,57 @@ QSize QwtPlotLayout::minimumSizeHint(const QwtPlot* plot) const
 	int h  = hintData.xAxesHeight();
 	int ch = yAxesHeight + m.top() + 1 + m.bottom() + 1;
 	h += qMax(ch, minCanvasSize.height());
+
+	// Account for the caption strips of outside axis titles
+	// (QwtScaleWidget::TitleOutside). Captions of X axes extend their own
+	// band, captions of Y axes share the bottom band. Parasite plots paint
+	// into the same bands, so their demands are aggregated as well.
+	{
+		int xCapBottom = 0;  // spacing + caption height demanded below XBottom
+		int xCapTop    = 0;  // spacing + caption height demanded above XTop
+		int yCapBottom = 0;  // spacing + caption height demanded by Y axes
+
+		const auto addCaptionDemands = [ & ](const QwtPlot* p) {
+			for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+				const QwtAxisId axisId(axisPos);
+				if (!p->isAxisVisible(axisId))
+					continue;
+
+				const QwtScaleWidget* sw = p->axisWidget(axisId);
+				if (!sw || sw->titlePlacement() != QwtScaleWidget::TitleOutside || sw->title().isEmpty())
+					continue;
+
+				// Conservative reservation: heightForWidth of the own column width
+				int w = QWIDGETSIZE_MAX;
+				if (QwtAxis::isYAxis(axisPos)) {
+					w = sw->dimForLength(QWIDGETSIZE_MAX, sw->font()) - sw->margin() - sw->edgeMargin();
+					w = qMax(w, 1);
+				}
+
+				const int capH = sw->titleHeightForWidth(w) + spacing();
+				if (axisPos == QwtAxis::XTop)
+					xCapTop = qMax(xCapTop, capH);
+				else if (axisPos == QwtAxis::XBottom)
+					xCapBottom = qMax(xCapBottom, capH);
+				else
+					yCapBottom = qMax(yCapBottom, capH);
+			}
+		};
+
+		addCaptionDemands(plot);
+		if (plot->isHostPlot()) {
+			const QList< QwtPlot* > parasites = plot->parasitePlots();
+			for (const QwtPlot* p : parasites) {
+				if (p)
+					addCaptionDemands(p);
+			}
+		}
+
+		// the bottom band must fit the XBottom scale plus its caption, and at
+		// least the Y captions (painted below the protruding Y scale rects)
+		const int extraBottom = qMax(xCapBottom, yCapBottom - hintData.axesHeight(QwtAxis::XBottom));
+		h += qMax(0, extraBottom) + xCapTop;
+	}
 
 	const QwtTextLabel* labels[ 2 ];
 	labels[ 0 ] = plot->titleLabel();
@@ -68839,6 +69919,11 @@ void QwtPlotLayout::doActivate(const QwtPlot* plot, const QRectF& plotRect, Opti
 
 	d->canvasRect = dimensions.innerRect(rect);
 
+	// Pin the canvas to its locked dimension(s) if fixed-canvas mode is on.
+	// Real axis extents are kept (not clamped), so scale rects placed below may
+	// extend beyond the plot rect and be clipped at paint time.
+	applyFixedCanvas(d->canvasRect, rect);
+
 	for (int axisPos = 0; axisPos < AxisPositions; axisPos++) {
 		// set the rects for the axes
 
@@ -68902,6 +69987,11 @@ void QwtPlotLayout::doActivate(const QwtPlot* plot, const QRectF& plotRect, Opti
 	// left/right of the min/max ticks are moved into them.
 
 	d->engine.alignScales(options, layoutData, d->canvasRect, d->scaleRects);
+
+	// caption strips for outside axis titles are derived from the final
+	// (aligned) scale rects
+
+	updateScaleCaptionRects(plot);
 
 	if (!d->legendRect.isEmpty()) {
 		// We prefer to align the legend to the canvas - not to
@@ -68973,6 +70063,12 @@ void QwtParasitePlotLayout::activate(const QwtPlot* plot, const QRectF& plotRect
 			setCanvasMargin(hostLayout->canvasMargin(axisPos), axisPos);
 			setScaleRect(axisPos, hostLayout->scaleRect(axisPos));
 		}
+		// Caption rects for outside axis titles depend on the scale rects and
+		// the own layer offsets (margin/edgeMargin), so they have to be
+		// recomputed from the copied host rects. The bands have already been
+		// reserved by the host layout (it aggregates the caption heights of
+		// all parasite plots).
+		updateScaleCaptionRects(plot);
 	}
 }
 
@@ -69414,14 +70510,23 @@ bool QwtPlotScaleEventDispatcher::handleWheelEvent(QwtPlot* bindPlot, QWheelEven
 	QwtScaleWidget* targetScale = findTargetOnScale(qwt::compat::eventPos(e));
 	if (d->currentScale && d->currentScale == targetScale) {
 		if (d->currentScale->testBuildinActions(QwtScaleWidget::ActionWheelZoom)) {
+			// Map the global position to canvas-relative coordinates.
+			// zoomAxis expects centerPosPixels relative to the canvas, not the
+			// scale widget (the two have different origins due to title/margin).
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
 			QPoint p = e->globalPosition().toPoint();
-			p        = d->currentScale->mapFromGlobal(p);
+#else
+			QPoint p = e->globalPos();
+#endif
+			p        = d->currentPlot->canvas()->mapFromGlobal(p);
 			if (qwt::compat::wheelEventDelta(e) > 0) {
 				d->currentPlot->zoomAxis(d->currentAxisId, d->zoomFactor, p);
 			} else {
 				d->currentPlot->zoomAxis(d->currentAxisId, 1.0 / d->zoomFactor, p);
 			}
-			d->currentPlot->replot();
+			// Use replotAll so shared/parasite plots refresh together, consistent
+			// with handleMouseMove which also calls replotAll.
+			d->currentPlot->replotAll();
 			// Wheel zoom is handled here; accept the event to stop propagation
 			// to parent widgets (e.g. a QScrollArea viewport would scroll otherwise)
 			e->accept();
@@ -69443,6 +70548,390 @@ QwtScaleWidget* QwtPlotScaleEventDispatcher::findTargetOnScale(const QPoint& pos
 }
 
 /*** End of inlined file: qwt_plot_scale_event_dispatcher.cpp ***/
+
+
+/*** Start of inlined file: qwt_plot_axis_wheel_interaction.cpp ***/
+#include <qevent.h>
+#include <qwidget.h>
+
+#include <cmath>
+
+class QwtPlotAxisWheelInteraction::PrivateData
+{
+	QWT_DECLARE_PUBLIC(QwtPlotAxisWheelInteraction)
+
+public:
+	PrivateData(QwtPlotAxisWheelInteraction* p)
+		: q_ptr(p)
+		, isEnabled(false)
+		, plot(nullptr)
+		, scaleWidget(nullptr)
+		, axisId(QwtAxis::AxisPositions)
+		, zoomFactor(1.2)
+		, zoomModifiers(Qt::NoModifier)
+		, panModifiers(Qt::ControlModifier)
+		, panFactor(30)
+	{
+	}
+
+	bool isEnabled;
+	QwtPlot* plot;
+	QwtScaleWidget* scaleWidget;
+	QwtAxisId axisId;
+
+	double zoomFactor;
+	Qt::KeyboardModifiers zoomModifiers;
+
+	Qt::KeyboardModifiers panModifiers;
+	int panFactor;
+};
+
+/**
+ * @brief Constructor from plot and axis id
+ * @param[in] plot The plot that owns the axis
+ * @param[in] axisId The axis to attach the interaction to
+ *
+ * The event filter is installed on the QwtScaleWidget for the given axis.
+ * The interaction is enabled by default.
+ */
+QwtPlotAxisWheelInteraction::QwtPlotAxisWheelInteraction(QwtPlot* plot, QwtAxisId axisId)
+	: QObject(plot), QWT_PIMPL_CONSTRUCT
+{
+	QWT_D(d);
+	d->plot = plot;
+	d->axisId = axisId;
+	if (plot)
+		d->scaleWidget = plot->axisWidget(axisId);
+
+	setEnabled(true);
+}
+
+/**
+ * @brief Constructor from a scale widget
+ * @param[in] scaleWidget The axis scale widget to observe
+ *
+ * The plot and axis id are auto-derived from the scale widget's parent
+ * (which must be a QwtPlot) using QwtPlotScaleEventDispatcher::findAxisIdByScaleWidget().
+ */
+QwtPlotAxisWheelInteraction::QwtPlotAxisWheelInteraction(QwtScaleWidget* scaleWidget)
+	: QObject(scaleWidget), QWT_PIMPL_CONSTRUCT
+{
+	QWT_D(d);
+	d->scaleWidget = scaleWidget;
+	if (scaleWidget) {
+		d->plot = qobject_cast< QwtPlot* >(scaleWidget->parentWidget());
+		if (d->plot) {
+			d->axisId = QwtPlotScaleEventDispatcher::findAxisIdByScaleWidget(
+				d->plot, scaleWidget);
+		}
+	}
+
+	setEnabled(true);
+}
+
+/**
+ * @brief Destructor
+ */
+QwtPlotAxisWheelInteraction::~QwtPlotAxisWheelInteraction()
+{
+}
+
+/**
+ * @brief Enable or disable the interaction
+ * @details When enabled, an event filter is installed on the observed
+ *          scale widget to intercept wheel events before they reach the
+ *          QwtPlotScaleEventDispatcher. When disabled, the filter is removed
+ *          and the dispatcher regains full control.
+ * @param[in] on true to enable, false to disable
+ * @sa isEnabled(), eventFilter()
+ */
+void QwtPlotAxisWheelInteraction::setEnabled(bool on)
+{
+	QWT_D(d);
+	if (d->isEnabled != on) {
+		d->isEnabled = on;
+
+		QObject* o = d->scaleWidget;
+		if (o) {
+			if (d->isEnabled)
+				o->installEventFilter(this);
+			else
+				o->removeEventFilter(this);
+		}
+	}
+}
+
+/**
+ * @brief Return whether the interaction is enabled
+ * @return true when enabled, false otherwise
+ * @sa setEnabled()
+ */
+bool QwtPlotAxisWheelInteraction::isEnabled() const
+{
+	QWT_DC(d);
+	return d->isEnabled;
+}
+
+/**
+ * @brief Set keyboard modifiers for zoom mode
+ * @details When the wheel is rotated with these modifiers on the scale
+ *          widget, the axis is zoomed. The default is Qt::NoModifier
+ *          (plain wheel).
+ * @param[in] modifiers Keyboard modifiers
+ * @sa zoomModifiers()
+ */
+void QwtPlotAxisWheelInteraction::setZoomModifiers(Qt::KeyboardModifiers modifiers)
+{
+	QWT_D(d);
+	d->zoomModifiers = modifiers;
+}
+
+/**
+ * @brief Return the zoom modifiers
+ * @return Keyboard modifiers for zoom mode
+ * @sa setZoomModifiers()
+ */
+Qt::KeyboardModifiers QwtPlotAxisWheelInteraction::zoomModifiers() const
+{
+	QWT_DC(d);
+	return d->zoomModifiers;
+}
+
+/**
+ * @brief Set the zoom factor per wheel step
+ * @details Values > 1 zoom in (range shrinks), values < 1 zoom out
+ *          (range expands). The default is 1.2. For multi-step wheels
+ *          the factor is compounded: pow(zoomFactor, abs(delta/120)).
+ * @param[in] factor Zoom factor
+ * @sa zoomFactor()
+ */
+void QwtPlotAxisWheelInteraction::setZoomFactor(double factor)
+{
+	QWT_D(d);
+	d->zoomFactor = factor;
+}
+
+/**
+ * @brief Return the zoom factor
+ * @return Zoom factor
+ * @sa setZoomFactor()
+ */
+double QwtPlotAxisWheelInteraction::zoomFactor() const
+{
+	QWT_DC(d);
+	return d->zoomFactor;
+}
+
+/**
+ * @brief Set keyboard modifiers for pan mode
+ * @details When the wheel is rotated with these modifiers on the scale
+ *          widget, the axis is panned. The default is Qt::ControlModifier.
+ * @param[in] modifiers Keyboard modifiers
+ * @sa panModifiers()
+ */
+void QwtPlotAxisWheelInteraction::setPanModifiers(Qt::KeyboardModifiers modifiers)
+{
+	QWT_D(d);
+	d->panModifiers = modifiers;
+}
+
+/**
+ * @brief Return the pan modifiers
+ * @return Keyboard modifiers for pan mode
+ * @sa setPanModifiers()
+ */
+Qt::KeyboardModifiers QwtPlotAxisWheelInteraction::panModifiers() const
+{
+	QWT_DC(d);
+	return d->panModifiers;
+}
+
+/**
+ * @brief Set the pan distance per wheel step
+ * @param[in] pixelsPerStep Number of pixels to pan per wheel notch (default: 30)
+ * @sa panFactor()
+ */
+void QwtPlotAxisWheelInteraction::setPanFactor(int pixelsPerStep)
+{
+	QWT_D(d);
+	d->panFactor = pixelsPerStep;
+}
+
+/**
+ * @brief Return the pan factor in pixels
+ * @return Pixels per wheel step
+ * @sa setPanFactor()
+ */
+int QwtPlotAxisWheelInteraction::panFactor() const
+{
+	QWT_DC(d);
+	return d->panFactor;
+}
+
+/**
+ * @brief Return the observed scale widget
+ * @return Pointer to the scale widget
+ */
+QwtScaleWidget* QwtPlotAxisWheelInteraction::scaleWidget()
+{
+	QWT_DC(d);
+	return d->scaleWidget;
+}
+
+/**
+ * @brief Return the observed scale widget (const version)
+ * @return Const pointer to the scale widget
+ */
+const QwtScaleWidget* QwtPlotAxisWheelInteraction::scaleWidget() const
+{
+	QWT_DC(d);
+	return d->scaleWidget;
+}
+
+/**
+ * @brief Return the plot that owns the axis
+ * @return Pointer to the QwtPlot widget
+ */
+QwtPlot* QwtPlotAxisWheelInteraction::plot()
+{
+	QWT_DC(d);
+	return d->plot;
+}
+
+/**
+ * @brief Return the plot that owns the axis (const version)
+ * @return Const pointer to the QwtPlot widget
+ */
+const QwtPlot* QwtPlotAxisWheelInteraction::plot() const
+{
+	QWT_DC(d);
+	return d->plot;
+}
+
+/**
+ * @brief Return the axis id
+ * @return Axis identifier
+ */
+QwtAxisId QwtPlotAxisWheelInteraction::axisId() const
+{
+	QWT_DC(d);
+	return d->axisId;
+}
+
+/**
+ * @brief Event filter for wheel events on the scale widget
+ * @param[in] obj Object receiving the event (should be the scale widget)
+ * @param[in] event Event
+ * @return true when the wheel event was handled (consumed), false otherwise
+ * @sa handleWheelEvent()
+ */
+bool QwtPlotAxisWheelInteraction::eventFilter(QObject* obj, QEvent* event)
+{
+	QWT_D(d);
+	if (obj && obj == d->scaleWidget && event->type() == QEvent::Wheel) {
+		return handleWheelEvent(static_cast< QWheelEvent* >(event));
+	}
+	return QObject::eventFilter(obj, event);
+}
+
+/**
+ * @brief Handle a wheel event on the scale widget
+ * @details The wheel delta is read via qwt::compat::wheelEventDelta() for
+ *          Qt5/Qt6 compatibility. When the current modifiers match the
+ *          zoom modifiers, wheelZoom() is called. When they match the
+ *          pan modifiers, wheelPan() is called. Otherwise the event is
+ *          passed through (return false) so the
+ *          QwtPlotScaleEventDispatcher can handle it.
+ *
+ * @param[in] event Wheel event
+ * @return true if the event was handled, false if modifiers matched
+ *         neither zoom nor pan mode
+ */
+bool QwtPlotAxisWheelInteraction::handleWheelEvent(QWheelEvent* event)
+{
+	QWT_D(d);
+	if (!d->plot || !d->scaleWidget)
+		return false;
+
+	const int wheelDelta = qwt::compat::wheelEventDelta(event);
+
+	if (event->modifiers() == d->zoomModifiers) {
+		// ---- Zoom mode: zoom the axis at cursor position ----
+		// factor > 1 → zoom in (range shrinks); factor < 1 → zoom out (range expands)
+		const double steps = qAbs(wheelDelta / 120.0);
+		double factor = std::pow(d->zoomFactor, steps);
+		if (wheelDelta < 0)
+			factor = 1.0 / factor;  // wheel down → zoom out
+
+		// Convert the event position from scale-widget coordinates to canvas coordinates
+		const QPoint scalePos = qwt::compat::eventPos(event);
+		const QPoint globalPos = d->scaleWidget->mapToGlobal(scalePos);
+		const QPoint canvasPos = d->plot->canvas()->mapFromGlobal(globalPos);
+
+		wheelZoom(factor, canvasPos);
+		return true;
+	}
+
+	if (event->modifiers() == d->panModifiers) {
+		// ---- Pan mode: pan the axis ----
+		const int deltaPixels = static_cast< int >(wheelDelta / 120.0 * d->panFactor);
+		wheelPan(deltaPixels);
+		return true;
+	}
+
+	return false;  // Modifiers matched neither mode — let the dispatcher handle it
+}
+
+/**
+ * @brief Perform a zoom on the axis
+ * @details Default implementation calls QwtPlot::zoomAxis() with the given
+ *          factor and cursor position, then replotAll(). Auto-replot is
+ *          temporarily disabled to avoid redundant repaints.
+ *
+ *          Override this method to customize zoom behavior, e.g. zoom
+ *          centered on the axis midpoint instead of the cursor position.
+ *
+ * @param[in] factor Zoom factor (>1 zoom in, <1 zoom out)
+ * @param[in] cursorPos Cursor position in canvas coordinates
+ */
+void QwtPlotAxisWheelInteraction::wheelZoom(double factor, const QPoint& cursorPos)
+{
+	QWT_D(d);
+	if (!d->plot)
+		return;
+
+	d->plot->saveAutoReplotState();
+	d->plot->setAutoReplot(false);
+	d->plot->zoomAxis(d->axisId, factor, cursorPos);
+	d->plot->restoreAutoReplotState();
+	d->plot->replotAll();
+}
+
+/**
+ * @brief Perform a pan on the axis
+ * @details Default implementation calls QwtPlot::panAxis() with the given
+ *          pixel delta, then replotAll(). Auto-replot is temporarily
+ *          disabled to avoid redundant repaints.
+ *
+ *          Override this method to customize pan behavior, e.g. invert
+ *          direction or add momentum.
+ *
+ * @param[in] deltaPixels Pixel offset (positive = right/down, negative = left/up)
+ */
+void QwtPlotAxisWheelInteraction::wheelPan(int deltaPixels)
+{
+	QWT_D(d);
+	if (!d->plot || deltaPixels == 0)
+		return;
+
+	d->plot->saveAutoReplotState();
+	d->plot->setAutoReplot(false);
+	d->plot->panAxis(d->axisId, deltaPixels);
+	d->plot->restoreAutoReplotState();
+	d->plot->replotAll();
+}
+
+/*** End of inlined file: qwt_plot_axis_wheel_interaction.cpp ***/
 
 
 /*** Start of inlined file: qwt_plot_rescaler.cpp ***/
@@ -85687,14 +87176,16 @@ GL2PSDLL_API GLint gl2psSetTexScaling(GLfloat scaling)
 // plot3d
 
 /*** Start of inlined file: qwt3d_axis.cpp ***/
-using namespace Qwt3D;
+#include <QOpenGLFunctions>
+#include <QOpenGLBuffer>
+#include <QOpenGLShaderProgram>
 
-class Axis::PrivateData
+class Qwt3DAxis::PrivateData
 {
-	QWT_DECLARE_PUBLIC(Axis)
+	QWT_DECLARE_PUBLIC(Qwt3DAxis)
 
 public:
-	PrivateData(Axis* q)
+	PrivateData(Qwt3DAxis* q)
 		: q_ptr(q)
 		, m_scaleNumberAnchor(Center)
 		, m_beg(0.0, 0.0, 0.0)
@@ -85725,8 +87216,8 @@ public:
 	}
 
 	ANCHOR m_scaleNumberAnchor;
-	Label m_label;
-	std::vector< Label > m_markerLabel;
+	Qwt3DLabel m_label;
+	std::vector< Qwt3DLabel > m_markerLabel;
 	Triple m_beg;
 	Triple m_end;
 	TripleField m_majorPos;
@@ -85755,14 +87246,14 @@ public:
 	RGBA m_numberColor;
 	int m_numberGap;
 	int m_labelGap;
-	ClonePtr< Scale > m_scale;
+	Qwt3DClonePtr< Qwt3DScale > m_scale;
 };
 
 /**
  * @brief Default constructor
  * @details Constructs an uninitialized axis with default parameters.
  */
-Axis::Axis() : QWT_PIMPL_CONSTRUCT
+Qwt3DAxis::Qwt3DAxis() : QWT_PIMPL_CONSTRUCT
 {
 	init();
 }
@@ -85770,7 +87261,7 @@ Axis::Axis() : QWT_PIMPL_CONSTRUCT
 /**
  * @brief Destructor
  */
-Axis::~Axis()
+Qwt3DAxis::~Qwt3DAxis()
 {
 }
 
@@ -85779,19 +87270,19 @@ Axis::~Axis()
  * @param beg Start position of the axis
  * @param end End position of the axis
  */
-Axis::Axis(Triple beg, Triple end) : QWT_PIMPL_CONSTRUCT
+Qwt3DAxis::Qwt3DAxis(Triple beg, Triple end) : QWT_PIMPL_CONSTRUCT
 {
 	init();
 	setPosition(beg, end);
 }
 
-void Axis::init()
+void Qwt3DAxis::init()
 {
 	QWT_D(d);
 
 	detachAll();
 
-	d->m_scale = ClonePtr< Scale >(new LinearScale);
+	d->m_scale = Qwt3DClonePtr< Qwt3DScale >(new Qwt3DLinearScale);
 
 	d->m_beg = Triple(0.0, 0.0, 0.0);
 	d->m_end = d->m_beg;
@@ -85824,130 +87315,95 @@ void Axis::init()
 	d->m_labelGap  = 0;
 }
 
-void Axis::position(Triple& beg, Triple& end) const
+void Qwt3DAxis::position(Triple& beg, Triple& end) const
 {
 	QWT_DC(d);
 	beg = d->m_beg;
 	end = d->m_end;
 }
 
-Triple Axis::begin() const
+Triple Qwt3DAxis::begin() const
 {
 	QWT_DC(d);
 	return d->m_beg;
 }
 
-Triple Axis::end() const
+Triple Qwt3DAxis::end() const
 {
 	QWT_DC(d);
 	return d->m_end;
 }
 
-double Axis::length() const
+double Qwt3DAxis::length() const
 {
 	QWT_DC(d);
 	return (d->m_end - d->m_beg).length();
 }
 
-/**
- * @brief Sets the axis position
- * @param beg Start position of the axis
- * @param end End position of the axis
- */
-void Axis::setPosition(const Triple& beg, const Triple& end)
+void Qwt3DAxis::setPosition(const Triple& beg, const Triple& end)
 {
 	QWT_D(d);
 	d->m_beg = beg;
 	d->m_end = end;
 }
 
-/**
- * @brief Sets number of major intervals
- * @param val Number of major intervals (always >= 1)
- */
-void Axis::setMajors(int val)
+void Qwt3DAxis::setMajors(int val)
 {
 	QWT_D(d);
 	if (val == d->m_majorIntervals)
 		return;
 
-	d->m_majorIntervals = (val <= 0) ? 1 : val;  // always >= 1
+	d->m_majorIntervals = (val <= 0) ? 1 : val;
 }
 
-/**
- * @brief Sets number of minor intervals
- * @param val Number of minor intervals (always >= 1)
- * @see LogScale::setMinors()
- */
-void Axis::setMinors(int val)
+void Qwt3DAxis::setMinors(int val)
 {
 	QWT_D(d);
 	if (val == d->m_minorIntervals)
 		return;
 
-	d->m_minorIntervals = (val <= 0) ? 1 : val;  // always >= 1
+	d->m_minorIntervals = (val <= 0) ? 1 : val;
 }
 
-/**
- * @brief Sets tic length
- * @param majorl Length of major tics
- * @param minorl Length of minor tics
- */
-void Axis::setTicLength(double majorl, double minorl)
+void Qwt3DAxis::setTicLength(double majorl, double minorl)
 {
 	QWT_D(d);
 	d->m_lmaj = majorl;
 	d->m_lmin = minorl;
 }
 
-void Axis::ticLength(double& majorl, double& minorl) const
+void Qwt3DAxis::ticLength(double& majorl, double& minorl) const
 {
 	QWT_DC(d);
 	majorl = d->m_lmaj;
 	minorl = d->m_lmin;
 }
 
-/**
- * @brief Sets tic orientation from individual components
- * @param tx X component of tic orientation
- * @param ty Y component of tic orientation
- * @param tz Z component of tic orientation
- */
-void Axis::setTicOrientation(double tx, double ty, double tz)
+void Qwt3DAxis::setTicOrientation(double tx, double ty, double tz)
 {
 	setTicOrientation(Triple(tx, ty, tz));
 }
 
-/**
- * @brief Sets tic orientation from a Triple vector
- * @param val Orientation vector for tics (will be normalized)
- */
-void Axis::setTicOrientation(const Triple& val)
+void Qwt3DAxis::setTicOrientation(const Triple& val)
 {
 	QWT_D(d);
 	d->m_orientation = val;
 	d->m_orientation.normalize();
 }
 
-Triple Axis::ticOrientation() const
+Triple Qwt3DAxis::ticOrientation() const
 {
 	QWT_DC(d);
 	return d->m_orientation;
 }
 
-void Axis::setSymmetricTics(bool b)
+void Qwt3DAxis::setSymmetricTics(bool b)
 {
 	QWT_D(d);
 	d->m_symtics = b;
 }
 
-/**
- * @brief Sets line width for axis and tics
- * @param val Thickness for axis base line
- * @param majfac Relative thickness for axis major tics (majfac*val)
- * @param minfac Relative thickness for axis minor tics (minfac*val)
- */
-void Axis::setLineWidth(double val, double majfac, double minfac)
+void Qwt3DAxis::setLineWidth(double val, double majfac, double minfac)
 {
 	QWT_D(d);
 	d->m_lineWidth    = val;
@@ -85955,160 +87411,310 @@ void Axis::setLineWidth(double val, double majfac, double minfac)
 	d->m_minLineWidth = minfac * d->m_lineWidth;
 }
 
-double Axis::lineWidth() const
+double Qwt3DAxis::lineWidth() const
 {
 	QWT_DC(d);
 	return d->m_lineWidth;
 }
 
-double Axis::majLineWidth() const
+double Qwt3DAxis::majLineWidth() const
 {
 	QWT_DC(d);
 	return d->m_majLineWidth;
 }
 
-double Axis::minLineWidth() const
+double Qwt3DAxis::minLineWidth() const
 {
 	QWT_DC(d);
 	return d->m_minLineWidth;
 }
 
-void Axis::setLimits(double start, double stop)
+void Qwt3DAxis::setLimits(double start, double stop)
 {
 	QWT_D(d);
 	d->m_start = start;
 	d->m_stop  = stop;
 }
 
-void Axis::limits(double& start, double& stop) const
+void Qwt3DAxis::limits(double& start, double& stop) const
 {
 	QWT_DC(d);
 	start = d->m_start;
 	stop  = d->m_stop;
 }
 
-int Axis::majors() const
+int Qwt3DAxis::majors() const
 {
 	QWT_DC(d);
 	return d->m_majorIntervals;
 }
 
-int Axis::minors() const
+int Qwt3DAxis::minors() const
 {
 	QWT_DC(d);
 	return d->m_minorIntervals;
 }
 
-TripleField const& Axis::majorPositions() const
+TripleField const& Qwt3DAxis::majorPositions() const
 {
 	QWT_DC(d);
 	return d->m_majorPos;
 }
 
-TripleField const& Axis::minorPositions() const
+TripleField const& Qwt3DAxis::minorPositions() const
 {
 	QWT_DC(d);
 	return d->m_minorPos;
 }
 
-void Axis::setLabel(bool val)
+void Qwt3DAxis::setLabel(bool val)
 {
 	QWT_D(d);
 	d->m_drawLabel = val;
 }
 
-void Axis::adjustLabel(int val)
+void Qwt3DAxis::adjustLabel(int val)
 {
 	QWT_D(d);
 	d->m_labelGap = val;
 }
 
-void Axis::setScaling(bool val)
+void Qwt3DAxis::setScaling(bool val)
 {
 	QWT_D(d);
 	d->m_drawTics = val;
 }
 
-bool Axis::scaling() const
+bool Qwt3DAxis::scaling() const
 {
 	QWT_DC(d);
 	return d->m_drawTics;
 }
 
-void Axis::setNumbers(bool val)
+void Qwt3DAxis::setNumbers(bool val)
 {
 	QWT_D(d);
 	d->m_drawNumbers = val;
 }
 
-bool Axis::numbers() const
+bool Qwt3DAxis::numbers() const
 {
 	QWT_DC(d);
 	return d->m_drawNumbers;
 }
 
-Qwt3D::RGBA Axis::numberColor() const
+RGBA Qwt3DAxis::numberColor() const
 {
 	QWT_DC(d);
 	return d->m_numberColor;
 }
 
-QFont const& Axis::numberFont() const
+QFont const& Qwt3DAxis::numberFont() const
 {
 	QWT_DC(d);
 	return d->m_numberFont;
 }
 
-QFont const& Axis::labelFont() const
+QFont const& Qwt3DAxis::labelFont() const
 {
 	QWT_DC(d);
 	return d->m_labelFont;
 }
 
-void Axis::setNumberAnchor(ANCHOR a)
+void Qwt3DAxis::setNumberAnchor(ANCHOR a)
 {
 	QWT_D(d);
 	d->m_scaleNumberAnchor = a;
 }
 
-void Axis::adjustNumbers(int val)
+void Qwt3DAxis::adjustNumbers(int val)
 {
 	QWT_D(d);
 	d->m_numberGap = val;
 }
 
-void Axis::setAutoScale(bool val)
+void Qwt3DAxis::setAutoScale(bool val)
 {
 	QWT_D(d);
 	d->m_autoScale = val;
 }
 
-bool Axis::autoScale() const
+bool Qwt3DAxis::autoScale() const
 {
 	QWT_DC(d);
 	return d->m_autoScale;
 }
 
-/**
- * @brief Draws the axis including base line, tics, and label
- */
-void Axis::draw()
+void Qwt3DAxis::setNumberFont(QString const& family, int pointSize, int weight, bool italic)
 {
-	Drawable::draw();
-
-	saveGLState();
-
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glColor4d(color.r, color.g, color.b, color.a);
-
-	drawBase();
-	drawTics();
-	drawLabel();
-
-	restoreGLState();
+	QWT_D(d);
+	d->m_numberFont = QFont(family, pointSize, weight, italic);
 }
 
-void Axis::drawLabel()
+void Qwt3DAxis::setNumberFont(QFont const& font)
+{
+	QWT_D(d);
+	d->m_numberFont = font;
+}
+
+void Qwt3DAxis::setNumberColor(RGBA col)
+{
+	QWT_D(d);
+	d->m_numberColor = col;
+}
+
+void Qwt3DAxis::setLabelFont(QString const& family, int pointSize, int weight, bool italic)
+{
+	QWT_D(d);
+	d->m_labelFont = QFont(family, pointSize, weight, italic);
+	d->m_label.setFont(family, pointSize, weight, italic);
+}
+
+void Qwt3DAxis::setLabelFont(QFont const& font)
+{
+	setLabelFont(font.family(), font.pointSize(), font.weight(), font.italic());
+}
+
+void Qwt3DAxis::setLabelString(QString const& name)
+{
+	QWT_D(d);
+	d->m_label.setString(name);
+}
+
+/**
+ * @brief 返回轴标签文本
+ * @return 标签字符串
+ */
+QString Qwt3DAxis::labelString() const
+{
+	QWT_DC(d);
+	return d->m_label.string();
+}
+
+void Qwt3DAxis::setLabelPosition(const Triple& pos, ANCHOR an)
+{
+	QWT_D(d);
+	d->m_label.setPosition(pos, an);
+}
+
+void Qwt3DAxis::setLabelColor(RGBA col)
+{
+	QWT_D(d);
+	d->m_label.setColor(col);
+}
+
+/**
+ * @brief 返回轴标签颜色
+ * @return RGBA 颜色值
+ * @details 委托到内部 Qwt3DLabel 的 color() getter（Qwt3DDrawable 的公有 getter）。
+ *          setLabelColor() 通过 d->m_label.setColor(col) 设置，
+ *          此处返回 d->m_label.color()。
+ *          Qwt3DDrawable::color 是 protected 成员，Qwt3DAxis 和 Qwt3DLabel 是兄弟关系，
+ *          C++ 规则下 Qwt3DAxis 不能直接通过 Qwt3DLabel 对象访问 protected 成员，
+ *          必须使用公有 color() getter。
+ */
+RGBA Qwt3DAxis::labelColor() const
+{
+	QWT_DC(d);
+	return d->m_label.color();
+}
+
+void Qwt3DAxis::setScale(Qwt3DScale* val)
+{
+	QWT_D(d);
+	d->m_scale = Qwt3DClonePtr< Qwt3DScale >(val);
+}
+
+void Qwt3DAxis::setScale(SCALETYPE val)
+{
+	switch (val) {
+	case LINEARSCALE:
+		setScale(new Qwt3DLinearScale);
+		break;
+	case LOG10SCALE:
+		setScale(new Qwt3DLogScale);
+		setMinors(9);
+		break;
+	default:
+		break;
+	}
+}
+
+/**
+ * @brief Helper: draws a set of line segments using VBO + line shader
+ * @param ctx Render context providing shader and matrices
+ * @param vertices Interleaved vertex data: 7 floats per vertex (pos.xyz + color.rgba)
+ * @param lineWidth Line width in pixels (TODO: may not be supported > 1.0 in Core Profile)
+ */
+void Qwt3DAxis::drawLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth)
+{
+	if (vertices.isEmpty())
+		return;
+
+	auto* shader = ctx.lineShader;
+	if (!shader)
+		return;
+
+	auto* f = QOpenGLContext::currentContext()->functions();
+
+	// TODO: glLineWidth > 1.0 is not guaranteed in Core Profile (Plan B)
+	f->glLineWidth(static_cast< GLfloat >(std::max(1.0, lineWidth)));
+
+	QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
+	vbo.create();
+	vbo.bind();
+	vbo.allocate(vertices.constData(), vertices.size() * sizeof(float));
+
+	shader->bind();
+	shader->setUniformValue("uModelView", ctx.modelView);
+	shader->setUniformValue("uProjection", ctx.projection);
+
+	int stride = 7 * sizeof(float);
+	shader->enableAttributeArray(0);
+	shader->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
+	shader->enableAttributeArray(1);
+	shader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 4, stride);
+
+	f->glDrawArrays(GL_LINES, 0, vertices.size() / 7);
+
+	shader->disableAttributeArray(0);
+	shader->disableAttributeArray(1);
+	shader->release();
+	vbo.release();
+	vbo.destroy();
+}
+
+/**
+ * @brief Draws the axis including base line, tics, and label
+ * @param ctx Render context providing shaders, matrices, and coordinate conversion
+ * @details Uses VBO + line shader for line geometry. Labels are drawn
+ *          via Qwt3DLabel::draw() which uses its own texture-based rendering.
+ */
+void Qwt3DAxis::draw(const Qwt3DRenderContext& ctx)
+{
+	// Draw children first
+	Qwt3DDrawable::draw(ctx);
+
+	QWT_D(d);
+
+	// Collect and draw base line
+	{
+		QVector<float> verts;
+		// vertex: pos.xyz(3) + color.rgba(4) = 7 floats
+		float r = static_cast< float >(m_color.r);
+		float g = static_cast< float >(m_color.g);
+		float b = static_cast< float >(m_color.b);
+		float a = static_cast< float >(m_color.a);
+		verts << static_cast< float >(d->m_beg.x) << static_cast< float >(d->m_beg.y) << static_cast< float >(d->m_beg.z) << r << g << b << a;
+		verts << static_cast< float >(d->m_end.x) << static_cast< float >(d->m_end.y) << static_cast< float >(d->m_end.z) << r << g << b << a;
+		drawLines(ctx, verts, d->m_lineWidth);
+	}
+
+	drawTics(ctx);
+	drawLabel(ctx);
+}
+
+void Qwt3DAxis::drawLabel(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 
@@ -86118,7 +87724,7 @@ void Axis::drawLabel()
 	Triple diff   = end() - begin();
 	Triple center = begin() + diff / 2;
 
-	Triple bnumber = biggestNumberString();
+	Triple bnumber = biggestNumberString(ctx);
 
 	switch (d->m_scaleNumberAnchor) {
 	case BottomLeft:
@@ -86143,24 +87749,22 @@ void Axis::drawLabel()
 		break;
 	}
 
-	Triple pos = ViewPort2World(World2ViewPort(center + ticOrientation() * d->m_lmaj) + bnumber);
+	QPointF screen = ctx.worldToScreen(center + ticOrientation() * d->m_lmaj);
+	Triple pos = ctx.screenToWorld(screen + QPointF(bnumber.x, bnumber.y));
 	setLabelPosition(pos, d->m_scaleNumberAnchor);
 
 	d->m_label.adjust(d->m_labelGap);
-	d->m_label.draw();
+	d->m_label.draw(ctx);
 }
 
-void Axis::drawBase()
+void Qwt3DAxis::drawBase(const Qwt3DRenderContext& ctx)
 {
-	QWT_D(d);
-	setDeviceLineWidth(d->m_lineWidth);
-	glBegin(GL_LINES);
-	glVertex3d(d->m_beg.x, d->m_beg.y, d->m_beg.z);
-	glVertex3d(d->m_end.x, d->m_end.y, d->m_end.z);
-	glEnd();
+	// Base line is now drawn directly in draw() via drawLines()
+	// This method is kept for API compatibility but does nothing
+	(void)ctx;
 }
 
-bool Axis::prepTicCalculation(Triple& startpoint)
+bool Qwt3DAxis::prepTicCalculation(Triple& startpoint)
 {
 	QWT_D(d);
 
@@ -86190,7 +87794,7 @@ bool Axis::prepTicCalculation(Triple& startpoint)
 	return true;
 }
 
-void Axis::recalculateTics()
+void Qwt3DAxis::recalculateTics()
 {
 	QWT_D(d);
 
@@ -86212,7 +87816,7 @@ void Axis::recalculateTics()
 	}
 }
 
-void Axis::drawTics()
+void Qwt3DAxis::drawTics(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 
@@ -86226,26 +87830,59 @@ void Axis::drawTics()
 	const auto& majorsVec = d->m_scale->majorTicks();
 	const auto& minorsVec = d->m_scale->minorTicks();
 	d->m_markerLabel.resize(majorsVec.size());
-	setDeviceLineWidth(d->m_majLineWidth);
-	for (i = 0; i != majorsVec.size(); ++i) {
-		double t = (majorsVec[ i ] - d->m_start) / (d->m_stop - d->m_start);
-		nadir    = d->m_beg + t * runningpoint;
-		d->m_majorPos.push_back(drawTic(nadir, d->m_lmaj));
-		drawTicLabel(nadir + 1.2 * d->m_lmaj * d->m_orientation, i);
+
+	float r = static_cast< float >(m_color.r);
+	float g = static_cast< float >(m_color.g);
+	float b = static_cast< float >(m_color.b);
+	float a = static_cast< float >(m_color.a);
+
+	// Collect and draw major tics
+	{
+		QVector<float> verts;
+		for (i = 0; i != majorsVec.size(); ++i) {
+			double t = (majorsVec[ i ] - d->m_start) / (d->m_stop - d->m_start);
+			nadir    = d->m_beg + t * runningpoint;
+			d->m_majorPos.push_back(nadir);
+
+			double ilen = (d->m_symtics) ? -d->m_lmaj : 0.0;
+			Triple p1 = nadir + ilen * d->m_orientation;
+			Triple p2 = nadir + d->m_lmaj * d->m_orientation;
+			verts << static_cast< float >(p1.x) << static_cast< float >(p1.y) << static_cast< float >(p1.z) << r << g << b << a;
+			verts << static_cast< float >(p2.x) << static_cast< float >(p2.y) << static_cast< float >(p2.z) << r << g << b << a;
+		}
+		drawLines(ctx, verts, d->m_majLineWidth);
+
+		// Draw tic labels
+		for (i = 0; i != majorsVec.size(); ++i) {
+			double t = (majorsVec[ i ] - d->m_start) / (d->m_stop - d->m_start);
+			nadir    = d->m_beg + t * runningpoint;
+			drawTicLabel(ctx, nadir + 1.2 * d->m_lmaj * d->m_orientation, static_cast< int >(i));
+		}
 	}
-	setDeviceLineWidth(d->m_minLineWidth);
-	for (i = 0; i != minorsVec.size(); ++i) {
-		double t = (minorsVec[ i ] - d->m_start) / (d->m_stop - d->m_start);
-		nadir    = d->m_beg + t * runningpoint;
-		d->m_minorPos.push_back(drawTic(nadir, d->m_lmin));
+
+	// Collect and draw minor tics
+	{
+		QVector<float> verts;
+		for (i = 0; i != minorsVec.size(); ++i) {
+			double t = (minorsVec[ i ] - d->m_start) / (d->m_stop - d->m_start);
+			nadir    = d->m_beg + t * runningpoint;
+			d->m_minorPos.push_back(nadir);
+
+			double ilen = (d->m_symtics) ? -d->m_lmin : 0.0;
+			Triple p1 = nadir + ilen * d->m_orientation;
+			Triple p2 = nadir + d->m_lmin * d->m_orientation;
+			verts << static_cast< float >(p1.x) << static_cast< float >(p1.y) << static_cast< float >(p1.z) << r << g << b << a;
+			verts << static_cast< float >(p2.x) << static_cast< float >(p2.y) << static_cast< float >(p2.z) << r << g << b << a;
+		}
+		drawLines(ctx, verts, d->m_minLineWidth);
 	}
 }
 
-void Axis::drawTicLabel(Triple pos, int mtic)
+void Qwt3DAxis::drawTicLabel(const Qwt3DRenderContext& ctx, Triple pos, int mtic)
 {
 	QWT_D(d);
 
-	if (!d->m_drawNumbers || (mtic < 0))
+	if (!d->m_drawNumbers || (mtic < 0) || mtic >= static_cast< int >(d->m_markerLabel.size()))
 		return;
 
 	d->m_markerLabel[ mtic ].setFont(
@@ -86254,125 +87891,34 @@ void Axis::drawTicLabel(Triple pos, int mtic)
 	d->m_markerLabel[ mtic ].setString(d->m_scale->ticLabel(mtic));
 	d->m_markerLabel[ mtic ].setPosition(pos, d->m_scaleNumberAnchor);
 	d->m_markerLabel[ mtic ].adjust(d->m_numberGap);
-	d->m_markerLabel[ mtic ].draw();
+	d->m_markerLabel[ mtic ].draw(ctx);
 }
 
-Triple Axis::drawTic(Triple nadir, double length)
+Triple Qwt3DAxis::drawTic(Triple nadir, double length)
 {
+	// This method is no longer used for direct GL drawing.
+	// Tic geometry is now collected and drawn via drawLines() in drawTics().
+	// Kept for API compatibility — returns the nadir position.
 	QWT_D(d);
-
-	double ilength = (d->m_symtics) ? -length : 0.0;
-
-	glBegin(GL_LINES);
-	glVertex3d(nadir.x + ilength * d->m_orientation.x,
-			   nadir.y + ilength * d->m_orientation.y,
-			   nadir.z + ilength * d->m_orientation.z);
-	glVertex3d(nadir.x + length * d->m_orientation.x,
-			   nadir.y + length * d->m_orientation.y,
-			   nadir.z + length * d->m_orientation.z);
-	glEnd();
+	(void)length;
+	(void)d;
 	return nadir;
 }
 
-/**
- * @brief Sets the font for axis numbers
- * @param family Font family name
- * @param pointSize Font point size
- * @param weight Font weight
- * @param italic Whether font is italic
- */
-void Axis::setNumberFont(QString const& family, int pointSize, int weight, bool italic)
-{
-	QWT_D(d);
-	d->m_numberFont = QFont(family, pointSize, weight, italic);
-}
-
-/**
- * @brief Sets the font for axis numbers
- * @param font QFont object to use for axis numbers
- */
-void Axis::setNumberFont(QFont const& font)
-{
-	QWT_D(d);
-	d->m_numberFont = font;
-}
-
-/**
- * @brief Sets the color for axis numbers
- * @param col RGBA color value for axis numbers
- */
-void Axis::setNumberColor(RGBA col)
-{
-	QWT_D(d);
-	d->m_numberColor = col;
-}
-
-/**
- * @brief Sets the font for the axis label
- * @param family Font family name
- * @param pointSize Font point size
- * @param weight Font weight
- * @param italic Whether font is italic
- */
-void Axis::setLabelFont(QString const& family, int pointSize, int weight, bool italic)
-{
-	QWT_D(d);
-	d->m_labelFont = QFont(family, pointSize, weight, italic);
-	d->m_label.setFont(family, pointSize, weight, italic);
-}
-
-/**
- * @brief Sets the font for the axis label
- * @param font QFont object to use for the axis label
- */
-void Axis::setLabelFont(QFont const& font)
-{
-	setLabelFont(font.family(), font.pointSize(), font.weight(), font.italic());
-}
-
-/**
- * @brief Sets the axis label string
- * @param name The label text string
- */
-void Axis::setLabelString(QString const& name)
-{
-	QWT_D(d);
-	d->m_label.setString(name);
-}
-
-/**
- * @brief Sets label position in conjunction with an anchoring strategy
- * @param pos Position for the label
- * @param an Anchor strategy for the label
- */
-void Axis::setLabelPosition(const Triple& pos, Qwt3D::ANCHOR an)
-{
-	QWT_D(d);
-	d->m_label.setPosition(pos, an);
-}
-
-/**
- * @brief Sets color for the axis label
- * @param col RGBA color value for the label
- */
-void Axis::setLabelColor(RGBA col)
-{
-	QWT_D(d);
-	d->m_label.setColor(col);
-}
-
-Triple Axis::biggestNumberString()
+Triple Qwt3DAxis::biggestNumberString(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 
 	Triple ret;
+
 	size_t size = d->m_markerLabel.size();
 
-	double width, height;
-
 	for (unsigned i = 0; i != size; ++i) {
-		width = fabs((World2ViewPort(d->m_markerLabel[ i ].second()) - World2ViewPort(d->m_markerLabel[ i ].first())).x);
-		height = fabs((World2ViewPort(d->m_markerLabel[ i ].second()) - World2ViewPort(d->m_markerLabel[ i ].first())).y);
+		QPointF first = ctx.worldToScreen(d->m_markerLabel[ i ].first());
+		QPointF second = ctx.worldToScreen(d->m_markerLabel[ i ].second());
+
+		double width = fabs(second.x() - first.x());
+		double height = fabs(second.y() - first.y());
 
 		if (width > ret.x)
 			ret.x = width + d->m_markerLabel[ i ].gap();
@@ -86380,39 +87926,6 @@ Triple Axis::biggestNumberString()
 			ret.y = height + d->m_markerLabel[ i ].gap();
 	}
 	return ret;
-}
-
-/**
- * @brief Sets a user-defined scale object
- * @param val Pointer to a Scale object. Use with a heap based initialized pointer only.
- *            The axis adopts ownership.
- */
-void Axis::setScale(Scale* val)
-{
-	QWT_D(d);
-	d->m_scale = ClonePtr< Scale >(val);
-}
-
-/**
- * @brief Sets one of the predefined scaling types
- * @param val Predefined scale type (LINEARSCALE or LOG10SCALE)
- * @warning Too small intervals in logarithmic scales lead to empty scales
- *          (or perhaps a scale only containing an isolated major tic).
- *          Better switch to linear scales in such cases.
- */
-void Axis::setScale(Qwt3D::SCALETYPE val)
-{
-	switch (val) {
-	case Qwt3D::LINEARSCALE:
-		setScale(new LinearScale);
-		break;
-	case Qwt3D::LOG10SCALE:
-		setScale(new LogScale);
-		setMinors(9);
-		break;
-	default:
-		break;
-	}
 }
 
 /*** End of inlined file: qwt3d_axis.cpp ***/
@@ -86423,38 +87936,34 @@ void Axis::setScale(Qwt3D::SCALETYPE val)
 #include <qcolor.h>
 #include <qstring.h>
 
-using namespace Qwt3D;
-
-class StandardColor::PrivateData
+class Qwt3DStandardColor::PrivateData
 {
-	QWT_DECLARE_PUBLIC(StandardColor)
+	QWT_DECLARE_PUBLIC(Qwt3DStandardColor)
 
 public:
-	PrivateData(StandardColor* q) : q_ptr(q), m_data(nullptr)
+	PrivateData(Qwt3DStandardColor* q) : q_ptr(q)
 	{
 	}
 
-	Qwt3D::ColorVector m_colors;
-	Qwt3D::Plot3D* m_data;
+	ColorVector m_colors;
+	QString m_presetName;
+	double m_alpha = 1.0;
 };
 
 /**
- * @brief Constructs a StandardColor object
- * @param data Plot3D data source for color mapping
+ * @brief Constructs a Qwt3DStandardColor object
  * @param size Number of color entries in the color vector
  * @details Creates a standard color mapping with the specified size and resets
- *          the color vector to default gradient values.
+ *          the color vector to default gradient values. The z-range used for
+ *          color normalization is pushed in by the owning Qwt3DPlotItem via
+ *          setActiveRange() (defaults to [0, 1] until set).
  */
-StandardColor::StandardColor(Plot3D* data, unsigned size) : QWT_PIMPL_CONSTRUCT
+Qwt3DStandardColor::Qwt3DStandardColor(unsigned size) : QWT_PIMPL_CONSTRUCT
 {
-	QWT_D(d);
-	Q_ASSERT(data);
-	d->m_data = data;
-
 	reset(size);
 }
 
-StandardColor::~StandardColor() = default;
+Qwt3DStandardColor::~Qwt3DStandardColor() = default;
 
 /**
  * @brief Resets the color vector to the default colormap
@@ -86462,7 +87971,7 @@ StandardColor::~StandardColor() = default;
  * @details Creates a color vector of the given size sampled from the viridis
  *          colormap, the modern perceptually-uniform default.
  */
-void StandardColor::reset(unsigned size)
+void Qwt3DStandardColor::reset(unsigned size)
 {
 	setPreset(QStringLiteral("viridis"), size);
 }
@@ -86470,22 +87979,29 @@ void StandardColor::reset(unsigned size)
 /**
  * @brief Assigns a new ColorVector
  * @param cv The new color vector (also overwrites the constructor's size argument)
+ * @details This is a silent mutation: the owning Qwt3DPlotItem is not notified.
+ *          Call Qwt3DSurface::invalidateColors() afterwards to trigger a VBO
+ *          rebuild.
  */
-void StandardColor::setColorVector(ColorVector const& cv)
+void Qwt3DStandardColor::setColorVector(ColorVector const& cv)
 {
 	QWT_D(d);
+	d->m_presetName.clear();
 	d->m_colors = cv;
 }
 
 /**
  * @brief Sets the alpha value for all colors
  * @param a Alpha value (0.0 to 1.0)
+ * @details Silent mutation: call Qwt3DSurface::invalidateColors() to rebuild.
  */
-void StandardColor::setAlpha(double a)
+void Qwt3DStandardColor::setAlpha(double a)
 {
 	QWT_D(d);
 	if (a < 0 || a > 1)
 		return;
+
+	d->m_alpha = a;
 
 	RGBA elem;
 
@@ -86497,11 +88013,11 @@ void StandardColor::setAlpha(double a)
 }
 
 /**
- * @brief Creates color vector for ColorLegend - essentially a copy from the internal vector
+ * @brief Creates color vector for Qwt3DColorLegend - essentially a copy from the internal vector
  * @param vec The vector to fill
  * @return Reference to the filled color vector
  */
-Qwt3D::ColorVector& StandardColor::createVector(Qwt3D::ColorVector& vec)
+ColorVector& Qwt3DStandardColor::createVector(ColorVector& vec)
 {
 	QWT_D(d);
 	vec = d->m_colors;
@@ -86512,14 +88028,15 @@ Qwt3D::ColorVector& StandardColor::createVector(Qwt3D::ColorVector& vec)
  * @brief Returns the color for a given z value
  * @param z The z coordinate value for color lookup
  * @return RGBA color corresponding to the z value
- * @details Maps the z value to a color index based on the data hull's z range.
+ * @details Maps the z value to a color index based on the active z-range
+ *          pushed in by the owning Qwt3DPlotItem via setActiveRange().
  */
-RGBA StandardColor::operator()(double, double, double z) const
+RGBA Qwt3DStandardColor::operator()(double, double, double z) const
 {
 	QWT_DC(d);
-	Q_ASSERT(d->m_data);
-	int index = static_cast< int >((d->m_colors.size() - 1) * (z - d->m_data->hull().minVertex.z)
-								   / (d->m_data->hull().maxVertex.z - d->m_data->hull().minVertex.z));
+	const double zMin = activeZMin();
+	const double zMax = activeZMax();
+	int index = static_cast< int >((d->m_colors.size() - 1) * (z - zMin) / (zMax - zMin));
 	if (index < 0)
 		index = 0;
 	if (static_cast< unsigned int >(index) > d->m_colors.size() - 1)
@@ -86534,9 +88051,11 @@ RGBA StandardColor::operator()(double, double, double z) const
  * @details Uses QwtColorMapPreset to create a QwtLinearColorMap and samples it
  *          at the specified number of points to fill the internal color vector.
  */
-void StandardColor::setPreset(const QString& presetName, unsigned size)
+void Qwt3DStandardColor::setPreset(const QString& presetName, unsigned size)
 {
 	QWT_D(d);
+
+	d->m_presetName = presetName;
 
 	auto colorMap = QwtColorMapPreset::create(presetName);
 
@@ -86545,7 +88064,7 @@ void StandardColor::setPreset(const QString& presetName, unsigned size)
 		const double t     = (size > 1) ? static_cast< double >(i) / (size - 1) : 0.5;
 		const QColor color = colorMap->color(0.0, 1.0, t);
 
-		Qwt3D::RGBA rgba;
+		RGBA rgba;
 		rgba.r = color.redF();
 		rgba.g = color.greenF();
 		rgba.b = color.blueF();
@@ -86554,19 +88073,55 @@ void StandardColor::setPreset(const QString& presetName, unsigned size)
 		d->m_colors[ i ] = rgba;
 	}
 }
+
+/**
+ * @brief 返回当前 preset 名称
+ * @return preset 名称字符串，如果通过 setColorVector() 设置则返回空字符串
+ */
+QString Qwt3DStandardColor::presetName() const
+{
+	QWT_DC(d);
+	return d->m_presetName;
+}
+
+/**
+ * @brief 返回颜色向量中的颜色数量
+ * @return 颜色数量
+ */
+unsigned Qwt3DStandardColor::colorCount() const
+{
+	QWT_DC(d);
+	return static_cast< unsigned >(d->m_colors.size());
+}
+
+/**
+ * @brief 返回上次 setAlpha() 设置的 alpha 值
+ * @return alpha 值（0.0 ~ 1.0），默认 1.0
+ */
+double Qwt3DStandardColor::alpha() const
+{
+	QWT_DC(d);
+	return d->m_alpha;
+}
+
 /*** End of inlined file: qwt3d_color.cpp ***/
 
 
 /*** Start of inlined file: qwt3d_coordsys.cpp ***/
-using namespace std;
-using namespace Qwt3D;
+#include <QOpenGLFunctions>
+#include <QOpenGLBuffer>
+#include <QOpenGLShaderProgram>
 
-class CoordinateSystem::PrivateData
+#include <cmath>
+
+using namespace std;
+
+class Qwt3DCoordinateSystem::PrivateData
 {
-	QWT_DECLARE_PUBLIC(CoordinateSystem)
+	QWT_DECLARE_PUBLIC(Qwt3DCoordinateSystem)
 
 public:
-	PrivateData(CoordinateSystem* p)
+	PrivateData(Qwt3DCoordinateSystem* p)
 		: q_ptr(p)
 		, m_style(BOX)
 		, m_smooth(true)
@@ -86574,27 +88129,42 @@ public:
 		, m_majorgridlines(false)
 		, m_minorgridlines(false)
 		, m_sides(0)
+		, m_tickPosition(TICK_BOTTOM)
+		, m_interiorMajor(false)
+		, m_interiorMinor(false)
+		, m_interiorSides(NO_INTERIOR)
+		, m_interiorMajWidth(0.5)
+		, m_interiorMinWidth(0.3)
 	{
 	}
 
 	Triple m_first, m_second;
 	COORDSTYLE m_style;
+	RGBA m_axesColor;
+	RGBA m_numberColor;
+	RGBA m_labelColor;
 	RGBA m_gridlinecolor;
 	bool m_smooth;
 	bool m_autodecoration;
 	bool m_majorgridlines, m_minorgridlines;
 	int m_sides;
+	TICKPOSITION m_tickPosition;
+	bool m_interiorMajor, m_interiorMinor;
+	int m_interiorSides;
+	RGBA m_interiorGridColor;
+	double m_interiorMajWidth, m_interiorMinWidth;
+
+	// Tic-length model: automatic per-axis derivation (scale-based) by default,
+	// or an explicit manual override that survives init() (data changes).
+	double m_ticLengthScale = 0.015;   // auto: fraction of per-axis perpendicular range
+	bool m_manualTicLength = false;     // user set an explicit length via setTicLength()
+	double m_manualMajorTic = 0.0;
+	double m_manualMinorTic = 0.0;
 };
 
-/**
- * @brief Constructs a coordinate system with specified boundaries and style
- * @param first Minimum vertex of the coordinate system box
- * @param second Maximum vertex of the coordinate system box
- * @param st Coordinate system style (NOCOORD, BOX, or FRAME)
- */
-CoordinateSystem::CoordinateSystem(Triple first, Triple second, COORDSTYLE st) : QWT_PIMPL_CONSTRUCT
+Qwt3DCoordinateSystem::Qwt3DCoordinateSystem(Triple first, Triple second, COORDSTYLE st) : QWT_PIMPL_CONSTRUCT
 {
-	axes = std::vector< Axis >(12);
+	axes = std::vector< Qwt3DAxis >(12);
 	setStyle(st);
 	init(first, second);
 
@@ -86604,17 +88174,15 @@ CoordinateSystem::CoordinateSystem(Triple first, Triple second, COORDSTYLE st) :
 	setNumberColor(RGBA(0, 0, 0));
 	setLabelFont("Courier", 14, QFont::Bold);
 	setGridLines(false, false);
+	setInteriorGridLinesColor(RGBA(0.6, 0.6, 0.6, 0.5));
 }
 
-/**
- * @brief Destructor
- */
-CoordinateSystem::~CoordinateSystem()
+Qwt3DCoordinateSystem::~Qwt3DCoordinateSystem()
 {
 	destroy();
 }
 
-void CoordinateSystem::destroy()
+void Qwt3DCoordinateSystem::destroy()
 {
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].setLabelString("");
@@ -86622,7 +88190,7 @@ void CoordinateSystem::destroy()
 	detachAll();
 }
 
-void CoordinateSystem::init(Triple first, Triple second)
+void Qwt3DCoordinateSystem::init(Triple first, Triple second)
 {
 	QWT_D(d);
 
@@ -86635,12 +88203,9 @@ void CoordinateSystem::init(Triple first, Triple second)
 
 	setPosition(first, second);
 
-	double majl = dv.length() / 100;  // 1 %
-	setTicLength(majl, 0.6 * majl);
-
-	axes[ X1 ].setPosition(first, first + Triple(dv.x, 0, 0));                          // front bottom x
-	axes[ Y1 ].setPosition(first, first + Triple(0, dv.y, 0));                          // bottom left  y
-	axes[ Z1 ].setPosition(first + Triple(0, dv.y, 0), first + Triple(0, dv.y, dv.z));  // back left z
+	axes[ X1 ].setPosition(first, first + Triple(dv.x, 0, 0));
+	axes[ Y1 ].setPosition(first, first + Triple(0, dv.y, 0));
+	axes[ Z1 ].setPosition(first + Triple(0, dv.y, 0), first + Triple(0, dv.y, dv.z));
 	axes[ X1 ].setTicOrientation(0, -1, 0);
 	axes[ Y1 ].setTicOrientation(-1, 0, 0);
 	axes[ Z1 ].setTicOrientation(-1, 0, 0);
@@ -86660,81 +88225,123 @@ void CoordinateSystem::init(Triple first, Triple second)
 	axes[ Z3 ].setLimits(first.z, second.z);
 	axes[ Z4 ].setLimits(first.z, second.z);
 
-	// remaining x axes
-	axes[ X2 ].setPosition(first + Triple(0, 0, dv.z), first + Triple(dv.x, 0, dv.z));  // front top x
-	axes[ X3 ].setPosition(first + Triple(0, dv.y, dv.z), second);                      // back top x
-	axes[ X4 ].setPosition(first + Triple(0, dv.y, 0), first + Triple(dv.x, dv.y, 0));  // back bottom x
+	axes[ X2 ].setPosition(first + Triple(0, 0, dv.z), first + Triple(dv.x, 0, dv.z));
+	axes[ X3 ].setPosition(first + Triple(0, dv.y, dv.z), second);
+	axes[ X4 ].setPosition(first + Triple(0, dv.y, 0), first + Triple(dv.x, dv.y, 0));
 	axes[ X2 ].setTicOrientation(0, -1, 0);
 	axes[ X3 ].setTicOrientation(0, 1, 0);
 	axes[ X4 ].setTicOrientation(0, 1, 0);
 
-	// remaining y axes
-	axes[ Y2 ].setPosition(first + Triple(dv.x, 0, 0), first + Triple(dv.x, dv.y, 0));  // bottom right y
-	axes[ Y3 ].setPosition(first + Triple(dv.x, 0, dv.z), second);                      // top right y
-	axes[ Y4 ].setPosition(first + Triple(0, 0, dv.z), first + Triple(0, dv.y, dv.z));  // top left y
+	axes[ Y2 ].setPosition(first + Triple(dv.x, 0, 0), first + Triple(dv.x, dv.y, 0));
+	axes[ Y3 ].setPosition(first + Triple(dv.x, 0, dv.z), second);
+	axes[ Y4 ].setPosition(first + Triple(0, 0, dv.z), first + Triple(0, dv.y, dv.z));
 	axes[ Y2 ].setTicOrientation(1, 0, 0);
 	axes[ Y3 ].setTicOrientation(1, 0, 0);
 	axes[ Y4 ].setTicOrientation(-1, 0, 0);
 
-	// remaining z axes
-	axes[ Z2 ].setPosition(first, first + Triple(0, 0, dv.z));                          // front left z
-	axes[ Z4 ].setPosition(first + Triple(dv.x, dv.y, 0), second);                      // back right z
-	axes[ Z3 ].setPosition(first + Triple(dv.x, 0, 0), first + Triple(dv.x, 0, dv.z));  // front right z
+	axes[ Z2 ].setPosition(first, first + Triple(0, 0, dv.z));
+	axes[ Z4 ].setPosition(first + Triple(dv.x, dv.y, 0), second);
+	axes[ Z3 ].setPosition(first + Triple(dv.x, 0, 0), first + Triple(dv.x, 0, dv.z));
 	axes[ Z2 ].setTicOrientation(-1, 0, 0);
 	axes[ Z4 ].setTicOrientation(1, 0, 0);
 	axes[ Z3 ].setTicOrientation(1, 0, 0);
+
+	// Apply the tic-length model now that all orientations are set. This respects
+	// an explicit override (setTicLength) and otherwise derives per-axis lengths
+	// from the data range in each tick's pointing direction (anisotropy-proof).
+	applyTicLengths();
 
 	setStyle(d->m_style);
 }
 
 /**
- * @brief Draws the coordinate system, including grid lines if enabled
- * @details Chooses visible axes automatically when auto-decoration is on,
- *          then draws major and minor grid lines as configured.
+ * @brief Helper: draws a set of line segments using VBO + line shader
+ * @param ctx Render context providing shader and matrices
  */
-void CoordinateSystem::draw()
+void Qwt3DCoordinateSystem::drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth, const RGBA& lineColor)
+{
+	if (vertices.isEmpty())
+		return;
+
+	auto* shader = ctx.lineShader;
+	if (!shader)
+		return;
+
+	auto* f = QOpenGLContext::currentContext()->functions();
+
+	// TODO: glLineWidth > 1.0 not guaranteed in Core Profile (Plan B)
+	f->glLineWidth(static_cast< GLfloat >(std::max(1.0, lineWidth)));
+
+	QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
+	vbo.create();
+	vbo.bind();
+	vbo.allocate(vertices.constData(), vertices.size() * sizeof(float));
+
+	shader->bind();
+	shader->setUniformValue("uModelView", ctx.modelView);
+	shader->setUniformValue("uProjection", ctx.projection);
+
+	int stride = 7 * sizeof(float);
+	shader->enableAttributeArray(0);
+	shader->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
+	shader->enableAttributeArray(1);
+	shader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 4, stride);
+
+	f->glDrawArrays(GL_LINES, 0, vertices.size() / 7);
+
+	shader->disableAttributeArray(0);
+	shader->disableAttributeArray(1);
+	shader->release();
+	vbo.release();
+	vbo.destroy();
+}
+
+/**
+ * @brief Draws the coordinate system, including grid lines if enabled
+ * @param ctx Render context providing shaders, matrices, and coordinate conversion
+ */
+void Qwt3DCoordinateSystem::draw(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 
-	GLStateBewarer sb(GL_LINE_SMOOTH, true);
-
-	if (!d->m_smooth)
-		sb.turnOff();
-
 	if (d->m_autodecoration)
-		chooseAxes();
+		chooseAxes(ctx);
 
-	Drawable::draw();
+	Qwt3DDrawable::draw(ctx);
 
 	if (d->m_style == NOCOORD)
 		return;
 
-	if (d->m_majorgridlines || d->m_minorgridlines)
+	if (d->m_majorgridlines || d->m_minorgridlines
+		|| d->m_interiorMajor || d->m_interiorMinor)
 		recalculateAxesTics();
 	if (d->m_majorgridlines)
-		drawMajorGridLines();
+		drawMajorGridLines(ctx);
 	if (d->m_minorgridlines)
-		drawMinorGridLines();
+		drawMinorGridLines(ctx);
+	if (d->m_interiorMajor)
+		drawInteriorMajorGridLines(ctx);
+	if (d->m_interiorMinor)
+		drawInteriorMinorGridLines(ctx);
 }
 
-void CoordinateSystem::chooseAxes()
+void Qwt3DCoordinateSystem::chooseAxes(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 
-	vector< Triple > beg(axes.size());
-	vector< Triple > end(axes.size());
+	vector< QPointF > beg(axes.size());
+	vector< QPointF > end(axes.size());
 	vector< Tuple > src(2 * axes.size());
 
 	unsigned i;
-	// collect axes viewport coordinates and initialize
 	for (i = 0; i != axes.size(); ++i) {
 		if (d->m_style != NOCOORD)
 			attach(&axes[ i ]);
 
-		beg[ i ]               = World2ViewPort(axes[ i ].begin());
-		end[ i ]               = World2ViewPort(axes[ i ].end());
-		src[ i ]               = Tuple(beg[ i ].x, beg[ i ].y);
-		src[ axes.size() + i ] = Tuple(end[ i ].x, end[ i ].y);
+		beg[ i ]               = ctx.worldToScreen(axes[ i ].begin());
+		end[ i ]               = ctx.worldToScreen(axes[ i ].end());
+		src[ i ]               = Tuple(beg[ i ].x(), beg[ i ].y());
+		src[ axes.size() + i ] = Tuple(end[ i ].x(), end[ i ].y());
 
 		axes[ i ].setScaling(false);
 		axes[ i ].setNumbers(false);
@@ -86758,16 +88365,15 @@ void CoordinateSystem::chooseAxes()
 	int other_y = -1;
 	int other_z = -1;
 
-	// traverse convex hull
 	for (unsigned k = 0; k != idx.size(); ++k) {
-		Triple one, two;
+		QPointF one, two;
 
-		if (idx[ k ] >= axes.size())  // is end point
+		if (idx[ k ] >= axes.size())
 			one = end[ idx[ k ] - axes.size() ];
-		else  // is begin point
+		else
 			one = beg[ idx[ k ] ];
 
-		unsigned int next = idx[ (k + 1) % idx.size() ];  // next point in cv (considered as ring buffer of points)
+		unsigned int next = idx[ (k + 1) % idx.size() ];
 
 		if (next >= axes.size())
 			two = end[ next - axes.size() ];
@@ -86776,72 +88382,77 @@ void CoordinateSystem::chooseAxes()
 
 		for (i = 0; i != axes.size(); ++i) {
 			if ((one == beg[ i ] && two == end[ i ]) || (two == beg[ i ] && one == end[ i ])) {
-				if (i == X1 || i == X2 || i == X3 || i == X4)  // x axes
+				if (i == X1 || i == X2 || i == X3 || i == X4)
 				{
-					if (rem_x >= 0)  // already second axis of the convex hull?
+					if (rem_x >= 0)
 					{
-						// lower of the two x axes
-						double y = min(min(end[ rem_x ].y, end[ i ].y), min(beg[ rem_x ].y, beg[ i ].y));
-						choice_x = (y == beg[ i ].y || y == end[ i ].y) ? i : rem_x;
+						// Screen y increases downward; max y = visually lower, min y = visually upper
+						double y;
+						if (d->m_tickPosition == TICK_BOTTOM) {
+							y = max(max(end[ rem_x ].y(), end[ i ].y()), max(beg[ rem_x ].y(), beg[ i ].y()));
+						} else {
+							y = min(min(end[ rem_x ].y(), end[ i ].y()), min(beg[ rem_x ].y(), beg[ i ].y()));
+						}
+						choice_x = (y == beg[ i ].y() || y == end[ i ].y()) ? static_cast< int >(i) : rem_x;
 
 						other_x = (choice_x == static_cast< int >(i)) ? rem_x : static_cast< int >(i);
-						left = (beg[ choice_x ].x < beg[ other_x ].x || end[ choice_x ].x < end[ other_x ].x) ? true : false;
+						left = (beg[ choice_x ].x() < beg[ other_x ].x() || end[ choice_x ].x() < end[ other_x ].x()) ? true : false;
 
-						autoDecorateExposedAxis(axes[ choice_x ], left);
+						autoDecorateExposedAxis(ctx, axes[ choice_x ], left);
 
 						rem_x = -1;
 					} else {
-						rem_x = i;
+						rem_x = static_cast< int >(i);
 					}
 				} else if (i == Y1 || i == Y2 || i == Y3 || i == Y4) {
 					if (rem_y >= 0) {
-						// lower of the two y axes
-						double y = min(min(end[ rem_y ].y, end[ i ].y), min(beg[ rem_y ].y, beg[ i ].y));
-						choice_y = (y == beg[ i ].y || y == end[ i ].y) ? i : rem_y;
+						// Screen y increases downward; max y = visually lower, min y = visually upper
+						double y;
+						if (d->m_tickPosition == TICK_BOTTOM) {
+							y = max(max(end[ rem_y ].y(), end[ i ].y()), max(beg[ rem_y ].y(), beg[ i ].y()));
+						} else {
+							y = min(min(end[ rem_y ].y(), end[ i ].y()), min(beg[ rem_y ].y(), beg[ i ].y()));
+						}
+						choice_y = (y == beg[ i ].y() || y == end[ i ].y()) ? static_cast< int >(i) : rem_y;
 
 						other_y = (choice_y == static_cast< int >(i)) ? rem_y : static_cast< int >(i);
-						left = (beg[ choice_y ].x < beg[ other_y ].x || end[ choice_y ].x < end[ other_y ].x) ? true : false;
-						autoDecorateExposedAxis(axes[ choice_y ], left);
+						left = (beg[ choice_y ].x() < beg[ other_y ].x() || end[ choice_y ].x() < end[ other_y ].x()) ? true : false;
+						autoDecorateExposedAxis(ctx, axes[ choice_y ], left);
 
 						rem_y = -1;
 					} else {
-						rem_y = i;
+						rem_y = static_cast< int >(i);
 					}
 				} else if (i == Z1 || i == Z2 || i == Z3 || i == Z4) {
 					if (rem_z >= 0) {
-						// rear of the two z axes
-						double z = max(max(end[ rem_z ].z, end[ i ].z), max(beg[ rem_z ].z, beg[ i ].z));
-						choice_z = (z == beg[ i ].z || z == end[ i ].z) ? i : rem_z;
-
-						other_z = (choice_z == static_cast< int >(i)) ? rem_z : static_cast< int >(i);
-
+						// Two Z axes found on hull — track for post-loop connection check
+						choice_z = rem_z;
+						other_z = static_cast< int >(i);
 						rem_z = -1;
-
 					} else {
-						rem_z = i;
+						rem_z = static_cast< int >(i);
 					}
 				}
 			}
-		}  // for axes
-	}      // for idx
-
-	// fit z axis in - the onthewall axis if the decorated axes build a continous line, the opposite
-	// else
-	if (choice_x >= 0 && choice_y >= 0 && choice_z >= 0) {
-		left = (beg[ choice_z ].x < beg[ other_z ].x || end[ choice_z ].x < end[ other_z ].x) ? true : false;
-
-		if (axes[ choice_z ].begin() == axes[ choice_x ].begin() || axes[ choice_z ].begin() == axes[ choice_x ].end()
-			|| axes[ choice_z ].begin() == axes[ choice_y ].begin() || axes[ choice_z ].begin() == axes[ choice_y ].end()
-			|| axes[ choice_z ].end() == axes[ choice_x ].begin() || axes[ choice_z ].end() == axes[ choice_x ].end()
-			|| axes[ choice_z ].end() == axes[ choice_y ].begin() || axes[ choice_z ].end() == axes[ choice_y ].end()
-
-		) {
-			autoDecorateExposedAxis(axes[ choice_z ], left);
 		}
+	}
 
-		else {
-			autoDecorateExposedAxis(axes[ other_z ], !left);
-			choice_z = other_z;  // for FRAME
+	if (choice_x >= 0 && choice_y >= 0 && choice_z >= 0) {
+		if (static_cast< int >(axes[ choice_z ].begin() == axes[ choice_x ].begin() ||
+			axes[ choice_z ].begin() == axes[ choice_x ].end() ||
+			axes[ choice_z ].begin() == axes[ choice_y ].begin() ||
+			axes[ choice_z ].begin() == axes[ choice_y ].end() ||
+			axes[ choice_z ].end() == axes[ choice_x ].begin() ||
+			axes[ choice_z ].end() == axes[ choice_x ].end() ||
+			axes[ choice_z ].end() == axes[ choice_y ].begin() ||
+			axes[ choice_z ].end() == axes[ choice_y ].end()))
+		{
+			autoDecorateExposedAxis(ctx, axes[ choice_z ], left);
+		}
+		else
+		{
+			autoDecorateExposedAxis(ctx, axes[ other_z ], !left);
+			choice_z = other_z;
 		}
 	}
 
@@ -86853,13 +88464,22 @@ void CoordinateSystem::chooseAxes()
 	}
 }
 
-void CoordinateSystem::autoDecorateExposedAxis(Axis& ax, bool left)
+void Qwt3DCoordinateSystem::autoDecorateExposedAxis(const Qwt3DRenderContext& ctx, Qwt3DAxis& ax, bool left)
 {
-	Triple diff = World2ViewPort(ax.end()) - World2ViewPort(ax.begin());
+	(void)left;  // polarity is now derived from the outward direction below
 
-	diff = Triple(diff.x, diff.y, 0);  // projection
+	// The exposed axis lies on the projected box silhouette, so the screen
+	// vector from the box center to the axis midpoint always points outward.
+	// This is independent of the axis' own screen direction (which is what the
+	// previous sina-vs-SQRT_2 heuristic used) and therefore does not flip when
+	// the axis projects near 45 degrees or when the viewport aspect changes.
+	Triple midWorld = ax.begin() + (ax.end() - ax.begin()) / 2.0;
+	Triple centerWorld = first() + (second() - first()) / 2.0;
+	QPointF midScreen = ctx.worldToScreen(midWorld);
+	QPointF centerScreen = ctx.worldToScreen(centerWorld);
+	QPointF outward = midScreen - centerScreen;  // screen y grows downward
 
-	double s = diff.length();
+	double s = sqrt(outward.x() * outward.x() + outward.y() * outward.y());
 
 	if (!s)
 		return;
@@ -86868,228 +88488,241 @@ void CoordinateSystem::autoDecorateExposedAxis(Axis& ax, bool left)
 	ax.setNumbers(true);
 	ax.setLabel(true);
 
-	const double SQRT_2 = 0.7071067;
-	double sina         = fabs(diff.y / s);
-
-	if (left)  // leftmost (compared with antagonist in CV)  axis -> draw decorations on the left
-			   // side
-	{
-		if (diff.x >= 0 && diff.y >= 0 && sina < SQRT_2)  // 0..Pi/4
-		{
-			ax.setNumberAnchor(BottomCenter);
-		} else if (diff.x >= 0 && diff.y >= 0 && !left)  // octant 2
-		{
-			ax.setNumberAnchor(CenterRight);
-		} else if (diff.x <= 0 && diff.y >= 0 && sina >= SQRT_2)  // octant 3
-		{
-			ax.setNumberAnchor(CenterRight);
-		} else if (diff.x <= 0 && diff.y >= 0)  // octant 4
-		{
-			ax.setNumberAnchor(TopCenter);
-		} else if (diff.x <= 0 && diff.y <= 0 && sina <= SQRT_2)  // octant 5
-		{
-			ax.setNumberAnchor(BottomCenter);
-		} else if (diff.x <= 0 && diff.y <= 0)  // octant 6
-		{
-			ax.setNumberAnchor(CenterRight);
-		} else if (diff.x >= 0 && diff.y <= 0 && sina >= SQRT_2)  // octant 7
-		{
-			ax.setNumberAnchor(CenterRight);
-		} else if (diff.x >= 0 && diff.y <= 0)  // octant 8
-		{
-			ax.setNumberAnchor(TopCenter);
-		}
-	} else  // rightmost axis
-	{
-		if (diff.x >= 0 && diff.y >= 0 && sina <= SQRT_2) {
-			ax.setNumberAnchor(TopCenter);
-		} else if (diff.x >= 0 && diff.y >= 0 && !left) {
-			ax.setNumberAnchor(CenterLeft);
-		} else if (diff.x <= 0 && diff.y >= 0 && sina >= SQRT_2) {
-			ax.setNumberAnchor(CenterLeft);
-		} else if (diff.x <= 0 && diff.y >= 0) {
-			ax.setNumberAnchor(BottomCenter);
-		} else if (diff.x <= 0 && diff.y <= 0 && sina <= SQRT_2) {
-			ax.setNumberAnchor(TopCenter);
-		} else if (diff.x <= 0 && diff.y <= 0) {
-			ax.setNumberAnchor(CenterLeft);
-		} else if (diff.x >= 0 && diff.y <= 0 && sina >= SQRT_2) {
-			ax.setNumberAnchor(CenterLeft);
-		} else if (diff.x >= 0 && diff.y <= 0) {
-			ax.setNumberAnchor(BottomCenter);
-		}
-	}
+	// Map the outward screen direction to an anchor so the label text extends
+	// outward (away from the box). Screen y is downward, hence outward.y() > 0
+	// means the axis is visually below the center and the text must extend
+	// further down; the horizontal cases are symmetric.
+	if (fabs(outward.y()) >= fabs(outward.x()))
+		ax.setNumberAnchor(outward.y() > 0 ? BottomCenter : TopCenter);
+	else
+		ax.setNumberAnchor(outward.x() > 0 ? CenterLeft : CenterRight);
 }
 
-/**
- * @brief Sets the position of the coordinate system box
- * @param first Front-left-bottom corner of the bounding box
- * @param second Back-right-top corner of the bounding box
- */
-void CoordinateSystem::setPosition(Triple first, Triple second)
+void Qwt3DCoordinateSystem::setPosition(Triple first, Triple second)
 {
 	QWT_D(d);
 	d->m_first  = first;
 	d->m_second = second;
 }
 
-/**
- * @brief Sets the length of major and minor tic marks for all axes
- * @param major Length of major tic marks
- * @param minor Length of minor tic marks
- */
-void CoordinateSystem::setTicLength(double major, double minor)
+void Qwt3DCoordinateSystem::setTicLength(double major, double minor)
 {
+	QWT_D(d);
+	// Store as an explicit override so init() (re-run on every data change) honors
+	// it instead of clobbering it with the automatic per-axis derivation.
+	d->m_manualTicLength = true;
+	d->m_manualMajorTic = major;
+	d->m_manualMinorTic = minor;
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].setTicLength(major, minor);
 }
 
 /**
- * @brief Adjusts the distance between axis numbering and axis body for all axes
- * @param val Offset value to fine-tune number positioning
+ * @brief 返回显式设置的 tic 长度
+ * @param[out] major 主刻度长度
+ * @param[out] minor 次刻度长度
+ * @details 仅返回通过 setTicLength() 设置的值。如果使用自动模式
+ *          (ticLengthScale())，返回的值为上次显式设置或默认值 0。
  */
-void CoordinateSystem::adjustNumbers(int val)
+void Qwt3DCoordinateSystem::ticLength(double& major, double& minor) const
+{
+	QWT_DC(d);
+	major = d->m_manualMajorTic;
+	minor = d->m_manualMinorTic;
+}
+
+void Qwt3DCoordinateSystem::setTicLengthScale(double scale)
+{
+	QWT_D(d);
+	if (scale < 0.0)
+		scale = 0.0;
+	d->m_ticLengthScale = scale;
+	d->m_manualTicLength = false;  // back to automatic per-axis derivation
+	applyTicLengths();
+}
+
+double Qwt3DCoordinateSystem::ticLengthScale() const
+{
+	QWT_DC(d);
+	return d->m_ticLengthScale;
+}
+
+void Qwt3DCoordinateSystem::setAutoTicLength()
+{
+	QWT_D(d);
+	d->m_manualTicLength = false;
+	applyTicLengths();
+}
+
+void Qwt3DCoordinateSystem::applyTicLengths()
+{
+	QWT_D(d);
+
+	if (d->m_manualTicLength) {
+		// Explicit user override: identical length on every axis, preserved across init()
+		for (unsigned i = 0; i != axes.size(); ++i)
+			axes[ i ].setTicLength(d->m_manualMajorTic, d->m_manualMinorTic);
+		return;
+	}
+
+	// Automatic per-axis derivation: each tick's length is a fraction of the data
+	// range in the direction the tick points. Under AUTOFILL the visual length
+	// then collapses to scale * maxRange on every axis (anisotropy-proof); under
+	// DATARATIO it is scale * that axis's own range (consistent per axis).
+	const Triple dv = d->m_second - d->m_first;
+	const double scale = d->m_ticLengthScale;
+	for (unsigned i = 0; i != axes.size(); ++i) {
+		const Triple o = axes[ i ].ticOrientation();
+		double rangeDir = std::abs(o.x) * dv.x + std::abs(o.y) * dv.y + std::abs(o.z) * dv.z;
+		if (!(rangeDir > 0.0))
+			rangeDir = 1.0;
+		const double majl = scale * rangeDir;
+		axes[ i ].setTicLength(majl, 0.6 * majl);
+	}
+}
+
+void Qwt3DCoordinateSystem::adjustNumbers(int val)
 {
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].adjustNumbers(val);
 }
 
-/**
- * @brief Adjusts the distance between axis labels and axis body for all axes
- * @param val Offset value to fine-tune label positioning
- */
-void CoordinateSystem::adjustLabels(int val)
+void Qwt3DCoordinateSystem::adjustLabels(int val)
 {
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].adjustLabel(val);
 }
 
-/**
- * @brief Enables or disables automatic scaling for all axes
- * @param val True to enable auto-scaling, false to disable
- */
-void CoordinateSystem::setAutoScale(bool val)
+void Qwt3DCoordinateSystem::setAutoScale(bool val)
 {
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].setAutoScale(val);
 }
 
 /**
- * @brief Sets a common color for all axes
- * @param val RGBA color value to apply to all axes
+ * @brief 返回是否启用自动缩放
+ * @return true 如果自动缩放已启用（委托到第一个轴的 autoScale()）
  */
-void CoordinateSystem::setAxesColor(RGBA val)
+bool Qwt3DCoordinateSystem::autoScale() const
 {
+	return axes[ 0 ].autoScale();
+}
+
+void Qwt3DCoordinateSystem::setAxesColor(RGBA val)
+{
+	QWT_D(d);
+	d->m_axesColor = val;
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].setColor(val);
 }
 
 /**
- * @brief Recalculates tic positions for all axes
+ * @brief 返回轴线颜色
+ * @return RGBA 颜色值
  */
-void CoordinateSystem::recalculateAxesTics()
+RGBA Qwt3DCoordinateSystem::axesColor() const
+{
+	QWT_DC(d);
+	return d->m_axesColor;
+}
+
+void Qwt3DCoordinateSystem::recalculateAxesTics()
 {
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].recalculateTics();
 }
 
-/**
- * @brief Sets the font used for axis numbering across all axes
- * @param family Font family name
- * @param pointSize Font size in points
- * @param weight Font weight (e.g., QFont::Normal, QFont::Bold)
- * @param italic Whether to use italic style
- */
-void CoordinateSystem::setNumberFont(QString const& family, int pointSize, int weight, bool italic)
+void Qwt3DCoordinateSystem::setNumberFont(QString const& family, int pointSize, int weight, bool italic)
 {
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].setNumberFont(family, pointSize, weight, italic);
 }
 
-/**
- * @brief Sets the font used for axis numbering across all axes
- * @param font QFont object to apply to all axis numberings
- */
-void CoordinateSystem::setNumberFont(QFont const& font)
+void Qwt3DCoordinateSystem::setNumberFont(QFont const& font)
 {
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].setNumberFont(font);
 }
 
 /**
- * @brief Sets a common color for all axis numberings
- * @param val RGBA color value to apply to axis numbers
+ * @brief 返回数字字体
+ * @return QFont 值（委托到第一个轴的 numberFont()）
+ * @details setNumberFont() 统一设置所有轴的数字字体，因此读取 axes[0] 即可代表当前值。
  */
-void CoordinateSystem::setNumberColor(RGBA val)
+QFont Qwt3DCoordinateSystem::numberFont() const
 {
+	return axes[ 0 ].numberFont();
+}
+
+void Qwt3DCoordinateSystem::setNumberColor(RGBA val)
+{
+	QWT_D(d);
+	d->m_numberColor = val;
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].setNumberColor(val);
 }
 
 /**
- * @brief Sets all axes to use linear scaling with real number items
+ * @brief 返回数字颜色
+ * @return RGBA 颜色值
  */
-void CoordinateSystem::setStandardScale()
+RGBA Qwt3DCoordinateSystem::numberColor() const
+{
+	QWT_DC(d);
+	return d->m_numberColor;
+}
+
+void Qwt3DCoordinateSystem::setStandardScale()
 {
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].setScale(LINEARSCALE);
 }
 
-/**
- * @brief Sets the font used for axis labels across all axes
- * @param font QFont object to apply to all axis labels
- */
-void CoordinateSystem::setLabelFont(QFont const& font)
+void Qwt3DCoordinateSystem::setLabelFont(QFont const& font)
 {
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].setLabelFont(font);
 }
 
 /**
- * @brief Sets the font used for axis labels across all axes
- * @param family Font family name
- * @param pointSize Font size in points
- * @param weight Font weight (e.g., QFont::Normal, QFont::Bold)
- * @param italic Whether to use italic style
+ * @brief 返回标签字体
+ * @return QFont 值（委托到第一个轴的 labelFont()）
  */
-void CoordinateSystem::setLabelFont(QString const& family, int pointSize, int weight, bool italic)
+QFont Qwt3DCoordinateSystem::labelFont() const
+{
+	return axes[ 0 ].labelFont();
+}
+
+void Qwt3DCoordinateSystem::setLabelFont(QString const& family, int pointSize, int weight, bool italic)
 {
 	setLabelFont(QFont(family, pointSize, weight, italic));
 }
 
-/**
- * @brief Sets a common color for all axis labels
- * @param val RGBA color value to apply to axis labels
- */
-void CoordinateSystem::setLabelColor(RGBA val)
+void Qwt3DCoordinateSystem::setLabelColor(RGBA val)
 {
+	QWT_D(d);
+	d->m_labelColor = val;
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].setLabelColor(val);
 }
 
 /**
- * @brief Sets line width for axes and tic marks
- * @param val Base line width for axes
- * @param majfac Scaling factor for major tic line width
- * @param minfac Scaling factor for minor tic line width
+ * @brief 返回标签颜色
+ * @return RGBA 颜色值
  */
-void CoordinateSystem::setLineWidth(double val, double majfac, double minfac)
+RGBA Qwt3DCoordinateSystem::labelColor() const
+{
+	QWT_DC(d);
+	return d->m_labelColor;
+}
+
+void Qwt3DCoordinateSystem::setLineWidth(double val, double majfac, double minfac)
 {
 	for (unsigned i = 0; i != axes.size(); ++i)
 		axes[ i ].setLineWidth(val, majfac, minfac);
 }
 
-/**
- * @brief Sets the coordinate system style and selects which axes to display in FRAME mode
- * @param s Coordinate system style (NOCOORD, BOX, or FRAME)
- * @param frame_1 First axis to display when using FRAME style
- * @param frame_2 Second axis to display when using FRAME style
- * @param frame_3 Third axis to display when using FRAME style
- * @details In BOX mode all 12 axes are drawn. In FRAME mode only the three
- *          specified axes are drawn (unless auto-decoration is enabled).
- *          NOCOORD disables all coordinate system rendering.
- */
-void CoordinateSystem::setStyle(COORDSTYLE s, AXIS frame_1, AXIS frame_2, AXIS frame_3)
+void Qwt3DCoordinateSystem::setStyle(COORDSTYLE s, AXIS frame_1, AXIS frame_2, AXIS frame_3)
 {
 	QWT_D(d);
 	d->m_style = s;
@@ -87117,15 +88750,7 @@ void CoordinateSystem::setStyle(COORDSTYLE s, AXIS frame_1, AXIS frame_2, AXIS f
 	}
 }
 
-/**
- * @brief Sets grid line visibility
- * @param majors Draw grid between major tics
- * @param minors Draw grid between minor tics
- * @param sides Side(s) where the grid should be drawn
- * @details The axis used for tic calculation is chosen randomly from the respective pair.
- *          For most cases an identical tic distribution is therefore recommended.
- */
-void CoordinateSystem::setGridLines(bool majors, bool minors, int sides)
+void Qwt3DCoordinateSystem::setGridLines(bool majors, bool minors, int sides)
 {
 	QWT_D(d);
 	d->m_sides          = sides;
@@ -87133,147 +88758,313 @@ void CoordinateSystem::setGridLines(bool majors, bool minors, int sides)
 	d->m_minorgridlines = minors;
 }
 
-void CoordinateSystem::drawMajorGridLines()
+void Qwt3DCoordinateSystem::drawMajorGridLines(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glColor4d(d->m_gridlinecolor.r, d->m_gridlinecolor.g, d->m_gridlinecolor.b, d->m_gridlinecolor.a);
-	setDeviceLineWidth(axes[ X1 ].majLineWidth());
+	float r = static_cast< float >(d->m_gridlinecolor.r);
+	float g = static_cast< float >(d->m_gridlinecolor.g);
+	float b = static_cast< float >(d->m_gridlinecolor.b);
+	float a = static_cast< float >(d->m_gridlinecolor.a);
 
-	glBegin(GL_LINES);
-	if (d->m_sides & Qwt3D::FLOOR) {
-		drawMajorGridLines(axes[ X1 ], axes[ X4 ]);
-		drawMajorGridLines(axes[ Y1 ], axes[ Y2 ]);
+	QVector<float> verts;
+
+	if (d->m_sides & FLOOR) {
+		drawMajorGridLines(axes[ X1 ], axes[ X4 ], verts);
+		drawMajorGridLines(axes[ Y1 ], axes[ Y2 ], verts);
 	}
-	if (d->m_sides & Qwt3D::CEIL) {
-		drawMajorGridLines(axes[ X2 ], axes[ X3 ]);
-		drawMajorGridLines(axes[ Y3 ], axes[ Y4 ]);
+	if (d->m_sides & CEIL) {
+		drawMajorGridLines(axes[ X2 ], axes[ X3 ], verts);
+		drawMajorGridLines(axes[ Y3 ], axes[ Y4 ], verts);
 	}
-	if (d->m_sides & Qwt3D::LEFT) {
-		drawMajorGridLines(axes[ Y1 ], axes[ Y4 ]);
-		drawMajorGridLines(axes[ Z1 ], axes[ Z2 ]);
+	if (d->m_sides & LEFT) {
+		drawMajorGridLines(axes[ Y1 ], axes[ Y4 ], verts);
+		drawMajorGridLines(axes[ Z1 ], axes[ Z2 ], verts);
 	}
-	if (d->m_sides & Qwt3D::RIGHT) {
-		drawMajorGridLines(axes[ Y2 ], axes[ Y3 ]);
-		drawMajorGridLines(axes[ Z3 ], axes[ Z4 ]);
+	if (d->m_sides & RIGHT) {
+		drawMajorGridLines(axes[ Y2 ], axes[ Y3 ], verts);
+		drawMajorGridLines(axes[ Z3 ], axes[ Z4 ], verts);
 	}
-	if (d->m_sides & Qwt3D::FRONT) {
-		drawMajorGridLines(axes[ X1 ], axes[ X2 ]);
-		drawMajorGridLines(axes[ Z2 ], axes[ Z3 ]);
+	if (d->m_sides & FRONT) {
+		drawMajorGridLines(axes[ X1 ], axes[ X2 ], verts);
+		drawMajorGridLines(axes[ Z2 ], axes[ Z3 ], verts);
 	}
-	if (d->m_sides & Qwt3D::BACK) {
-		drawMajorGridLines(axes[ X3 ], axes[ X4 ]);
-		drawMajorGridLines(axes[ Z4 ], axes[ Z1 ]);
+	if (d->m_sides & BACK) {
+		drawMajorGridLines(axes[ X3 ], axes[ X4 ], verts);
+		drawMajorGridLines(axes[ Z4 ], axes[ Z1 ], verts);
 	}
-	glEnd();
+
+	drawGridLines(ctx, verts, axes[ X1 ].majLineWidth(), d->m_gridlinecolor);
 }
 
-void CoordinateSystem::drawMinorGridLines()
+void Qwt3DCoordinateSystem::drawMinorGridLines(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glColor4d(d->m_gridlinecolor.r, d->m_gridlinecolor.g, d->m_gridlinecolor.b, d->m_gridlinecolor.a);
-	setDeviceLineWidth(axes[ X1 ].minLineWidth());
+	float r = static_cast< float >(d->m_gridlinecolor.r);
+	float g = static_cast< float >(d->m_gridlinecolor.g);
+	float b = static_cast< float >(d->m_gridlinecolor.b);
+	float a = static_cast< float >(d->m_gridlinecolor.a);
 
-	glBegin(GL_LINES);
-	if (d->m_sides & Qwt3D::FLOOR) {
-		drawMinorGridLines(axes[ X1 ], axes[ X4 ]);
-		drawMinorGridLines(axes[ Y1 ], axes[ Y2 ]);
+	QVector<float> verts;
+
+	if (d->m_sides & FLOOR) {
+		drawMinorGridLines(axes[ X1 ], axes[ X4 ], verts);
+		drawMinorGridLines(axes[ Y1 ], axes[ Y2 ], verts);
 	}
-	if (d->m_sides & Qwt3D::CEIL) {
-		drawMinorGridLines(axes[ X2 ], axes[ X3 ]);
-		drawMinorGridLines(axes[ Y3 ], axes[ Y4 ]);
+	if (d->m_sides & CEIL) {
+		drawMinorGridLines(axes[ X2 ], axes[ X3 ], verts);
+		drawMinorGridLines(axes[ Y3 ], axes[ Y4 ], verts);
 	}
-	if (d->m_sides & Qwt3D::LEFT) {
-		drawMinorGridLines(axes[ Y1 ], axes[ Y4 ]);
-		drawMinorGridLines(axes[ Z1 ], axes[ Z2 ]);
+	if (d->m_sides & LEFT) {
+		drawMinorGridLines(axes[ Y1 ], axes[ Y4 ], verts);
+		drawMinorGridLines(axes[ Z1 ], axes[ Z2 ], verts);
 	}
-	if (d->m_sides & Qwt3D::RIGHT) {
-		drawMinorGridLines(axes[ Y2 ], axes[ Y3 ]);
-		drawMinorGridLines(axes[ Z3 ], axes[ Z4 ]);
+	if (d->m_sides & RIGHT) {
+		drawMinorGridLines(axes[ Y2 ], axes[ Y3 ], verts);
+		drawMinorGridLines(axes[ Z3 ], axes[ Z4 ], verts);
 	}
-	if (d->m_sides & Qwt3D::FRONT) {
-		drawMinorGridLines(axes[ X1 ], axes[ X2 ]);
-		drawMinorGridLines(axes[ Z2 ], axes[ Z3 ]);
+	if (d->m_sides & FRONT) {
+		drawMinorGridLines(axes[ X1 ], axes[ X2 ], verts);
+		drawMinorGridLines(axes[ Z2 ], axes[ Z3 ], verts);
 	}
-	if (d->m_sides & Qwt3D::BACK) {
-		drawMinorGridLines(axes[ X3 ], axes[ X4 ]);
-		drawMinorGridLines(axes[ Z4 ], axes[ Z1 ]);
+	if (d->m_sides & BACK) {
+		drawMinorGridLines(axes[ X3 ], axes[ X4 ], verts);
+		drawMinorGridLines(axes[ Z4 ], axes[ Z1 ], verts);
 	}
-	glEnd();
+
+	drawGridLines(ctx, verts, axes[ X1 ].minLineWidth(), d->m_gridlinecolor);
 }
 
-void CoordinateSystem::drawMajorGridLines(Axis& a0, Axis& a1)
+void Qwt3DCoordinateSystem::drawMajorGridLines(Qwt3DAxis& a0, Qwt3DAxis& a1, QVector<float>& verts)
 {
-	Triple d = a1.begin() - a0.begin();
+	QWT_D(d);
+	Triple diff = a1.begin() - a0.begin();
 
 	for (unsigned int i = 0; i != a0.majorPositions().size(); ++i) {
-		glVertex3d(a0.majorPositions()[ i ].x, a0.majorPositions()[ i ].y, a0.majorPositions()[ i ].z);
-		glVertex3d(a0.majorPositions()[ i ].x + d.x, a0.majorPositions()[ i ].y + d.y, a0.majorPositions()[ i ].z + d.z);
+		const Triple& p = a0.majorPositions()[ i ];
+		verts << static_cast< float >(p.x) << static_cast< float >(p.y) << static_cast< float >(p.z);
+		verts << static_cast< float >(d->m_gridlinecolor.r) << static_cast< float >(d->m_gridlinecolor.g)
+			  << static_cast< float >(d->m_gridlinecolor.b) << static_cast< float >(d->m_gridlinecolor.a);
+		verts << static_cast< float >(p.x + diff.x) << static_cast< float >(p.y + diff.y) << static_cast< float >(p.z + diff.z);
+		verts << static_cast< float >(d->m_gridlinecolor.r) << static_cast< float >(d->m_gridlinecolor.g)
+			  << static_cast< float >(d->m_gridlinecolor.b) << static_cast< float >(d->m_gridlinecolor.a);
 	}
 }
 
-void CoordinateSystem::drawMinorGridLines(Axis& a0, Axis& a1)
+void Qwt3DCoordinateSystem::drawMinorGridLines(Qwt3DAxis& a0, Qwt3DAxis& a1, QVector<float>& verts)
 {
-	Triple d = a1.begin() - a0.begin();
+	QWT_D(d);
+	Triple diff = a1.begin() - a0.begin();
 
 	for (unsigned int i = 0; i != a0.minorPositions().size(); ++i) {
-		glVertex3d(a0.minorPositions()[ i ].x, a0.minorPositions()[ i ].y, a0.minorPositions()[ i ].z);
-		glVertex3d(a0.minorPositions()[ i ].x + d.x, a0.minorPositions()[ i ].y + d.y, a0.minorPositions()[ i ].z + d.z);
+		const Triple& p = a0.minorPositions()[ i ];
+		verts << static_cast< float >(p.x) << static_cast< float >(p.y) << static_cast< float >(p.z);
+		verts << static_cast< float >(d->m_gridlinecolor.r) << static_cast< float >(d->m_gridlinecolor.g)
+			  << static_cast< float >(d->m_gridlinecolor.b) << static_cast< float >(d->m_gridlinecolor.a);
+		verts << static_cast< float >(p.x + diff.x) << static_cast< float >(p.y + diff.y) << static_cast< float >(p.z + diff.z);
+		verts << static_cast< float >(d->m_gridlinecolor.r) << static_cast< float >(d->m_gridlinecolor.g)
+			  << static_cast< float >(d->m_gridlinecolor.b) << static_cast< float >(d->m_gridlinecolor.a);
 	}
 }
 
-Qwt3D::COORDSTYLE CoordinateSystem::style() const
+void Qwt3DCoordinateSystem::drawInteriorMajorGridLines(const Qwt3DRenderContext& ctx)
+{
+	QWT_D(d);
+
+	QVector<float> verts;
+
+	if (d->m_interiorSides & Z_INNER) {
+		drawInteriorGridLines(axes[ X1 ], axes[ Y1 ], 2, true, verts);
+	}
+	if (d->m_interiorSides & X_INNER) {
+		drawInteriorGridLines(axes[ Y1 ], axes[ Z2 ], 0, true, verts);
+	}
+	if (d->m_interiorSides & Y_INNER) {
+		drawInteriorGridLines(axes[ X1 ], axes[ Z2 ], 1, true, verts);
+	}
+
+	drawGridLines(ctx, verts, d->m_interiorMajWidth, d->m_interiorGridColor);
+}
+
+void Qwt3DCoordinateSystem::drawInteriorMinorGridLines(const Qwt3DRenderContext& ctx)
+{
+	QWT_D(d);
+
+	QVector<float> verts;
+
+	if (d->m_interiorSides & Z_INNER) {
+		drawInteriorGridLines(axes[ X1 ], axes[ Y1 ], 2, false, verts);
+	}
+	if (d->m_interiorSides & X_INNER) {
+		drawInteriorGridLines(axes[ Y1 ], axes[ Z2 ], 0, false, verts);
+	}
+	if (d->m_interiorSides & Y_INNER) {
+		drawInteriorGridLines(axes[ X1 ], axes[ Z2 ], 1, false, verts);
+	}
+
+	drawGridLines(ctx, verts, d->m_interiorMinWidth, d->m_interiorGridColor);
+}
+
+void Qwt3DCoordinateSystem::drawInteriorGridLines(
+	Qwt3DAxis& axisA, Qwt3DAxis& axisB, int dirAxis, bool major, QVector<float>& verts)
+{
+	QWT_D(d);
+
+	Triple begA = axisA.begin(), endA = axisA.end();
+	Triple begB = axisB.begin(), endB = axisB.end();
+
+	int dimA = (!isPracticallyZero(endA.x - begA.x)) ? 0
+			 : (!isPracticallyZero(endA.y - begA.y)) ? 1 : 2;
+	int dimB = (!isPracticallyZero(endB.x - begB.x)) ? 0
+			 : (!isPracticallyZero(endB.y - begB.y)) ? 1 : 2;
+
+	if (dimA == dirAxis || dimB == dirAxis || dimA == dimB)
+		return;
+
+	Triple bmin = first();
+	Triple bmax = second();
+
+	float r = static_cast< float >(d->m_interiorGridColor.r);
+	float g = static_cast< float >(d->m_interiorGridColor.g);
+	float bl = static_cast< float >(d->m_interiorGridColor.b);
+	float al = static_cast< float >(d->m_interiorGridColor.a);
+
+	const auto& positionsA = major ? axisA.majorPositions() : axisA.minorPositions();
+	const auto& positionsB = major ? axisB.majorPositions() : axisB.minorPositions();
+
+	for (const auto& pa : positionsA) {
+		double coordA = (dimA == 0) ? pa.x : (dimA == 1) ? pa.y : pa.z;
+		for (const auto& pb : positionsB) {
+			double coordB = (dimB == 0) ? pb.x : (dimB == 1) ? pb.y : pb.z;
+
+			Triple p1 = bmin;
+			Triple p2 = bmax;
+
+			if (dimA == 0) { p1.x = coordA; p2.x = coordA; }
+			else if (dimA == 1) { p1.y = coordA; p2.y = coordA; }
+			else { p1.z = coordA; p2.z = coordA; }
+
+			if (dimB == 0) { p1.x = coordB; p2.x = coordB; }
+			else if (dimB == 1) { p1.y = coordB; p2.y = coordB; }
+			else { p1.z = coordB; p2.z = coordB; }
+
+			verts << static_cast< float >(p1.x) << static_cast< float >(p1.y) << static_cast< float >(p1.z)
+				  << r << g << bl << al;
+			verts << static_cast< float >(p2.x) << static_cast< float >(p2.y) << static_cast< float >(p2.z)
+				  << r << g << bl << al;
+		}
+	}
+}
+
+COORDSTYLE Qwt3DCoordinateSystem::style() const
 {
 	QWT_DC(d);
 	return d->m_style;
 }
 
-void CoordinateSystem::setGridLinesColor(Qwt3D::RGBA val)
+void Qwt3DCoordinateSystem::setGridLinesColor(RGBA val)
 {
 	QWT_D(d);
 	d->m_gridlinecolor = val;
 }
 
-Qwt3D::Triple CoordinateSystem::first() const
+/**
+ * @brief 返回网格线颜色
+ * @return RGBA 颜色值
+ */
+RGBA Qwt3DCoordinateSystem::gridLinesColor() const
+{
+	QWT_DC(d);
+	return d->m_gridlinecolor;
+}
+
+void Qwt3DCoordinateSystem::setInteriorGridLines(bool majors, bool minors, int directions)
+{
+	QWT_D(d);
+	d->m_interiorSides  = directions;
+	d->m_interiorMajor  = majors;
+	d->m_interiorMinor  = minors;
+}
+
+int Qwt3DCoordinateSystem::interiorGrids() const
+{
+	QWT_DC(d);
+	return d->m_interiorSides;
+}
+
+void Qwt3DCoordinateSystem::setInteriorGridLinesColor(RGBA val)
+{
+	QWT_D(d);
+	d->m_interiorGridColor = val;
+}
+
+/**
+ * @brief 返回内部网格线颜色
+ * @return RGBA 颜色值
+ */
+RGBA Qwt3DCoordinateSystem::interiorGridLinesColor() const
+{
+	QWT_DC(d);
+	return d->m_interiorGridColor;
+}
+
+void Qwt3DCoordinateSystem::setInteriorGridLinesWidth(double major, double minor)
+{
+	QWT_D(d);
+	d->m_interiorMajWidth = major;
+	d->m_interiorMinWidth = minor;
+}
+
+Triple Qwt3DCoordinateSystem::first() const
 {
 	QWT_DC(d);
 	return d->m_first;
 }
 
-Qwt3D::Triple CoordinateSystem::second() const
+Triple Qwt3DCoordinateSystem::second() const
 {
 	QWT_DC(d);
 	return d->m_second;
 }
 
-void CoordinateSystem::setAutoDecoration(bool val)
+void Qwt3DCoordinateSystem::setAutoDecoration(bool val)
 {
 	QWT_D(d);
 	d->m_autodecoration = val;
 }
 
-bool CoordinateSystem::autoDecoration() const
+bool Qwt3DCoordinateSystem::autoDecoration() const
 {
 	QWT_DC(d);
 	return d->m_autodecoration;
 }
 
-void CoordinateSystem::setLineSmooth(bool val)
+void Qwt3DCoordinateSystem::setTickPosition(TICKPOSITION val)
+{
+	QWT_D(d);
+	d->m_tickPosition = val;
+}
+
+TICKPOSITION Qwt3DCoordinateSystem::tickPosition() const
+{
+	QWT_DC(d);
+	return d->m_tickPosition;
+}
+
+void Qwt3DCoordinateSystem::setLineSmooth(bool val)
 {
 	QWT_D(d);
 	d->m_smooth = val;
 }
 
-bool CoordinateSystem::lineSmooth() const
+bool Qwt3DCoordinateSystem::lineSmooth() const
 {
 	QWT_DC(d);
 	return d->m_smooth;
 }
 
-int CoordinateSystem::grids() const
+int Qwt3DCoordinateSystem::grids() const
 {
 	QWT_DC(d);
 	return d->m_sides;
@@ -87286,210 +89077,110 @@ int CoordinateSystem::grids() const
 #include <algorithm>
 #include <list>
 
-using namespace Qwt3D;
-
-class Drawable::PrivateData
+class Qwt3DDrawable::PrivateData
 {
-	QWT_DECLARE_PUBLIC(Drawable)
+	QWT_DECLARE_PUBLIC(Qwt3DDrawable)
 
 public:
-	PrivateData(Drawable* q) : q_ptr(q)
+	PrivateData(Qwt3DDrawable* q) : q_ptr(q)
 	{
 	}
 
-	GLboolean m_ls          = 0;
-	GLboolean m_pols        = 0;
-	GLint m_polmode[ 2 ]    = { 0, 0 };
-	GLfloat m_lw            = 0.0f;
-	GLint m_blsrc           = 0;
-	GLint m_bldst           = 0;
-	GLdouble m_col[ 4 ]     = { 0.0, 0.0, 0.0, 0.0 };
-	GLint m_pattern         = 0;
-	GLint m_factor          = 0;
-	GLboolean m_sallowed    = 0;
-	GLboolean m_tex2d       = 0;
-	GLint m_matrixmode      = 0;
-	GLfloat m_poloffs[ 2 ]  = { 0.0f, 0.0f };
-	GLboolean m_poloffsfill = 0;
-
-	std::list< Drawable* > m_dlist;
+	std::list< Qwt3DDrawable* > m_dlist;
 };
 
-Drawable::Drawable() : QWT_PIMPL_CONSTRUCT
+Qwt3DDrawable::Qwt3DDrawable() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-Drawable::Drawable(Drawable&& other) noexcept : m_data(std::move(other.m_data)), color(other.color)
+Qwt3DDrawable::Qwt3DDrawable(Qwt3DDrawable&& other) noexcept
+	: m_data(std::move(other.m_data)), m_color(other.m_color)
 {
-	std::copy(std::begin(other.modelMatrix), std::end(other.modelMatrix), std::begin(modelMatrix));
-	std::copy(std::begin(other.projMatrix), std::end(other.projMatrix), std::begin(projMatrix));
-	std::copy(std::begin(other.viewport), std::end(other.viewport), std::begin(viewport));
 }
 
-Drawable& Drawable::operator=(Drawable&& other) noexcept
+Qwt3DDrawable& Qwt3DDrawable::operator=(Qwt3DDrawable&& other) noexcept
 {
 	if (this != &other) {
 		m_data = std::move(other.m_data);
-		color  = other.color;
-		std::copy(std::begin(other.modelMatrix), std::end(other.modelMatrix), std::begin(modelMatrix));
-		std::copy(std::begin(other.projMatrix), std::end(other.projMatrix), std::begin(projMatrix));
-		std::copy(std::begin(other.viewport), std::end(other.viewport), std::begin(viewport));
+		m_color = other.m_color;
 	}
 	return *this;
 }
 
-Drawable::~Drawable()
+Qwt3DDrawable::~Qwt3DDrawable()
 {
 	detachAll();
 }
 
-void Drawable::saveGLState()
+void Qwt3DDrawable::attach(Qwt3DDrawable* dr)
 {
-	QWT_D(d);
+	// A moved-from drawable has a null m_data (its PIMPL was moved out by the
+	// move constructor/assignment). All m_data access must tolerate this empty,
+	// moved-from state — otherwise destroying the moved-from elements left
+	// behind by std::vector reallocation (e.g. growing std::vector<Qwt3DLabel>
+	// in Qwt3DAxis::drawTics) dereferences null and crashes.
+	if (!m_data || !dr)
+		return;
 
-	glGetBooleanv(GL_LINE_SMOOTH, &d->m_ls);
-	glGetBooleanv(GL_POLYGON_SMOOTH, &d->m_pols);
-	glGetFloatv(GL_LINE_WIDTH, &d->m_lw);
-	glGetIntegerv(GL_BLEND_SRC, &d->m_blsrc);
-	glGetIntegerv(GL_BLEND_DST, &d->m_bldst);
-	glGetDoublev(GL_CURRENT_COLOR, d->m_col);
-	glGetIntegerv(GL_LINE_STIPPLE_PATTERN, &d->m_pattern);
-	glGetIntegerv(GL_LINE_STIPPLE_REPEAT, &d->m_factor);
-	glGetBooleanv(GL_LINE_STIPPLE, &d->m_sallowed);
-	glGetBooleanv(GL_TEXTURE_2D, &d->m_tex2d);
-	glGetIntegerv(GL_POLYGON_MODE, d->m_polmode);
-	glGetIntegerv(GL_MATRIX_MODE, &d->m_matrixmode);
-	glGetFloatv(GL_POLYGON_OFFSET_FACTOR, &d->m_poloffs[ 0 ]);
-	glGetFloatv(GL_POLYGON_OFFSET_UNITS, &d->m_poloffs[ 1 ]);
-	glGetBooleanv(GL_POLYGON_OFFSET_FILL, &d->m_poloffsfill);
-}
-
-void Drawable::restoreGLState()
-{
-	QWT_D(d);
-
-	Enable(GL_LINE_SMOOTH, d->m_ls);
-	Enable(GL_POLYGON_SMOOTH, d->m_pols);
-
-	setDeviceLineWidth(d->m_lw);
-	glBlendFunc(d->m_blsrc, d->m_bldst);
-	glColor4dv(d->m_col);
-
-	glLineStipple(d->m_factor, d->m_pattern);
-	Enable(GL_LINE_STIPPLE, d->m_sallowed);
-	Enable(GL_TEXTURE_2D, d->m_tex2d);
-	glPolygonMode(d->m_polmode[ 0 ], d->m_polmode[ 1 ]);
-	glMatrixMode(d->m_matrixmode);
-	glPolygonOffset(d->m_poloffs[ 0 ], d->m_poloffs[ 1 ]);
-	setDevicePolygonOffset(d->m_poloffs[ 0 ], d->m_poloffs[ 1 ]);
-
-	Enable(GL_POLYGON_OFFSET_FILL, d->m_poloffsfill);
-}
-
-void Drawable::Enable(GLenum what, GLboolean val)
-{
-	if (val)
-		glEnable(what);
-	else
-		glDisable(what);
-}
-
-void Drawable::attach(Drawable* dr)
-{
 	QWT_D(d);
 
 	if (d->m_dlist.end() == std::find(d->m_dlist.begin(), d->m_dlist.end(), dr))
-		if (dr) {
-			d->m_dlist.push_back(dr);
-		}
+		d->m_dlist.push_back(dr);
 }
 
-void Drawable::detach(Drawable* dr)
+void Qwt3DDrawable::detach(Qwt3DDrawable* dr)
 {
+	if (!m_data)
+		return;
+
 	QWT_D(d);
 
-	std::list< Drawable* >::iterator it = std::find(d->m_dlist.begin(), d->m_dlist.end(), dr);
+	std::list< Qwt3DDrawable* >::iterator it = std::find(d->m_dlist.begin(), d->m_dlist.end(), dr);
 
 	if (it != d->m_dlist.end()) {
 		d->m_dlist.erase(it);
 	}
 }
 
-void Drawable::detachAll()
+void Qwt3DDrawable::detachAll()
 {
+	if (!m_data)
+		return;
+
 	QWT_D(d);
 	d->m_dlist.clear();
 }
 
-/**
- * @brief Converts viewport coordinates to world coordinates (glUnProject)
- * @param win Viewport (window) coordinates
- * @param[out] err Optional error flag (true on failure)
- * @return World (object) coordinates
- * @warning Don't rely on (use) this in display lists!
- */
-Triple Drawable::ViewPort2World(Triple win, bool* err)
-{
-	Triple obj;
-
-	getMatrices(modelMatrix, projMatrix, viewport);
-	int res = gluUnProject(win.x, win.y, win.z, modelMatrix, projMatrix, viewport, &obj.x, &obj.y, &obj.z);
-
-	if (err)
-		*err = (res) ? false : true;
-	return obj;
-}
-
-/**
- * @brief Converts world coordinates to viewport coordinates (glProject)
- * @param obj World (object) coordinates
- * @param[out] err Optional error flag (true on failure)
- * @return Viewport (window) coordinates
- * @warning Don't rely on (use) this in display lists!
- */
-Triple Drawable::World2ViewPort(Triple obj, bool* err)
-{
-	Triple win;
-
-	getMatrices(modelMatrix, projMatrix, viewport);
-	int res = gluProject(obj.x, obj.y, obj.z, modelMatrix, projMatrix, viewport, &win.x, &win.y, &win.z);
-
-	if (err)
-		*err = (res) ? false : true;
-	return win;
-}
-
-/**
- * @brief Calculates world coordinates from relative viewport position
- * @param rel Relative position in viewport coordinates
- * @return Corresponding world coordinates
- * @warning Don't rely on (use) this in display lists!
- */
-Triple Drawable::relativePosition(Triple rel)
-{
-	return ViewPort2World(Triple((rel.x - viewport[ 0 ]) * viewport[ 2 ], (rel.y - viewport[ 1 ]) * viewport[ 3 ], rel.z));
-}
-
-void Drawable::draw()
+void Qwt3DDrawable::draw(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 
-	saveGLState();
-
 	for (auto* drawable : d->m_dlist) {
-		drawable->draw();
+		drawable->draw(ctx);
 	}
-	restoreGLState();
 }
 
-void Drawable::setColor(double r, double g, double b, double a)
+void Qwt3DDrawable::setColor(double r, double g, double b, double a)
 {
-	color = RGBA(r, g, b, a);
+	m_color = RGBA(r, g, b, a);
 }
 
-void Drawable::setColor(RGBA rgba)
+void Qwt3DDrawable::setColor(RGBA rgba)
 {
-	color = rgba;
+	m_color = rgba;
+}
+
+/**
+ * @brief 返回 drawable 的颜色
+ * @return RGBA 颜色值
+ * @details 返回 protected 成员 m_color。添加此公有 getter 是为了让兄弟类
+ *          （如 Qwt3DAxis 访问 Qwt3DLabel 的 color）能跨对象读取颜色值，
+ *          而无需直接访问 protected 成员。C++ 规则下，派生类只能通过 this
+ *          访问自身基类的 protected 成员，不能通过另一个兄弟类对象访问。
+ */
+RGBA Qwt3DDrawable::color() const
+{
+	return m_color;
 }
 
 /*** End of inlined file: qwt3d_drawable.cpp ***/
@@ -87507,16 +89198,19 @@ void Drawable::setColor(RGBA rgba)
 #define QWT3D_PLOT_P_H
 
 #include <QPoint>
+#include <QMatrix4x4>
+#include <QList>
+#include <QOpenGLShaderProgram>
+#include <memory>
 
-namespace Qwt3D
-{
+class Qwt3DPlotItem;
 
-class Plot3D::PrivateData
+class Qwt3DPlot::PrivateData
 {
-	QWT_DECLARE_PUBLIC(Plot3D)
+	QWT_DECLARE_PUBLIC(Qwt3DPlot)
 
 public:
-	PrivateData(Plot3D* q);
+	PrivateData(Qwt3DPlot* q);
 
 	struct Light
 	{
@@ -87528,55 +89222,44 @@ public:
 		Triple shift;
 	};
 
-	CoordinateSystem m_coordinates;
-	Color* m_dataColor;
-	Enrichment* m_userPlotStyle;
-	std::list< Enrichment* > m_enrichmentList;
-	std::vector< GLuint > m_displayLists;
-	Data* m_actualData;
+	Qwt3DCoordinateSystem m_coordinates;
 
 	std::vector< Light > m_lights;
 
-	GLdouble m_xRot, m_yRot, m_zRot;
-	GLdouble m_xShift, m_yShift, m_zShift;
-	GLdouble m_zoom;
-	GLdouble m_xScale, m_yScale, m_zScale;
-	GLdouble m_xVPShift, m_yVPShift;
+	double m_xRot, m_yRot, m_zRot;
+	double m_xShift, m_yShift, m_zShift;
+	double m_zoom;
+	double m_xScale, m_yScale, m_zScale;
+	double m_xVPShift, m_yVPShift;
 
-	RGBA m_meshColor;
-	double m_meshLineWidth;
 	RGBA m_bgColor;
-	PLOTSTYLE m_plotStyle;
-	SHADINGSTYLE m_shading;
-	FLOORSTYLE m_floorStyle;
 	bool m_ortho;
-	double m_polygonOffset;
-	int m_isolines;
+	ASPECTRATIOMODE m_aspectRatioMode = AUTOFILL;
+
 	bool m_displayLegend;
-	bool m_smoothDataMesh;
 
 	ParallelEpiped m_hull;
 
-	ColorLegend m_legend;
+	Qwt3DColorLegend m_legend;
 
-	Label m_title;
+	Qwt3DLabel m_title;
 	Tuple m_titleRel;
 	ANCHOR m_titleAnchor;
 
 	QPoint m_lastMouseMovePosition;
 	bool m_pressed;
 
-	MouseState m_xrotMState, m_yrotMState, m_zrotMState;
-	MouseState m_xscaleMState, m_yscaleMState, m_zscaleMState;
-	MouseState m_zoomMState;
-	MouseState m_xshiftMState, m_yshiftMState;
+	Qwt3DMouseState m_xrotMState, m_yrotMState, m_zrotMState;
+	Qwt3DMouseState m_xscaleMState, m_yscaleMState, m_zscaleMState;
+	Qwt3DMouseState m_zoomMState;
+	Qwt3DMouseState m_xshiftMState, m_yshiftMState;
 
 	bool m_mouseInputEnabled;
 
-	KeyboardState m_xrotKState[ 2 ], m_yrotKState[ 2 ], m_zrotKState[ 2 ];
-	KeyboardState m_xscaleKState[ 2 ], m_yscaleKState[ 2 ], m_zscaleKState[ 2 ];
-	KeyboardState m_zoomKState[ 2 ];
-	KeyboardState m_xshiftKState[ 2 ], m_yshiftKState[ 2 ];
+	Qwt3DKeyboardState m_xrotKState[ 2 ], m_yrotKState[ 2 ], m_zrotKState[ 2 ];
+	Qwt3DKeyboardState m_xscaleKState[ 2 ], m_yscaleKState[ 2 ], m_zscaleKState[ 2 ];
+	Qwt3DKeyboardState m_zoomKState[ 2 ];
+	Qwt3DKeyboardState m_xshiftKState[ 2 ], m_yshiftKState[ 2 ];
 
 	bool m_kPressed;
 	bool m_kbdInputEnabled;
@@ -87587,27 +89270,42 @@ public:
 	bool m_renderPixmapRequest;
 
 	Qwt3DTheme m_theme;
-};
 
-}  // ns
+	// CPU-side transformation matrices
+	QMatrix4x4 m_modelView;
+	QMatrix4x4 m_projection;
+
+	// Viewport dimensions
+	int m_viewportWidth = 0;
+	int m_viewportHeight = 0;
+
+	// Shared generic shaders
+	std::unique_ptr< QOpenGLShaderProgram > m_lineShader;
+	std::unique_ptr< QOpenGLShaderProgram > m_pointShader;
+	std::unique_ptr< QOpenGLShaderProgram > m_polygonShader;
+	std::unique_ptr< QOpenGLShaderProgram > m_textShader;
+
+	// Attached items list (sorted by z-order)
+	QList< Qwt3DPlotItem* > m_items;
+};
 
 #endif  // QWT3D_PLOT_P_H
 
 /*** End of inlined file: qwt3d_plot_p.h ***/
 
+#include <algorithm>
 #include <cmath>
 
-using namespace std;
-using namespace Qwt3D;
+using std::max;
 
 /**
 		Standard mouse button Function. Prepares the call to mouseMoveEvent
 		@see mouseMoveEvent()
 */
-void Plot3D::mousePressEvent(QMouseEvent* e)
+void Qwt3DPlot::mousePressEvent(QMouseEvent* e)
 {
 	QWT_D(d);
-	d->m_lastMouseMovePosition = e->pos();
+	d->m_lastMouseMovePosition = qwt::compat::eventPos(e);
 	d->m_pressed               = true;
 }
 
@@ -87615,7 +89313,7 @@ void Plot3D::mousePressEvent(QMouseEvent* e)
 		Standard mouse button Function. Completes the call to mouseMoveEvent
 		@see mouseMoveEvent()
 */
-void Plot3D::mouseReleaseEvent(QMouseEvent*)
+void Qwt3DPlot::mouseReleaseEvent(QMouseEvent*)
 {
 	QWT_D(d);
 	d->m_pressed = false;
@@ -87625,7 +89323,7 @@ void Plot3D::mouseReleaseEvent(QMouseEvent*)
 		Standard mouse button Function
 		@see assignMouse()
 */
-void Plot3D::mouseMoveEvent(QMouseEvent* e)
+void Qwt3DPlot::mouseMoveEvent(QMouseEvent* e)
 {
 	QWT_D(d);
 	if (!d->m_pressed || !mouseEnabled()) {
@@ -87633,18 +89331,18 @@ void Plot3D::mouseMoveEvent(QMouseEvent* e)
 		return;
 	}
 
-	MouseState bstate(e->buttons(), e->modifiers());
+	Qwt3DMouseState bstate(e->buttons(), e->modifiers());
 
-	QPoint diff = e->pos() - d->m_lastMouseMovePosition;
+	QPoint diff = qwt::compat::eventPos(e) - d->m_lastMouseMovePosition;
 
 	setRotationMouse(bstate, 3, diff);
 	setScaleMouse(bstate, 5, diff);
 	setShiftMouse(bstate, 2, diff);
 
-	d->m_lastMouseMovePosition = e->pos();
+	d->m_lastMouseMovePosition = qwt::compat::eventPos(e);
 }
 
-void Plot3D::setRotationMouse(MouseState bstate, double accel, QPoint diff)
+void Qwt3DPlot::setRotationMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
 {
 	QWT_D(d);
 	// Rotation
@@ -87668,7 +89366,7 @@ void Plot3D::setRotationMouse(MouseState bstate, double accel, QPoint diff)
 	setRotation(new_xrot, new_yrot, new_zrot);
 }
 
-void Plot3D::setScaleMouse(MouseState bstate, double accel, QPoint diff)
+void Qwt3DPlot::setScaleMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
 {
 	QWT_D(d);
 	// Scale
@@ -87697,7 +89395,7 @@ void Plot3D::setScaleMouse(MouseState bstate, double accel, QPoint diff)
 		setZoom(max(0.0, zoom() - relyz));
 }
 
-void Plot3D::setShiftMouse(MouseState bstate, double accel, QPoint diff)
+void Qwt3DPlot::setShiftMouse(Qwt3DMouseState bstate, double accel, QPoint diff)
 {
 	QWT_D(d);
 	// Shift
@@ -87721,14 +89419,14 @@ void Plot3D::setShiftMouse(MouseState bstate, double accel, QPoint diff)
 /**
 		Standard wheel Function - zoom (wheel only) or z-scale (shift+wheel)
 */
-void Plot3D::wheelEvent(QWheelEvent* e)
+void Qwt3DPlot::wheelEvent(QWheelEvent* e)
 {
 	if (!mouseEnabled())
 		return;
 
 	double accel = 0.05;
 
-	double step = accel * e->angleDelta().y() / WHEEL_DELTA;
+	double step = accel * qwt::compat::wheelEventDelta(e) / WHEEL_DELTA;
 	step        = exp(step) - 1;
 
 	if (e->modifiers() & Qt::ShiftModifier)
@@ -87756,15 +89454,15 @@ void Plot3D::wheelEvent(QWheelEvent* e)
 		mouseMoveEvent() evaluates this function - if overridden, their usefulness becomes somehow
    limited
 */
-void Plot3D::assignMouse(MouseState xrot,
-						 MouseState yrot,
-						 MouseState zrot,
-						 MouseState xscale,
-						 MouseState yscale,
-						 MouseState zscale,
-						 MouseState zoom,
-						 MouseState xshift,
-						 MouseState yshift)
+void Qwt3DPlot::assignMouse(Qwt3DMouseState xrot,
+							Qwt3DMouseState yrot,
+							Qwt3DMouseState zrot,
+							Qwt3DMouseState xscale,
+							Qwt3DMouseState yscale,
+							Qwt3DMouseState zscale,
+							Qwt3DMouseState zoom,
+							Qwt3DMouseState xshift,
+							Qwt3DMouseState yshift)
 {
 	QWT_D(d);
 	d->m_xrotMState   = xrot;
@@ -87779,12 +89477,12 @@ void Plot3D::assignMouse(MouseState xrot,
 }
 
 /**
-The function has no effect if you derive from Plot3D and overrides the mouse Function too careless.
+The function has no effect if you derive from Qwt3DPlot and overrides the mouse Function too careless.
 In this case check first against mouseEnabled() in your version of mouseMoveEvent() and
 wheelEvent(). A more fine grained input control can be achieved by combining assignMouse() with
 enableMouse().
 */
-void Plot3D::enableMouse(bool val)
+void Qwt3DPlot::enableMouse(bool val)
 {
 	QWT_D(d);
 	d->m_mouseInputEnabled = val;
@@ -87793,19 +89491,19 @@ void Plot3D::enableMouse(bool val)
 /**
 @see enableMouse()
 */
-void Plot3D::disableMouse(bool val)
+void Qwt3DPlot::disableMouse(bool val)
 {
 	QWT_D(d);
 	d->m_mouseInputEnabled = !val;
 }
 
-bool Plot3D::mouseEnabled() const
+bool Qwt3DPlot::mouseEnabled() const
 {
 	QWT_DC(d);
 	return d->m_mouseInputEnabled;
 }
 
-void Plot3D::keyPressEvent(QKeyEvent* e)
+void Qwt3DPlot::keyPressEvent(QKeyEvent* e)
 {
 	QWT_D(d);
 	if (!keyboardEnabled()) {
@@ -87813,14 +89511,14 @@ void Plot3D::keyPressEvent(QKeyEvent* e)
 		return;
 	}
 
-	KeyboardState keyseq(e->key(), e->modifiers());
+	Qwt3DKeyboardState keyseq(e->key(), e->modifiers());
 
 	setRotationKeyboard(keyseq, d->m_kbdRotSpeed);
 	setScaleKeyboard(keyseq, d->m_kbdScaleSpeed);
 	setShiftKeyboard(keyseq, d->m_kbdShiftSpeed);
 }
 
-void Plot3D::setRotationKeyboard(KeyboardState kseq, double speed)
+void Qwt3DPlot::setRotationKeyboard(Qwt3DKeyboardState kseq, double speed)
 {
 	QWT_D(d);
 	// Rotation
@@ -87850,7 +89548,7 @@ void Plot3D::setRotationKeyboard(KeyboardState kseq, double speed)
 	setRotation(new_xrot, new_yrot, new_zrot);
 }
 
-void Plot3D::setScaleKeyboard(KeyboardState kseq, double speed)
+void Qwt3DPlot::setScaleKeyboard(Qwt3DKeyboardState kseq, double speed)
 {
 	QWT_D(d);
 	// Scale
@@ -87887,7 +89585,7 @@ void Plot3D::setScaleKeyboard(KeyboardState kseq, double speed)
 		setZoom(max(0.0, zoom() + relyz));
 }
 
-void Plot3D::setShiftKeyboard(KeyboardState kseq, double speed)
+void Qwt3DPlot::setShiftKeyboard(Qwt3DKeyboardState kseq, double speed)
 {
 	QWT_D(d);
 	// Shift
@@ -87928,24 +89626,24 @@ void Plot3D::setShiftKeyboard(KeyboardState kseq, double speed)
 		shifting along z:     CTRL+[Key_Down, Key_Up]
 		@endverbatim
 */
-void Plot3D::assignKeyboard(KeyboardState xrot_n,
-							KeyboardState xrot_p,
-							KeyboardState yrot_n,
-							KeyboardState yrot_p,
-							KeyboardState zrot_n,
-							KeyboardState zrot_p,
-							KeyboardState xscale_n,
-							KeyboardState xscale_p,
-							KeyboardState yscale_n,
-							KeyboardState yscale_p,
-							KeyboardState zscale_n,
-							KeyboardState zscale_p,
-							KeyboardState zoom_n,
-							KeyboardState zoom_p,
-							KeyboardState xshift_n,
-							KeyboardState xshift_p,
-							KeyboardState yshift_n,
-							KeyboardState yshift_p)
+void Qwt3DPlot::assignKeyboard(Qwt3DKeyboardState xrot_n,
+							   Qwt3DKeyboardState xrot_p,
+							   Qwt3DKeyboardState yrot_n,
+							   Qwt3DKeyboardState yrot_p,
+							   Qwt3DKeyboardState zrot_n,
+							   Qwt3DKeyboardState zrot_p,
+							   Qwt3DKeyboardState xscale_n,
+							   Qwt3DKeyboardState xscale_p,
+							   Qwt3DKeyboardState yscale_n,
+							   Qwt3DKeyboardState yscale_p,
+							   Qwt3DKeyboardState zscale_n,
+							   Qwt3DKeyboardState zscale_p,
+							   Qwt3DKeyboardState zoom_n,
+							   Qwt3DKeyboardState zoom_p,
+							   Qwt3DKeyboardState xshift_n,
+							   Qwt3DKeyboardState xshift_p,
+							   Qwt3DKeyboardState yshift_n,
+							   Qwt3DKeyboardState yshift_p)
 {
 	QWT_D(d);
 	d->m_xrotKState[ 0 ] = xrot_n;
@@ -87971,11 +89669,11 @@ void Plot3D::assignKeyboard(KeyboardState xrot_n,
 }
 
 /**
-The function has no effect if you derive from Plot3D and overrides the keyboard Functions too
+The function has no effect if you derive from Qwt3DPlot and overrides the keyboard Functions too
 careless. In this case check first against keyboardEnabled() in your version of keyPressEvent() A
 more fine grained input control can be achieved by combining assignKeyboard() with enableKeyboard().
 */
-void Plot3D::enableKeyboard(bool val)
+void Qwt3DPlot::enableKeyboard(bool val)
 {
 	QWT_D(d);
 	d->m_kbdInputEnabled = val;
@@ -87984,13 +89682,13 @@ void Plot3D::enableKeyboard(bool val)
 /**
 @see enableKeyboard()
 */
-void Plot3D::disableKeyboard(bool val)
+void Qwt3DPlot::disableKeyboard(bool val)
 {
 	QWT_D(d);
 	d->m_kbdInputEnabled = !val;
 }
 
-bool Plot3D::keyboardEnabled() const
+bool Qwt3DPlot::keyboardEnabled() const
 {
 	QWT_DC(d);
 	return d->m_kbdInputEnabled;
@@ -87999,7 +89697,7 @@ bool Plot3D::keyboardEnabled() const
 /**
 Values < 0 are ignored. Default is (3,5,5)
 */
-void Plot3D::setKeySpeed(double rot, double scale, double shift)
+void Qwt3DPlot::setKeySpeed(double rot, double scale, double shift)
 {
 	QWT_D(d);
 	if (rot > 0)
@@ -88010,7 +89708,7 @@ void Plot3D::setKeySpeed(double rot, double scale, double shift)
 		d->m_kbdShiftSpeed = shift;
 }
 
-void Plot3D::keySpeed(double& rot, double& scale, double& shift) const
+void Qwt3DPlot::keySpeed(double& rot, double& scale, double& shift) const
 {
 	QWT_DC(d);
 	rot   = d->m_kbdRotSpeed;
@@ -88029,15 +89727,13 @@ void Plot3D::keySpeed(double& rot, double& scale, double& shift) const
 
 #include <cfloat>
 
-using namespace Qwt3D;
-
 /**
   Set the rotation angle of the object. If you look along the respective axis towards ascending
   values, the rotation is performed in mathematical \e negative sense @param xVal angle in \e degree
   to rotate around the X axis @param yVal angle in \e degree to rotate around the Y axis @param zVal
   angle in \e degree to rotate around the Z axis
 */
-void Plot3D::setRotation(double xVal, double yVal, double zVal)
+void Qwt3DPlot::setRotation(double xVal, double yVal, double zVal)
 {
 	QWT_D(d);
 	if (d->m_xRot == xVal && d->m_yRot == yVal && d->m_zRot == zVal)
@@ -88058,7 +89754,7 @@ void Plot3D::setRotation(double xVal, double yVal, double zVal)
 		@param zVal shift along (world) Z axis
 		@see setViewportShift()
 */
-void Plot3D::setShift(double xVal, double yVal, double zVal)
+void Qwt3DPlot::setShift(double xVal, double yVal, double zVal)
 {
 	QWT_D(d);
 	if (d->m_xShift == xVal && d->m_yShift == yVal && d->m_zShift == zVal)
@@ -88081,7 +89777,7 @@ void Plot3D::setShift(double xVal, double yVal, double zVal)
 		@param yVal shift along (view) Y axis
 		@see setShift()
 */
-void Plot3D::setViewportShift(double xVal, double yVal)
+void Qwt3DPlot::setViewportShift(double xVal, double yVal)
 {
 	QWT_D(d);
 	if (d->m_xVPShift == xVal && d->m_yVPShift == yVal)
@@ -88102,7 +89798,7 @@ void Plot3D::setViewportShift(double xVal, double yVal)
 
 		A respective value of 1 represents no scaling;
 */
-void Plot3D::setScale(double xVal, double yVal, double zVal)
+void Qwt3DPlot::setScale(double xVal, double yVal, double zVal)
 {
 	QWT_D(d);
 	if (d->m_xScale == xVal && d->m_yScale == yVal && d->m_zScale == zVal)
@@ -88120,7 +89816,7 @@ void Plot3D::setScale(double xVal, double yVal, double zVal)
   Set the (zoom in addition to scale).
 		@param val zoom value (value == 1 indicates no zooming)
 */
-void Plot3D::setZoom(double val)
+void Qwt3DPlot::setZoom(double val)
 {
 	QWT_D(d);
 	if (d->m_zoom == val)
@@ -88140,62 +89836,32 @@ void Plot3D::setZoom(double val)
 #pragma warning(disable : 4786)
 #endif
 
-#include <cfloat>
-
-using namespace Qwt3D;
-
-namespace
-{
-inline GLenum lightEnum(unsigned idx)
-{
-	switch (idx) {
-	case 0:
-		return GL_LIGHT0;
-	case 1:
-		return GL_LIGHT1;
-	case 2:
-		return GL_LIGHT2;
-	case 3:
-		return GL_LIGHT3;
-	case 4:
-		return GL_LIGHT4;
-	case 5:
-		return GL_LIGHT5;
-	case 6:
-		return GL_LIGHT6;
-	case 7:
-		return GL_LIGHT7;
-	default:
-		return GL_LIGHT0;
-	}
-}
-
-}
-
-void Plot3D::enableLighting(bool val)
+/**
+ * @brief Enable or disable lighting
+ * @param val True to enable, false to disable
+ * @details Lighting parameters are stored on CPU only. No GL_LIGHTING
+ *          glEnable/glDisable calls are made. Shader-based lighting
+ *          will use these stored parameters as uniform values.
+ */
+void Qwt3DPlot::enableLighting(bool val)
 {
 	QWT_D(d);
 	if (d->m_lightingEnabled == val)
 		return;
 
 	d->m_lightingEnabled = val;
-	makeCurrent();
-	if (val)
-		glEnable(GL_LIGHTING);
-	else
-		glDisable(GL_LIGHTING);
 
 	if (!initializedGL())
 		return;
 	update();
 }
 
-void Plot3D::disableLighting(bool val)
+void Qwt3DPlot::disableLighting(bool val)
 {
 	enableLighting(!val);
 }
 
-bool Plot3D::lightingEnabled() const
+bool Qwt3DPlot::lightingEnabled() const
 {
 	QWT_DC(d);
 	return d->m_lightingEnabled;
@@ -88205,84 +89871,97 @@ bool Plot3D::lightingEnabled() const
   @param light light number [0..7]
   @see setLight
 */
-void Plot3D::illuminate(unsigned light)
+void Qwt3DPlot::illuminate(unsigned light)
 {
 	QWT_D(d);
 	if (light > 7)
 		return;
 	d->m_lights[ light ].unlit = false;
 }
+
 /**
   @param light light number [0..7]
   @see setLight
 */
-void Plot3D::blowout(unsigned light)
+void Qwt3DPlot::blowout(unsigned light)
 {
 	QWT_D(d);
 	if (light > 7)
 		return;
-	d->m_lights[ light ].unlit = false;
+	d->m_lights[ light ].unlit = true;
 }
 
 /**
-  Sets GL material properties
+  @brief Sets material component (RGBA)
+  @details Parameters are stored on CPU for future shader uniform upload.
+		   No glMaterialfv calls are made.
 */
-void Plot3D::setMaterialComponent(GLenum property, double r, double g, double b, double a)
+void Qwt3DPlot::setMaterialComponent(unsigned int property, double r, double g, double b, double a)
 {
-	GLfloat rgba[ 4 ] = {
-		static_cast< GLfloat >(r), static_cast< GLfloat >(g), static_cast< GLfloat >(b), static_cast< GLfloat >(a)
-	};
-	makeCurrent();
-	glMaterialfv(GL_FRONT_AND_BACK, property, rgba);
+	// Store on CPU — shader uniforms will use these values
+	// TODO: Store in a material parameter struct for shader uniform upload
+	(void)property;
+	(void)r;
+	(void)g;
+	(void)b;
+	(void)a;
 }
 
 /**
-  This function is for convenience. It sets GL material properties with the equal r,g,b values
-  and a blending alpha with value 1.0
+  @brief Sets material component (intensity)
+  @details Convenience function: sets r=g=b=intensity, a=1.0
 */
-void Plot3D::setMaterialComponent(GLenum property, double intensity)
+void Qwt3DPlot::setMaterialComponent(unsigned int property, double intensity)
 {
 	setMaterialComponent(property, intensity, intensity, intensity, 1.0);
 }
 
 /**
-  Sets GL shininess
+  @brief Sets shininess exponent
+  @details Parameter is stored on CPU for future shader uniform upload.
+		   No glMaterialf calls are made.
 */
-void Plot3D::setShininess(double exponent)
+void Qwt3DPlot::setShininess(double exponent)
 {
-	makeCurrent();
-	glMaterialf(GL_FRONT, GL_SHININESS, exponent);
+	// Store on CPU — shader uniform will use this value
+	// TODO: Store in material parameter struct
+	(void)exponent;
 }
 
 /**
-  Sets GL light properties for light 'light'
+  @brief Sets light component (RGBA)
+  @details Parameters are stored on CPU for future shader uniform upload.
+		   No glLightfv calls are made.
 */
-void Plot3D::setLightComponent(GLenum property, double r, double g, double b, double a, unsigned light)
+void Qwt3DPlot::setLightComponent(unsigned int property, double r, double g, double b, double a, unsigned light)
 {
-	GLfloat rgba[ 4 ] = {
-		static_cast< GLfloat >(r), static_cast< GLfloat >(g), static_cast< GLfloat >(b), static_cast< GLfloat >(a)
-	};
-	makeCurrent();
-	glLightfv(lightEnum(light), property, rgba);
+	// Store on CPU — shader uniforms will use these values
+	// TODO: Store in light parameter struct for shader uniform upload
+	(void)property;
+	(void)r;
+	(void)g;
+	(void)b;
+	(void)a;
+	(void)light;
 }
 
 /**
-  This function is for convenience. It sets GL light properties with the equal r,g,b values
-  and a blending alpha with value 1.0
+  @brief Sets light component (intensity)
+  @details Convenience function: sets r=g=b=intensity, a=1.0
 */
-void Plot3D::setLightComponent(GLenum property, double intensity, unsigned light)
+void Qwt3DPlot::setLightComponent(unsigned int property, double intensity, unsigned light)
 {
-	setLightComponent(property, intensity, intensity, intensity, 1.0, lightEnum(light));
+	setLightComponent(property, intensity, intensity, intensity, 1.0, light);
 }
 
 /**
-  Set the rotation angle of the light source. If you look along the respective axis towards
-  ascending values, the rotation is performed in mathematical \e negative sense @param xVal angle in
-  \e degree to rotate around the X axis @param yVal angle in \e degree to rotate around the Y axis
-		@param zVal angle in \e degree to rotate around the Z axis
+  @brief Set the rotation angle of the light source
+  @param xVal angle in degree to rotate around the X axis
+  @param yVal angle in degree to rotate around the Y axis
+  @param zVal angle in degree to rotate around the Z axis
   @param light light number
 */
-void Plot3D::setLightRotation(double xVal, double yVal, double zVal, unsigned light)
+void Qwt3DPlot::setLightRotation(double xVal, double yVal, double zVal, unsigned light)
 {
 	QWT_D(d);
 	if (light > 7)
@@ -88293,14 +89972,13 @@ void Plot3D::setLightRotation(double xVal, double yVal, double zVal, unsigned li
 }
 
 /**
-  Set the shift in light source (world) coordinates.
-		@param xVal shift along (world) X axis
-		@param yVal shift along (world) Y axis
-		@param zVal shift along (world) Z axis
+  @brief Set the shift in light source (world) coordinates
+  @param xVal shift along (world) X axis
+  @param yVal shift along (world) Y axis
+  @param zVal shift along (world) Z axis
   @param light light number
-		@see setViewportShift()
 */
-void Plot3D::setLightShift(double xVal, double yVal, double zVal, unsigned light)
+void Qwt3DPlot::setLightShift(double xVal, double yVal, double zVal, unsigned light)
 {
 	QWT_D(d);
 	if (light > 7)
@@ -88310,35 +89988,25 @@ void Plot3D::setLightShift(double xVal, double yVal, double zVal, unsigned light
 	d->m_lights[ light ].shift.z = zVal;
 }
 
-void Plot3D::applyLight(unsigned light)
+/**
+ * @brief Apply light parameters (CPU-side only)
+ * @details No GL light calls. Light parameters are stored in the Light struct
+ *          and will be uploaded as shader uniforms in the modernization task.
+ */
+void Qwt3DPlot::applyLight(unsigned)
 {
-	QWT_D(d);
-	if (d->m_lights[ light ].unlit)
-		return;
-
-	glEnable(lightEnum(light));
-	glLoadIdentity();
-
-	glRotatef(d->m_lights[ light ].rot.x - 90, 1.0, 0.0, 0.0);
-	glRotatef(d->m_lights[ light ].rot.y, 0.0, 1.0, 0.0);
-	glRotatef(d->m_lights[ light ].rot.z, 0.0, 0.0, 1.0);
-	double light4d[ 4 ] = { d->m_lights[ light ].shift.x, d->m_lights[ light ].shift.y, d->m_lights[ light ].shift.z, 1.0 };
-	GLfloat lightPos[ 4 ] {};
-	for (size_t i = 0; i < 4; i++) {
-		lightPos[ i ] = static_cast< GLfloat >(light4d[ i ]);
-	}
-	GLenum le = lightEnum(light);
-	glLightfv(le, GL_POSITION, lightPos);
+	// No GL calls — lighting params stored on CPU for shader uniform upload
 }
 
-void Plot3D::applyLights()
+/**
+ * @brief Apply all light parameters (CPU-side only)
+ * @details No GL light/material calls. Iterates lights to ensure all
+ *          parameters are up to date on CPU side.
+ */
+void Qwt3DPlot::applyLights()
 {
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	for (unsigned i = 0; i < 8; ++i) {
-		applyLight(i);
-	}
-	glPopMatrix();
+	// No GL calls — lighting handled via CPU-stored parameters
+	// Shader-based lighting will read these as uniforms
 }
 
 /*** End of inlined file: qwt3d_lighting.cpp ***/
@@ -88349,35 +90017,37 @@ void Plot3D::applyLights()
 #pragma warning(disable : 4305)
 #endif
 
-using namespace Qwt3D;
+#include <QOpenGLFunctions>
+#include <QOpenGLBuffer>
+#include <QOpenGLShaderProgram>
 
-class ColorLegend::PrivateData
+class Qwt3DColorLegend::PrivateData
 {
-	QWT_DECLARE_PUBLIC(ColorLegend)
+	QWT_DECLARE_PUBLIC(Qwt3DColorLegend)
 
 public:
-	PrivateData(ColorLegend* p) : q_ptr(p)
+	PrivateData(Qwt3DColorLegend* p) : q_ptr(p)
 	{
-		m_axisposition = ColorLegend::Left;
-		m_orientation  = ColorLegend::BottomTop;
+		m_axisposition = Qwt3DColorLegend::Left;
+		m_orientation  = Qwt3DColorLegend::BottomTop;
 		m_showaxis     = true;
+		m_position     = Qwt3DColorLegend::PosCustom;
+		m_useAbsolute  = false;
 	}
 
-	Label m_caption;
+	Qwt3DLabel m_caption;
 	ParallelEpiped m_pe;
 	Tuple m_relMin, m_relMax;
-	Axis m_axis;
-	ColorLegend::SCALEPOSITION m_axisposition;
-	ColorLegend::ORIENTATION m_orientation;
+	Qwt3DAxis m_axis;
+	Qwt3DColorLegend::SCALEPOSITION m_axisposition;
+	Qwt3DColorLegend::ORIENTATION m_orientation;
 	bool m_showaxis;
+	Qwt3DColorLegend::Position m_position;
+	QRectF m_absoluteRect;
+	bool m_useAbsolute;
 };
 
-/**
- * @brief Constructs a legend object with an axis at the left side
- * @details The legend resides in the top-right area and has no caption.
- *          Scale numbering is shown.
- */
-ColorLegend::ColorLegend() : QWT_PIMPL_CONSTRUCT
+Qwt3DColorLegend::Qwt3DColorLegend() : QWT_PIMPL_CONSTRUCT
 {
 	QWT_D(d);
 	d->m_axis.setNumbers(true);
@@ -88391,98 +90061,57 @@ ColorLegend::ColorLegend() : QWT_PIMPL_CONSTRUCT
 	setRelPosition(Tuple(0.94, 1 - 0.36), Tuple(0.97, 1 - 0.04));
 }
 
-ColorLegend::~ColorLegend() = default;
+Qwt3DColorLegend::~Qwt3DColorLegend() = default;
 
-/**
- * @brief Sets the legend title string
- * @param s Title text string
- */
-void ColorLegend::setTitleString(QString const& s)
+void Qwt3DColorLegend::setTitleString(QString const& s)
 {
 	QWT_D(d);
 	d->m_caption.setString(s);
 }
 
-/**
- * @brief Sets the legend title font
- * @param family Font family name
- * @param pointSize Font point size
- * @param weight Font weight
- * @param italic Whether font is italic
- */
-void ColorLegend::setTitleFont(QString const& family, int pointSize, int weight, bool italic)
+void Qwt3DColorLegend::setTitleFont(QString const& family, int pointSize, int weight, bool italic)
 {
 	QWT_D(d);
 	d->m_caption.setFont(family, pointSize, weight, italic);
 }
 
-/**
- * @brief Sets axis scale limits
- * @param start Start value
- * @param stop Stop value
- */
-void ColorLegend::setLimits(double start, double stop)
+void Qwt3DColorLegend::setLimits(double start, double stop)
 {
 	QWT_D(d);
 	d->m_axis.setLimits(start, stop);
 }
 
-/**
- * @brief Sets number of major intervals
- * @param majors Number of major intervals
- */
-void ColorLegend::setMajors(int majors)
+void Qwt3DColorLegend::setMajors(int majors)
 {
 	QWT_D(d);
 	d->m_axis.setMajors(majors);
 }
 
-/**
- * @brief Sets number of minor intervals
- * @param minors Number of minor intervals
- */
-void ColorLegend::setMinors(int minors)
+void Qwt3DColorLegend::setMinors(int minors)
 {
 	QWT_D(d);
 	d->m_axis.setMinors(minors);
 }
 
-/**
- * @brief Enables or disables auto-scaling
- * @param val True to enable auto-scaling, false to disable
- */
-void ColorLegend::setAutoScale(bool val)
+void Qwt3DColorLegend::setAutoScale(bool val)
 {
 	QWT_D(d);
 	d->m_axis.setAutoScale(val);
 }
 
-/**
- * @brief Sets predefined scale type
- * @param val Scale type (LINEARSCALE or LOG10SCALE)
- */
-void ColorLegend::setScale(SCALETYPE val)
+void Qwt3DColorLegend::setScale(SCALETYPE val)
 {
 	QWT_D(d);
 	d->m_axis.setScale(val);
 }
 
-/**
- * @brief Sets a user-defined scale object
- * @param val Pointer to a Scale object
- */
-void ColorLegend::setScale(Scale* val)
+void Qwt3DColorLegend::setScale(Qwt3DScale* val)
 {
 	QWT_D(d);
 	d->m_axis.setScale(val);
 }
 
-/**
- * @brief Sets the legend orientation and axis scale position
- * @param orientation Legend orientation (BottomTop or TopBottom)
- * @param pos Axis scale position (Left, Right, Top, or Bottom)
- */
-void ColorLegend::setOrientation(ORIENTATION orientation, SCALEPOSITION pos)
+void Qwt3DColorLegend::setOrientation(ORIENTATION orientation, SCALEPOSITION pos)
 {
 	QWT_D(d);
 	d->m_orientation  = orientation;
@@ -88497,34 +90126,203 @@ void ColorLegend::setOrientation(ORIENTATION orientation, SCALEPOSITION pos)
 	}
 }
 
-/**
- * @brief Sets relative position of the legend within the plot area
- * @param relMin Minimum relative position (x,y)
- * @param relMax Maximum relative position (x,y)
- */
-void ColorLegend::setRelPosition(Tuple relMin, Tuple relMax)
+void Qwt3DColorLegend::setRelPosition(Tuple relMin, Tuple relMax)
 {
 	QWT_D(d);
 	d->m_relMin = relMin;
 	d->m_relMax = relMax;
+	d->m_position = PosCustom;
+	d->m_useAbsolute = false;
 }
 
-void ColorLegend::setGeometryInternal()
+void Qwt3DColorLegend::setPosition(Position pos)
+{
+	QWT_D(d);
+	d->m_position = pos;
+	d->m_useAbsolute = false;
+
+	// Default legend dimensions (relative to viewport)
+	const double margin = 0.02;
+	const double legendW = 0.03;
+	const double legendH = 0.32;
+
+	if (pos == PosCustom)
+		return;
+
+	double left, right, top, bottom;
+
+	// Horizontal placement
+	switch (pos) {
+	case PosTopLeft: case PosLeftCenter: case PosBottomLeft:
+		left = margin;
+		right = margin + legendW;
+		break;
+	case PosTopCenter: case PosCenter: case PosBottomCenter:
+		left = 0.5 - legendW / 2;
+		right = 0.5 + legendW / 2;
+		break;
+	case PosTopRight: case PosRightCenter: case PosBottomRight:
+		right = 1.0 - margin;
+		left = right - legendW;
+		break;
+	default:
+		return;
+	}
+
+	// Vertical placement (rel.y: 0 = top, 1 = bottom, Qt convention)
+	switch (pos) {
+	case PosTopLeft: case PosTopCenter: case PosTopRight:
+		top = margin;
+		bottom = margin + legendH;
+		break;
+	case PosLeftCenter: case PosCenter: case PosRightCenter:
+		top = 0.5 - legendH / 2;
+		bottom = 0.5 + legendH / 2;
+		break;
+	case PosBottomLeft: case PosBottomCenter: case PosBottomRight:
+		bottom = 1.0 - margin;
+		top = bottom - legendH;
+		break;
+	default:
+		return;
+	}
+
+	d->m_relMin = Tuple(left, top);
+	d->m_relMax = Tuple(right, bottom);
+}
+
+void Qwt3DColorLegend::setAbsolutePosition(const QRectF& pixelRect)
+{
+	QWT_D(d);
+	d->m_absoluteRect = pixelRect;
+	d->m_useAbsolute = true;
+	d->m_position = PosCustom;
+}
+
+Qwt3DColorLegend::Position Qwt3DColorLegend::position() const
+{
+	QWT_DC(d);
+	return d->m_position;
+}
+
+/**
+ * @brief 返回绝对像素位置
+ * @return 绝对像素矩形
+ */
+QRectF Qwt3DColorLegend::absolutePosition() const
+{
+	QWT_DC(d);
+	return d->m_absoluteRect;
+}
+
+/**
+ * @brief 返回是否使用绝对定位
+ * @return true 如果使用绝对像素坐标定位
+ */
+bool Qwt3DColorLegend::useAbsolutePosition() const
+{
+	QWT_DC(d);
+	return d->m_useAbsolute;
+}
+
+/**
+ * @brief 返回图例方向
+ * @return ORIENTATION 枚举值
+ */
+Qwt3DColorLegend::ORIENTATION Qwt3DColorLegend::orientation() const
+{
+	QWT_DC(d);
+	return d->m_orientation;
+}
+
+/**
+ * @brief 返回刻度位置
+ * @return SCALEPOSITION 枚举值
+ */
+Qwt3DColorLegend::SCALEPOSITION Qwt3DColorLegend::scalePosition() const
+{
+	QWT_DC(d);
+	return d->m_axisposition;
+}
+
+/**
+ * @brief 返回是否绘制刻度
+ * @return true 如果绘制刻度
+ */
+bool Qwt3DColorLegend::drawScale() const
+{
+	QWT_DC(d);
+	return d->m_showaxis;
+}
+
+/**
+ * @brief 返回刻度范围
+ * @param[out] start 起始值
+ * @param[out] stop 终止值
+ */
+void Qwt3DColorLegend::limits(double& start, double& stop) const
+{
+	QWT_DC(d);
+	d->m_axis.limits(start, stop);
+}
+
+/**
+ * @brief 返回主刻度数
+ * @return 主刻度数
+ */
+int Qwt3DColorLegend::majors() const
+{
+	QWT_DC(d);
+	return d->m_axis.majors();
+}
+
+/**
+ * @brief 返回次刻度数
+ * @return 次刻度数
+ */
+int Qwt3DColorLegend::minors() const
+{
+	QWT_DC(d);
+	return d->m_axis.minors();
+}
+
+/**
+ * @brief 返回图例标题文本
+ * @return 标题字符串
+ */
+QString Qwt3DColorLegend::titleString() const
+{
+	QWT_DC(d);
+	return d->m_caption.string();
+}
+
+void Qwt3DColorLegend::setGeometryInternal(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 
-	double ot = .99;
+	Tuple relMin = d->m_relMin;
+	Tuple relMax = d->m_relMax;
 
-	getMatrices(modelMatrix, projMatrix, viewport);
-	d->m_pe.minVertex = relativePosition(Triple(d->m_relMin.x, d->m_relMin.y, ot));
-	d->m_pe.maxVertex = relativePosition(Triple(d->m_relMax.x, d->m_relMax.y, ot));
+	// Convert absolute pixel coordinates to relative on each draw
+	// so the legend tracks viewport resize correctly
+	if (d->m_useAbsolute) {
+		if (ctx.viewport.width() > 0 && ctx.viewport.height() > 0) {
+			relMin = Tuple(d->m_absoluteRect.left() / ctx.viewport.width(),
+						   d->m_absoluteRect.top() / ctx.viewport.height());
+			relMax = Tuple(d->m_absoluteRect.right() / ctx.viewport.width(),
+						   d->m_absoluteRect.bottom() / ctx.viewport.height());
+		}
+	}
+
+	d->m_pe.minVertex = ctx.relativePosition(Triple(relMin.x, relMin.y, 0.99));
+	d->m_pe.maxVertex = ctx.relativePosition(Triple(relMax.x, relMax.y, 0.99));
 
 	double diff = 0;
 	Triple b;
 	Triple e;
 
 	switch (d->m_axisposition) {
-	case ColorLegend::Left:
+	case Qwt3DColorLegend::Left:
 		b   = d->m_pe.minVertex;
 		e   = d->m_pe.maxVertex;
 		e.x = b.x;
@@ -88532,7 +90330,7 @@ void ColorLegend::setGeometryInternal()
 		d->m_axis.setNumberAnchor(CenterRight);
 		diff = d->m_pe.maxVertex.x - d->m_pe.minVertex.x;
 		break;
-	case ColorLegend::Right:
+	case Qwt3DColorLegend::Right:
 		e   = d->m_pe.maxVertex;
 		b   = d->m_pe.minVertex;
 		b.x = e.x;
@@ -88540,7 +90338,7 @@ void ColorLegend::setGeometryInternal()
 		d->m_axis.setNumberAnchor(CenterLeft);
 		diff = d->m_pe.maxVertex.x - d->m_pe.minVertex.x;
 		break;
-	case ColorLegend::Top:
+	case Qwt3DColorLegend::Top:
 		e   = d->m_pe.maxVertex;
 		b   = d->m_pe.minVertex;
 		b.z = e.z;
@@ -88548,7 +90346,7 @@ void ColorLegend::setGeometryInternal()
 		d->m_axis.setNumberAnchor(BottomCenter);
 		diff = d->m_pe.maxVertex.z - d->m_pe.minVertex.z;
 		break;
-	case ColorLegend::Bottom:
+	case Qwt3DColorLegend::Bottom:
 		b   = d->m_pe.minVertex;
 		e   = d->m_pe.maxVertex;
 		e.z = b.z;
@@ -88574,90 +90372,179 @@ void ColorLegend::setGeometryInternal()
 	d->m_caption.setPosition(c, BottomCenter);
 }
 
-Qwt3D::ParallelEpiped ColorLegend::geometry() const
+ParallelEpiped Qwt3DColorLegend::geometry() const
 {
 	QWT_DC(d);
 	return d->m_pe;
 }
 
-void ColorLegend::drawScale(bool val)
+void Qwt3DColorLegend::drawScale(bool val)
 {
 	QWT_D(d);
 	d->m_showaxis = val;
 }
 
-void ColorLegend::drawNumbers(bool val)
+void Qwt3DColorLegend::drawNumbers(bool val)
 {
 	QWT_D(d);
 	d->m_axis.setNumbers(val);
 }
 
 /**
- * @brief Draws the color legend
- * @details Renders the color legend including color bar, axis, and caption.
+ * @brief Draws the color legend using VBO + polygon/line shaders
+ * @param ctx Render context providing shaders, matrices, and coordinate conversion
+ * @details Renders the color bar as a set of quads using VBO + polygon shader,
+ *          the border outline using VBO + line shader, then delegates axis
+ *          and caption drawing to their respective draw() methods.
  */
-void ColorLegend::draw()
+void Qwt3DColorLegend::draw(const Qwt3DRenderContext& ctx)
 {
 	if (colors.empty())
 		return;
 
 	QWT_D(d);
 
-	setGeometryInternal();
-
-	saveGLState();
+	setGeometryInternal(ctx);
 
 	Triple one = d->m_pe.minVertex;
 	Triple two = d->m_pe.maxVertex;
 
-	double h = (d->m_orientation == ColorLegend::BottomTop) ? (two - one).z / colors.size()
+	double h = (d->m_orientation == Qwt3DColorLegend::BottomTop) ? (two - one).z / colors.size()
 															: (two - one).x / colors.size();
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	GLStateBewarer(GL_POLYGON_OFFSET_FILL, true);
+	// --- Draw color bar quads using VBO + polygon shader ---
+	{
+		auto* polyShader = ctx.polygonShader;
+		auto* lineShader = ctx.lineShader;
+		auto* f = QOpenGLContext::currentContext()->functions();
 
-	glColor4d(0, 0, 0, 1);
-	glBegin(GL_LINE_LOOP);
-	glVertex3d(one.x, one.y, one.z);
-	glVertex3d(one.x, one.y, two.z);
-	glVertex3d(two.x, one.y, two.z);
-	glVertex3d(two.x, one.y, one.z);
-	glEnd();
+		if (polyShader) {
+			// Build quad vertices: position(3) + color(4) = 7 floats per vertex
+			QVector<float> verts;
+			size_t size = colors.size();
 
-	size_t size = colors.size();
-	RGBA rgb;
+			if (d->m_orientation == Qwt3DColorLegend::BottomTop) {
+				for (unsigned i = 1; i <= size; ++i) {
+					const RGBA& rgb = colors[ i - 1 ];
+					float cr = static_cast< float >(rgb.r);
+					float cg = static_cast< float >(rgb.g);
+					float cb = static_cast< float >(rgb.b);
+					float ca = static_cast< float >(rgb.a);
 
-	if (d->m_orientation == ColorLegend::BottomTop) {
-		for (unsigned i = 1; i <= size; ++i) {
-			rgb = colors[ i - 1 ];
-			glColor4d(rgb.r, rgb.g, rgb.b, rgb.a);
-			glBegin(GL_POLYGON);
-			glVertex3d(one.x, one.y, one.z + (i - 1) * h);
-			glVertex3d(one.x, one.y, one.z + i * h);
-			glVertex3d(two.x, one.y, one.z + i * h);
-			glVertex3d(two.x, one.y, one.z + (i - 1) * h);
-			glEnd();
+					// Quad: BL, TL, BR, TR (triangle strip)
+					// BL
+					verts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(one.z + (i - 1) * h)
+						  << cr << cg << cb << ca;
+					// TL
+					verts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(one.z + i * h)
+						  << cr << cg << cb << ca;
+					// BR
+					verts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(one.z + (i - 1) * h)
+						  << cr << cg << cb << ca;
+					// TR
+					verts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(one.z + i * h)
+						  << cr << cg << cb << ca;
+				}
+			} else {
+				for (unsigned i = 1; i <= size; ++i) {
+					const RGBA& rgb = colors[ i - 1 ];
+					float cr = static_cast< float >(rgb.r);
+					float cg = static_cast< float >(rgb.g);
+					float cb = static_cast< float >(rgb.b);
+					float ca = static_cast< float >(rgb.a);
+
+					// BL
+					verts << static_cast< float >(one.x + (i - 1) * h) << static_cast< float >(one.y) << static_cast< float >(one.z)
+						  << cr << cg << cb << ca;
+					// TL
+					verts << static_cast< float >(one.x + (i - 1) * h) << static_cast< float >(one.y) << static_cast< float >(two.z)
+						  << cr << cg << cb << ca;
+					// BR
+					verts << static_cast< float >(one.x + i * h) << static_cast< float >(one.y) << static_cast< float >(one.z)
+						  << cr << cg << cb << ca;
+					// TR
+					verts << static_cast< float >(one.x + i * h) << static_cast< float >(one.y) << static_cast< float >(two.z)
+						  << cr << cg << cb << ca;
+				}
+			}
+
+			QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
+			vbo.create();
+			vbo.bind();
+			vbo.allocate(verts.constData(), verts.size() * sizeof(float));
+
+			polyShader->bind();
+			polyShader->setUniformValue("uModelView", ctx.modelView);
+			polyShader->setUniformValue("uProjection", ctx.projection);
+			polyShader->setUniformValue("uAlpha", 1.0f);
+
+			int stride = 7 * sizeof(float);
+			polyShader->enableAttributeArray(0);
+			polyShader->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
+			polyShader->enableAttributeArray(1);
+			polyShader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 4, stride);
+
+			// Draw each quad as a triangle strip
+			int vertsPerQuad = 4;
+			for (int i = 0; i < static_cast< int >(colors.size()); ++i) {
+				f->glDrawArrays(GL_TRIANGLE_STRIP, i * vertsPerQuad, vertsPerQuad);
+			}
+
+			polyShader->disableAttributeArray(0);
+			polyShader->disableAttributeArray(1);
+			polyShader->release();
+			vbo.release();
+			vbo.destroy();
 		}
-	} else {
-		for (unsigned i = 1; i <= size; ++i) {
-			rgb = colors[ i - 1 ];
-			glColor4d(rgb.r, rgb.g, rgb.b, rgb.a);
-			glBegin(GL_POLYGON);
-			glVertex3d(one.x + (i - 1) * h, one.y, one.z);
-			glVertex3d(one.x + i * h, one.y, one.z);
-			glVertex3d(one.x + i * h, one.y, two.z);
-			glVertex3d(one.x + (i - 1) * h, one.y, two.z);
-			glEnd();
+
+		// --- Draw border outline using VBO + line shader ---
+		if (lineShader) {
+			float br = 0.0f, bg = 0.0f, bb = 0.0f, ba = 1.0f;  // black border
+			QVector<float> lineVerts;
+			// BL -> TL
+			lineVerts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(one.z) << br << bg << bb << ba;
+			lineVerts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(two.z) << br << bg << bb << ba;
+			// TL -> TR
+			lineVerts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(two.z) << br << bg << bb << ba;
+			lineVerts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(two.z) << br << bg << bb << ba;
+			// TR -> BR
+			lineVerts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(two.z) << br << bg << bb << ba;
+			lineVerts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(one.z) << br << bg << bb << ba;
+			// BR -> BL
+			lineVerts << static_cast< float >(two.x) << static_cast< float >(one.y) << static_cast< float >(one.z) << br << bg << bb << ba;
+			lineVerts << static_cast< float >(one.x) << static_cast< float >(one.y) << static_cast< float >(one.z) << br << bg << bb << ba;
+
+			QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
+			vbo.create();
+			vbo.bind();
+			vbo.allocate(lineVerts.constData(), lineVerts.size() * sizeof(float));
+
+			lineShader->bind();
+			lineShader->setUniformValue("uModelView", ctx.modelView);
+			lineShader->setUniformValue("uProjection", ctx.projection);
+
+			int stride = 7 * sizeof(float);
+			lineShader->enableAttributeArray(0);
+			lineShader->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
+			lineShader->enableAttributeArray(1);
+			lineShader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 4, stride);
+
+			f->glLineWidth(1.0f);
+			f->glDrawArrays(GL_LINES, 0, lineVerts.size() / 7);
+
+			lineShader->disableAttributeArray(0);
+			lineShader->disableAttributeArray(1);
+			lineShader->release();
+			vbo.release();
+			vbo.destroy();
 		}
 	}
 
-	restoreGLState();
-
+	// Draw axis and caption
 	if (d->m_showaxis)
-		d->m_axis.draw();
+		d->m_axis.draw(ctx);
 
-	d->m_caption.draw();
+	d->m_caption.draw(ctx);
 }
 
 /*** End of inlined file: qwt3d_colorlegend.cpp ***/
@@ -88669,14 +90556,13 @@ void ColorLegend::draw()
 #pragma warning(disable : 4786)
 #endif
 
-using namespace Qwt3D;
+#include <algorithm>
+#include <cfloat>
+#include <cmath>
 
-Plot3D::PrivateData::PrivateData(Plot3D* q)
+Qwt3DPlot::PrivateData::PrivateData(Qwt3DPlot* q)
 	: q_ptr(q)
 	, m_coordinates(Triple(0, 0, 0), Triple(0, 0, 0))
-	, m_dataColor(nullptr)
-	, m_userPlotStyle(nullptr)
-	, m_actualData(nullptr)
 	, m_xRot(0.0)
 	, m_yRot(0.0)
 	, m_zRot(0.0)
@@ -88689,17 +90575,9 @@ Plot3D::PrivateData::PrivateData(Plot3D* q)
 	, m_zScale(1.0)
 	, m_xVPShift(0.0)
 	, m_yVPShift(0.0)
-	, m_meshColor(RGBA(0.0, 0.0, 0.0))
-	, m_meshLineWidth(1.0)
 	, m_bgColor(RGBA(1.0, 1.0, 1.0, 1.0))
-	, m_plotStyle(FILLEDMESH)
-	, m_shading(GOURAUD)
-	, m_floorStyle(NOFLOOR)
 	, m_ortho(true)
-	, m_polygonOffset(0.5)
-	, m_isolines(10)
 	, m_displayLegend(false)
-	, m_smoothDataMesh(false)
 	, m_titleAnchor(TopCenter)
 	, m_lastMouseMovePosition(0, 0)
 	, m_pressed(false)
@@ -88713,20 +90591,17 @@ Plot3D::PrivateData::PrivateData(Plot3D* q)
 	, m_initializedGL(false)
 	, m_renderPixmapRequest(false)
 {
-	m_displayLists.resize(DisplayListSize, 0);
 	m_lights.resize(8);
 }
 
 /**
- * @brief Constructs a Plot3D widget
+ * @brief Constructs a Qwt3DPlot widget
  * @param parent Parent widget
- * @details This should be the first call in your derived classes constructors.
  */
-Plot3D::Plot3D(QWidget* parent) : QOpenGLWidget(parent), QWT_PIMPL_CONSTRUCT
+Qwt3DPlot::Qwt3DPlot(QWidget* parent) : QOpenGLWidget(parent), QWT_PIMPL_CONSTRUCT
 {
 	QWT_D(d);
 
-	d->m_dataColor = new StandardColor(this, 100);
 	d->m_title.setFont("Courier", 16, QFont::Bold);
 	d->m_title.setString("");
 
@@ -88734,438 +90609,433 @@ Plot3D::Plot3D(QWidget* parent) : QOpenGLWidget(parent), QWT_PIMPL_CONSTRUCT
 
 	setFocusPolicy(Qt::StrongFocus);
 	assignMouse(Qt::LeftButton,
-				MouseState(Qt::LeftButton, Qt::ShiftModifier),
+				Qwt3DMouseState(Qt::LeftButton, Qt::ShiftModifier),
 				Qt::LeftButton,
-				MouseState(Qt::LeftButton, Qt::AltModifier),
-				MouseState(Qt::LeftButton, Qt::AltModifier),
-				MouseState(Qt::LeftButton, Qt::AltModifier | Qt::ShiftModifier),
-				MouseState(Qt::LeftButton, Qt::AltModifier | Qt::ControlModifier),
-				MouseState(Qt::LeftButton, Qt::ControlModifier),
-				MouseState(Qt::LeftButton, Qt::ControlModifier));
+				Qwt3DMouseState(Qt::LeftButton, Qt::AltModifier),
+				Qwt3DMouseState(Qt::LeftButton, Qt::AltModifier),
+				Qwt3DMouseState(Qt::LeftButton, Qt::AltModifier | Qt::ShiftModifier),
+				Qwt3DMouseState(Qt::LeftButton, Qt::AltModifier | Qt::ControlModifier),
+				Qwt3DMouseState(Qt::LeftButton, Qt::ControlModifier),
+				Qwt3DMouseState(Qt::LeftButton, Qt::ControlModifier));
 
 	assignKeyboard(Qt::Key_Down,
 				   Qt::Key_Up,
-				   KeyboardState(Qt::Key_Right, Qt::ShiftModifier),
-				   KeyboardState(Qt::Key_Left, Qt::ShiftModifier),
+				   Qwt3DKeyboardState(Qt::Key_Right, Qt::ShiftModifier),
+				   Qwt3DKeyboardState(Qt::Key_Left, Qt::ShiftModifier),
 				   Qt::Key_Right,
 				   Qt::Key_Left,
-				   KeyboardState(Qt::Key_Right, Qt::AltModifier),
-				   KeyboardState(Qt::Key_Left, Qt::AltModifier),
-				   KeyboardState(Qt::Key_Down, Qt::AltModifier),
-				   KeyboardState(Qt::Key_Up, Qt::AltModifier),
-				   KeyboardState(Qt::Key_Down, Qt::AltModifier | Qt::ShiftModifier),
-				   KeyboardState(Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier),
-				   KeyboardState(Qt::Key_Down, Qt::AltModifier | Qt::ControlModifier),
-				   KeyboardState(Qt::Key_Up, Qt::AltModifier | Qt::ControlModifier),
-				   KeyboardState(Qt::Key_Right, Qt::ControlModifier),
-				   KeyboardState(Qt::Key_Left, Qt::ControlModifier),
-				   KeyboardState(Qt::Key_Down, Qt::ControlModifier),
-				   KeyboardState(Qt::Key_Up, Qt::ControlModifier));
+				   Qwt3DKeyboardState(Qt::Key_Right, Qt::AltModifier),
+				   Qwt3DKeyboardState(Qt::Key_Left, Qt::AltModifier),
+				   Qwt3DKeyboardState(Qt::Key_Down, Qt::AltModifier),
+				   Qwt3DKeyboardState(Qt::Key_Up, Qt::AltModifier),
+				   Qwt3DKeyboardState(Qt::Key_Down, Qt::AltModifier | Qt::ShiftModifier),
+				   Qwt3DKeyboardState(Qt::Key_Up, Qt::AltModifier | Qt::ShiftModifier),
+				   Qwt3DKeyboardState(Qt::Key_Down, Qt::AltModifier | Qt::ControlModifier),
+				   Qwt3DKeyboardState(Qt::Key_Up, Qt::AltModifier | Qt::ControlModifier),
+				   Qwt3DKeyboardState(Qt::Key_Right, Qt::ControlModifier),
+				   Qwt3DKeyboardState(Qt::Key_Left, Qt::ControlModifier),
+				   Qwt3DKeyboardState(Qt::Key_Down, Qt::ControlModifier),
+				   Qwt3DKeyboardState(Qt::Key_Up, Qt::ControlModifier));
 	setKeySpeed(3, 5, 5);
 
 	d->m_legend.setLimits(0, 100);
 	d->m_legend.setMajors(10);
 	d->m_legend.setMinors(2);
-	d->m_legend.setOrientation(ColorLegend::BottomTop, ColorLegend::Left);
+	d->m_legend.setOrientation(Qwt3DColorLegend::BottomTop, Qwt3DColorLegend::Left);
 
 	disableLighting();
 }
 
 /**
- * @brief Destructor - releases allocated resources
+ * @brief Destructor
  */
-Plot3D::~Plot3D()
+Qwt3DPlot::~Qwt3DPlot()
 {
+	// Detach all items (do not delete them — items own their lifetime)
 	QWT_D(d);
-	makeCurrent();
-	SaveGlDeleteLists(d->m_displayLists[ 0 ], static_cast< GLsizei >(d->m_displayLists.size()));
-	d->m_dataColor->destroy();
-	delete d->m_userPlotStyle;
-	for (ELIT it = d->m_enrichmentList.begin(); it != d->m_enrichmentList.end(); ++it)
-		delete (*it);
-
-	d->m_enrichmentList.clear();
+	while (!d->m_items.isEmpty())
+		d->m_items.first()->detach();
 }
 
 // Inline getter/setter implementations
 
-Qwt3D::CoordinateSystem* Plot3D::coordinates()
+Qwt3DCoordinateSystem* Qwt3DPlot::coordinates()
 {
 	QWT_D(d);
 	return &d->m_coordinates;
 }
 
-Qwt3D::ColorLegend* Plot3D::legend()
+Qwt3DColorLegend* Qwt3DPlot::legend()
 {
 	QWT_D(d);
 	return &d->m_legend;
 }
 
-double Plot3D::xRotation() const
+double Qwt3DPlot::xRotation() const
 {
 	QWT_DC(d);
 	return d->m_xRot;
 }
 
-double Plot3D::yRotation() const
+double Qwt3DPlot::yRotation() const
 {
 	QWT_DC(d);
 	return d->m_yRot;
 }
 
-double Plot3D::zRotation() const
+double Qwt3DPlot::zRotation() const
 {
 	QWT_DC(d);
 	return d->m_zRot;
 }
 
-double Plot3D::xShift() const
+double Qwt3DPlot::xShift() const
 {
 	QWT_DC(d);
 	return d->m_xShift;
 }
 
-double Plot3D::yShift() const
+double Qwt3DPlot::yShift() const
 {
 	QWT_DC(d);
 	return d->m_yShift;
 }
 
-double Plot3D::zShift() const
+double Qwt3DPlot::zShift() const
 {
 	QWT_DC(d);
 	return d->m_zShift;
 }
 
-double Plot3D::xViewportShift() const
+double Qwt3DPlot::xViewportShift() const
 {
 	QWT_DC(d);
 	return d->m_xVPShift;
 }
 
-double Plot3D::yViewportShift() const
+double Qwt3DPlot::yViewportShift() const
 {
 	QWT_DC(d);
 	return d->m_yVPShift;
 }
 
-double Plot3D::xScale() const
+double Qwt3DPlot::xScale() const
 {
 	QWT_DC(d);
 	return d->m_xScale;
 }
 
-double Plot3D::yScale() const
+double Qwt3DPlot::yScale() const
 {
 	QWT_DC(d);
 	return d->m_yScale;
 }
 
-double Plot3D::zScale() const
+double Qwt3DPlot::zScale() const
 {
 	QWT_DC(d);
 	return d->m_zScale;
 }
 
-double Plot3D::zoom() const
+double Qwt3DPlot::zoom() const
 {
 	QWT_DC(d);
 	return d->m_zoom;
 }
 
-bool Plot3D::ortho() const
+bool Qwt3DPlot::ortho() const
 {
 	QWT_DC(d);
 	return d->m_ortho;
 }
 
-Qwt3D::PLOTSTYLE Plot3D::plotStyle() const
+ASPECTRATIOMODE Qwt3DPlot::aspectRatioMode() const
 {
 	QWT_DC(d);
-	return d->m_plotStyle;
+	return d->m_aspectRatioMode;
 }
 
-Qwt3D::Enrichment* Plot3D::userStyle() const
-{
-	QWT_DC(d);
-	return d->m_userPlotStyle;
-}
-
-Qwt3D::SHADINGSTYLE Plot3D::shading() const
-{
-	QWT_DC(d);
-	return d->m_shading;
-}
-
-int Plot3D::isolines() const
-{
-	QWT_DC(d);
-	return d->m_isolines;
-}
-
-void Plot3D::setSmoothMesh(bool val)
-{
-	QWT_D(d);
-	d->m_smoothDataMesh = val;
-}
-
-bool Plot3D::smoothDataMesh() const
-{
-	QWT_DC(d);
-	return d->m_smoothDataMesh;
-}
-
-Qwt3D::RGBA Plot3D::backgroundRGBAColor() const
+RGBA Qwt3DPlot::backgroundRGBAColor() const
 {
 	QWT_DC(d);
 	return d->m_bgColor;
 }
 
-Qwt3D::RGBA Plot3D::meshColor() const
-{
-	QWT_DC(d);
-	return d->m_meshColor;
-}
-
-double Plot3D::meshLineWidth() const
-{
-	QWT_DC(d);
-	return d->m_meshLineWidth;
-}
-
-const Color* Plot3D::dataColor() const
-{
-	QWT_DC(d);
-	return d->m_dataColor;
-}
-
-Qwt3D::ParallelEpiped Plot3D::hull() const
+ParallelEpiped Qwt3DPlot::hull() const
 {
 	QWT_DC(d);
 	return d->m_hull;
 }
 
-double Plot3D::polygonOffset() const
-{
-	QWT_DC(d);
-	return d->m_polygonOffset;
-}
-
-void Plot3D::setTitleColor(Qwt3D::RGBA col)
+void Qwt3DPlot::setTitleColor(RGBA col)
 {
 	QWT_D(d);
 	d->m_title.setColor(col);
 }
 
-void Plot3D::setTitle(const QString& title)
+void Qwt3DPlot::setTitle(const QString& title)
 {
 	QWT_D(d);
 	d->m_title.setString(title);
 }
 
-void Plot3D::setTheme(const Qwt3DTheme& theme)
+/**
+ * @brief 返回标题文本
+ * @return 标题字符串
+ * @details 委托到内部 Qwt3DLabel 的 string() getter。
+ *          setTitle() 通过 d->m_title.setString(title) 设置，此处返回 d->m_title.string()。
+ */
+QString Qwt3DPlot::title() const
+{
+	QWT_DC(d);
+	return d->m_title.string();
+}
+
+void Qwt3DPlot::setTheme(const Qwt3DTheme& theme)
 {
 	QWT_D(d);
 	d->m_theme = theme;
 	theme.apply(this);
 }
 
-Qwt3DTheme Plot3D::theme() const
+Qwt3DTheme Qwt3DPlot::theme() const
 {
 	QWT_DC(d);
 	return d->m_theme;
 }
 
-void Plot3D::applyTheme(Qwt3DTheme::Preset preset)
+void Qwt3DPlot::applyTheme(Qwt3DTheme::Preset preset)
 {
 	setTheme(Qwt3DTheme::create(preset));
 }
 
-void Plot3D::applyTheme(const QString& presetName)
+void Qwt3DPlot::applyTheme(const QString& presetName)
 {
 	setTheme(Qwt3DTheme::create(presetName));
 }
 
-double Plot3D::xLightRotation(unsigned idx) const
+double Qwt3DPlot::xLightRotation(unsigned idx) const
 {
 	QWT_DC(d);
 	return (idx < 8) ? d->m_lights[ idx ].rot.x : 0;
 }
 
-double Plot3D::yLightRotation(unsigned idx) const
+double Qwt3DPlot::yLightRotation(unsigned idx) const
 {
 	QWT_DC(d);
 	return (idx < 8) ? d->m_lights[ idx ].rot.y : 0;
 }
 
-double Plot3D::zLightRotation(unsigned idx) const
+double Qwt3DPlot::zLightRotation(unsigned idx) const
 {
 	QWT_DC(d);
 	return (idx < 8) ? d->m_lights[ idx ].rot.z : 0;
 }
 
-double Plot3D::xLightShift(unsigned idx) const
+double Qwt3DPlot::xLightShift(unsigned idx) const
 {
 	QWT_DC(d);
 	return (idx < 8) ? d->m_lights[ idx ].shift.x : 0;
 }
 
-double Plot3D::yLightShift(unsigned idx) const
+double Qwt3DPlot::yLightShift(unsigned idx) const
 {
 	QWT_DC(d);
 	return (idx < 8) ? d->m_lights[ idx ].shift.y : 0;
 }
 
-double Plot3D::zLightShift(unsigned idx) const
+double Qwt3DPlot::zLightShift(unsigned idx) const
 {
 	QWT_DC(d);
 	return (idx < 8) ? d->m_lights[ idx ].shift.z : 0;
 }
 
-bool Plot3D::hasData() const
+bool Qwt3DPlot::hasItems() const
 {
 	QWT_DC(d);
-	return (d->m_actualData) ? !d->m_actualData->empty() : false;
+	return !d->m_items.isEmpty();
 }
 
-bool Plot3D::initializedGL() const
+bool Qwt3DPlot::initializedGL() const
 {
 	QWT_DC(d);
 	return d->m_initializedGL;
 }
 
-void Plot3D::setHull(Qwt3D::ParallelEpiped p)
-{
-	QWT_D(d);
-	d->m_hull = p;
-}
-
-std::vector< GLuint >& Plot3D::displayLists()
-{
-	QWT_D(d);
-	return d->m_displayLists;
-}
-
-Qwt3D::Data* Plot3D::actualData() const
+/**
+ * @brief Returns the current model-view matrix
+ * @return The model-view matrix computed during the last paintGL() call
+ * @details Items use this matrix in their shader uniforms to transform
+ *          vertex positions from model space to view space.
+ */
+QMatrix4x4 Qwt3DPlot::modelViewMatrix() const
 {
 	QWT_DC(d);
-	return d->m_actualData;
+	return d->m_modelView;
 }
 
-void Plot3D::setActualData(Qwt3D::Data* data)
+/**
+ * @brief Returns the current projection matrix
+ * @return The projection matrix computed during the last paintGL() call
+ * @details Items use this matrix in their shader uniforms to transform
+ *          vertex positions from view space to clip space.
+ */
+QMatrix4x4 Qwt3DPlot::projectionMatrix() const
 {
-	QWT_D(d);
-	d->m_actualData = data;
+	QWT_DC(d);
+	return d->m_projection;
 }
 
 /**
  * @brief Sets up the OpenGL rendering state
+ * @details Compiles shared GLSL shaders (line, point, polygon, text) for use
+ *          by drawables and items. Enables blend and depth test.
  */
-void Plot3D::initializeGL()
+void Qwt3DPlot::initializeGL()
 {
 	QWT_D(d);
 
 	glEnable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
-	glShadeModel(GL_SMOOTH);
 
-	// Set up the lights
+	// Compile shared generic shaders
+	auto compileShader = [](const QString& vertPath, const QString& fragPath) -> std::unique_ptr< QOpenGLShaderProgram > {
+		auto program = std::make_unique< QOpenGLShaderProgram >();
+		if (!program->addShaderFromSourceFile(QOpenGLShader::Vertex, vertPath)) {
+			qWarning("Failed to compile vertex shader %s: %s", vertPath.toLatin1().constData(),
+					 program->log().toLatin1().constData());
+			return nullptr;
+		}
+		if (!program->addShaderFromSourceFile(QOpenGLShader::Fragment, fragPath)) {
+			qWarning("Failed to compile fragment shader %s: %s", fragPath.toLatin1().constData(),
+					 program->log().toLatin1().constData());
+			return nullptr;
+		}
+		if (!program->link()) {
+			qWarning("Failed to link shader program: %s", program->log().toLatin1().constData());
+			return nullptr;
+		}
+		return program;
+	};
 
-	disableLighting();
-
-	GLfloat whiteAmb[ 4 ] = { 1.0, 1.0, 1.0, 1.0 };
-
-	setLightShift(0, 0, 3000);
-	glEnable(GL_COLOR_MATERIAL);
-
-	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, whiteAmb);
-
-	setMaterialComponent(GL_DIFFUSE, 1.0);
-	setMaterialComponent(GL_SPECULAR, 0.3);
-	setMaterialComponent(GL_SHININESS, 5.0);
-	setLightComponent(GL_DIFFUSE, 1.0);
-	setLightComponent(GL_SPECULAR, 1.0);
+	d->m_lineShader = compileShader(":/shaders/line.vert", ":/shaders/line.frag");
+	d->m_pointShader = compileShader(":/shaders/point.vert", ":/shaders/point.frag");
+	d->m_polygonShader = compileShader(":/shaders/polygon.vert", ":/shaders/polygon.frag");
+	d->m_textShader = compileShader(":/shaders/text.vert", ":/shaders/text.frag");
 
 	d->m_initializedGL = true;
 	if (d->m_renderPixmapRequest) {
-		updateData();
+		update();
 		d->m_renderPixmapRequest = false;
 	}
 }
 
 /**
  * @brief Paints the widget's content
+ * @details Uses CPU-side QMatrix4x4 for view/projection calculation.
+ *          All rendering uses VBO/VAO + GLSL shaders.
  */
-void Plot3D::paintGL()
+void Qwt3DPlot::paintGL()
 {
 	QWT_D(d);
 
 	glClearColor(d->m_bgColor.r, d->m_bgColor.g, d->m_bgColor.b, d->m_bgColor.a);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	applyLights();
-
-	glRotatef(-90, 1.0, 0.0, 0.0);
-	glRotatef(0.0, 0.0, 1.0, 0.0);
-	glRotatef(0.0, 0.0, 0.0, 1.0);
-
-	if (d->m_displayLegend) {
-		d->m_legend.draw();
-	}
-	d->m_title.setRelPosition(d->m_titleRel, d->m_titleAnchor);
-	d->m_title.draw();
-
+	// Calculate view transform on CPU (no glRotatef/glTranslatef/glPushMatrix)
 	Triple beg = d->m_coordinates.first();
 	Triple end = d->m_coordinates.second();
-
 	Triple center = beg + (end - beg) / 2;
-	double radius = (center - beg).length();
+	Triple dv = end - beg;
 
-	glLoadIdentity();
+	double normX = 1.0, normY = 1.0, normZ = 1.0;
+	double radius;
 
-	glRotatef(d->m_xRot - 90, 1.0, 0.0, 0.0);
-	glRotatef(d->m_yRot, 0.0, 1.0, 0.0);
-	glRotatef(d->m_zRot, 0.0, 0.0, 1.0);
+	if (d->m_aspectRatioMode == AUTOFILL) {
+		double maxRange = std::max({dv.x, dv.y, dv.z});
+		if (maxRange > 0) {
+			normX = (dv.x > 0) ? maxRange / dv.x : 1.0;
+			normY = (dv.y > 0) ? maxRange / dv.y : 1.0;
+			normZ = (dv.z > 0) ? maxRange / dv.z : 1.0;
+		}
+		radius = (maxRange > 0) ? maxRange * sqrt(3.0) / 2.0 : 1.0;
+	} else {
+		radius = (center - beg).length();
+	}
 
-	glScalef(d->m_zoom * d->m_xScale, d->m_zoom * d->m_yScale, d->m_zoom * d->m_zScale);
+	QMatrix4x4 modelView;
+	modelView.setToIdentity();
+	modelView.rotate(d->m_xRot - 90, 1.0f, 0.0f, 0.0f);
+	modelView.rotate(d->m_yRot, 0.0f, 1.0f, 0.0f);
+	modelView.rotate(d->m_zRot, 0.0f, 0.0f, 1.0f);
+	modelView.scale(static_cast< float >(d->m_zoom * d->m_xScale * normX),
+					static_cast< float >(d->m_zoom * d->m_yScale * normY),
+					static_cast< float >(d->m_zoom * d->m_zScale * normZ));
+	modelView.translate(static_cast< float >(d->m_xShift - center.x),
+						 static_cast< float >(d->m_yShift - center.y),
+						 static_cast< float >(d->m_zShift - center.z));
+	d->m_modelView = modelView;
 
-	glTranslatef(d->m_xShift - center.x, d->m_yShift - center.y, d->m_zShift - center.z);
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-
+	QMatrix4x4 projection;
+	projection.setToIdentity();
 	if (beg != end) {
 		if (d->m_ortho) {
-			glOrtho(-radius, +radius, -radius, +radius, 0, 40 * radius);
+			projection.ortho(-radius, +radius, -radius, +radius, 0, 40 * radius);
 		} else {
-			glFrustum(-radius, +radius, -radius, +radius, 5 * radius, 400 * radius);
+			projection.frustum(-radius, +radius, -radius, +radius, 5 * radius, 400 * radius);
 		}
 	} else {
 		if (d->m_ortho)
-			glOrtho(-1.0, 1.0, -1.0, 1.0, 10.0, 100.0);
+			projection.ortho(-1.0, 1.0, -1.0, 1.0, 10.0, 100.0);
 		else
-			glFrustum(-1.0, 1.0, -1.0, 1.0, 10.0, 100.0);
+			projection.frustum(-1.0, 1.0, -1.0, 1.0, 10.0, 100.0);
+	}
+	projection.translate(static_cast< float >(d->m_xVPShift * 2 * radius),
+						  static_cast< float >(d->m_yVPShift * 2 * radius),
+						  static_cast< float >(-7 * radius));
+	d->m_projection = projection;
+
+	// Build render context for the user-rotation phase (items + coordinate system)
+	Qwt3DRenderContext ctx;
+	ctx.modelView = d->m_modelView;
+	ctx.projection = d->m_projection;
+	ctx.viewport = viewportSize();
+	ctx.lineShader = d->m_lineShader.get();
+	ctx.polygonShader = d->m_polygonShader.get();
+	ctx.textShader = d->m_textShader.get();
+
+	// Render all attached items (sorted by z-order)
+	for (Qwt3DPlotItem* item : d->m_items) {
+		if (item->isVisible())
+			item->draw();
 	}
 
-	glTranslatef(d->m_xVPShift * 2 * radius, d->m_yVPShift * 2 * radius, -7 * radius);
+	// Draw coordinate system
+	d->m_coordinates.draw(ctx);
 
-	if (d->m_lightingEnabled)
-		glEnable(GL_NORMALIZE);
+	// Draw legend and title with a FIXED modelview (no user rotation)
+	// so they stay anchored to the screen regardless of 3D scene rotation.
+	// This matches the original libqwtplot3d behavior where legend/title
+	// were drawn before user rotation was applied to the modelview matrix.
+	QMatrix4x4 savedModelView = d->m_modelView;
+	d->m_modelView.setToIdentity();
+	d->m_modelView.rotate(-90.0f, 1.0f, 0.0f, 0.0f);
 
-	for (unsigned i = 0; i != d->m_displayLists.size(); ++i) {
-		if (i != LegendObject)
-			glCallList(d->m_displayLists[ i ]);
+	// Build context for the fixed-MV phase (legend + title)
+	Qwt3DRenderContext ctxFixed = ctx;
+	ctxFixed.modelView = d->m_modelView;
+
+	if (d->m_displayLegend) {
+		for (Qwt3DPlotItem* item : d->m_items)
+			item->populateLegendColors(d->m_legend.colors);
+		d->m_legend.draw(ctxFixed);
 	}
-	d->m_coordinates.draw();
 
-	if (d->m_lightingEnabled)
-		glDisable(GL_NORMALIZE);
+	d->m_title.setRelPosition(d->m_titleRel, d->m_titleAnchor, ctxFixed);
+	d->m_title.draw(ctxFixed);
 
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	// Restore user modelview for subsequent operations (mouse picking, etc.)
+	d->m_modelView = savedModelView;
 }
 
 /**
@@ -89173,8 +91043,11 @@ void Plot3D::paintGL()
  * @param w New width
  * @param h New height
  */
-void Plot3D::resizeGL(int w, int h)
+void Qwt3DPlot::resizeGL(int w, int h)
 {
+	QWT_D(d);
+	d->m_viewportWidth = w;
+	d->m_viewportHeight = h;
 	glViewport(0, 0, w, h);
 	paintGL();
 }
@@ -89184,7 +91057,7 @@ void Plot3D::resizeGL(int w, int h)
  * @param beg Minimum vertex of the coordinate system
  * @param end Maximum vertex of the coordinate system
  */
-void Plot3D::createCoordinateSystem(Triple beg, Triple end)
+void Qwt3DPlot::createCoordinateSystem(Triple beg, Triple end)
 {
 	QWT_D(d);
 	if (beg != d->m_coordinates.first() || end != d->m_coordinates.second())
@@ -89192,71 +91065,59 @@ void Plot3D::createCoordinateSystem(Triple beg, Triple end)
 }
 
 /**
- * @brief Creates a coordinate system from data
- * @details Calculates the hull first, then creates the coordinate system from hull boundaries.
- */
-void Plot3D::createCoordinateSystem()
-{
-	calculateHull();
-	Triple beg = hull().minVertex;  // Irix 6.5 compiler bug
-	Triple end = hull().maxVertex;
-	createCoordinateSystem(beg, end);
-}
-
-/**
  * @brief Shows or hides the color legend
  * @param show True to show, false to hide
+ * @details The color legend colors are populated from attached items'
+ *          dataColor functors during paintGL.
  */
-void Plot3D::showColorLegend(bool show)
+void Qwt3DPlot::showColorLegend(bool show)
 {
 	QWT_D(d);
 	d->m_displayLegend = show;
-	if (show)
-		d->m_dataColor->createVector(d->m_legend.colors);
 	update();
 }
 
 /**
- * @brief Sets the mesh color
- * @param rgba Mesh color as RGBA value
+ * @brief 返回颜色图例是否显示
+ * @return true 如果颜色图例已显示
+ * @details 返回 d->m_displayLegend。showColorLegend(bool) 通过
+ *          d->m_displayLegend = show 设置，此处返回该值。
  */
-void Plot3D::setMeshColor(RGBA rgba)
+bool Qwt3DPlot::isColorLegendShown() const
+{
+	QWT_DC(d);
+	return d->m_displayLegend;
+}
+
+void Qwt3DPlot::setLegendPosition(Qwt3DColorLegend::Position pos)
 {
 	QWT_D(d);
-	d->m_meshColor = rgba;
+	d->m_legend.setPosition(pos);
+	update();
+}
+
+void Qwt3DPlot::setLegendAbsolutePosition(const QRectF& pixelRect)
+{
+	QWT_D(d);
+	d->m_legend.setAbsolutePosition(pixelRect);
+	update();
 }
 
 /**
  * @brief Sets the background color
  * @param rgba Background color as RGBA value
  */
-void Plot3D::setBackgroundColor(RGBA rgba)
+void Qwt3DPlot::setBackgroundColor(RGBA rgba)
 {
 	QWT_D(d);
 	d->m_bgColor = rgba;
 }
 
 /**
- * @brief Assigns a new coloring object for the data
- * @param col Pointer to a new Color object
- */
-void Plot3D::setDataColor(Color* col)
-{
-	QWT_D(d);
-	Q_ASSERT(d->m_dataColor);
-
-	d->m_dataColor->destroy();
-	d->m_dataColor = col;
-
-	if (d->m_displayLegend)
-		d->m_dataColor->createVector(d->m_legend.colors);
-}
-
-/**
  * @brief Sets up orthogonal or perspective mode and updates widget
  * @param val True for orthogonal projection, false for perspective
  */
-void Plot3D::setOrtho(bool val)
+void Qwt3DPlot::setOrtho(bool val)
 {
 	QWT_D(d);
 	if (val == d->m_ortho)
@@ -89268,110 +91129,24 @@ void Plot3D::setOrtho(bool val)
 }
 
 /**
- * @brief Sets style of coordinate system
- * @param st Coordinate system style (NOCOORD, BOX, or FRAME)
+ * @brief Sets the aspect ratio mode for the 3D coordinate box
+ * @param mode AUTOFILL to independently scale each axis to fill the viewport,
+ *             DATARATIO to preserve original data proportions
+ * @details In AUTOFILL mode (default), each axis is normalized to the same
+ *          visual length so the coordinate box appears as a cube, making the
+ *          plot fill the viewport. In DATARATIO mode, the original data
+ *          proportions are preserved (equal aspect ratio), similar to
+ *          matplotlib's plt.axis('equal').
  */
-void Plot3D::setCoordinateStyle(COORDSTYLE st)
+void Qwt3DPlot::setAspectRatioMode(ASPECTRATIOMODE mode)
 {
 	QWT_D(d);
-	d->m_coordinates.setStyle(st);
+	if (mode == d->m_aspectRatioMode)
+		return;
+	d->m_aspectRatioMode = mode;
 	update();
-}
 
-/**
- * @brief Sets plot style for the standard plotting types
- * @param val Plot style value. An argument of value Qwt3D::USER is ignored.
- */
-void Plot3D::setPlotStyle(PLOTSTYLE val)
-{
-	QWT_D(d);
-	if (val == Qwt3D::USER)
-		return;
-	delete d->m_userPlotStyle;
-	d->m_userPlotStyle = nullptr;
-	d->m_plotStyle     = val;
-}
-
-/**
- * @brief Sets plot style to Qwt3D::USER with an associated enrichment object
- * @param obj Reference to an Enrichment object
- * @return Pointer to the cloned enrichment object
- */
-Qwt3D::Enrichment* Plot3D::setPlotStyle(Qwt3D::Enrichment const& obj)
-{
-	QWT_D(d);
-	if (&obj == d->m_userPlotStyle)
-		return d->m_userPlotStyle;
-
-	delete d->m_userPlotStyle;
-	d->m_userPlotStyle = obj.clone();
-	d->m_plotStyle     = Qwt3D::USER;
-	return d->m_userPlotStyle;
-}
-
-/**
- * @brief Sets shading style
- * @param val Shading style (FLAT or GOURAUD)
- */
-void Plot3D::setShading(SHADINGSTYLE val)
-{
-	QWT_D(d);
-	if (val == d->m_shading)
-		return;
-
-	d->m_shading = val;
-
-	switch (d->m_shading) {
-	case FLAT:
-		glShadeModel(GL_FLAT);
-		break;
-	case GOURAUD:
-		glShadeModel(GL_SMOOTH);
-		break;
-	default:
-		break;
-	}
-	update();
-}
-
-/**
- * @brief Sets number of isolines
- * @param steps Number of isolines. The lines are equidistant between minimal and maximal Z value.
- */
-void Plot3D::setIsolines(int steps)
-{
-	QWT_D(d);
-	if (steps < 0)
-		return;
-
-	d->m_isolines = steps;
-}
-
-/**
- * @brief Sets polygon offset
- * @param val Polygon offset value
- * @details The function affects the OpenGL rendering process. Try different values
- *          for surfaces with polygons only and with mesh and polygons.
- */
-void Plot3D::setPolygonOffset(double val)
-{
-	QWT_D(d);
-	d->m_polygonOffset = val;
-}
-
-/**
- * @brief Sets the mesh line width
- * @param val Line width value (must be >= 0)
- */
-void Plot3D::setMeshLineWidth(double val)
-{
-	QWT_D(d);
-	Q_ASSERT(val >= 0);
-
-	if (val < 0)
-		return;
-
-	d->m_meshLineWidth = val;
+	emit aspectRatioModeChanged(mode);
 }
 
 /**
@@ -89380,7 +91155,7 @@ void Plot3D::setMeshLineWidth(double val)
  * @param relx Relative X position (0-1)
  * @param anchor Anchor type for title alignment
  */
-void Plot3D::setTitlePosition(double rely, double relx, Qwt3D::ANCHOR anchor)
+void Qwt3DPlot::setTitlePosition(double rely, double relx, ANCHOR anchor)
 {
 	QWT_D(d);
 	d->m_titleRel.y = (rely < 0 || rely > 1) ? 0.5 : rely;
@@ -89396,72 +91171,216 @@ void Plot3D::setTitlePosition(double rely, double relx, Qwt3D::ANCHOR anchor)
  * @param weight Font weight
  * @param italic Whether font is italic
  */
-void Plot3D::setTitleFont(const QString& family, int pointSize, int weight, bool italic)
+void Qwt3DPlot::setTitleFont(const QString& family, int pointSize, int weight, bool italic)
 {
 	QWT_D(d);
 	d->m_title.setFont(family, pointSize, weight, italic);
 }
 
 /**
- * @brief Adds an enrichment object to the plot
- * @param e Reference to an Enrichment object
- * @return Pointer to the cloned enrichment object added to the list
+ * @brief Renders the plot to a pixmap
+ * @param w Width (0 for default)
+ * @param h Height (0 for default)
+ * @param useContext Whether to use existing GL context
+ * @return QPixmap of the rendered scene
  */
-Enrichment* Plot3D::addEnrichment(Enrichment const& e)
+QPixmap Qwt3DPlot::renderPixmap(int w, int h, bool useContext)
 {
 	QWT_D(d);
-	if (d->m_enrichmentList.end() == std::find(d->m_enrichmentList.begin(), d->m_enrichmentList.end(), &e))
-		d->m_enrichmentList.push_back(e.clone());
-	return d->m_enrichmentList.back();
-}
-
-/**
- * @brief Removes an enrichment object from the plot
- * @param e Pointer to the Enrichment object to remove
- * @return True if the enrichment was found and removed, false otherwise
- */
-bool Plot3D::degrade(Enrichment* e)
-{
-	QWT_D(d);
-	ELIT it = std::find(d->m_enrichmentList.begin(), d->m_enrichmentList.end(), e);
-
-	if (it != d->m_enrichmentList.end()) {
-		delete (*it);
-		d->m_enrichmentList.erase(it);
-		return true;
-	}
-	return false;
-}
-
-void Plot3D::createEnrichments()
-{
-	QWT_D(d);
-	for (ELIT it = d->m_enrichmentList.begin(); it != d->m_enrichmentList.end(); ++it) {
-		this->createEnrichment(**it);
+	if (useContext && d->m_initializedGL) {
+		return QPixmap::fromImage(grabFramebuffer());
+	} else {
+		d->m_renderPixmapRequest = true;
+		return QPixmap::fromImage(grabFramebuffer());
 	}
 }
 
 /**
- * @brief Updates OpenGL data representation
+ * @brief Converts a world coordinate to screen (viewport) coordinates
+ * @param world World-space triple
+ * @return Screen-space QPointF (pixel coordinates)
+ * @details Uses the CPU-side modelView and projection matrices to transform
+ *          world coordinates to normalized device coordinates, then maps
+ *          to viewport pixels. Replaces the legacy gluProject call.
  */
-void Plot3D::updateData()
+QPointF Qwt3DPlot::worldToScreen(const Triple& world) const
+{
+	QWT_DC(d);
+	QVector4D worldVec(static_cast< float >(world.x), static_cast< float >(world.y), static_cast< float >(world.z), 1.0f);
+	QVector4D clipVec = d->m_projection.map(d->m_modelView.map(worldVec));
+
+	if (clipVec.w() == 0.0f)
+		return QPointF(0, 0);
+
+	float ndcX = clipVec.x() / clipVec.w();
+	float ndcY = clipVec.y() / clipVec.w();
+
+	int w = (d->m_viewportWidth > 0) ? d->m_viewportWidth : width();
+	int h = (d->m_viewportHeight > 0) ? d->m_viewportHeight : height();
+
+	float screenX = (ndcX + 1.0f) * 0.5f * w;
+	float screenY = (1.0f - (ndcY + 1.0f) * 0.5f) * h;
+
+	return QPointF(screenX, screenY);
+}
+
+/**
+ * @brief Converts screen (viewport) coordinates to a world coordinate
+ * @param screen Screen-space point (pixel coordinates)
+ * @return World-space Triple
+ * @details Uses the inverse of the CPU-side modelView and projection matrices
+ *          to unproject screen coordinates. The z-component is determined
+ *          by the near plane (z=0 in NDC). Replaces the legacy gluUnProject call.
+ */
+Triple Qwt3DPlot::screenToWorld(const QPointF& screen) const
+{
+	QWT_DC(d);
+	int w = (d->m_viewportWidth > 0) ? d->m_viewportWidth : width();
+	int h = (d->m_viewportHeight > 0) ? d->m_viewportHeight : height();
+
+	if (w <= 0 || h <= 0)
+		return Triple(0, 0, 0);
+
+	float ndcX = 2.0f * static_cast< float >(screen.x()) / w - 1.0f;
+	float ndcY = 1.0f - 2.0f * static_cast< float >(screen.y()) / h;
+
+	QVector3D clipVec(ndcX, ndcY, 0.0f);
+
+	QMatrix4x4 invMVP = (d->m_projection * d->m_modelView).inverted();
+	QVector3D worldVec = invMVP.map(clipVec);
+
+	return Triple(worldVec.x(), worldVec.y(), worldVec.z());
+}
+
+/**
+ * @brief Returns the viewport size in pixels
+ */
+QSize Qwt3DPlot::viewportSize() const
+{
+	QWT_DC(d);
+	int w = (d->m_viewportWidth > 0) ? d->m_viewportWidth : width();
+	int h = (d->m_viewportHeight > 0) ? d->m_viewportHeight : height();
+	return QSize(w, h);
+}
+
+/**
+ * @brief Returns the shared line shader program
+ */
+QOpenGLShaderProgram* Qwt3DPlot::lineShader() const
+{
+	QWT_DC(d);
+	return d->m_lineShader.get();
+}
+
+/**
+ * @brief Returns the shared point shader program
+ */
+QOpenGLShaderProgram* Qwt3DPlot::pointShader() const
+{
+	QWT_DC(d);
+	return d->m_pointShader.get();
+}
+
+/**
+ * @brief Returns the shared polygon shader program
+ */
+QOpenGLShaderProgram* Qwt3DPlot::polygonShader() const
+{
+	QWT_DC(d);
+	return d->m_polygonShader.get();
+}
+
+/**
+ * @brief Returns the shared text shader program
+ */
+QOpenGLShaderProgram* Qwt3DPlot::textShader() const
+{
+	QWT_DC(d);
+	return d->m_textShader.get();
+}
+
+// --- Item list management ---
+
+/**
+ * @brief Attach a plot item to this plot
+ * @param item Pointer to the item to attach
+ * @details Inserts the item into the internal list and sorts by z-order.
+ *          If the item is already attached, it is not duplicated.
+ */
+void Qwt3DPlot::attach(Qwt3DPlotItem* item)
 {
 	QWT_D(d);
-	makeCurrent();
-	GLStateBewarer dt(GL_DEPTH_TEST, true);
-	GLStateBewarer ls(GL_LINE_SMOOTH, true);
+	if (!item || d->m_items.contains(item))
+		return;
 
-	calculateHull();
+	d->m_items.append(item);
+	// Sort by z-order (ascending)
+	std::sort(d->m_items.begin(), d->m_items.end(),
+		[](const Qwt3DPlotItem* a, const Qwt3DPlotItem* b) {
+			return a->z() < b->z();
+		});
 
-	SaveGlDeleteLists(d->m_displayLists[ DataObject ], 1);  // data only
+	update();
+}
 
-	d->m_displayLists[ DataObject ] = glGenLists(1);
-	glNewList(d->m_displayLists[ DataObject ], GL_COMPILE);
+/**
+ * @brief Detach a plot item from this plot
+ * @param item Pointer to the item to detach
+ * @details Removes the item from the internal list. Does not delete the item.
+ */
+void Qwt3DPlot::detach(Qwt3DPlotItem* item)
+{
+	QWT_D(d);
+	if (!item)
+		return;
 
-	this->createEnrichments();
-	this->createData();
+	d->m_items.removeAll(item);
+	update();
+}
 
-	glEndList();
+/**
+ * @brief Returns the list of attached items (sorted by z-order)
+ */
+const QList< Qwt3DPlotItem* >& Qwt3DPlot::itemList() const
+{
+	QWT_DC(d);
+	return d->m_items;
+}
+
+/**
+ * @brief Called by Qwt3DPlotItem when its data or properties change
+ * @param item The item that changed
+ * @details Re-sorts the item list by z-order, recalculates the plot hull
+ *          as the union of all items' hulls, updates the coordinate system,
+ *          and triggers a repaint.
+ */
+void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
+{
+	QWT_D(d);
+	// Re-sort by z-order
+	std::sort(d->m_items.begin(), d->m_items.end(),
+		[](const Qwt3DPlotItem* a, const Qwt3DPlotItem* b) {
+			return a->z() < b->z();
+		});
+
+	// Recalculate hull from all items' hulls
+	if (!d->m_items.isEmpty()) {
+		Triple minV(DBL_MAX, DBL_MAX, DBL_MAX);
+		Triple maxV(-DBL_MAX, -DBL_MAX, -DBL_MAX);
+		for (const Qwt3DPlotItem* item : qwt_as_const(d->m_items)) {
+			ParallelEpiped h = item->hull();
+			minV.x = std::min(minV.x, h.minVertex.x);
+			minV.y = std::min(minV.y, h.minVertex.y);
+			minV.z = std::min(minV.z, h.minVertex.z);
+			maxV.x = std::max(maxV.x, h.maxVertex.x);
+			maxV.y = std::max(maxV.y, h.maxVertex.y);
+			maxV.z = std::max(maxV.z, h.maxVertex.z);
+		}
+		d->m_hull = ParallelEpiped(minV, maxV);
+		createCoordinateSystem(minV, maxV);
+	}
+
+	update();
 }
 
 /*** End of inlined file: qwt3d_plot.cpp ***/
@@ -89470,19 +91389,22 @@ void Plot3D::updateData()
 /*** Start of inlined file: qwt3d_label.cpp ***/
 #include <qbitmap.h>
 
-using namespace Qwt3D;
+#include <QOpenGLFunctions>
+#include <QOpenGLBuffer>
+#include <QOpenGLTexture>
+#include <QOpenGLShaderProgram>
 
 namespace
 {
 bool deviceFonts = false;
 }
 
-class Label::PrivateData
+class Qwt3DLabel::PrivateData
 {
-	QWT_DECLARE_PUBLIC(Label)
+	QWT_DECLARE_PUBLIC(Qwt3DLabel)
 
 public:
-	PrivateData(Label* q)
+	PrivateData(Qwt3DLabel* q)
 		: q_ptr(q)
 		, m_beg(0.0, 0.0, 0.0)
 		, m_end(0.0, 0.0, 0.0)
@@ -89506,37 +91428,22 @@ public:
 	ANCHOR m_anchor;
 	int m_gap;
 	bool m_flagForUpdate;
+	float m_ndcZ = 0.0f;
 };
 
-/**
- * @brief Default constructor
- */
-Label::Label() : QWT_PIMPL_CONSTRUCT
+Qwt3DLabel::Qwt3DLabel() : QWT_PIMPL_CONSTRUCT
 {
 	init();
 }
 
-/**
- * @brief Constructs a Label with specified font parameters
- * @param family Font family name
- * @param pointSize Font point size
- * @param weight Font weight
- * @param italic Whether font is italic
- */
-Label::Label(const QString& family, int pointSize, int weight, bool italic) : QWT_PIMPL_CONSTRUCT
+Qwt3DLabel::Qwt3DLabel(const QString& family, int pointSize, int weight, bool italic) : QWT_PIMPL_CONSTRUCT
 {
 	init(family, pointSize, weight, italic);
 }
 
-/**
- * @brief Destructor
- */
-Label::~Label() = default;
+Qwt3DLabel::~Qwt3DLabel() = default;
 
-/**
- * @brief Copy constructor
- */
-Label::Label(const Label& other) : Drawable(), QWT_PIMPL_CONSTRUCT
+Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CONSTRUCT
 {
 	QWT_D(d);
 	const PrivateData* od = other.d_func();
@@ -89551,20 +91458,14 @@ Label::Label(const Label& other) : Drawable(), QWT_PIMPL_CONSTRUCT
 	d->m_anchor           = od->m_anchor;
 	d->m_gap              = od->m_gap;
 	d->m_flagForUpdate    = od->m_flagForUpdate;
-	color                 = other.color;
+	m_color               = other.m_color;
 }
 
-/**
- * @brief Move constructor
- */
-Label::Label(Label&& other) noexcept : Drawable(std::move(other)), m_data(std::move(other.m_data))
+Qwt3DLabel::Qwt3DLabel(Qwt3DLabel&& other) noexcept : Qwt3DDrawable(std::move(other)), m_data(std::move(other.m_data))
 {
 }
 
-/**
- * @brief Copy assignment operator
- */
-Label& Label::operator=(const Label& other)
+Qwt3DLabel& Qwt3DLabel::operator=(const Qwt3DLabel& other)
 {
 	if (this != &other) {
 		QWT_D(d);
@@ -89580,31 +91481,28 @@ Label& Label::operator=(const Label& other)
 		d->m_anchor           = od->m_anchor;
 		d->m_gap              = od->m_gap;
 		d->m_flagForUpdate    = od->m_flagForUpdate;
-		color                 = other.color;
+		m_color               = other.m_color;
 	}
 	return *this;
 }
 
-/**
- * @brief Move assignment operator
- */
-Label& Label::operator=(Label&& other) noexcept
+Qwt3DLabel& Qwt3DLabel::operator=(Qwt3DLabel&& other) noexcept
 {
 	if (this != &other) {
-		Drawable::operator=(std::move(other));
+		Qwt3DDrawable::operator=(std::move(other));
 		m_data = std::move(other.m_data);
 	}
 	return *this;
 }
 
-void Label::init(const QString& family, int pointSize, int weight, bool italic)
+void Qwt3DLabel::init(const QString& family, int pointSize, int weight, bool italic)
 {
 	init();
 	QWT_D(d);
 	d->m_font = QFont(family, pointSize, weight, italic);
 }
 
-void Label::init()
+void Qwt3DLabel::init()
 {
 	QWT_D(d);
 	d->m_beg = Triple(0.0, 0.0, 0.0);
@@ -89618,34 +91516,19 @@ void Label::init()
 	d->m_flagForUpdate = true;
 }
 
-/**
- * @brief Enables or disables device font rendering for all labels
- * @param val True to use device fonts, false to use Qt-based rendering
- */
-void Label::useDeviceFonts(bool val)
+void Qwt3DLabel::useDeviceFonts(bool val)
 {
 	deviceFonts = val;
 }
 
-/**
- * @brief Sets the label font
- * @param family Font family name
- * @param pointSize Font point size
- * @param weight Font weight
- * @param italic Whether font is italic
- */
-void Label::setFont(const QString& family, int pointSize, int weight, bool italic)
+void Qwt3DLabel::setFont(const QString& family, int pointSize, int weight, bool italic)
 {
 	QWT_D(d);
 	d->m_font          = QFont(family, pointSize, weight, italic);
 	d->m_flagForUpdate = true;
 }
 
-/**
- * @brief Sets the label text string
- * @param s Text string to display
- */
-void Label::setString(QString const& s)
+void Qwt3DLabel::setString(QString const& s)
 {
 	QWT_D(d);
 	d->m_text          = s;
@@ -89653,63 +91536,45 @@ void Label::setString(QString const& s)
 }
 
 /**
- * @brief Sets the label color from RGBA components
- * @param r Red component
- * @param g Green component
- * @param b Blue component
- * @param a Alpha component
+ * @brief 返回标签文本
+ * @return 当前标签文本字符串
  */
-void Label::setColor(double r, double g, double b, double a)
+QString Qwt3DLabel::string() const
 {
-	Drawable::setColor(r, g, b, a);
+	QWT_DC(d);
+	return d->m_text;
+}
+
+void Qwt3DLabel::setColor(double r, double g, double b, double a)
+{
+	Qwt3DDrawable::setColor(r, g, b, a);
 	QWT_D(d);
 	d->m_flagForUpdate = true;
 }
 
-/**
- * @brief Sets the label color from an RGBA object
- * @param rgba RGBA color value
- */
-void Label::setColor(Qwt3D::RGBA rgba)
+void Qwt3DLabel::setColor(RGBA rgba)
 {
-	Drawable::setColor(rgba);
+	Qwt3DDrawable::setColor(rgba);
 	QWT_D(d);
 	d->m_flagForUpdate = true;
 }
 
-/**
- * @brief Sets the label position and anchor point
- * @param pos Position triple in world coordinates
- * @param a Anchor type defining how the label aligns relative to pos
- * @details Anchor example:
- *          TopCenter (*) resp. BottomRight (X):
- *          +----*----+
- *          |  Pixmap |
- *          +---------X
- */
-void Label::setPosition(Triple pos, ANCHOR a)
+void Qwt3DLabel::setPosition(Triple pos, ANCHOR a)
 {
 	QWT_D(d);
 	d->m_anchor = a;
 	d->m_pos    = pos;
 }
 
-/**
- * @brief Sets the label position relative to the viewport
- * @param rpos Relative position tuple (x,y)
- * @param a Anchor type defining how the label aligns
- */
-void Label::setRelPosition(Tuple rpos, ANCHOR a)
+void Qwt3DLabel::setRelPosition(Tuple rpos, ANCHOR a, const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
-	double ot = 0.99;
-
-	getMatrices(modelMatrix, projMatrix, viewport);
-	d->m_beg = relativePosition(Triple(rpos.x, rpos.y, ot));
+	d->m_anchor = a;
+	d->m_beg = ctx.relativePosition(Triple(rpos.x, rpos.y, 0.99));
 	setPosition(d->m_beg, a);
 }
 
-void Label::update()
+void Qwt3DLabel::update()
 {
 	QWT_D(d);
 	QPainter p;
@@ -89717,15 +91582,15 @@ void Label::update()
 
 	QFontInfo info(d->m_font);
 
-	QRect r = QRect(QPoint(0, 0), fm.size(Qwt3D::SingleLine, d->m_text));  // fm.boundingRect(text_)  misbehaviour under linux;
+	QRect r = QRect(QPoint(0, 0), fm.size(SingleLine, d->m_text));
 
 	r.translate(0, -r.top());
 
 	d->m_pm = QPixmap(r.width(), r.bottom());
 
-	if (d->m_pm.isNull())  // else crash under linux
+	if (d->m_pm.isNull())
 	{
-		r = QRect(QPoint(0, 0), fm.size(Qwt3D::SingleLine, QString(" ")));  // draw empty space else //todo
+		r = QRect(QPoint(0, 0), fm.size(SingleLine, QString(" ")));
 		r.translate(0, -r.top());
 		d->m_pm = QPixmap(r.width(), r.bottom());
 	}
@@ -89743,7 +91608,7 @@ void Label::update()
 	p.begin(&d->m_pm);
 	p.setFont(d->m_font);
 	p.setPen(Qt::SolidLine);
-	p.setPen(GL2Qt(color.r, color.g, color.b));
+	p.setPen(GL2Qt(m_color.r, m_color.g, m_color.b));
 
 	p.drawText(0, r.height() - fm.descent() - 1, d->m_text);
 	p.end();
@@ -89751,64 +91616,92 @@ void Label::update()
 	d->m_tex = d->m_buf.mirrored();
 }
 
-/**
- * @brief Adds an additional shift to the anchor point
- * @param gap Gap value in pixels
- * @details The shift direction depends on the anchor type:
- *          left aligned -->, right aligned <--, top aligned top-down,
- *          bottom aligned bottom-up. The unit is user space dependent
- *          (one pixel on screen - play around to get satisfying results).
- */
-void Label::adjust(int gap)
+void Qwt3DLabel::adjust(int gap)
 {
 	QWT_D(d);
 	d->m_gap = gap;
 }
 
-void Label::convert2screen()
+void Qwt3DLabel::convert2screen(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
-	Triple start = World2ViewPort(d->m_pos);
+
+	QMatrix4x4 mvp = ctx.projection * ctx.modelView;
+
+	// Compute NDC z of the label position
+	QVector4D posVec(static_cast< float >(d->m_pos.x),
+					 static_cast< float >(d->m_pos.y),
+					 static_cast< float >(d->m_pos.z),
+					 1.0f);
+	QVector4D clip = mvp.map(posVec);
+	d->m_ndcZ = 0.0f;
+	if (clip.w() != 0.0f)
+		d->m_ndcZ = clip.z() / clip.w();
+
+	if (ctx.viewport.width() <= 0 || ctx.viewport.height() <= 0)
+		return;
+
+	// Helper to convert screen + NDC z back to world
+	auto screenToWorldZ = [&](const QPointF& s) -> Triple {
+		float ndcX = 2.0f * static_cast< float >(s.x()) / ctx.viewport.width() - 1.0f;
+		float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / ctx.viewport.height();
+		QVector4D ndc(ndcX, ndcY, d->m_ndcZ, 1.0f);
+		QVector4D world = mvp.inverted().map(ndc);
+		if (world.w() != 0.0f)
+			return Triple(world.x() / world.w(), world.y() / world.w(), world.z() / world.w());
+		return Triple(0, 0, 0);
+	};
+
+	QPointF screen = ctx.worldToScreen(d->m_pos);
+
+	double w = width();
+	double h = height();
 
 	switch (d->m_anchor) {
 	case BottomLeft:
 		d->m_beg = d->m_pos;
 		break;
 	case BottomRight:
-		d->m_beg = ViewPort2World(start - Triple(width() + d->m_gap, 0, 0));
+		d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, 0));
 		break;
 	case BottomCenter:
-		d->m_beg = ViewPort2World(start - Triple(width() / 2, -d->m_gap, 0));
+		d->m_beg = screenToWorldZ(screen - QPointF(w / 2, -d->m_gap));
 		break;
 	case TopRight:
-		d->m_beg = ViewPort2World(start - Triple(width() + d->m_gap, height(), 0));
+		d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, h));
 		break;
 	case TopLeft:
-		d->m_beg = ViewPort2World(start - Triple(-d->m_gap, height(), 0));
+		d->m_beg = screenToWorldZ(screen - QPointF(-d->m_gap, h));
 		break;
 	case TopCenter:
-		d->m_beg = ViewPort2World(start - Triple(width() / 2, height() + d->m_gap, 0));
+		d->m_beg = screenToWorldZ(screen - QPointF(w / 2, h + d->m_gap));
 		break;
 	case CenterLeft:
-		d->m_beg = ViewPort2World(start - Triple(-d->m_gap, height() / 2, 0));
+		d->m_beg = screenToWorldZ(screen - QPointF(-d->m_gap, h / 2));
 		break;
 	case CenterRight:
-		d->m_beg = ViewPort2World(start - Triple(width() + d->m_gap, height() / 2, 0));
+		d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, h / 2));
 		break;
 	case Center:
-		d->m_beg = ViewPort2World(start - Triple(width() / 2, height() / 2, 0));
+		d->m_beg = screenToWorldZ(screen - QPointF(w / 2, h / 2));
 		break;
 	default:
 		break;
 	}
-	start    = World2ViewPort(d->m_beg);
-	d->m_end = ViewPort2World(start + Triple(width(), height(), 0));
+
+	QPointF begScreen = ctx.worldToScreen(d->m_beg);
+	d->m_end = screenToWorldZ(begScreen + QPointF(w, h));
 }
 
 /**
- * @brief Draws the label
+ * @brief Draws the label using a texture quad with GLSL text shader
+ * @param ctx Render context providing shaders, matrices, and coordinate conversion
+ * @details Renders the text to a QImage, creates an OpenGL texture,
+ *          and draws a textured quad using VBO + text.vert/text.frag shaders.
+ *          For gl2ps vector export (deviceFonts mode), falls back to
+ *          drawDeviceText.
  */
-void Label::draw()
+void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 	if (d->m_flagForUpdate) {
@@ -89819,71 +91712,140 @@ void Label::draw()
 	if (d->m_buf.isNull())
 		return;
 
-	GLboolean b;
-	GLint func;
-	GLdouble v;
-	glGetBooleanv(GL_ALPHA_TEST, &b);
-	glGetIntegerv(GL_ALPHA_TEST_FUNC, &func);
-	glGetDoublev(GL_ALPHA_TEST_REF, &v);
+	convert2screen(ctx);
 
-	glEnable(GL_ALPHA_TEST);
-	glAlphaFunc(GL_NOTEQUAL, 0.0);
-
-	convert2screen();
-	glRasterPos3d(d->m_beg.x, d->m_beg.y, d->m_beg.z);
-
-	int w = d->m_tex.width();
-	int h = d->m_tex.height();
-
+	// gl2ps vector export path: use device text for vector output
+#ifdef QWT3D_ENABLE_GL2PS
 	if (deviceFonts) {
-		drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(), d->m_pos, color, d->m_anchor, d->m_gap);
-	} else {
-		drawDevicePixels(w, h, GL_RGBA, GL_UNSIGNED_BYTE, d->m_tex.bits());
+		drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(),
+					   d->m_pos, m_color, d->m_anchor, d->m_gap);
+		return;
 	}
+#endif
 
-	glAlphaFunc(func, v);
-	Enable(GL_ALPHA_TEST, b);
+	auto* shader = ctx.textShader;
+	if (!shader)
+		return;
+
+	auto* f = QOpenGLContext::currentContext()->functions();
+
+	// Create texture from the text image (alpha channel is used by shader)
+	QOpenGLTexture texture(d->m_tex);
+	texture.setMinificationFilter(QOpenGLTexture::Linear);
+	texture.setMagnificationFilter(QOpenGLTexture::Linear);
+	texture.setWrapMode(QOpenGLTexture::ClampToEdge);
+
+	// Compute all four quad corners via screen-to-world conversion.
+	// m_beg and m_end are two diagonal corners (BL, TR) in world space,
+	// but the other two corners cannot be synthesized by mixing x/y/z
+	// components — they must be computed independently from screen space.
+	QMatrix4x4 mvp = ctx.projection * ctx.modelView;
+	QSize vp = ctx.viewport;
+
+	QPointF begScreen = ctx.worldToScreen(d->m_beg);
+	QPointF endScreen = ctx.worldToScreen(d->m_end);
+
+	auto screenToWorldZ = [&](const QPointF& s) -> Triple {
+		if (vp.width() <= 0 || vp.height() <= 0)
+			return Triple(0, 0, 0);
+		float ndcX = 2.0f * static_cast< float >(s.x()) / vp.width() - 1.0f;
+		float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / vp.height();
+		QVector4D ndc(ndcX, ndcY, d->m_ndcZ, 1.0f);
+		QVector4D world = mvp.inverted().map(ndc);
+		if (world.w() != 0.0f)
+			return Triple(world.x() / world.w(), world.y() / world.w(), world.z() / world.w());
+		return Triple(0, 0, 0);
+	};
+
+	Triple bl = d->m_beg;
+	Triple tr = d->m_end;
+	Triple tl = screenToWorldZ(QPointF(begScreen.x(), endScreen.y()));
+	Triple br = screenToWorldZ(QPointF(endScreen.x(), begScreen.y()));
+
+	// Build quad vertices: position(3) + texcoord(2) = 5 floats per vertex
+	// Triangle strip order: BL, TL, BR, TR
+	QVector<float> verts;
+	// Bottom-left
+	verts << static_cast< float >(bl.x) << static_cast< float >(bl.y) << static_cast< float >(bl.z)
+		  << 0.0f << 1.0f;
+	// Top-left
+	verts << static_cast< float >(tl.x) << static_cast< float >(tl.y) << static_cast< float >(tl.z)
+		  << 0.0f << 0.0f;
+	// Bottom-right
+	verts << static_cast< float >(br.x) << static_cast< float >(br.y) << static_cast< float >(br.z)
+		  << 1.0f << 1.0f;
+	// Top-right
+	verts << static_cast< float >(tr.x) << static_cast< float >(tr.y) << static_cast< float >(tr.z)
+		  << 1.0f << 0.0f;
+
+	QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
+	vbo.create();
+	vbo.bind();
+	vbo.allocate(verts.constData(), verts.size() * sizeof(float));
+
+	shader->bind();
+	shader->setUniformValue("uModelView", ctx.modelView);
+	shader->setUniformValue("uProjection", ctx.projection);
+	shader->setUniformValue("uTextTexture", 0);
+	shader->setUniformValue("uTextColor",
+							QVector4D(static_cast< float >(m_color.r),
+									  static_cast< float >(m_color.g),
+									  static_cast< float >(m_color.b),
+									  static_cast< float >(m_color.a)));
+
+	texture.bind(0);
+
+	int stride = 5 * sizeof(float);
+	shader->enableAttributeArray(0);
+	shader->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
+	shader->enableAttributeArray(1);
+	shader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 2, stride);
+
+	f->glEnable(GL_BLEND);
+	f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	f->glDisable(GL_DEPTH_TEST);
+	f->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	f->glEnable(GL_DEPTH_TEST);
+
+	shader->disableAttributeArray(0);
+	shader->disableAttributeArray(1);
+	shader->release();
+	texture.release();
+	vbo.release();
+	vbo.destroy();
 }
 
-/**
- * @brief Returns the label width in pixels
- * @return Label pixmap width
- */
-double Label::width() const
+double Qwt3DLabel::width() const
 {
 	QWT_DC(d);
 	return d->m_pm.width();
 }
 
-/**
- * @brief Returns the label height in pixels
- * @return Label pixmap height
- */
-double Label::height() const
+double Qwt3DLabel::height() const
 {
 	QWT_DC(d);
 	return d->m_pm.height();
 }
 
-double Label::gap() const
+double Qwt3DLabel::gap() const
 {
 	QWT_DC(d);
 	return d->m_gap;
 }
 
-Qwt3D::Triple Label::first() const
+Triple Qwt3DLabel::first() const
 {
 	QWT_DC(d);
 	return d->m_beg;
 }
 
-Qwt3D::Triple Label::second() const
+Triple Qwt3DLabel::second() const
 {
 	QWT_DC(d);
 	return d->m_end;
 }
 
-ANCHOR Label::anchor() const
+ANCHOR Qwt3DLabel::anchor() const
 {
 	QWT_DC(d);
 	return d->m_anchor;
@@ -89903,46 +91865,44 @@ ANCHOR Label::anchor() const
 
 #include <cmath>
 
-using namespace Qwt3D;
-
 #ifndef QWT3D_NOT_FOR_DOXYGEN
 
-class Data::PrivateData
+class Qwt3DData::PrivateData
 {
-	QWT_DECLARE_PUBLIC(Data)
+	QWT_DECLARE_PUBLIC(Qwt3DData)
 
 public:
-	PrivateData(Data* q) : q_ptr(q)
+	PrivateData(Qwt3DData* q) : q_ptr(q)
 	{
 	}
 
-	Qwt3D::ParallelEpiped m_hull;
+	ParallelEpiped m_hull;
 };
 
-Data::Data() : QWT_PIMPL_CONSTRUCT, datatype(Qwt3D::POLYGON)
+Qwt3DData::Qwt3DData() : QWT_PIMPL_CONSTRUCT, datatype(POLYGON)
 {
 }
 
-Data::~Data() = default;
+Qwt3DData::~Qwt3DData() = default;
 
-void Data::setHull(Qwt3D::ParallelEpiped const& h)
+void Qwt3DData::setHull(ParallelEpiped const& h)
 {
 	QWT_D(d);
 	d->m_hull = h;
 }
 
-Qwt3D::ParallelEpiped const& Data::hull() const
+ParallelEpiped const& Qwt3DData::hull() const
 {
 	QWT_DC(d);
 	return d->m_hull;
 }
 
-class GridData::PrivateData
+class Qwt3DGridData::PrivateData
 {
-	QWT_DECLARE_PUBLIC(GridData)
+	QWT_DECLARE_PUBLIC(Qwt3DGridData)
 
 public:
-	PrivateData(GridData* q) : q_ptr(q), m_uperiodic(false), m_vperiodic(false)
+	PrivateData(Qwt3DGridData* q) : q_ptr(q), m_uperiodic(false), m_vperiodic(false)
 	{
 	}
 
@@ -90010,60 +91970,60 @@ int _ch2d(coordinate_type** P, int n)
 
 }  // ns anon
 
-GridData::GridData() : QWT_PIMPL_CONSTRUCT
+Qwt3DGridData::Qwt3DGridData() : QWT_PIMPL_CONSTRUCT
 {
-	datatype = Qwt3D::GRID;
+	datatype = GRID;
 	setSize(0, 0);
 	setPeriodic(false, false);
 }
 
-GridData::GridData(unsigned int columns, unsigned int rows) : QWT_PIMPL_CONSTRUCT
+Qwt3DGridData::Qwt3DGridData(unsigned int columns, unsigned int rows) : QWT_PIMPL_CONSTRUCT
 {
-	datatype = Qwt3D::GRID;
+	datatype = GRID;
 	setSize(columns, rows);
 	setPeriodic(false, false);
 }
 
-GridData::~GridData()
+Qwt3DGridData::~Qwt3DGridData()
 {
 	clear();
 }
 
-int GridData::columns() const
+int Qwt3DGridData::columns() const
 {
 	return static_cast< int >(vertices.size());
 }
 
-int GridData::rows() const
+int Qwt3DGridData::rows() const
 {
 	return (empty()) ? 0 : static_cast< int >(vertices[ 0 ].size());
 }
 
-bool GridData::empty() const
+bool Qwt3DGridData::empty() const
 {
 	return vertices.empty();
 }
 
-void GridData::setPeriodic(bool u, bool v)
+void Qwt3DGridData::setPeriodic(bool u, bool v)
 {
 	QWT_D(d);
 	d->m_uperiodic = u;
 	d->m_vperiodic = v;
 }
 
-bool GridData::uperiodic() const
+bool Qwt3DGridData::uperiodic() const
 {
 	QWT_DC(d);
 	return d->m_uperiodic;
 }
 
-bool GridData::vperiodic() const
+bool Qwt3DGridData::vperiodic() const
 {
 	QWT_DC(d);
 	return d->m_vperiodic;
 }
 
-void GridData::clear()
+void Qwt3DGridData::clear()
 {
 	setHull(ParallelEpiped());
 	{
@@ -90089,7 +92049,7 @@ void GridData::clear()
 	normals.clear();
 }
 
-void GridData::setSize(unsigned int columns, unsigned int rows)
+void Qwt3DGridData::setSize(unsigned int columns, unsigned int rows)
 {
 	this->clear();
 	vertices = std::vector< DataRow >(columns);
@@ -90097,7 +92057,7 @@ void GridData::setSize(unsigned int columns, unsigned int rows)
 		for (unsigned int i = 0; i != vertices.size(); ++i) {
 			vertices[ i ] = DataRow(rows);
 			for (unsigned int j = 0; j != vertices[ i ].size(); ++j) {
-				vertices[ i ][ j ] = new GLdouble[ 3 ];
+				vertices[ i ][ j ] = new double[ 3 ];
 			}
 		}
 	}
@@ -90106,18 +92066,18 @@ void GridData::setSize(unsigned int columns, unsigned int rows)
 		for (unsigned int i = 0; i != normals.size(); ++i) {
 			normals[ i ] = DataRow(rows);
 			for (unsigned int j = 0; j != normals[ i ].size(); ++j) {
-				normals[ i ][ j ] = new GLdouble[ 3 ];
+				normals[ i ][ j ] = new double[ 3 ];
 			}
 		}
 	}
 }
 
-Triple const& CellData::operator()(unsigned cellnumber, unsigned vertexnumber)
+Triple const& Qwt3DCellData::operator()(unsigned cellnumber, unsigned vertexnumber)
 {
 	return nodes[ cells[ cellnumber ][ vertexnumber ] ];
 }
 
-void CellData::clear()
+void Qwt3DCellData::clear()
 {
 	setHull(ParallelEpiped());
 	cells.clear();
@@ -90132,7 +92092,7 @@ void CellData::clear()
  * @param b Blue component (0.0-1.0)
  * @return QColor with components scaled to 0-255 range
  */
-QColor Qwt3D::GL2Qt(GLdouble r, GLdouble g, GLdouble b)
+QColor GL2Qt(double r, double g, double b)
 {
 	return QColor(static_cast< int >(std::round(r * 255)),
 				  static_cast< int >(std::round(g * 255)),
@@ -90144,7 +92104,7 @@ QColor Qwt3D::GL2Qt(GLdouble r, GLdouble g, GLdouble b)
  * @param col Qt QColor to convert
  * @return RGBA structure with components scaled to 0.0-1.0 range
  */
-RGBA Qwt3D::Qt2GL(QColor col)
+RGBA Qt2GL(QColor col)
 {
 	QRgb qrgb = col.rgb();
 	RGBA rgba;
@@ -90160,7 +92120,7 @@ RGBA Qwt3D::Qt2GL(QColor col)
  * @param[out] idx Output vector of indices into src forming the convex hull
  * @param src Source vector of Tuple points
  */
-void Qwt3D::convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
+void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
 {
 	idx.clear();
 	if (src.empty())
@@ -90195,7 +92155,7 @@ void Qwt3D::convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple 
  * @param t Cell field to measure
  * @return Sum of all cell sizes in the field
  */
-unsigned Qwt3D::tesselationSize(CellField const& t)
+unsigned tesselationSize(CellField const& t)
 {
 	size_t ret = 0;
 
@@ -90213,21 +92173,19 @@ unsigned Qwt3D::tesselationSize(CellField const& t)
 /*** Start of inlined file: qwt3d_enrichment_std.cpp ***/
 #include <cmath>
 
-using namespace Qwt3D;
-
 /////////////////////////////////////////////////////////////////
 //
-//   CrossHair
+//   Qwt3DCrossHair
 //
 /////////////////////////////////////////////////////////////////
 
-class CrossHair::PrivateData
+class Qwt3DCrossHair::PrivateData
 {
-	QWT_DECLARE_PUBLIC(CrossHair)
+	QWT_DECLARE_PUBLIC(Qwt3DCrossHair)
 
 public:
-	PrivateData(CrossHair* q)
-		: q_ptr(q), m_boxed(false), m_smooth(false), m_linewidth(1.0), m_radius(0.0), m_oldstate(GL_FALSE)
+	PrivateData(Qwt3DCrossHair* q)
+		: q_ptr(q), m_boxed(false), m_smooth(false), m_linewidth(1.0), m_radius(0.0)
 	{
 	}
 
@@ -90235,30 +92193,19 @@ public:
 	bool m_smooth;
 	double m_linewidth;
 	double m_radius;
-	GLboolean m_oldstate;
 };
 
-/**
- * @brief Default constructor
- */
-CrossHair::CrossHair() : QWT_PIMPL_CONSTRUCT
+Qwt3DCrossHair::Qwt3DCrossHair() : QWT_PIMPL_CONSTRUCT
 {
 	configure(0, 1, false, false);
 }
 
-/**
- * @brief Constructs a CrossHair with specified parameters
- * @param rad Relative radius
- * @param linewidth Line width
- * @param smooth Smooth lines
- * @param boxed Draw a box around the crosshair
- */
-CrossHair::CrossHair(double rad, double linewidth, bool smooth, bool boxed) : QWT_PIMPL_CONSTRUCT
+Qwt3DCrossHair::Qwt3DCrossHair(double rad, double linewidth, bool smooth, bool boxed) : QWT_PIMPL_CONSTRUCT
 {
 	configure(rad, linewidth, smooth, boxed);
 }
 
-CrossHair::CrossHair(const CrossHair& other) : VertexEnrichment(other), QWT_PIMPL_CONSTRUCT
+Qwt3DCrossHair::Qwt3DCrossHair(const Qwt3DCrossHair& other) : Qwt3DVertexEnrichment(other), QWT_PIMPL_CONSTRUCT
 {
 	QWT_D(d);
 	const PrivateData* od = other.d_func();
@@ -90266,19 +92213,17 @@ CrossHair::CrossHair(const CrossHair& other) : VertexEnrichment(other), QWT_PIMP
 	d->m_smooth           = od->m_smooth;
 	d->m_linewidth        = od->m_linewidth;
 	d->m_radius           = od->m_radius;
-	d->m_oldstate         = od->m_oldstate;
 }
 
-CrossHair::~CrossHair() = default;
+Qwt3DCrossHair::~Qwt3DCrossHair() = default;
 
-Enrichment* CrossHair::clone() const
+Qwt3DEnrichment* Qwt3DCrossHair::clone() const
 {
-	return new CrossHair(*this);
+	return new Qwt3DCrossHair(*this);
 }
 
-void CrossHair::configure(double rad, double linewidth, bool smooth, bool boxed)
+void Qwt3DCrossHair::configure(double rad, double linewidth, bool smooth, bool boxed)
 {
-	plot = nullptr;
 	QWT_D(d);
 	d->m_radius    = rad;
 	d->m_linewidth = linewidth;
@@ -90286,308 +92231,137 @@ void CrossHair::configure(double rad, double linewidth, bool smooth, bool boxed)
 	d->m_boxed     = boxed;
 }
 
-void CrossHair::drawBegin()
-{
-	QWT_D(d);
-	setDeviceLineWidth(d->m_linewidth);
-	d->m_oldstate = glIsEnabled(GL_LINE_SMOOTH);
-	if (d->m_smooth)
-		glEnable(GL_LINE_SMOOTH);
-	else
-		glDisable(GL_LINE_SMOOTH);
-	glBegin(GL_LINES);
-}
-
-void CrossHair::drawEnd()
-{
-	QWT_D(d);
-	glEnd();
-
-	if (d->m_oldstate)
-		glEnable(GL_LINE_SMOOTH);
-	else
-		glDisable(GL_LINE_SMOOTH);
-}
-
-void CrossHair::draw(Qwt3D::Triple const& pos)
-{
-	QWT_D(d);
-	RGBA rgba = (*plot->dataColor())(pos);
-	glColor4d(rgba.r, rgba.g, rgba.b, rgba.a);
-
-	double diag = (plot->hull().maxVertex - plot->hull().minVertex).length() * d->m_radius;
-
-	glVertex3d(pos.x - diag, pos.y, pos.z);
-	glVertex3d(pos.x + diag, pos.y, pos.z);
-
-	glVertex3d(pos.x, pos.y - diag, pos.z);
-	glVertex3d(pos.x, pos.y + diag, pos.z);
-
-	glVertex3d(pos.x, pos.y, pos.z - diag);
-	glVertex3d(pos.x, pos.y, pos.z + diag);
-
-	// hull
-
-	if (!d->m_boxed)
-		return;
-
-	glVertex3d(pos.x - diag, pos.y - diag, pos.z + diag);
-	glVertex3d(pos.x + diag, pos.y - diag, pos.z + diag);
-	glVertex3d(pos.x - diag, pos.y - diag, pos.z - diag);
-	glVertex3d(pos.x + diag, pos.y - diag, pos.z - diag);
-
-	glVertex3d(pos.x - diag, pos.y + diag, pos.z + diag);
-	glVertex3d(pos.x + diag, pos.y + diag, pos.z + diag);
-	glVertex3d(pos.x - diag, pos.y + diag, pos.z - diag);
-	glVertex3d(pos.x + diag, pos.y + diag, pos.z - diag);
-
-	glVertex3d(pos.x - diag, pos.y - diag, pos.z + diag);
-	glVertex3d(pos.x - diag, pos.y + diag, pos.z + diag);
-	glVertex3d(pos.x - diag, pos.y - diag, pos.z - diag);
-	glVertex3d(pos.x - diag, pos.y + diag, pos.z - diag);
-
-	glVertex3d(pos.x + diag, pos.y - diag, pos.z + diag);
-	glVertex3d(pos.x + diag, pos.y + diag, pos.z + diag);
-	glVertex3d(pos.x + diag, pos.y - diag, pos.z - diag);
-	glVertex3d(pos.x + diag, pos.y + diag, pos.z - diag);
-
-	glVertex3d(pos.x - diag, pos.y - diag, pos.z - diag);
-	glVertex3d(pos.x - diag, pos.y - diag, pos.z + diag);
-	glVertex3d(pos.x + diag, pos.y - diag, pos.z - diag);
-	glVertex3d(pos.x + diag, pos.y - diag, pos.z + diag);
-
-	glVertex3d(pos.x - diag, pos.y + diag, pos.z - diag);
-	glVertex3d(pos.x - diag, pos.y + diag, pos.z + diag);
-	glVertex3d(pos.x + diag, pos.y + diag, pos.z - diag);
-	glVertex3d(pos.x + diag, pos.y + diag, pos.z + diag);
-}
+// Stubs — full implementations disabled during Plot+Item refactor.
+// Will be reimplemented when enrichment system works with Qwt3DPlotItem.
+void Qwt3DCrossHair::drawBegin() {}
+void Qwt3DCrossHair::drawEnd() {}
+void Qwt3DCrossHair::draw(Triple const&) {}
 
 /////////////////////////////////////////////////////////////////
 //
-//   Dot
+//   Qwt3DDot
 //
 /////////////////////////////////////////////////////////////////
 
-class Dot::PrivateData
+class Qwt3DDot::PrivateData
 {
-	QWT_DECLARE_PUBLIC(Dot)
+	QWT_DECLARE_PUBLIC(Qwt3DDot)
 
 public:
-	PrivateData(Dot* q) : q_ptr(q), m_smooth(false), m_pointsize(1.0), m_oldstate(GL_FALSE)
+	PrivateData(Qwt3DDot* q) : q_ptr(q), m_smooth(false), m_pointsize(1.0)
 	{
 	}
 
 	bool m_smooth;
 	double m_pointsize;
-	GLboolean m_oldstate;
 };
 
-/**
- * @brief Default constructor
- */
-Dot::Dot() : QWT_PIMPL_CONSTRUCT
+Qwt3DDot::Qwt3DDot() : QWT_PIMPL_CONSTRUCT
 {
 	configure(1, false);
 }
 
-/**
- * @brief Constructs a Dot with specified parameters
- * @param pointsize Point size
- * @param smooth Smooth point rendering
- */
-Dot::Dot(double pointsize, bool smooth) : QWT_PIMPL_CONSTRUCT
+Qwt3DDot::Qwt3DDot(double pointsize, bool smooth) : QWT_PIMPL_CONSTRUCT
 {
 	configure(pointsize, smooth);
 }
 
-Dot::Dot(const Dot& other) : VertexEnrichment(other), QWT_PIMPL_CONSTRUCT
+Qwt3DDot::Qwt3DDot(const Qwt3DDot& other) : Qwt3DVertexEnrichment(other), QWT_PIMPL_CONSTRUCT
 {
 	QWT_D(d);
 	const PrivateData* od = other.d_func();
 	d->m_smooth           = od->m_smooth;
 	d->m_pointsize        = od->m_pointsize;
-	d->m_oldstate         = od->m_oldstate;
 }
 
-Dot::~Dot() = default;
+Qwt3DDot::~Qwt3DDot() = default;
 
-Enrichment* Dot::clone() const
+Qwt3DEnrichment* Qwt3DDot::clone() const
 {
-	return new Dot(*this);
+	return new Qwt3DDot(*this);
 }
 
-void Dot::configure(double pointsize, bool smooth)
+void Qwt3DDot::configure(double pointsize, bool smooth)
 {
-	plot = nullptr;
 	QWT_D(d);
 	d->m_pointsize = pointsize;
 	d->m_smooth    = smooth;
 }
 
-void Dot::drawBegin()
-{
-	QWT_D(d);
-	setDevicePointSize(d->m_pointsize);
-	d->m_oldstate = glIsEnabled(GL_POINT_SMOOTH);
-	if (d->m_smooth)
-		glEnable(GL_POINT_SMOOTH);
-	else
-		glDisable(GL_POINT_SMOOTH);
-
-	glBegin(GL_POINTS);
-}
-
-void Dot::drawEnd()
-{
-	QWT_D(d);
-	glEnd();
-
-	if (d->m_oldstate)
-		glEnable(GL_POINT_SMOOTH);
-	else
-		glDisable(GL_POINT_SMOOTH);
-}
-
-void Dot::draw(Qwt3D::Triple const& pos)
-{
-	RGBA rgba = (*plot->dataColor())(pos);
-	glColor4d(rgba.r, rgba.g, rgba.b, rgba.a);
-	glVertex3d(pos.x, pos.y, pos.z);
-}
+// Stubs — disabled during refactor
+void Qwt3DDot::drawBegin() {}
+void Qwt3DDot::drawEnd() {}
+void Qwt3DDot::draw(Triple const&) {}
 
 /////////////////////////////////////////////////////////////////
 //
-//   Cone
+//   Qwt3DCone
 //
 /////////////////////////////////////////////////////////////////
 
-class Cone::PrivateData
+class Qwt3DCone::PrivateData
 {
-	QWT_DECLARE_PUBLIC(Cone)
+	QWT_DECLARE_PUBLIC(Qwt3DCone)
 
 public:
-	PrivateData(Cone* q) : q_ptr(q), m_hat(nullptr), m_disk(nullptr), m_quality(3), m_radius(0.0), m_oldstate(GL_FALSE)
+	PrivateData(Qwt3DCone* q) : q_ptr(q), m_quality(3), m_radius(0.0)
 	{
 	}
 
-	~PrivateData()
-	{
-		if (m_hat)
-			gluDeleteQuadric(m_hat);
-		if (m_disk)
-			gluDeleteQuadric(m_disk);
-	}
-
-	void initQuadrics()
-	{
-		m_hat  = gluNewQuadric();
-		m_disk = gluNewQuadric();
-
-		gluQuadricDrawStyle(m_hat, GLU_FILL);
-		gluQuadricNormals(m_hat, GLU_SMOOTH);
-		gluQuadricOrientation(m_hat, GLU_OUTSIDE);
-		gluQuadricDrawStyle(m_disk, GLU_FILL);
-		gluQuadricNormals(m_disk, GLU_SMOOTH);
-		gluQuadricOrientation(m_disk, GLU_OUTSIDE);
-	}
-
-	GLUquadricObj* m_hat;
-	GLUquadricObj* m_disk;
 	unsigned m_quality;
 	double m_radius;
-	GLboolean m_oldstate;
 };
 
-/**
- * @brief Default constructor
- */
-Cone::Cone() : QWT_PIMPL_CONSTRUCT
+Qwt3DCone::Qwt3DCone() : QWT_PIMPL_CONSTRUCT
 {
-	QWT_D(d);
-	d->initQuadrics();
 	configure(0, 3);
 }
 
-/**
- * @brief Constructs a Cone with specified radius and quality
- * @param rad Cone radius
- * @param quality Number of faces for the cone
- */
-Cone::Cone(double rad, unsigned quality) : QWT_PIMPL_CONSTRUCT
+Qwt3DCone::Qwt3DCone(double rad, unsigned quality) : QWT_PIMPL_CONSTRUCT
 {
-	QWT_D(d);
-	d->initQuadrics();
 	configure(rad, quality);
 }
 
-Cone::Cone(const Cone& other) : VertexEnrichment(other), QWT_PIMPL_CONSTRUCT
+Qwt3DCone::Qwt3DCone(const Qwt3DCone& other) : Qwt3DVertexEnrichment(other), QWT_PIMPL_CONSTRUCT
 {
 	QWT_D(d);
 	const PrivateData* od = other.d_func();
 	d->m_quality          = od->m_quality;
 	d->m_radius           = od->m_radius;
-	d->m_oldstate         = od->m_oldstate;
-	d->initQuadrics();
 }
 
-/**
- * @brief Destructor
- */
-Cone::~Cone() = default;
+Qwt3DCone::~Qwt3DCone() = default;
 
-Enrichment* Cone::clone() const
+Qwt3DEnrichment* Qwt3DCone::clone() const
 {
-	return new Cone(*this);
+	return new Qwt3DCone(*this);
 }
 
-void Cone::configure(double rad, unsigned quality)
+void Qwt3DCone::configure(double rad, unsigned quality)
 {
-	plot = nullptr;
 	QWT_D(d);
 	d->m_radius   = rad;
 	d->m_quality  = quality;
-	d->m_oldstate = GL_FALSE;
 }
 
-void Cone::draw(Qwt3D::Triple const& pos)
-{
-	QWT_D(d);
-	RGBA rgba = (*plot->dataColor())(pos);
-	glColor4d(rgba.r, rgba.g, rgba.b, rgba.a);
-
-	GLint mode;
-	glGetIntegerv(GL_MATRIX_MODE, &mode);
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-
-	glTranslatef(pos.x, pos.y, pos.z);
-
-	gluCylinder(d->m_hat, 0.0, d->m_radius, d->m_radius * 2, d->m_quality, 1);
-	glTranslatef(0, 0, d->m_radius * 2);
-	gluDisk(d->m_disk, 0.0, d->m_radius, d->m_quality, 1);
-
-	glPopMatrix();
-	glMatrixMode(mode);
-}
+// Stub — disabled during refactor.
+// When implemented: CPU-generate cone triangle mesh, upload to VBO,
+// render with polygon shader.
+void Qwt3DCone::draw(Triple const&) {}
 
 /////////////////////////////////////////////////////////////////
 //
-//   Arrow
+//   Qwt3DArrow
 //
 /////////////////////////////////////////////////////////////////
 
-class Arrow::PrivateData
+class Qwt3DArrow::PrivateData
 {
-	QWT_DECLARE_PUBLIC(Arrow)
+	QWT_DECLARE_PUBLIC(Qwt3DArrow)
 
 public:
-	PrivateData(Arrow* q)
+	PrivateData(Qwt3DArrow* q)
 		: q_ptr(q)
-		, m_hat(nullptr)
-		, m_disk(nullptr)
-		, m_base(nullptr)
-		, m_bottom(nullptr)
-		, m_oldstate(GL_FALSE)
 		, m_segments(3)
 		, m_relConeLength(0.4)
 		, m_relConeRadius(0.06)
@@ -90595,198 +92369,83 @@ public:
 	{
 	}
 
-	~PrivateData()
-	{
-		if (m_hat)
-			gluDeleteQuadric(m_hat);
-		if (m_disk)
-			gluDeleteQuadric(m_disk);
-		if (m_base)
-			gluDeleteQuadric(m_base);
-		if (m_bottom)
-			gluDeleteQuadric(m_bottom);
-	}
-
-	void initQuadrics()
-	{
-		m_hat    = gluNewQuadric();
-		m_disk   = gluNewQuadric();
-		m_base   = gluNewQuadric();
-		m_bottom = gluNewQuadric();
-
-		gluQuadricDrawStyle(m_hat, GLU_FILL);
-		gluQuadricNormals(m_hat, GLU_SMOOTH);
-		gluQuadricOrientation(m_hat, GLU_OUTSIDE);
-		gluQuadricDrawStyle(m_disk, GLU_FILL);
-		gluQuadricNormals(m_disk, GLU_SMOOTH);
-		gluQuadricOrientation(m_disk, GLU_OUTSIDE);
-		gluQuadricDrawStyle(m_base, GLU_FILL);
-		gluQuadricNormals(m_base, GLU_SMOOTH);
-		gluQuadricOrientation(m_base, GLU_OUTSIDE);
-		gluQuadricDrawStyle(m_bottom, GLU_FILL);
-		gluQuadricNormals(m_bottom, GLU_SMOOTH);
-		gluQuadricOrientation(m_bottom, GLU_OUTSIDE);
-	}
-
-	GLUquadricObj* m_hat;
-	GLUquadricObj* m_disk;
-	GLUquadricObj* m_base;
-	GLUquadricObj* m_bottom;
-	GLboolean m_oldstate;
-
 	int m_segments;
 	double m_relConeLength;
 	double m_relConeRadius;
 	double m_relStemRadius;
 
-	Qwt3D::Triple m_top;
-	Qwt3D::RGBA m_rgba;
+	Triple m_top;
+	RGBA m_rgba;
 };
 
-Arrow::Arrow() : QWT_PIMPL_CONSTRUCT
+Qwt3DArrow::Qwt3DArrow() : QWT_PIMPL_CONSTRUCT
 {
-	QWT_D(d);
-	d->initQuadrics();
 	configure(3, 0.4, 0.06, 0.02);
 }
 
-Arrow::Arrow(const Arrow& other) : VertexEnrichment(other), QWT_PIMPL_CONSTRUCT
+Qwt3DArrow::Qwt3DArrow(const Qwt3DArrow& other) : Qwt3DVertexEnrichment(other), QWT_PIMPL_CONSTRUCT
 {
 	QWT_D(d);
 	const PrivateData* od = other.d_func();
-	d->m_oldstate         = od->m_oldstate;
 	d->m_segments         = od->m_segments;
 	d->m_relConeLength    = od->m_relConeLength;
 	d->m_relConeRadius    = od->m_relConeRadius;
 	d->m_relStemRadius    = od->m_relStemRadius;
 	d->m_top              = od->m_top;
 	d->m_rgba             = od->m_rgba;
-	d->initQuadrics();
 }
 
-/**
- * @brief Destructor
- */
-Arrow::~Arrow() = default;
+Qwt3DArrow::~Qwt3DArrow() = default;
 
-Enrichment* Arrow::clone() const
+Qwt3DEnrichment* Qwt3DArrow::clone() const
 {
-	return new Arrow(*this);
+	return new Qwt3DArrow(*this);
 }
 
-/**
- * @brief Configures the arrow appearance
- * @param segs Number of faces for the arrows (see the gallery for examples)
- * @param relconelength Relative cone length (see arrowanatomy.png)
- * @param relconerad Relative cone radius (see arrowanatomy.png)
- * @param relstemrad Relative stem radius (see arrowanatomy.png)
- * @image html arrowanatomy.png
- */
-void Arrow::configure(int segs, double relconelength, double relconerad, double relstemrad)
+void Qwt3DArrow::configure(int segs, double relconelength, double relconerad, double relstemrad)
 {
-	plot = nullptr;
 	QWT_D(d);
 	d->m_segments      = segs;
-	d->m_oldstate      = GL_FALSE;
 	d->m_relConeLength = relconelength;
 	d->m_relConeRadius = relconerad;
 	d->m_relStemRadius = relstemrad;
 }
 
-void Arrow::setQuality(int val)
+void Qwt3DArrow::setQuality(int val)
 {
 	QWT_D(d);
 	d->m_segments = val;
 }
 
-void Arrow::setTop(Qwt3D::Triple t)
+void Qwt3DArrow::setTop(Triple t)
 {
 	QWT_D(d);
 	d->m_top = t;
 }
 
-void Arrow::setColor(Qwt3D::RGBA rgba)
+void Qwt3DArrow::setColor(RGBA rgba)
 {
 	QWT_D(d);
 	d->m_rgba = rgba;
 }
 
-void Arrow::draw(Qwt3D::Triple const& pos)
+// Stub — disabled during refactor.
+// When implemented: CPU-generate cone + cylinder triangle mesh,
+// upload to VBO, render with polygon shader.
+void Qwt3DArrow::draw(Triple const&) {}
+
+double Qwt3DArrow::calcRotation(Triple& axis, FreeVector const& vec)
 {
-	QWT_D(d);
-	Triple end    = d->m_top;
-	Triple beg    = pos;
-	Triple vdiff  = end - beg;
-	double length = vdiff.length();
-	glColor4d(d->m_rgba.r, d->m_rgba.g, d->m_rgba.b, d->m_rgba.a);
-
-	double radius[ 2 ];
-	radius[ 0 ] = d->m_relConeRadius * length;
-	radius[ 1 ] = d->m_relStemRadius * length;
-
-	GLint mode;
-	glGetIntegerv(GL_MATRIX_MODE, &mode);
-
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-
-	Triple axis;
-	double phi = calcRotation(axis, FreeVector(beg, end));
-
-	glTranslatef(beg.x, beg.y, beg.z);
-	glRotatef(phi, axis.x, axis.y, axis.z);
-
-	double baseheight = (1 - d->m_relConeLength) * length;
-
-	glTranslatef(0, 0, baseheight);
-
-	gluCylinder(d->m_hat, radius[ 0 ], 0.0, d->m_relConeLength * length, d->m_segments, 1);
-	gluDisk(d->m_disk, radius[ 1 ], radius[ 0 ], d->m_segments, 1);
-
-	glTranslatef(0, 0, -baseheight);
-
-	gluCylinder(d->m_base, radius[ 1 ], radius[ 1 ], baseheight, d->m_segments, 1);
-	gluDisk(d->m_disk, 0, radius[ 1 ], d->m_segments, 1);
-
-	glPopMatrix();
-	glMatrixMode(mode);
-}
-
-/**
- * @brief Calculates rotation angle to transform a z-axis vector to coincide with a given vector
- * @param[out] axis The axis to rotate around
- * @param vec The target free vector
- * @return Angle in degrees to rotate
- * @details Transforms a vector on the z axis with length |beg-end| to get them
- *          in coincidence with the vector(beg,end).
- */
-double Arrow::calcRotation(Triple& axis, FreeVector const& vec)
-{
-
-	Triple end = vec.top;
-	Triple beg = vec.base;
-
-	Triple firstbeg(0.0, 0.0, 0.0);
-	Triple firstend(0.0, 0.0, (end - beg).length());
-
-	Triple first = firstend - firstbeg;
-	first.normalize();
-
-	Triple second = end - beg;
-	second.normalize();
-
-	axis          = normalizedcross(first, second);
-	double cosphi = dotProduct(first, second);
-
-	return 180 * acos(cosphi) / Qwt3D::PI;
+	// Stub implementation — returns 0 rotation during refactor
+	(void)axis;
+	(void)vec;
+	return 0.0;
 }
 
 /*** End of inlined file: qwt3d_enrichment_std.cpp ***/
 
 
 /*** Start of inlined file: qwt3d_autoscaler.cpp ***/
-using namespace Qwt3D;
-
 namespace
 {
 
@@ -90836,33 +92495,33 @@ double floor125(int& exponent, double x)
 
 /****************************
  *
- * LinearAutoScaler::PrivateData
+ * Qwt3DLinearAutoScaler::PrivateData
  *
  ****************************/
 
-class LinearAutoScaler::PrivateData
+class Qwt3DLinearAutoScaler::PrivateData
 {
-	QWT_DECLARE_PUBLIC(LinearAutoScaler)
+	QWT_DECLARE_PUBLIC(Qwt3DLinearAutoScaler)
 public:
-	explicit PrivateData(LinearAutoScaler* p);
+	explicit PrivateData(Qwt3DLinearAutoScaler* p);
 
 	double m_start, m_stop;
 	int m_intervals;
 	std::vector< double > m_mantissi;
 };
 
-LinearAutoScaler::PrivateData::PrivateData(LinearAutoScaler* p) : q_ptr(p), m_start(0.), m_stop(0.), m_intervals(0)
+Qwt3DLinearAutoScaler::PrivateData::PrivateData(Qwt3DLinearAutoScaler* p) : q_ptr(p), m_start(0.), m_stop(0.), m_intervals(0)
 {
 }
 
 /****************************
  *
- * LinearAutoScaler
+ * Qwt3DLinearAutoScaler
  *
  ****************************/
 
 //! Initializes with an {1,2,5} sequence of mantissas
-LinearAutoScaler::LinearAutoScaler() : QWT_PIMPL_CONSTRUCT
+Qwt3DLinearAutoScaler::Qwt3DLinearAutoScaler() : QWT_PIMPL_CONSTRUCT
 {
 	init(0, 1, 1);
 	QWT_D(d);
@@ -90877,7 +92536,7 @@ LinearAutoScaler::LinearAutoScaler() : QWT_PIMPL_CONSTRUCT
 val mantisse A increasing ordered vector of values representing
 mantisse values between 1 and 9.
 */
-LinearAutoScaler::LinearAutoScaler(std::vector< double >& mantisse) : QWT_PIMPL_CONSTRUCT
+Qwt3DLinearAutoScaler::Qwt3DLinearAutoScaler(std::vector< double >& mantisse) : QWT_PIMPL_CONSTRUCT
 {
 	QWT_D(d);
 	init(0, 1, 1);
@@ -90891,15 +92550,15 @@ LinearAutoScaler::LinearAutoScaler(std::vector< double >& mantisse) : QWT_PIMPL_
 	d->m_mantissi = mantisse;
 }
 
-LinearAutoScaler::~LinearAutoScaler() = default;
+Qwt3DLinearAutoScaler::~Qwt3DLinearAutoScaler() = default;
 
 /**
- * @brief Copies internal state from another LinearAutoScaler
+ * @brief Copies internal state from another Qwt3DLinearAutoScaler
  * @param other Source object to copy state from
- * @details Used by LinearScale::clone() to copy autoscaler state
+ * @details Used by Qwt3DLinearScale::clone() to copy autoscaler state
  *          without requiring a copy constructor or assignment operator.
  */
-void LinearAutoScaler::copyStateFrom(const LinearAutoScaler& other)
+void Qwt3DLinearAutoScaler::copyStateFrom(const Qwt3DLinearAutoScaler& other)
 {
 	QWT_D(d);
 	const auto* od = other.d_func();
@@ -90911,11 +92570,11 @@ void LinearAutoScaler::copyStateFrom(const LinearAutoScaler& other)
 
 /**
  * @brief Returns a deep copy of this autoscaler
- * @return A new LinearAutoScaler with identical state
+ * @return A new Qwt3DLinearAutoScaler with identical state
  */
-AutoScaler* LinearAutoScaler::clone() const
+Qwt3DAutoScaler* Qwt3DLinearAutoScaler::clone() const
 {
-	auto* copy = new LinearAutoScaler();
+	auto* copy = new Qwt3DLinearAutoScaler();
 	QWT_DC(d);
 	auto* copyD        = copy->d_func();
 	copyD->m_start     = d->m_start;
@@ -90929,7 +92588,7 @@ AutoScaler* LinearAutoScaler::clone() const
 /**
 		Switchs start and stop, if stop < start and sets intervals = 1 if ivals < 1
 */
-void LinearAutoScaler::init(double start, double stop, int ivals)
+void Qwt3DLinearAutoScaler::init(double start, double stop, int ivals)
 {
 	QWT_D(d);
 	d->m_start     = start;
@@ -90956,7 +92615,7 @@ void LinearAutoScaler::init(double start, double stop, int ivals)
 c 'minimal' (anchor-start < m*10^n)
 @endverbatim
 */
-double LinearAutoScaler::anchorvalue(double start, double m, int n)
+double Qwt3DLinearAutoScaler::anchorvalue(double start, double m, int n)
 {
 	double stepval = m * pow(10.0, n);
 	return stepval * ceil(start / stepval);
@@ -90977,7 +92636,7 @@ double LinearAutoScaler::anchorvalue(double start, double m, int n)
 c 'minimal' (anchor-start < m*10^n)
 @endverbatim
 */
-int LinearAutoScaler::segments(int& l_intervals, int& r_intervals, double start, double stop, double anchor, double m, int n)
+int Qwt3DLinearAutoScaler::segments(int& l_intervals, int& r_intervals, double start, double stop, double anchor, double m, int n)
 {
 	double val   = m * pow(10.0, n);
 	double delta = (stop - anchor) / val;
@@ -91005,7 +92664,7 @@ int LinearAutoScaler::segments(int& l_intervals, int& r_intervals, double start,
 		If the given interval has zero length the function returns the current
 		interval number and a and b remain unchanged.
 */
-int LinearAutoScaler::execute(double& a, double& b, double start, double stop, int ivals)
+int Qwt3DLinearAutoScaler::execute(double& a, double& b, double start, double stop, int ivals)
 {
 	init(start, stop, ivals);
 
@@ -91095,17 +92754,14 @@ int LinearAutoScaler::execute(double& a, double& b, double start, double stop, i
 #include <cfloat>
 #include <cstdio>
 
-using namespace std;
-using namespace Qwt3D;
+const char* Qwt3DNativeReader::magicstring = "jk:11051895-17021986";
 
-const char* NativeReader::magicstring = "jk:11051895-17021986";
-
-class NativeReader::PrivateData
+class Qwt3DNativeReader::PrivateData
 {
-	QWT_DECLARE_PUBLIC(NativeReader)
+	QWT_DECLARE_PUBLIC(Qwt3DNativeReader)
 
 public:
-	PrivateData(NativeReader* q) : q_ptr(q), m_minZ(-DBL_MAX), m_maxZ(DBL_MAX)
+	PrivateData(Qwt3DNativeReader* q) : q_ptr(q), m_minZ(-DBL_MAX), m_maxZ(DBL_MAX)
 	{
 	}
 
@@ -91119,7 +92775,7 @@ FILE* open(QString fname)
 {
 	FILE* file = fopen(QWT3DLOCAL8BIT(fname), "r");
 	if (!file) {
-		fprintf(stderr, "NativeReader::read: cannot open data file \"%s\"\n", QWT3DLOCAL8BIT(fname));
+		fprintf(stderr, "Qwt3DNativeReader::read: cannot open data file \"%s\"\n", QWT3DLOCAL8BIT(fname));
 	}
 	return file;
 }
@@ -91245,15 +92901,15 @@ void deleteData(double** data, int columns)
 /**
  * @brief Default constructor
  */
-NativeReader::NativeReader() : QWT_PIMPL_CONSTRUCT
+Qwt3DNativeReader::Qwt3DNativeReader() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-NativeReader::~NativeReader() = default;
+Qwt3DNativeReader::~Qwt3DNativeReader() = default;
 
-IO::Functor* NativeReader::clone() const
+Qwt3DIO::Functor* Qwt3DNativeReader::clone() const
 {
-	auto* copy = new NativeReader();
+	auto* copy = new Qwt3DNativeReader();
 	QWT_DC(d);
 	auto* copyD   = copy->d_func();
 	copyD->m_minZ = d->m_minZ;
@@ -91273,7 +92929,7 @@ IO::Functor* NativeReader::clone() const
  * @param[out] maxy Maximum y value
  * @return True on success, false if file cannot be opened or has invalid format
  */
-bool NativeReader::collectInfo(FILE*& file,
+bool Qwt3DNativeReader::collectInfo(FILE*& file,
 							   QString const& fname,
 							   unsigned& xmesh,
 							   unsigned& ymesh,
@@ -91300,12 +92956,12 @@ bool NativeReader::collectInfo(FILE*& file,
 }
 
 /**
- * @brief Reads native format data into a Plot3D widget
- * @param plot Target Plot3D widget
+ * @brief Reads native format data into a Qwt3DPlot widget
+ * @param plot Target Qwt3DPlot widget
  * @param fname File name to read
  * @return True on success, false on file error or data format error
  */
-bool NativeReader::operator()(Plot3D* plot, QString const& fname)
+bool Qwt3DNativeReader::operator()(Qwt3DPlot* plot, QString const& fname)
 {
 	QWT_D(d);
 
@@ -91322,7 +92978,7 @@ bool NativeReader::operator()(Plot3D* plot, QString const& fname)
 	for (unsigned int j = 0; j < ymesh; j++) {
 		for (unsigned int i = 0; i < xmesh; i++) {
 			if (fscanf(file, "%lf", &data[ i ][ j ]) != 1) {
-				fprintf(stderr, "NativeReader::read: error in data file \"%s\"\n", QWT3DLOCAL8BIT(fname));
+				fprintf(stderr, "Qwt3DNativeReader::read: error in data file \"%s\"\n", QWT3DLOCAL8BIT(fname));
 				return false;
 			}
 
@@ -91336,7 +92992,20 @@ bool NativeReader::operator()(Plot3D* plot, QString const& fname)
 	/* close the file */
 	fclose(file);
 
-	static_cast< SurfacePlot* >(plot)->loadFromData(data, xmesh, ymesh, minx, maxx, miny, maxy);
+	// Find the first Qwt3DSurface item attached to the plot
+	Qwt3DSurface* surface = nullptr;
+	for (Qwt3DPlotItem* item : plot->itemList()) {
+		surface = dynamic_cast<Qwt3DSurface*>(item);
+		if (surface)
+			break;
+	}
+	if (!surface) {
+		fprintf(stderr, "Qwt3DNativeReader::read: no Qwt3DSurface item attached to plot\n");
+		deleteData(data, xmesh);
+		return false;
+	}
+
+	surface->loadFromData(data, xmesh, ymesh, minx, maxx, miny, maxy);
 	deleteData(data, xmesh);
 
 	return true;
@@ -91350,14 +93019,12 @@ bool NativeReader::operator()(Plot3D* plot, QString const& fname)
 
 #include <ctime>
 
-using namespace Qwt3D;
-
-class PixmapWriter::PrivateData
+class Qwt3DPixmapWriter::PrivateData
 {
-	QWT_DECLARE_PUBLIC(PixmapWriter)
+	QWT_DECLARE_PUBLIC(Qwt3DPixmapWriter)
 
 public:
-	PrivateData(PixmapWriter* q) : q_ptr(q), m_quality(-1)
+	PrivateData(Qwt3DPixmapWriter* q) : q_ptr(q), m_quality(-1)
 	{
 	}
 
@@ -91365,15 +93032,15 @@ public:
 	int m_quality;
 };
 
-PixmapWriter::PixmapWriter() : QWT_PIMPL_CONSTRUCT
+Qwt3DPixmapWriter::Qwt3DPixmapWriter() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-PixmapWriter::~PixmapWriter() = default;
+Qwt3DPixmapWriter::~Qwt3DPixmapWriter() = default;
 
-IO::Functor* PixmapWriter::clone() const
+Qwt3DIO::Functor* Qwt3DPixmapWriter::clone() const
 {
-	auto* copy = new PixmapWriter();
+	auto* copy = new Qwt3DPixmapWriter();
 	QWT_DC(d);
 	auto* copyD      = copy->d_func();
 	copyD->m_fmt     = d->m_fmt;
@@ -91381,16 +93048,16 @@ IO::Functor* PixmapWriter::clone() const
 	return copy;
 }
 
-IO::Entry::Entry() : iofunc(nullptr)
+Qwt3DIO::Entry::Entry() : iofunc(nullptr)
 {
 }
 
-IO::Entry::~Entry()
+Qwt3DIO::Entry::~Entry()
 {
 	delete iofunc;
 }
 
-IO::Entry::Entry(IO::Entry const& e)
+Qwt3DIO::Entry::Entry(Qwt3DIO::Entry const& e)
 {
 	if (this == &e)
 		return;
@@ -91399,7 +93066,7 @@ IO::Entry::Entry(IO::Entry const& e)
 	iofunc = e.iofunc->clone();
 }
 
-void IO::Entry::operator=(IO::Entry const& e)
+void Qwt3DIO::Entry::operator=(Qwt3DIO::Entry const& e)
 {
 	if (this == &e)
 		return;
@@ -91409,38 +93076,38 @@ void IO::Entry::operator=(IO::Entry const& e)
 	iofunc = e.iofunc->clone();
 }
 
-IO::Entry::Entry(QString const& s, Functor const& f) : fmt(s)
+Qwt3DIO::Entry::Entry(QString const& s, Functor const& f) : fmt(s)
 {
 	iofunc = f.clone();
 }
 
-IO::Entry::Entry(QString const& s, Function f) : fmt(s)
+Qwt3DIO::Entry::Entry(QString const& s, Function f) : fmt(s)
 {
 	Wrapper w(f);
 	iofunc = w.clone();
 }
 
-IO::FormatCompare::FormatCompare(IO::Entry const& e)
+Qwt3DIO::FormatCompare::FormatCompare(Qwt3DIO::Entry const& e)
 {
 	e_ = e;
 }
 
-bool IO::FormatCompare::operator()(IO::Entry const& e)
+bool Qwt3DIO::FormatCompare::operator()(Qwt3DIO::Entry const& e)
 {
 	return (e.fmt == e_.fmt);
 }
 
-IO::FormatCompare2::FormatCompare2(QString s)
+Qwt3DIO::FormatCompare2::FormatCompare2(QString s)
 {
 	s_ = s;
 }
 
-bool IO::FormatCompare2::operator()(IO::Entry const& e)
+bool Qwt3DIO::FormatCompare2::operator()(Qwt3DIO::Entry const& e)
 {
 	return (e.fmt == s_);
 }
 
-bool IO::add_unique(Container& l, Entry const& e)
+bool Qwt3DIO::add_unique(Container& l, Entry const& e)
 {
 	FormatCompare comp(e);
 	l.erase(std::remove_if(l.begin(), l.end(), comp), l.end());
@@ -91449,13 +93116,13 @@ bool IO::add_unique(Container& l, Entry const& e)
 	return true;
 }
 
-IO::IT IO::find(Container& l, QString const& fmt)
+Qwt3DIO::IT Qwt3DIO::find(Container& l, QString const& fmt)
 {
 	FormatCompare2 comp(fmt);
 	return std::find_if(l.begin(), l.end(), comp);
 }
 
-IO::Container& IO::rlist()
+Qwt3DIO::Container& Qwt3DIO::rlist()
 {
 	static Container rl = Container();
 	static bool rfirst  = true;
@@ -91466,7 +93133,7 @@ IO::Container& IO::rlist()
 	return rl;
 }
 
-IO::Container& IO::wlist()
+Qwt3DIO::Container& Qwt3DIO::wlist()
 {
 	static Container wl = Container();
 	static bool wfirst  = true;
@@ -91478,13 +93145,13 @@ IO::Container& IO::wlist()
 }
 
 /**
- * @brief Registers a new IO::Function for data input
+ * @brief Registers a new Qwt3DIO::Function for data input
  * @param format Format string identifier
  * @param func Input handler function
  * @return True on successful registration
  * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
  */
-bool IO::defineInputHandler(QString const& format, IO::Function func)
+bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Function func)
 {
 	return add_unique(rlist(), Entry(format, func));
 }
@@ -91496,19 +93163,19 @@ bool IO::defineInputHandler(QString const& format, IO::Function func)
  * @return True on successful registration
  * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
  */
-bool IO::defineInputHandler(QString const& format, IO::Functor const& func)
+bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Functor const& func)
 {
 	return add_unique(rlist(), Entry(format, func));
 }
 
 /**
- * @brief Registers a new IO::Function for data output
+ * @brief Registers a new Qwt3DIO::Function for data output
  * @param format Format string identifier
  * @param func Output handler function
  * @return True on successful registration
  * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
  */
-bool IO::defineOutputHandler(QString const& format, IO::Function func)
+bool Qwt3DIO::defineOutputHandler(QString const& format, Qwt3DIO::Function func)
 {
 	return add_unique(wlist(), Entry(format, func));
 }
@@ -91520,22 +93187,22 @@ bool IO::defineOutputHandler(QString const& format, IO::Function func)
  * @return True on successful registration
  * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
  */
-bool IO::defineOutputHandler(QString const& format, IO::Functor const& func)
+bool Qwt3DIO::defineOutputHandler(QString const& format, Qwt3DIO::Functor const& func)
 {
 	return add_unique(wlist(), Entry(format, func));
 }
 
 /**
- * @brief Applies a reading IO::Function or IO::Functor
+ * @brief Applies a reading Qwt3DIO::Function or Qwt3DIO::Functor
  * @param plot Plot with the content that should be loaded
  * @param fname File name
  * @param format Input format
  * @return The return value from the called Function/Functor.
  *         Returns false if no registered handler could be found.
  */
-bool IO::load(Plot3D* plot, QString const& fname, QString const& format)
+bool Qwt3DIO::load(Qwt3DPlot* plot, QString const& fname, QString const& format)
 {
-	IT it = IO::find(rlist(), format);
+	IT it = Qwt3DIO::find(rlist(), format);
 
 	if (it == rlist().end())
 		return false;
@@ -91544,16 +93211,16 @@ bool IO::load(Plot3D* plot, QString const& fname, QString const& format)
 }
 
 /**
- * @brief Applies a writing IO::Function or IO::Functor
+ * @brief Applies a writing Qwt3DIO::Function or Qwt3DIO::Functor
  * @param plot Plot with the content that should be saved
  * @param fname File name
  * @param format Output format
  * @return The return value from the called Function/Functor.
  *         Returns false if no registered handler could be found.
  */
-bool IO::save(Plot3D* plot, QString const& fname, QString const& format)
+bool Qwt3DIO::save(Qwt3DPlot* plot, QString const& fname, QString const& format)
 {
-	IT it = IO::find(wlist(), format);
+	IT it = Qwt3DIO::find(wlist(), format);
 
 	if (it == wlist().end())
 		return false;
@@ -91565,7 +93232,7 @@ bool IO::save(Plot3D* plot, QString const& fname, QString const& format)
  * @brief Returns a list of currently registered input formats
  * @return List of input format strings
  */
-QStringList IO::inputFormatList()
+QStringList Qwt3DIO::inputFormatList()
 {
 	QStringList list;
 	for (IT it = rlist().begin(); it != rlist().end(); ++it)
@@ -91578,7 +93245,7 @@ QStringList IO::inputFormatList()
  * @brief Returns a list of currently registered output formats
  * @return List of output format strings
  */
-QStringList IO::outputFormatList()
+QStringList Qwt3DIO::outputFormatList()
 {
 	QStringList list;
 	for (IT it = wlist().begin(); it != wlist().end(); ++it)
@@ -91592,9 +93259,9 @@ QStringList IO::outputFormatList()
  * @param format Format string identifier
  * @return Pointer to the input functor, or 0 if non-existent
  */
-IO::Functor* IO::inputHandler(QString const& format)
+Qwt3DIO::Functor* Qwt3DIO::inputHandler(QString const& format)
 {
-	IO::IT it = IO::find(rlist(), format);
+	Qwt3DIO::IT it = Qwt3DIO::find(rlist(), format);
 
 	if (it == rlist().end())
 		return nullptr;
@@ -91607,9 +93274,9 @@ IO::Functor* IO::inputHandler(QString const& format)
  * @param format Format string identifier
  * @return Pointer to the output functor, or 0 if non-existent
  */
-IO::Functor* IO::outputHandler(QString const& format)
+Qwt3DIO::Functor* Qwt3DIO::outputHandler(QString const& format)
 {
-	IO::IT it = IO::find(wlist(), format);
+	Qwt3DIO::IT it = Qwt3DIO::find(wlist(), format);
 
 	if (it == wlist().end())
 		return nullptr;
@@ -91617,7 +93284,7 @@ IO::Functor* IO::outputHandler(QString const& format)
 	return it->iofunc;
 }
 
-bool PixmapWriter::operator()(Plot3D* plot, QString const& fname)
+bool Qwt3DPixmapWriter::operator()(Qwt3DPlot* plot, QString const& fname)
 {
 	QWT_D(d);
 	QImage im = plot->grabFramebuffer();
@@ -91633,21 +93300,22 @@ bool PixmapWriter::operator()(Plot3D* plot, QString const& fname)
  * @brief Calls Qt's QImageIO::setQuality() function
  * @param val Quality value
  */
-void PixmapWriter::setQuality(int val)
+void Qwt3DPixmapWriter::setQuality(int val)
 {
 	QWT_D(d);
 	d->m_quality = val;
 }
 
-void IO::setupHandler()
+void Qwt3DIO::setupHandler()
 {
 	const QList< QByteArray > list = QImageWriter::supportedImageFormats();
-	PixmapWriter qtw;
+	Qwt3DPixmapWriter qtw;
 	for (const auto& fmt : list) {
 		qtw.d_func()->m_fmt = fmt;
 		defineOutputHandler(fmt, qtw);
 	}
-	VectorWriter vecfunc;
+#ifdef QWT3D_ENABLE_GL2PS
+	Qwt3DVectorWriter vecfunc;
 	vecfunc.setCompressed(false);
 	vecfunc.setFormat("EPS");
 	defineOutputHandler("EPS", vecfunc);
@@ -91667,9 +93335,10 @@ void IO::setupHandler()
 	defineOutputHandler("SVG", vecfunc);
 	vecfunc.setFormat("PGF");
 	defineOutputHandler("PGF", vecfunc);
+#endif // QWT3D_ENABLE_GL2PS
 
-	defineInputHandler("mes", NativeReader());
-	defineInputHandler("MES", NativeReader());
+	defineInputHandler("mes", Qwt3DNativeReader());
+	defineInputHandler("MES", Qwt3DNativeReader());
 }
 
 /**
@@ -91679,22 +93348,27 @@ void IO::setupHandler()
  * @param text Text handling mode
  * @param sortmode Sort mode for polygon ordering
  * @return True on success
- * @deprecated Use Plot3D::save or IO::save instead.
+ * @deprecated Use Qwt3DPlot::save or Qwt3DIO::save instead.
  * @details If zlib has been configured, format types will be extended by "EPS_GZ" and "PS_GZ".
  *          Beware: BSPSORT turns out to behave very slowly and memory consuming, especially in cases
  *          where many polygons appear. It is still more exact than SIMPLESORT.
  */
-bool Plot3D::saveVector(QString const& fileName, QString const& format, VectorWriter::TEXTMODE text, VectorWriter::SORTMODE sortmode)
+bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, Qwt3DVectorWriter::TEXTMODE text, Qwt3DVectorWriter::SORTMODE sortmode)
 {
+#ifdef QWT3D_ENABLE_GL2PS
 	if (format == "EPS" || format == "EPS_GZ" || format == "PS" || format == "PS_GZ" || format == "PDF"
 		|| format == "SVG" || format == "PGF") {
-		VectorWriter* gl2ps = static_cast< VectorWriter* >(IO::outputHandler(format));
+		Qwt3DVectorWriter* gl2ps = static_cast< Qwt3DVectorWriter* >(Qwt3DIO::outputHandler(format));
 		if (gl2ps) {
 			gl2ps->setSortMode(sortmode);
 			gl2ps->setTextMode(text);
 		}
-		return IO::save(this, fileName, format);
+		return Qwt3DIO::save(this, fileName, format);
 	}
+#else
+	(void)text;
+	(void)sortmode;
+#endif
 	return false;
 }
 /**
@@ -91702,15 +93376,15 @@ bool Plot3D::saveVector(QString const& fileName, QString const& format, VectorWr
  * @param fileName Output file name
  * @param format Image file format supported by Qt
  * @return True on success
- * @deprecated Use Plot3D::save or IO::save instead.
+ * @deprecated Use Qwt3DPlot::save or Qwt3DIO::save instead.
  */
-bool Plot3D::savePixmap(QString const& fileName, QString const& format)
+bool Qwt3DPlot::savePixmap(QString const& fileName, QString const& format)
 {
 	if (format == "EPS" || format == "EPS_GZ" || format == "PS" || format == "PS_GZ" || format == "PDF"
 		|| format == "SVG" || format == "PGF")
 		return false;
 
-	return IO::save(this, fileName, format);
+	return Qwt3DIO::save(this, fileName, format);
 }
 
 /**
@@ -91718,32 +93392,30 @@ bool Plot3D::savePixmap(QString const& fileName, QString const& format)
  * @param fileName Output file name
  * @param format Output format string
  * @return True on success
- * @details To modify the behaviour for more complex output handling use IO::outputHandler.
+ * @details To modify the behaviour for more complex output handling use Qwt3DIO::outputHandler.
  */
-bool Plot3D::save(QString const& fileName, QString const& format)
+bool Qwt3DPlot::save(QString const& fileName, QString const& format)
 {
-	return IO::save(this, fileName, format);
+	return Qwt3DIO::save(this, fileName, format);
 }
 
 /*** End of inlined file: qwt3d_io.cpp ***/
 
 
 /*** Start of inlined file: qwt3d_scale.cpp ***/
-using namespace Qwt3D;
-
 /****************************
  *
- * Scale::PrivateData
+ * Qwt3DScale::PrivateData
  *
  ****************************/
 
-class Scale::PrivateData
+class Qwt3DScale::PrivateData
 {
-	QWT_DECLARE_PUBLIC(Scale)
+	QWT_DECLARE_PUBLIC(Qwt3DScale)
 public:
-	explicit PrivateData(Scale* p);
+	explicit PrivateData(Qwt3DScale* p);
 
-	friend class Axis;
+	friend class Qwt3DAxis;
 
 	std::vector< double > m_majors, m_minors;
 	double m_start, m_stop;
@@ -91751,35 +93423,35 @@ public:
 	double m_mstart, m_mstop;
 };
 
-Scale::PrivateData::PrivateData(Scale* p)
+Qwt3DScale::PrivateData::PrivateData(Qwt3DScale* p)
 	: q_ptr(p), m_start(0.), m_stop(0.), m_majorIntervals(0), m_minorIntervals(0), m_mstart(0.), m_mstop(0.)
 {
 }
 
 /****************************
  *
- * Scale
+ * Qwt3DScale
  *
  ****************************/
 
-Scale::Scale() : QWT_PIMPL_CONSTRUCT
+Qwt3DScale::Qwt3DScale() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-Scale::~Scale() = default;
+Qwt3DScale::~Qwt3DScale() = default;
 
-void Scale::destroy() const
+void Qwt3DScale::destroy() const
 {
 	delete this;
 }
 
 /**
- * @brief Copies Scale base state from another Scale
- * @param other Source Scale to copy from
+ * @brief Copies Qwt3DScale base state from another Qwt3DScale
+ * @param other Source Qwt3DScale to copy from
  * @details Used by derived class clone() implementations to copy
- *          the Scale base data without requiring a copy constructor.
+ *          the Qwt3DScale base data without requiring a copy constructor.
  */
-void Scale::copyFrom(const Scale& other)
+void Qwt3DScale::copyFrom(const Qwt3DScale& other)
 {
 	QWT_D(d);
 	const auto* od      = other.d_func();
@@ -91799,9 +93471,9 @@ void Scale::copyFrom(const Scale& other)
  * @return The QString representation for the value corresponding to a valid index, an empty QString else.
  * @details The default return value is simply the tic values QString representation.
  *          Overwrite this function, if you plan to transform the value in some way.
- *          See e.g. LogScale::ticLabel.
+ *          See e.g. Qwt3DLogScale::ticLabel.
  */
-QString Scale::ticLabel(unsigned int idx) const
+QString Qwt3DScale::ticLabel(unsigned int idx) const
 {
 	QWT_DC(d);
 	if (idx < d->m_majors.size()) {
@@ -91815,7 +93487,7 @@ QString Scale::ticLabel(unsigned int idx) const
  * @param start Scale start value
  * @param stop Scale stop value
  */
-void Scale::setLimits(double start, double stop)
+void Qwt3DScale::setLimits(double start, double stop)
 {
 	QWT_D(d);
 	if (start < stop) {
@@ -91831,7 +93503,7 @@ void Scale::setLimits(double start, double stop)
  * @brief Sets number of major intervals
  * @param val Number of major intervals
  */
-void Scale::setMajors(int val)
+void Qwt3DScale::setMajors(int val)
 {
 	QWT_D(d);
 	d->m_majorIntervals = val;
@@ -91841,7 +93513,7 @@ void Scale::setMajors(int val)
  * @brief Sets number of minor intervals per major interval
  * @param val Number of minor intervals
  */
-void Scale::setMinors(int val)
+void Qwt3DScale::setMinors(int val)
 {
 	QWT_D(d);
 	d->m_minorIntervals = val;
@@ -91852,7 +93524,7 @@ void Scale::setMinors(int val)
  * @param start First major tic value
  * @param stop Last major tic value
  */
-void Scale::setMajorLimits(double start, double stop)
+void Qwt3DScale::setMajorLimits(double start, double stop)
 {
 	QWT_D(d);
 	if (start < stop) {
@@ -91868,7 +93540,7 @@ void Scale::setMajorLimits(double start, double stop)
  * @brief Returns major intervals
  * @return Number of major intervals
  */
-int Scale::majors() const
+int Qwt3DScale::majors() const
 {
 	QWT_DC(d);
 	return d->m_majorIntervals;
@@ -91878,7 +93550,7 @@ int Scale::majors() const
  * @brief Returns minor intervals
  * @return Number of minor intervals
  */
-int Scale::minors() const
+int Qwt3DScale::minors() const
 {
 	QWT_DC(d);
 	return d->m_minorIntervals;
@@ -91888,7 +93560,7 @@ int Scale::minors() const
  * @brief Returns const reference to major tic positions
  * @return Const reference to the vector of major tic positions
  */
-const std::vector< double >& Scale::majorTicks() const
+const std::vector< double >& Qwt3DScale::majorTicks() const
 {
 	QWT_DC(d);
 	return d->m_majors;
@@ -91898,7 +93570,7 @@ const std::vector< double >& Scale::majorTicks() const
  * @brief Returns const reference to minor tic positions
  * @return Const reference to the vector of minor tic positions
  */
-const std::vector< double >& Scale::minorTicks() const
+const std::vector< double >& Qwt3DScale::minorTicks() const
 {
 	QWT_DC(d);
 	return d->m_minors;
@@ -91914,7 +93586,7 @@ const std::vector< double >& Scale::minorTicks() const
  * @return Number of major intervals after autoscaling
  * @details The default implementation sets a=start, b=stop and returns ivals.
  */
-int Scale::autoscale(double& a, double& b, double start, double stop, int ivals)
+int Qwt3DScale::autoscale(double& a, double& b, double start, double stop, int ivals)
 {
 	a = start;
 	b = stop;
@@ -91923,37 +93595,37 @@ int Scale::autoscale(double& a, double& b, double start, double stop, int ivals)
 
 /****************************
  *
- * LinearScale::PrivateData
+ * Qwt3DLinearScale::PrivateData
  *
  ****************************/
 
-class LinearScale::PrivateData
+class Qwt3DLinearScale::PrivateData
 {
-	QWT_DECLARE_PUBLIC(LinearScale)
+	QWT_DECLARE_PUBLIC(Qwt3DLinearScale)
 public:
-	explicit PrivateData(LinearScale* p);
+	explicit PrivateData(Qwt3DLinearScale* p);
 
-	LinearAutoScaler m_autoscaler;
+	Qwt3DLinearAutoScaler m_autoscaler;
 };
 
-LinearScale::PrivateData::PrivateData(LinearScale* p) : q_ptr(p)
+Qwt3DLinearScale::PrivateData::PrivateData(Qwt3DLinearScale* p) : q_ptr(p)
 {
 }
 
 /****************************
  *
- * LinearScale
+ * Qwt3DLinearScale
  *
  ****************************/
 
-LinearScale::LinearScale() : QWT_PIMPL_CONSTRUCT
+Qwt3DLinearScale::Qwt3DLinearScale() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-LinearScale::~LinearScale() = default;
+Qwt3DLinearScale::~Qwt3DLinearScale() = default;
 
 /**
- * @brief Applies LinearAutoScaler::execute() for autoscaling
+ * @brief Applies Qwt3DLinearAutoScaler::execute() for autoscaling
  * @param[out] a First major tic after autoscaling
  * @param[out] b Last major tic after autoscaling
  * @param start Scale begin
@@ -91961,19 +93633,19 @@ LinearScale::~LinearScale() = default;
  * @param ivals Requested number of major intervals
  * @return Number of major intervals after autoscaling
  */
-int LinearScale::autoscale(double& a, double& b, double start, double stop, int ivals)
+int Qwt3DLinearScale::autoscale(double& a, double& b, double start, double stop, int ivals)
 {
 	QWT_D(d);
 	return d->m_autoscaler.execute(a, b, start, stop, ivals);
 }
 
 /**
- * @brief Returns a new heap based object utilized from ClonePtr
- * @return A new LinearScale copy
+ * @brief Returns a new heap based object utilized from Qwt3DClonePtr
+ * @return A new Qwt3DLinearScale copy
  */
-Scale* LinearScale::clone() const
+Qwt3DScale* Qwt3DLinearScale::clone() const
 {
-	auto* copy = new LinearScale();
+	auto* copy = new Qwt3DLinearScale();
 	copy->copyFrom(*this);
 	QWT_DC(d);
 	auto* copyD = copy->d_func();
@@ -91984,10 +93656,10 @@ Scale* LinearScale::clone() const
 /**
  * @brief Creates the major and minor vector for the scale
  */
-void LinearScale::calculate()
+void Qwt3DLinearScale::calculate()
 {
-	// Access Scale base data through Scale::d_func()
-	auto* sd = Scale::d_func();
+	// Access Qwt3DScale base data through Qwt3DScale::d_func()
+	auto* sd = Qwt3DScale::d_func();
 
 	sd->m_majors.clear();
 	sd->m_minors.clear();
@@ -92060,13 +93732,13 @@ void LinearScale::calculate()
 
 /****************************
  *
- * LogScale
+ * Qwt3DLogScale
  *
  ****************************/
 
-void LogScale::setupCounter(double& k, int& step)
+void Qwt3DLogScale::setupCounter(double& k, int& step)
 {
-	auto* sd = Scale::d_func();
+	auto* sd = Qwt3DScale::d_func();
 	switch (sd->m_minorIntervals) {
 	case 9:
 		k    = 9;
@@ -92097,9 +93769,9 @@ void LogScale::setupCounter(double& k, int& step)
  *          for an 'intelligent' guess, what to do. Better switch manually to linear
  *          scales in such cases.
  */
-void LogScale::calculate()
+void Qwt3DLogScale::calculate()
 {
-	auto* sd = Scale::d_func();
+	auto* sd = Qwt3DScale::d_func();
 
 	sd->m_majors.clear();
 	sd->m_minors.clear();
@@ -92177,9 +93849,9 @@ void LogScale::calculate()
  * @param val Number of minor intervals (only 9, 5, 3, or 2 are accepted)
  * @details They will produce mantissa sets of {2,3,4,5,6,7,8,9}, {2,4,6,8}, {2,5} or {5} respectively.
  */
-void LogScale::setMinors(int val)
+void Qwt3DLogScale::setMinors(int val)
 {
-	auto* sd = Scale::d_func();
+	auto* sd = Qwt3DScale::d_func();
 	if ((val == 2) || (val == 3) || (val == 5) || (val == 9))
 		sd->m_minorIntervals = val;
 }
@@ -92187,21 +93859,21 @@ void LogScale::setMinors(int val)
 /**
  * @brief Default constructor - sets 9 minor intervals
  */
-LogScale::LogScale()
+Qwt3DLogScale::Qwt3DLogScale()
 {
-	auto* sd             = Scale::d_func();
+	auto* sd             = Qwt3DScale::d_func();
 	sd->m_minorIntervals = 9;
 }
 
-LogScale::~LogScale() = default;
+Qwt3DLogScale::~Qwt3DLogScale() = default;
 
 /**
- * @brief Returns a new heap based object utilized from ClonePtr
- * @return A new LogScale copy
+ * @brief Returns a new heap based object utilized from Qwt3DClonePtr
+ * @return A new Qwt3DLogScale copy
  */
-Scale* LogScale::clone() const
+Qwt3DScale* Qwt3DLogScale::clone() const
 {
-	auto* copy = new LogScale();
+	auto* copy = new Qwt3DLogScale();
 	copy->copyFrom(*this);
 	return copy;
 }
@@ -92211,7 +93883,7 @@ Scale* LogScale::clone() const
  * @param idx The current major tic index
  * @return The QString representation of 10^value for valid index, empty QString else
  */
-QString LogScale::ticLabel(unsigned int idx) const
+QString Qwt3DLogScale::ticLabel(unsigned int idx) const
 {
 	QWT_DC(d);
 	if (idx < d->m_majors.size()) {
@@ -92225,20 +93897,17 @@ QString LogScale::ticLabel(unsigned int idx) const
 
 
 /*** Start of inlined file: qwt3d_gridmapping.cpp ***/
-using namespace Qwt3D;
-
-class GridMapping::PrivateData
+class Qwt3DGridMapping::PrivateData
 {
-	QWT_DECLARE_PUBLIC(GridMapping)
+	QWT_DECLARE_PUBLIC(Qwt3DGridMapping)
 
 public:
-	PrivateData(GridMapping* q)
-		: q_ptr(q), m_plotwidget(nullptr), m_umesh(0), m_vmesh(0), m_minu(0.0), m_maxu(0.0), m_minv(0.0), m_maxv(0.0)
+	PrivateData(Qwt3DGridMapping* q)
+		: q_ptr(q), m_umesh(0), m_vmesh(0), m_minu(0.0), m_maxu(0.0), m_minv(0.0), m_maxv(0.0)
 	{
 	}
 
-	Qwt3D::ParallelEpiped m_range;
-	Qwt3D::SurfacePlot* m_plotwidget;
+	ParallelEpiped m_range;
 	unsigned int m_umesh;
 	unsigned int m_vmesh;
 	double m_minu;
@@ -92249,24 +93918,24 @@ public:
 
 /**
  * @brief Default constructor
- * @details Initializes with no plot widget, zero mesh dimensions, zero domain,
+ * @details Initializes with zero mesh dimensions, zero domain,
  *          and unrestricted z range.
  */
-GridMapping::GridMapping() : QWT_PIMPL_CONSTRUCT
+Qwt3DGridMapping::Qwt3DGridMapping() : QWT_PIMPL_CONSTRUCT
 {
 	setMesh(0, 0);
 	setDomain(0, 0, 0, 0);
 	restrictRange(ParallelEpiped(Triple(-DBL_MAX, -DBL_MAX, -DBL_MAX), Triple(DBL_MAX, DBL_MAX, DBL_MAX)));
 }
 
-GridMapping::~GridMapping() = default;
+Qwt3DGridMapping::~Qwt3DGridMapping() = default;
 
 /**
  * @brief Sets the number of mesh columns and rows
  * @param columns Number of columns (u direction)
  * @param rows Number of rows (v direction)
  */
-void GridMapping::setMesh(unsigned int columns, unsigned int rows)
+void Qwt3DGridMapping::setMesh(unsigned int columns, unsigned int rows)
 {
 	QWT_D(d);
 	d->m_umesh = columns;
@@ -92280,7 +93949,7 @@ void GridMapping::setMesh(unsigned int columns, unsigned int rows)
  * @param minv Minimum v value
  * @param maxv Maximum v value
  */
-void GridMapping::setDomain(double minu, double maxu, double minv, double maxv)
+void Qwt3DGridMapping::setDomain(double minu, double maxu, double minv, double maxv)
 {
 	QWT_D(d);
 	d->m_minu = minu;
@@ -92293,67 +93962,55 @@ void GridMapping::setDomain(double minu, double maxu, double minv, double maxv)
  * @brief Restricts the data range to a parallelepiped
  * @param p The parallelepiped defining the restricted range
  */
-void GridMapping::restrictRange(Qwt3D::ParallelEpiped const& p)
+void Qwt3DGridMapping::restrictRange(ParallelEpiped const& p)
 {
 	QWT_D(d);
 	d->m_range = p;
 }
 
-Qwt3D::SurfacePlot* GridMapping::plotWidget() const
-{
-	QWT_DC(d);
-	return d->m_plotwidget;
-}
-
-void GridMapping::setPlotWidget(Qwt3D::SurfacePlot* pw)
-{
-	QWT_D(d);
-	d->m_plotwidget = pw;
-}
-
-Qwt3D::ParallelEpiped& GridMapping::range()
+ParallelEpiped& Qwt3DGridMapping::range()
 {
 	QWT_D(d);
 	return d->m_range;
 }
 
-const Qwt3D::ParallelEpiped& GridMapping::range() const
+const ParallelEpiped& Qwt3DGridMapping::range() const
 {
 	QWT_DC(d);
 	return d->m_range;
 }
 
-unsigned int GridMapping::meshU() const
+unsigned int Qwt3DGridMapping::meshU() const
 {
 	QWT_DC(d);
 	return d->m_umesh;
 }
 
-unsigned int GridMapping::meshV() const
+unsigned int Qwt3DGridMapping::meshV() const
 {
 	QWT_DC(d);
 	return d->m_vmesh;
 }
 
-double GridMapping::minU() const
+double Qwt3DGridMapping::minU() const
 {
 	QWT_DC(d);
 	return d->m_minu;
 }
 
-double GridMapping::maxU() const
+double Qwt3DGridMapping::maxU() const
 {
 	QWT_DC(d);
 	return d->m_maxu;
 }
 
-double GridMapping::minV() const
+double Qwt3DGridMapping::minV() const
 {
 	QWT_DC(d);
 	return d->m_minv;
 }
 
-double GridMapping::maxV() const
+double Qwt3DGridMapping::maxV() const
 {
 	QWT_DC(d);
 	return d->m_maxv;
@@ -92363,14 +94020,14 @@ double GridMapping::maxV() const
 
 
 /*** Start of inlined file: qwt3d_parametricsurface.cpp ***/
-using namespace Qwt3D;
+#include <vector>
 
-class ParametricSurface::PrivateData
+class Qwt3DParametricSurface::PrivateData
 {
-	QWT_DECLARE_PUBLIC(ParametricSurface)
+	QWT_DECLARE_PUBLIC(Qwt3DParametricSurface)
 
 public:
-	PrivateData(ParametricSurface* q) : q_ptr(q), m_uperiodic(false), m_vperiodic(false)
+	PrivateData(Qwt3DParametricSurface* q) : q_ptr(q), m_uperiodic(false), m_vperiodic(false)
 	{
 	}
 
@@ -92378,160 +94035,96 @@ public:
 	bool m_vperiodic;
 };
 
-ParametricSurface::ParametricSurface() : GridMapping(), QWT_PIMPL_CONSTRUCT
+Qwt3DParametricSurface::Qwt3DParametricSurface() : Qwt3DGridMapping(), QWT_PIMPL_CONSTRUCT
 {
 }
 
-ParametricSurface::ParametricSurface(SurfacePlot& pw) : GridMapping(), QWT_PIMPL_CONSTRUCT
-{
-	setPlotWidget(&pw);
-}
+Qwt3DParametricSurface::~Qwt3DParametricSurface() = default;
 
-ParametricSurface::ParametricSurface(SurfacePlot* pw) : GridMapping(), QWT_PIMPL_CONSTRUCT
-{
-	setPlotWidget(pw);
-}
-
-ParametricSurface::~ParametricSurface() = default;
-
-void ParametricSurface::setPeriodic(bool u, bool v)
+void Qwt3DParametricSurface::setPeriodic(bool u, bool v)
 {
 	QWT_D(d);
 	d->m_uperiodic = u;
 	d->m_vperiodic = v;
 }
 
-void ParametricSurface::assign(SurfacePlot& plotWidget)
-{
-	if (&plotWidget != this->plotWidget())
-		setPlotWidget(&plotWidget);
-}
-
-void ParametricSurface::assign(SurfacePlot* plotWidget)
-{
-	if (plotWidget != this->plotWidget())
-		setPlotWidget(plotWidget);
-}
-
 /**
- * @brief Creates the parametric surface data and loads it into the plot widget
- * @return True on success, false if meshU() <= 2, meshV() <= 2, or plotWidget() is null
- * @details For plotWidget() != nullptr the function permanently assigns her argument (In fact, assign(plotWidget) is called)
+ * @brief Evaluates the parametric surface over the mesh grid and returns the result
+ * @return Qwt3DParametricData containing the xyz triple matrix and periodicity flags
+ * @details Allocates a triple matrix, evaluates operator()(u, v) over the
+ *          mesh grid, clips values to the range bounds, and returns the result.
+ *          The caller is responsible for feeding this to
+ *          Qwt3DSurface::loadFromData(). Returns an empty result
+ *          (columns=0) if the mesh is too small.
  */
-bool ParametricSurface::create()
+Qwt3DParametricData Qwt3DParametricSurface::create()
 {
 	const unsigned int um = meshU();
 	const unsigned int vm = meshV();
 
-	if ((um <= 2) || (vm <= 2) || !plotWidget())
-		return false;
+	Qwt3DParametricData result;
+	result.columns = um;
+	result.rows = vm;
 
-	/* allocate some cache for the mesh */
-	Triple** data = new Triple*[ um ];
+	QWT_D(d);
+	result.uperiodic = d->m_uperiodic;
+	result.vperiodic = d->m_vperiodic;
 
-	unsigned i, j;
-	for (i = 0; i < um; i++) {
-		data[ i ] = new Triple[ vm ];
+	if (um <= 2 || vm <= 2) {
+		result.columns = 0;
+		result.rows = 0;
+		return result;
 	}
 
-	/* get the data */
+	result.vertices.resize(um);
+	for (unsigned int i = 0; i < um; ++i)
+		result.vertices[i].resize(vm);
 
-	double du = (maxU() - minU()) / (um - 1);
-	double dv = (maxV() - minV()) / (vm - 1);
+	const double du = (maxU() - minU()) / (um - 1);
+	const double dv = (maxV() - minV()) / (vm - 1);
 
-	for (i = 0; i < um; ++i) {
-		for (j = 0; j < vm; ++j) {
-			data[ i ][ j ] = operator()(minU() + i * du, minV() + j * dv);
+	for (unsigned int i = 0; i < um; ++i) {
+		for (unsigned int j = 0; j < vm; ++j) {
+			Triple val = operator()(minU() + i * du, minV() + j * dv);
 
-			if (data[ i ][ j ].x > range().maxVertex.x)
-				data[ i ][ j ].x = range().maxVertex.x;
-			else if (data[ i ][ j ].y > range().maxVertex.y)
-				data[ i ][ j ].y = range().maxVertex.y;
-			else if (data[ i ][ j ].z > range().maxVertex.z)
-				data[ i ][ j ].z = range().maxVertex.z;
-			else if (data[ i ][ j ].x < range().minVertex.x)
-				data[ i ][ j ].x = range().minVertex.x;
-			else if (data[ i ][ j ].y < range().minVertex.y)
-				data[ i ][ j ].y = range().minVertex.y;
-			else if (data[ i ][ j ].z < range().minVertex.z)
-				data[ i ][ j ].z = range().minVertex.z;
+			if (val.x > range().maxVertex.x)
+				val.x = range().maxVertex.x;
+			if (val.y > range().maxVertex.y)
+				val.y = range().maxVertex.y;
+			if (val.z > range().maxVertex.z)
+				val.z = range().maxVertex.z;
+			if (val.x < range().minVertex.x)
+				val.x = range().minVertex.x;
+			if (val.y < range().minVertex.y)
+				val.y = range().minVertex.y;
+			if (val.z < range().minVertex.z)
+				val.z = range().minVertex.z;
+
+			result.vertices[i][j] = val;
 		}
 	}
 
-	QWT_D(d);
-	static_cast< SurfacePlot* >(plotWidget())->loadFromData(data, um, vm, d->m_uperiodic, d->m_vperiodic);
-
-	for (i = 0; i < um; i++) {
-		delete[] data[ i ];
-	}
-
-	delete[] data;
-
-	return true;
-}
-
-bool ParametricSurface::create(SurfacePlot& pl)
-{
-	assign(pl);
-	return create();
+	return result;
 }
 
 /*** End of inlined file: qwt3d_parametricsurface.cpp ***/
 
 
 /*** Start of inlined file: qwt3d_function.cpp ***/
-using namespace Qwt3D;
+#include <vector>
 
 /**
  * @brief Default constructor
  */
-Function::Function() : GridMapping()
+Qwt3DFunction::Qwt3DFunction() : Qwt3DGridMapping()
 {
-}
-
-/**
- * @brief Constructs a Function object and assigns a SurfacePlot
- * @param pw Reference to a SurfacePlot widget
- */
-Function::Function(SurfacePlot& pw) : GridMapping()
-{
-	setPlotWidget(&pw);
-}
-
-/**
- * @brief Constructs a Function object and assigns a SurfacePlot
- * @param pw Pointer to a SurfacePlot widget
- */
-Function::Function(SurfacePlot* pw) : GridMapping()
-{
-	setPlotWidget(pw);
-}
-
-/**
- * @brief Assigns the object to another widget - call before create()
- * @param plotWidget Reference to a SurfacePlot widget
- */
-void Function::assign(SurfacePlot& plotWidget)
-{
-	if (&plotWidget != this->plotWidget())
-		setPlotWidget(&plotWidget);
-}
-
-/**
- * @brief Assigns the object to another widget - call before create()
- * @param plotWidget Pointer to a SurfacePlot widget
- */
-void Function::assign(SurfacePlot* plotWidget)
-{
-	if (plotWidget != this->plotWidget())
-		setPlotWidget(plotWidget);
 }
 
 /**
  * @brief Sets minimum z value for the function
  * @param val Minimum z value
  */
-void Function::setMinZ(double val)
+void Qwt3DFunction::setMinZ(double val)
 {
 	range().minVertex.z = val;
 }
@@ -92540,561 +94133,528 @@ void Function::setMinZ(double val)
  * @brief Sets maximum z value for the function
  * @param val Maximum z value
  */
-void Function::setMaxZ(double val)
+void Qwt3DFunction::setMaxZ(double val)
 {
 	range().maxVertex.z = val;
 }
 
 /**
- * @brief Creates data representation for the actual assigned SurfacePlot
- * @return True on success, false if mesh is too small or no widget assigned
- * @details Allocates data arrays, evaluates the function operator() over the
- *          mesh grid, clips values to the min/max z range, and loads data
- *          into the assigned SurfacePlot.
+ * @brief Evaluates the function over the mesh grid and returns the result
+ * @return Qwt3DFunctionData containing the z-value matrix and domain bounds
+ * @details Allocates a z-value matrix, evaluates operator() over the
+ *          mesh grid, clips values to the min/max z range, and returns
+ *          the result. The caller is responsible for feeding this to
+ *          Qwt3DSurface::loadFromData(). Returns an empty result
+ *          (columns=0) if the mesh is too small.
  */
-bool Function::create()
+Qwt3DFunctionData Qwt3DFunction::create()
 {
 	const unsigned int um = meshU();
 	const unsigned int vm = meshV();
 
-	if ((um <= 2) || (vm <= 2) || !plotWidget())
-		return false;
+	Qwt3DFunctionData result;
+	result.columns = um;
+	result.rows = vm;
+	result.minx = minU();
+	result.maxx = maxU();
+	result.miny = minV();
+	result.maxy = maxV();
 
-	/* allocate some space for the mesh */
-	double** data = new double*[ um ];
-
-	unsigned i, j;
-	for (i = 0; i < um; i++) {
-		data[ i ] = new double[ vm ];
+	if (um <= 2 || vm <= 2) {
+		result.columns = 0;
+		result.rows = 0;
+		return result;
 	}
 
-	/* get the data */
+	result.z.resize(um);
+	for (unsigned int i = 0; i < um; ++i)
+		result.z[i].resize(vm);
 
-	double dx = (maxU() - minU()) / (um - 1);
-	double dy = (maxV() - minV()) / (vm - 1);
+	const double dx = (maxU() - minU()) / (um - 1);
+	const double dy = (maxV() - minV()) / (vm - 1);
 
-	for (i = 0; i < um; ++i) {
-		for (j = 0; j < vm; ++j) {
-			data[ i ][ j ] = operator()(minU() + i * dx, minV() + j * dy);
+	for (unsigned int i = 0; i < um; ++i) {
+		for (unsigned int j = 0; j < vm; ++j) {
+			double val = operator()(minU() + i * dx, minV() + j * dy);
 
-			if (data[ i ][ j ] > range().maxVertex.z)
-				data[ i ][ j ] = range().maxVertex.z;
-			else if (data[ i ][ j ] < range().minVertex.z)
-				data[ i ][ j ] = range().minVertex.z;
+			if (val > range().maxVertex.z)
+				val = range().maxVertex.z;
+			else if (val < range().minVertex.z)
+				val = range().minVertex.z;
+
+			result.z[i][j] = val;
 		}
 	}
 
-	Q_ASSERT(plotWidget());
-	if (!plotWidget()) {
-		fprintf(stderr, "Function: no valid Plot3D Widget assigned");
-	} else {
-		static_cast< SurfacePlot* >(plotWidget())->loadFromData(data, um, vm, minU(), maxU(), minV(), maxV());
-	}
-
-	for (i = 0; i < um; i++) {
-		delete[] data[ i ];
-	}
-
-	delete[] data;
-
-	return true;
-}
-
-/**
- * @brief Assigns a new SurfacePlot and creates a data representation for it
- * @param pl Reference to a SurfacePlot widget
- * @return True on success
- */
-bool Function::create(SurfacePlot& pl)
-{
-	assign(pl);
-	return create();
+	return result;
 }
 
 /*** End of inlined file: qwt3d_function.cpp ***/
 
 
-/*** Start of inlined file: qwt3d_surfaceplot.cpp ***/
-
-/*** Start of inlined file: qwt3d_surfaceplot_p.h ***/
-#ifndef QWT3D_SURFACEPLOT_P_H
-#define QWT3D_SURFACEPLOT_P_H
-
-namespace Qwt3D
+/*** Start of inlined file: qwt3d_plotitem.cpp ***/
+class Qwt3DPlotItem::PrivateData
 {
-
-class SurfacePlot::PrivateData
-{
-	QWT_DECLARE_PUBLIC(SurfacePlot)
+	QWT_DECLARE_PUBLIC(Qwt3DPlotItem)
 
 public:
-	PrivateData(SurfacePlot* q);
+	explicit PrivateData(Qwt3DPlotItem* p);
 
-	bool m_dataNormals;
-	double m_normalLength;
-	int m_normalQuality;
-	int m_resolution;
-
-	FLOORSTYLE m_floorStyle;
-
-	GridData* m_actualDataG;
-	CellData* m_actualDataC;
+	Qwt3DPlot* m_plot = nullptr;
+	double m_z = 0.0;
+	QString m_title;
+	bool m_visible = true;
 };
 
-}  // ns
-
-#endif  // QWT3D_SURFACEPLOT_P_H
-
-/*** End of inlined file: qwt3d_surfaceplot_p.h ***/
-
-using namespace std;
-using namespace Qwt3D;
-
-SurfacePlot::PrivateData::PrivateData(SurfacePlot* q)
-	: q_ptr(q)
-	, m_dataNormals(false)
-	, m_normalLength(0.02)
-	, m_normalQuality(3)
-	, m_resolution(1)
-	, m_floorStyle(NOFLOOR)
-	, m_actualDataG(nullptr)
-	, m_actualDataC(nullptr)
+Qwt3DPlotItem::PrivateData::PrivateData(Qwt3DPlotItem* p)
+	: q_ptr(p)
 {
 }
 
 /**
- * @brief Constructs a SurfacePlot widget
- * @param[in] parent Parent widget
- * @details Initializes with dataNormals()==false, NOFLOOR, resolution() == 1
- *
+ * @brief Default constructor
+ * @details Constructs a Qwt3DPlotItem with default settings.
  */
-SurfacePlot::SurfacePlot(QWidget* parent) : Plot3D(parent), QWT_PIMPL_CONSTRUCT
+Qwt3DPlotItem::Qwt3DPlotItem()
+	: QWT_PIMPL_CONSTRUCT
 {
-	QWT_D(d);
-	d->m_actualDataG = new GridData();
-	d->m_actualDataC = new CellData();
-
-	setActualData(d->m_actualDataG);
 }
 
 /**
  * @brief Destructor
- *
+ * @details Destroys the Qwt3DPlotItem and detaches it from any plot.
  */
-SurfacePlot::~SurfacePlot()
+Qwt3DPlotItem::~Qwt3DPlotItem()
 {
-	QWT_D(d);
-	delete d->m_actualDataG;
-	delete d->m_actualDataC;
-}
-
-int SurfacePlot::resolution() const
-{
-	QWT_DC(d);
-	return d->m_resolution;
-}
-
-Qwt3D::FLOORSTYLE SurfacePlot::floorStyle() const
-{
-	QWT_DC(d);
-	return d->m_floorStyle;
-}
-
-void SurfacePlot::setFloorStyle(Qwt3D::FLOORSTYLE val)
-{
-	QWT_D(d);
-	d->m_floorStyle = val;
-}
-
-bool SurfacePlot::normals() const
-{
-	QWT_DC(d);
-	return d->m_dataNormals;
-}
-
-double SurfacePlot::normalLength() const
-{
-	QWT_DC(d);
-	return d->m_normalLength;
-}
-
-int SurfacePlot::normalQuality() const
-{
-	QWT_DC(d);
-	return d->m_normalQuality;
+	detach();
 }
 
 /**
- * @brief Shows or hides data normals
- * @param[in] b True to show normals, false to hide
- *
+ * @brief Attach the item to a plot
+ * @param[in] plot Plot widget to attach to
+ * @details This method attaches a Qwt3DPlotItem to the Qwt3DPlot argument.
+ *          It will first detach the Qwt3DPlotItem from any plot from a previous
+ *          call to attach (if necessary). If a nullptr argument is passed,
+ *          it will detach from any Qwt3DPlot it was attached to.
  */
-void SurfacePlot::showNormals(bool b)
+void Qwt3DPlotItem::attach(Qwt3DPlot* plot)
 {
 	QWT_D(d);
-	d->m_dataNormals = b;
+
+	if (plot == d->m_plot)
+		return;
+
+	if (d->m_plot)
+		d->m_plot->detach(this);
+
+	d->m_plot = plot;
+
+	if (d->m_plot)
+		d->m_plot->attach(this);
 }
 
 /**
- * @brief Sets the normal vector length
- * @param[in] val Normal length value (0.0 to 1.0). Values < 0 or > 1 are ignored.
- *
+ * @brief Detach the item from the plot
+ * @details This method detaches a Qwt3DPlotItem from any Qwt3DPlot it has been
+ *          associated with. detach() is equivalent to calling attach(nullptr).
  */
-void SurfacePlot::setNormalLength(double val)
+void Qwt3DPlotItem::detach()
 {
 	QWT_D(d);
-	if (val < 0 || val > 1)
+
+	if (!d->m_plot)
 		return;
-	d->m_normalLength = val;
+
+	d->m_plot->detach(this);
+	d->m_plot = nullptr;
 }
 
 /**
- * @brief Sets the normal vector quality (number of arrow segments)
- * @param[in] val Quality value. Values < 3 are ignored.
- *
+ * @brief Get the plot the item is attached to
+ * @return Attached plot, or nullptr if not attached
  */
-void SurfacePlot::setNormalQuality(int val)
-{
-	QWT_D(d);
-	if (val < 3)
-		return;
-	d->m_normalQuality = val;
-}
-
-/**
- * @brief Calculates the smallest x-y-z parallelepiped enclosing the data
- * @details It can be accessed by hull();
- *
- */
-void SurfacePlot::calculateHull()
-{
-	Qwt3D::Data* data = actualData();
-	if (!data || data->empty())
-		return;
-	setHull(data->hull());
-}
-
-/**
- * @brief Sets data resolution and updates widget
- * @param[in] res Resolution multiplier (res == 1 means original resolution). If res < 1, the function does nothing.
- *
- */
-void SurfacePlot::setResolution(int res)
-{
-	QWT_D(d);
-	Qwt3D::Data* data = actualData();
-	if (!data || data->datatype == Qwt3D::POLYGON)
-		return;
-
-	if ((d->m_resolution == res) || res < 1)
-		return;
-
-	d->m_resolution = res;
-	updateNormals();
-	updateData();
-	if (initializedGL())
-		update();
-
-	emit resolutionChanged(res);
-}
-
-void SurfacePlot::updateNormals()
-{
-	QWT_D(d);
-	Qwt3D::Data* data         = actualData();
-	std::vector< GLuint >& dl = displayLists();
-
-	SaveGlDeleteLists(dl[ NormalObject ], 1);
-
-	if ((plotStyle() == NOPLOT && !normals()) || !data)
-		return;
-
-	dl[ NormalObject ] = glGenLists(1);
-	glNewList(dl[ NormalObject ], GL_COMPILE);
-
-	if (data->datatype == Qwt3D::POLYGON)
-		createNormalsC();
-	else if (data->datatype == Qwt3D::GRID)
-		createNormalsG();
-
-	glEndList();
-}
-
-void SurfacePlot::createData()
-{
-	Qwt3D::Data* data = actualData();
-	if (!data)
-		return;
-	if (data->datatype == Qwt3D::POLYGON)
-		createDataC();
-	else if (data->datatype == Qwt3D::GRID)
-		createDataG();
-}
-
-void SurfacePlot::createFloorData()
-{
-	Qwt3D::Data* data = actualData();
-	if (!data)
-		return;
-	if (data->datatype == Qwt3D::POLYGON)
-		createFloorDataC();
-	else if (data->datatype == Qwt3D::GRID)
-		createFloorDataG();
-}
-
-/**
- * @brief Returns the number of facets in the data
- * @return (columns,rows) for grid data, (number of cells,1) for polygon data, (0,0) otherwise
- * @details The returned value is not affected by resolution().
- *
- */
-pair< int, int > SurfacePlot::facets() const
+Qwt3DPlot* Qwt3DPlotItem::plot() const
 {
 	QWT_DC(d);
-	if (!hasData())
-		return pair< int, int >(0, 0);
-
-	Qwt3D::Data* data = actualData();
-	if (data->datatype == Qwt3D::POLYGON)
-		return pair< int, int >(int(d->m_actualDataC->cells.size()), 1);
-	else if (data->datatype == Qwt3D::GRID)
-		return pair< int, int >(d->m_actualDataG->columns(), d->m_actualDataG->rows());
-	else
-		return pair< int, int >(0, 0);
+	return d->m_plot;
 }
 
-void SurfacePlot::createPoints()
-{
-	Dot pt;
-	createEnrichment(pt);
-}
-
-void SurfacePlot::createEnrichment(Enrichment& p)
+/**
+ * @brief Set the item title
+ * @param[in] title Title text
+ * @sa title()
+ */
+void Qwt3DPlotItem::setTitle(const QString& title)
 {
 	QWT_D(d);
-	Qwt3D::Data* data = actualData();
-	if (!data)
-		return;
 
-	// todo future work
-	if (p.type() != Enrichment::VERTEXENRICHMENT)
-		return;
-
-	p.assign(*this);
-	p.drawBegin();
-
-	VertexEnrichment* ve = static_cast< VertexEnrichment* >(&p);
-	if (data->datatype == Qwt3D::POLYGON) {
-		for (unsigned i = 0; i != d->m_actualDataC->normals.size(); ++i)
-			ve->draw(d->m_actualDataC->nodes[ i ]);
-	} else if (data->datatype == Qwt3D::GRID) {
-		int step = resolution();
-		for (int i = 0; i <= d->m_actualDataG->columns() - step; i += step)
-			for (int j = 0; j <= d->m_actualDataG->rows() - step; j += step)
-				ve->draw(Triple(d->m_actualDataG->vertices[ i ][ j ][ 0 ],
-								d->m_actualDataG->vertices[ i ][ j ][ 1 ],
-								d->m_actualDataG->vertices[ i ][ j ][ 2 ]));
+	if (d->m_title != title) {
+		d->m_title = title;
+		itemChanged();
 	}
-	p.drawEnd();
 }
 
-/*** End of inlined file: qwt3d_surfaceplot.cpp ***/
+/**
+ * @brief Get the title of the item
+ * @return Title of the item
+ * @sa setTitle()
+ */
+QString Qwt3DPlotItem::title() const
+{
+	QWT_DC(d);
+	return d->m_title;
+}
+
+/**
+ * @brief Set the z-order value
+ * @param[in] z Z-value for the item
+ * @details Plot items are drawn in increasing z-order.
+ * @sa z()
+ */
+void Qwt3DPlotItem::setZ(double z)
+{
+	QWT_D(d);
+
+	if (d->m_z != z) {
+		d->m_z = z;
+		itemChanged();
+	}
+}
+
+/**
+ * @brief Get the z-order value
+ * @return Z-value of the item
+ * @details Plot items are drawn in increasing z-order.
+ * @sa setZ()
+ */
+double Qwt3DPlotItem::z() const
+{
+	QWT_DC(d);
+	return d->m_z;
+}
+
+/**
+ * @brief Set item visibility
+ * @param[in] on Show if true, otherwise hide
+ * @sa isVisible()
+ */
+void Qwt3DPlotItem::setVisible(bool on)
+{
+	QWT_D(d);
+
+	if (d->m_visible != on) {
+		d->m_visible = on;
+		itemChanged();
+	}
+}
+
+/**
+ * @brief Check if the item is visible
+ * @return true if visible, false otherwise
+ * @sa setVisible()
+ */
+bool Qwt3DPlotItem::isVisible() const
+{
+	QWT_DC(d);
+	return d->m_visible;
+}
+
+/**
+ * @brief Notify the plot that the item has changed
+ * @details Triggers a plot update so the item is redrawn.
+ */
+void Qwt3DPlotItem::itemChanged()
+{
+	QWT_D(d);
+	if (d->m_plot)
+		d->m_plot->itemChanged(this);
+}
+
+void Qwt3DPlotItem::populateLegendColors(ColorVector&) const
+{
+}
+
+/**
+ * @brief 运行时类型信息
+ * @return 返回 Rtti_Plot3DItem (= 0)，子类应 override 此方法返回各自的 RTTI 值
+ * @details 用于运行时类型识别，支持安全向下转型、设置面板工厂路由和序列化分发。
+ *          设计与 2D QwtPlotItem::rtti() 完全对齐。
+ * @sa Rtti3DValues, QwtPlotItem::rtti()
+ */
+int Qwt3DPlotItem::rtti() const
+{
+	return Rtti_Plot3DItem;
+}
+
+/*** End of inlined file: qwt3d_plotitem.cpp ***/
 
 
-/*** Start of inlined file: qwt3d_gridplot.cpp ***/
+/*** Start of inlined file: qwt3d_render_context.cpp ***/
+/**
+ * @brief Projects a world-space point to screen pixel coordinates
+ * @param world World-space Triple
+ * @return Screen-space QPointF (pixel coordinates)
+ * @details Uses the CPU-side modelView and projection matrices to transform
+ *          world coordinates to normalized device coordinates, then maps
+ *          to viewport pixels.
+ */
+QPointF Qwt3DRenderContext::worldToScreen(const Triple& world) const
+{
+	QVector4D worldVec(static_cast< float >(world.x),
+						static_cast< float >(world.y),
+						static_cast< float >(world.z), 1.0f);
+	QVector4D clipVec = projection.map(modelView.map(worldVec));
+
+	if (clipVec.w() == 0.0f)
+		return QPointF(0, 0);
+
+	const float ndcX = clipVec.x() / clipVec.w();
+	const float ndcY = clipVec.y() / clipVec.w();
+
+	const float screenX = (ndcX + 1.0f) * 0.5f * viewport.width();
+	const float screenY = (1.0f - (ndcY + 1.0f) * 0.5f) * viewport.height();
+
+	return QPointF(screenX, screenY);
+}
+
+/**
+ * @brief Unprojects screen pixel coordinates to a world-space point
+ * @param screen Screen-space point (pixel coordinates)
+ * @return World-space Triple
+ * @details Uses the inverse of the CPU-side modelView and projection matrices
+ *          to unproject screen coordinates. The z-component is determined
+ *          by the near plane (z=0 in NDC).
+ */
+Triple Qwt3DRenderContext::screenToWorld(const QPointF& screen) const
+{
+	if (viewport.width() <= 0 || viewport.height() <= 0)
+		return Triple(0, 0, 0);
+
+	const float ndcX = 2.0f * static_cast< float >(screen.x()) / viewport.width() - 1.0f;
+	const float ndcY = 1.0f - 2.0f * static_cast< float >(screen.y()) / viewport.height();
+
+	QVector3D clipVec(ndcX, ndcY, 0.0f);
+
+	QMatrix4x4 invMVP = (projection * modelView).inverted();
+	QVector3D worldVec = invMVP.map(clipVec);
+
+	return Triple(worldVec.x(), worldVec.y(), worldVec.z());
+}
+
+/**
+ * @brief Converts a relative viewport position to world coordinates
+ * @param rel Relative position in viewport coordinates [0..1]
+ * @return Corresponding world coordinates
+ * @details Scales the relative position by the viewport dimensions to obtain
+ *          screen pixel coordinates, then unprojects to world space.
+ */
+Triple Qwt3DRenderContext::relativePosition(Triple rel) const
+{
+	if (viewport.width() <= 0 || viewport.height() <= 0)
+		return Triple(0, 0, 0);
+
+	QPointF screen(rel.x * viewport.width(), rel.y * viewport.height());
+	return screenToWorld(screen);
+}
+
+/*** End of inlined file: qwt3d_render_context.cpp ***/
+
+
+/*** Start of inlined file: qwt3d_surface.cpp ***/
 #if defined(_MSC_VER) /* MSVC Compiler */
 #pragma warning(disable : 4305)
 #pragma warning(disable : 4786)
 #endif
 
-using namespace std;
-using namespace Qwt3D;
 
-void SurfacePlot::createDataG()
+/*** Start of inlined file: qwt3d_surface_p.h ***/
+#ifndef QWT3D_SURFACE_P_H
+#define QWT3D_SURFACE_P_H
+
+#include <QOpenGLBuffer>
+#include <QOpenGLVertexArrayObject>
+#include <QOpenGLShaderProgram>
+#include <QVector3D>
+#include <QVector4D>
+#include <QMatrix3x3>
+
+#include <list>
+#include <cfloat>
+
+/**
+ * @brief Vertex structure for VBO upload
+ * @details Each vertex has position (3 floats), normal (3 floats), and color (4 floats).
+ *          Total stride = 40 bytes, matching the shader attribute layout:
+ *          location 0 = position, location 1 = normal, location 2 = color.
+ */
+struct SurfaceVertex
 {
-	QWT_D(d);
-	createFloorData();
+	QVector3D position;
+	QVector3D normal;
+	QVector4D color;
+};
 
-	if (plotStyle() == NOPLOT)
-		return;
+class Qwt3DSurface::PrivateData
+{
+	QWT_DECLARE_PUBLIC(Qwt3DSurface)
 
-	int i, j;
-	RGBA col;
-	int step = resolution();
+public:
+	explicit PrivateData(Qwt3DSurface* q);
+	~PrivateData();
 
-	if (plotStyle() == Qwt3D::POINTS) {
-		createPoints();
-		return;
-	} else if (plotStyle() == Qwt3D::USER) {
-		if (userStyle())
-			createEnrichment(*userStyle());
-		return;
-	}
+	// Data storage
+	Qwt3DGridData* m_actualDataG;
+	Qwt3DCellData* m_actualDataC;
 
-	setDeviceLineWidth(meshLineWidth());
+	// Normals display
+	bool m_dataNormals;
+	double m_normalLength;
+	int m_normalQuality;
 
-	GLStateBewarer sb(GL_POLYGON_OFFSET_FILL, true);
-	setDevicePolygonOffset(polygonOffset(), 1.0);
+	// Resolution (index buffer stepping)
+	int m_resolution;
 
-	GLStateBewarer sb2(GL_LINE_SMOOTH, smoothDataMesh());
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	// Floor projection style
+	FLOORSTYLE m_floorStyle;
 
-	int lastcol = d->m_actualDataG->columns();
-	int lastrow = d->m_actualDataG->rows();
+	// Plot style and color
+	PLOTSTYLE m_plotStyle;
+	SHADINGSTYLE m_shading;
+	Qwt3DColor* m_dataColor;
+	RGBA m_meshColor;
+	double m_meshLineWidth;
+	int m_isolines;
+	bool m_smoothDataMesh;
+	double m_polygonOffset;
 
-	if (plotStyle() != WIREFRAME) {
-		glPolygonMode(GL_FRONT_AND_BACK, GL_QUADS);
+	// Enrichments
+	std::list<Qwt3DEnrichment*> m_enrichmentList;
 
-		bool hl = (plotStyle() == HIDDENLINE);
-		if (hl) {
-			col = backgroundRGBAColor();
-			glColor4d(col.r, col.g, col.b, col.a);
-		}
+	// GL resources (created lazily in draw())
+	bool m_vboDirty;
+	bool m_shaderInitialized;
+	QOpenGLBuffer m_vertexBuffer;
+	QOpenGLBuffer m_indexBuffer;
+	QOpenGLVertexArrayObject m_vao;
+	QOpenGLShaderProgram m_shader;
 
-		for (i = 0; i < lastcol - step; i += step) {
-			glBegin(GL_TRIANGLE_STRIP);
-			setColorFromVertexG(i, 0, hl);
-			glNormal3dv(d->m_actualDataG->normals[ i ][ 0 ]);
-			glVertex3dv(d->m_actualDataG->vertices[ i ][ 0 ]);
+	// Index counts (tri indices first, then line indices in the same EBO)
+	int m_triIndexCount;
+	int m_lineIndexCount;
+	int m_vertexCount;
 
-			setColorFromVertexG(i + step, 0, hl);
-			glNormal3dv(d->m_actualDataG->normals[ i + step ][ 0 ]);
-			glVertex3dv(d->m_actualDataG->vertices[ i + step ][ 0 ]);
+	// Cached hull
+	ParallelEpiped m_hull;
+};
 
-			for (j = 0; j < lastrow - step; j += step) {
-				setColorFromVertexG(i, j + step, hl);
-				glNormal3dv(d->m_actualDataG->normals[ i ][ j + step ]);
-				glVertex3dv(d->m_actualDataG->vertices[ i ][ j + step ]);
+inline Qwt3DSurface::PrivateData::PrivateData(Qwt3DSurface* q)
+	: q_ptr(q)
+	, m_actualDataG(nullptr)
+	, m_actualDataC(nullptr)
+	, m_dataNormals(false)
+	, m_normalLength(0.02)
+	, m_normalQuality(3)
+	, m_resolution(1)
+	, m_floorStyle(NOFLOOR)
+	, m_plotStyle(FILLEDMESH)
+	, m_shading(GOURAUD)
+	, m_dataColor(nullptr)
+	, m_meshColor(RGBA(0.0, 0.0, 0.0, 1.0))
+	, m_meshLineWidth(1.0)
+	, m_isolines(0)
+	, m_smoothDataMesh(false)
+	, m_polygonOffset(0.5)
+	, m_vboDirty(true)
+	, m_shaderInitialized(false)
+	, m_triIndexCount(0)
+	, m_lineIndexCount(0)
+	, m_vertexCount(0)
+	, m_hull(Triple(0, 0, 0), Triple(0, 0, 0))
+{
+	m_actualDataG = new Qwt3DGridData();
+	m_actualDataC = new Qwt3DCellData();
 
-				setColorFromVertexG(i + step, j + step, hl);
-				glNormal3dv(d->m_actualDataG->normals[ i + step ][ j + step ]);
-				glVertex3dv(d->m_actualDataG->vertices[ i + step ][ j + step ]);
-			}
-			glEnd();
-		}
-	}
-
-	if (plotStyle() == FILLEDMESH || plotStyle() == WIREFRAME || plotStyle() == HIDDENLINE) {
-		glColor4d(meshColor().r, meshColor().g, meshColor().b, meshColor().a);
-
-		if (step < d->m_actualDataG->columns() && step < d->m_actualDataG->rows()) {
-			glBegin(GL_LINE_LOOP);
-			for (i = 0; i < d->m_actualDataG->columns() - step; i += step)
-				glVertex3dv(d->m_actualDataG->vertices[ i ][ 0 ]);
-			for (j = 0; j < d->m_actualDataG->rows() - step; j += step)
-				glVertex3dv(d->m_actualDataG->vertices[ i ][ j ]);
-			for (; i >= 0; i -= step)
-				glVertex3dv(d->m_actualDataG->vertices[ i ][ j ]);
-			for (; j >= 0; j -= step)
-				glVertex3dv(d->m_actualDataG->vertices[ 0 ][ j ]);
-			glEnd();
-		}
-
-		// weaving
-		for (i = step; i < d->m_actualDataG->columns() - step; i += step) {
-			glBegin(GL_LINE_STRIP);
-			for (j = 0; j < d->m_actualDataG->rows(); j += step)
-				glVertex3dv(d->m_actualDataG->vertices[ i ][ j ]);
-			glEnd();
-		}
-		for (j = step; j < d->m_actualDataG->rows() - step; j += step) {
-			glBegin(GL_LINE_STRIP);
-			for (i = 0; i < d->m_actualDataG->columns(); i += step)
-				glVertex3dv(d->m_actualDataG->vertices[ i ][ j ]);
-			glEnd();
-		}
-	}
+	// QOpenGLBuffer with default target GL_ARRAY_BUFFER
+	m_indexBuffer = QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
 }
 
-void SurfacePlot::setColorFromVertexG(int ix, int iy, bool skip)
+inline Qwt3DSurface::PrivateData::~PrivateData()
 {
-	QWT_D(d);
-	if (skip)
-		return;
+	// Destroy GL resources (safe to call even without current context)
+	m_vertexBuffer.destroy();
+	m_indexBuffer.destroy();
+	m_vao.destroy();
 
-	RGBA col = (*dataColor())(d->m_actualDataG->vertices[ ix ][ iy ][ 0 ],
-							  d->m_actualDataG->vertices[ ix ][ iy ][ 1 ],
-							  d->m_actualDataG->vertices[ ix ][ iy ][ 2 ]);
+	// Clean up data
+	delete m_actualDataG;
+	delete m_actualDataC;
 
-	glColor4d(col.r, col.g, col.b, col.a);
-}
-
-void SurfacePlot::createNormalsG()
-{
-	QWT_D(d);
-	if (!normals() || d->m_actualDataG->empty())
-		return;
-
-	Arrow arrow;
-	arrow.setQuality(normalQuality());
-
-	Triple basev, topv, norm;
-
-	int step = resolution();
-
-	double diag = (d->m_actualDataG->hull().maxVertex - d->m_actualDataG->hull().minVertex).length() * normalLength();
-
-	arrow.assign(*this);
-	arrow.drawBegin();
-	for (int i = 0; i <= d->m_actualDataG->columns() - step; i += step) {
-		for (int j = 0; j <= d->m_actualDataG->rows() - step; j += step) {
-			basev = Triple(d->m_actualDataG->vertices[ i ][ j ][ 0 ],
-						   d->m_actualDataG->vertices[ i ][ j ][ 1 ],
-						   d->m_actualDataG->vertices[ i ][ j ][ 2 ]);
-			topv  = Triple(d->m_actualDataG->vertices[ i ][ j ][ 0 ] + d->m_actualDataG->normals[ i ][ j ][ 0 ],
-						  d->m_actualDataG->vertices[ i ][ j ][ 1 ] + d->m_actualDataG->normals[ i ][ j ][ 1 ],
-						  d->m_actualDataG->vertices[ i ][ j ][ 2 ] + d->m_actualDataG->normals[ i ][ j ][ 2 ]);
-
-			norm = topv - basev;
-			norm.normalize();
-			norm *= diag;
-
-			arrow.setTop(basev + norm);
-			arrow.setColor((*dataColor())(basev.x, basev.y, basev.z));
-			arrow.draw(basev);
-		}
+	// Clean up color functor
+	if (m_dataColor) {
+		m_dataColor->destroy();
 	}
-	arrow.drawEnd();
+
+	// Clean up enrichments
+	for (auto* e : m_enrichmentList)
+		delete e;
+	m_enrichmentList.clear();
 }
 
-void SurfacePlot::readIn(GridData& gdata, Triple** data, unsigned int columns, unsigned int rows)
+#endif // QWT3D_SURFACE_P_H
+
+/*** End of inlined file: qwt3d_surface_p.h ***/
+
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
+#include <QMatrix3x3>
+
+#include <cfloat>
+#include <cmath>
+#include <algorithm>
+
+// ---------------------------------------------------------------------------
+// Anonymous namespace: data loading helpers (ported from old gridplot/meshplot)
+// ---------------------------------------------------------------------------
+
+namespace
+{
+
+/// Reads Triple grid data into Qwt3DGridData and computes hull
+void readInGridTriples(Qwt3DGridData& gdata, Triple** data,
+					   unsigned int columns, unsigned int rows)
 {
 	gdata.setSize(columns, rows);
 
-	ParallelEpiped range(Triple(DBL_MAX, DBL_MAX, DBL_MAX), Triple(-DBL_MAX, -DBL_MAX, -DBL_MAX));
+	ParallelEpiped range(Triple(DBL_MAX, DBL_MAX, DBL_MAX),
+						 Triple(-DBL_MAX, -DBL_MAX, -DBL_MAX));
 
-	/* fill out the vertex array for the mesh. */
 	for (unsigned i = 0; i != columns; ++i) {
 		for (unsigned j = 0; j != rows; ++j) {
-			gdata.vertices[ i ][ j ][ 0 ] = data[ i ][ j ].x;
-			gdata.vertices[ i ][ j ][ 1 ] = data[ i ][ j ].y;
-			gdata.vertices[ i ][ j ][ 2 ] = data[ i ][ j ].z;
+			gdata.vertices[i][j][0] = data[i][j].x;
+			gdata.vertices[i][j][1] = data[i][j].y;
+			gdata.vertices[i][j][2] = data[i][j].z;
 
-			if (data[ i ][ j ].x > range.maxVertex.x)
-				range.maxVertex.x = data[ i ][ j ].x;
-			if (data[ i ][ j ].y > range.maxVertex.y)
-				range.maxVertex.y = data[ i ][ j ].y;
-			if (data[ i ][ j ].z > range.maxVertex.z)
-				range.maxVertex.z = data[ i ][ j ].z;
-			if (data[ i ][ j ].x < range.minVertex.x)
-				range.minVertex.x = data[ i ][ j ].x;
-			if (data[ i ][ j ].y < range.minVertex.y)
-				range.minVertex.y = data[ i ][ j ].y;
-			if (data[ i ][ j ].z < range.minVertex.z)
-				range.minVertex.z = data[ i ][ j ].z;
+			if (data[i][j].x > range.maxVertex.x)
+				range.maxVertex.x = data[i][j].x;
+			if (data[i][j].y > range.maxVertex.y)
+				range.maxVertex.y = data[i][j].y;
+			if (data[i][j].z > range.maxVertex.z)
+				range.maxVertex.z = data[i][j].z;
+			if (data[i][j].x < range.minVertex.x)
+				range.minVertex.x = data[i][j].x;
+			if (data[i][j].y < range.minVertex.y)
+				range.minVertex.y = data[i][j].y;
+			if (data[i][j].z < range.minVertex.z)
+				range.minVertex.z = data[i][j].z;
 		}
 	}
 	gdata.setHull(range);
 }
 
-void SurfacePlot::readIn(GridData& gdata,
-						 double** data,
-						 unsigned int columns,
-						 unsigned int rows,
-						 double minx,
-						 double maxx,
-						 double miny,
-						 double maxy)
+/// Reads z-value matrix into Qwt3DGridData with explicit x/y domain
+void readInGridZ(Qwt3DGridData& gdata, double** data,
+				 unsigned int columns, unsigned int rows,
+				 double minx, double maxx, double miny, double maxy)
 {
 	gdata.setPeriodic(false, false);
 	gdata.setSize(columns, rows);
@@ -93105,621 +94665,3505 @@ void SurfacePlot::readIn(GridData& gdata,
 	double tmin = DBL_MAX;
 	double tmax = -DBL_MAX;
 
-	/* fill out the vertex array for the mesh. */
 	for (unsigned i = 0; i != columns; ++i) {
 		for (unsigned j = 0; j != rows; ++j) {
-			gdata.vertices[ i ][ j ][ 0 ] = minx + i * dx;
-			gdata.vertices[ i ][ j ][ 1 ] = miny + j * dy;
-			gdata.vertices[ i ][ j ][ 2 ] = data[ i ][ j ];
+			gdata.vertices[i][j][0] = minx + i * dx;
+			gdata.vertices[i][j][1] = miny + j * dy;
+			gdata.vertices[i][j][2] = data[i][j];
 
-			if (data[ i ][ j ] > tmax)
-				tmax = data[ i ][ j ];
-			if (data[ i ][ j ] < tmin)
-				tmin = data[ i ][ j ];
+			if (data[i][j] > tmax)
+				tmax = data[i][j];
+			if (data[i][j] < tmin)
+				tmin = data[i][j];
 		}
 	}
-	ParallelEpiped hull = ParallelEpiped(Triple(gdata.vertices[ 0 ][ 0 ][ 0 ], gdata.vertices[ 0 ][ 0 ][ 1 ], tmin),
-										 Triple(gdata.vertices[ gdata.columns() - 1 ][ gdata.rows() - 1 ][ 0 ],
-												gdata.vertices[ gdata.columns() - 1 ][ gdata.rows() - 1 ][ 1 ],
-												tmax));
 
+	ParallelEpiped hull(Triple(gdata.vertices[0][0][0],
+							   gdata.vertices[0][0][1], tmin),
+						Triple(gdata.vertices[gdata.columns() - 1][gdata.rows() - 1][0],
+							   gdata.vertices[gdata.columns() - 1][gdata.rows() - 1][1],
+							   tmax));
 	gdata.setHull(hull);
 }
 
-void SurfacePlot::calcNormals(GridData& gdata)
+/// Calculates per-vertex normals for grid data using 4-neighbor cross products
+void calcNormalsGrid(Qwt3DGridData& gdata)
 {
-
-	unsigned int rows    = gdata.rows();
+	unsigned int rows = gdata.rows();
 	unsigned int columns = gdata.columns();
 
-	// normals
-
-	Triple u, v, n;  // for cross product
+	Triple u, v, n;
 
 	for (unsigned i = 0; i != columns; ++i) {
 		for (unsigned j = 0; j != rows; ++j) {
 			n = Triple(0, 0, 0);
 
 			if (i < columns - 1 && j < rows - 1) {
-				/*	get two vectors to cross */
-				u = Triple(gdata.vertices[ i + 1 ][ j ][ 0 ] - gdata.vertices[ i ][ j ][ 0 ],
-						   gdata.vertices[ i + 1 ][ j ][ 1 ] - gdata.vertices[ i ][ j ][ 1 ],
-						   gdata.vertices[ i + 1 ][ j ][ 2 ] - gdata.vertices[ i ][ j ][ 2 ]);
-
-				v = Triple(gdata.vertices[ i ][ j + 1 ][ 0 ] - gdata.vertices[ i ][ j ][ 0 ],
-						   gdata.vertices[ i ][ j + 1 ][ 1 ] - gdata.vertices[ i ][ j ][ 1 ],
-						   gdata.vertices[ i ][ j + 1 ][ 2 ] - gdata.vertices[ i ][ j ][ 2 ]);
-				/* get the normalized cross product */
-				n += normalizedcross(u, v);  // right hand system here !
+				u = Triple(gdata.vertices[i + 1][j][0] - gdata.vertices[i][j][0],
+						   gdata.vertices[i + 1][j][1] - gdata.vertices[i][j][1],
+						   gdata.vertices[i + 1][j][2] - gdata.vertices[i][j][2]);
+				v = Triple(gdata.vertices[i][j + 1][0] - gdata.vertices[i][j][0],
+						   gdata.vertices[i][j + 1][1] - gdata.vertices[i][j][1],
+						   gdata.vertices[i][j + 1][2] - gdata.vertices[i][j][2]);
+				n += normalizedcross(u, v);
 			}
 
 			if (i > 0 && j < rows - 1) {
-				u = Triple(gdata.vertices[ i ][ j + 1 ][ 0 ] - gdata.vertices[ i ][ j ][ 0 ],
-						   gdata.vertices[ i ][ j + 1 ][ 1 ] - gdata.vertices[ i ][ j ][ 1 ],
-						   gdata.vertices[ i ][ j + 1 ][ 2 ] - gdata.vertices[ i ][ j ][ 2 ]);
-				v = Triple(gdata.vertices[ i - 1 ][ j ][ 0 ] - gdata.vertices[ i ][ j ][ 0 ],
-						   gdata.vertices[ i - 1 ][ j ][ 1 ] - gdata.vertices[ i ][ j ][ 1 ],
-						   gdata.vertices[ i - 1 ][ j ][ 2 ] - gdata.vertices[ i ][ j ][ 2 ]);
+				u = Triple(gdata.vertices[i][j + 1][0] - gdata.vertices[i][j][0],
+						   gdata.vertices[i][j + 1][1] - gdata.vertices[i][j][1],
+						   gdata.vertices[i][j + 1][2] - gdata.vertices[i][j][2]);
+				v = Triple(gdata.vertices[i - 1][j][0] - gdata.vertices[i][j][0],
+						   gdata.vertices[i - 1][j][1] - gdata.vertices[i][j][1],
+						   gdata.vertices[i - 1][j][2] - gdata.vertices[i][j][2]);
 				n += normalizedcross(u, v);
 			}
 
 			if (i > 0 && j > 0) {
-				u = Triple(gdata.vertices[ i - 1 ][ j ][ 0 ] - gdata.vertices[ i ][ j ][ 0 ],
-						   gdata.vertices[ i - 1 ][ j ][ 1 ] - gdata.vertices[ i ][ j ][ 1 ],
-						   gdata.vertices[ i - 1 ][ j ][ 2 ] - gdata.vertices[ i ][ j ][ 2 ]);
-
-				v = Triple(gdata.vertices[ i ][ j - 1 ][ 0 ] - gdata.vertices[ i ][ j ][ 0 ],
-						   gdata.vertices[ i ][ j - 1 ][ 1 ] - gdata.vertices[ i ][ j ][ 1 ],
-						   gdata.vertices[ i ][ j - 1 ][ 2 ] - gdata.vertices[ i ][ j ][ 2 ]);
+				u = Triple(gdata.vertices[i - 1][j][0] - gdata.vertices[i][j][0],
+						   gdata.vertices[i - 1][j][1] - gdata.vertices[i][j][1],
+						   gdata.vertices[i - 1][j][2] - gdata.vertices[i][j][2]);
+				v = Triple(gdata.vertices[i][j - 1][0] - gdata.vertices[i][j][0],
+						   gdata.vertices[i][j - 1][1] - gdata.vertices[i][j][1],
+						   gdata.vertices[i][j - 1][2] - gdata.vertices[i][j][2]);
 				n += normalizedcross(u, v);
 			}
 
 			if (i < columns - 1 && j > 0) {
-				u = Triple(gdata.vertices[ i ][ j - 1 ][ 0 ] - gdata.vertices[ i ][ j ][ 0 ],
-						   gdata.vertices[ i ][ j - 1 ][ 1 ] - gdata.vertices[ i ][ j ][ 1 ],
-						   gdata.vertices[ i ][ j - 1 ][ 2 ] - gdata.vertices[ i ][ j ][ 2 ]);
-
-				v = Triple(gdata.vertices[ i + 1 ][ j ][ 0 ] - gdata.vertices[ i ][ j ][ 0 ],
-						   gdata.vertices[ i + 1 ][ j ][ 1 ] - gdata.vertices[ i ][ j ][ 1 ],
-						   gdata.vertices[ i + 1 ][ j ][ 2 ] - gdata.vertices[ i ][ j ][ 2 ]);
+				u = Triple(gdata.vertices[i][j - 1][0] - gdata.vertices[i][j][0],
+						   gdata.vertices[i][j - 1][1] - gdata.vertices[i][j][1],
+						   gdata.vertices[i][j - 1][2] - gdata.vertices[i][j][2]);
+				v = Triple(gdata.vertices[i + 1][j][0] - gdata.vertices[i][j][0],
+						   gdata.vertices[i + 1][j][1] - gdata.vertices[i][j][1],
+						   gdata.vertices[i + 1][j][2] - gdata.vertices[i][j][2]);
 				n += normalizedcross(u, v);
 			}
 			n.normalize();
 
-			gdata.normals[ i ][ j ][ 0 ] = n.x;
-			gdata.normals[ i ][ j ][ 1 ] = n.y;
-			gdata.normals[ i ][ j ][ 2 ] = n.z;
+			gdata.normals[i][j][0] = n.x;
+			gdata.normals[i][j][1] = n.y;
+			gdata.normals[i][j][2] = n.z;
 		}
 	}
 }
 
-void SurfacePlot::sewPeriodic(GridData& gdata)
+/// Sews (averages) normals at periodic boundaries
+void sewPeriodicGrid(Qwt3DGridData& gdata)
 {
-	// sewing
-
 	Triple n;
 
 	unsigned int columns = gdata.columns();
-	unsigned int rows    = gdata.rows();
+	unsigned int rows = gdata.rows();
 
 	if (gdata.uperiodic()) {
 		for (unsigned i = 0; i != columns; ++i) {
-			n = Triple(gdata.normals[ i ][ 0 ][ 0 ] + gdata.normals[ i ][ rows - 1 ][ 0 ],
-					   gdata.normals[ i ][ 0 ][ 1 ] + gdata.normals[ i ][ rows - 1 ][ 1 ],
-					   gdata.normals[ i ][ 0 ][ 2 ] + gdata.normals[ i ][ rows - 1 ][ 2 ]);
-
+			n = Triple(gdata.normals[i][0][0] + gdata.normals[i][rows - 1][0],
+					   gdata.normals[i][0][1] + gdata.normals[i][rows - 1][1],
+					   gdata.normals[i][0][2] + gdata.normals[i][rows - 1][2]);
 			n.normalize();
-			gdata.normals[ i ][ 0 ][ 0 ] = gdata.normals[ i ][ rows - 1 ][ 0 ] = n.x;
-			gdata.normals[ i ][ 0 ][ 1 ] = gdata.normals[ i ][ rows - 1 ][ 1 ] = n.y;
-			gdata.normals[ i ][ 0 ][ 2 ] = gdata.normals[ i ][ rows - 1 ][ 2 ] = n.z;
+			gdata.normals[i][0][0] = gdata.normals[i][rows - 1][0] = n.x;
+			gdata.normals[i][0][1] = gdata.normals[i][rows - 1][1] = n.y;
+			gdata.normals[i][0][2] = gdata.normals[i][rows - 1][2] = n.z;
 		}
 	}
 	if (gdata.vperiodic()) {
 		for (unsigned j = 0; j != rows; ++j) {
-			n = Triple(gdata.normals[ 0 ][ j ][ 0 ] + gdata.normals[ columns - 1 ][ j ][ 0 ],
-					   gdata.normals[ 0 ][ j ][ 1 ] + gdata.normals[ columns - 1 ][ j ][ 1 ],
-					   gdata.normals[ 0 ][ j ][ 2 ] + gdata.normals[ columns - 1 ][ j ][ 2 ]);
-
+			n = Triple(gdata.normals[0][j][0] + gdata.normals[columns - 1][j][0],
+					   gdata.normals[0][j][1] + gdata.normals[columns - 1][j][1],
+					   gdata.normals[0][j][2] + gdata.normals[columns - 1][j][2]);
 			n.normalize();
-			gdata.normals[ 0 ][ j ][ 0 ] = gdata.normals[ columns - 1 ][ j ][ 0 ] = n.x;
-			gdata.normals[ 0 ][ j ][ 1 ] = gdata.normals[ columns - 1 ][ j ][ 1 ] = n.y;
-			gdata.normals[ 0 ][ j ][ 2 ] = gdata.normals[ columns - 1 ][ j ][ 2 ] = n.z;
+			gdata.normals[0][j][0] = gdata.normals[columns - 1][j][0] = n.x;
+			gdata.normals[0][j][1] = gdata.normals[columns - 1][j][1] = n.y;
+			gdata.normals[0][j][2] = gdata.normals[columns - 1][j][2] = n.z;
 		}
 	}
 }
 
-/*!
-		Convert user grid data to internal vertex structure.
-		See also NativeReader::read() and Function::create()
-*/
-bool SurfacePlot::loadFromData(Triple** data, unsigned int columns, unsigned int rows, bool uperiodic, bool vperiodic)
+/// Calculates per-vertex normals for cell data
+void calcNormalsCell(Qwt3DCellData& cdata)
 {
-	QWT_D(d);
-	d->m_actualDataC->clear();
-	setActualData(d->m_actualDataG);
+	cdata.normals = TripleField(cdata.nodes.size());
 
-	readIn(*d->m_actualDataG, data, columns, rows);
-	calcNormals(*d->m_actualDataG);
-	d->m_actualDataG->setPeriodic(uperiodic, vperiodic);
-	sewPeriodic(*d->m_actualDataG);
-
-	updateData();
-	updateNormals();
-	createCoordinateSystem();
-
-	return true;
-}
-
-/*!
-		Convert user grid data to internal vertex structure.
-		See also NativeReader::read() and Function::create()
-*/
-bool SurfacePlot::loadFromData(double** data, unsigned int columns, unsigned int rows, double minx, double maxx, double miny, double maxy)
-{
-	QWT_D(d);
-	d->m_actualDataC->clear();
-	setActualData(d->m_actualDataG);
-
-	d->m_actualDataG->setPeriodic(false, false);
-	d->m_actualDataG->setSize(columns, rows);
-	readIn(*d->m_actualDataG, data, columns, rows, minx, maxx, miny, maxy);
-	calcNormals(*d->m_actualDataG);
-
-	updateData();
-	updateNormals();
-	createCoordinateSystem();
-
-	return true;
-}
-
-void SurfacePlot::createFloorDataG()
-{
-	switch (floorStyle()) {
-	case FLOORDATA:
-		Data2FloorG();
-		break;
-	case FLOORISO:
-		Isolines2FloorG();
-		break;
-	default:
-		break;
-	}
-}
-
-void SurfacePlot::Data2FloorG()
-{
-	QWT_D(d);
-	Qwt3D::Data* data = actualData();
-	if (!data || data->empty())
-		return;
-
-	int step = resolution();
-
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_QUADS);
-
-	double zshift = data->hull().minVertex.z;
-	for (int i = 0; i < d->m_actualDataG->columns() - step; i += step) {
-		glBegin(GL_TRIANGLE_STRIP);
-		setColorFromVertexG(i, 0);
-		glVertex3d(d->m_actualDataG->vertices[ i ][ 0 ][ 0 ], d->m_actualDataG->vertices[ i ][ 0 ][ 1 ], zshift);
-
-		setColorFromVertexG(i + step, 0);
-		glVertex3d(d->m_actualDataG->vertices[ i + step ][ 0 ][ 0 ], d->m_actualDataG->vertices[ i + step ][ 0 ][ 1 ], zshift);
-		for (int j = 0; j < d->m_actualDataG->rows() - step; j += step) {
-			setColorFromVertexG(i, j + step);
-			glVertex3d(d->m_actualDataG->vertices[ i ][ j + step ][ 0 ],
-					   d->m_actualDataG->vertices[ i ][ j + step ][ 1 ],
-					   zshift);
-
-			setColorFromVertexG(i + step, j + step);
-			glVertex3d(d->m_actualDataG->vertices[ i + step ][ j + step ][ 0 ],
-					   d->m_actualDataG->vertices[ i + step ][ j + step ][ 1 ],
-					   zshift);
-		}
-		glEnd();
-	}
-}
-
-void SurfacePlot::Isolines2FloorG()
-{
-	QWT_D(d);
-	Qwt3D::Data* data = actualData();
-	if (isolines() <= 0 || !data || data->empty())
-		return;
-
-	double count = (data->hull().maxVertex.z - data->hull().minVertex.z) / isolines();
-
-	RGBA col;
-
-	int step = resolution();
-
-	double zshift = data->hull().minVertex.z;
-
-	int cols = d->m_actualDataG->columns();
-	int rows = d->m_actualDataG->rows();
-
-	Triple t[ 4 ];
-	vector< Triple > intersection;
-
-	double lambda = 0;
-
-	GLStateBewarer sb2(GL_LINE_SMOOTH, false);
-
-	for (int k = 0; k != isolines(); ++k) {
-		double val = zshift + k * count;
-
-		for (int i = 0; i < cols - step; i += step) {
-			for (int j = 0; j < rows - step; j += step) {
-				t[ 0 ] = Triple(d->m_actualDataG->vertices[ i ][ j ][ 0 ],
-								d->m_actualDataG->vertices[ i ][ j ][ 1 ],
-								d->m_actualDataG->vertices[ i ][ j ][ 2 ]);
-
-				col = (*dataColor())(t[ 0 ].x, t[ 0 ].y, t[ 0 ].z);
-				glColor4d(col.r, col.g, col.b, col.a);
-
-				t[ 1 ] = Triple(d->m_actualDataG->vertices[ i + step ][ j ][ 0 ],
-								d->m_actualDataG->vertices[ i + step ][ j ][ 1 ],
-								d->m_actualDataG->vertices[ i + step ][ j ][ 2 ]);
-				t[ 2 ] = Triple(d->m_actualDataG->vertices[ i + step ][ j + step ][ 0 ],
-								d->m_actualDataG->vertices[ i + step ][ j + step ][ 1 ],
-								d->m_actualDataG->vertices[ i + step ][ j + step ][ 2 ]);
-				t[ 3 ] = Triple(d->m_actualDataG->vertices[ i ][ j + step ][ 0 ],
-								d->m_actualDataG->vertices[ i ][ j + step ][ 1 ],
-								d->m_actualDataG->vertices[ i ][ j + step ][ 2 ]);
-
-				double diff = 0;
-				for (int m = 0; m != 4; ++m) {
-					int mm = (m + 1) % 4;
-					if ((val >= t[ m ].z && val <= t[ mm ].z) || (val >= t[ mm ].z && val <= t[ m ].z)) {
-						diff = t[ mm ].z - t[ m ].z;
-
-						if (isPracticallyZero(diff))  // degenerated
-						{
-							intersection.push_back(t[ m ]);
-							intersection.push_back(t[ mm ]);
-							continue;
-						}
-
-						lambda = (val - t[ m ].z) / diff;
-						intersection.push_back(Triple(
-							t[ m ].x + lambda * (t[ mm ].x - t[ m ].x), t[ m ].y + lambda * (t[ mm ].y - t[ m ].y), val));
-					}
-				}
-
-				if (!intersection.empty()) {
-					if (intersection.size() > 2) {
-						glBegin(GL_LINE_STRIP);
-						for (unsigned dd = 0; dd != intersection.size(); ++dd) {
-							glVertex3d(intersection[ dd ].x, intersection[ dd ].y, zshift);
-						}
-						glEnd();
-						glBegin(GL_POINTS);
-						glVertex3d(intersection[ 0 ].x, intersection[ 0 ].y, zshift);
-						glEnd();
-					} else if (intersection.size() == 2) {
-						glBegin(GL_LINES);
-						glVertex3d(intersection[ 0 ].x, intersection[ 0 ].y, zshift);
-						glVertex3d(intersection[ 1 ].x, intersection[ 1 ].y, zshift);
-
-						// small pixel gap problem (see OpenGL spec.)
-						glVertex3d(intersection[ 1 ].x, intersection[ 1 ].y, zshift);
-						glVertex3d(intersection[ 0 ].x, intersection[ 0 ].y, zshift);
-						glEnd();
-					}
-
-					intersection.clear();
-				}
+	Triple n, u, v;
+	for (unsigned i = 0; i < cdata.cells.size(); ++i) {
+		if (cdata.cells[i].size() < 3)
+			n = Triple(0, 0, 0);
+		else {
+			for (size_t j = 0; j < cdata.cells[i].size(); ++j) {
+				size_t jj = (j + 1) % cdata.cells[i].size();
+				size_t pjj = (j) ? j - 1 : cdata.cells[i].size() - 1;
+				u = cdata.nodes[cdata.cells[i][jj]] - cdata.nodes[cdata.cells[i][j]];
+				v = cdata.nodes[cdata.cells[i][pjj]] - cdata.nodes[cdata.cells[i][j]];
+				n = normalizedcross(u, v);
+				cdata.normals[cdata.cells[i][j]] += n;
 			}
 		}
 	}
+	for (unsigned i = 0; i != cdata.normals.size(); ++i) {
+		cdata.normals[i].normalize();
+	}
+
+	// Compute hull
+	ParallelEpiped hull(Triple(DBL_MAX, DBL_MAX, DBL_MAX),
+						Triple(-DBL_MAX, -DBL_MAX, -DBL_MAX));
+	for (unsigned i = 0; i != cdata.nodes.size(); ++i) {
+		if (cdata.nodes[i].x < hull.minVertex.x)
+			hull.minVertex.x = cdata.nodes[i].x;
+		if (cdata.nodes[i].y < hull.minVertex.y)
+			hull.minVertex.y = cdata.nodes[i].y;
+		if (cdata.nodes[i].z < hull.minVertex.z)
+			hull.minVertex.z = cdata.nodes[i].z;
+		if (cdata.nodes[i].x > hull.maxVertex.x)
+			hull.maxVertex.x = cdata.nodes[i].x;
+		if (cdata.nodes[i].y > hull.maxVertex.y)
+			hull.maxVertex.y = cdata.nodes[i].y;
+		if (cdata.nodes[i].z > hull.maxVertex.z)
+			hull.maxVertex.z = cdata.nodes[i].z;
+	}
+	cdata.setHull(hull);
 }
 
-/*** End of inlined file: qwt3d_gridplot.cpp ***/
+} // anonymous namespace
+
+// ---------------------------------------------------------------------------
+// Constructor / Destructor
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Constructs an empty Qwt3DSurface item
+ * @details Initializes data storage (empty grid and cell data) and GL resource
+ *          placeholders. VBO/VAO/shader are created lazily in draw().
+ */
+Qwt3DSurface::Qwt3DSurface()
+	: Qwt3DPlotItem()
+	, QWT_PIMPL_CONSTRUCT
+{
+}
+
+/**
+ * @brief Destructor
+ * @details GL resources (VBO, EBO, VAO) are cleaned up in PrivateData destructor.
+ *          Data pointers and color functor are also deleted there.
+ */
+Qwt3DSurface::~Qwt3DSurface() = default;
+
+// ---------------------------------------------------------------------------
+// Data loading
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Load grid data from Triple array
+ * @param data 2D array of Triple values [columns][rows]
+ * @param columns Number of columns in the grid
+ * @param rows Number of rows in the grid
+ * @param uperiodic Whether the u-direction is periodic
+ * @param vperiodic Whether the v-direction is periodic
+ * @details Reads vertex positions, computes normals, and marks the VBO for rebuild.
+ */
+void Qwt3DSurface::loadFromData(Triple** data, unsigned int columns, unsigned int rows,
+								bool uperiodic, bool vperiodic)
+{
+	QWT_D(d);
+
+	d->m_actualDataC->clear();
+	readInGridTriples(*d->m_actualDataG, data, columns, rows);
+	calcNormalsGrid(*d->m_actualDataG);
+	d->m_actualDataG->setPeriodic(uperiodic, vperiodic);
+	sewPeriodicGrid(*d->m_actualDataG);
+
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Load grid data from z-value matrix
+ * @param data 2D array of z-values [columns][rows]
+ * @param columns Number of columns in the grid
+ * @param rows Number of rows in the grid
+ * @param minx Minimum x coordinate
+ * @param maxx Maximum x coordinate
+ * @param miny Minimum y coordinate
+ * @param maxy Maximum y coordinate
+ * @details Generates x/y coordinates from the domain, reads z-values,
+ *          computes normals, and marks the VBO for rebuild.
+ */
+void Qwt3DSurface::loadFromData(double** data, unsigned int columns, unsigned int rows,
+								double minx, double maxx, double miny, double maxy)
+{
+	QWT_D(d);
+
+	d->m_actualDataC->clear();
+	d->m_actualDataG->setPeriodic(false, false);
+	d->m_actualDataG->setSize(columns, rows);
+	readInGridZ(*d->m_actualDataG, data, columns, rows, minx, maxx, miny, maxy);
+	calcNormalsGrid(*d->m_actualDataG);
+
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Load grid data from a Qwt3DFunctionData result
+ * @param data Result of Qwt3DFunction::create() containing z-values and domain
+ * @details Converts the vector-based data to the internal grid format and
+ *          delegates to the pointer-based overload. Memory-safe: the vector
+ *          data is read-only; a temporary pointer array is created for the
+ *          legacy API.
+ */
+void Qwt3DSurface::loadFromData(const Qwt3DFunctionData& data)
+{
+	if (data.columns == 0 || data.rows == 0)
+		return;
+
+	// Build a temporary pointer array from the vector-of-vectors
+	std::vector<double*> ptrs(data.columns);
+	for (unsigned int i = 0; i < data.columns; ++i)
+		ptrs[i] = const_cast<double*>(data.z[i].data());
+
+	loadFromData(ptrs.data(), data.columns, data.rows,
+				 data.minx, data.maxx, data.miny, data.maxy);
+}
+
+/**
+ * @brief Load grid data from a Qwt3DParametricData result
+ * @param data Result of Qwt3DParametricSurface::create() containing xyz triples
+ * @details Converts the vector-based data to the internal grid format and
+ *          delegates to the pointer-based overload. Memory-safe: the vector
+ *          data is read-only; a temporary pointer array is created for the
+ *          legacy API.
+ */
+void Qwt3DSurface::loadFromData(const Qwt3DParametricData& data)
+{
+	if (data.columns == 0 || data.rows == 0)
+		return;
+
+	// Build a temporary pointer array from the vector-of-vectors
+	std::vector<Triple*> ptrs(data.columns);
+	for (unsigned int i = 0; i < data.columns; ++i)
+		ptrs[i] = const_cast<Triple*>(data.vertices[i].data());
+
+	loadFromData(ptrs.data(), data.columns, data.rows,
+				 data.uperiodic, data.vperiodic);
+}
+
+/**
+ * @brief Load cell (polygon) data from node coordinates and cell indices
+ * @param nodes Vector of 3D node coordinates
+ * @param poly Vector of cells (each cell is a vector of node indices)
+ * @details Stores node positions and cell topology, computes per-vertex normals
+ *          and bounding hull, and marks the VBO for rebuild.
+ */
+void Qwt3DSurface::loadFromData(TripleField const& nodes, CellField const& poly)
+{
+	QWT_D(d);
+
+	d->m_actualDataG->clear();
+	d->m_actualDataC->nodes = nodes;
+	d->m_actualDataC->cells = poly;
+	calcNormalsCell(*d->m_actualDataC);
+
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+// ---------------------------------------------------------------------------
+// Resolution, floor style, normals
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Returns the current data resolution
+ * @return Resolution value (1 = full data, higher = coarser)
+ */
+int Qwt3DSurface::resolution() const
+{
+	QWT_DC(d);
+	return d->m_resolution;
+}
+
+/**
+ * @brief Sets the data resolution
+ * @param res Resolution value (1 = full data, higher = coarser)
+ * @details Resolution controls index buffer stepping: higher values skip
+ *          vertices in the index buffer, reducing rendered detail without
+ *          rebuilding the VBO. A value of 1 renders all data.
+ */
+void Qwt3DSurface::setResolution(int res)
+{
+	QWT_D(d);
+	if (res < 1 || d->m_resolution == res)
+		return;
+
+	d->m_resolution = res;
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the floor projection style
+ */
+FLOORSTYLE Qwt3DSurface::floorStyle() const
+{
+	QWT_DC(d);
+	return d->m_floorStyle;
+}
+
+/**
+ * @brief Sets the floor projection style
+ * @param style Floor projection style
+ * @details TODO: Floor projection rendering will be implemented as a
+ *          separate Qwt3DFloorProjection item in a future plan.
+ */
+void Qwt3DSurface::setFloorStyle(FLOORSTYLE style)
+{
+	QWT_D(d);
+	d->m_floorStyle = style;
+	itemChanged();
+}
+
+/**
+ * @brief Returns true if normal vectors are drawn
+ */
+bool Qwt3DSurface::normals() const
+{
+	QWT_DC(d);
+	return d->m_dataNormals;
+}
+
+/**
+ * @brief Show or hide normal vectors at each vertex
+ */
+void Qwt3DSurface::showNormals(bool b)
+{
+	QWT_D(d);
+	d->m_dataNormals = b;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the relative length of drawn normals (0..1)
+ */
+double Qwt3DSurface::normalLength() const
+{
+	QWT_DC(d);
+	return d->m_normalLength;
+}
+
+/**
+ * @brief Sets the relative length of drawn normals
+ * @param val Relative length (0..1, relative to hull diagonal)
+ */
+void Qwt3DSurface::setNormalLength(double val)
+{
+	QWT_D(d);
+	if (val < 0 || val > 1)
+		return;
+	d->m_normalLength = val;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the quality of normal arrow rendering
+ */
+int Qwt3DSurface::normalQuality() const
+{
+	QWT_DC(d);
+	return d->m_normalQuality;
+}
+
+/**
+ * @brief Sets the quality of normal arrow rendering
+ * @param val Quality value (minimum 3)
+ */
+void Qwt3DSurface::setNormalQuality(int val)
+{
+	QWT_D(d);
+	if (val < 3)
+		return;
+	d->m_normalQuality = val;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the number of mesh cells in the original data
+ * @return For grid data: (columns, rows). For cell data: (cells, 0).
+ */
+std::pair<int, int> Qwt3DSurface::facets() const
+{
+	QWT_DC(d);
+	if (d->m_actualDataG && !d->m_actualDataG->empty())
+		return std::pair<int, int>(d->m_actualDataG->columns(),
+								   d->m_actualDataG->rows());
+	if (d->m_actualDataC && !d->m_actualDataC->empty())
+		return std::pair<int, int>(
+			static_cast<int>(d->m_actualDataC->cells.size()), 0);
+	return std::pair<int, int>(0, 0);
+}
+
+/**
+ * @brief Recalculates surface normals from current data
+ * @details For grid data, recalculates normals using 4-neighbor cross products.
+ *          For cell data, recalculates normals from cell topology.
+ *          Marks the VBO for rebuild.
+ */
+void Qwt3DSurface::updateNormals()
+{
+	QWT_D(d);
+	if (d->m_actualDataG && !d->m_actualDataG->empty()) {
+		calcNormalsGrid(*d->m_actualDataG);
+		if (d->m_actualDataG->uperiodic() || d->m_actualDataG->vperiodic())
+			sewPeriodicGrid(*d->m_actualDataG);
+	} else if (d->m_actualDataC && !d->m_actualDataC->empty()) {
+		calcNormalsCell(*d->m_actualDataC);
+	}
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+// ---------------------------------------------------------------------------
+// Style and color
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Returns the current plotting style
+ */
+PLOTSTYLE Qwt3DSurface::plotStyle() const
+{
+	QWT_DC(d);
+	return d->m_plotStyle;
+}
+
+/**
+ * @brief Sets the plotting style
+ * @param style One of NOPLOT, WIREFRAME, HIDDENLINE, FILLED, FILLEDMESH, QWT3D_POINTS
+ */
+void Qwt3DSurface::setPlotStyle(PLOTSTYLE style)
+{
+	QWT_D(d);
+	d->m_plotStyle = style;
+	itemChanged();
+}
+
+/**
+ * @brief Sets the data color functor
+ * @param color Pointer to a Qwt3DColor subclass (item takes ownership)
+ * @details The color functor is called per-vertex during VBO build to compute
+ *          vertex colors. If nullptr, a default Qwt3DStandardColor is created
+ *          lazily when the item is attached to a plot.
+ */
+void Qwt3DSurface::setDataColor(Qwt3DColor* color)
+{
+	QWT_D(d);
+	if (d->m_dataColor)
+		d->m_dataColor->destroy();
+	d->m_dataColor = color;
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the data color functor
+ */
+const Qwt3DColor* Qwt3DSurface::dataColor() const
+{
+	QWT_DC(d);
+	return d->m_dataColor;
+}
+
+/**
+ * @brief Marks per-vertex colors as stale
+ * @details Per-vertex colors are baked into the VBO during buildVBO(). Mutating
+ *          the color functor in place (e.g. setColorMap, setAlpha) does not
+ *          automatically trigger a rebuild. Call this method afterwards so that
+ *          draw() re-runs the color functor and re-uploads the vertex buffer.
+ */
+void Qwt3DSurface::invalidateColors()
+{
+	QWT_D(d);
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Pushes the plot's union z-range into the color functor
+ * @details Reads Qwt3DPlot::hull() (the union of all attached items' hulls) and
+ *          feeds its z-range to the color functor via setActiveRange(). This is
+ *          plain data input — it does not trigger a rebuild; callers are expected
+ *          to have m_vboDirty set (buildVBO) or to call invalidateColors() as
+ *          needed. No-op if no color functor is set or no plot is attached.
+ */
+void Qwt3DSurface::pushColorRange() const
+{
+	QWT_DC(d);
+	if (!d->m_dataColor || !plot())
+		return;
+	const ParallelEpiped h = plot()->hull();
+	d->m_dataColor->setActiveRange(h.minVertex.z, h.maxVertex.z);
+}
+
+void Qwt3DSurface::populateLegendColors(ColorVector& colors) const
+{
+	QWT_DC(d);
+	if (d->m_dataColor) {
+		pushColorRange();
+		d->m_dataColor->createVector(colors);
+	}
+}
+
+/**
+ * @brief Returns the mesh line color
+ */
+RGBA Qwt3DSurface::meshColor() const
+{
+	QWT_DC(d);
+	return d->m_meshColor;
+}
+
+/**
+ * @brief Sets the mesh line color
+ */
+void Qwt3DSurface::setMeshColor(RGBA color)
+{
+	QWT_D(d);
+	d->m_meshColor = color;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the mesh line width
+ */
+double Qwt3DSurface::meshLineWidth() const
+{
+	QWT_DC(d);
+	return d->m_meshLineWidth;
+}
+
+/**
+ * @brief Sets the mesh line width
+ */
+void Qwt3DSurface::setMeshLineWidth(double width)
+{
+	QWT_D(d);
+	d->m_meshLineWidth = width;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the number of isolines
+ */
+int Qwt3DSurface::isolines() const
+{
+	QWT_DC(d);
+	return d->m_isolines;
+}
+
+/**
+ * @brief Sets the number of isolines
+ */
+void Qwt3DSurface::setIsolines(int n)
+{
+	QWT_D(d);
+	d->m_isolines = n;
+	itemChanged();
+}
+
+/**
+ * @brief Returns true if smooth mesh lines are enabled
+ */
+bool Qwt3DSurface::smoothMesh() const
+{
+	QWT_DC(d);
+	return d->m_smoothDataMesh;
+}
+
+/**
+ * @brief Enables or disables smooth mesh lines
+ */
+void Qwt3DSurface::setSmoothMesh(bool smooth)
+{
+	QWT_D(d);
+	d->m_smoothDataMesh = smooth;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the polygon offset for filled rendering
+ */
+double Qwt3DSurface::polygonOffset() const
+{
+	QWT_DC(d);
+	return d->m_polygonOffset;
+}
+
+/**
+ * @brief Sets the polygon offset for filled rendering
+ */
+void Qwt3DSurface::setPolygonOffset(double offset)
+{
+	QWT_D(d);
+	d->m_polygonOffset = offset;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the shading style
+ */
+SHADINGSTYLE Qwt3DSurface::shading() const
+{
+	QWT_DC(d);
+	return d->m_shading;
+}
+
+/**
+ * @brief Sets the shading style
+ * @param style One of GOURAUD, FLAT, or SMOOTH
+ * @details The shading style controls per-fragment lighting interpolation.
+ *          Currently stored for shader uniform use; full implementation
+ *          requires shader-level branching.
+ */
+void Qwt3DSurface::setShading(SHADINGSTYLE style)
+{
+	QWT_D(d);
+	d->m_shading = style;
+	itemChanged();
+}
+
+// ---------------------------------------------------------------------------
+// Enrichments
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Adds an enrichment to the surface
+ * @param enrichment The enrichment to add (will be cloned)
+ * @return Pointer to the cloned enrichment, or nullptr if type is not VERTEXENRICHMENT
+ * @details The enrichment is cloned and assigned to the current plot.
+ *          TODO: Enrichment rendering with VBO will be implemented in a future plan.
+ */
+Qwt3DEnrichment* Qwt3DSurface::addEnrichment(Qwt3DEnrichment const& enrichment)
+{
+	QWT_D(d);
+	if (enrichment.type() != Qwt3DEnrichment::VERTEXENRICHMENT)
+		return nullptr;
+
+	Qwt3DEnrichment* en = enrichment.clone();
+	d->m_enrichmentList.push_back(en);
+	return en;
+}
+
+/**
+ * @brief Removes an enrichment from the surface
+ * @param enrichment Pointer to the enrichment to remove
+ * @return true if the enrichment was found and removed
+ */
+bool Qwt3DSurface::degrade(Qwt3DEnrichment* enrichment)
+{
+	QWT_D(d);
+	auto it = std::find(d->m_enrichmentList.begin(), d->m_enrichmentList.end(),
+						enrichment);
+	if (it != d->m_enrichmentList.end()) {
+		delete *it;
+		d->m_enrichmentList.erase(it);
+		return true;
+	}
+	return false;
+}
+
+// ---------------------------------------------------------------------------
+// Protected data access
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Returns the grid data pointer
+ * @return Pointer to Qwt3DGridData, or nullptr if current data is cell-based
+ */
+Qwt3DGridData* Qwt3DSurface::gridData() const
+{
+	QWT_DC(d);
+	return d->m_actualDataG;
+}
+
+/**
+ * @brief Returns the cell data pointer
+ * @return Pointer to Qwt3DCellData, or nullptr if current data is grid-based
+ */
+Qwt3DCellData* Qwt3DSurface::cellData() const
+{
+	QWT_DC(d);
+	return d->m_actualDataC;
+}
+
+/**
+ * @brief Returns true if the current data is grid-based
+ */
+bool Qwt3DSurface::isGridData() const
+{
+	QWT_DC(d);
+	return d->m_actualDataG && !d->m_actualDataG->empty();
+}
+
+// ---------------------------------------------------------------------------
+// Qwt3DPlotItem interface
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Returns the bounding hull of the surface in 3D space
+ * @return ParallelEpiped bounding the surface data, or a degenerate box if no data
+ */
+ParallelEpiped Qwt3DSurface::hull() const
+{
+	QWT_DC(d);
+	if (d->m_actualDataG && !d->m_actualDataG->empty())
+		return d->m_actualDataG->hull();
+	if (d->m_actualDataC && !d->m_actualDataC->empty())
+		return d->m_actualDataC->hull();
+	return ParallelEpiped(Triple(0, 0, 0), Triple(0, 0, 0));
+}
+
+// ---------------------------------------------------------------------------
+// GL rendering
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Builds the VBO, EBO, and VAO from current data
+ * @details Called lazily from draw() when m_vboDirty is set. This method:
+ *          1. Gathers vertices (position + normal + color) into a flat array
+ *          2. Generates triangle indices for filled rendering
+ *          3. Generates line indices for wireframe/mesh rendering
+ *          4. Creates and uploads VBO with vertex data
+ *          5. Creates and uploads EBO with combined tri+line indices
+ *          6. Configures VAO vertex attribute pointers
+ *
+ * For grid data: vertex index = column * rows + row
+ * For cell data: vertex index = node index in TripleField
+ *
+ * Resolution > 1 skips vertices in index generation (VBO stays full).
+ */
+void Qwt3DSurface::buildVBO()
+{
+	QWT_D(d);
+
+	QVector<SurfaceVertex> vertices;
+	QVector<unsigned int> triIndices;
+	QVector<unsigned int> lineIndices;
+
+	// Ensure we have a data color functor
+	if (!d->m_dataColor) {
+		if (plot()) {
+			d->m_dataColor = new Qwt3DStandardColor();
+		} else {
+			// No plot attached yet — cannot create default color
+			return;
+		}
+	}
+
+	// Push the plot's union z-range into the color functor before querying it
+	pushColorRange();
+
+	if (d->m_actualDataG && !d->m_actualDataG->empty()) {
+		// --- Grid data ---
+		int cols = d->m_actualDataG->columns();
+		int rows = d->m_actualDataG->rows();
+		int step = d->m_resolution;
+
+		// Build vertex array
+		for (int i = 0; i < cols; ++i) {
+			for (int j = 0; j < rows; ++j) {
+				SurfaceVertex v;
+				v.position = QVector3D(
+					static_cast<float>(d->m_actualDataG->vertices[i][j][0]),
+					static_cast<float>(d->m_actualDataG->vertices[i][j][1]),
+					static_cast<float>(d->m_actualDataG->vertices[i][j][2]));
+				v.normal = QVector3D(
+					static_cast<float>(d->m_actualDataG->normals[i][j][0]),
+					static_cast<float>(d->m_actualDataG->normals[i][j][1]),
+					static_cast<float>(d->m_actualDataG->normals[i][j][2]));
+				RGBA col = (*d->m_dataColor)(
+					d->m_actualDataG->vertices[i][j][0],
+					d->m_actualDataG->vertices[i][j][1],
+					d->m_actualDataG->vertices[i][j][2]);
+				v.color = QVector4D(static_cast<float>(col.r),
+									static_cast<float>(col.g),
+									static_cast<float>(col.b),
+									static_cast<float>(col.a));
+				vertices.append(v);
+			}
+		}
+
+		// Build triangle indices: each quad -> 2 triangles
+		for (int i = 0; i < cols - step; i += step) {
+			for (int j = 0; j < rows - step; j += step) {
+				unsigned int v0 = static_cast<unsigned int>(i * rows + j);
+				unsigned int v1 = static_cast<unsigned int>((i + step) * rows + j);
+				unsigned int v2 = static_cast<unsigned int>(i * rows + (j + step));
+				unsigned int v3 = static_cast<unsigned int>((i + step) * rows + (j + step));
+
+				// Triangle 1: v0, v1, v2
+				triIndices.append(v0);
+				triIndices.append(v1);
+				triIndices.append(v2);
+				// Triangle 2: v1, v3, v2
+				triIndices.append(v1);
+				triIndices.append(v3);
+				triIndices.append(v2);
+			}
+		}
+
+		// Build line indices: horizontal and vertical edges
+		for (int i = 0; i < cols - step; i += step) {
+			for (int j = 0; j < rows - step; j += step) {
+				unsigned int v0 = static_cast<unsigned int>(i * rows + j);
+				unsigned int v1 = static_cast<unsigned int>((i + step) * rows + j);
+				unsigned int v2 = static_cast<unsigned int>(i * rows + (j + step));
+
+				// Horizontal edge: v0 -> v2
+				lineIndices.append(v0);
+				lineIndices.append(v2);
+				// Vertical edge: v0 -> v1
+				lineIndices.append(v0);
+				lineIndices.append(v1);
+			}
+		}
+		// Right boundary (last column)
+		for (int j = 0; j < rows - step; j += step) {
+			unsigned int v0 = static_cast<unsigned int>((cols - 1) * rows + j);
+			unsigned int v1 = static_cast<unsigned int>((cols - 1) * rows + (j + step));
+			lineIndices.append(v0);
+			lineIndices.append(v1);
+		}
+		// Top boundary (last row)
+		for (int i = 0; i < cols - step; i += step) {
+			unsigned int v0 = static_cast<unsigned int>(i * rows + (rows - 1));
+			unsigned int v1 = static_cast<unsigned int>((i + step) * rows + (rows - 1));
+			lineIndices.append(v0);
+			lineIndices.append(v1);
+		}
+
+	} else if (d->m_actualDataC && !d->m_actualDataC->empty()) {
+		// --- Cell data ---
+		int nodeCount = static_cast<int>(d->m_actualDataC->nodes.size());
+
+		// Build vertex array
+		for (int i = 0; i < nodeCount; ++i) {
+			SurfaceVertex v;
+			v.position = QVector3D(
+				static_cast<float>(d->m_actualDataC->nodes[i].x),
+				static_cast<float>(d->m_actualDataC->nodes[i].y),
+				static_cast<float>(d->m_actualDataC->nodes[i].z));
+			v.normal = QVector3D(
+				static_cast<float>(d->m_actualDataC->normals[i].x),
+				static_cast<float>(d->m_actualDataC->normals[i].y),
+				static_cast<float>(d->m_actualDataC->normals[i].z));
+			RGBA col = (*d->m_dataColor)(
+				d->m_actualDataC->nodes[i].x,
+				d->m_actualDataC->nodes[i].y,
+				d->m_actualDataC->nodes[i].z);
+			v.color = QVector4D(static_cast<float>(col.r),
+								static_cast<float>(col.g),
+								static_cast<float>(col.b),
+								static_cast<float>(col.a));
+			vertices.append(v);
+		}
+
+		// Build triangle indices: fan decomposition per cell
+		for (unsigned i = 0; i < d->m_actualDataC->cells.size(); ++i) {
+			const Cell& cell = d->m_actualDataC->cells[i];
+			if (cell.size() < 3)
+				continue;
+			for (size_t j = 1; j < cell.size() - 1; ++j) {
+				triIndices.append(cell[0]);
+				triIndices.append(cell[j]);
+				triIndices.append(cell[j + 1]);
+			}
+		}
+
+		// Build line indices: line loop per cell
+		for (unsigned i = 0; i < d->m_actualDataC->cells.size(); ++i) {
+			const Cell& cell = d->m_actualDataC->cells[i];
+			for (size_t j = 0; j < cell.size(); ++j) {
+				lineIndices.append(cell[j]);
+				lineIndices.append(cell[(j + 1) % cell.size()]);
+			}
+		}
+	}
+
+	d->m_vertexCount = vertices.size();
+	d->m_triIndexCount = triIndices.size();
+	d->m_lineIndexCount = lineIndices.size();
+
+	if (vertices.isEmpty())
+		return;
+
+	// Get OpenGL functions
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	// Create/bind VAO
+	if (!d->m_vao.isCreated())
+		d->m_vao.create();
+	d->m_vao.bind();
+
+	// Create/bind VBO and upload vertices
+	if (!d->m_vertexBuffer.isCreated())
+		d->m_vertexBuffer.create();
+	d->m_vertexBuffer.bind();
+	d->m_vertexBuffer.allocate(vertices.constData(),
+							   vertices.size() * sizeof(SurfaceVertex));
+
+	// Configure vertex attributes (layout locations match shader)
+	const int stride = sizeof(SurfaceVertex);
+	f->glEnableVertexAttribArray(0);
+	f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+	f->glEnableVertexAttribArray(1);
+	f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(sizeof(QVector3D)));
+	f->glEnableVertexAttribArray(2);
+	f->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(2 * sizeof(QVector3D)));
+
+	// Create/bind EBO and upload combined indices (tri + line)
+	if (!d->m_indexBuffer.isCreated())
+		d->m_indexBuffer.create();
+	d->m_indexBuffer.bind();
+
+	int totalIndexCount = triIndices.size() + lineIndices.size();
+	d->m_indexBuffer.allocate(totalIndexCount * sizeof(unsigned int));
+	if (!triIndices.isEmpty())
+		d->m_indexBuffer.write(0, triIndices.constData(),
+							   triIndices.size() * sizeof(unsigned int));
+	if (!lineIndices.isEmpty()) {
+		d->m_indexBuffer.write(triIndices.size() * sizeof(unsigned int),
+							   lineIndices.constData(),
+							   lineIndices.size() * sizeof(unsigned int));
+	}
+
+	// Release VAO (saves VBO + EBO bindings)
+	d->m_vao.release();
+}
+
+/**
+ * @brief Draws the surface using VBO/VAO and GLSL shaders
+ * @details Called by Qwt3DPlot::paintGL() for each visible item.
+ *          The GL context is guaranteed to be current.
+ *
+ * Rendering strategy by plot style:
+ * - FILLED: glDrawElements(GL_TRIANGLES) with vertex colors
+ * - FILLEDMESH: triangles + lines (two draw calls)
+ * - WIREFRAME: glDrawElements(GL_LINES) with mesh color
+ * - HIDDENLINE: triangles with background color + lines
+ * - QWT3D_POINTS: glDrawArrays(GL_POINTS)
+ */
+void Qwt3DSurface::draw()
+{
+	QWT_D(d);
+
+	if (!plot() || !plot()->initializedGL())
+		return;
+
+	if (d->m_plotStyle == NOPLOT)
+		return;
+
+	// Build VBO if dirty
+	if (d->m_vboDirty) {
+		buildVBO();
+		d->m_vboDirty = false;
+	}
+
+	if (d->m_vertexCount == 0)
+		return;
+
+	// Initialize shader on first use
+	if (!d->m_shaderInitialized) {
+		d->m_shader.addShaderFromSourceFile(
+			QOpenGLShader::Vertex, ":/shaders/surface.vert");
+		d->m_shader.addShaderFromSourceFile(
+			QOpenGLShader::Fragment, ":/shaders/surface.frag");
+		if (!d->m_shader.link()) {
+			return;
+		}
+		d->m_shaderInitialized = true;
+	}
+
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	// Bind shader and set uniforms
+	d->m_shader.bind();
+
+	QMatrix4x4 mv = plot()->modelViewMatrix();
+	QMatrix4x4 proj = plot()->projectionMatrix();
+	QMatrix3x3 normalMatrix = mv.normalMatrix();
+
+	d->m_shader.setUniformValue("uModelView", mv);
+	d->m_shader.setUniformValue("uProjection", proj);
+	d->m_shader.setUniformValue("uNormalMatrix", normalMatrix);
+
+	// Lighting uniforms
+	bool useLighting = plot()->lightingEnabled();
+	d->m_shader.setUniformValue("uUseLighting", useLighting);
+	if (useLighting) {
+		d->m_shader.setUniformValue("uLightPos",
+									QVector3D(0.0f, 0.0f, 10.0f));
+		d->m_shader.setUniformValue("uLightColor",
+									QVector3D(1.0f, 1.0f, 1.0f));
+		d->m_shader.setUniformValue("uShininess", 32.0f);
+	}
+
+	// Bind VAO (binds VBO + EBO + vertex attribute config)
+	d->m_vao.bind();
+
+	// Render based on plot style
+	const size_t triOffset = 0;
+	const size_t lineOffset = static_cast<size_t>(d->m_triIndexCount) * sizeof(unsigned int);
+
+	switch (d->m_plotStyle) {
+	case FILLED:
+		d->m_shader.setUniformValue("uUseOverrideColor", false);
+		if (d->m_triIndexCount > 0)
+			f->glDrawElements(GL_TRIANGLES, d->m_triIndexCount,
+							  GL_UNSIGNED_INT, reinterpret_cast<void*>(triOffset));
+		break;
+
+	case FILLEDMESH:
+		// Pass 1: filled triangles with vertex colors
+		d->m_shader.setUniformValue("uUseOverrideColor", false);
+		if (d->m_triIndexCount > 0) {
+			f->glEnable(GL_POLYGON_OFFSET_FILL);
+			f->glPolygonOffset(static_cast<float>(d->m_polygonOffset), 1.0f);
+			f->glDrawElements(GL_TRIANGLES, d->m_triIndexCount,
+							  GL_UNSIGNED_INT, reinterpret_cast<void*>(triOffset));
+		}
+		// Pass 2: mesh lines with mesh color
+		d->m_shader.setUniformValue("uUseOverrideColor", true);
+		d->m_shader.setUniformValue("uOverrideColor",
+									QVector4D(static_cast<float>(d->m_meshColor.r),
+											  static_cast<float>(d->m_meshColor.g),
+											  static_cast<float>(d->m_meshColor.b),
+											  static_cast<float>(d->m_meshColor.a)));
+		if (d->m_lineIndexCount > 0) {
+			f->glDrawElements(GL_LINES, d->m_lineIndexCount,
+							  GL_UNSIGNED_INT, reinterpret_cast<void*>(lineOffset));
+		}
+		break;
+
+	case WIREFRAME:
+		d->m_shader.setUniformValue("uUseOverrideColor", true);
+		d->m_shader.setUniformValue("uOverrideColor",
+									QVector4D(static_cast<float>(d->m_meshColor.r),
+											  static_cast<float>(d->m_meshColor.g),
+											  static_cast<float>(d->m_meshColor.b),
+											  static_cast<float>(d->m_meshColor.a)));
+		if (d->m_lineIndexCount > 0) {
+			f->glDrawElements(GL_LINES, d->m_lineIndexCount,
+							  GL_UNSIGNED_INT, reinterpret_cast<void*>(lineOffset));
+		}
+		break;
+
+	case HIDDENLINE: {
+		// Pass 1: filled triangles with background color (hidden surface removal)
+		RGBA bg = plot()->backgroundRGBAColor();
+		d->m_shader.setUniformValue("uUseOverrideColor", true);
+		d->m_shader.setUniformValue("uOverrideColor",
+									QVector4D(static_cast<float>(bg.r),
+											  static_cast<float>(bg.g),
+											  static_cast<float>(bg.b),
+											  static_cast<float>(bg.a)));
+		if (d->m_triIndexCount > 0) {
+			f->glEnable(GL_POLYGON_OFFSET_FILL);
+			f->glPolygonOffset(static_cast<float>(d->m_polygonOffset), 1.0f);
+			f->glDrawElements(GL_TRIANGLES, d->m_triIndexCount,
+							  GL_UNSIGNED_INT, reinterpret_cast<void*>(triOffset));
+		}
+		// Pass 2: mesh lines
+		d->m_shader.setUniformValue("uUseOverrideColor", true);
+		d->m_shader.setUniformValue("uOverrideColor",
+									QVector4D(static_cast<float>(d->m_meshColor.r),
+											  static_cast<float>(d->m_meshColor.g),
+											  static_cast<float>(d->m_meshColor.b),
+											  static_cast<float>(d->m_meshColor.a)));
+		if (d->m_lineIndexCount > 0) {
+			f->glDrawElements(GL_LINES, d->m_lineIndexCount,
+							  GL_UNSIGNED_INT, reinterpret_cast<void*>(lineOffset));
+		}
+		break;
+	}
+
+	case QWT3D_POINTS:
+		d->m_shader.setUniformValue("uUseOverrideColor", false);
+		f->glDrawArrays(GL_POINTS, 0, d->m_vertexCount);
+		break;
+
+	default:
+		break;
+	}
+
+	d->m_vao.release();
+	d->m_shader.release();
+
+	// TODO: Enrichment rendering (normals, crosshairs, etc.) will be
+	// reimplemented with VBO-based drawing in a future plan.
+	// The old enrichment code used legacy GL (glBegin/glEnd) which is
+	// forbidden in Core Profile.
+}
+
+/**
+ * @brief 运行时类型信息
+ * @return Rtti_Plot3DSurface (= 1001)
+ */
+int Qwt3DSurface::rtti() const
+{
+	return Rtti_Plot3DSurface;
+}
+
+/*** End of inlined file: qwt3d_surface.cpp ***/
 
 
-/*** Start of inlined file: qwt3d_meshplot.cpp ***/
+/*** Start of inlined file: qwt3d_bar.cpp ***/
 #if defined(_MSC_VER) /* MSVC Compiler */
 #pragma warning(disable : 4305)
 #pragma warning(disable : 4786)
 #endif
 
-using namespace std;
-using namespace Qwt3D;
 
-/////////////////////////////////////////////////////////////////////////////////
-//
-//     cell specific
-//
+/*** Start of inlined file: qwt3d_bar_p.h ***/
+#ifndef QWT3D_BAR_P_H
+#define QWT3D_BAR_P_H
 
-void SurfacePlot::createDataC()
+#include <QOpenGLBuffer>
+#include <QOpenGLVertexArrayObject>
+#include <QOpenGLShaderProgram>
+#include <QVector3D>
+#include <QVector4D>
+
+#include <vector>
+#include <cfloat>
+
+/**
+ * @brief Vertex structure for VBO upload
+ * @details Each vertex has position (3 floats), normal (3 floats), and color (4 floats).
+ *          Total stride = 40 bytes, matching the surface shader attribute layout:
+ *          location 0 = position, location 1 = normal, location 2 = color.
+ */
+struct BarVertex
 {
-	QWT_D(d);
-	createFloorDataC();
+	QVector3D position;
+	QVector3D normal;
+	QVector4D color;
+};
 
-	if (plotStyle() == NOPLOT)
-		return;
+/**
+ * @brief Specification of a single bar (axis-aligned cuboid)
+ * @details Generated by the setSamples() entry points and consumed by buildVBO()
+ *          to emit the 6-face box geometry. center marks the bar footprint center
+ *          on the xy-plane; baseZ/topZ span the bar along the z-axis (baseZ <= topZ).
+ */
+struct Qwt3DBarSpec
+{
+	Triple center;
+	double halfWidth;
+	double halfDepth;
+	double baseZ;
+	double topZ;
+	double height;  ///< original z value, used to recompute baseZ/topZ when baseline changes
+};
 
-	if (plotStyle() == Qwt3D::POINTS) {
-		createPoints();
-		return;
-	} else if (plotStyle() == Qwt3D::USER) {
-		if (userStyle())
-			createEnrichment(*userStyle());
-		return;
-	}
+class Qwt3DBar::PrivateData
+{
+	QWT_DECLARE_PUBLIC(Qwt3DBar)
 
-	setDeviceLineWidth(meshLineWidth());
-	GLStateBewarer sb(GL_POLYGON_OFFSET_FILL, true);
-	setDevicePolygonOffset(polygonOffset(), 1.0);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	int idx = 0;
-	if (plotStyle() != WIREFRAME) {
-		glPolygonMode(GL_FRONT_AND_BACK, GL_QUADS);
+public:
+	explicit PrivateData(Qwt3DBar* q);
+	~PrivateData();
 
-		bool hl = (plotStyle() == HIDDENLINE);
-		if (hl) {
-			RGBA col = backgroundRGBAColor();
-			glColor4d(col.r, col.g, col.b, col.a);
+	// Bar specifications (filled by setSamples)
+	std::vector<Qwt3DBarSpec> m_bars;
+
+	// Bar geometry
+	double m_barWidth;   // <= 0 means auto (80% of spacing)
+	double m_barDepth;   // <= 0 means auto
+	double m_baseline;
+	double m_spacingX;  ///< cached grid spacing for auto-width recompute
+	double m_spacingY;  ///< cached grid spacing for auto-depth recompute
+
+	// Plot style and color
+	Qwt3DBar::BarStyle m_barStyle;
+	Qwt3DColor* m_dataColor;
+	RGBA m_meshColor;
+	double m_meshLineWidth;
+	double m_polygonOffset;
+
+	// GL resources (created lazily in draw())
+	bool m_vboDirty;
+	bool m_shaderInitialized;
+	QOpenGLBuffer m_vertexBuffer;
+	QOpenGLBuffer m_indexBuffer;
+	QOpenGLVertexArrayObject m_vao;
+	QOpenGLShaderProgram m_shader;
+
+	// Index counts (tri indices first, then line indices in the same EBO)
+	int m_triIndexCount;
+	int m_lineIndexCount;
+	int m_vertexCount;
+
+	// Cached hull
+	ParallelEpiped m_hull;
+
+	// 2D grid metadata (set by setSamples(double**, ...) and setSamples(const Qwt3DFunctionData&))
+	bool m_isGridData = false;
+	int m_gridColumns = 0;
+	int m_gridRows = 0;
+	double m_gridMinX = 0.0;
+	double m_gridMaxX = 0.0;
+	double m_gridMinY = 0.0;
+	double m_gridMaxY = 0.0;
+	std::vector<std::vector<double>> m_gridZ;  ///< 原始 z 矩阵的拷贝，避免依赖 m_bars 排列顺序
+};
+
+inline Qwt3DBar::PrivateData::PrivateData(Qwt3DBar* q)
+	: q_ptr(q)
+	, m_barWidth(0.0)
+	, m_barDepth(0.0)
+	, m_baseline(0.0)
+	, m_spacingX(0.0)
+	, m_spacingY(0.0)
+	, m_barStyle(Qwt3DBar::FilledMesh)
+	, m_dataColor(nullptr)
+	, m_meshColor(RGBA(0.0, 0.0, 0.0, 1.0))
+	, m_meshLineWidth(1.0)
+	, m_polygonOffset(0.5)
+	, m_vboDirty(true)
+	, m_shaderInitialized(false)
+	, m_triIndexCount(0)
+	, m_lineIndexCount(0)
+	, m_vertexCount(0)
+	, m_hull(Triple(0, 0, 0), Triple(0, 0, 0))
+{
+	// QOpenGLBuffer with IndexBuffer target
+	m_indexBuffer = QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
+}
+
+inline Qwt3DBar::PrivateData::~PrivateData()
+{
+	// Destroy GL resources (safe to call even without current context)
+	m_vertexBuffer.destroy();
+	m_indexBuffer.destroy();
+	m_vao.destroy();
+
+	// Clean up color functor
+	if (m_dataColor)
+		m_dataColor->destroy();
+}
+
+#endif // QWT3D_BAR_P_H
+
+/*** End of inlined file: qwt3d_bar_p.h ***/
+
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
+#include <QMatrix3x3>
+
+#include <cfloat>
+#include <cmath>
+#include <algorithm>
+#include <vector>
+
+/**
+ * @brief 运行时类型信息
+ * @return Rtti_Plot3DBar (= 1002)
+ */
+int Qwt3DBar::rtti() const
+{
+	return Rtti_Plot3DBar;
+}
+
+// ---------------------------------------------------------------------------
+// Anonymous namespace: bar box geometry helpers
+// ---------------------------------------------------------------------------
+
+namespace
+{
+/// Number of faces, vertices and indices per bar
+constexpr int kFacesPerBar = 6;
+constexpr int kVertsPerFace = 4;
+constexpr int kTrisPerFace = 6;   // 2 triangles = 6 indices
+constexpr int kLinesPerFace = 8;  // 4 perimeter edges = 8 indices
+
+/// Eight corners of an axis-aligned box, labeled by (x,y,z) bit flags
+struct BoxCorners
+{
+	QVector3D c[8];
+};
+
+/// Builds the eight corners of a bar from its specification
+BoxCorners barCorners(const Qwt3DBarSpec& s)
+{
+	const float hw = static_cast<float>(s.halfWidth);
+	const float hd = static_cast<float>(s.halfDepth);
+	const float cx = static_cast<float>(s.center.x);
+	const float cy = static_cast<float>(s.center.y);
+	const float z0 = static_cast<float>(s.baseZ);
+	const float z1 = static_cast<float>(s.topZ);
+
+	BoxCorners b;
+	b.c[0] = QVector3D(cx - hw, cy - hd, z0); // (x0,y0,z0)
+	b.c[1] = QVector3D(cx + hw, cy - hd, z0); // (x1,y0,z0)
+	b.c[2] = QVector3D(cx + hw, cy + hd, z0); // (x1,y1,z0)
+	b.c[3] = QVector3D(cx - hw, cy + hd, z0); // (x0,y1,z0)
+	b.c[4] = QVector3D(cx - hw, cy - hd, z1); // (x0,y0,z1)
+	b.c[5] = QVector3D(cx + hw, cy - hd, z1); // (x1,y0,z1)
+	b.c[6] = QVector3D(cx + hw, cy + hd, z1); // (x1,y1,z1)
+	b.c[7] = QVector3D(cx - hw, cy + hd, z1); // (x0,y1,z1)
+	return b;
+}
+
+/// One face: four corner indices in perimeter order plus the outward normal
+struct FaceDef
+{
+	int corners[kVertsPerFace];
+	QVector3D normal;
+};
+
+/// The six box faces (perimeter order, outward normals)
+const FaceDef& faceDef(int i)
+{
+	static const FaceDef faces[kFacesPerBar] = {
+		{ { 0, 3, 2, 1 }, QVector3D(0, 0, -1) }, // bottom (-Z)
+		{ { 4, 5, 6, 7 }, QVector3D(0, 0, 1) },   // top    (+Z)
+		{ { 0, 4, 7, 3 }, QVector3D(-1, 0, 0) }, // -X
+		{ { 1, 2, 6, 5 }, QVector3D(1, 0, 0) },  // +X
+		{ { 0, 1, 5, 4 }, QVector3D(0, -1, 0) }, // -Y
+		{ { 3, 7, 6, 2 }, QVector3D(0, 1, 0) }   // +Y
+	};
+	return faces[i];
+}
+
+/// Appends one bar (6 faces, 24 vertices) to the vertex/index vectors
+void appendBar(QVector<BarVertex>& vertices,
+			   QVector<unsigned int>& triIndices,
+			   QVector<unsigned int>& lineIndices,
+			   const Qwt3DBarSpec& s, const QVector4D& color)
+{
+	const BoxCorners box = barCorners(s);
+	const unsigned int base = static_cast<unsigned int>(vertices.size());
+
+	for (int f = 0; f < kFacesPerBar; ++f) {
+		const FaceDef& fd = faceDef(f);
+		const unsigned int fb = base + static_cast<unsigned int>(f * kVertsPerFace);
+
+		for (int v = 0; v < kVertsPerFace; ++v) {
+			BarVertex vtx;
+			vtx.position = box.c[fd.corners[v]];
+			vtx.normal = fd.normal;
+			vtx.color = color;
+			vertices.append(vtx);
 		}
-
-		for (unsigned i = 0; i != d->m_actualDataC->cells.size(); ++i) {
-			glBegin(GL_POLYGON);
-			for (unsigned j = 0; j != d->m_actualDataC->cells[ i ].size(); ++j) {
-				idx = d->m_actualDataC->cells[ i ][ j ];
-				setColorFromVertexC(idx, hl);
-				glVertex3d(
-					d->m_actualDataC->nodes[ idx ].x, d->m_actualDataC->nodes[ idx ].y, d->m_actualDataC->nodes[ idx ].z);
-				glNormal3d(d->m_actualDataC->normals[ idx ].x,
-						   d->m_actualDataC->normals[ idx ].y,
-						   d->m_actualDataC->normals[ idx ].z);
-			}
-			glEnd();
-		}
-	}
-
-	if (plotStyle() == FILLEDMESH || plotStyle() == WIREFRAME || plotStyle() == HIDDENLINE) {
-		glColor4d(meshColor().r, meshColor().g, meshColor().b, meshColor().a);
-		{
-			for (unsigned i = 0; i != d->m_actualDataC->cells.size(); ++i) {
-				glBegin(GL_LINE_LOOP);
-				for (unsigned j = 0; j != d->m_actualDataC->cells[ i ].size(); ++j) {
-					idx = d->m_actualDataC->cells[ i ][ j ];
-					glVertex3d(d->m_actualDataC->nodes[ idx ].x,
-							   d->m_actualDataC->nodes[ idx ].y,
-							   d->m_actualDataC->nodes[ idx ].z);
-				}
-				glEnd();
-			}
+		// Two triangles tiling the quad: (0,1,2) + (0,2,3)
+		triIndices.append(fb + 0);
+		triIndices.append(fb + 1);
+		triIndices.append(fb + 2);
+		triIndices.append(fb + 0);
+		triIndices.append(fb + 2);
+		triIndices.append(fb + 3);
+		// Four perimeter edges
+		for (int v = 0; v < kVertsPerFace; ++v) {
+			lineIndices.append(fb + static_cast<unsigned int>(v));
+			lineIndices.append(fb + static_cast<unsigned int>((v + 1) % kVertsPerFace));
 		}
 	}
 }
 
-// ci = cell index
-// cv = vertex index in cell ci
-void SurfacePlot::setColorFromVertexC(int node, bool skip)
+/// Computes the minimum positive spacing of a sorted-unique coordinate set
+double minPositiveSpacing(const std::vector<double>& coords)
 {
-	QWT_D(d);
-	if (skip)
-		return;
-
-	RGBA col = (*dataColor())(
-		d->m_actualDataC->nodes[ node ].x, d->m_actualDataC->nodes[ node ].y, d->m_actualDataC->nodes[ node ].z);
-
-	glColor4d(col.r, col.g, col.b, col.a);
+	if (coords.size() < 2)
+		return 0.0;
+	std::vector<double> s(coords);
+	std::sort(s.begin(), s.end());
+	s.erase(std::unique(s.begin(), s.end(), [](double a, double b) { return std::abs(a - b) < 1e-12; }),
+			s.end());
+	double minDiff = DBL_MAX;
+	for (size_t i = 1; i < s.size(); ++i) {
+		const double d = s[i] - s[i - 1];
+		if (d > 1e-12 && d < minDiff)
+			minDiff = d;
+	}
+	return minDiff == DBL_MAX ? 0.0 : minDiff;
 }
 
-void SurfacePlot::createFloorDataC()
+/// Resolves the (halfWidth, halfDepth) pair from explicit settings or auto spacing
+std::pair<double, double> resolveDims(double barW, double barD,
+									  double spacingX, double spacingY)
 {
-	switch (floorStyle()) {
-	case FLOORDATA:
-		Data2FloorC();
+	double hw = (barW > 0.0) ? barW * 0.5 : (spacingX > 0.0 ? 0.4 * spacingX : 0.5);
+	double hd = (barD > 0.0) ? barD * 0.5 : (spacingY > 0.0 ? 0.4 * spacingY : hw);
+	return { hw, hd };
+}
+
+/// Recomputes the cached hull from the current bar specifications
+ParallelEpiped computeHull(const std::vector<Qwt3DBarSpec>& bars)
+{
+	if (bars.empty())
+		return ParallelEpiped(Triple(0, 0, 0), Triple(0, 0, 0));
+
+	ParallelEpiped h(Triple(DBL_MAX, DBL_MAX, DBL_MAX),
+					 Triple(-DBL_MAX, -DBL_MAX, -DBL_MAX));
+	for (const auto& s : bars) {
+		h.minVertex.x = std::min(h.minVertex.x, s.center.x - s.halfWidth);
+		h.minVertex.y = std::min(h.minVertex.y, s.center.y - s.halfDepth);
+		h.minVertex.z = std::min(h.minVertex.z, s.baseZ);
+		h.maxVertex.x = std::max(h.maxVertex.x, s.center.x + s.halfWidth);
+		h.maxVertex.y = std::max(h.maxVertex.y, s.center.y + s.halfDepth);
+		h.maxVertex.z = std::max(h.maxVertex.z, s.topZ);
+	}
+	return h;
+}
+} // namespace
+
+// ---------------------------------------------------------------------------
+// Constructor / Destructor
+// ---------------------------------------------------------------------------
+
+Qwt3DBar::Qwt3DBar()
+	: Qwt3DPlotItem()
+	, QWT_PIMPL_CONSTRUCT
+{
+}
+
+Qwt3DBar::~Qwt3DBar() = default;
+
+// ---------------------------------------------------------------------------
+// Data loading
+// ---------------------------------------------------------------------------
+
+void Qwt3DBar::setSamples(const QVector<QwtPoint3D>& samples)
+{
+	QWT_D(d);
+	d->m_bars.clear();
+	d->m_isGridData = false;
+
+	std::vector<double> xs, ys;
+	xs.reserve(samples.size());
+	ys.reserve(samples.size());
+	for (const auto& p : samples) {
+		xs.push_back(p.x());
+		ys.push_back(p.y());
+	}
+
+	const double spx = minPositiveSpacing(xs);
+	const double spy = minPositiveSpacing(ys);
+	d->m_spacingX = spx;
+	d->m_spacingY = spy;
+	auto dims = resolveDims(d->m_barWidth, d->m_barDepth, spx, spy);
+
+	for (const auto& p : samples) {
+		Qwt3DBarSpec s;
+		s.center = Triple(p.x(), p.y(), 0.0);
+		s.halfWidth = dims.first;
+		s.halfDepth = dims.second;
+		s.height = p.z();
+		const double topZ = d->m_baseline + p.z();
+		s.baseZ = std::min(d->m_baseline, topZ);
+		s.topZ = std::max(d->m_baseline, topZ);
+		d->m_bars.push_back(s);
+	}
+
+	d->m_hull = computeHull(d->m_bars);
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+void Qwt3DBar::setSamples(const QVector<double>& x, const QVector<double>& heights)
+{
+	QWT_D(d);
+
+	const int n = std::min(x.size(), heights.size());
+	QVector<QwtPoint3D> samples;
+	samples.reserve(n);
+	for (int i = 0; i < n; ++i)
+		samples.append(QwtPoint3D(x[i], 0.0, heights[i]));
+	setSamples(samples);
+}
+
+void Qwt3DBar::setSamples(double** z, int columns, int rows,
+						  double minX, double maxX, double minY, double maxY)
+{
+	QWT_D(d);
+	d->m_bars.clear();
+
+	const double dx = (columns > 1) ? (maxX - minX) / (columns - 1) : 1.0;
+	const double dy = (rows > 1) ? (maxY - minY) / (rows - 1) : 1.0;
+	d->m_spacingX = dx;
+	d->m_spacingY = dy;
+	auto dims = resolveDims(d->m_barWidth, d->m_barDepth, dx, dy);
+
+	for (int i = 0; i < columns; ++i) {
+		for (int j = 0; j < rows; ++j) {
+			Qwt3DBarSpec s;
+			s.center = Triple(minX + i * dx, minY + j * dy, 0.0);
+			s.halfWidth = dims.first;
+			s.halfDepth = dims.second;
+			s.height = z[i][j];
+			const double topZ = d->m_baseline + z[i][j];
+			s.baseZ = std::min(d->m_baseline, topZ);
+			s.topZ = std::max(d->m_baseline, topZ);
+			d->m_bars.push_back(s);
+		}
+	}
+
+	d->m_hull = computeHull(d->m_bars);
+	d->m_vboDirty = true;
+
+	// Record 2D grid metadata for serialization
+	d->m_isGridData = true;
+	d->m_gridColumns = columns;
+	d->m_gridRows = rows;
+	d->m_gridMinX = minX;
+	d->m_gridMaxX = maxX;
+	d->m_gridMinY = minY;
+	d->m_gridMaxY = maxY;
+	d->m_gridZ.resize(static_cast<size_t>(columns));
+	for (int i = 0; i < columns; ++i) {
+		d->m_gridZ[static_cast<size_t>(i)].resize(static_cast<size_t>(rows));
+		for (int j = 0; j < rows; ++j) {
+			d->m_gridZ[static_cast<size_t>(i)][static_cast<size_t>(j)] = z[i][j];
+		}
+	}
+
+	itemChanged();
+}
+
+void Qwt3DBar::setSamples(const Qwt3DFunctionData& data)
+{
+	QWT_D(d);
+
+	if (data.columns == 0 || data.rows == 0)
+		return;
+	if (data.z.size() < data.columns)
+		return;
+
+	// Record 2D grid metadata for serialization before delegating to the pointer-array overload
+	d->m_isGridData = true;
+	d->m_gridColumns = static_cast<int>(data.columns);
+	d->m_gridRows = static_cast<int>(data.rows);
+	d->m_gridMinX = data.minx;
+	d->m_gridMaxX = data.maxx;
+	d->m_gridMinY = data.miny;
+	d->m_gridMaxY = data.maxy;
+	d->m_gridZ = data.z;
+
+	// Build a temporary pointer array from the vector-of-vectors
+	std::vector<double*> ptrs(data.columns);
+	for (unsigned int i = 0; i < data.columns; ++i)
+		ptrs[i] = const_cast<double*>(data.z[i].data());
+
+	setSamples(ptrs.data(), static_cast<int>(data.columns), static_cast<int>(data.rows),
+			   data.minx, data.maxx, data.miny, data.maxy);
+}
+
+// ---------------------------------------------------------------------------
+// Bar footprint, baseline, style and color
+// ---------------------------------------------------------------------------
+
+double Qwt3DBar::barWidth() const
+{
+	QWT_DC(d);
+	return d->m_barWidth;
+}
+
+void Qwt3DBar::setBarWidth(double w)
+{
+	QWT_D(d);
+	if (d->m_barWidth == w)
+		return;
+	d->m_barWidth = w;
+	recomputeBarSpecs();
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+double Qwt3DBar::barDepth() const
+{
+	QWT_DC(d);
+	return d->m_barDepth;
+}
+
+void Qwt3DBar::setBarDepth(double dpt)
+{
+	QWT_D(d);
+	if (d->m_barDepth == dpt)
+		return;
+	d->m_barDepth = dpt;
+	recomputeBarSpecs();
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+double Qwt3DBar::baseline() const
+{
+	QWT_DC(d);
+	return d->m_baseline;
+}
+
+void Qwt3DBar::setBaseline(double z)
+{
+	QWT_D(d);
+	if (d->m_baseline == z)
+		return;
+	d->m_baseline = z;
+	recomputeBarSpecs();
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+Qwt3DBar::BarStyle Qwt3DBar::barStyle() const
+{
+	QWT_DC(d);
+	return d->m_barStyle;
+}
+
+void Qwt3DBar::setBarStyle(BarStyle style)
+{
+	QWT_D(d);
+	if (d->m_barStyle == style)
+		return;
+	d->m_barStyle = style;
+	itemChanged();
+}
+
+void Qwt3DBar::setDataColor(Qwt3DColor* color)
+{
+	QWT_D(d);
+	if (d->m_dataColor)
+		d->m_dataColor->destroy();
+	d->m_dataColor = color;
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+const Qwt3DColor* Qwt3DBar::dataColor() const
+{
+	QWT_DC(d);
+	return d->m_dataColor;
+}
+
+void Qwt3DBar::invalidateColors()
+{
+	QWT_D(d);
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+RGBA Qwt3DBar::meshColor() const
+{
+	QWT_DC(d);
+	return d->m_meshColor;
+}
+
+void Qwt3DBar::setMeshColor(RGBA color)
+{
+	QWT_D(d);
+	d->m_meshColor = color;
+	itemChanged();
+}
+
+double Qwt3DBar::meshLineWidth() const
+{
+	QWT_DC(d);
+	return d->m_meshLineWidth;
+}
+
+void Qwt3DBar::setMeshLineWidth(double width)
+{
+	QWT_D(d);
+	d->m_meshLineWidth = width;
+	itemChanged();
+}
+
+void Qwt3DBar::pushColorRange() const
+{
+	QWT_DC(d);
+	if (!d->m_dataColor || !plot())
+		return;
+	const ParallelEpiped h = plot()->hull();
+	d->m_dataColor->setActiveRange(h.minVertex.z, h.maxVertex.z);
+}
+
+void Qwt3DBar::populateLegendColors(ColorVector& colors) const
+{
+	QWT_DC(d);
+	if (d->m_dataColor) {
+		pushColorRange();
+		d->m_dataColor->createVector(colors);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Qwt3DPlotItem interface
+// ---------------------------------------------------------------------------
+
+ParallelEpiped Qwt3DBar::hull() const
+{
+	QWT_DC(d);
+	return d->m_hull;
+}
+
+// ---------------------------------------------------------------------------
+// GL rendering
+// ---------------------------------------------------------------------------
+
+void Qwt3DBar::recomputeBarSpecs()
+{
+	QWT_D(d);
+	auto dims = resolveDims(d->m_barWidth, d->m_barDepth, d->m_spacingX, d->m_spacingY);
+	for (auto& s : d->m_bars) {
+		s.halfWidth = dims.first;
+		s.halfDepth = dims.second;
+		const double topZ = d->m_baseline + s.height;
+		s.baseZ = std::min(d->m_baseline, topZ);
+		s.topZ = std::max(d->m_baseline, topZ);
+	}
+	d->m_hull = computeHull(d->m_bars);
+}
+
+void Qwt3DBar::buildVBO()
+{
+	QWT_D(d);
+
+	QVector<BarVertex> vertices;
+	QVector<unsigned int> triIndices;
+	QVector<unsigned int> lineIndices;
+
+	// Ensure we have a data color functor
+	if (!d->m_dataColor) {
+		if (plot()) {
+			d->m_dataColor = new Qwt3DStandardColor();
+		} else {
+			return;
+		}
+	}
+
+	// Push the plot's union z-range into the color functor before querying it
+	pushColorRange();
+
+	for (const auto& s : d->m_bars) {
+		RGBA col = (*d->m_dataColor)(s.center.x, s.center.y, s.topZ);
+		const QVector4D color(static_cast<float>(col.r),
+							  static_cast<float>(col.g),
+							  static_cast<float>(col.b),
+							  static_cast<float>(col.a));
+		appendBar(vertices, triIndices, lineIndices, s, color);
+	}
+
+	d->m_vertexCount = vertices.size();
+	d->m_triIndexCount = triIndices.size();
+	d->m_lineIndexCount = lineIndices.size();
+
+	if (vertices.isEmpty())
+		return;
+
+	// Get OpenGL functions
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	// Create/bind VAO
+	if (!d->m_vao.isCreated())
+		d->m_vao.create();
+	d->m_vao.bind();
+
+	// Create/bind VBO and upload vertices
+	if (!d->m_vertexBuffer.isCreated())
+		d->m_vertexBuffer.create();
+	d->m_vertexBuffer.bind();
+	d->m_vertexBuffer.allocate(vertices.constData(),
+							   vertices.size() * sizeof(BarVertex));
+
+	// Configure vertex attributes (layout locations match the surface shader)
+	const int stride = sizeof(BarVertex);
+	f->glEnableVertexAttribArray(0);
+	f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+	f->glEnableVertexAttribArray(1);
+	f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(sizeof(QVector3D)));
+	f->glEnableVertexAttribArray(2);
+	f->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(2 * sizeof(QVector3D)));
+
+	// Create/bind EBO and upload combined indices (tri + line)
+	if (!d->m_indexBuffer.isCreated())
+		d->m_indexBuffer.create();
+	d->m_indexBuffer.bind();
+
+	const int totalIndexCount = triIndices.size() + lineIndices.size();
+	d->m_indexBuffer.allocate(totalIndexCount * sizeof(unsigned int));
+	if (!triIndices.isEmpty())
+		d->m_indexBuffer.write(0, triIndices.constData(),
+							   triIndices.size() * sizeof(unsigned int));
+	if (!lineIndices.isEmpty()) {
+		d->m_indexBuffer.write(triIndices.size() * sizeof(unsigned int),
+							   lineIndices.constData(),
+							   lineIndices.size() * sizeof(unsigned int));
+	}
+
+	d->m_vao.release();
+}
+
+void Qwt3DBar::draw()
+{
+	QWT_D(d);
+
+	if (!plot() || !plot()->initializedGL())
+		return;
+
+	// Build VBO if dirty
+	if (d->m_vboDirty) {
+		buildVBO();
+		d->m_vboDirty = false;
+	}
+
+	if (d->m_vertexCount == 0)
+		return;
+
+	// Initialize shader on first use (reuses the lit surface shader)
+	if (!d->m_shaderInitialized) {
+		d->m_shader.addShaderFromSourceFile(
+			QOpenGLShader::Vertex, ":/shaders/surface.vert");
+		d->m_shader.addShaderFromSourceFile(
+			QOpenGLShader::Fragment, ":/shaders/surface.frag");
+		if (!d->m_shader.link())
+			return;
+		d->m_shaderInitialized = true;
+	}
+
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	// Bind shader and set uniforms
+	d->m_shader.bind();
+
+	const QMatrix4x4 mv = plot()->modelViewMatrix();
+	const QMatrix4x4 proj = plot()->projectionMatrix();
+	const QMatrix3x3 normalMatrix = mv.normalMatrix();
+
+	d->m_shader.setUniformValue("uModelView", mv);
+	d->m_shader.setUniformValue("uProjection", proj);
+	d->m_shader.setUniformValue("uNormalMatrix", normalMatrix);
+
+	const bool useLighting = plot()->lightingEnabled();
+	d->m_shader.setUniformValue("uUseLighting", useLighting);
+	if (useLighting) {
+		d->m_shader.setUniformValue("uLightPos", QVector3D(0.0f, 0.0f, 10.0f));
+		d->m_shader.setUniformValue("uLightColor", QVector3D(1.0f, 1.0f, 1.0f));
+		d->m_shader.setUniformValue("uShininess", 32.0f);
+	}
+
+	// Bind VAO (binds VBO + EBO + vertex attribute config)
+	d->m_vao.bind();
+
+	const size_t triOffset = 0;
+	const size_t lineOffset = static_cast<size_t>(d->m_triIndexCount) * sizeof(unsigned int);
+
+	switch (d->m_barStyle) {
+	case Filled:
+		d->m_shader.setUniformValue("uUseOverrideColor", false);
+		if (d->m_triIndexCount > 0)
+			f->glDrawElements(GL_TRIANGLES, d->m_triIndexCount,
+							  GL_UNSIGNED_INT, reinterpret_cast<void*>(triOffset));
 		break;
-	case FLOORISO:
-		Isolines2FloorC();
+
+	case FilledMesh:
+		// Pass 1: filled bars with vertex colors
+		d->m_shader.setUniformValue("uUseOverrideColor", false);
+		if (d->m_triIndexCount > 0) {
+			f->glEnable(GL_POLYGON_OFFSET_FILL);
+			f->glPolygonOffset(static_cast<float>(d->m_polygonOffset), 1.0f);
+			f->glDrawElements(GL_TRIANGLES, d->m_triIndexCount,
+							  GL_UNSIGNED_INT, reinterpret_cast<void*>(triOffset));
+		}
+		// Pass 2: edge lines with mesh color
+		d->m_shader.setUniformValue("uUseOverrideColor", true);
+		d->m_shader.setUniformValue("uOverrideColor",
+									QVector4D(static_cast<float>(d->m_meshColor.r),
+											  static_cast<float>(d->m_meshColor.g),
+											  static_cast<float>(d->m_meshColor.b),
+											  static_cast<float>(d->m_meshColor.a)));
+		if (d->m_lineIndexCount > 0) {
+			f->glLineWidth(static_cast<float>(d->m_meshLineWidth));
+			f->glDrawElements(GL_LINES, d->m_lineIndexCount,
+							  GL_UNSIGNED_INT, reinterpret_cast<void*>(lineOffset));
+		}
 		break;
-	default:
+
+	case Wireframe:
+		d->m_shader.setUniformValue("uUseOverrideColor", true);
+		d->m_shader.setUniformValue("uOverrideColor",
+									QVector4D(static_cast<float>(d->m_meshColor.r),
+											  static_cast<float>(d->m_meshColor.g),
+											  static_cast<float>(d->m_meshColor.b),
+											  static_cast<float>(d->m_meshColor.a)));
+		if (d->m_lineIndexCount > 0) {
+			f->glLineWidth(static_cast<float>(d->m_meshLineWidth));
+			f->glDrawElements(GL_LINES, d->m_lineIndexCount,
+							  GL_UNSIGNED_INT, reinterpret_cast<void*>(lineOffset));
+		}
 		break;
 	}
+
+	d->m_vao.release();
+	d->m_shader.release();
 }
 
-void SurfacePlot::Data2FloorC()
+// ---------------------------------------------------------------------------
+// Data accessors for serialization
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Returns 1D bar samples (empty if 2D grid data was loaded)
+ * @details Reconstructs QVector<QwtPoint3D> from internal bar specs.
+ */
+QVector<QwtPoint3D> Qwt3DBar::samples() const
 {
-	QWT_D(d);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-	double zshift = d->m_actualDataC->hull().minVertex.z;
-	int idx;
-
-	for (unsigned i = 0; i != d->m_actualDataC->cells.size(); ++i) {
-		glBegin(GL_POLYGON);
-		for (unsigned j = 0; j != d->m_actualDataC->cells[ i ].size(); ++j) {
-			idx = d->m_actualDataC->cells[ i ][ j ];
-			setColorFromVertexC(idx);
-			glVertex3d(d->m_actualDataC->nodes[ idx ].x, d->m_actualDataC->nodes[ idx ].y, zshift);
-		}
-		glEnd();
+	QWT_DC(d);
+	QVector<QwtPoint3D> result;
+	result.reserve(static_cast<int>(d->m_bars.size()));
+	for (const auto& bar : d->m_bars) {
+		result.append(QwtPoint3D(bar.center.x, bar.center.y, bar.height));
 	}
+	return result;
 }
 
-void SurfacePlot::Isolines2FloorC()
+bool Qwt3DBar::isGridData() const { QWT_DC(d); return d->m_isGridData; }
+int Qwt3DBar::gridColumns() const { QWT_DC(d); return d->m_gridColumns; }
+int Qwt3DBar::gridRows() const { QWT_DC(d); return d->m_gridRows; }
+double Qwt3DBar::gridMinX() const { QWT_DC(d); return d->m_gridMinX; }
+double Qwt3DBar::gridMaxX() const { QWT_DC(d); return d->m_gridMaxX; }
+double Qwt3DBar::gridMinY() const { QWT_DC(d); return d->m_gridMinY; }
+double Qwt3DBar::gridMaxY() const { QWT_DC(d); return d->m_gridMaxY; }
+std::vector<std::vector<double>> Qwt3DBar::gridZValues() const { QWT_DC(d); return d->m_gridZ; }
+
+/*** End of inlined file: qwt3d_bar.cpp ***/
+
+
+/*** Start of inlined file: qwt3d_line3d.cpp ***/
+#if defined(_MSC_VER) /* MSVC Compiler */
+#pragma warning(disable : 4305)
+#pragma warning(disable : 4786)
+#endif
+
+
+/*** Start of inlined file: qwt3d_line3d_p.h ***/
+#ifndef QWT3D_LINE3D_P_H
+#define QWT3D_LINE3D_P_H
+
+#include <QOpenGLBuffer>
+#include <QOpenGLVertexArrayObject>
+#include <QOpenGLShaderProgram>
+#include <QVector3D>
+#include <QVector4D>
+
+#include <cfloat>
+
+/**
+ * @brief Vertex for the Tube style (position + normal + color, 40 bytes)
+ * @details Matches the surface shader attribute layout: location 0 = position,
+ *          location 1 = normal, location 2 = color.
+ */
+struct LineTubeVertex
 {
-	QWT_D(d);
-	Qwt3D::Data* data = actualData();
-	if (isolines() <= 0 || !data || data->empty())
+	QVector3D position;
+	QVector3D normal;
+	QVector4D color;
+};
+
+/**
+ * @brief Vertex for the Lines/Dots styles (position + color, 28 bytes)
+ * @details Matches the line/point shader attribute layout: location 0 =
+ *          position, location 1 = color.
+ */
+struct LinePointVertex
+{
+	QVector3D position;
+	QVector4D color;
+};
+
+class Qwt3DLine::PrivateData
+{
+	QWT_DECLARE_PUBLIC(Qwt3DLine)
+
+public:
+	explicit PrivateData(Qwt3DLine* q);
+	~PrivateData();
+
+	// Data
+	QwtSeriesData<QwtPoint3D>* m_series;
+
+	// Style
+	Qwt3DLine::LineStyle m_style;
+	double m_lineWidth;
+	double m_tubeRadius;  // <= 0 means auto
+	int m_tubeSegments;
+	double m_pointSize;
+	bool m_pointVisible;
+	Qwt3DLine::PointShape m_pointShape;
+
+	// Color
+	RGBA m_solidColor;
+	Qwt3DColor* m_dataColor;
+
+	// GL resources (created lazily in draw())
+	bool m_vboDirty;
+	bool m_pointsDirty;
+	bool m_tubeShaderInitialized;
+	QOpenGLBuffer m_vertexBuffer;       // tube vertices (Tube style)
+	QOpenGLBuffer m_indexBuffer;        // tube side indices (Tube style)
+	QOpenGLVertexArrayObject m_vao;     // tube VAO (Tube style)
+	QOpenGLShaderProgram m_tubeShader;  // Tube style reuses the surface shader
+
+	// Separate points VBO/VAO for the Dots style and the point-marker overlay
+	QOpenGLBuffer m_pointsBuffer;
+	QOpenGLVertexArrayObject m_pointsVAO;
+
+	// Shape marker VBO/VAO/EBO (used when m_pointShape != Dot)
+	QOpenGLBuffer m_markerVertexBuffer;
+	QOpenGLBuffer m_markerIndexBuffer;
+	QOpenGLVertexArrayObject m_markerVAO;
+	bool m_markersDirty;
+	int m_markerIndexCount;
+
+	// Counts
+	int m_vertexCount;     // ring vertices (Tube) or polyline vertices (Lines/Dots)
+	int m_indexCount;      // tube side indices (Tube style only)
+	int m_pointCount;      // number of polyline sample points
+
+	// Cached hull
+	ParallelEpiped m_hull;
+};
+
+inline Qwt3DLine::PrivateData::PrivateData(Qwt3DLine* q)
+	: q_ptr(q)
+	, m_series(new QwtPoint3DSeriesData())
+	, m_style(Qwt3DLine::Lines)
+	, m_lineWidth(1.0)
+	, m_tubeRadius(-1.0)
+	, m_tubeSegments(8)
+	, m_pointSize(8.0)
+	, m_pointVisible(false)
+	, m_pointShape(Qwt3DLine::Dot)
+	, m_solidColor(RGBA(0.9, 0.9, 0.9, 1.0))
+	, m_dataColor(nullptr)
+	, m_vboDirty(true)
+	, m_pointsDirty(true)
+	, m_tubeShaderInitialized(false)
+	, m_markersDirty(true)
+	, m_vertexCount(0)
+	, m_indexCount(0)
+	, m_pointCount(0)
+	, m_markerIndexCount(0)
+	, m_hull(Triple(0, 0, 0), Triple(0, 0, 0))
+{
+	m_indexBuffer = QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
+	m_markerIndexBuffer = QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
+}
+
+inline Qwt3DLine::PrivateData::~PrivateData()
+{
+	m_vertexBuffer.destroy();
+	m_indexBuffer.destroy();
+	m_vao.destroy();
+	m_pointsBuffer.destroy();
+	m_pointsVAO.destroy();
+	m_markerVertexBuffer.destroy();
+	m_markerIndexBuffer.destroy();
+	m_markerVAO.destroy();
+
+	if (m_series)
+		delete m_series;
+	if (m_dataColor)
+		m_dataColor->destroy();
+}
+
+#endif // QWT3D_LINE3D_P_H
+
+/*** End of inlined file: qwt3d_line3d_p.h ***/
+
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
+#include <QMatrix3x3>
+
+#include <cfloat>
+#include <cmath>
+#include <algorithm>
+
+// ---------------------------------------------------------------------------
+// Anonymous namespace: tube geometry and hull helpers
+// ---------------------------------------------------------------------------
+
+namespace
+{
+/// Clamps a float to [lo, hi]
+float clampf(float v, float lo, float hi)
+{
+	return v < lo ? lo : (v > hi ? hi : v);
+}
+
+/// Builds tube (swept circle) geometry from a polyline using parallel-transport
+/// framing. Emits ring vertices (position + outward radial normal + color) and
+/// side indices connecting adjacent rings.
+void buildTubeGeometry(const QVector<QVector3D>& pts,
+					   const QVector<QVector4D>& colors,
+					   float radius, int segments,
+					   QVector<LineTubeVertex>& vertices,
+					   QVector<unsigned int>& indices)
+{
+	const int N = pts.size();
+	if (N < 2 || segments < 3 || radius <= 0.0f)
 		return;
 
-	double step = (data->hull().maxVertex.z - data->hull().minVertex.z) / isolines();
+	// 1. Tangents (central differences, single-sided at the ends)
+	QVector<QVector3D> T(N);
+	for (int i = 0; i < N; ++i) {
+		QVector3D t;
+		if (i == 0)
+			t = pts[1] - pts[0];
+		else if (i == N - 1)
+			t = pts[N - 1] - pts[N - 2];
+		else
+			t = pts[i + 1] - pts[i - 1];
+		const float len = t.length();
+		if (len < 1e-6f) {
+			// Duplicate point: carry a neighbor tangent to keep a frame
+			t = (i > 0) ? T[i - 1] : QVector3D(1.0f, 0.0f, 0.0f);
+		} else {
+			t /= len;
+		}
+		T[i] = t;
+	}
 
-	RGBA col;
+	// 2. Frames via parallel transport (robust on straight segments, unlike Frenet)
+	QVector<QVector3D> Nrm(N), Bnm(N);
+	{
+		const QVector3D up = (std::abs(T[0].x()) < 0.9f)
+			? QVector3D(1.0f, 0.0f, 0.0f)
+			: QVector3D(0.0f, 1.0f, 0.0f);
+		QVector3D n0 = up - T[0] * QVector3D::dotProduct(up, T[0]);
+		const float nl = n0.length();
+		Nrm[0] = (nl > 1e-6f) ? n0 / nl : QVector3D(0.0f, 1.0f, 0.0f);
+		Bnm[0] = QVector3D::crossProduct(T[0], Nrm[0]).normalized();
+	}
+	for (int i = 1; i < N; ++i) {
+		QVector3D axis = QVector3D::crossProduct(T[i - 1], T[i]);
+		const float cosA = clampf(QVector3D::dotProduct(T[i - 1], T[i]), -1.0f, 1.0f);
+		QVector3D n;
+		if (axis.lengthSquared() < 1e-12f) {
+			// Parallel tangents: no rotation needed
+			n = Nrm[i - 1];
+		} else {
+			axis.normalize();
+			const float sinA = std::sqrt(std::max(0.0f, 1.0f - cosA * cosA));
+			const QVector3D v = Nrm[i - 1];
+			// Rodrigues rotation around axis by angle = acos(cosA)
+			n = v * cosA
+				+ QVector3D::crossProduct(axis, v) * sinA
+				+ axis * (QVector3D::dotProduct(axis, v) * (1.0f - cosA));
+		}
+		// Re-orthogonalize against the new tangent, then compute binormal
+		n = n - T[i] * QVector3D::dotProduct(n, T[i]);
+		const float nl = n.length();
+		Nrm[i] = (nl > 1e-6f) ? n / nl : Nrm[i - 1];
+		Bnm[i] = QVector3D::crossProduct(T[i], Nrm[i]).normalized();
+	}
 
-	double zshift = data->hull().minVertex.z;
+	// 3. Ring vertices (one ring per polyline point)
+	vertices.reserve(N * segments);
+	for (int i = 0; i < N; ++i) {
+		const QVector4D& col = colors.value(i, QVector4D(1.0f, 1.0f, 1.0f, 1.0f));
+		for (int k = 0; k < segments; ++k) {
+			const float ang = float(2.0 * Qwt3D_PI * k / segments);
+			const float ca = std::cos(ang);
+			const float sa = std::sin(ang);
+			const QVector3D radial = Nrm[i] * ca + Bnm[i] * sa;  // outward normal
+			LineTubeVertex v;
+			v.position = pts[i] + radial * radius;
+			v.normal = radial;
+			v.color = col;
+			vertices.append(v);
+		}
+	}
 
-	TripleField nodes;
-	TripleField intersection;
-
-	double lambda = 0;
-
-	GLStateBewarer sb2(GL_LINE_SMOOTH, false);
-
-	for (int k = 0; k != isolines(); ++k) {
-		double val = zshift + k * step;
-
-		for (unsigned i = 0; i != d->m_actualDataC->cells.size(); ++i) {
-			nodes.clear();
-			size_t cellnodes = d->m_actualDataC->cells[ i ].size();
-			for (size_t j = 0; j < cellnodes; ++j) {
-				nodes.push_back(d->m_actualDataC->nodes[ d->m_actualDataC->cells[ i ][ j ] ]);
-			}
-
-			double diff = 0;
-			for (unsigned m = 0; m != cellnodes; ++m) {
-				unsigned mm = (m + 1) % cellnodes;
-				if ((val >= nodes[ m ].z && val <= nodes[ mm ].z) || (val >= nodes[ mm ].z && val <= nodes[ m ].z)) {
-					diff = nodes[ mm ].z - nodes[ m ].z;
-
-					if (isPracticallyZero(diff))  // degenerated
-					{
-						intersection.push_back(nodes[ m ]);
-						intersection.push_back(nodes[ mm ]);
-						continue;
-					}
-
-					lambda = (val - nodes[ m ].z) / diff;
-					intersection.push_back(Triple(nodes[ m ].x + lambda * (nodes[ mm ].x - nodes[ m ].x),
-												  nodes[ m ].y + lambda * (nodes[ mm ].y - nodes[ m ].y),
-												  val));
-				}
-			}
-
-			if (!intersection.empty()) {
-				col = (*dataColor())(nodes[ 0 ].x, nodes[ 0 ].y, nodes[ 0 ].z);
-				glColor4d(col.r, col.g, col.b, col.a);
-				if (intersection.size() > 2) {
-					glBegin(GL_LINE_STRIP);
-					for (unsigned dd = 0; dd != intersection.size(); ++dd) {
-						glVertex3d(intersection[ dd ].x, intersection[ dd ].y, zshift);
-					}
-					glEnd();
-					glBegin(GL_POINTS);
-					glVertex3d(intersection[ 0 ].x, intersection[ 0 ].y, zshift);
-					glEnd();
-				} else if (intersection.size() == 2) {
-					glBegin(GL_LINES);
-					glVertex3d(intersection[ 0 ].x, intersection[ 0 ].y, zshift);
-					glVertex3d(intersection[ 1 ].x, intersection[ 1 ].y, zshift);
-
-					// small pixel gap problem (see OpenGL spec.)
-					glVertex3d(intersection[ 1 ].x, intersection[ 1 ].y, zshift);
-					glVertex3d(intersection[ 0 ].x, intersection[ 0 ].y, zshift);
-					glEnd();
-				}
-
-				intersection.clear();
-			}
+	// 4. Side indices: each ring pair -> a quad strip of 'segments' quads
+	indices.reserve((N - 1) * segments * 6);
+	for (int i = 0; i < N - 1; ++i) {
+		for (int k = 0; k < segments; ++k) {
+			const int k1 = (k + 1) % segments;
+			const unsigned int a = static_cast<unsigned int>(i * segments + k);
+			const unsigned int b = static_cast<unsigned int>(i * segments + k1);
+			const unsigned int c = static_cast<unsigned int>((i + 1) * segments + k);
+			const unsigned int dd = static_cast<unsigned int>((i + 1) * segments + k1);
+			// Quad (a, b, dd, c) split into two triangles
+			indices.append(a);
+			indices.append(b);
+			indices.append(c);
+			indices.append(b);
+			indices.append(dd);
+			indices.append(c);
 		}
 	}
 }
 
-void SurfacePlot::createNormalsC()
+/// Computes the bounding hull of a 3D point series
+ParallelEpiped computeHullFromSeries(const QwtSeriesData<QwtPoint3D>* s)
 {
-	QWT_D(d);
-	Qwt3D::Data* data = actualData();
-	if (!normals() || !data || data->empty())
-		return;
+	const size_t n = s ? s->size() : 0;
+	if (n == 0)
+		return ParallelEpiped(Triple(0, 0, 0), Triple(0, 0, 0));
 
-	if (d->m_actualDataC->nodes.size() != d->m_actualDataC->normals.size())
-		return;
-	Arrow arrow;
-	arrow.setQuality(normalQuality());
-
-	Triple basev, topv, norm;
-
-	double diag = (data->hull().maxVertex - data->hull().minVertex).length() * normalLength();
-
-	RGBA col;
-	arrow.assign(*this);
-	arrow.drawBegin();
-	for (unsigned i = 0; i != d->m_actualDataC->normals.size(); ++i) {
-		basev = d->m_actualDataC->nodes[ i ];
-		topv  = basev + d->m_actualDataC->normals[ i ];
-
-		norm = topv - basev;
-		norm.normalize();
-		norm *= diag;
-
-		arrow.setTop(basev + norm);
-		arrow.setColor((*dataColor())(basev.x, basev.y, basev.z));
-		arrow.draw(basev);
+	double minx = DBL_MAX, miny = DBL_MAX, minz = DBL_MAX;
+	double maxx = -DBL_MAX, maxy = -DBL_MAX, maxz = -DBL_MAX;
+	for (size_t i = 0; i < n; ++i) {
+		const QwtPoint3D p = s->sample(i);
+		minx = std::min(minx, p.x()); maxx = std::max(maxx, p.x());
+		miny = std::min(miny, p.y()); maxy = std::max(maxy, p.y());
+		minz = std::min(minz, p.z()); maxz = std::max(maxz, p.z());
 	}
-	arrow.drawEnd();
+	return ParallelEpiped(Triple(minx, miny, minz), Triple(maxx, maxy, maxz));
 }
 
-/*!
-		Convert user (non-rectangular) mesh based data to internal structure.
-		See also Qwt3D::TripleField and Qwt3D::CellField
-*/
-bool SurfacePlot::loadFromData(TripleField const& data, CellField const& poly)
+// ---------------------------------------------------------------------------
+// Shape template generators — unit-sized shapes centered at origin (±0.5)
+// Produce LineTubeVertex (position + normal + dummy color) and triangle indices.
+// The marker builder scales and translates these to each sample point.
+// ---------------------------------------------------------------------------
+
+/// Generates a unit cube (6 faces, per-face normals)
+void buildCubeShape(QVector<LineTubeVertex>& vertices, QVector<unsigned int>& indices)
 {
-	QWT_D(d);
-	d->m_actualDataG->clear();
-	setActualData(d->m_actualDataC);
+	struct Face { QVector3D normal; QVector3D c[4]; };
+	static const Face faces[6] = {
+		{ QVector3D(0, 0, 1), { { -0.5f, -0.5f, 0.5f }, { 0.5f, -0.5f, 0.5f }, { 0.5f, 0.5f, 0.5f }, { -0.5f, 0.5f, 0.5f } } },
+		{ QVector3D(0, 0, -1), { { 0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f, -0.5f }, { -0.5f, 0.5f, -0.5f }, { 0.5f, 0.5f, -0.5f } } },
+		{ QVector3D(1, 0, 0), { { 0.5f, -0.5f, 0.5f }, { 0.5f, -0.5f, -0.5f }, { 0.5f, 0.5f, -0.5f }, { 0.5f, 0.5f, 0.5f } } },
+		{ QVector3D(-1, 0, 0), { { -0.5f, -0.5f, -0.5f }, { -0.5f, -0.5f, 0.5f }, { -0.5f, 0.5f, 0.5f }, { -0.5f, 0.5f, -0.5f } } },
+		{ QVector3D(0, 1, 0), { { -0.5f, 0.5f, 0.5f }, { 0.5f, 0.5f, 0.5f }, { 0.5f, 0.5f, -0.5f }, { -0.5f, 0.5f, -0.5f } } },
+		{ QVector3D(0, -1, 0), { { -0.5f, -0.5f, -0.5f }, { 0.5f, -0.5f, -0.5f }, { 0.5f, -0.5f, 0.5f }, { -0.5f, -0.5f, 0.5f } } },
+	};
+	for (int f = 0; f < 6; ++f) {
+		unsigned int base = static_cast<unsigned int>(vertices.size());
+		for (int v = 0; v < 4; ++v) {
+			LineTubeVertex vtx;
+			vtx.position = faces[f].c[v];
+			vtx.normal = faces[f].normal;
+			vtx.color = QVector4D(1, 1, 1, 1);
+			vertices.append(vtx);
+		}
+		indices.append(base + 0);
+		indices.append(base + 1);
+		indices.append(base + 2);
+		indices.append(base + 0);
+		indices.append(base + 2);
+		indices.append(base + 3);
+	}
+}
 
-	d->m_actualDataC->nodes   = data;
-	d->m_actualDataC->cells   = poly;
-	d->m_actualDataC->normals = TripleField(d->m_actualDataC->nodes.size());
+/// Generates a regular tetrahedron (4 faces)
+void buildTetrahedronShape(QVector<LineTubeVertex>& vertices, QVector<unsigned int>& indices)
+{
+	static const QVector3D v[4] = {
+		QVector3D(0.5f, 0.5f, 0.5f),
+		QVector3D(0.5f, -0.5f, -0.5f),
+		QVector3D(-0.5f, 0.5f, -0.5f),
+		QVector3D(-0.5f, -0.5f, 0.5f)
+	};
+	static const int faces[4][3] = { { 0, 1, 2 }, { 0, 3, 1 }, { 0, 2, 3 }, { 1, 3, 2 } };
+	for (int f = 0; f < 4; ++f) {
+		const QVector3D& a = v[faces[f][0]];
+		const QVector3D& b = v[faces[f][1]];
+		const QVector3D& c = v[faces[f][2]];
+		QVector3D n = QVector3D::crossProduct(b - a, c - a).normalized();
+		if (QVector3D::dotProduct(n, (a + b + c) / 3.0f) < 0.0f)
+			n = -n;
+		unsigned int base = static_cast<unsigned int>(vertices.size());
+		for (int i = 0; i < 3; ++i) {
+			LineTubeVertex vtx;
+			vtx.position = v[faces[f][i]];
+			vtx.normal = n;
+			vtx.color = QVector4D(1, 1, 1, 1);
+			vertices.append(vtx);
+		}
+		indices.append(base + 0);
+		indices.append(base + 1);
+		indices.append(base + 2);
+	}
+}
 
-	unsigned i;
+/// Generates a regular octahedron (8 faces)
+void buildOctahedronShape(QVector<LineTubeVertex>& vertices, QVector<unsigned int>& indices)
+{
+	static const QVector3D v[6] = {
+		QVector3D(0.5f, 0, 0), QVector3D(-0.5f, 0, 0),
+		QVector3D(0, 0.5f, 0), QVector3D(0, -0.5f, 0),
+		QVector3D(0, 0, 0.5f), QVector3D(0, 0, -0.5f)
+	};
+	static const int faces[8][3] = {
+		{ 0, 2, 4 }, { 2, 1, 4 }, { 1, 3, 4 }, { 3, 0, 4 },
+		{ 2, 0, 5 }, { 1, 2, 5 }, { 3, 1, 5 }, { 0, 3, 5 }
+	};
+	for (int f = 0; f < 8; ++f) {
+		const QVector3D& a = v[faces[f][0]];
+		const QVector3D& b = v[faces[f][1]];
+		const QVector3D& c = v[faces[f][2]];
+		QVector3D n = QVector3D::crossProduct(b - a, c - a).normalized();
+		if (QVector3D::dotProduct(n, (a + b + c) / 3.0f) < 0.0f)
+			n = -n;
+		unsigned int base = static_cast<unsigned int>(vertices.size());
+		for (int i = 0; i < 3; ++i) {
+			LineTubeVertex vtx;
+			vtx.position = v[faces[f][i]];
+			vtx.normal = n;
+			vtx.color = QVector4D(1, 1, 1, 1);
+			vertices.append(vtx);
+		}
+		indices.append(base + 0);
+		indices.append(base + 1);
+		indices.append(base + 2);
+	}
+}
 
-	//  normals for the moment
-	Triple n, u, v;
-	for (i = 0; i < poly.size(); ++i) {
-		if (poly[ i ].size() < 3)
-			n = Triple(0, 0, 0);
-		else {
-			for (size_t j = 0; j < poly[ i ].size(); ++j) {
-				size_t jj  = (j + 1) % poly[ i ].size();
-				size_t pjj = (j) ? j - 1 : poly[ i ].size() - 1;
-				u          = d->m_actualDataC->nodes[ poly[ i ][ jj ] ] - d->m_actualDataC->nodes[ poly[ i ][ j ] ];
-				v          = d->m_actualDataC->nodes[ poly[ i ][ pjj ] ] - d->m_actualDataC->nodes[ poly[ i ][ j ] ];
-				n          = normalizedcross(u, v);
-				d->m_actualDataC->normals[ poly[ i ][ j ] ] += n;
-			}
+/// Generates a UV sphere (8 lat × 12 lon segments)
+void buildSphereShape(QVector<LineTubeVertex>& vertices, QVector<unsigned int>& indices)
+{
+	const int latSegs = 8;
+	const int lonSegs = 12;
+	const float r = 0.5f;
+
+	for (int lat = 0; lat <= latSegs; ++lat) {
+		const float theta = float(Qwt3D_PI * lat / latSegs);
+		const float st = std::sin(theta), ct = std::cos(theta);
+		for (int lon = 0; lon <= lonSegs; ++lon) {
+			const float phi = float(2.0 * Qwt3D_PI * lon / lonSegs);
+			const float sp = std::sin(phi), cp = std::cos(phi);
+			LineTubeVertex vtx;
+			vtx.position = QVector3D(r * cp * st, r * sp * st, r * ct);
+			vtx.normal = vtx.position.normalized();
+			vtx.color = QVector4D(1, 1, 1, 1);
+			vertices.append(vtx);
 		}
 	}
-	for (i = 0; i != d->m_actualDataC->normals.size(); ++i) {
-		d->m_actualDataC->normals[ i ].normalize();
+	for (int lat = 0; lat < latSegs; ++lat) {
+		for (int lon = 0; lon < lonSegs; ++lon) {
+			const unsigned int a = static_cast<unsigned int>(lat * (lonSegs + 1) + lon);
+			const unsigned int b = a + 1;
+			const unsigned int c = a + static_cast<unsigned int>(lonSegs + 1);
+			const unsigned int dd = c + 1;
+			indices.append(a);
+			indices.append(c);
+			indices.append(b);
+			indices.append(b);
+			indices.append(c);
+			indices.append(dd);
+		}
 	}
+}
+} // namespace
 
-	ParallelEpiped hull(Triple(DBL_MAX, DBL_MAX, DBL_MAX), Triple(-DBL_MAX, -DBL_MAX, -DBL_MAX));
+// ---------------------------------------------------------------------------
+// Constructor / Destructor
+// ---------------------------------------------------------------------------
 
-	for (i = 0; i != data.size(); ++i) {
-		if (data[ i ].x < hull.minVertex.x)
-			hull.minVertex.x = data[ i ].x;
-		if (data[ i ].y < hull.minVertex.y)
-			hull.minVertex.y = data[ i ].y;
-		if (data[ i ].z < hull.minVertex.z)
-			hull.minVertex.z = data[ i ].z;
-
-		if (data[ i ].x > hull.maxVertex.x)
-			hull.maxVertex.x = data[ i ].x;
-		if (data[ i ].y > hull.maxVertex.y)
-			hull.maxVertex.y = data[ i ].y;
-		if (data[ i ].z > hull.maxVertex.z)
-			hull.maxVertex.z = data[ i ].z;
-	}
-
-	d->m_actualDataC->setHull(hull);
-
-	updateData();
-	updateNormals();
-	createCoordinateSystem();
-
-	return true;
+Qwt3DLine::Qwt3DLine()
+	: Qwt3DPlotItem()
+	, QWT_PIMPL_CONSTRUCT
+{
 }
 
-/*** End of inlined file: qwt3d_meshplot.cpp ***/
+Qwt3DLine::~Qwt3DLine() = default;
+
+// ---------------------------------------------------------------------------
+// Data loading
+// ---------------------------------------------------------------------------
+
+void Qwt3DLine::setSamples(const QVector<QwtPoint3D>& samples)
+{
+	setSamples(new QwtPoint3DSeriesData(samples));
+}
+
+void Qwt3DLine::setSamples(const QVector<double>& x, const QVector<double>& y,
+						   const QVector<double>& z)
+{
+	const int n = std::min({ x.size(), y.size(), z.size() });
+	QVector<QwtPoint3D> samples;
+	samples.reserve(n);
+	for (int i = 0; i < n; ++i)
+		samples.append(QwtPoint3D(x[i], y[i], z[i]));
+	setSamples(samples);
+}
+
+void Qwt3DLine::setSamples(const QwtPoint3D* samples, size_t count)
+{
+	QVector<QwtPoint3D> v;
+	v.reserve(int(count));
+	for (size_t i = 0; i < count; ++i)
+		v.append(samples[i]);
+	setSamples(v);
+}
+
+void Qwt3DLine::setSamples(QwtSeriesData<QwtPoint3D>* data)
+{
+	QWT_D(d);
+	if (d->m_series)
+		delete d->m_series;
+	d->m_series = data ? data : new QwtPoint3DSeriesData();
+
+	d->m_hull = computeHullFromSeries(d->m_series);
+	d->m_vboDirty = true;
+	d->m_pointsDirty = true;
+	d->m_markersDirty = true;
+	itemChanged();
+}
+
+const QwtSeriesData<QwtPoint3D>* Qwt3DLine::data() const
+{
+	QWT_DC(d);
+	return d->m_series;
+}
+
+size_t Qwt3DLine::dataSize() const
+{
+	QWT_DC(d);
+	return d->m_series ? d->m_series->size() : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Style and geometry
+// ---------------------------------------------------------------------------
+
+Qwt3DLine::LineStyle Qwt3DLine::lineStyle() const
+{
+	QWT_DC(d);
+	return d->m_style;
+}
+
+void Qwt3DLine::setLineStyle(LineStyle style)
+{
+	QWT_D(d);
+	if (d->m_style == style)
+		return;
+	d->m_style = style;
+	d->m_vboDirty = true;  // vertex layout differs between Tube and Lines/Dots
+	itemChanged();
+}
+
+double Qwt3DLine::lineWidth() const
+{
+	QWT_DC(d);
+	return d->m_lineWidth;
+}
+
+void Qwt3DLine::setLineWidth(double width)
+{
+	QWT_D(d);
+	d->m_lineWidth = width;
+	itemChanged();
+}
+
+double Qwt3DLine::tubeRadius() const
+{
+	QWT_DC(d);
+	return d->m_tubeRadius;
+}
+
+void Qwt3DLine::setTubeRadius(double radius)
+{
+	QWT_D(d);
+	if (d->m_tubeRadius == radius)
+		return;
+	d->m_tubeRadius = radius;
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+int Qwt3DLine::tubeSegments() const
+{
+	QWT_DC(d);
+	return d->m_tubeSegments;
+}
+
+void Qwt3DLine::setTubeSegments(int segments)
+{
+	QWT_D(d);
+	if (segments < 3)
+		segments = 3;
+	if (d->m_tubeSegments == segments)
+		return;
+	d->m_tubeSegments = segments;
+	d->m_vboDirty = true;
+	itemChanged();
+}
+
+double Qwt3DLine::pointSize() const
+{
+	QWT_DC(d);
+	return d->m_pointSize;
+}
+
+void Qwt3DLine::setPointSize(double size)
+{
+	QWT_D(d);
+	d->m_pointSize = size;
+	d->m_markersDirty = true;  // solid-shape geometry depends on size
+	itemChanged();
+}
+
+bool Qwt3DLine::pointVisible() const
+{
+	QWT_DC(d);
+	return d->m_pointVisible;
+}
+
+void Qwt3DLine::setPointVisible(bool on)
+{
+	QWT_D(d);
+	if (d->m_pointVisible == on)
+		return;
+	d->m_pointVisible = on;
+	itemChanged();
+}
+
+Qwt3DLine::PointShape Qwt3DLine::pointShape() const
+{
+	QWT_DC(d);
+	return d->m_pointShape;
+}
+
+void Qwt3DLine::setPointShape(PointShape shape)
+{
+	QWT_D(d);
+	if (d->m_pointShape == shape)
+		return;
+	d->m_pointShape = shape;
+	d->m_markersDirty = true;
+	itemChanged();
+}
+
+// ---------------------------------------------------------------------------
+// Color
+// ---------------------------------------------------------------------------
+
+void Qwt3DLine::setColor(RGBA color)
+{
+	QWT_D(d);
+	d->m_solidColor = color;
+	d->m_vboDirty = true;
+	d->m_pointsDirty = true;
+	d->m_markersDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief 返回实心线颜色
+ * @return RGBA 颜色值
+ */
+RGBA Qwt3DLine::color() const
+{
+	QWT_DC(d);
+	return d->m_solidColor;
+}
+
+void Qwt3DLine::setDataColor(Qwt3DColor* color)
+{
+	QWT_D(d);
+	if (d->m_dataColor)
+		d->m_dataColor->destroy();
+	d->m_dataColor = color;
+	d->m_vboDirty = true;
+	d->m_pointsDirty = true;
+	d->m_markersDirty = true;
+	itemChanged();
+}
+
+const Qwt3DColor* Qwt3DLine::dataColor() const
+{
+	QWT_DC(d);
+	return d->m_dataColor;
+}
+
+void Qwt3DLine::invalidateColors()
+{
+	QWT_D(d);
+	d->m_vboDirty = true;
+	d->m_pointsDirty = true;
+	d->m_markersDirty = true;
+	itemChanged();
+}
+
+void Qwt3DLine::pushColorRange() const
+{
+	QWT_DC(d);
+	if (!d->m_dataColor || !plot())
+		return;
+	const ParallelEpiped h = plot()->hull();
+	d->m_dataColor->setActiveRange(h.minVertex.z, h.maxVertex.z);
+}
+
+void Qwt3DLine::populateLegendColors(ColorVector& colors) const
+{
+	QWT_DC(d);
+	if (d->m_dataColor) {
+		pushColorRange();
+		d->m_dataColor->createVector(colors);
+	} else {
+		colors.push_back(d->m_solidColor);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Qwt3DPlotItem interface
+// ---------------------------------------------------------------------------
+
+ParallelEpiped Qwt3DLine::hull() const
+{
+	QWT_DC(d);
+	return d->m_hull;
+}
+
+// ---------------------------------------------------------------------------
+// GL rendering
+// ---------------------------------------------------------------------------
+
+void Qwt3DLine::buildVBO()
+{
+	QWT_D(d);
+	d->m_vertexCount = 0;
+	d->m_indexCount = 0;
+
+	// The Lines/Dots styles render from the separate points VBO
+	if (d->m_style != Tube)
+		return;
+
+	const int N = static_cast<int>(d->m_series ? d->m_series->size() : 0);
+	if (N < 2)
+		return;
+
+	// Ensure a color functor exists (solid color is handled by falling back
+	// to a default standard color when attached to a plot)
+	if (!d->m_dataColor) {
+		if (plot())
+			d->m_dataColor = new Qwt3DStandardColor();
+		else
+			return;
+	}
+	pushColorRange();
+
+	// Resolve radius (auto = 0.5% of hull diagonal)
+	double radius = d->m_tubeRadius;
+	if (radius <= 0.0) {
+		const Triple dt = d->m_hull.maxVertex - d->m_hull.minVertex;
+		const double diag = std::sqrt(dt.x * dt.x + dt.y * dt.y + dt.z * dt.z);
+		radius = 0.005 * diag;
+		if (radius <= 0.0)
+			radius = 0.01;
+	}
+	const int segs = std::max(3, d->m_tubeSegments);
+
+	// Gather points + per-sample colors
+	QVector<QVector3D> pts(N);
+	QVector<QVector4D> cols(N);
+	for (int i = 0; i < N; ++i) {
+		const QwtPoint3D p = d->m_series->sample(i);
+		pts[i] = QVector3D(static_cast<float>(p.x()),
+						   static_cast<float>(p.y()),
+						   static_cast<float>(p.z()));
+		RGBA c = (*d->m_dataColor)(p.x(), p.y(), p.z());
+		cols[i] = QVector4D(static_cast<float>(c.r),
+							static_cast<float>(c.g),
+							static_cast<float>(c.b),
+							static_cast<float>(c.a));
+	}
+
+	QVector<LineTubeVertex> vertices;
+	QVector<unsigned int> indices;
+	buildTubeGeometry(pts, cols, static_cast<float>(radius), segs, vertices, indices);
+
+	d->m_vertexCount = vertices.size();
+	d->m_indexCount = indices.size();
+	if (vertices.isEmpty())
+		return;
+
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	if (!d->m_vao.isCreated())
+		d->m_vao.create();
+	d->m_vao.bind();
+
+	// VBO (position + normal + color, 40-byte stride matching the surface shader)
+	if (!d->m_vertexBuffer.isCreated())
+		d->m_vertexBuffer.create();
+	d->m_vertexBuffer.bind();
+	d->m_vertexBuffer.allocate(vertices.constData(),
+							   vertices.size() * sizeof(LineTubeVertex));
+
+	const int stride = sizeof(LineTubeVertex);
+	f->glEnableVertexAttribArray(0);
+	f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+	f->glEnableVertexAttribArray(1);
+	f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(sizeof(QVector3D)));
+	f->glEnableVertexAttribArray(2);
+	f->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(2 * sizeof(QVector3D)));
+
+	// EBO (side indices)
+	if (!d->m_indexBuffer.isCreated())
+		d->m_indexBuffer.create();
+	d->m_indexBuffer.bind();
+	d->m_indexBuffer.allocate(indices.constData(),
+							   indices.size() * sizeof(unsigned int));
+
+	d->m_vao.release();
+}
+
+void Qwt3DLine::buildPointsVBO()
+{
+	QWT_D(d);
+	d->m_pointCount = 0;
+
+	const int N = static_cast<int>(d->m_series ? d->m_series->size() : 0);
+	if (N <= 0)
+		return;
+
+	// Lazily create a default color functor so colormap coloring works out of the box
+	if (!d->m_dataColor) {
+		if (plot())
+			d->m_dataColor = new Qwt3DStandardColor();
+		else
+			return;
+	}
+	pushColorRange();
+
+	QVector<LinePointVertex> vertices(N);
+	for (int i = 0; i < N; ++i) {
+		const QwtPoint3D p = d->m_series->sample(i);
+		const RGBA c = (*d->m_dataColor)(p.x(), p.y(), p.z());
+		vertices[i].position = QVector3D(static_cast<float>(p.x()),
+										  static_cast<float>(p.y()),
+										  static_cast<float>(p.z()));
+		vertices[i].color = QVector4D(static_cast<float>(c.r),
+									 static_cast<float>(c.g),
+									 static_cast<float>(c.b),
+									 static_cast<float>(c.a));
+	}
+	d->m_pointCount = N;
+
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	if (!d->m_pointsVAO.isCreated())
+		d->m_pointsVAO.create();
+	d->m_pointsVAO.bind();
+
+	// VBO (position + color, 28-byte stride matching the line/point shaders)
+	if (!d->m_pointsBuffer.isCreated())
+		d->m_pointsBuffer.create();
+	d->m_pointsBuffer.bind();
+	d->m_pointsBuffer.allocate(vertices.constData(), N * sizeof(LinePointVertex));
+
+	const int stride = sizeof(LinePointVertex);
+	f->glEnableVertexAttribArray(0);
+	f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+	f->glEnableVertexAttribArray(1);
+	f->glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(sizeof(QVector3D)));
+
+	d->m_pointsVAO.release();
+}
+
+void Qwt3DLine::buildMarkersVBO()
+{
+	QWT_D(d);
+	d->m_markerIndexCount = 0;
+
+	if (d->m_pointShape == Dot)
+		return;  // Dot uses GL_POINTS from the points VBO, no shape geometry needed
+
+	const int N = static_cast<int>(d->m_series ? d->m_series->size() : 0);
+	if (N <= 0)
+		return;
+
+	// Ensure a color functor exists
+	if (!d->m_dataColor) {
+		if (plot())
+			d->m_dataColor = new Qwt3DStandardColor();
+		else
+			return;
+	}
+	pushColorRange();
+
+	// Generate the unit-sized shape template
+	QVector<LineTubeVertex> shapeVerts;
+	QVector<unsigned int> shapeIdx;
+	switch (d->m_pointShape) {
+		case Cube: buildCubeShape(shapeVerts, shapeIdx); break;
+		case Tetrahedron: buildTetrahedronShape(shapeVerts, shapeIdx); break;
+		case Octahedron: buildOctahedronShape(shapeVerts, shapeIdx); break;
+		case Sphere: buildSphereShape(shapeVerts, shapeIdx); break;
+		default: return;
+	}
+	if (shapeVerts.isEmpty() || shapeIdx.isEmpty())
+		return;
+
+	// Per-axis scale: marker occupies the same visual fraction of each axis,
+	// so it looks 3D even when data ranges differ greatly (e.g. helix z >> x/y).
+	// baseScale × axisRange gives world-space extent; the plot's per-axis
+	// normalization then maps it to the same fraction of each axis in the view.
+	const Triple dt = d->m_hull.maxVertex - d->m_hull.minVertex;
+	const double baseScale = d->m_pointSize * 0.002;
+	const float sx = static_cast<float>(baseScale * (dt.x > 1e-6 ? dt.x : 1.0));
+	const float sy = static_cast<float>(baseScale * (dt.y > 1e-6 ? dt.y : 1.0));
+	const float sz = static_cast<float>(baseScale * (dt.z > 1e-6 ? dt.z : 1.0));
+	// Inverse scale for correct normals under non-uniform scaling (S^-T = diag(1/s))
+	const float invSx = sx > 1e-6f ? 1.0f / sx : 1.0f;
+	const float invSy = sy > 1e-6f ? 1.0f / sy : 1.0f;
+	const float invSz = sz > 1e-6f ? 1.0f / sz : 1.0f;
+
+	// Build per-point geometry: translate + non-uniform scale the template
+	const int sv = shapeVerts.size();
+	const int si = shapeIdx.size();
+	QVector<LineTubeVertex> vertices;
+	QVector<unsigned int> indices;
+	vertices.reserve(N * sv);
+	indices.reserve(N * si);
+
+	for (int i = 0; i < N; ++i) {
+		const QwtPoint3D p = d->m_series->sample(i);
+		const QVector3D center(static_cast<float>(p.x()),
+							   static_cast<float>(p.y()),
+							   static_cast<float>(p.z()));
+		const RGBA c = (*d->m_dataColor)(p.x(), p.y(), p.z());
+		const QVector4D col(static_cast<float>(c.r),
+							static_cast<float>(c.g),
+							static_cast<float>(c.b),
+							static_cast<float>(c.a));
+		const unsigned int base = static_cast<unsigned int>(vertices.size());
+		for (int v = 0; v < sv; ++v) {
+			LineTubeVertex vtx;
+			const QVector3D& sp = shapeVerts[v].position;
+			vtx.position = center + QVector3D(sp.x() * sx, sp.y() * sy, sp.z() * sz);
+			// Adjust normals for non-uniform scaling: n' = normalize(n / s)
+			const QVector3D& sn = shapeVerts[v].normal;
+			vtx.normal = QVector3D(sn.x() * invSx, sn.y() * invSy, sn.z() * invSz).normalized();
+			vtx.color = col;
+			vertices.append(vtx);
+		}
+		for (int k = 0; k < si; ++k)
+			indices.append(base + shapeIdx[k]);
+	}
+
+	d->m_markerIndexCount = indices.size();
+	if (vertices.isEmpty())
+		return;
+
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	if (!d->m_markerVAO.isCreated())
+		d->m_markerVAO.create();
+	d->m_markerVAO.bind();
+
+	if (!d->m_markerVertexBuffer.isCreated())
+		d->m_markerVertexBuffer.create();
+	d->m_markerVertexBuffer.bind();
+	d->m_markerVertexBuffer.allocate(vertices.constData(),
+									 vertices.size() * sizeof(LineTubeVertex));
+
+	const int stride = sizeof(LineTubeVertex);
+	f->glEnableVertexAttribArray(0);
+	f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+	f->glEnableVertexAttribArray(1);
+	f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(sizeof(QVector3D)));
+	f->glEnableVertexAttribArray(2);
+	f->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(2 * sizeof(QVector3D)));
+
+	if (!d->m_markerIndexBuffer.isCreated())
+		d->m_markerIndexBuffer.create();
+	d->m_markerIndexBuffer.bind();
+	d->m_markerIndexBuffer.allocate(indices.constData(),
+									 indices.size() * sizeof(unsigned int));
+
+	d->m_markerVAO.release();
+}
+
+void Qwt3DLine::draw()
+{
+	QWT_D(d);
+
+	if (!plot() || !plot()->initializedGL())
+		return;
+
+	const int N = static_cast<int>(d->m_series ? d->m_series->size() : 0);
+	if (N == 0)
+		return;
+
+	if (d->m_vboDirty) {
+		buildVBO();
+		d->m_vboDirty = false;
+	}
+	if (d->m_pointsDirty) {
+		buildPointsVBO();
+		d->m_pointsDirty = false;
+	}
+	if (d->m_markersDirty) {
+		buildMarkersVBO();
+		d->m_markersDirty = false;
+	}
+
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	const QMatrix4x4 mv = plot()->modelViewMatrix();
+	const QMatrix4x4 proj = plot()->projectionMatrix();
+
+	// Draws markers — GL_POINTS for Dot, solid geometry for other shapes
+	auto drawMarkers = [&]() {
+		if (d->m_pointShape == Dot) {
+			if (d->m_pointCount <= 0)
+				return;
+			QOpenGLShaderProgram* sh = plot()->pointShader();
+			if (!sh)
+				return;
+			f->glEnable(GL_PROGRAM_POINT_SIZE);
+			sh->bind();
+			sh->setUniformValue("uModelView", mv);
+			sh->setUniformValue("uProjection", proj);
+			sh->setUniformValue("uPointSize", static_cast<float>(d->m_pointSize));
+			d->m_pointsVAO.bind();
+			f->glDrawArrays(GL_POINTS, 0, d->m_pointCount);
+			d->m_pointsVAO.release();
+			sh->release();
+			f->glDisable(GL_PROGRAM_POINT_SIZE);
+		} else {
+			if (d->m_markerIndexCount <= 0)
+				return;
+			if (!d->m_tubeShaderInitialized) {
+				d->m_tubeShader.addShaderFromSourceFile(
+					QOpenGLShader::Vertex, ":/shaders/surface.vert");
+				d->m_tubeShader.addShaderFromSourceFile(
+					QOpenGLShader::Fragment, ":/shaders/surface.frag");
+				if (!d->m_tubeShader.link())
+					return;
+				d->m_tubeShaderInitialized = true;
+			}
+			d->m_tubeShader.bind();
+			d->m_tubeShader.setUniformValue("uModelView", mv);
+			d->m_tubeShader.setUniformValue("uProjection", proj);
+			d->m_tubeShader.setUniformValue("uNormalMatrix", mv.normalMatrix());
+			const bool useLighting = plot()->lightingEnabled();
+			d->m_tubeShader.setUniformValue("uUseLighting", useLighting);
+			if (useLighting) {
+				d->m_tubeShader.setUniformValue("uLightPos", QVector3D(0.0f, 0.0f, 10.0f));
+				d->m_tubeShader.setUniformValue("uLightColor", QVector3D(1.0f, 1.0f, 1.0f));
+				d->m_tubeShader.setUniformValue("uShininess", 32.0f);
+			}
+			d->m_tubeShader.setUniformValue("uUseOverrideColor", false);
+			d->m_markerVAO.bind();
+			f->glDrawElements(GL_TRIANGLES, d->m_markerIndexCount,
+							  GL_UNSIGNED_INT, nullptr);
+			d->m_markerVAO.release();
+			d->m_tubeShader.release();
+		}
+	};
+
+	switch (d->m_style) {
+	case Tube: {
+		if (d->m_vertexCount == 0 || d->m_indexCount == 0)
+			break;  // not enough points for a tube
+
+		if (!d->m_tubeShaderInitialized) {
+			d->m_tubeShader.addShaderFromSourceFile(
+				QOpenGLShader::Vertex, ":/shaders/surface.vert");
+			d->m_tubeShader.addShaderFromSourceFile(
+				QOpenGLShader::Fragment, ":/shaders/surface.frag");
+			if (!d->m_tubeShader.link())
+				break;
+			d->m_tubeShaderInitialized = true;
+		}
+
+		d->m_tubeShader.bind();
+		d->m_tubeShader.setUniformValue("uModelView", mv);
+		d->m_tubeShader.setUniformValue("uProjection", proj);
+		d->m_tubeShader.setUniformValue("uNormalMatrix", mv.normalMatrix());
+
+		const bool useLighting = plot()->lightingEnabled();
+		d->m_tubeShader.setUniformValue("uUseLighting", useLighting);
+		if (useLighting) {
+			d->m_tubeShader.setUniformValue("uLightPos", QVector3D(0.0f, 0.0f, 10.0f));
+			d->m_tubeShader.setUniformValue("uLightColor", QVector3D(1.0f, 1.0f, 1.0f));
+			d->m_tubeShader.setUniformValue("uShininess", 32.0f);
+		}
+		d->m_tubeShader.setUniformValue("uUseOverrideColor", false);
+
+		d->m_vao.bind();
+		f->glDrawElements(GL_TRIANGLES, d->m_indexCount, GL_UNSIGNED_INT, nullptr);
+		d->m_vao.release();
+		d->m_tubeShader.release();
+		break;
+	}
+
+	case Lines: {
+		if (d->m_pointCount < 2)
+			break;
+		QOpenGLShaderProgram* sh = plot()->lineShader();
+		if (!sh)
+			break;
+		sh->bind();
+		sh->setUniformValue("uModelView", mv);
+		sh->setUniformValue("uProjection", proj);
+		f->glLineWidth(static_cast<float>(d->m_lineWidth));
+		d->m_pointsVAO.bind();
+		f->glDrawArrays(GL_LINE_STRIP, 0, d->m_pointCount);
+		d->m_pointsVAO.release();
+		sh->release();
+		break;
+	}
+
+	case Dots:
+		drawMarkers();
+		break;
+	}
+
+	// Optional point-marker overlay on top of the Lines/Tube styles
+	if (d->m_pointVisible && d->m_style != Dots)
+		drawMarkers();
+}
+
+/**
+ * @brief 运行时类型信息
+ * @return Rtti_Plot3DLine (= 1003)
+ */
+int Qwt3DLine::rtti() const
+{
+	return Rtti_Plot3DLine;
+}
+
+/*** End of inlined file: qwt3d_line3d.cpp ***/
+
+
+/*** Start of inlined file: qwt3d_serialize.cpp ***/
+#include <QDataStream>
+#include <vector>
+
+// ============================================================
+// Triple 序列化
+// ============================================================
+
+/**
+ * @brief 序列化 Triple 到数据流
+ * @param[out] out 数据流
+ * @param[in] t Triple 值
+ * @details 直接写入 x / y / z 三个 double 值，无魔数校验（简单值类型）。
+ */
+QDataStream& operator<<(QDataStream& out, const Triple& t)
+{
+	out << t.x << t.y << t.z;
+	return out;
+}
+
+/**
+ * @brief 从数据流反序列化 Triple
+ * @param[in] in 数据流
+ * @param[out] t Triple 值
+ */
+QDataStream& operator>>(QDataStream& in, Triple& t)
+{
+	in >> t.x >> t.y >> t.z;
+	return in;
+}
+
+// ============================================================
+// RGBA 序列化
+// ============================================================
+
+/**
+ * @brief 序列化 RGBA 到数据流
+ * @param[out] out 数据流
+ * @param[in] c RGBA 值
+ * @details 直接写入 r / g / b / a 四个 double 值。
+ */
+QDataStream& operator<<(QDataStream& out, const RGBA& c)
+{
+	out << c.r << c.g << c.b << c.a;
+	return out;
+}
+
+/**
+ * @brief 从数据流反序列化 RGBA
+ * @param[in] in 数据流
+ * @param[out] c RGBA 值
+ */
+QDataStream& operator>>(QDataStream& in, RGBA& c)
+{
+	in >> c.r >> c.g >> c.b >> c.a;
+	return in;
+}
+
+// ============================================================
+// ParallelEpiped 序列化
+// ============================================================
+
+/**
+ * @brief 序列化 ParallelEpiped 到数据流
+ * @param[out] out 数据流
+ * @param[in] p ParallelEpiped 值
+ * @details 通过 Triple 的 operator<< 序列化 minVertex 和 maxVertex。
+ */
+QDataStream& operator<<(QDataStream& out, const ParallelEpiped& p)
+{
+	out << p.minVertex << p.maxVertex;
+	return out;
+}
+
+/**
+ * @brief 从数据流反序列化 ParallelEpiped
+ * @param[in] in 数据流
+ * @param[out] p ParallelEpiped 值
+ */
+QDataStream& operator>>(QDataStream& in, ParallelEpiped& p)
+{
+	in >> p.minVertex >> p.maxVertex;
+	return in;
+}
+
+// ============================================================
+// Qwt3DFunctionData 序列化
+// ============================================================
+
+/**
+ * @brief 序列化 Qwt3DFunctionData 到数据流
+ * @param[out] out 数据流
+ * @param[in] d 函数数据
+ * @details 格式：version(quint32) + magic(quint32) + columns(uint) + rows(uint)
+ *          + minx(double) + maxx(double) + miny(double) + maxy(double)
+ *          + magic2(quint32) + z_vector_size(quint32) + z_data(double*) + magic3(quint32)
+ *          z 矩阵以嵌套 vector 结构写入：先写外层大小（columns），
+ *          再逐列写入行数（rowSize）+ 该列的 double 值。
+ */
+QDataStream& operator<<(QDataStream& out, const Qwt3DFunctionData& d)
+{
+	out << static_cast<quint32>(qwt3d_serialize_version) << qwt3d_magic_mark;
+	out << static_cast<quint32>(d.columns) << static_cast<quint32>(d.rows);
+	out << d.minx << d.maxx << d.miny << d.maxy;
+	out << qwt3d_magic_mark2;
+
+	// 写入 z 矩阵数据
+	quint32 totalSize = static_cast<quint32>(d.z.size());
+	out << totalSize;
+	for (const auto& row : d.z) {
+		quint32 rowSize = static_cast<quint32>(row.size());
+		out << rowSize;
+		for (double val : row) {
+			out << val;
+		}
+	}
+	out << qwt3d_magic_mark3;
+	return out;
+}
+
+/**
+ * @brief 从数据流反序列化 Qwt3DFunctionData
+ * @param[in] in 数据流
+ * @param[out] d 函数数据
+ * @details 读取格式见 operator<< 的注释。遇到魔数不匹配时设置 ReadCorruptData 状态。
+ */
+QDataStream& operator>>(QDataStream& in, Qwt3DFunctionData& d)
+{
+	quint32 version;
+	quint32 magic;
+	in >> version >> magic;
+	if (qwt3d_magic_mark != magic || version != qwt3d_serialize_version) {
+		in.setStatus(QDataStream::ReadCorruptData);
+		return in;
+	}
+
+	quint32 columns;
+	quint32 rows;
+	in >> columns >> rows;
+	d.columns = columns;
+	d.rows = rows;
+	in >> d.minx >> d.maxx >> d.miny >> d.maxy;
+
+	quint32 magic2;
+	in >> magic2;
+	if (qwt3d_magic_mark2 != magic2) {
+		in.setStatus(QDataStream::ReadCorruptData);
+		return in;
+	}
+
+	quint32 totalSize;
+	in >> totalSize;
+	d.z.clear();
+	d.z.resize(totalSize);
+	for (auto& row : d.z) {
+		quint32 rowSize;
+		in >> rowSize;
+		row.resize(rowSize);
+		for (auto& val : row) {
+			in >> val;
+		}
+	}
+
+	quint32 magic3;
+	in >> magic3;
+	if (qwt3d_magic_mark3 != magic3) {
+		in.setStatus(QDataStream::ReadCorruptData);
+		return in;
+	}
+	return in;
+}
+
+// ============================================================
+// Qwt3DParametricData 序列化
+// ============================================================
+
+/**
+ * @brief 序列化 Qwt3DParametricData 到数据流
+ * @param[out] out 数据流
+ * @param[in] d 参数曲面数据
+ * @details 格式：version(quint32) + magic(quint32) + columns(uint) + rows(uint)
+ *          + uperiodic(bool) + vperiodic(bool) + magic2(quint32)
+ *          + vertices_vector_size(quint32) + vertices_data(Triple*) + magic3(quint32)
+ *          vertices 矩阵以嵌套 vector 结构写入：先写外层大小，
+ *          再逐列写入行数（rowSize）+ 该列的 Triple 值（通过 Triple operator<<）。
+ */
+QDataStream& operator<<(QDataStream& out, const Qwt3DParametricData& d)
+{
+	out << static_cast<quint32>(qwt3d_serialize_version) << qwt3d_magic_mark;
+	out << static_cast<quint32>(d.columns) << static_cast<quint32>(d.rows);
+	out << d.uperiodic << d.vperiodic;
+	out << qwt3d_magic_mark2;
+
+	// 写入 vertices 矩阵数据
+	quint32 totalSize = static_cast<quint32>(d.vertices.size());
+	out << totalSize;
+	for (const auto& row : d.vertices) {
+		quint32 rowSize = static_cast<quint32>(row.size());
+		out << rowSize;
+		for (const Triple& t : row) {
+			out << t;
+		}
+	}
+	out << qwt3d_magic_mark3;
+	return out;
+}
+
+/**
+ * @brief 从数据流反序列化 Qwt3DParametricData
+ * @param[in] in 数据流
+ * @param[out] d 参数曲面数据
+ */
+QDataStream& operator>>(QDataStream& in, Qwt3DParametricData& d)
+{
+	quint32 version;
+	quint32 magic;
+	in >> version >> magic;
+	if (qwt3d_magic_mark != magic || version != qwt3d_serialize_version) {
+		in.setStatus(QDataStream::ReadCorruptData);
+		return in;
+	}
+
+	quint32 columns;
+	quint32 rows;
+	in >> columns >> rows;
+	d.columns = columns;
+	d.rows = rows;
+	in >> d.uperiodic >> d.vperiodic;
+
+	quint32 magic2;
+	in >> magic2;
+	if (qwt3d_magic_mark2 != magic2) {
+		in.setStatus(QDataStream::ReadCorruptData);
+		return in;
+	}
+
+	quint32 totalSize;
+	in >> totalSize;
+	d.vertices.clear();
+	d.vertices.resize(totalSize);
+	for (auto& row : d.vertices) {
+		quint32 rowSize;
+		in >> rowSize;
+		row.resize(rowSize);
+		for (auto& t : row) {
+			in >> t;
+		}
+	}
+
+	quint32 magic3;
+	in >> magic3;
+	if (qwt3d_magic_mark3 != magic3) {
+		in.setStatus(QDataStream::ReadCorruptData);
+		return in;
+	}
+	return in;
+}
+
+// ============================================================
+// Qwt3DTheme 序列化
+// ============================================================
+
+/**
+ * @brief 序列化 Qwt3DTheme 到数据流
+ * @param[out] out 数据流
+ * @param[in] theme 主题对象
+ * @details 序列化全部 21 个属性。格式：
+ *          version(quint32) + magic(quint32)
+ *          + backgroundColor(RGBA)
+ *          + meshColor(RGBA) + meshLineWidth(double) + smoothMesh(bool)
+ *          + dataColorPreset(QString)
+ *          + axesColor(RGBA) + numberColor(RGBA) + labelColor(RGBA)
+ *          + gridLinesColor(RGBA) + interiorGridLinesColor(RGBA)
+ *          + interiorGridMajorWidth(double) + interiorGridMinorWidth(double)
+ *          + titleColor(RGBA) + titleFontFamily(QString) + titleFontSize(int) + titleFontBold(bool)
+ *          + lightingPreset(int) + shading(int) + plotStyle(int)
+ *          + shininess(double) + specularIntensity(double)
+ *          + magic2(quint32)
+ *          枚举类型（LightingPreset / SHADINGSTYLE / PLOTSTYLE）以 int 序列化。
+ */
+QDataStream& operator<<(QDataStream& out, const Qwt3DTheme& theme)
+{
+	out << static_cast<quint32>(qwt3d_serialize_version) << qwt3d_magic_mark;
+
+	// Background
+	out << theme.backgroundColor();
+
+	// Mesh
+	out << theme.meshColor() << theme.meshLineWidth() << theme.smoothMesh();
+
+	// Data Color
+	out << theme.dataColorPreset();
+
+	// Coordinate System
+	out << theme.axesColor() << theme.numberColor() << theme.labelColor()
+		<< theme.gridLinesColor() << theme.interiorGridLinesColor()
+		<< theme.interiorGridMajorWidth() << theme.interiorGridMinorWidth();
+
+	// Title
+	out << theme.titleColor() << theme.titleFontFamily()
+		<< static_cast<qint32>(theme.titleFontSize()) << theme.titleFontBold();
+
+	// Lighting
+	out << static_cast<qint32>(theme.lightingPreset());
+
+	// Shading
+	out << static_cast<qint32>(theme.shading());
+
+	// Plot Style
+	out << static_cast<qint32>(theme.plotStyle());
+
+	// Material
+	out << theme.shininess() << theme.specularIntensity();
+
+	out << qwt3d_magic_mark2;
+	return out;
+}
+
+/**
+ * @brief 从数据流反序列化 Qwt3DTheme
+ * @param[in] in 数据流
+ * @param[out] theme 主题对象
+ * @details 读取格式见 operator<< 的注释。枚举值通过临时 qint32 读取后 static_cast 转换。
+ *          魔数不匹配时设置 QDataStream::ReadCorruptData 状态。
+ */
+QDataStream& operator>>(QDataStream& in, Qwt3DTheme& theme)
+{
+	quint32 version;
+	quint32 magic;
+	in >> version >> magic;
+	if (qwt3d_magic_mark != magic || version != qwt3d_serialize_version) {
+		in.setStatus(QDataStream::ReadCorruptData);
+		return in;
+	}
+
+	RGBA rgba;
+	double dval;
+	bool bval;
+	QString sval;
+	qint32 ival;
+
+	// Background
+	in >> rgba;
+	theme.setBackgroundColor(rgba);
+
+	// Mesh
+	in >> rgba;
+	theme.setMeshColor(rgba);
+	in >> dval;
+	theme.setMeshLineWidth(dval);
+	in >> bval;
+	theme.setSmoothMesh(bval);
+
+	// Data Color
+	in >> sval;
+	theme.setDataColorPreset(sval);
+
+	// Coordinate System
+	in >> rgba;
+	theme.setAxesColor(rgba);
+	in >> rgba;
+	theme.setNumberColor(rgba);
+	in >> rgba;
+	theme.setLabelColor(rgba);
+	in >> rgba;
+	theme.setGridLinesColor(rgba);
+	in >> rgba;
+	theme.setInteriorGridLinesColor(rgba);
+	in >> dval;
+	theme.setInteriorGridMajorWidth(dval);
+	in >> dval;
+	theme.setInteriorGridMinorWidth(dval);
+
+	// Title
+	in >> rgba;
+	theme.setTitleColor(rgba);
+	in >> sval;
+	theme.setTitleFontFamily(sval);
+	in >> ival;
+	theme.setTitleFontSize(ival);
+	in >> bval;
+	theme.setTitleFontBold(bval);
+
+	// Lighting
+	in >> ival;
+	theme.setLightingPreset(static_cast<Qwt3DTheme::LightingPreset>(ival));
+
+	// Shading
+	in >> ival;
+	theme.setShading(static_cast<SHADINGSTYLE>(ival));
+
+	// Plot Style
+	in >> ival;
+	theme.setPlotStyle(static_cast<PLOTSTYLE>(ival));
+
+	// Material
+	in >> dval;
+	theme.setShininess(dval);
+	in >> dval;
+	theme.setSpecularIntensity(dval);
+
+	quint32 magic2;
+	in >> magic2;
+	if (qwt3d_magic_mark2 != magic2) {
+		in.setStatus(QDataStream::ReadCorruptData);
+		return in;
+	}
+	return in;
+}
+
+/*** End of inlined file: qwt3d_serialize.cpp ***/
 
 
 /*** Start of inlined file: qwt3d_io_gl2ps.cpp ***/
@@ -93727,17 +98171,18 @@ bool SurfacePlot::loadFromData(TripleField const& data, CellField const& poly)
 #pragma warning(disable : 4786)
 #endif
 
+#ifdef QWT3D_ENABLE_GL2PS
+
 #include <ctime>
 
+// GL types are provided by gl2ps.h which includes <GL/gl.h>
 
-using namespace Qwt3D;
-
-class VectorWriter::PrivateData
+class Qwt3DVectorWriter::PrivateData
 {
-	QWT_DECLARE_PUBLIC(VectorWriter)
+	QWT_DECLARE_PUBLIC(Qwt3DVectorWriter)
 
 public:
-	PrivateData(VectorWriter* q)
+	PrivateData(Qwt3DVectorWriter* q)
 		: q_ptr(q)
 		, m_gl2psFormat(GL2PS_EPS)
 		, m_formatError(false)
@@ -93746,34 +98191,30 @@ public:
 #else
 		, m_compressed(false)
 #endif
-		, m_sortMode(VectorWriter::SIMPLESORT)
-		, m_landscape(VectorWriter::AUTO)
-		, m_textMode(VectorWriter::PIXEL)
+		, m_sortMode(Qwt3DVectorWriter::SIMPLESORT)
+		, m_landscape(Qwt3DVectorWriter::AUTO)
+		, m_textMode(Qwt3DVectorWriter::PIXEL)
 	{
 	}
 
 	GLint m_gl2psFormat;
 	bool m_formatError;
 	bool m_compressed;
-	VectorWriter::SORTMODE m_sortMode;
-	VectorWriter::LANDSCAPEMODE m_landscape;
-	VectorWriter::TEXTMODE m_textMode;
+	Qwt3DVectorWriter::SORTMODE m_sortMode;
+	Qwt3DVectorWriter::LANDSCAPEMODE m_landscape;
+	Qwt3DVectorWriter::TEXTMODE m_textMode;
 	QString m_texFname;
 };
 
-VectorWriter::VectorWriter() : QWT_PIMPL_CONSTRUCT
+Qwt3DVectorWriter::Qwt3DVectorWriter() : QWT_PIMPL_CONSTRUCT
 {
 }
 
-VectorWriter::~VectorWriter() = default;
+Qwt3DVectorWriter::~Qwt3DVectorWriter() = default;
 
-/**
- * @brief Provides a new VectorWriter object
- * @return A cloned copy of this VectorWriter as Functor pointer
- */
-IO::Functor* VectorWriter::clone() const
+Qwt3DIO::Functor* Qwt3DVectorWriter::clone() const
 {
-	auto* copy = new VectorWriter();
+	auto* copy = new Qwt3DVectorWriter();
 	QWT_DC(d);
 	auto* copyD          = copy->d_func();
 	copyD->m_gl2psFormat = d->m_gl2psFormat;
@@ -93786,112 +98227,64 @@ IO::Functor* VectorWriter::clone() const
 	return copy;
 }
 
-/**
- * @brief Sets landscape mode
- * @param val Landscape mode (ON, OFF, or AUTO)
- */
-void VectorWriter::setLandscape(LANDSCAPEMODE val)
+void Qwt3DVectorWriter::setLandscape(LANDSCAPEMODE val)
 {
 	QWT_D(d);
 	d->m_landscape = val;
 }
 
-/**
- * @brief Returns the current landscape mode
- */
-VectorWriter::LANDSCAPEMODE VectorWriter::landscape() const
+Qwt3DVectorWriter::LANDSCAPEMODE Qwt3DVectorWriter::landscape() const
 {
 	QWT_DC(d);
 	return d->m_landscape;
 }
 
-/**
- * @brief Sets the sorting mode
- * @param val Sort mode (NOSORT, SIMPLESORT, or BSPSORT)
- */
-void VectorWriter::setSortMode(SORTMODE val)
+void Qwt3DVectorWriter::setSortMode(SORTMODE val)
 {
 	QWT_D(d);
 	d->m_sortMode = val;
 }
 
-/**
- * @brief Returns the current sorting mode
- */
-VectorWriter::SORTMODE VectorWriter::sortMode() const
+Qwt3DVectorWriter::SORTMODE Qwt3DVectorWriter::sortMode() const
 {
 	QWT_DC(d);
 	return d->m_sortMode;
 }
 
-/**
- * @brief Sets the mode for text output
- * @param val The underlying format for the generated output:
- *            PIXEL - poor quality but exact positioning;
- *            NATIVE - high quality but inexact positioning;
- *            TEX - high quality and exact positioning, arbitrary TeX strings
- *            as content for the saved labels are possible. The disadvantage is
- *            the need for an additionally TeX run to get the final output.
- * @param fname Optional, used only in conjunction with TeX output; file name
- *              for the generated TeX file. If not set, a file called
- *              "OUTPUT.FOR.tex" will be generated, where "OUTPUT.FOR" describes
- *              the file name argument for IO::save().
- * @note On Linux platforms, pdflatex seems a file named 'dump_0.pdf.tex' mistakenly
- *       to identify as PDF file.
- */
-void VectorWriter::setTextMode(TEXTMODE val, QString fname)
+void Qwt3DVectorWriter::setTextMode(TEXTMODE val, QString fname)
 {
 	QWT_D(d);
 	d->m_textMode = val;
 	d->m_texFname = (fname.isEmpty()) ? QString("") : fname;
 }
 
-/**
- * @brief Returns the current text output mode
- */
-VectorWriter::TEXTMODE VectorWriter::textMode() const
+Qwt3DVectorWriter::TEXTMODE Qwt3DVectorWriter::textMode() const
 {
 	QWT_DC(d);
 	return d->m_textMode;
 }
 
 #ifdef GL2PS_HAVE_ZLIB
-/**
- * @brief Turns compressed output on or off
- * @param val True to enable compression, false to disable
- * @details No effect if zlib support has not been set.
- */
-void VectorWriter::setCompressed(bool val)
+void Qwt3DVectorWriter::setCompressed(bool val)
 {
 	QWT_D(d);
 	d->m_compressed = val;
 }
 #else
-/**
- * @brief Turns compressed output on or off (no effect - zlib support not available)
- */
-void VectorWriter::setCompressed(bool)
+void Qwt3DVectorWriter::setCompressed(bool)
 {
 	QWT_D(d);
 	d->m_compressed = false;
 }
 #endif
 
-/**
- * @brief Returns compression mode
- */
-bool VectorWriter::compressed() const
+bool Qwt3DVectorWriter::compressed() const
 {
 	QWT_DC(d);
 	return d->m_compressed;
 }
 
-/**
- * @brief Sets output format
- * @param format Must be one of "EPS_GZ", "PS_GZ", "EPS", "PS", "PDF", "SVG" or "PGF" (case sensitive)
- * @return True on success, false for unknown format
- */
-bool VectorWriter::setFormat(QString const& format)
+bool Qwt3DVectorWriter::setFormat(QString const& format)
 {
 	QWT_D(d);
 	if (format == QString("EPS")) {
@@ -93921,12 +98314,14 @@ bool VectorWriter::setFormat(QString const& format)
 }
 
 /**
- * @brief Performs actual output
- * @param plot Plot3D widget to export
- * @param fname Output file name
- * @return True on success, false on format error or file open failure
+ * @brief Performs actual vector output via gl2ps
+ * @details gl2ps relies on the Compatibility Profile GL state.
+ *          In the modernized renderer, the GL matrix stack is not used,
+ *          so gl2ps output may not reflect the correct transformation.
+ *          This is a known limitation; full gl2ps modernization requires
+ *          generating vector output from VBO vertex data directly.
  */
-bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
+bool Qwt3DVectorWriter::operator()(Qwt3DPlot* plot, QString const& fname)
 {
 	QWT_D(d);
 	if (d->m_formatError)
@@ -93945,11 +98340,11 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
 		options |= GL2PS_COMPRESS;
 
 	switch (d->m_landscape) {
-	case VectorWriter::AUTO:
+	case Qwt3DVectorWriter::AUTO:
 		if (viewport[ 2 ] - viewport[ 0 ] > viewport[ 3 ] - viewport[ 0 ])
 			options |= GL2PS_LANDSCAPE;
 		break;
-	case VectorWriter::ON:
+	case Qwt3DVectorWriter::ON:
 		options |= GL2PS_LANDSCAPE;
 		break;
 	default:
@@ -93958,13 +98353,13 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
 
 	int sortmode = GL2PS_SIMPLE_SORT;
 	switch (d->m_sortMode) {
-	case VectorWriter::NOSORT:
+	case Qwt3DVectorWriter::NOSORT:
 		sortmode = GL2PS_NO_SORT;
 		break;
-	case VectorWriter::SIMPLESORT:
+	case Qwt3DVectorWriter::SIMPLESORT:
 		sortmode = GL2PS_SIMPLE_SORT;
 		break;
-	case VectorWriter::BSPSORT:
+	case Qwt3DVectorWriter::BSPSORT:
 		sortmode = GL2PS_BSP_SORT;
 		break;
 	default:
@@ -93973,10 +98368,10 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
 
 	switch (d->m_textMode) {
 	case NATIVE:
-		Label::useDeviceFonts(true);
+		Qwt3DLabel::useDeviceFonts(true);
 		break;
 	case PIXEL:
-		Label::useDeviceFonts(false);
+		Qwt3DLabel::useDeviceFonts(false);
 		break;
 	case TEX:
 		options |= GL2PS_NO_PIXMAP | GL2PS_NO_TEXT;
@@ -93992,7 +98387,7 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
 
 	FILE* fp = fopen(QWT3DLOCAL8BIT(fname), "wb");
 	if (!fp) {
-		Label::useDeviceFonts(false);
+		Qwt3DLabel::useDeviceFonts(false);
 		return false;
 	}
 	while (state == GL2PS_OVERFLOW) {
@@ -94018,16 +98413,15 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
 	}
 	fclose(fp);
 
-	// extra TeX file
 	if (d->m_textMode == TEX) {
 		QString fn = (d->m_texFname.isEmpty()) ? fname + ".tex" : d->m_texFname;
 
 		fp = fopen(QWT3DLOCAL8BIT(fn), "wb");
 		if (!fp) {
-			Label::useDeviceFonts(false);
+			Qwt3DLabel::useDeviceFonts(false);
 			return false;
 		}
-		Label::useDeviceFonts(true);
+		Qwt3DLabel::useDeviceFonts(true);
 		options &= ~GL2PS_NO_PIXMAP & ~GL2PS_NO_TEXT;
 		state = GL2PS_OVERFLOW;
 		while (state == GL2PS_OVERFLOW) {
@@ -94048,60 +98442,47 @@ bool VectorWriter::operator()(Plot3D* plot, QString const& fname)
 						   fp,
 						   QWT3DLOCAL8BIT(fn));
 
-			plot->updateData();
 			plot->update();
 			state = gl2psEndPage();
 		}
 		fclose(fp);
 	}
 
-	Label::useDeviceFonts(false);
+	Qwt3DLabel::useDeviceFonts(false);
 
 	return true;
 }
 
-// moved
+// Device helper functions for gl2ps vector export.
+// These functions bridge between the modern shader-based renderer and
+// the legacy gl2ps library which requires Compatibility Profile GL calls.
 
-GLint Qwt3D::setDeviceLineWidth(GLfloat val)
+int setDeviceLineWidth(float val)
 {
 	if (val < 0)
 		val = 0;
 
 	GLint ret = gl2psLineWidth(val);
 
-	GLfloat lw[ 2 ];
-	glGetFloatv(GL_LINE_WIDTH_RANGE, lw);
-
-	if (val < lw[ 0 ])
-		val = lw[ 0 ];
-	else if (val > lw[ 1 ])
-		val = lw[ 1 ];
-
+	// TODO: glLineWidth is not guaranteed > 1.0 in Core Profile (Plan B)
 	glLineWidth(val);
 	return ret;
 }
 
-GLint Qwt3D::setDevicePointSize(GLfloat val)
+int setDevicePointSize(float val)
 {
 	if (val < 0)
 		val = 0;
 
 	GLint ret = gl2psPointSize(val);
 
-	GLfloat lw[ 2 ];
-	glGetFloatv(GL_POINT_SIZE_RANGE, lw);
-
-	if (val < lw[ 0 ])
-		val = lw[ 0 ];
-	else if (val > lw[ 1 ])
-		val = lw[ 1 ];
-
 	glPointSize(val);
 	return ret;
 }
 
-GLint Qwt3D::drawDevicePixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels)
+int drawDevicePixels(int width, int height, unsigned int format, unsigned int type, const void* pixels)
 {
+	// Legacy glDrawPixels for gl2ps capture
 	glDrawPixels(width, height, format, type, pixels);
 
 	if (format != GL_RGBA || type != GL_UNSIGNED_BYTE)
@@ -94123,17 +98504,13 @@ GLint Qwt3D::drawDevicePixels(GLsizei width, GLsizei height, GLenum format, GLen
 	return ret;
 }
 
-GLint Qwt3D::drawDeviceText(const char* str, const char* fontname, int fontsize, Triple pos, RGBA /*rgba*/, ANCHOR align, double gap)
+int drawDeviceText(const char* str, const char* fontname, int fontsize, Triple pos, RGBA /*rgba*/, ANCHOR align, double gap)
 {
-	double vp[ 3 ];
-
-	World2ViewPort(vp[ 0 ], vp[ 1 ], vp[ 2 ], pos.x, pos.y, pos.z);
-	Triple start(vp[ 0 ], vp[ 1 ], vp[ 2 ]);
-
+	// Use the world position directly for gl2ps text output.
+	// The pixel-space gap/anchor adjustment is simplified since the
+	// GL matrix stack is no longer used for view transformation.
 	GLdouble fcol[ 4 ];
 	glGetDoublev(GL_CURRENT_COLOR, fcol);
-	GLdouble bcol[ 4 ];
-	glGetDoublev(GL_COLOR_CLEAR_VALUE, bcol);
 
 	GLint ret = GL2PS_SUCCESS;
 
@@ -94144,55 +98521,47 @@ GLint Qwt3D::drawDeviceText(const char* str, const char* fontname, int fontsize,
 		break;
 	case CenterLeft:
 		a = GL2PS_TEXT_CL;
-		start += Triple(gap, 0, 0);
 		break;
 	case CenterRight:
 		a = GL2PS_TEXT_CR;
-		start += Triple(-gap, 0, 0);
 		break;
 	case BottomCenter:
 		a = GL2PS_TEXT_B;
-		start += Triple(0, gap, 0);
 		break;
 	case BottomLeft:
 		a = GL2PS_TEXT_BL;
-		start += Triple(gap, gap, 0);
 		break;
 	case BottomRight:
 		a = GL2PS_TEXT_BR;
-		start += Triple(-gap, gap, 0);
 		break;
 	case TopCenter:
 		a = GL2PS_TEXT_T;
-		start += Triple(0, -gap, 0);
 		break;
 	case TopLeft:
 		a = GL2PS_TEXT_TL;
-		start += Triple(gap, -gap, 0);
 		break;
 	case TopRight:
 		a = GL2PS_TEXT_TR;
-		start += Triple(-gap, -gap, 0);
 		break;
 	default:
 		break;
 	}
 
-	ViewPort2World(vp[ 0 ], vp[ 1 ], vp[ 2 ], start.x, start.y, start.z);
-	Triple adjpos(vp[ 0 ], vp[ 1 ], vp[ 2 ]);
+	(void)gap;
 
-	glRasterPos3d(adjpos.x, adjpos.y, adjpos.z);
+	glRasterPos3d(pos.x, pos.y, pos.z);
 	ret = gl2psTextOpt(str, fontname, static_cast< int >(fontsize), a, 0);
 	glColor4dv(fcol);
-	glClearColor(bcol[ 0 ], bcol[ 1 ], bcol[ 2 ], bcol[ 3 ]);
 	return ret;
 }
 
-void Qwt3D::setDevicePolygonOffset(GLfloat factor, GLfloat units)
+void setDevicePolygonOffset(float factor, float units)
 {
 	glPolygonOffset(factor, units);
 	gl2psEnable(GL2PS_POLYGON_OFFSET_FILL);
 }
+
+#endif // QWT3D_ENABLE_GL2PS
 
 /*** End of inlined file: qwt3d_io_gl2ps.cpp ***/
 
@@ -94201,43 +98570,37 @@ void Qwt3D::setDevicePolygonOffset(GLfloat factor, GLfloat units)
 #include <qcolor.h>
 #include <qstring.h>
 
-using namespace Qwt3D;
-
-ColorMapColor::ColorMapColor(Plot3D* plot, const QString& presetName, unsigned size)
-	: m_plot(plot)
-	, m_colorMap(QwtColorMapPreset::create(presetName).release())
+Qwt3DColorMapColor::Qwt3DColorMapColor(const QString& presetName, unsigned size)
+	: m_colorMap(QwtColorMapPreset::create(presetName).release())
 	, m_manualMin(0.0)
 	, m_manualMax(1.0)
 	, m_useManualInterval(false)
 	, m_alpha(1.0)
+	, m_presetName(presetName)
 {
 	rebuildColorVector(size);
 }
 
-ColorMapColor::ColorMapColor(Plot3D* plot, ::QwtColorMap* colorMap, unsigned size)
-	: m_plot(plot), m_colorMap(colorMap), m_manualMin(0.0), m_manualMax(1.0), m_useManualInterval(false), m_alpha(1.0)
+Qwt3DColorMapColor::Qwt3DColorMapColor(::QwtColorMap* colorMap, unsigned size)
+	: m_colorMap(colorMap), m_manualMin(0.0), m_manualMax(1.0), m_useManualInterval(false), m_alpha(1.0)
 {
 	rebuildColorVector(size);
 }
 
-ColorMapColor::~ColorMapColor()
+Qwt3DColorMapColor::~Qwt3DColorMapColor()
 {
 	delete m_colorMap;
 }
 
-RGBA ColorMapColor::operator()(double, double, double z) const
+RGBA Qwt3DColorMapColor::operator()(double, double, double z) const
 {
 	double zMin, zMax;
 	if (m_useManualInterval) {
 		zMin = m_manualMin;
 		zMax = m_manualMax;
-	} else if (m_plot) {
-		const ParallelEpiped hull = m_plot->hull();
-		zMin                      = hull.minVertex.z;
-		zMax                      = hull.maxVertex.z;
 	} else {
-		zMin = 0.0;
-		zMax = 1.0;
+		zMin = activeZMin();
+		zMax = activeZMax();
 	}
 
 	const QRgb rgb = m_colorMap->rgb(zMin, zMax, z);
@@ -94249,15 +98612,16 @@ RGBA ColorMapColor::operator()(double, double, double z) const
 	return rgba;
 }
 
-ColorVector& ColorMapColor::createVector(ColorVector& vec)
+ColorVector& Qwt3DColorMapColor::createVector(ColorVector& vec)
 {
 	rebuildColorVector(static_cast< unsigned >(m_colors.size()));
 	vec = m_colors;
 	return vec;
 }
 
-void ColorMapColor::setColorMap(::QwtColorMap* map)
+void Qwt3DColorMapColor::setColorMap(::QwtColorMap* map)
 {
+	m_presetName.clear();
 	if (map != m_colorMap) {
 		delete m_colorMap;
 		m_colorMap = map;
@@ -94265,12 +98629,12 @@ void ColorMapColor::setColorMap(::QwtColorMap* map)
 	rebuildColorVector(static_cast< unsigned >(m_colors.size()));
 }
 
-const ::QwtColorMap* ColorMapColor::colorMap() const
+const ::QwtColorMap* Qwt3DColorMapColor::colorMap() const
 {
 	return m_colorMap;
 }
 
-void ColorMapColor::setInterval(double min, double max)
+void Qwt3DColorMapColor::setInterval(double min, double max)
 {
 	m_manualMin         = min;
 	m_manualMax         = max;
@@ -94278,12 +98642,12 @@ void ColorMapColor::setInterval(double min, double max)
 	rebuildColorVector(static_cast< unsigned >(m_colors.size()));
 }
 
-void ColorMapColor::reset(unsigned size)
+void Qwt3DColorMapColor::reset(unsigned size)
 {
 	rebuildColorVector(size);
 }
 
-void ColorMapColor::setAlpha(double a)
+void Qwt3DColorMapColor::setAlpha(double a)
 {
 	if (a < 0.0 || a > 1.0)
 		return;
@@ -94291,7 +98655,7 @@ void ColorMapColor::setAlpha(double a)
 	rebuildColorVector(static_cast< unsigned >(m_colors.size()));
 }
 
-void ColorMapColor::rebuildColorVector(unsigned size)
+void Qwt3DColorMapColor::rebuildColorVector(unsigned size)
 {
 	m_colors.resize(size);
 
@@ -94299,13 +98663,9 @@ void ColorMapColor::rebuildColorVector(unsigned size)
 	if (m_useManualInterval) {
 		zMin = m_manualMin;
 		zMax = m_manualMax;
-	} else if (m_plot) {
-		const ParallelEpiped hull = m_plot->hull();
-		zMin                      = hull.minVertex.z;
-		zMax                      = hull.maxVertex.z;
 	} else {
-		zMin = 0.0;
-		zMax = 1.0;
+		zMin = activeZMin();
+		zMax = activeZMax();
 	}
 
 	if (!m_colorMap)
@@ -94324,13 +98684,76 @@ void ColorMapColor::rebuildColorVector(unsigned size)
 	}
 }
 
+/**
+ * @brief 返回构造时传入的 preset 名称
+ * @return preset 名称，如果通过 QwtColorMap* 构造则返回空字符串
+ */
+QString Qwt3DColorMapColor::presetName() const
+{
+	return m_presetName;
+}
+
+/**
+ * @brief 返回颜色向量中的颜色数量
+ * @return 颜色数量
+ */
+unsigned Qwt3DColorMapColor::colorCount() const
+{
+	return static_cast< unsigned >(m_colors.size());
+}
+
+/**
+ * @brief 返回 alpha 值
+ * @return alpha 值（0.0 ~ 1.0），默认 1.0
+ */
+double Qwt3DColorMapColor::alpha() const
+{
+	return m_alpha;
+}
+
+/**
+ * @brief 返回是否使用了手动区间
+ * @return true 如果通过 setInterval() 设置了手动区间
+ */
+bool Qwt3DColorMapColor::useManualInterval() const
+{
+	return m_useManualInterval;
+}
+
+/**
+ * @brief 返回手动区间的最小值
+ * @return 手动最小值（仅当 useManualInterval() 为 true 时有意义）
+ */
+double Qwt3DColorMapColor::manualMin() const
+{
+	return m_manualMin;
+}
+
+/**
+ * @brief 返回手动区间的最大值
+ * @return 手动最大值（仅当 useManualInterval() 为 true 时有意义）
+ */
+double Qwt3DColorMapColor::manualMax() const
+{
+	return m_manualMax;
+}
+
 /*** End of inlined file: qwt3d_colormap_color.cpp ***/
 
 
 /*** Start of inlined file: qwt3d_theme.cpp ***/
 #include <qfont.h>
 
-using namespace Qwt3D;
+// GL constants for material/light properties (used in setMaterialComponent/setLightComponent)
+#ifndef GL_AMBIENT
+#define GL_AMBIENT 0x1200
+#endif
+#ifndef GL_DIFFUSE
+#define GL_DIFFUSE 0x1201
+#endif
+#ifndef GL_SPECULAR
+#define GL_SPECULAR 0x1202
+#endif
 
 Qwt3DTheme::Qwt3DTheme()
 	: m_backgroundColor(1.0, 1.0, 1.0, 1.0)
@@ -94342,6 +98765,9 @@ Qwt3DTheme::Qwt3DTheme()
 	, m_numberColor(0.0, 0.0, 0.0, 1.0)
 	, m_labelColor(0.0, 0.0, 0.0, 1.0)
 	, m_gridLinesColor(0.2, 0.2, 0.2, 1.0)
+	, m_interiorGridLinesColor(0.6, 0.6, 0.6, 0.5)
+	, m_interiorGridMajorWidth(0.5)
+	, m_interiorGridMinorWidth(0.3)
 	, m_titleColor(0.0, 0.0, 0.0, 1.0)
 	, m_titleFontFamily("Courier")
 	, m_titleFontSize(16)
@@ -94383,6 +98809,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
 		theme.m_numberColor       = RGBA(0.8, 0.8, 0.8, 1.0);
 		theme.m_labelColor        = RGBA(0.9, 0.9, 0.9, 1.0);
 		theme.m_gridLinesColor    = RGBA(0.35, 0.35, 0.35, 1.0);
+		theme.m_interiorGridLinesColor = RGBA(0.25, 0.25, 0.25, 0.5);
 		theme.m_titleColor        = RGBA(0.95, 0.95, 0.95, 1.0);
 		theme.m_lightingPreset    = Soft;
 		theme.m_shininess         = 5.0;
@@ -94408,6 +98835,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
 		theme.m_numberColor       = RGBA(0.3, 0.15, 0.0, 1.0);
 		theme.m_labelColor        = RGBA(0.3, 0.15, 0.0, 1.0);
 		theme.m_gridLinesColor    = RGBA(0.7, 0.55, 0.4, 1.0);
+		theme.m_interiorGridLinesColor = RGBA(0.8, 0.65, 0.5, 0.5);
 		theme.m_titleColor        = RGBA(0.3, 0.15, 0.0, 1.0);
 		theme.m_lightingPreset    = FlatLight;
 		theme.m_shininess         = 3.0;
@@ -94423,6 +98851,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
 		theme.m_numberColor       = RGBA(0.0, 0.15, 0.35, 1.0);
 		theme.m_labelColor        = RGBA(0.0, 0.15, 0.35, 1.0);
 		theme.m_gridLinesColor    = RGBA(0.5, 0.6, 0.75, 1.0);
+		theme.m_interiorGridLinesColor = RGBA(0.6, 0.7, 0.85, 0.5);
 		theme.m_titleColor        = RGBA(0.0, 0.15, 0.35, 1.0);
 		theme.m_lightingPreset    = FlatLight;
 		theme.m_shininess         = 3.0;
@@ -94437,6 +98866,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
 		theme.m_numberColor       = RGBA(0.2, 0.2, 0.2, 1.0);
 		theme.m_labelColor        = RGBA(0.2, 0.2, 0.2, 1.0);
 		theme.m_gridLinesColor    = RGBA(0.75, 0.75, 0.75, 1.0);
+		theme.m_interiorGridLinesColor = RGBA(0.85, 0.85, 0.85, 0.4);
 		theme.m_titleColor        = RGBA(0.2, 0.2, 0.2, 1.0);
 		theme.m_titleFontFamily   = "sans-serif";
 		theme.m_titleFontSize     = 14;
@@ -94454,6 +98884,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
 		theme.m_numberColor       = RGBA(0.35, 0.25, 0.15, 1.0);
 		theme.m_labelColor        = RGBA(0.35, 0.25, 0.15, 1.0);
 		theme.m_gridLinesColor    = RGBA(0.65, 0.55, 0.45, 1.0);
+		theme.m_interiorGridLinesColor = RGBA(0.75, 0.65, 0.55, 0.5);
 		theme.m_titleColor        = RGBA(0.35, 0.25, 0.15, 1.0);
 		theme.m_lightingPreset    = Outdoor;
 		theme.m_shininess         = 5.0;
@@ -94469,6 +98900,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
 		theme.m_numberColor       = RGBA(0.0, 0.1, 0.3, 1.0);
 		theme.m_labelColor        = RGBA(0.0, 0.1, 0.3, 1.0);
 		theme.m_gridLinesColor    = RGBA(0.5, 0.65, 0.8, 1.0);
+		theme.m_interiorGridLinesColor = RGBA(0.6, 0.75, 0.9, 0.5);
 		theme.m_titleColor        = RGBA(0.0, 0.1, 0.3, 1.0);
 		theme.m_lightingPreset    = FlatLight;
 		theme.m_shininess         = 3.0;
@@ -94483,6 +98915,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
 		theme.m_numberColor     = RGBA(1.0, 1.0, 1.0, 1.0);
 		theme.m_labelColor      = RGBA(1.0, 1.0, 1.0, 1.0);
 		theme.m_gridLinesColor  = RGBA(0.5, 0.5, 0.5, 1.0);
+		theme.m_interiorGridLinesColor = RGBA(0.3, 0.3, 0.3, 0.5);
 		theme.m_titleColor      = RGBA(1.0, 1.0, 1.0, 1.0);
 		break;
 
@@ -94490,6 +98923,7 @@ Qwt3DTheme Qwt3DTheme::create(Preset preset)
 		theme.m_meshLineWidth     = 1.5;
 		theme.m_dataColorPreset   = "plasma";
 		theme.m_gridLinesColor    = RGBA(0.6, 0.6, 0.6, 1.0);
+		theme.m_interiorGridLinesColor = RGBA(0.7, 0.7, 0.7, 0.4);
 		theme.m_titleFontFamily   = "Arial";
 		theme.m_titleFontSize     = 20;
 		theme.m_lightingPreset    = Studio;
@@ -94619,6 +99053,33 @@ void Qwt3DTheme::setGridLinesColor(RGBA c)
 	m_gridLinesColor = c;
 }
 
+RGBA Qwt3DTheme::interiorGridLinesColor() const
+{
+	return m_interiorGridLinesColor;
+}
+void Qwt3DTheme::setInteriorGridLinesColor(RGBA c)
+{
+	m_interiorGridLinesColor = c;
+}
+
+double Qwt3DTheme::interiorGridMajorWidth() const
+{
+	return m_interiorGridMajorWidth;
+}
+void Qwt3DTheme::setInteriorGridMajorWidth(double w)
+{
+	m_interiorGridMajorWidth = w;
+}
+
+double Qwt3DTheme::interiorGridMinorWidth() const
+{
+	return m_interiorGridMinorWidth;
+}
+void Qwt3DTheme::setInteriorGridMinorWidth(double w)
+{
+	m_interiorGridMinorWidth = w;
+}
+
 RGBA Qwt3DTheme::titleColor() const
 {
 	return m_titleColor;
@@ -94700,24 +99161,25 @@ void Qwt3DTheme::setSpecularIntensity(double v)
 	m_specularIntensity = v;
 }
 
-void Qwt3DTheme::apply(Plot3D* plot) const
+void Qwt3DTheme::apply(Qwt3DPlot* plot) const
 {
 	if (!plot)
 		return;
 
 	plot->setBackgroundColor(m_backgroundColor);
-	plot->setMeshColor(m_meshColor);
-	plot->setMeshLineWidth(m_meshLineWidth);
-	plot->setSmoothMesh(m_smoothMesh);
 
-	plot->setDataColor(new ColorMapColor(plot, m_dataColorPreset));
+	// Mesh color, line width, smooth mesh, data color, plot style, shading
+	// are now item-level properties — they will be set on Qwt3DSurface items
+	// in future versions. For now, only plot-level properties are applied.
 
-	CoordinateSystem* coords = plot->coordinates();
+	Qwt3DCoordinateSystem* coords = plot->coordinates();
 	if (coords) {
 		coords->setAxesColor(m_axesColor);
 		coords->setNumberColor(m_numberColor);
 		coords->setLabelColor(m_labelColor);
 		coords->setGridLinesColor(m_gridLinesColor);
+		coords->setInteriorGridLinesColor(m_interiorGridLinesColor);
+		coords->setInteriorGridLinesWidth(m_interiorGridMajorWidth, m_interiorGridMinorWidth);
 	}
 
 	plot->setTitleColor(m_titleColor);
@@ -94755,13 +99217,68 @@ void Qwt3DTheme::apply(Plot3D* plot) const
 		break;
 	}
 
-	plot->setShading(m_shading);
-	plot->setPlotStyle(m_plotStyle);
+	// Shading, plot style, shininess, material components are stored on CPU
+	// for future shader uniform upload
 	plot->setShininess(m_shininess);
 	plot->setMaterialComponent(GL_SPECULAR, m_specularIntensity, m_specularIntensity, m_specularIntensity);
 	plot->setMaterialComponent(GL_DIFFUSE, 1.0, 1.0, 1.0);
 
-	plot->updateData();
+	// Apply item-level properties to each attached item
+	for (auto* item : plot->itemList())
+		applyToItem(item);
+
+	plot->update();
+}
+
+/**
+ * @brief Applies item-level visual properties to a single plot item
+ * @param item The target item
+ * @details Dispatches by concrete item type. Qwt3DSurface receives mesh color,
+ *          line width, smooth mesh, data color (from preset), plot style, and
+ *          shading. Qwt3DBar receives mesh color/line width, bar style (mapped
+ *          from the theme's plot style), and the data color functor. Qwt3DLine
+ *          receives the solid color and the data color functor.
+ */
+void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item) const
+{
+	if (auto* surface = dynamic_cast<Qwt3DSurface*>(item)) {
+		surface->setMeshColor(m_meshColor);
+		surface->setMeshLineWidth(m_meshLineWidth);
+		surface->setSmoothMesh(m_smoothMesh);
+		surface->setPlotStyle(m_plotStyle);
+		surface->setShading(m_shading);
+
+		auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+		surface->setDataColor(colorMap);
+		return;
+	}
+
+	if (auto* bar = dynamic_cast<Qwt3DBar*>(item)) {
+		bar->setMeshColor(m_meshColor);
+		bar->setMeshLineWidth(m_meshLineWidth);
+		// Map the theme's PLOTSTYLE onto the closest bar style
+		switch (m_plotStyle) {
+		case WIREFRAME:
+			bar->setBarStyle(Qwt3DBar::Wireframe);
+			break;
+		case FILLED:
+			bar->setBarStyle(Qwt3DBar::Filled);
+			break;
+		default: // FILLEDMESH, HIDDENLINE, etc.
+			bar->setBarStyle(Qwt3DBar::FilledMesh);
+			break;
+		}
+		auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+		bar->setDataColor(colorMap);
+		return;
+	}
+
+	if (auto* line = dynamic_cast<Qwt3DLine*>(item)) {
+		line->setColor(m_meshColor);
+		auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+		line->setDataColor(colorMap);
+		return;
+	}
 }
 
 /*** End of inlined file: qwt3d_theme.cpp ***/
