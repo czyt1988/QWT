@@ -1,5 +1,5 @@
 # qwt core
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 set(QWTCORE_LIB_NAME "core")
 set(QWTCORE_LIB_DESCRIPTION "QWT | Core color and palette utilities")

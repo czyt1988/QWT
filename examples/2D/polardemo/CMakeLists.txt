@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.5)
+﻿cmake_minimum_required(VERSION 3.10)
 SET(VERSION_SHORT 0.1)
 SET(QWT_APP_NAME polardemo)
 project(${QWT_APP_NAME} VERSION ${VERSION_SHORT})

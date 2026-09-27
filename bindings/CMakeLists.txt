@@ -3,7 +3,7 @@
 # Each module (core, plot, plot3d) has its own subdirectory with its own
 # CMakeLists.txt, global.h, and typesystem XML.
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 # ---- Dependencies -----------------------------------------------------------
 # Qt6 must already be found by the top-level CMakeLists.txt (find_package(QT NAMES Qt6 ...)).
