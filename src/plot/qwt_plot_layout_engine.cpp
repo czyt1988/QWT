@@ -211,8 +211,17 @@ void QwtPlotLayoutEngine::LayoutData::ScaleData::init(const QwtScaleWidget* axis
     scaleWidget = axisWidget;
     scaleFont   = axisWidget->font();
 
-    start = axisWidget->startBorderDist();
-    end   = axisWidget->endBorderDist();
+    // The layout must place the axis using the same border distance that
+    // QwtScaleWidget::layoutScale() will later use for drawing the backbone:
+    // qMax( borderDistHint, borderDist ). Reading the stored borderDist only
+    // would lag one layout pass behind, leaving a gap at the axis corners
+    // on the first paint.
+    int hintStart = 0;
+    int hintEnd = 0;
+    axisWidget->getBorderDistHint(hintStart, hintEnd);
+
+    start = qMax(hintStart, axisWidget->startBorderDist());
+    end   = qMax(hintEnd, axisWidget->endBorderDist());
 
     baseLineOffset = axisWidget->margin();
     edgeMargin     = axisWidget->edgeMargin();

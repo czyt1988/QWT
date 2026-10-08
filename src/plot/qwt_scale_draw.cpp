@@ -695,16 +695,15 @@ QPointF QwtScaleDraw::pos() const
 void QwtScaleDraw::setLength(double length)
 {
     QWT_D(d);
-#if 0
-    if ( length >= 0 && length < 10 )
+
+    if (length >= 0 && length < 10)
         length = 10;
 
-    // why should we accept negative lengths ???
-    if ( length < 0 && length > -10 )
+    // Negative lengths are used intentionally ( f.e. QwtPolarGrid for
+    // left aligned scales ), so only clamp the range, but do not
+    // turn them into positive values.
+    if (length < 0 && length > -10)
         length = -10;
-#else
-    length = qwtMaxF(length, 10.0);
-#endif
 
     d->len = length;
     updateMap();

@@ -338,6 +338,16 @@ bool QwtPlot::event(QEvent* event)
         break;
     case QEvent::PolishRequest:
         replot();
+        /*
+           replot() only drains layout requests that have been posted before.
+           On the initial show often none is pending ( f.e. when the scale
+           division did not change since the widget was hidden ), so the
+           axis widgets would paint with the default geometry from the
+           constructor. Force a layout pass here, so the first paint
+           always happens with a layout calculated from the final
+           fonts and scale divisions.
+         */
+        updateLayout();
         topParasiteTriggerHostUpdateAxisMargins();
         break;
     default:;
@@ -792,13 +802,18 @@ void QwtPlot::doLayout()
             if (isAxisVisible(axisId)) {
 
                 QRect scaleRect = layout->scaleRect(axisId).toRect();
-                if (scaleRect != scaleWidget->geometry()) {
+                if (scaleRect != scaleWidget->geometry())
                     scaleWidget->setGeometry(scaleRect);
 
-                    int startDist = 0, endDist = 0;
-                    scaleWidget->getBorderDistHint(startDist, endDist);
-                    scaleWidget->setBorderDist(startDist, endDist);
-                }
+                /*
+                   Refresh the border distances even when the geometry did not
+                   change: tick label contents ( date formats, fonts ... ) can
+                   alter the hint without affecting the scale rect. Otherwise
+                   the backbone would be drawn with stale border distances.
+                 */
+                int startDist = 0, endDist = 0;
+                scaleWidget->getBorderDistHint(startDist, endDist);
+                scaleWidget->setBorderDist(startDist, endDist);
 
                 if (!scaleWidget->isVisibleTo(this))
                     scaleWidget->show();

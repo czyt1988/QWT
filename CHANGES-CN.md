@@ -1,3 +1,15 @@
+## Unreleased
+
+### Bug 修复
+
+- 修复绘图首次绘制时坐标轴轴线错位或不显示的问题 — 用户反馈的两个症状：x 轴最左边一小段没有画出来（x/y 轴线在左下角不相交，直到刷新坐标轴参数后才恢复），以及整条轴线在下次更新绘图前不可见。根因：布局用上一轮存储的 borderDist 摆放 scale widget，而轴线绘制用的是实时计算值；收敛所依赖的补偿性重布局由异步 `LayoutRequest` 驱动，在首次显示时序中经常缺失或迟到。本次修复让"摆放"与"绘制"在一轮布局内使用同一个 borderDist，并保证首帧绘制前一定完成一次布局：
+    - `QwtPlotLayoutEngine` 的 `LayoutData::ScaleData::init()` 改用 `qMax(getBorderDistHint(), borderDist)` —— 与 `QwtScaleWidget::layoutScale()` 绘制所用的值完全同源 —— 不再读取过期的存储值，从源头消除滞后一轮的问题
+    - `QwtPlot::doLayout()` 在 scale 矩形未变化时也刷新轴的 borderDist（刻度标签内容、格式或字体的变化会改变 hint 但不影响几何）
+    - `QwtPlot::event()` 在 `PolishRequest` 的 replot 之后执行一次 `updateLayout()`，保证首帧绘制总是使用以最终字体和刻度划分计算的布局（仅在首次显示多一次布局，稳态无额外开销）
+    - `QwtScaleWidget::changeEvent()` 处理 `FontChange`/`ApplicationFontChange`，并在 `LocaleChange` 时重排：字体变化不再导致 extent/borderDist 过期且不重绘
+    - `QwtScaleWidget::setMinBorderDist()` 与其它几何 setter 一致地重新计算布局（影响 `QwtPlot::alignAxisBorderDist()` 与 `QwtFigure::alignAxes()`）
+- 修复 `QwtScaleDraw::setLength()` 无条件把长度钳制到正的 10 的问题：它会把合法的负长度（`QwtPolarGrid` 左/上轴在用）静默变成 +10 并破坏极坐标网格渲染；已恢复 upstream 的钳制语义（小幅值钳到 ±10，更大的负值保留）
+
 ## tag:v7.4.1 (2026-09-11)
 
 ### 新功能

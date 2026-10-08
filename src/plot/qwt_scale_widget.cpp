@@ -701,8 +701,21 @@ QRect QwtScaleWidget::scaleRect() const
  */
 void QwtScaleWidget::changeEvent(QEvent* event)
 {
-    if (event->type() == QEvent::LocaleChange) {
+    switch (event->type()) {
+    case QEvent::LocaleChange: {
         m_data->scaleDraw->invalidateCache();
+        layoutScale();
+        break;
+    }
+    case QEvent::FontChange:
+    case QEvent::ApplicationFontChange: {
+        // Font changes affect the extent and the border distance hints,
+        // so the scale geometry has to be recalculated and repainted.
+        layoutScale();
+        break;
+    }
+    default:
+        break;
     }
 
     QWidget::changeEvent(event);
@@ -1228,8 +1241,15 @@ void QwtScaleWidget::getBorderDistHint(int& start, int& end) const
  */
 void QwtScaleWidget::setMinBorderDist(int start, int end)
 {
-    m_data->minBorderDist[ 0 ] = start;
-    m_data->minBorderDist[ 1 ] = end;
+    if (start != m_data->minBorderDist[ 0 ] || end != m_data->minBorderDist[ 1 ]) {
+        m_data->minBorderDist[ 0 ] = start;
+        m_data->minBorderDist[ 1 ] = end;
+
+        // The minimum border distance is part of the border distance hint,
+        // so the scale geometry has to be recalculated - like for all
+        // other geometry related setters.
+        layoutScale();
+    }
 }
 
 /**

@@ -1,3 +1,15 @@
+## Unreleased
+
+### Bug Fixes
+
+- Fixed axis backbones being misplaced or missing on the first paint of a plot — the two reported symptoms were a short segment missing at the left of the x axis (x/y backbones not intersecting at the corner, healing only after an axis parameter refresh) and a whole backbone invisible until the next plot update. Root cause: the layout placed the scale widgets using the border distance stored by the previous pass, while the backbone was drawn using the freshly computed one; the corrective relayout is driven by an asynchronous `LayoutRequest` that is regularly missing or late during the initial show sequence. The fix makes placement and drawing use the same border distance in a single pass and guarantees a layout pass before the first paint:
+    - `QwtPlotLayoutEngine` `LayoutData::ScaleData::init()` now uses `qMax(getBorderDistHint(), borderDist)` — the exact value `QwtScaleWidget::layoutScale()` draws with — instead of the stale stored border distance, closing the one-pass lag at its source
+    - `QwtPlot::doLayout()` refreshes the axis border distances even when the scale rect did not change (tick label content, formats or fonts can alter the hint without changing the geometry)
+    - `QwtPlot::event()` runs `updateLayout()` after the `PolishRequest` replot, so the first paint always uses a layout calculated from the final fonts and scale divisions (one extra pass on first show only, no steady-state cost)
+    - `QwtScaleWidget::changeEvent()` handles `FontChange`/`ApplicationFontChange` and relayouts on `LocaleChange`: font changes no longer leave extent and border distances stale without a repaint
+    - `QwtScaleWidget::setMinBorderDist()` recalculates the scale geometry like all other geometry setters (relevant for `QwtPlot::alignAxisBorderDist()` and `QwtFigure::alignAxes()`)
+- Fixed `QwtScaleDraw::setLength()` unconditionally clamping to a positive minimum of 10, which silently turned negative lengths (legitimately used by `QwtPolarGrid` for left/top axes) into +10 and broke polar grid rendering; the upstream clamping semantics are restored (small magnitudes clamped to ±10, larger negative values preserved)
+
 ## tag:v7.4.1 (2026-09-11)
 
 ### New Features
