@@ -1,5 +1,5 @@
 # qwt
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 set(QWTPLOT_LIB_NAME "plot")
 set(QWTPLOT_LIB_DESCRIPTION "qwt::plot | 2D scientific plotting library")

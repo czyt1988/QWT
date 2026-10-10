@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 SET(VERSION_SHORT 0.1)
 SET(QWT_TEST_NAME flat_style_test)
 project(${QWT_TEST_NAME} VERSION ${VERSION_SHORT})

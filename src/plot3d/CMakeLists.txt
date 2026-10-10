@@ -1,5 +1,5 @@
 # qwt
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 set(QWTPLOT3D_LIB_NAME "plot3d")
 set(QWTPLOT3D_LIB_DESCRIPTION "QWT | 3D scientific plotting library")
@@ -17,7 +17,7 @@ project(${QWTPLOT3D_LIB_NAME}
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/moc)
 ########################################################
-# files 
+# files
 ########################################################
 set(QWTPLOT3D_HEADER_FILES)
 set(QWTPLOT3D_SOURCE_FILES)
@@ -144,7 +144,7 @@ if(NOT GL2PS_LIBRARY)
     target_sources(${QWTPLOT3D_LIB_NAME} PRIVATE "3rdparty/gl2ps/gl2ps.c" "3rdparty/gl2ps/gl2ps.h")
     target_include_directories(${QWTPLOT3D_LIB_NAME} PRIVATE "3rdparty/gl2ps" )
 else()
-    target_link_libraries(${QWTPLOT3D_LIB_NAME} ${GL2PS_LIBRARY})
+    target_link_libraries(${QWTPLOT3D_LIB_NAME} PRIVATE ${GL2PS_LIBRARY})
     target_include_directories(${QWTPLOT3D_LIB_NAME} PRIVATE ${GL2PS_INCLUDE_DIR})
 endif()
 
@@ -181,7 +181,7 @@ target_compile_definitions(${QWTPLOT3D_LIB_NAME} PRIVATE QWT3D_MAKEDLL)
 
 
 ########################################################
-# install 
+# install
 ########################################################
 include(GNUInstallDirs)
 install(TARGETS ${QWTPLOT3D_LIB_NAME} # plot3d
