@@ -1,0 +1,58 @@
+name: Sync-Release-To-Gitee
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Push branches and tags to Gitee
+      env:
+        GITEE_USER: ${{ secrets.GITEE_USERNAME }}
+        GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+      run: |
+        git config --global credential.helper store
+        echo "https://${GITEE_USER}:${GITEE_TOKEN}@gitee.com" > ~/.git-credentials
+        chmod 600 ~/.git-credentials
+        git remote add gitee https://gitee.com/czyt1988/QWT.git
+        git push gitee master dev --tags
+
+    - name: Create Gitee release
+      env:
+        GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        TAG: ${{ github.event.release.tag_name }}
+        RELEASE_BODY: ${{ github.event.release.body }}
+      run: |
+        printf '%s' "$RELEASE_BODY" > /tmp/gitee-body.txt
+        RESP=$(curl -sS -X POST "https://gitee.com/api/v5/repos/czyt1988/QWT/releases" \
+          --data-urlencode "access_token=${GITEE_TOKEN}" \
+          --data-urlencode "tag_name=${TAG}" \
+          --data-urlencode "name=QwtPlot ${TAG}" \
+          --data-urlencode "body@/tmp/gitee-body.txt" \
+          --data-urlencode "prerelease=false")
+        echo "${RESP}" | jq -e '.id' > /dev/null || { echo "Gitee release creation failed:"; echo "${RESP}"; exit 1; }
+        RELEASE_ID=$(echo "${RESP}" | jq -r '.id')
+        echo "gitee release id=${RELEASE_ID} tag=${TAG}"
+        echo "RELEASE_ID=${RELEASE_ID}" >> "$GITHUB_ENV"
+
+    - name: Attach amalgamated sources to Gitee release
+      if: hashFiles('src-amalgamate/QwtPlot.h', 'src-amalgamate/QwtPlot.cpp') != ''
+      env:
+        GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        RELEASE_ID: ${{ env.RELEASE_ID }}
+      run: |
+        for f in src-amalgamate/QwtPlot.h src-amalgamate/QwtPlot.cpp; do
+          curl -sS -X POST "https://gitee.com/api/v5/repos/czyt1988/QWT/releases/${RELEASE_ID}/attach_files" \
+            -F "access_token=${GITEE_TOKEN}" \
+            -F "file=@${f}" || echo "attach ${f} failed"
+        done
