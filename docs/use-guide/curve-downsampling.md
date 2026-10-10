@@ -180,36 +180,27 @@ Output: polyline (downsampled line)
         count++
 4. Iterate all columns col = 0..W-1:
    a. If bin[col].count == 0: skip
-   b. Output firstY
-   c. Based on count and trend direction, output max/min/last (deduplicated)
+   b. If bin[col].count == 1: output the single real point
+   c. Else output a cluster (see below)
 ```
 
-### Output Ordering Strategy
+### Cluster Layout (QCustomPlot style)
 
-Each column outputs at most 4 points. The output order considers polyline continuity:
+Columns holding more than one point are emitted as a cluster, following the
+layout of the adaptive sampling of QCustomPlot:
 
 ```mermaid
-flowchart TD
-    subgraph Downtrend["Downtrend (firstY > lastY)"]
-        direction TB
-        D1["① firstY"]
-        D2["② maxY"]
-        D3["③ minY"]
-        D4["④ lastY"]
-        D1 --- D2 --- D3 --- D4
-    end
-
-    subgraph Uptrend["Uptrend (firstY < lastY)"]
-        direction TB
-        U1["① firstY"]
-        U2["② maxY"]
-        U3["③ minY"]
-        U4["④ lastY"]
-        U1 --- U2 --- U3 --- U4
+flowchart LR
+    subgraph col["pixel column x"]
+        A["firstY @ x+0.2<br/>(only at gaps)"] --- B["minY @ x+0.25"]
+        B --- C["maxY @ x+0.75"]
+        C --- D["lastY @ x+0.8<br/>(only at gaps)"]
     end
 ```
 
-The order of extrema is determined by comparing `firstY` and `lastY`: if `lastY > firstY` (uptrend), `maxY` is output before `minY`, keeping the polyline direction consistent with the actual trend. In both cases the output sequence is the same (first → max → min → last), but the actual Y coordinates of the extrema differ due to swapping.
+- `minY` and `maxY` are placed at **fixed sub pixel positions** ( +0.25 / +0.75 ), always in min → max order. The vertical stroke of a column therefore stays inside its pixel, what renders dense noise as a regular band instead of a chaotic zigzag, and the exact extremes ( peak tops, dip bottoms ) are preserved.
+- The real `firstY` / `lastY` points are only added where the neighbor column is empty or holds a single point ( a gap ), so that in dense regions consecutive clusters connect max → min directly.
+- Columns with a single point pass through unchanged, so sparse ( zoomed in ) regions keep their original shape.
 
 ### Visible Range Binary Search
 
@@ -236,7 +227,7 @@ Monotonicity is quickly validated by uniformly sampling 10 checkpoints. If data 
 - **Time complexity**: O(n), where n is the number of points in the visible range
 - **Space complexity**: O(W), requires allocating W Bin structures
 - **Advantages**: Output size completely independent of data count; simple implementation with small constant factor
-- **Drawbacks**: All output X coordinates are forced to pixel column integers, losing sub-pixel X precision; high-frequency details may be smoothed
+- **Drawbacks**: output X coordinates are pixel column integers plus fixed sub pixel offsets ( +0.25 / +0.75 for the extrema ), losing the original sub-pixel X positions; high-frequency details may be smoothed
 - **Limitation**: Only applicable to `QwtPlotCurve::Lines` style
 
 ### Source Location

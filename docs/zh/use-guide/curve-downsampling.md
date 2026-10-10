@@ -180,36 +180,26 @@ Pixel-Column Reduce 采用空间分桶（spatial binning）策略：以画布的
         count++
 4. 遍历所有列 col = 0..W-1:
    a. 如果 bin[col].count == 0: 跳过
-   b. 输出 firstY
-   c. 根据 count 和方向关系，输出 max/min/last（去重）
+   b. 如果 bin[col].count == 1: 输出该唯一真实点
+   c. 否则输出一个簇（见下）
 ```
 
-### 输出顺序策略
+### 簇布局（QCustomPlot 风格）
 
-每列最多输出 4 个点。输出顺序考虑了折线的连续性：
+包含多于一个点的列以"簇"的形式输出，布局与 QCustomPlot 的自适应采样（adaptive sampling）一致：
 
 ```mermaid
-flowchart TD
-    subgraph 下降趋势["下降趋势 (firstY > lastY)"]
-        direction TB
-        D1["① firstY"]
-        D2["② maxY"]
-        D3["③ minY"]
-        D4["④ lastY"]
-        D1 --- D2 --- D3 --- D4
-    end
-
-    subgraph 上升趋势["上升趋势 (firstY < lastY)"]
-        direction TB
-        U1["① firstY"]
-        U2["② maxY"]
-        U3["③ minY"]
-        U4["④ lastY"]
-        U1 --- U2 --- U3 --- U4
+flowchart LR
+    subgraph col["像素列 x"]
+        A["firstY @ x+0.2<br/>（仅有间隔时）"] --- B["minY @ x+0.25"]
+        B --- C["maxY @ x+0.75"]
+        C --- D["lastY @ x+0.8<br/>（仅有间隔时）"]
     end
 ```
 
-极值的先后顺序通过比较 `firstY` 和 `lastY` 来决定：如果 `lastY > firstY`（上升趋势），则先输出 `maxY` 再输出 `minY`，使折线走向与实际趋势一致。两种情况下输出序列相同（first → max → min → last），但极值对应的实际 Y 坐标因交换而不同。
+- `minY` 与 `maxY` 放在**固定的子像素位置**（+0.25 / +0.75），且恒为 min → max 顺序。每列的竖直笔画因此被约束在自己的像素内，密集噪声渲染为规整的带状而非杂乱的锯齿；同时极值（峰顶、谷底）被精确保留。
+- 真实的 `firstY` / `lastY` 点只在相邻列为空或仅含单点（即存在间隔）时补充，使密集区域中相邻簇以 max → min 直接相连。
+- 仅含单点的列原样通过，因此稀疏区域（放大后）保持原始形状。
 
 ### 可见范围二分查找
 
@@ -236,7 +226,7 @@ gantt
 - **时间复杂度**：O(n)，其中 n 为可见范围内的数据点数
 - **空间复杂度**：O(W)，需要分配 W 个 Bin 结构
 - **优点**：输出规模完全独立于数据量；实现简洁，常数因子小
-- **缺点**：所有输出点的 X 坐标被强制对齐到像素列整数，丢失了 X 方向的亚像素精度；高频细节可能被平滑
+- **缺点**：输出点的 X 坐标为像素列整数加固定子像素偏移（极值为 +0.25 / +0.75），丢失了原始亚像素 X 位置；高频细节可能被平滑
 - **限制**：仅适用于 `QwtPlotCurve::Lines` 样式
 
 ### 源码位置

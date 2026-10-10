@@ -94,6 +94,7 @@ plugins:
                 - Core Plot Items:
                     - Curve: use-guide/curve.md
                     - Curve Downsampling: use-guide/curve-downsampling.md
+                    - Curve Smoothing: use-guide/curve-smoothing.md
                     - Scatter: use-guide/scatter.md
                     - Grid: use-guide/grid.md
                     - Marker: use-guide/marker.md
@@ -174,6 +175,7 @@ plugins:
                 - 核心绘图项:
                     - 曲线图: use-guide/curve.md
                     - 曲线降采样算法: use-guide/curve-downsampling.md
+                    - 曲线平滑: use-guide/curve-smoothing.md
                     - 散点图: use-guide/scatter.md
                     - 网格线: use-guide/grid.md
                     - 标记点: use-guide/marker.md
