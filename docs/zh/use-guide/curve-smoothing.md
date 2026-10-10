@@ -104,6 +104,8 @@ curve->setSmoothPolynomialOrder( 3 );
 
 `examples/2D/curvesmoothing` 展示了一条 100,000 点、带随机抖动的频谱：
 
+![曲线平滑示例](../../assets/screenshots/curvesmoothing.png)
+
 * 左图：默认渲染（仅 `FilterPointsLTTB` 降采样）
 * 右图：同样数据 + 渲染平滑
 * 控件可切换算法、窗口、SG 阶数与保护阈值

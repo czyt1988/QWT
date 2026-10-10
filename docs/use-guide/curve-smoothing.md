@@ -104,6 +104,8 @@ The smoothing is stateless and reentrant: curves can be painted from multiple th
 
 `examples/2D/curvesmoothing` shows a 100,000 sample spectrum with random jitter:
 
+![Curve Smoothing](../assets/screenshots/curvesmoothing.png)
+
 * Left plot: default rendering ( `FilterPointsLTTB` downsampling only )
 * Right plot: same samples with render smoothing
 * Controls to switch algorithm, window, SG order and the preservation threshold
