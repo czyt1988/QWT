@@ -251,6 +251,12 @@ public:
          * first/min/max/last Y per column. Each column produces at most 4 points.
          * Combined with binary-search visible range for monotonic X data.
          *
+         * Columns holding more than one point are emitted as a cluster in the
+         * layout of the adaptive sampling of QCustomPlot: min and max at fixed
+         * sub pixel positions ( +0.25 / +0.75 ), so that the vertical stroke of
+         * a column stays inside its pixel, plus the real first/last point only
+         * where the neighbor column is empty or holds a single point.
+         *
          * Output size: ~4 * canvasWidth points regardless of input size.
          * This is the fastest algorithm for datasets exceeding 100k points.
          *
@@ -277,6 +283,40 @@ public:
     };
 
     Q_DECLARE_FLAGS(PaintAttributes, PaintAttribute)
+
+    /**
+     * @brief Algorithm for smoothing the rendered polyline
+     * @details The smoothing is applied to the polyline that has been
+     *          downsampled and translated to paint coordinates. It targets
+     *          the pixel level noise of curves with many samples
+     *          ( f.e. spectra with random jitter ), while the sample data
+     *          itself is not modified.
+     *
+     *          In contrast to the Fitted attribute, that interpolates
+     *          through all points, the smoothing algorithms are low pass
+     *          filters. Significant features ( peaks, dips ) are restored
+     *          to their original position and height afterwards, so that
+     *          the smoothing does not distort the curve, see
+     *          setSmoothPreserveThreshold().
+     *
+     *          @note Implemented for QwtPlotCurve::Lines only
+     * @sa setSmoothAlgorithm(), setSmoothWindow(), setSmoothPolynomialOrder(),
+     *     setSmoothPreserveThreshold()
+     */
+    enum SmoothAlgorithm
+    {
+        //! No smoothing ( default )
+        NoSmoothing = 0,
+
+        //! Gaussian weighted moving window: strong noise suppression
+        GaussianSmoothing,
+
+        /*!
+           Savitzky-Golay local polynomial regression: keeps the height
+           and shape of narrow peaks better than GaussianSmoothing
+         */
+        SavitzkyGolaySmoothing
+    };
 
     // Constructor
     explicit QwtPlotCurve(const QString& title = QString());
@@ -421,6 +461,30 @@ public:
 
     // Get curve fitter
     QwtCurveFitter* curveFitter() const;
+
+    // Set the render smoothing algorithm
+    void setSmoothAlgorithm(SmoothAlgorithm);
+
+    // Get the render smoothing algorithm
+    SmoothAlgorithm smoothAlgorithm() const;
+
+    // Set the smoothing window ( number of polyline points, odd values >= 3 )
+    void setSmoothWindow(int numPoints);
+
+    // Get the smoothing window
+    int smoothWindow() const;
+
+    // Set the polynomial order for SavitzkyGolaySmoothing
+    void setSmoothPolynomialOrder(int order);
+
+    // Get the polynomial order for SavitzkyGolaySmoothing
+    int smoothPolynomialOrder() const;
+
+    // Set the feature preservation threshold of the render smoothing
+    void setSmoothPreserveThreshold(double threshold);
+
+    // Get the feature preservation threshold of the render smoothing
+    double smoothPreserveThreshold() const;
 
     // Draw the series
     virtual void drawSeries(QPainter*,

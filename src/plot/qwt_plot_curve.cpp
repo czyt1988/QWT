@@ -28,6 +28,7 @@
 #include "qwt_point_data.h"
 #include "qwt_math.h"
 #include "qwt_clipper.h"
+#include "qwt_curve_smoothing.h"
 #include "qwt_painter.h"
 #include "qwt_scale_map.h"
 #include "qwt_plot.h"
@@ -80,6 +81,10 @@ public:
         , symbol(nullptr)
         , pen(Qt::black)
         , paintAttributes(QwtPlotCurve::ClipPolygons | QwtPlotCurve::FilterPointsLTTB)
+        , smoothAlgorithm(QwtPlotCurve::NoSmoothing)
+        , smoothWindow(9)
+        , smoothPolynomialOrder(3)
+        , smoothPreserveThreshold(3.0)
     {
         curveFitter = new QwtSplineCurveFitter;
     }
@@ -102,6 +107,11 @@ public:
 
     QwtPlotCurve::CurveAttributes attributes;
     QwtPlotCurve::PaintAttributes paintAttributes;
+
+    QwtPlotCurve::SmoothAlgorithm smoothAlgorithm;
+    int smoothWindow;
+    int smoothPolynomialOrder;
+    double smoothPreserveThreshold;
 
     QwtPlotCurve::LegendAttributes legendAttributes;
 };
@@ -560,6 +570,19 @@ void QwtPlotCurve::drawLines(QPainter* painter,
 
     QPolygonF polyline = mapper.toPolygonF(xMap, yMap, data(), from, to);
 
+    /*
+        The smoothing is done before clipping and fitting, so that the
+        filters see the complete neighborhood of the polyline points
+        and the input of a curve fitter ( Fitted attribute ) is already
+        free of pixel noise.
+     */
+    if (d->smoothAlgorithm == GaussianSmoothing) {
+        polyline = qwtSmoothPolylineGaussian(polyline, d->smoothWindow, d->smoothPreserveThreshold);
+    } else if (d->smoothAlgorithm == SavitzkyGolaySmoothing) {
+        polyline = qwtSmoothPolylineSavitzkyGolay(
+            polyline, d->smoothWindow, d->smoothPolynomialOrder, d->smoothPreserveThreshold);
+    }
+
     if (doFill) {
         if (doFit) {
             // it might be better to extend and draw the curvePath, but for
@@ -892,6 +915,159 @@ QwtCurveFitter* QwtPlotCurve::curveFitter() const
 {
     QWT_DC(d);
     return d->curveFitter;
+}
+
+/**
+ * @brief Set the render smoothing algorithm
+ * @details In combination with QwtPlotCurve::Lines the rendered polyline can be
+ *          smoothed by a low pass filter, that is applied to the polyline that
+ *          has been downsampled and translated to paint coordinates.
+ *
+ *          This is about removing pixel level noise ( f.e. from spectra with
+ *          random jitter ), while the sample data itself is not modified.
+ *          In contrast to the Fitted attribute the algorithms do not
+ *          interpolate through the points.
+ * @param[in] algorithm Smoothing algorithm
+ * @sa smoothAlgorithm(), setSmoothWindow(), setSmoothPolynomialOrder()
+ */
+void QwtPlotCurve::setSmoothAlgorithm(SmoothAlgorithm algorithm)
+{
+    QWT_D(d);
+    if (d->smoothAlgorithm == algorithm)
+        return;
+
+    d->smoothAlgorithm = algorithm;
+    itemChanged();
+}
+
+/**
+ * @brief Get the render smoothing algorithm
+ * @return Smoothing algorithm
+ * @sa setSmoothAlgorithm()
+ */
+QwtPlotCurve::SmoothAlgorithm QwtPlotCurve::smoothAlgorithm() const
+{
+    QWT_DC(d);
+    return d->smoothAlgorithm;
+}
+
+/**
+ * @brief Set the window of the render smoothing algorithms
+ * @details The window is the number of neighboring polyline points, that
+ *          contribute to the smoothed position of a point. As the smoothing
+ *          happens after downsampling, the polyline is usually not much
+ *          longer than a multiple of the canvas width.
+ *
+ *          Values < 3 are raised to 3, even values are rounded up
+ *          to the next odd value. The default value is 9.
+ * @param[in] numPoints Window size
+ * @sa smoothWindow(), setSmoothAlgorithm()
+ */
+void QwtPlotCurve::setSmoothWindow(int numPoints)
+{
+    QWT_D(d);
+
+    if (numPoints < 3)
+        numPoints = 3;
+    else if (numPoints % 2 == 0)
+        numPoints++;
+
+    if (d->smoothWindow == numPoints)
+        return;
+
+    d->smoothWindow = numPoints;
+    itemChanged();
+}
+
+/**
+ * @brief Get the window of the render smoothing algorithms
+ * @return Window size
+ * @sa setSmoothWindow()
+ */
+int QwtPlotCurve::smoothWindow() const
+{
+    QWT_DC(d);
+    return d->smoothWindow;
+}
+
+/**
+ * @brief Set the polynomial order of SavitzkyGolaySmoothing
+ * @details Higher orders keep the shape of narrow peaks better, but reduce
+ *          the noise suppression. The order is limited to
+ *          1 .. smoothWindow() - 2.
+ *
+ *          The setting has no effect for other smoothing algorithms.
+ *          The default value is 3.
+ * @param[in] order Polynomial order
+ * @sa smoothPolynomialOrder(), setSmoothWindow()
+ */
+void QwtPlotCurve::setSmoothPolynomialOrder(int order)
+{
+    QWT_D(d);
+
+    if (order < 1)
+        order = 1;
+    else if (order > d->smoothWindow - 2)
+        order = d->smoothWindow - 2;
+
+    if (d->smoothPolynomialOrder == order)
+        return;
+
+    d->smoothPolynomialOrder = order;
+    itemChanged();
+}
+
+/**
+ * @brief Get the polynomial order of SavitzkyGolaySmoothing
+ * @return Polynomial order
+ * @sa setSmoothPolynomialOrder()
+ */
+int QwtPlotCurve::smoothPolynomialOrder() const
+{
+    QWT_DC(d);
+    return d->smoothPolynomialOrder;
+}
+
+/**
+ * @brief Set the feature preservation threshold of the render smoothing
+ * @details A linear low pass filter attenuates features that are narrower
+ *          than its window ( f.e. the peaks of a spectrum ). To avoid this
+ *          distortion the smoothing restores the original position and height
+ *          of all points, that deviate from a wide baseline by more than
+ *          threshold multiples of the estimated noise level.
+ *
+ *          Lower values preserve more of the curve ( at the cost of keeping
+ *          more noise ), higher values preserve only the most significant
+ *          features. A value <= 0 disables the feature preservation, what
+ *          results in a pure low pass filter.
+ *
+ *          The default value is 3.0.
+ * @param[in] threshold Threshold in multiples of the noise level
+ * @sa smoothPreserveThreshold(), setSmoothAlgorithm()
+ */
+void QwtPlotCurve::setSmoothPreserveThreshold(double threshold)
+{
+    QWT_D(d);
+
+    if (threshold < 0.0)
+        threshold = 0.0;
+
+    if (qFuzzyCompare(d->smoothPreserveThreshold, threshold))
+        return;
+
+    d->smoothPreserveThreshold = threshold;
+    itemChanged();
+}
+
+/**
+ * @brief Get the feature preservation threshold of the render smoothing
+ * @return Threshold in multiples of the noise level
+ * @sa setSmoothPreserveThreshold()
+ */
+double QwtPlotCurve::smoothPreserveThreshold() const
+{
+    QWT_DC(d);
+    return d->smoothPreserveThreshold;
 }
 
 /**

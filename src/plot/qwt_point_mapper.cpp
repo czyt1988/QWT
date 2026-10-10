@@ -62,6 +62,23 @@ static inline double qwtRoundValueF(double value)
 #endif
 }
 
+// Create a point of the output polygon from a pixel position, that may
+// have a fractional x coordinate ( sub pixel placement of cluster points )
+template< class Point >
+static Point qwtMakePoint(double x, int y);
+
+template<>
+inline QPointF qwtMakePoint< QPointF >(double x, int y)
+{
+    return QPointF(x, y);
+}
+
+template<>
+inline QPoint qwtMakePoint< QPoint >(double x, int y)
+{
+    return QPoint(qRound(x), y);
+}
+
 static Qt::Orientation qwtProbeOrientation(const QwtSeriesData< QPointF >* series, int from, int to)
 {
     if (to - from < 20) {
@@ -479,32 +496,38 @@ qwtPixelColumnReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qwt
     polyline.resize(4 * xPixels);
     Point* outPts = polyline.data();
     int n         = 0;
+
+    /*
+        The clusters are laid out as in the adaptive sampling of QCustomPlot:
+        the min and max of a pixel column are placed at fixed sub pixel
+        positions ( +0.25 / +0.75 ), what keeps the vertical stroke of each
+        column inside its pixel and preserves the exact extremes.
+        Real data points are only added at the borders of a cluster, when
+        the neighbor column is empty or holds a single point.
+     */
     for (int col = 0; col < xPixels; col++) {
         const Bin& bin = bins[ col ];
         if (bin.count == 0)
             continue;
-        const int x   = xMin + col;
-        outPts[ n++ ] = Point(x, bin.firstY);
-        if (bin.count < 4) {
-            // for very few points in a column, just emit them in order
-            if (bin.count == 2)
-                outPts[ n++ ] = Point(x, bin.lastY);
-            else if (bin.count >= 3) {
-                outPts[ n++ ] = Point(x, bin.minY);
-                outPts[ n++ ] = Point(x, bin.maxY);
-                outPts[ n++ ] = Point(x, bin.lastY);
-            }
-        } else {
-            int yMin = bin.minY, yMax = bin.maxY;
-            if (bin.lastY > bin.firstY)
-                qSwap(yMin, yMax);
-            if (yMax != bin.firstY)
-                outPts[ n++ ] = Point(x, yMax);
-            if (yMin != yMax)
-                outPts[ n++ ] = Point(x, yMin);
-            if (bin.lastY != bin.minY)
-                outPts[ n++ ] = Point(x, bin.lastY);
+
+        const double x = xMin + col;
+
+        if (bin.count == 1) {
+            outPts[ n++ ] = qwtMakePoint< Point >(x, bin.firstY);
+            continue;
         }
+
+        const bool gapBefore = (col > 0) && (bins[ col - 1 ].count <= 1);
+        const bool gapAfter  = (col < xPixels - 1) && (bins[ col + 1 ].count <= 1);
+
+        if (gapBefore)
+            outPts[ n++ ] = qwtMakePoint< Point >(x + 0.2, bin.firstY);
+
+        outPts[ n++ ] = qwtMakePoint< Point >(x + 0.25, bin.minY);
+        outPts[ n++ ] = qwtMakePoint< Point >(x + 0.75, bin.maxY);
+
+        if (gapAfter)
+            outPts[ n++ ] = qwtMakePoint< Point >(x + 0.8, bin.lastY);
     }
     polyline.resize(n);
 

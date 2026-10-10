@@ -114,6 +114,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_axis.h
         qwt_axis_id.h
         qwt_curve_fitter.h
+        qwt_curve_smoothing.h
         qwt_spline_curve_fitter.h
         qwt_weeding_curve_fitter.h
         qwt_event_pattern.h
@@ -194,6 +195,7 @@ if(QWT_CONFIG_QWTPLOT)
     )
     set(QWTPLOT_SOURCE_PLOT
         qwt_curve_fitter.cpp
+        qwt_curve_smoothing.cpp
         qwt_spline_curve_fitter.cpp
         qwt_weeding_curve_fitter.cpp
         qwt_abstract_legend.cpp
