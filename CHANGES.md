@@ -1,4 +1,14 @@
-## Unreleased
+## tag:v7.4.2 (2026-10-10)
+
+### New Features
+
+- **Render smoothing for curve drawing**
+    - `QwtPlotCurve` gains the `SmoothAlgorithm` enum ( `NoSmoothing`, `GaussianSmoothing`, `SavitzkyGolaySmoothing` ) with `setSmoothAlgorithm()`, `setSmoothWindow()`, `setSmoothPolynomialOrder()` and `setSmoothPreserveThreshold()`
+    - Both algorithms are low pass filters operating on the polyline after downsampling and coordinate translation — only the y coordinates are modified, so the horizontal position of every feature stays exact
+    - A non-linear feature preservation step ( enabled by default ) keeps significant peaks and dips at their original position and height: the pixel noise band collapses to a clean line while the data is not distorted
+    - Implemented for `QwtPlotCurve::Lines` ( including filled curves ), combinable with the `Fitted` attribute
+    - New example `examples/2D/curvesmoothing`: a 100,000 sample spectrum with random jitter — left plot default rendering vs. right plot smoothed, with runtime controls for algorithm / window / SG order / preservation threshold and replot benchmarks
+    - New usage guide "Curve Render Smoothing" ( EN/CN, with screenshots )
 
 ### Bug Fixes
 
@@ -9,6 +19,7 @@
     - `QwtScaleWidget::changeEvent()` handles `FontChange`/`ApplicationFontChange` and relayouts on `LocaleChange`: font changes no longer leave extent and border distances stale without a repaint
     - `QwtScaleWidget::setMinBorderDist()` recalculates the scale geometry like all other geometry setters (relevant for `QwtPlot::alignAxisBorderDist()` and `QwtFigure::alignAxes()`)
 - Fixed `QwtScaleDraw::setLength()` unconditionally clamping to a positive minimum of 10, which silently turned negative lengths (legitimately used by `QwtPolarGrid` for left/top axes) into +10 and broke polar grid rendering; the upstream clamping semantics are restored (small magnitudes clamped to ±10, larger negative values preserved)
+- Fixed `QwtSplineCurveFitter::fitCurve()` discarding the fitted result: the return value of `subPaths.first()` was dropped and an empty polygon was returned, so curves using `Fitted` together with fill could not be drawn at all; upstream behavior is restored (a single subpath returns that subpath's polygon)
 
 ## tag:v7.4.1 (2026-09-11)
 

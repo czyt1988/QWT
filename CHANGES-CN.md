@@ -1,4 +1,14 @@
-## Unreleased
+## tag:v7.4.2 (2026-10-10)
+
+### 新功能
+
+- **曲线渲染平滑**
+    - `QwtPlotCurve` 新增 `SmoothAlgorithm` 枚举（`NoSmoothing`/`GaussianSmoothing`/`SavitzkyGolaySmoothing`），配套 `setSmoothAlgorithm()`、`setSmoothWindow()`、`setSmoothPolynomialOrder()` 与 `setSmoothPreserveThreshold()`
+    - 两种算法都是作用于降采样并换算到绘制坐标之后的折线的低通滤波器——只修改 y 坐标，所有特征的水平位置保持精确
+    - 默认开启的非线性特征保护步骤让显著的峰、谷保持原始位置与高度：像素级噪声带收敛为干净的线，数据不失真
+    - 仅对 `QwtPlotCurve::Lines` 生效（含填充曲线），可与 `Fitted` 属性组合使用
+    - 新增示例 `examples/2D/curvesmoothing`：100,000 点带随机抖动频谱，左图为默认渲染、右图为平滑后效果，可运行时切换算法/窗口/阶数/阈值并做 replot 基准测试
+    - 新增使用指南《曲线渲染平滑》（中英双语，含截图）
 
 ### Bug 修复
 
@@ -9,6 +19,7 @@
     - `QwtScaleWidget::changeEvent()` 处理 `FontChange`/`ApplicationFontChange`，并在 `LocaleChange` 时重排：字体变化不再导致 extent/borderDist 过期且不重绘
     - `QwtScaleWidget::setMinBorderDist()` 与其它几何 setter 一致地重新计算布局（影响 `QwtPlot::alignAxisBorderDist()` 与 `QwtFigure::alignAxes()`）
 - 修复 `QwtScaleDraw::setLength()` 无条件把长度钳制到正的 10 的问题：它会把合法的负长度（`QwtPolarGrid` 左/上轴在用）静默变成 +10 并破坏极坐标网格渲染；已恢复 upstream 的钳制语义（小幅值钳到 ±10，更大的负值保留）
+- 修复 `QwtSplineCurveFitter::fitCurve()` 丢弃拟合结果的问题：`subPaths.first()` 的返回值被丢弃、恒返回空多边形，导致 fill + Fitted 组合的曲线完全画不出来；已恢复上游行为（单一子路径时返回该子路径多边形）
 
 ## tag:v7.4.1 (2026-09-11)
 

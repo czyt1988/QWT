@@ -56,6 +56,7 @@
 #include "../../src/plot/qwt_compass_rose.cpp"
 #include "../../src/plot/qwt_counter.cpp"
 #include "../../src/plot/qwt_curve_fitter.cpp"
+#include "../../src/plot/qwt_curve_smoothing.cpp"
 #include "../../src/plot/qwt_polar_fitter.cpp"
 #include "../../src/plot/qwt_sampling_thread.cpp"
 #include "../../src/plot/qwt_abstract_scale_draw.cpp"
