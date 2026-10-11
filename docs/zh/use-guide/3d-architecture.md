@@ -97,15 +97,15 @@ classDiagram
 
 重构后的方案：
 
-| 旧 | 新 | 位置 |
-|----|----|------|
-| `glBegin/glEnd` 逐顶点提交 | VBO + VAO + `glDrawElements` 一次绘制 | 每个 item 自带（`Qwt3DSurface::buildVBO()`） |
-| 显示列表缓存 | 常驻 VBO，`m_vboDirty` 置脏才重建，跨帧复用 | `qwt3d_surface.cpp` |
-| GL 矩阵栈 | CPU 端 `QMatrix4x4` 计算，作为 uniform 传入 | `Qwt3DPlot::paintGL()` |
-| `glLightfv` / `glMaterialfv` | 着色器内 Blinn-Phong 光照 | `src/plot3d/shaders/*.vert/.frag` |
-| `gluQuadric*` | CPU 端生成几何体（如 Tube 的扫掠截面） | `qwt3d_line3d.cpp` |
-| `gluProject` | 纯 CPU 矩阵乘法 `Qwt3DRenderContext::worldToScreen()` | `qwt3d_render_context.cpp` |
-| `glRasterPos3d` + `glDrawPixels` | `QOpenGLTexture` 文字纹理 | `qwt3d_label.cpp` |
+| 旧                                | 新                                                | 位置                                     |
+| -------------------------------- | ------------------------------------------------ | -------------------------------------- |
+| `glBegin/glEnd` 逐顶点提交            | VBO + VAO + `glDrawElements` 一次绘制                | 每个 item 自带（`Qwt3DSurface::buildVBO()`） |
+| 显示列表缓存                           | 常驻 VBO，`m_vboDirty` 置脏才重建，跨帧复用                   | `qwt3d_surface.cpp`                    |
+| GL 矩阵栈                           | CPU 端 `QMatrix4x4` 计算，作为 uniform 传入              | `Qwt3DPlot::paintGL()`                 |
+| `glLightfv` / `glMaterialfv`     | 着色器内 Blinn-Phong 光照                              | `src/plot3d/shaders/*.vert/.frag`      |
+| `gluQuadric*`                    | CPU 端生成几何体（如 Tube 的扫掠截面）                         | `qwt3d_line3d.cpp`                     |
+| `gluProject`                     | 纯 CPU 矩阵乘法 `Qwt3DRenderContext::worldToScreen()` | `qwt3d_render_context.cpp`             |
+| `glRasterPos3d` + `glDrawPixels` | `QOpenGLTexture` 文字纹理                            | `qwt3d_label.cpp`                      |
 
 `src/plot3d/shaders/` 下是 10 个 GLSL 3.30 Core 着色器（`surface` / `polygon` / `line` / `point` / `text` 各一对 vert+frag），构成全部图元的着色方案。
 
@@ -234,7 +234,7 @@ flowchart LR
 2026 年 7 月下旬的十余个提交，每个只解决一个结构问题、并保证编译通过一次：
 
 ```mermaid
-flowchart LR
+flowchart TB
     A["统一命名<br/>去 namespace Qwt3D<br/>加 Qwt3D 前缀"] --> B["引入 Qwt3DPlotItem<br/>基类"]
     B --> C["重写窗口<br/>Plot3D → Qwt3DPlot<br/>变为纯渲染窗口"]
     C --> D["重写曲面<br/>SurfacePlot → Qwt3DSurface<br/>item + VBO/VAO"]
