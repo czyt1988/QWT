@@ -66,26 +66,26 @@ void TestWaterfall::slidingWindow()
     // Stored frames are #3..#6 (values 3..6): dropping the oldest two frames
     // is visible in the hull y-range [3, 6]; without the drop it would be [1, 6].
     const ParallelEpiped h = waterfall.hull();
-    QCOMPARE(h.minVertex.y, 3.0);
-    QCOMPARE(h.maxVertex.y, 6.0);
-    QCOMPARE(h.maxVertex.z, 3.0);  // z = slot index, window full
+    QCOMPARE(h.minVertex.z, 3.0);
+    QCOMPARE(h.maxVertex.z, 6.0);
+    QCOMPARE(h.maxVertex.y, 3.0);  // y = slot index (depth), window full
 }
 
-void TestWaterfall::hullZGrowsMonotonically()
+void TestWaterfall::hullDepthGrowsMonotonically()
 {
     Qwt3DWaterfall waterfall;
     waterfall.setTraceCapacity(4);
 
-    // During the fill phase z max == count - 1 ...
+    // During the fill phase the depth max == count - 1 ...
     for (int i = 0; i < 4; ++i) {
         waterfall.pushTrace(flatTrace(1.0));
-        QCOMPARE(waterfall.hull().maxVertex.z, double(i));
+        QCOMPARE(waterfall.hull().maxVertex.y, double(i));
     }
 
     // ... and stays pinned at capacity - 1 once the window slides.
     for (int i = 0; i < 20; ++i) {
         waterfall.pushTrace(flatTrace(1.0));
-        QCOMPARE(waterfall.hull().maxVertex.z, 3.0);
+        QCOMPARE(waterfall.hull().maxVertex.y, 3.0);
     }
 }
 
@@ -142,8 +142,8 @@ void TestWaterfall::depthOrderKeepsHull()
 
     // Mirroring the depth direction must not change the hull extent.
     const ParallelEpiped h = waterfall.hull();
-    QCOMPARE(h.minVertex.z, 0.0);
-    QCOMPARE(h.maxVertex.z, 2.0);
+    QCOMPARE(h.minVertex.y, 0.0);
+    QCOMPARE(h.maxVertex.y, 2.0);
 }
 
 // ---------------------------------------------------------------------------
@@ -163,26 +163,26 @@ void TestWaterfall::hullRanges()
     ParallelEpiped h = waterfall.hull();
     QCOMPARE(h.minVertex.x, 0.0);
     QCOMPARE(h.maxVertex.x, 2.0);
-    QCOMPARE(h.minVertex.y, -1.0);
-    QCOMPARE(h.maxVertex.y, 5.0);
-    QCOMPARE(h.minVertex.z, 0.0);
-    QCOMPARE(h.maxVertex.z, 0.0);
+    QCOMPARE(h.minVertex.z, -1.0);
+    QCOMPARE(h.maxVertex.z, 5.0);
+    QCOMPARE(h.minVertex.y, 0.0);
+    QCOMPARE(h.maxVertex.y, 0.0);
 
     // A fixed baseline below the data extends the hull downward
     waterfall.setBaseline(-3.0);
     h = waterfall.hull();
-    QCOMPARE(h.minVertex.y, -3.0);
-    QCOMPARE(h.maxVertex.y, 5.0);
+    QCOMPARE(h.minVertex.z, -3.0);
+    QCOMPARE(h.maxVertex.z, 5.0);
 
     // A fixed baseline above the data minimum cannot lift the lower bound:
     // the curtain still reaches down to the samples
     waterfall.setBaseline(1.5);
     h = waterfall.hull();
-    QCOMPARE(h.minVertex.y, -1.0);  // min(dataMin, baseline)
+    QCOMPARE(h.minVertex.z, -1.0);  // min(dataMin, baseline)
     QCOMPARE(waterfall.baseline(), 1.5);
 
     waterfall.resetBaseline();
-    QCOMPARE(waterfall.hull().minVertex.y, -1.0);
+    QCOMPARE(waterfall.hull().minVertex.z, -1.0);
 }
 
 void TestWaterfall::emptyWindow()
@@ -220,9 +220,9 @@ void TestWaterfall::shrinkCapacity()
     // Only the newest 3 traces (values 6, 7, 8) survive
     QCOMPARE(waterfall.traceCapacity(), 3);
     QCOMPARE(waterfall.traceCount(), 3);
-    QCOMPARE(waterfall.hull().minVertex.y, 6.0);
-    QCOMPARE(waterfall.hull().maxVertex.y, 8.0);
-    QCOMPARE(waterfall.hull().maxVertex.z, 2.0);
+    QCOMPARE(waterfall.hull().minVertex.z, 6.0);
+    QCOMPARE(waterfall.hull().maxVertex.z, 8.0);
+    QCOMPARE(waterfall.hull().maxVertex.y, 2.0);
 }
 
 void TestWaterfall::growCapacity()
@@ -232,14 +232,14 @@ void TestWaterfall::growCapacity()
 
     for (int i = 0; i < 3; ++i)
         waterfall.pushTrace(flatTrace(i + 1));
-    QCOMPARE(waterfall.hull().maxVertex.z, 2.0);
+    QCOMPARE(waterfall.hull().maxVertex.y, 2.0);
 
     waterfall.setTraceCapacity(8);
     QCOMPARE(waterfall.traceCount(), 3);  // nothing invented by growing
 
     for (int i = 0; i < 5; ++i) {
         waterfall.pushTrace(flatTrace(1.0));
-        QCOMPARE(waterfall.hull().maxVertex.z, double(3 + i));
+        QCOMPARE(waterfall.hull().maxVertex.y, double(3 + i));
     }
     QCOMPARE(waterfall.traceCount(), 8);
 }
@@ -426,15 +426,15 @@ void TestWaterfall::attachAfterData()
     const ParallelEpiped h = plot.hull();
     QCOMPARE(h.minVertex.x, 0.0);
     QCOMPARE(h.maxVertex.x, 7.0);
-    QCOMPARE(h.minVertex.y, 1.0);
-    QCOMPARE(h.maxVertex.y, 4.0);
-    QCOMPARE(h.minVertex.z, 0.0);
-    QCOMPARE(h.maxVertex.z, 3.0);
+    QCOMPARE(h.minVertex.z, 1.0);
+    QCOMPARE(h.maxVertex.z, 4.0);
+    QCOMPARE(h.minVertex.y, 0.0);
+    QCOMPARE(h.maxVertex.y, 3.0);
 
     // The coordinate system follows the recalculated hull
     QCOMPARE(plot.coordinates()->first().x, 0.0);
     QCOMPARE(plot.coordinates()->second().x, 7.0);
-    QCOMPARE(plot.coordinates()->second().z, 3.0);
+    QCOMPARE(plot.coordinates()->second().y, 3.0);
 }
 
 void TestWaterfall::attachHullUnionAndDetachShrink()
@@ -495,7 +495,7 @@ void TestWaterfall::detachAllResetsHull()
     waterfall->setTraceCapacity(2);
     waterfall->pushTrace(flatTrace(1.0));
     waterfall->attach(&plot);
-    QVERIFY(plot.hull().maxVertex.y > 0.0);
+    QVERIFY(plot.hull().maxVertex.z > 0.0);
 
     waterfall->detach();
 

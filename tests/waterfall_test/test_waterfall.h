@@ -21,7 +21,7 @@ class TestWaterfall : public QObject
 private Q_SLOTS:
     // Sliding window semantics
     void slidingWindow();
-    void hullZGrowsMonotonically();
+    void hullDepthGrowsMonotonically();
     void samplesPerTraceContract();
     void binValues();
     void depthOrderKeepsHull();

@@ -137,8 +137,8 @@ void appendTubeGeometry(const QVector<QVector3D>& pts,
  * @brief Recomputes the amplitude range and the hull from the stored traces
  * @details Pure CPU, no GL dependency - safe for Qwt3DPlot::itemChanged()
  *          hull unions and for unit tests.
- *          Hull: x from the bin values (or 0..M-1), y = [min(dataMin, baseline),
- *          dataMax], z = [0, count-1].
+ *          Hull: x from the bin values (or 0..M-1), y = [0, count-1] (depth),
+ *          z = [min(dataMin, baseline), dataMax] (amplitude).
  */
 void Qwt3DWaterfall::PrivateData::recalculateRanges()
 {
@@ -172,15 +172,18 @@ void Qwt3DWaterfall::PrivateData::recalculateRanges()
         }
     }
 
-    // y range: the ribbon may extend down to a fixed baseline
+    // y range: the depth axis, slot indices grow monotonically until the
+    // window is full
+    const double maxY = (m_count > 0) ? m_count - 1.0 : 0.0;
+
+    // z range: the amplitude axis; the ribbon may extend down to a fixed
+    // baseline (3D module convention: the value axis is z, like
+    // Qwt3DSurface's z = f(x, y))
     const double effBaseline = m_fixedBaseline ? m_baseline : m_dataMin;
-    const double minY = std::min(m_dataMin, effBaseline);
-    const double maxY = m_dataMax;
+    const double minZ = std::min(m_dataMin, effBaseline);
+    const double maxZ = m_dataMax;
 
-    // z range: slot indices grow monotonically until the window is full
-    const double maxZ = (m_count > 0) ? m_count - 1.0 : 0.0;
-
-    m_hull = ParallelEpiped(Triple(minX, minY, 0.0), Triple(maxX, maxY, maxZ));
+    m_hull = ParallelEpiped(Triple(minX, 0.0, minZ), Triple(maxX, maxY, maxZ));
 }
 
 // ---------------------------------------------------------------------------
@@ -429,10 +432,11 @@ Qwt3DWaterfall::ColorMode Qwt3DWaterfall::colorMode() const
 /**
  * @brief Sets the color mode
  * @param mode The new color mode
- * @details ByAmplitude retargets a Qwt3DColorMapColor data functor to the y
- *          coordinate (via setSourceAxis(ColorFromY)), ByDepth retargets it
- *          back to z. A functor of a different type is left untouched; its
- *          owner decides how to interpret the (x, y, z) argument.
+ * @details ByAmplitude retargets a Qwt3DColorMapColor data functor to the z
+ *          coordinate (via setSourceAxis(ColorFromZ)), ByDepth retargets it
+ *          to y (the depth axis). A functor of a different type is left
+ *          untouched; its owner decides how to interpret the (x, y, z)
+ *          argument.
  */
 void Qwt3DWaterfall::setColorMode(ColorMode mode)
 {
@@ -442,7 +446,7 @@ void Qwt3DWaterfall::setColorMode(ColorMode mode)
     d->m_colorMode = mode;
 
     if (auto* cmap = dynamic_cast< Qwt3DColorMapColor* >(d->m_dataColor))
-        cmap->setSourceAxis(mode == ByAmplitude ? ColorFromY : ColorFromZ);
+        cmap->setSourceAxis(mode == ByAmplitude ? ColorFromZ : ColorFromY);
 
     d->m_ribbonDirty = true;
     d->m_outlineDirty = true;
@@ -487,7 +491,7 @@ void Qwt3DWaterfall::setDataColor(Qwt3DColor* color)
     d->m_dataColor = color;
 
     if (auto* cmap = dynamic_cast< Qwt3DColorMapColor* >(d->m_dataColor))
-        cmap->setSourceAxis(d->m_colorMode == ByAmplitude ? ColorFromY : ColorFromZ);
+        cmap->setSourceAxis(d->m_colorMode == ByAmplitude ? ColorFromZ : ColorFromY);
 
     d->m_ribbonDirty = true;
     d->m_outlineDirty = true;
@@ -719,10 +723,10 @@ void Qwt3DWaterfall::pushColorRange() const
 
 /**
  * @brief Creates the default data color functor when none was set
- * @details ByDepth defaults to a Qwt3DStandardColor (z-driven), ByAmplitude
- *          to a Qwt3DColorMapColor retargeted to the y coordinate, so
- *          setColorMode(ByAmplitude) colors by amplitude with zero custom
- *          code. Solid needs no functor.
+ * @details ByAmplitude defaults to a Qwt3DColorMapColor reading the z
+ *          coordinate (the amplitude axis), ByDepth to one reading y (the
+ *          depth axis), so setColorMode(ByAmplitude) colors by amplitude with
+ *          zero custom code. Solid needs no functor.
  */
 void Qwt3DWaterfall::ensureDataColor()
 {
@@ -730,13 +734,10 @@ void Qwt3DWaterfall::ensureDataColor()
     if (d->m_dataColor || d->m_colorMode == Solid)
         return;
 
-    if (d->m_colorMode == ByAmplitude) {
-        auto* cmap = new Qwt3DColorMapColor(QString("viridis"));
-        cmap->setSourceAxis(ColorFromY);
-        d->m_dataColor = cmap;
-    } else {
-        d->m_dataColor = new Qwt3DStandardColor();
-    }
+    auto* cmap = new Qwt3DColorMapColor(QString("viridis"));
+    // Amplitude lives on z (module convention), depth on y
+    cmap->setSourceAxis(d->m_colorMode == ByAmplitude ? ColorFromZ : ColorFromY);
+    d->m_dataColor = cmap;
 }
 
 // ---------------------------------------------------------------------------
@@ -745,8 +746,9 @@ void Qwt3DWaterfall::ensureDataColor()
 
 /**
  * @brief Returns the bounding hull of the waterfall
- * @return x from the bin values, y = [min(amplitude, baseline), amplitude max],
- *         z = [0, traceCount()-1]; degenerate to (0,0,0)-(0,0,0) when empty
+ * @return x from the bin values, y = [0, traceCount()-1] (depth),
+ *         z = [min(amplitude, baseline), amplitude max]; degenerate to
+ *         (0,0,0)-(0,0,0) when empty
  */
 ParallelEpiped Qwt3DWaterfall::hull() const
 {
@@ -808,7 +810,7 @@ void Qwt3DWaterfall::buildVBO()
     if (d->m_colorMode != Solid)
         pushColorRange();
 
-    const double baseY = d->m_fixedBaseline ? d->m_baseline : d->m_dataMin;
+    const double baseZ = d->m_fixedBaseline ? d->m_baseline : d->m_dataMin;
     const bool useFunctor = (d->m_colorMode != Solid) && d->m_dataColor;
 
     QVector<WaterfallVertex> vertices;
@@ -823,7 +825,7 @@ void Qwt3DWaterfall::buildVBO()
 
             QVector4D col(1.0f, 1.0f, 1.0f, 1.0f);
             if (useFunctor) {
-                const RGBA c = (*d->m_dataColor)(x, v, z);
+                const RGBA c = (*d->m_dataColor)(x, z, v);
                 col = QVector4D(static_cast< float >(c.r),
                                 static_cast< float >(c.g),
                                 static_cast< float >(c.b),
@@ -836,12 +838,12 @@ void Qwt3DWaterfall::buildVBO()
             }
 
             WaterfallVertex bv;
-            bv.position = QVector3D(static_cast< float >(x), static_cast< float >(baseY), z);
+            bv.position = QVector3D(static_cast< float >(x), z, static_cast< float >(baseZ));
             bv.color = col;
             vertices.append(bv);
 
             WaterfallVertex tv;
-            tv.position = QVector3D(static_cast< float >(x), static_cast< float >(v), z);
+            tv.position = QVector3D(static_cast< float >(x), z, static_cast< float >(v));
             tv.color = col;
             vertices.append(tv);
         }
@@ -907,8 +909,8 @@ void Qwt3DWaterfall::buildOutlineVBO()
         for (int j = 0; j < M; ++j) {
             const double x = d->m_bins.value(j, double(j));
             WaterfallVertex v;
-            v.position = QVector3D(static_cast< float >(x),
-                                   static_cast< float >(trace[ j ]), z);
+            v.position = QVector3D(static_cast< float >(x), z,
+                                   static_cast< float >(trace[ j ]));
             v.color = col;
             vertices.append(v);
         }
@@ -986,9 +988,9 @@ void Qwt3DWaterfall::buildTubeVBO()
         for (int j = 0; j < M; ++j) {
             const double x = d->m_bins.value(j, double(j));
             const double v = trace[ j ];
-            pts[j] = QVector3D(static_cast< float >(x), static_cast< float >(v), z);
+            pts[j] = QVector3D(static_cast< float >(x), z, static_cast< float >(v));
             if (useFunctor) {
-                const RGBA c = (*d->m_dataColor)(x, v, z);
+                const RGBA c = (*d->m_dataColor)(x, z, v);
                 cols[j] = QVector4D(static_cast< float >(c.r),
                                     static_cast< float >(c.g),
                                     static_cast< float >(c.b),

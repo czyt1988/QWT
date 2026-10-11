@@ -4,6 +4,7 @@
 
 - **3D waterfall plot item (Qwt3DWaterfall)**
     - New `Qwt3DPlotItem` rendering a sequence of 1D traces (spectra, chromatograms, ...) as stacked curves along the depth axis, with a built-in sliding window: `pushTrace()` appends the newest trace and drops the oldest, no user-side window or depth bookkeeping
+    - Axes follow the module convention (value axis up, as in `Qwt3DSurface`): x = bin value, y = trace position in the window (depth), z = amplitude; the depth axis is the one to label with `Qwt3DTextScale`
     - The depth coordinate of a trace is its slot index, so the hull z-range grows monotonically to `[0, traceCapacity()-1]` and then stays pinned - no per-frame depth autoscale jitter in a live waterfall
     - Four geometry styles: `Ribbon` (filled curtain, default), `RibbonMesh` (curtain + outline, outline always drawn after the fill), `Wireframe`, `Tube` (lit, same construction as `Qwt3DLine::Tube`)
     - Three color modes: `ByDepth` (default), `ByAmplitude` (colormap over the sample value), `Solid`; fixed color range via `setColorRange()` for stable live amplitude colors; baseline, opacity and outline controls; one item contributes exactly one legend gradient
