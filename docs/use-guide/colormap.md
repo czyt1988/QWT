@@ -113,7 +113,7 @@ What is written:
 | `overview.png` | a 2×11 grid of all gradients |
 | `colormap.png` | a screenshot of the window itself |
 
-Screenshot mode switches the application to the `offscreen` platform plugin, so it runs without a display (CI, docs builds, article illustrations). The `Save Screenshots...` toolbar button does the same from within the GUI.
+Screenshot mode renders through the same window system as the GUI, so the text in the exported images (titles, tick labels, color bar labels) matches what is seen in the window. Without a display (headless Linux CI) it falls back to the `offscreen` platform plugin — the images are still written, but every character degenerates to a box. Setting the `QT_QPA_PLATFORM` environment variable overrides this choice. The `Save Screenshots...` toolbar button does the same from within the GUI.
 
 ## All 22 Presets at a Glance
 

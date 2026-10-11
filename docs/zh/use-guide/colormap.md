@@ -115,7 +115,7 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 | `overview.png` | 22 种色带渐变的 2×11 总览图 |
 | `colormap.png` | 示例程序界面截图 |
 
-该模式内部会自动切换到 `offscreen` 平台，因此无需显示器即可运行，适合 CI、文档站与文章插图场景；GUI 上的 `Save Screenshots...` 按钮与之等价。
+该模式复用界面的窗口系统渲染，导出的文字（标题、刻度、颜色条标签）与窗口中看到的一致；在没有显示器的环境（如无头 Linux CI）中会自动回退到 `offscreen` 平台——此时图片仍可生成，但文字会退化成方框。显式设置 `QT_QPA_PLATFORM` 环境变量可覆盖此行为。GUI 上的 `Save Screenshots...` 按钮与之等价。
 
 ## 22 种预设效果总览
 
