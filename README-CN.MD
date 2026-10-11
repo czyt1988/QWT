@@ -256,6 +256,8 @@ auto cmap = QwtColorMapPreset::create("viridis");
 
 其中感知均匀的 colormap（`viridis`、`plasma`、`inferno`、`magma`、`cividis`）对色盲友好且打印安全，非常适合科研论文。
 
+22 种预设的实际效果与交互对比示例，可参见教程：[科学Colormap预设](https://czyt1988.github.io/QWT/zh/use-guide/colormap/)
+
 ### SIMD加速的曲线降采样
 
 百万级数据点的流畅渲染现已成为一等公民。`QwtPlotCurve` 提供四种降采样算法，其中 MinMax-bucket 路径采用 SIMD 加速（SSE2 / AVX2 / NEON，运行时自动检测）：

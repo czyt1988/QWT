@@ -292,6 +292,8 @@ auto cmap = QwtColorMapPreset::create("viridis");
 
 The perceptually uniform maps (`viridis`, `plasma`, `inferno`, `magma`, `cividis`) are colorblind-friendly and print-safe — ideal for scientific publication.
 
+For the effect of all 22 presets and the interactive example, refer to the tutorial: [Scientific Colormap Presets](https://czyt1988.github.io/QWT/zh/use-guide/colormap/)
+
 ### SIMD-Accelerated Curve Downsampling
 
 Rendering millions of points smoothly is now first-class. `QwtPlotCurve` offers four downsampling filters, and the MinMax-bucket path is accelerated with SIMD (SSE2 / AVX2 / NEON, auto-detected at runtime):
