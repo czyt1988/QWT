@@ -14,6 +14,9 @@
     - Linear scale whose major tic labels come from a string list, so a waterfall depth axis can read "-63", "-48", ..., "0" (frames ago) instead of raw numbers; indices beyond the list fall back to the numeric label
 - **Qwt3DColorMapColor: selectable source axis**
     - New `Qwt3DColorSource` enum (`ColorFromX`/`ColorFromY`/`ColorFromZ`) with `setSourceAxis()`/`sourceAxis()`; the active range applies to the selected axis. The default `ColorFromZ` keeps existing surface/bar/line rendering pixel-identical; `ColorFromY` powers amplitude coloring. `Qwt3DWaterfall::setColorMode()` retargets the functor automatically
+- **Qwt3DPlot: configurable mouse driven view interaction**
+    - `setMouseSpeed()`/`mouseSpeed()` set the drag speeds (rotation turns per widget dimension, exponential gain of drag scaling, world units of drag shifting); the defaults are (0.5, 5, 2), i.e. half a turn per widget dimension, the sensitivity of matplotlib's 3D rotation
+    - `setRollMouse()`/`rollMouse()` add an extra gesture for the y axis rotation (the roll, the one angle a plain left drag cannot reach); the middle button carries it by default and the Shift+left assignment keeps working
 
 ### Bug Fixes
 
@@ -23,6 +26,7 @@
 - Fixed the 3D axis titles never showing on live plots: `Qwt3DCoordinateSystem::destroy()` (called by `init()` on every coordinate system recreation) cleared all axis label strings, and title drawing stayed off unless `setLabel(true)` was called separately. `setLabelString()` now enables drawing for a non-empty title and `init()`/`destroy()` keep the titles; `Qwt3DAxis::label()` exposes the draw flag
 - Fixed `Qwt3DCoordinateSystem::init()` resetting every axis scale to `LINEARSCALE` on each recreation: for items whose hull changes per update (a live waterfall) this silently discarded a user-set `Qwt3DTextScale` and fell back to numeric depth labels. `init()` now rebuilds geometry only, and `Qwt3DAxis::scale()` exposes the active scale
 - Fixed `Qwt3DWaterfall::Tube` fusing into a single blob and collapsing the frame rate: the sweep radius was isotropic in data space, so under anisotropic view scales neighboring traces overlapped and cross sections stretched into slabs, and every ring station of every trace was rebuilt per frame. The radius is now a per-axis fraction of the hull extents (view-circular, capped below half a slot spacing) and dense traces are decimated to <=129 ring stations (measured 17 -> 62 fps at 128 traces x 256 bins)
+- Fixed the 3D view rotation being too fast and quantized to whole degrees: the mouse/keyboard handlers stored `int(round(angle)) % 360`, which discarded the sub degree motion of a slow drag (on a 2000 px wide widget a 1 px move is 0.09 degrees, so the scene did not move at all) and let the angle leave the canonical range; the gain was three full turns per drag across the widget (measured: 200 px -> 220 degrees). Angles are kept as doubles wrapped into [0, 360) and the default gain is half a turn per widget dimension (measured on the same drag: 36 degrees). Regression tests: `tests/plot3d_rotation_test`
 
 ## tag:v7.4.2 (2026-10-10)
 

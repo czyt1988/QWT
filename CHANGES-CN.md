@@ -14,6 +14,9 @@
     - 主刻度标签来自字符串列表的线性 scale，瀑布深度轴可以显示 "-63"、"-48"、……、"0"（距当前帧数）而不是原始数字；越界下标回退为数字标签
 - **Qwt3DColorMapColor：可选取色坐标轴**
     - 新增 `Qwt3DColorSource` 枚举（`ColorFromX`/`ColorFromY`/`ColorFromZ`）与 `setSourceAxis()`/`sourceAxis()`；活动范围作用于所选轴。默认 `ColorFromZ` 保持既有 surface/bar/line 渲染逐像素不变；`ColorFromY` 支撑幅度上色。`Qwt3DWaterfall::setColorMode()` 会自动切换 functor 的取色轴
+- **Qwt3DPlot：可配置的鼠标视图交互**
+    - `setMouseSpeed()`/`mouseSpeed()` 设置拖动速度（每屏旋转圈数、拖动缩放的指数增益、拖动平移的世界单位）；默认值为 (0.5, 5, 2)，即每屏半圈，与 matplotlib 的 3D 旋转灵敏度一致
+    - `setRollMouse()`/`rollMouse()` 为 Y 轴旋转（翻滚，普通左键拖动唯一到不了的角度）增加一个手势；默认绑在鼠标中键上，Shift + 左键的原有绑定继续可用
 
 ### Bug 修复
 
@@ -23,6 +26,7 @@
 - 修复 3D 轴标题在实时绘图上不显示的问题：`Qwt3DCoordinateSystem::destroy()`（`init()` 每次重建坐标系时调用）会清空所有轴的标签字符串，且标题绘制默认关闭、必须另行调用 `setLabel(true)`。现在 `setLabelString()` 设置非空标题即启用绘制，`init()`/`destroy()` 不再清除标题；新增 `Qwt3DAxis::label()` 暴露绘制开关
 - 修复 `Qwt3DCoordinateSystem::init()` 每次重建时把所有轴的 scale 重置为 `LINEARSCALE`：对 hull 逐帧变化的 item（实时瀑布），用户设置的 `Qwt3DTextScale` 会被静默丢弃、深度轴回退为数字标签。现在 `init()` 只重建几何，并新增 `Qwt3DAxis::scale()` 暴露当前 scale
 - 修复 `Qwt3DWaterfall::Tube` 融合成一整块并拖垮帧率的问题：扫掠半径原先在数据空间各向同性，在各向异性视图缩放下相邻轨迹互相重叠、截面被拉成板状，且每帧重建每条轨迹的全部环站。现在半径按各轴 hull 范围取比例（视图空间正圆、上限为半个槽位间距），密集轨迹降采样到 ≤129 个环站（128 条 × 256 bin 实测 17 → 62 fps）
+- 修复 3D 视图旋转过快且被取整成整度的问题：鼠标/键盘处理函数保存的是 `int(round(angle)) % 360`，慢速拖动的小数角度被永久丢弃（2000 px 宽的控件上 1 px 只有 0.09°，画面完全不动），角度还会跑出规范区间；拖满整个控件的增益高达 3 整圈（实测 200 px → 220°）。现在角度以 double 保存并折入 [0, 360)，默认增益改为每屏半圈（同一拖动实测 36°）。回归测试：`tests/plot3d_rotation_test`
 
 ## tag:v7.4.2 (2026-10-10)
 

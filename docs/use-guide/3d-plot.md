@@ -162,10 +162,17 @@ surface->setResolution(1);
 // Enable mouse interaction
 plot->enableMouse(true);
 
-// Mouse operations:
-// - Left button drag: Rotate view
-// - Middle button drag: Pan
-// - Scroll wheel: Zoom
+// Mouse operations (default bindings):
+// - Left button drag: Rotate view (horizontal = around Z, vertical = around X)
+// - Middle button drag: Roll around Y (the third rotation a plain left drag cannot reach)
+// - Shift + left button: Roll around Y as well
+// - Ctrl + left: Pan; Alt + left: scale X/Y; Alt+Shift + left: scale Z; Alt+Ctrl + left: zoom
+// - Scroll wheel: Zoom; Shift + wheel: scale Z
+// The default rotation sensitivity is half a turn per widget dimension
+double rot, scale, shift;
+plot->mouseSpeed(rot, scale, shift);   // (0.5, 5, 2) by default
+plot->setMouseSpeed(0.5, 5, 2);        // turns per widget / scaling gain / shifting units
+plot->setRollMouse(Qwt3DMouseState(Qt::MiddleButton));  // re-bind the roll gesture
 
 // Set scale ratio
 plot->setScale(1.0, 1.0, 1.0);  // X, Y, Z scale ratio
