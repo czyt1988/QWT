@@ -4,6 +4,7 @@
 
 - **3D 瀑布图 item（Qwt3DWaterfall）**
     - 新增 `Qwt3DPlotItem`：把一维轨迹序列（频谱、色谱……）沿深度轴堆叠绘制，内置滑动窗口——`pushTrace()` 追加最新轨迹并丢弃最旧轨迹，用户无需自己管理窗口或深度编号
+    - 坐标轴遵循模块约定（数值轴朝上，与 `Qwt3DSurface` 一致）：x = bin 值、y = 轨迹在窗口中的位置（深度）、z = 幅度；`Qwt3DTextScale` 放在深度轴上
     - 轨迹的深度坐标即槽位索引，hull 的 z 范围单调增长到 `[0, traceCapacity()-1]` 后保持稳定 —— 实时瀑布不会出现逐帧深度轴自动缩放抖动
     - 四种几何样式：`Ribbon`（填充帘幕，默认）、`RibbonMesh`（帘幕 + 描边，描边固定在填充之后绘制）、`Wireframe`、`Tube`（带光照，与 `Qwt3DLine::Tube` 同一构造方式）
     - 三种上色模式：`ByDepth`（默认）、`ByAmplitude`（按采样值上色）、`Solid`；`setColorRange()` 固定色域让实时幅度颜色稳定；基线、不透明度与描边可调；一个 item 只向图例贡献一条渐变
