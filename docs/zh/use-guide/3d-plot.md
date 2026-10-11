@@ -2,6 +2,9 @@
 
 Qwt 7.1 将原 `QwtPlot3D` 库整合进来，提供了三维数据可视化能力。从 v7.3.3 起，3D模块已完全重构为 **Plot + Item** 架构，与2D模块（`QwtPlot` + `QwtPlotItem`）对称，并采用现代OpenGL渲染（VBO/VAO + GLSL 3.3 Core着色器）。
 
+!!! info "为什么是 Plot + Item"
+    旧 `QwtPlot3D` 的缺陷、重构的思路与收益，见 [3D绘图架构](3d-architecture.md)（架构综述）。
+
 ## 主要功能特性
 
 **特性**

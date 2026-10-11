@@ -2,6 +2,9 @@
 
 Qwt 7.1 integrates the original `QwtPlot3D` library, providing 3D data visualization capabilities. Starting from v7.3.3, the 3D module has been fully refactored to a **Plot + Item** architecture that mirrors the 2D module (`QwtPlot` + `QwtPlotItem`), with modern OpenGL rendering (VBO/VAO + GLSL 3.3 Core shaders).
 
+!!! info "Why Plot + Item"
+    For the defects of the legacy `QwtPlot3D`, the refactoring rationale and its benefits, see [3D Plot Architecture](3d-architecture.md) (the architecture overview).
+
 ## Main Features
 
 **Features**
