@@ -51,11 +51,11 @@ public:
     // Returns pointer to ColorLegend object
     Qwt3DColorLegend* legend();
 
-    // Returns rotation around X axis [-360..360] (some angles are equivalent)
+    // Returns the rotation around the X axis in degrees, mouse/keyboard input wraps it into [0..360)
     double xRotation() const;
-    // Returns rotation around Y axis [-360..360] (some angles are equivalent)
+    // Returns the rotation around the Y axis in degrees, mouse/keyboard input wraps it into [0..360)
     double yRotation() const;
-    // Returns rotation around Z axis [-360..360] (some angles are equivalent)
+    // Returns the rotation around the Z axis in degrees, mouse/keyboard input wraps it into [0..360)
     double zRotation() const;
 
     // Returns shift along X axis (object coordinates)
@@ -163,6 +163,18 @@ public:
     void setKeySpeed(double rot, double scale, double shift);
     // Gets speed for keyboard driven transformations
     void keySpeed(double& rot, double& scale, double& shift) const;
+
+    // Sets the mouse drag speeds: rotation turns per widget dimension,
+    // exponential gain of the drag scaling, world units of dragging shift
+    void setMouseSpeed(double rot, double scale, double shift);
+    // Gets the mouse drag speeds
+    void mouseSpeed(double& rot, double& scale, double& shift) const;
+
+    // Sets an additional mouse gesture for the y axis rotation (the roll),
+    // Qwt3DMouseState() turns the extra gesture off
+    void setRollMouse(Qwt3DMouseState state);
+    // Returns the additional roll gesture
+    Qwt3DMouseState rollMouse() const;
 
     // Returns true, if Lighting is enabled, false else
     bool lightingEnabled() const;

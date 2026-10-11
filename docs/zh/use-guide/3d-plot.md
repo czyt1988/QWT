@@ -162,10 +162,17 @@ surface->setResolution(1);
 // 启用鼠标交互
 plot->enableMouse(true);
 
-// 鼠标操作：
-// - 左键拖动：旋转视角
-// - 中键拖动：平移
-// - 滚轮：缩放
+// 鼠标操作（默认绑定）：
+// - 左键拖动：旋转视角（横向 = 绕 Z 轴，纵向 = 绕 X 轴）
+// - 中键拖动：绕 Y 轴翻滚（普通左键拖动到不了的第三个旋转角）
+// - Shift + 左键：同样绕 Y 轴翻滚
+// - Ctrl + 左键：平移；Alt + 左键：X/Y 缩放；Alt+Shift + 左键：Z 缩放；Alt+Ctrl + 左键：视图缩放
+// - 滚轮：视图缩放；Shift + 滚轮：Z 缩放
+// 旋转灵敏度默认每屏半圈（与 matplotlib 的 3D 旋转一致）
+double rot, scale, shift;
+plot->mouseSpeed(rot, scale, shift);   // 默认 (0.5, 5, 2)
+plot->setMouseSpeed(0.5, 5, 2);        // 每屏圈数 / 缩放增益 / 平移单位
+plot->setRollMouse(Qwt3DMouseState(Qt::MiddleButton));  // 重新绑定翻滚手势
 
 // 设置缩放比例
 plot->setScale(1.0, 1.0, 1.0);  // X、Y、Z缩放比例

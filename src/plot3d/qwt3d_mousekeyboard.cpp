@@ -11,6 +11,23 @@
 
 using std::max;
 
+namespace
+{
+
+/**
+        Wraps an angle into [0, 360) without quantizing it. Quantizing the stored
+        angle to whole degrees would discard the sub degree motion of a slow
+        drag, which makes the scene stick on wide widgets or high resolution
+        mice.
+*/
+double wrapAngle(double degrees)
+{
+    degrees = std::fmod(degrees, 360.0);
+    return (degrees < 0.0) ? degrees + 360.0 : degrees;
+}
+
+} // namespace
+
 /**
         Standard mouse button Function. Prepares the call to mouseMoveEvent
         @see mouseMoveEvent()
@@ -48,9 +65,9 @@ void Qwt3DPlot::mouseMoveEvent(QMouseEvent* e)
 
     QPoint diff = qwt::compat::eventPos(e) - d->m_lastMouseMovePosition;
 
-    setRotationMouse(bstate, 3, diff);
-    setScaleMouse(bstate, 5, diff);
-    setShiftMouse(bstate, 2, diff);
+    setRotationMouse(bstate, d->m_mouseRotSpeed, diff);
+    setScaleMouse(bstate, d->m_mouseScaleSpeed, diff);
+    setShiftMouse(bstate, d->m_mouseShiftSpeed, diff);
 
     d->m_lastMouseMovePosition = qwt::compat::eventPos(e);
 }
@@ -70,11 +87,11 @@ void Qwt3DPlot::setRotationMouse(Qwt3DMouseState bstate, double accel, QPoint di
     double new_zrot = zRotation();
 
     if (bstate == d->m_xrotMState)
-        new_xrot = static_cast< int >(std::round(xRotation() + relyz)) % 360;
-    if (bstate == d->m_yrotMState)
-        new_yrot = static_cast< int >(std::round(yRotation() + relx)) % 360;
+        new_xrot = wrapAngle(new_xrot + relyz);
+    if (bstate == d->m_yrotMState || bstate == d->m_rollMState)
+        new_yrot = wrapAngle(new_yrot + relx);
     if (bstate == d->m_zrotMState)
-        new_zrot = static_cast< int >(std::round(zRotation() + relx)) % 360;
+        new_zrot = wrapAngle(new_zrot + relx);
 
     setRotation(new_xrot, new_yrot, new_zrot);
 }
@@ -156,6 +173,7 @@ void Qwt3DPlot::wheelEvent(QWheelEvent* e)
         rotate around x axis: Qt::LeftButton
         rotate around y axis: Qt::LeftButton | Qt::ShiftButton
         rotate around z axis: Qt::LeftButton
+        roll (y axis) extra:  Qt::MiddleButton (setRollMouse())
         scale x:              Qt::LeftButton | Qt::AltButton
         scale y:              Qt::LeftButton | Qt::AltButton
         scale z:              Qt::LeftButton | Qt::AltButton | Qt::ShiftButton
@@ -246,17 +264,17 @@ void Qwt3DPlot::setRotationKeyboard(Qwt3DKeyboardState kseq, double speed)
     double new_zrot = zRotation();
 
     if (kseq == d->m_xrotKState[ 0 ])
-        new_xrot = static_cast< int >(std::round(xRotation() + relyz)) % 360;
+        new_xrot = wrapAngle(xRotation() + relyz);
     if (kseq == d->m_xrotKState[ 1 ])
-        new_xrot = static_cast< int >(std::round(xRotation() - relyz)) % 360;
+        new_xrot = wrapAngle(xRotation() - relyz);
     if (kseq == d->m_yrotKState[ 0 ])
-        new_yrot = static_cast< int >(std::round(yRotation() + relx)) % 360;
+        new_yrot = wrapAngle(yRotation() + relx);
     if (kseq == d->m_yrotKState[ 1 ])
-        new_yrot = static_cast< int >(std::round(yRotation() - relx)) % 360;
+        new_yrot = wrapAngle(yRotation() - relx);
     if (kseq == d->m_zrotKState[ 0 ])
-        new_zrot = static_cast< int >(std::round(zRotation() + relx)) % 360;
+        new_zrot = wrapAngle(zRotation() + relx);
     if (kseq == d->m_zrotKState[ 1 ])
-        new_zrot = static_cast< int >(std::round(zRotation() - relx)) % 360;
+        new_zrot = wrapAngle(zRotation() - relx);
 
     setRotation(new_xrot, new_yrot, new_zrot);
 }
@@ -427,4 +445,69 @@ void Qwt3DPlot::keySpeed(double& rot, double& scale, double& shift) const
     rot   = d->m_kbdRotSpeed;
     scale = d->m_kbdScaleSpeed;
     shift = d->m_kbdShiftSpeed;
+}
+
+/**
+  @brief Sets the mouse drag speeds
+  @param rot Full turns a drag across the whole widget rotates the scene around an axis
+  @param scale Exponential gain of the drag driven scaling
+  @param shift World units of the drag driven shifting per widget dimension
+  @details Values <= 0 are ignored, so the current setting is kept. The defaults are
+  (0.5, 5, 2): a rotation drag covers half a turn per widget dimension, i.e. the
+  same sensitivity as the 3D rotation of matplotlib, and a drag of one widget
+  dimension scales by exp(5) - 1.
+  @see mouseSpeed(), setKeySpeed()
+*/
+void Qwt3DPlot::setMouseSpeed(double rot, double scale, double shift)
+{
+    QWT_D(d);
+    if (rot > 0)
+        d->m_mouseRotSpeed = rot;
+    if (scale > 0)
+        d->m_mouseScaleSpeed = scale;
+    if (shift > 0)
+        d->m_mouseShiftSpeed = shift;
+}
+
+/**
+  @brief Returns the mouse drag speeds
+  @param[out] rot Turns per widget dimension
+  @param[out] scale Exponential gain of the drag driven scaling
+  @param[out] shift World units of the drag driven shifting per widget dimension
+  @see setMouseSpeed()
+*/
+void Qwt3DPlot::mouseSpeed(double& rot, double& scale, double& shift) const
+{
+    QWT_DC(d);
+    rot   = d->m_mouseRotSpeed;
+    scale = d->m_mouseScaleSpeed;
+    shift = d->m_mouseShiftSpeed;
+}
+
+/**
+  @brief Sets an additional mouse gesture for the y axis rotation
+  @param state Mouse state that rolls the scene (rotation around the y axis)
+  @details The y rotation is the one rotation a plain left drag cannot reach: the
+  horizontal drag component drives the z rotation and the vertical one the x
+  rotation. assignMouse() holds a single state for the y rotation
+  (@c Qt::LeftButton @c | @c Qt::ShiftModifier by default), so the constructor binds
+  the middle button here as an extra roll gesture. Pass Qwt3DMouseState() to turn
+  the extra gesture off again.
+  @see rollMouse(), assignMouse()
+*/
+void Qwt3DPlot::setRollMouse(Qwt3DMouseState state)
+{
+    QWT_D(d);
+    d->m_rollMState = state;
+}
+
+/**
+  @brief Returns the additional roll gesture
+  @return Mouse state set with setRollMouse()
+  @see setRollMouse()
+*/
+Qwt3DMouseState Qwt3DPlot::rollMouse() const
+{
+    QWT_DC(d);
+    return d->m_rollMState;
 }

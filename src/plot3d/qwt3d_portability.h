@@ -28,12 +28,12 @@ public:
     {
     }
 
-    bool operator==(const Qwt3DMouseState& ms)
+    bool operator==(const Qwt3DMouseState& ms) const
     {
         return mb_ == ms.mb_ && km_ == ms.km_;
     }
 
-    bool operator!=(const Qwt3DMouseState& ms)
+    bool operator!=(const Qwt3DMouseState& ms) const
     {
         return !operator==(ms);
     }
@@ -55,12 +55,12 @@ public:
     {
     }
 
-    bool operator==(const Qwt3DKeyboardState& ms)
+    bool operator==(const Qwt3DKeyboardState& ms) const
     {
         return key_ == ms.key_ && km_ == ms.km_;
     }
 
-    bool operator!=(const Qwt3DKeyboardState& ms)
+    bool operator!=(const Qwt3DKeyboardState& ms) const
     {
         return !operator==(ms);
     }

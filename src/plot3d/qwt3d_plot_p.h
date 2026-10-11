@@ -61,6 +61,11 @@ public:
     Qwt3DMouseState m_xscaleMState, m_yscaleMState, m_zscaleMState;
     Qwt3DMouseState m_zoomMState;
     Qwt3DMouseState m_xshiftMState, m_yshiftMState;
+    Qwt3DMouseState m_rollMState;
+
+    // Mouse drag speeds: turns per widget dimension (rotation), exponential gain
+    // (scaling) and world units per widget dimension (shifting)
+    double m_mouseRotSpeed, m_mouseScaleSpeed, m_mouseShiftSpeed;
 
     bool m_mouseInputEnabled;
 

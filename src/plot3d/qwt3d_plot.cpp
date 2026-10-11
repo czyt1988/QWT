@@ -32,6 +32,9 @@ Qwt3DPlot::PrivateData::PrivateData(Qwt3DPlot* q)
     , m_titleAnchor(TopCenter)
     , m_lastMouseMovePosition(0, 0)
     , m_pressed(false)
+    , m_mouseRotSpeed(0.5)
+    , m_mouseScaleSpeed(5.0)
+    , m_mouseShiftSpeed(2.0)
     , m_mouseInputEnabled(true)
     , m_kPressed(false)
     , m_kbdInputEnabled(true)
@@ -68,6 +71,9 @@ Qwt3DPlot::Qwt3DPlot(QWidget* parent) : QOpenGLWidget(parent), QWT_PIMPL_CONSTRU
                 Qwt3DMouseState(Qt::LeftButton, Qt::AltModifier | Qt::ControlModifier),
                 Qwt3DMouseState(Qt::LeftButton, Qt::ControlModifier),
                 Qwt3DMouseState(Qt::LeftButton, Qt::ControlModifier));
+    // The roll is the one rotation a plain left drag cannot reach: the middle
+    // button is bound to it in addition to the Shift+left assignment above.
+    setRollMouse(Qwt3DMouseState(Qt::MiddleButton));
 
     assignKeyboard(Qt::Key_Down,
                    Qt::Key_Up,
