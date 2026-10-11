@@ -30,10 +30,11 @@ make            # Linux: make / Windows MSVC: nmake / MinGW: mingw32-make
 
 Or simply open `qmakeExample.pro` in **Qt Creator** and build from the IDE.
 
-!!! note
-    `src-amalgamate/QwtPlot.cpp` is a ~2.4 MB amalgamated source that inlines
-    the whole Qwt project. The first compile takes noticeably longer than a
-    normal example; subsequent incremental builds are fast.
+> **Note**
+>
+> `src-amalgamate/QwtPlot.cpp` is a ~2.4 MB amalgamated source that inlines
+> the whole Qwt project. The first compile takes noticeably longer than a
+> normal example; subsequent incremental builds are fast.
 
 ## What it demonstrates
 

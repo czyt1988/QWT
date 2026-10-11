@@ -2,7 +2,9 @@
 
 This guide provides standards for writing Qwt documentation, ensuring consistent style, complete content, and easy readability.
 
-The project documentation is organized with MkDocs, using the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/getting-started/) theme. During the writing process, Material-related syntax extensions can be used.
+The project documentation is built with MkDocs, using the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/getting-started/) theme. The Markdown sources, however, must stay **platform-generic**: the same file has to render correctly on the MkDocs site and on other platforms such as GitHub and GitLab. Write only syntax that plain Markdown and GitHub-Flavored Markdown support, and avoid renderer-specific extensions.
+
+Do not use: Material admonitions (`!!!`, `???`), tabbed content (`=== "tab"`), attribute lists (`{: .class }`), emoji shortcodes (`:material-...:`), pymdownx keys (`++ctrl++`) or marks (`==highlight==`). Anything of that kind renders as literal text as soon as the file is viewed outside the MkDocs build.
 
 Project documentation diagrams should primarily use `mermaid`.
 
@@ -29,7 +31,7 @@ Each feature document must include the following sections:
 | Feature Overview | Required | A one-sentence description of the class's purpose and features at the beginning |
 | Key Features | Required | List core features, marked with ✅ |
 | Usage | Required | Detailed usage steps and code examples |
-| Notes | Recommended | Use !!! format to highlight important information |
+| Notes | Recommended | Use blockquote callouts to highlight important information |
 | References | Optional | Related documentation and example path links |
 
 ## Content Writing Principles
@@ -104,31 +106,36 @@ classDiagram
 
 ### 5. Notes Format
 
-Use Markdown extension syntax to highlight important information:
+Important information is wrapped in a blockquote callout: a bold label, optionally followed by a title after an em dash, a blank quoted separator line, then the content prefixed with `> `. This is plain Markdown, so it renders on the MkDocs site and on GitHub or GitLab alike.
 
 ```markdown
-
-> **Warning — Important Warning**
+> **Warning — Do not load data before attach()**
 >
 > Information that could lead to serious issues
 
-> **Info — Note**
+> **Note — Default settings**
 >
 > Supplementary information
 
-> **Tip — Tip**
+> **Tip**
 >
-> Usage tips and recommendations
-
-> **Example — Example**
->
-> Example code path: `examples/xxx`
-
-> **Bug — Known Issue**
->
-> Known defects and workarounds
-
+> Usage tips and recommendations, title optional
 ```
+
+Label vocabulary:
+
+| Label | Used for |
+|-------|----------|
+| `Note` | Supplementary information, default behavior |
+| `Info` | Background, scope and context |
+| `Tip` | Usage tips, recommendations, migration hints |
+| `Warning` | Caveats that produce wrong or blank plots |
+| `Example` | Example code path or demonstration snippet |
+| `Bug` | Known defects and workarounds |
+| `Success` | New features and improvements |
+| `Abstract` | Executive summary of a long article |
+
+Chinese documents use the same form with the labels 说明 / 信息 / 提示 / 警告 / 示例 / 已知问题 / 亮点 / 摘要.
 
 ### 6. Property/Method Description Format
 
@@ -292,7 +299,7 @@ classDiagram
 [Configuration code]
 ```
 
-> **Warning — Note**
+> **Warning — setRawSamples keeps a reference**
 >
 > Important reminder
 
