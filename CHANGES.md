@@ -1,3 +1,25 @@
+## tag:v7.5.0 (unreleased)
+
+### New Features
+
+- **3D waterfall plot item (Qwt3DWaterfall)**
+    - New `Qwt3DPlotItem` rendering a sequence of 1D traces (spectra, chromatograms, ...) as stacked curves along the depth axis, with a built-in sliding window: `pushTrace()` appends the newest trace and drops the oldest, no user-side window or depth bookkeeping
+    - The depth coordinate of a trace is its slot index, so the hull z-range grows monotonically to `[0, traceCapacity()-1]` and then stays pinned - no per-frame depth autoscale jitter in a live waterfall
+    - Four geometry styles: `Ribbon` (filled curtain, default), `RibbonMesh` (curtain + outline, outline always drawn after the fill), `Wireframe`, `Tube` (lit, same construction as `Qwt3DLine::Tube`)
+    - Three color modes: `ByDepth` (default), `ByAmplitude` (colormap over the sample value), `Solid`; fixed color range via `setColorRange()` for stable live amplitude colors; baseline, opacity and outline controls; one item contributes exactly one legend gradient
+    - New example `examples/3D/waterfall3D`: 2D live spectrum + peak hold on top, 3D sliding-window waterfall below, both fed the identical frame; toolbar controls for window size / style / colormap / color mode / opacity; automation hooks `--screenshot`, `--selftest`, `--fps` (measured 51.8 fps at 64 traces x 256 bins with both views updating)
+    - New usage guide "3D Waterfall" (EN/CN, with screenshot); RTTI value `Rtti_Plot3DWaterfall = 1004`; theme branch in `Qwt3DTheme::applyToItem()`; classincludes forwarding headers
+- **Qwt3DTextScale: user supplied tic labels for the depth axis**
+    - Linear scale whose major tic labels come from a string list, so a waterfall depth axis can read "-63", "-48", ..., "0" (frames ago) instead of raw numbers; indices beyond the list fall back to the numeric label
+- **Qwt3DColorMapColor: selectable source axis**
+    - New `Qwt3DColorSource` enum (`ColorFromX`/`ColorFromY`/`ColorFromZ`) with `setSourceAxis()`/`sourceAxis()`; the active range applies to the selected axis. The default `ColorFromZ` keeps existing surface/bar/line rendering pixel-identical; `ColorFromY` powers amplitude coloring. `Qwt3DWaterfall::setColorMode()` retargets the functor automatically
+
+### Bug Fixes
+
+- Fixed `Qwt3DPlot::attach()` not recalculating the scene: an item whose data was loaded before `attach()` - with no setter (and therefore no `itemChanged()`) in between - left the plot hull at (0,0,0)-(0,0,0) and the widget rendered blank without any warning. The z-order sort + hull union + coordinate system update is extracted into a private `recalculateScene()`, now also called from `attach()` and `detach()`, so detaching items shrinks the hull correctly as well. Regression tests added (`tests/waterfall_test`)
+- Fixed derived `Qwt3DScale` classes being sliced inside `Qwt3DAxis::setScale()`: the `Qwt3DClonePtr` assignment clones via `clone()`, and any derived scale without a `clone()` override silently lost its custom `ticLabel()` (verified pixel-identical rendering). `Qwt3DTextScale` overrides `clone()`; `Qwt3DLinearScale` gains a protected `copyLinearScaleState()` so derived implementations can copy the autoscaler state
+- Fixed `Qwt3DWaterfall::pushTrace()` reading past the end of a short trace: incoming frames are fitted into the established bin count (longer truncated, shorter zero-padded)
+
 ## tag:v7.4.2 (2026-10-10)
 
 ### New Features

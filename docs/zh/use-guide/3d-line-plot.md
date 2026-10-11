@@ -168,3 +168,4 @@ plot->coordinates()->setTicLengthScale(0.02);
 
 !!! example "相关示例"
     - 3D 线图：`examples/3D/line3D`
+    - 大量轨迹的实时滑动窗口见 [3D瀑布图](3d-waterfall.md)（`Qwt3DWaterfall`）

@@ -10,7 +10,7 @@ Qwt 7.1 integrates the original `QwtPlot3D` library, providing 3D data visualiza
 **Features**
 
 - ✅ **Plot + Item architecture**: `Qwt3DPlot` (rendering window) + `Qwt3DPlotItem` (drawable items), symmetric with 2D's `QwtPlot` + `QwtPlotItem`
-- ✅ **Multiple plot types**: Surface plots, grid plots, parametric surfaces, function plots, etc.
+- ✅ **Multiple plot types**: Surface plots, grid plots, parametric surfaces, function plots, waterfall plots (sliding-window trace stacks), etc.
 - ✅ **Modern OpenGL rendering**: VBO/VAO + GLSL 3.3 Core shaders (no legacy fixed-function pipeline)
 - ✅ **Interactive operations**: Supports mouse rotation, zooming, and panning
 - ✅ **Lighting and materials**: Supports lighting effects and material configuration
@@ -80,6 +80,7 @@ classDiagram
 | `Qwt3DSurface` | 3D surface plot item, displays continuous surfaces (handles both grid and cell data) |
 | `Qwt3DBar` | 3D bar chart item (1D series or 2D grid histogram); per-bar cuboids with flat normals |
 | `Qwt3DLine` | 3D line/curve item; Tube (swept cylinder, lit) / Lines / Dots styles |
+| `Qwt3DWaterfall` | 3D waterfall item with a built-in sliding window; stacked traces (spectra) along the depth axis |
 | `Qwt3DFunction` | Data generator that creates surfaces from z = f(x, y) mathematical functions |
 | `Qwt3DParametricSurface` | Data generator for parametric surfaces r(u, v) |
 | `Qwt3DCoordinateSystem` | 3D coordinate system with 12 axes, box/frame styles |
@@ -204,10 +205,11 @@ overlay->attach(plot);
 
 ### Other 3D Item Types (v7.3.5+)
 
-Beyond surfaces, the 3D module ships two more `Qwt3DPlotItem` types — see their dedicated usage pages:
+Beyond surfaces, the 3D module ships more `Qwt3DPlotItem` types — see their dedicated usage pages:
 
 - [3D Bar Chart](3d-bar-chart.md) (`Qwt3DBar`) — 1D series or 2D grid (3D histogram), per-bar cuboids with flat normals, `Filled`/`FilledMesh`/`Wireframe`.
 - [3D Line Plot](3d-line-plot.md) (`Qwt3DLine`) — `Tube` (lit swept cylinder) / `Lines` / `Dots`, per-vertex colormap.
+- [3D Waterfall](3d-waterfall.md) (`Qwt3DWaterfall`) — sliding-window waterfall of 1D traces (spectra), `Ribbon`/`RibbonMesh`/`Wireframe`/`Tube` styles, depth/amplitude/solid coloring.
 
 ### Theme System (v7.3.1+)
 

@@ -753,59 +753,15 @@ QOpenGLShaderProgram* Qwt3DPlot::textShader() const
 // --- Item list management ---
 
 /**
- * @brief Attach a plot item to this plot
- * @param item Pointer to the item to attach
- * @details Inserts the item into the internal list and sorts by z-order.
- *          If the item is already attached, it is not duplicated.
+ * @brief Recalculates the scene from the attached items
+ * @details Sorts the item list by z-order, recomputes the plot hull as the
+ *          union of all item hulls and recreates the coordinate system.
+ *          Shared by attach(), detach() and itemChanged() so that the scene
+ *          reflects the items even when no itemChanged() follows the list
+ *          mutation (e.g. data was loaded before attach()).
+ *          With an empty item list the hull resets to (0,0,0)-(0,0,0).
  */
-void Qwt3DPlot::attach(Qwt3DPlotItem* item)
-{
-    QWT_D(d);
-    if (!item || d->m_items.contains(item))
-        return;
-
-    d->m_items.append(item);
-    // Sort by z-order (ascending)
-    std::sort(d->m_items.begin(), d->m_items.end(),
-        [](const Qwt3DPlotItem* a, const Qwt3DPlotItem* b) {
-            return a->z() < b->z();
-        });
-
-    update();
-}
-
-/**
- * @brief Detach a plot item from this plot
- * @param item Pointer to the item to detach
- * @details Removes the item from the internal list. Does not delete the item.
- */
-void Qwt3DPlot::detach(Qwt3DPlotItem* item)
-{
-    QWT_D(d);
-    if (!item)
-        return;
-
-    d->m_items.removeAll(item);
-    update();
-}
-
-/**
- * @brief Returns the list of attached items (sorted by z-order)
- */
-const QList< Qwt3DPlotItem* >& Qwt3DPlot::itemList() const
-{
-    QWT_DC(d);
-    return d->m_items;
-}
-
-/**
- * @brief Called by Qwt3DPlotItem when its data or properties change
- * @param item The item that changed
- * @details Re-sorts the item list by z-order, recalculates the plot hull
- *          as the union of all items' hulls, updates the coordinate system,
- *          and triggers a repaint.
- */
-void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
+void Qwt3DPlot::recalculateScene()
 {
     QWT_D(d);
     // Re-sort by z-order
@@ -829,7 +785,70 @@ void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
         }
         d->m_hull = ParallelEpiped(minV, maxV);
         createCoordinateSystem(minV, maxV);
+    } else {
+        d->m_hull = ParallelEpiped(Triple(0, 0, 0), Triple(0, 0, 0));
     }
+}
+
+/**
+ * @brief Attach a plot item to this plot
+ * @param item Pointer to the item to attach
+ * @details Inserts the item into the internal list, recalculates the scene
+ *          (z-order sort, hull union, coordinate system) and triggers a repaint.
+ *          If the item is already attached, nothing happens.
+ *          The scene recalculation makes the plot show items whose data was
+ *          loaded before attach() even when no further itemChanged() follows.
+ */
+void Qwt3DPlot::attach(Qwt3DPlotItem* item)
+{
+    QWT_D(d);
+    if (!item || d->m_items.contains(item))
+        return;
+
+    d->m_items.append(item);
+    recalculateScene();
+
+    update();
+}
+
+/**
+ * @brief Detach a plot item from this plot
+ * @param item Pointer to the item to detach
+ * @details Removes the item from the internal list, recalculates the scene
+ *          (the hull shrinks to the union of the remaining items) and
+ *          triggers a repaint. Does not delete the item.
+ */
+void Qwt3DPlot::detach(Qwt3DPlotItem* item)
+{
+    QWT_D(d);
+    if (!item)
+        return;
+
+    d->m_items.removeAll(item);
+    recalculateScene();
+
+    update();
+}
+
+/**
+ * @brief Returns the list of attached items (sorted by z-order)
+ */
+const QList< Qwt3DPlotItem* >& Qwt3DPlot::itemList() const
+{
+    QWT_DC(d);
+    return d->m_items;
+}
+
+/**
+ * @brief Called by Qwt3DPlotItem when its data or properties change
+ * @param item The item that changed
+ * @details Re-sorts the item list by z-order, recalculates the plot hull
+ *          as the union of all items' hulls, updates the coordinate system,
+ *          and triggers a repaint.
+ */
+void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
+{
+    recalculateScene();
 
     update();
 }

@@ -17,6 +17,7 @@
 #include "qwt3d_surface.h"
 #include "qwt3d_bar.h"
 #include "qwt3d_line3d.h"
+#include "qwt3d_waterfall.h"
 
 #include <qfont.h>
 
@@ -514,7 +515,8 @@ void Qwt3DTheme::apply(Qwt3DPlot* plot) const
  *          line width, smooth mesh, data color (from preset), plot style, and
  *          shading. Qwt3DBar receives mesh color/line width, bar style (mapped
  *          from the theme's plot style), and the data color functor. Qwt3DLine
- *          receives the solid color and the data color functor.
+ *          receives the solid color and the data color functor. Qwt3DWaterfall
+ *          receives the outline color/width and the data color functor.
  */
 void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item) const
 {
@@ -554,6 +556,14 @@ void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item) const
         line->setColor(m_meshColor);
         auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
         line->setDataColor(colorMap);
+        return;
+    }
+
+    if (auto* waterfall = dynamic_cast<Qwt3DWaterfall*>(item)) {
+        waterfall->setOutlineColor(m_meshColor);
+        waterfall->setOutlineWidth(m_meshLineWidth);
+        auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+        waterfall->setDataColor(colorMap);
         return;
     }
 }

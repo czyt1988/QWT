@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <qstring.h>
+#include <QVector>
 #include "qwt3d_types.h"
 #include "qwt3d_autoptr.h"
 
@@ -76,6 +77,9 @@ protected:
     // Returns a new heap based object utilized from Qwt3DClonePtr
     Qwt3DScale* clone() const override;
     void calculate() override;
+
+    // Copies the linear autoscaler state (for derived clone() implementations)
+    void copyLinearScaleState(const Qwt3DLinearScale& other);
 };
 
 /**
@@ -98,6 +102,47 @@ protected:
 
 private:
     void setupCounter(double& k, int& step);
+};
+
+/**
+ * @brief Linear scale whose major tic labels come from a user supplied string list
+ * @details Qwt3DAxis::drawTicLabel() asks the scale for the label of every major
+ *          tic via ticLabel(idx). With this scale the depth axis of a waterfall
+ *          can read "t=-2.4s", "frame 17", ... instead of plain numbers.
+ *
+ * Qwt3DAxis::setScale() hands the scale object to a Qwt3DClonePtr, whose
+ * assignment calls clone(). Any derived scale that does not override clone()
+ * is sliced to its base class right inside setScale(), and the custom
+ * ticLabel() silently stops working. Qwt3DTextScale overrides clone(), so it
+ * survives the clone; user-defined scale classes must do the same.
+ *
+ * @code
+ * auto* scale = new Qwt3DTextScale();
+ * scale->setLabels({ "oldest", "-32", "-16", "newest" });
+ * plot->coordinates()->axes[Qwt3D::Z1].setScale(scale);
+ * plot->coordinates()->axes[Qwt3D::Z1].setMajors(3);
+ * @endcode
+ */
+class QWT3D_EXPORT Qwt3DTextScale : public Qwt3DLinearScale
+{
+    friend class Qwt3DAxis;
+    friend class Qwt3DClonePtr< Qwt3DScale >;
+
+public:
+    Qwt3DTextScale();
+
+    /// Sets the label list (indexed by major tic index)
+    void setLabels(const QVector<QString>& labels);
+    /// Returns the label list
+    QVector<QString> labels() const;
+
+protected:
+    QString ticLabel(unsigned int idx) const override;
+    // Must override: Qwt3DAxis::setScale() clones the object via Qwt3DClonePtr
+    Qwt3DScale* clone() const override;
+
+private:
+    QVector<QString> m_labels;
 };
 
 

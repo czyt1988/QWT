@@ -10,7 +10,7 @@ Qwt 7.1 将原 `QwtPlot3D` 库整合进来，提供了三维数据可视化能�
 **特性**
 
 - ✅ **Plot + Item 架构**：`Qwt3DPlot`（渲染窗口）+ `Qwt3DPlotItem`（绘图item），与2D的 `QwtPlot` + `QwtPlotItem` 对称
-- ✅ **多种绘图类型**：表面图、网格图、参数曲面、函数绘图等
+- ✅ **多种绘图类型**：表面图、网格图、参数曲面、函数绘图、瀑布图（滑动窗口轨迹堆叠）等
 - ✅ **现代OpenGL渲染**：VBO/VAO + GLSL 3.3 Core着色器（不使用旧版固定管线）
 - ✅ **交互操作**：支持鼠标旋转、缩放、平移
 - ✅ **光照和材质**：支持光照效果和材质配置
@@ -80,6 +80,7 @@ classDiagram
 | `Qwt3DSurface` | 3D表面图item，显示连续曲面（同时支持网格和单元数据） |
 | `Qwt3DBar` | 3D柱状图item（1D序列或2D网格直方图）；逐柱立方体，扁平法向 |
 | `Qwt3DLine` | 3D线图item；Tube（扫掠圆柱、带光照）/ Lines / Dots 三种样式 |
+| `Qwt3DWaterfall` | 3D瀑布图item，内置滑动窗口；沿深度轴堆叠一维轨迹（频谱等） |
 | `Qwt3DFunction` | 数据生成器，根据 z = f(x, y) 数学函数生成曲面 |
 | `Qwt3DParametricSurface` | 参数曲面数据生成器 r(u, v) |
 | `Qwt3DCoordinateSystem` | 3D坐标系统，12轴，支持BOX/FRAME样式 |
@@ -204,10 +205,11 @@ overlay->attach(plot);
 
 ### 其他 3D item 类型（v7.3.5+）
 
-除曲面外，3D 模块还提供两个 `Qwt3DPlotItem` 类型——详见各自的使用说明文档：
+除曲面外，3D 模块还提供更多 `Qwt3DPlotItem` 类型——详见各自的使用说明文档：
 
 - [3D柱状图](3d-bar-chart.md)（`Qwt3DBar`）：1D 序列或 2D 网格（3D 直方图），逐柱立方体扁平法向，`Filled`/`FilledMesh`/`Wireframe`。
 - [3D线图](3d-line-plot.md)（`Qwt3DLine`）：`Tube`（带光照扫掠圆柱）/ `Lines` / `Dots`，逐顶点 colormap。
+- [3D瀑布图](3d-waterfall.md)（`Qwt3DWaterfall`）：滑动窗口瀑布图，`Ribbon`/`RibbonMesh`/`Wireframe`/`Tube` 样式，按深度/幅度/纯色上色。
 
 ### 主题系统（v7.3.1+）
 

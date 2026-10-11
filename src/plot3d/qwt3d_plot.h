@@ -353,6 +353,9 @@ private:
 
     void applyLight(unsigned idx);
     void applyLights();
+
+    // Sorts items by z-order, recomputes the union hull and the coordinate system
+    void recalculateScene();
 };
 
 
