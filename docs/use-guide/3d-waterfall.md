@@ -27,7 +27,7 @@ The axes follow the module convention that the value axis is z (as in `Qwt3DSurf
 | `Qwt3DWaterfall::Ribbon` | Filled curtain from the baseline up to the trace (default). The classic waterfall look. |
 | `Qwt3DWaterfall::RibbonMesh` | Ribbon plus a line outline drawn on top. The outline is always drawn after the fill, regardless of the item's z value. |
 | `Qwt3DWaterfall::Wireframe` | Line outline only, no fill. Cheapest style. |
-| `Qwt3DWaterfall::Tube` | Each trace is swept into a lit solid tube (same construction as `Qwt3DLine::Tube`). Heaviest style. |
+| `Qwt3DWaterfall::Tube` | Each trace is swept into a lit solid tube with a view-circular cross section (same construction as `Qwt3DLine::Tube`). Dense traces are decimated to <=129 ring stations; the most expensive style. |
 
 ### Color Modes
 
@@ -165,7 +165,7 @@ Semi-transparent ribbons are drawn oldest-slot-first. Interpenetration artifacts
 
 - Every `pushTrace()` rebuilds the whole-window VBO (all slots shift). The upload budget is `capacity x bins x 28 bytes` per frame; at the target workload (<= 128 x 512) this is ~14 MB/s at 30 fps.
 - For very large windows (`capacity > 128` and `bins > 1024`) an optimization channel is documented in the source: one draw call per slot with the row z provided by a private shader uniform, so only the newest row is re-uploaded. Measure before you need it.
-- Use `Wireframe` when you only need the shape; use `Tube` only when you need thick, lit strokes — it is by far the most expensive style.
+- Use `Wireframe` when you only need the shape; use `Tube` only when you need thick, lit strokes — it is by far the most expensive style (one swept surface per trace). The tube radius is capped below half a slot so neighboring traces never fuse; at very large windows prefer `Ribbon`/`RibbonMesh`.
 
 ## See Also
 

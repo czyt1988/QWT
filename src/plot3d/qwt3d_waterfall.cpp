@@ -30,12 +30,12 @@ float clampf(float v, float lo, float hi)
  */
 void appendTubeGeometry(const QVector<QVector3D>& pts,
                         const QVector<QVector4D>& colors,
-                        float radius, int segments,
+                        const QVector3D& radius, int segments,
                         QVector<WaterfallTubeVertex>& vertices,
                         QVector<unsigned int>& indices)
 {
     const int N = pts.size();
-    if (N < 2 || segments < 3 || radius <= 0.0f)
+    if (N < 2 || segments < 3 || radius.x() <= 0.0f || radius.y() <= 0.0f || radius.z() <= 0.0f)
         return;
 
     // 1. Tangents (central differences, single-sided at the ends)
@@ -102,8 +102,18 @@ void appendTubeGeometry(const QVector<QVector3D>& pts,
             const float sa = std::sin(ang);
             const QVector3D radial = Nrm[i] * ca + Bnm[i] * sa;  // outward normal
             WaterfallTubeVertex v;
-            v.position = pts[i] + radial * radius;
-            v.normal = radial;
+            // Component-wise radius: the cross section is an ellipse in data
+            // space that projects to a circle under the plot's per-axis
+            // normalization (an isotropic data-space radius would fuse
+            // neighboring traces and stretch into slabs under anisotropic
+            // view scales).
+            v.position = pts[i] + QVector3D(radial.x() * radius.x(),
+                                            radial.y() * radius.y(),
+                                            radial.z() * radius.z());
+            // Inverse-scale rule for normals under non-uniform scaling
+            v.normal = QVector3D(radial.x() / radius.x(),
+                                 radial.y() / radius.y(),
+                                 radial.z() / radius.z()).normalized();
             v.color = col;
             vertices.append(v);
         }
@@ -947,10 +957,12 @@ void Qwt3DWaterfall::buildOutlineVBO()
 
 /**
  * @brief Builds the tube VBO/EBO
- * @details Each trace is swept with a circular cross-section (parallel-transport
- *          framing, radius = 0.5% of the hull diagonal, 8 ring segments),
- *          rendered with the surface shader (lit). Colors follow the color
- *          mode at the curve sample points.
+ * @details Each trace is swept with a view-circular cross-section
+ *          (parallel-transport framing, per-axis radius = 0.5% of the hull
+ *          extents, 6 ring segments), rendered with the surface shader (lit).
+ *          Dense traces are decimated to at most 129 ring stations to bound
+ *          the vertex/index count. Colors follow the color mode at the curve
+ *          sample points.
  */
 void Qwt3DWaterfall::buildTubeVBO()
 {
@@ -968,12 +980,21 @@ void Qwt3DWaterfall::buildTubeVBO()
     if (d->m_colorMode != Solid)
         pushColorRange();
 
-    // Auto radius: 0.5% of the hull diagonal (same rule as Qwt3DLine)
+    // Per-axis radius: a common fraction c of each hull extent, so the cross
+    // section reads as a circle under the plot's per-axis normalization. c is
+    // capped so the depth radius stays below half a slot (the trace spacing
+    // is one slot): without the cap, dense windows fuse into a single blob.
     const Triple dt = d->m_hull.maxVertex - d->m_hull.minVertex;
-    double radius = 0.005 * std::sqrt(dt.x * dt.x + dt.y * dt.y + dt.z * dt.z);
-    if (radius <= 0.0)
-        radius = 0.01;
-    const int segments = 8;
+    const double c = qMin(0.005, 0.4 / qMax(1.0, double(d->m_count - 1)));
+    const QVector3D radius(static_cast< float >(c * (dt.x > 1e-9 ? dt.x : 1.0)),
+                           static_cast< float >(c * (dt.y > 1e-9 ? dt.y : 1.0)),
+                           static_cast< float >(c * (dt.z > 1e-9 ? dt.z : 1.0)));
+    const int segments = 6;
+
+    // Ring stations per trace: decimate dense traces (tubes smooth out the
+    // difference) so the vertex/index count - the Tube style's real cost -
+    // stays bounded. The last bin is always kept.
+    const int binStride = qMax(1, M / 128);
 
     const bool useFunctor = (d->m_colorMode != Solid) && d->m_dataColor;
     QVector<WaterfallTubeVertex> vertices;
@@ -983,26 +1004,33 @@ void Qwt3DWaterfall::buildTubeVBO()
             d->m_depthOrder == NewestInFront ? i : d->m_count - 1 - i);
         const QVector<double>& trace = d->m_traces[ i ];
 
-        QVector<QVector3D> pts(M);
-        QVector<QVector4D> cols(M);
-        for (int j = 0; j < M; ++j) {
+        QVector<QVector3D> pts;
+        QVector<QVector4D> cols;
+        for (int j = 0; j < M; j += binStride) {
             const double x = d->m_bins.value(j, double(j));
             const double v = trace[ j ];
-            pts[j] = QVector3D(static_cast< float >(x), z, static_cast< float >(v));
-            if (useFunctor) {
-                const RGBA c = (*d->m_dataColor)(x, z, v);
-                cols[j] = QVector4D(static_cast< float >(c.r),
-                                    static_cast< float >(c.g),
-                                    static_cast< float >(c.b),
-                                    static_cast< float >(c.a));
-            } else {
-                cols[j] = QVector4D(static_cast< float >(d->m_solidColor.r),
-                                    static_cast< float >(d->m_solidColor.g),
-                                    static_cast< float >(d->m_solidColor.b),
-                                    static_cast< float >(d->m_solidColor.a));
-            }
+            pts.append(QVector3D(static_cast< float >(x), z, static_cast< float >(v)));
+            RGBA c = d->m_solidColor;
+            if (useFunctor)
+                c = (*d->m_dataColor)(x, z, v);
+            cols.append(QVector4D(static_cast< float >(c.r),
+                                  static_cast< float >(c.g),
+                                  static_cast< float >(c.b),
+                                  static_cast< float >(c.a)));
         }
-        appendTubeGeometry(pts, cols, static_cast< float >(radius), segments, vertices, indices);
+        if ((M - 1) % binStride != 0) {
+            const double x = d->m_bins.value(M - 1, double(M - 1));
+            const double v = trace[ M - 1 ];
+            pts.append(QVector3D(static_cast< float >(x), z, static_cast< float >(v)));
+            RGBA c = d->m_solidColor;
+            if (useFunctor)
+                c = (*d->m_dataColor)(x, z, v);
+            cols.append(QVector4D(static_cast< float >(c.r),
+                                  static_cast< float >(c.g),
+                                  static_cast< float >(c.b),
+                                  static_cast< float >(c.a)));
+        }
+        appendTubeGeometry(pts, cols, radius, segments, vertices, indices);
     }
 
     d->m_tubeIndexCount = static_cast< int >(indices.size());

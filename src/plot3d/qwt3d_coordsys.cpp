@@ -88,8 +88,11 @@ void Qwt3DCoordinateSystem::init(Triple first, Triple second)
 
     destroy();
 
-    for (unsigned i = 0; i != axes.size(); ++i)
-        axes[ i ].setScale(LINEARSCALE);
+    // NOTE: the per-axis scale objects are user configuration (scale type,
+    // Qwt3DTextScale labels, ...) and are created by the Qwt3DAxis ctor.
+    // init() rebuilds geometry only; resetting the scales here would silently
+    // discard user settings on every coordinate system recreation (which for
+    // items with a drifting hull happens on every data update).
 
     Triple dv = second - first;
 

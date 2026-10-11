@@ -50,6 +50,12 @@ public:
     /// Returns the status bar line (running state, fps, traces, bins)
     QString statusLine() const;
 
+    /// Sets the sliding window size (refills the window), for benchmarks
+    void setTraceCapacity(int capacity);
+
+    /// Sets the geometry style combo index, for benchmarks
+    void setStyleIndex(int index);
+
 private:
     QWidget* createTopPlot();
     QWidget* createBottomPlot();

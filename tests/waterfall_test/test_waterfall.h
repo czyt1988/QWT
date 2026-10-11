@@ -45,6 +45,7 @@ private Q_SLOTS:
     // Qwt3DTextScale / P3 regression
     void textScaleLabels();
     void textScaleSurvivesClonePtr();
+    void textScaleSurvivesCoordinateReinit();
     void textScaleNumericFallback();
 
     // P1 regression: attach() must recalculate the scene

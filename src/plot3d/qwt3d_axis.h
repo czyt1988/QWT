@@ -80,6 +80,8 @@ public:
     bool scaling() const;
     void setScale(SCALETYPE);
     void setScale(Qwt3DScale* item);
+    // Returns the active scale object (the clone stored by setScale())
+    const Qwt3DScale* scale() const;
     // Turns number drawing on or off
     void setNumbers(bool val);
     // Returns, if number drawing is on or off

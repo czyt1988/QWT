@@ -383,6 +383,36 @@ void TestWaterfall::textScaleSurvivesClonePtr()
     QCOMPARE(textScale->labels(), labels);
 }
 
+void TestWaterfall::textScaleSurvivesCoordinateReinit()
+{
+    // Qwt3DCoordinateSystem::init() runs whenever the plot hull changes (for
+    // a live waterfall: every frame). It used to reset every axis scale to
+    // LINEARSCALE there, silently discarding a Qwt3DTextScale the user had
+    // set - the depth axis fell back to numeric labels.
+    Qwt3DPlot plot;
+
+    auto* waterfall = new Qwt3DWaterfall();
+    waterfall->setTraceCapacity(4);
+    waterfall->pushTrace(flatTrace(1.0));
+    waterfall->attach(&plot);
+
+    auto& axis = plot.coordinates()->axes[ Y1 ];
+    auto* scale = new Qwt3DTextScale();
+    QVector<QString> labels;
+    labels << "oldest" << "-2" << "-1" << "newest";
+    scale->setLabels(labels);
+    axis.setScale(scale);
+
+    // A hull change recreates the coordinate system ...
+    waterfall->pushTrace(flatTrace(2.0));
+
+    // ... and the user scale must survive it
+    const auto* active = axis.scale();
+    const auto* textScale = dynamic_cast< const Qwt3DTextScale* >(active);
+    QVERIFY(textScale != nullptr);
+    QCOMPARE(textScale->labels(), labels);
+}
+
 void TestWaterfall::textScaleNumericFallback()
 {
     // Indices beyond the label list must fall back to a numeric label,

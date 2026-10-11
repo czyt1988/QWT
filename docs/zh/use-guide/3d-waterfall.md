@@ -27,7 +27,7 @@
 | `Qwt3DWaterfall::Ribbon` | 从基线填充到轨迹的帘幕（默认）。经典瀑布外观。 |
 | `Qwt3DWaterfall::RibbonMesh` | 帘幕 + 顶部折线描边。描边固定在填充之后绘制，与 item 的 z 值无关。 |
 | `Qwt3DWaterfall::Wireframe` | 仅折线描边，无填充。开销最低。 |
-| `Qwt3DWaterfall::Tube` | 每条轨迹扫掠成带光照的实体管（与 `Qwt3DLine::Tube` 同一构造方式）。开销最高。 |
+| `Qwt3DWaterfall::Tube` | 每条轨迹扫掠成带光照的实体管，截面在视图空间为正圆（与 `Qwt3DLine::Tube` 同一构造方式）。密集轨迹会降采样到 ≤129 个环站；开销最高的样式。 |
 
 ### 上色模式
 
@@ -165,7 +165,7 @@ waterfall->setOutlineWidth(1.0);    // RibbonMesh / Wireframe
 
 - 每次 `pushTrace()` 重建整窗 VBO（所有槽位都在移动）。上传预算为每帧 `capacity × bins × 28 字节`；目标工况（≤ 128 × 512）在 30 fps 下约 14 MB/s。
 - 超大窗口（`capacity > 128` 且 `bins > 1024`）的优化通道已在源码中注释：每槽位一次 draw call、行 z 由 item 私有 shader 的 uniform 提供，每帧只重新上传最新一行。需要前先实测。
-- 只看形状用 `Wireframe`；只有需要粗的、带光照的笔画才用 `Tube` —— 它是开销最高的样式。
+- 只看形状用 `Wireframe`；只有需要粗的、带光照的笔画才用 `Tube` —— 它是开销最高的样式（每条轨迹一个扫掠面）。管半径上限为半个槽位，相邻轨迹不会融合；超大窗口建议用 `Ribbon`/`RibbonMesh`。
 
 ## 另见
 

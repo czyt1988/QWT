@@ -449,6 +449,16 @@ void Qwt3DAxis::setScale(Qwt3DScale* val)
     d->m_scale = Qwt3DClonePtr< Qwt3DScale >(val);
 }
 
+/**
+ * @brief Returns the active scale object
+ * @return Const pointer to the scale clone stored by setScale()
+ */
+const Qwt3DScale* Qwt3DAxis::scale() const
+{
+    QWT_DC(d);
+    return &*d->m_scale;
+}
+
 void Qwt3DAxis::setScale(SCALETYPE val)
 {
     switch (val) {

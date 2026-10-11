@@ -446,6 +446,27 @@ void MainWindow::runSelfTest(const QString& screenshotDir)
     driver->start();
 }
 
+void MainWindow::setTraceCapacity(int capacity)
+{
+    if (capacity < 1)
+        return;
+    const int index = m_capacityCombo->findData(capacity);
+    if (index >= 0)
+        m_capacityCombo->setCurrentIndex(index);
+    else {
+        m_waterfall->setTraceCapacity(capacity);
+        rebuildDepthAxisLabels();
+        fillWindow();
+        onResetView();
+    }
+}
+
+void MainWindow::setStyleIndex(int index)
+{
+    if (index >= 0 && index < m_styleCombo->count())
+        m_styleCombo->setCurrentIndex(index);
+}
+
 QString MainWindow::statusLine() const
 {
     if (!m_timer || !m_waterfall)
