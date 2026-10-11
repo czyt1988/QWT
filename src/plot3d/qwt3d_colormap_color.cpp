@@ -22,12 +22,14 @@ Qwt3DColorMapColor::Qwt3DColorMapColor(const QString& presetName, unsigned size)
     , m_useManualInterval(false)
     , m_alpha(1.0)
     , m_presetName(presetName)
+    , m_source(ColorFromZ)
 {
     rebuildColorVector(size);
 }
 
 Qwt3DColorMapColor::Qwt3DColorMapColor(::QwtColorMap* colorMap, unsigned size)
     : m_colorMap(colorMap), m_manualMin(0.0), m_manualMax(1.0), m_useManualInterval(false), m_alpha(1.0)
+    , m_source(ColorFromZ)
 {
     rebuildColorVector(size);
 }
@@ -37,7 +39,7 @@ Qwt3DColorMapColor::~Qwt3DColorMapColor()
     delete m_colorMap;
 }
 
-RGBA Qwt3DColorMapColor::operator()(double, double, double z) const
+RGBA Qwt3DColorMapColor::operator()(double x, double y, double z) const
 {
     double zMin, zMax;
     if (m_useManualInterval) {
@@ -48,7 +50,11 @@ RGBA Qwt3DColorMapColor::operator()(double, double, double z) const
         zMax = activeZMax();
     }
 
-    const QRgb rgb = m_colorMap->rgb(zMin, zMax, z);
+    // The selected source coordinate feeds the colormap; the active range
+    // always applies to that same coordinate.
+    const double v = (m_source == ColorFromX) ? x : (m_source == ColorFromY) ? y : z;
+
+    const QRgb rgb = m_colorMap->rgb(zMin, zMax, v);
     RGBA rgba;
     rgba.r = qRed(rgb) / 255.0;
     rgba.g = qGreen(rgb) / 255.0;
@@ -98,6 +104,28 @@ void Qwt3DColorMapColor::setAlpha(double a)
         return;
     m_alpha = a;
     rebuildColorVector(static_cast< unsigned >(m_colors.size()));
+}
+
+/**
+ * @brief Selects which coordinate of the (x, y, z) functor argument feeds the colormap
+ * @param source The source coordinate (ColorFromX, ColorFromY or ColorFromZ)
+ * @details The default ColorFromZ preserves the historical behavior. The active
+ *          range pushed by the owning item via setActiveRange() applies to the
+ *          selected coordinate. The legend color vector is unaffected: it always
+ *          shows the colormap over the active range.
+ */
+void Qwt3DColorMapColor::setSourceAxis(Qwt3DColorSource source)
+{
+    m_source = source;
+}
+
+/**
+ * @brief Returns the source coordinate selection
+ * @return The current Qwt3DColorSource (default ColorFromZ)
+ */
+Qwt3DColorSource Qwt3DColorMapColor::sourceAxis() const
+{
+    return m_source;
 }
 
 void Qwt3DColorMapColor::rebuildColorVector(unsigned size)

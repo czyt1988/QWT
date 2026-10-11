@@ -589,7 +589,10 @@ enum Rtti3DValues
     Rtti_Plot3DBar = 1002,
 
     /// For Qwt3DLine
-    Rtti_Plot3DLine = 1003
+    Rtti_Plot3DLine = 1003,
+
+    /// For Qwt3DWaterfall
+    Rtti_Plot3DWaterfall = 1004
 };
 
 

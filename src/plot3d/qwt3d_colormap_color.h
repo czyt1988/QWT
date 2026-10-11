@@ -16,6 +16,19 @@
 class QwtColorMap;
 class QString;
 
+/**
+ * @brief Selects which coordinate of the (x, y, z) functor argument is mapped
+ * @details The default (ColorFromZ) preserves the historical behavior of
+ *          coloring by the z coordinate. ColorFromY allows amplitude coloring
+ *          for items whose value axis is y (e.g. Qwt3DWaterfall traces).
+ */
+enum Qwt3DColorSource
+{
+    ColorFromX,
+    ColorFromY,
+    ColorFromZ   // default, preserves the existing behavior
+};
+
 
 
 /**
@@ -41,6 +54,12 @@ public:
     void reset(unsigned size = 256);
     void setAlpha(double a);
 
+    /// Selects which coordinate of the (x, y, z) argument feeds the colormap;
+    /// the active range (setActiveRange()) applies to the selected axis
+    void setSourceAxis(Qwt3DColorSource source);
+    /// Returns the source coordinate selection (default ColorFromZ)
+    Qwt3DColorSource sourceAxis() const;
+
     // Returns the preset name passed to the constructor (empty if constructed from QwtColorMap*)
     QString presetName() const;
     // Returns the number of colors in the color vector
@@ -64,6 +83,7 @@ private:
     bool m_useManualInterval;
     double m_alpha;
     QString m_presetName;
+    Qwt3DColorSource m_source;
 };
 
 

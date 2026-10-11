@@ -253,6 +253,20 @@ Qwt3DScale* Qwt3DLinearScale::clone() const
 }
 
 /**
+ * @brief Copies the linear autoscaler state from another Qwt3DLinearScale
+ * @param other Source scale to copy from
+ * @details Qwt3DLinearScale is a friend of Qwt3DLinearAutoScaler, so this
+ *          protected member gives derived scales (e.g. Qwt3DTextScale) access
+ *          to the autoscaler state copy inside their clone() overrides.
+ */
+void Qwt3DLinearScale::copyLinearScaleState(const Qwt3DLinearScale& other)
+{
+    QWT_D(d);
+    const auto* od = other.d_func();
+    d->m_autoscaler.copyStateFrom(od->m_autoscaler);
+}
+
+/**
  * @brief Creates the major and minor vector for the scale
  */
 void Qwt3DLinearScale::calculate()
@@ -490,4 +504,68 @@ QString Qwt3DLogScale::ticLabel(unsigned int idx) const
         return QString::number(pow(double(10), val));
     }
     return QString("");
+}
+
+/****************************
+ *
+ * Qwt3DTextScale
+ *
+ ****************************/
+
+Qwt3DTextScale::Qwt3DTextScale()
+    : Qwt3DLinearScale()
+{
+}
+
+/**
+ * @brief Sets the label list used for the major tics
+ * @param labels Labels indexed by major tic index
+ * @details Indices beyond the list size fall back to the numeric label.
+ */
+void Qwt3DTextScale::setLabels(const QVector<QString>& labels)
+{
+    m_labels = labels;
+}
+
+/**
+ * @brief Returns the label list
+ * @return The labels set with setLabels()
+ */
+QVector<QString> Qwt3DTextScale::labels() const
+{
+    return m_labels;
+}
+
+/**
+ * @brief Returns the custom label of the major tic at index idx
+ * @param idx The current major tic index
+ * @return The user supplied string for a valid index, the numeric label else
+ * @details Falls back to Qwt3DLinearScale::ticLabel() (the plain tic value)
+ *          when idx is out of range, so a short label list never produces
+ *          empty axis annotations.
+ */
+QString Qwt3DTextScale::ticLabel(unsigned int idx) const
+{
+    if (idx < static_cast< unsigned int >(m_labels.size()))
+        return m_labels[ static_cast< int >(idx) ];
+
+    return Qwt3DLinearScale::ticLabel(idx);
+}
+
+/**
+ * @brief Returns a new heap based object utilized from Qwt3DClonePtr
+ * @return A new Qwt3DTextScale copy
+ * @details Qwt3DAxis::setScale() stores the object in a Qwt3DClonePtr whose
+ *          assignment calls clone(). A derived scale without a clone()
+ *          override would be sliced to the base class right there, silently
+ *          dropping the custom ticLabel(). This override copies the base
+ *          state (copyFrom) plus the label list.
+ */
+Qwt3DScale* Qwt3DTextScale::clone() const
+{
+    auto* copy = new Qwt3DTextScale();
+    copy->copyFrom(*this);
+    copy->copyLinearScaleState(*this);
+    copy->m_labels = m_labels;
+    return copy;
 }
