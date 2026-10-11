@@ -36,6 +36,7 @@ add_subdirectory(2D/tvplot)
 add_subdirectory(2D/ticks_inside)
 add_subdirectory(2D/nanperf)
 add_subdirectory(2D/curvesmoothing)
+add_subdirectory(2D/colormap)
 
 if(QWT_CONFIG_QWTPLOT_3D)
     add_subdirectory(3D/figureSurface3D)
