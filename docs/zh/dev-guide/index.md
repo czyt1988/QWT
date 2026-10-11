@@ -83,5 +83,6 @@ flowchart TD
 - **构建说明**：[构建指引](../build-guide/build-instructions.md)
 - **项目概述**：[AGENTS.md](../../AGENTS.md)
 
-!!! tip "AI Agent 开发者"
-    如果你是 AI Agent，请优先阅读 `AGENTS.md` 文件，其中包含项目快速指引和关键信息。
+> **提示 — AI Agent 开发者**
+>
+> 如果你是 AI Agent，请优先阅读 `AGENTS.md` 文件，其中包含项目快速指引和关键信息。

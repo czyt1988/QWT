@@ -258,5 +258,6 @@ barChart->setLegendMode(QwtPlotBarChart::LegendChartTitle);
 barChart->setLegendMode(QwtPlotBarChart::LegendBarTitles);
 ```
 
-!!! example "Related Examples"
-    - Bar chart demo: `examples/2D/barchart`
+> **Example — Related Examples**
+>
+> - Bar chart demo: `examples/2D/barchart`

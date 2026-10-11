@@ -88,10 +88,11 @@ curve->setRawSamples(x, y, 1000);
 // No need to re-set when data changes, just call replot
 ```
 
-!!! warning "setRawSamples Notes"
-    - External arrays must remain valid until the curve is destroyed
-    - Do not modify array size, only modify contents
-    - Call replot to refresh display after data updates
+> **Warning — setRawSamples Notes**
+>
+> - External arrays must remain valid until the curve is destroyed
+> - Do not modify array size, only modify contents
+> - Call replot to refresh display after data updates
 
 ### 3. Custom Data Class
 
@@ -249,15 +250,17 @@ plot->replot();
 | `setRawSamples()` | Reference external arrays |
 | `data()` | Get data object |
 
-!!! tip "Data Management Recommendations"
-    - Static data: Use `setSamples()` to copy data
-    - Large data: Use `setRawSamples()` to avoid copying
-    - Dynamic data: Implement custom `QwtSeriesData`
-    - Function data: Use `QwtSyntheticSeriesData`
+> **Tip — Data Management Recommendations**
+>
+> - Static data: Use `setSamples()` to copy data
+> - Large data: Use `setRawSamples()` to avoid copying
+> - Dynamic data: Implement custom `QwtSeriesData`
+> - Function data: Use `QwtSyntheticSeriesData`
 
-!!! example "Related Examples"
-    - Real-time data: `examples/2D/realtime`
-    - CPU monitor: `examples/2D/cpuplot`
+> **Example — Related Examples**
+>
+> - Real-time data: `examples/2D/realtime`
+> - CPU monitor: `examples/2D/cpuplot`
 
 Screenshots of real-time data and CPU monitor:
 

@@ -156,8 +156,9 @@ QwtPlotArrowMarker* arrow = QwtPlotFactory::createArrowMarker(
     plot, QPointF(0, 0), QPointF(3, 5));
 ```
 
-!!! tip "完整的工厂方法列表"
-    `QwtPlotFactory` 覆盖全部 **9 种数据绘图项**和 **7 种装饰项**的创建。详见 API 文档。
+> **提示 — 完整的工厂方法列表**
+>
+> `QwtPlotFactory` 覆盖全部 **9 种数据绘图项**和 **7 种装饰项**的创建。详见 API 文档。
 
 ## QwtPlotItemInfo — 类型查询
 
@@ -525,8 +526,9 @@ void setupPlot(QwtPlot* plot)
 | `QwtPlotLegendItem` | `createLegend()` |
 | `QwtPlotScaleItem` | `createScaleItem()` |
 
-!!! example "相关示例"
-    工具类的使用方式可以结合现有的 `examples/2D/` 下的示例进行理解。
+> **示例 — 相关示例**
+>
+> 工具类的使用方式可以结合现有的 `examples/2D/` 下的示例进行理解。
 
 ## 高层封装：QwtPyPlot
 

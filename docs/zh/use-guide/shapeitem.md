@@ -118,14 +118,16 @@ shapeItem->setBrush(QBrush(Qt::yellow, Qt::FDiagPattern));  // 斜线填充
 | `setFillMode()` | 设置填充模式 |
 | `setRenderHint()` | 设置渲染提示 |
 
-!!! tip "应用场景"
-    - 区域标注
-    - 背景区域
-    - 裁剪区域标记
-    - 自定义几何图形
+> **提示 — 应用场景**
+>
+> - 区域标注
+> - 背景区域
+> - 裁剪区域标记
+> - 自定义几何图形
 
-!!! example "相关示例"
-    - 形状演示：`playground/shapes`
+> **示例 — 相关示例**
+>
+> - 形状演示：`playground/shapes`
 
 形状演示的例子截图如下：
 

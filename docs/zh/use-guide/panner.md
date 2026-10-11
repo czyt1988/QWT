@@ -1,7 +1,8 @@
 # 平移工具
 
-!!! success "新特性"
-    `QwtPlotPicker` 是一个完全重构的实时交互式绘图选择器，提供了比原版 `QwtPlotPicker` 通过缓存实现的平移更直观的用户体验。
+> **亮点 — 新特性**
+>
+> `QwtPlotPicker` 是一个完全重构的实时交互式绘图选择器，提供了比原版 `QwtPlotPicker` 通过缓存实现的平移更直观的用户体验。
 
 `Qwt6`的`QwtPlotPicker`是基于缓存的平移机制，主要有下面两个问题：
 
@@ -25,8 +26,9 @@
 - ✅ 日期时间坐标轴（DateTime Scale）
 - ✅ 多坐标轴
 
-!!! warning "使用原来的缓存式选择器"
-    如果你想使用原来的缓存式选择器，可以使用`QwtPlotCachePicker`
+> **警告 — 使用原来的缓存式选择器**
+>
+> 如果你想使用原来的缓存式选择器，可以使用`QwtPlotCachePicker`
 
 | 类变更情况                  | 属性 | 基类 |
 |---------------------------|------|-------|
@@ -74,5 +76,6 @@ panner->setOrientations(Qt::Horizontal | Qt::Vertical); // 默认：水平和垂
 // panner->setOrientations(Qt::Vertical);              // 仅垂直
 ```
 
-!!! warning "注意"
-    `QwtPlotPanner`和`QwtPlotPicker`不同，它不需要绑定坐标轴，因为移动是针对整个画布的，移动画布过程中，所有坐标轴都会被移动
+> **警告 — 注意**
+>
+> `QwtPlotPanner`和`QwtPlotPicker`不同，它不需要绑定坐标轴，因为移动是针对整个画布的，移动画布过程中，所有坐标轴都会被移动

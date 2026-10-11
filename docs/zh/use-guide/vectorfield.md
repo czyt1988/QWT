@@ -137,11 +137,13 @@ vectorField->setColorMagnitude(true);  // 启用颜色映射
 | `setColorMap()` | 设置颜色映射 |
 | `setColorMagnitude()` | 启用颜色大小映射 |
 
-!!! tip "应用场景"
-    - 流体力学：流速场可视化
-    - 电磁学：电场/磁场分布
-    - 气象学：风向场显示
-    - 数学分析：向量函数可视化
+> **提示 — 应用场景**
+>
+> - 流体力学：流速场可视化
+> - 电磁学：电场/磁场分布
+> - 气象学：风向场显示
+> - 数学分析：向量函数可视化
 
-!!! example "相关示例"
-    - 向量场演示：`playground/vectorfield`
+> **示例 — 相关示例**
+>
+> - 向量场演示：`playground/vectorfield`

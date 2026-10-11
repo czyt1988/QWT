@@ -2,8 +2,9 @@
 
 This is the **architecture overview** of the QWT 3D module. It answers three questions: what was wrong with the old `QwtPlot3D`, what this refactor changed, and why the module is better structured now. Unlike the [3D Plot Introduction](3d-plot.md) (how to use the API), this article explains **why it is shaped this way**. Unlike the [3D Module Refactor Notes](../dev-guide/plot3d-refactor.md) (commit sequence and developer conventions), this one is written for readers who want a coherent mental model with as little jargon as possible.
 
-!!! info "Reading advice"
-    If you just want to plot, start with the [3D Plot Introduction](3d-plot.md). If you ever wondered whether adding a new 3D graph type requires touching the window class, section 5.2 gives a firm answer: **it does not**.
+> **Info — Reading advice**
+>
+> If you just want to plot, start with the [3D Plot Introduction](3d-plot.md). If you ever wondered whether adding a new 3D graph type requires touching the window class, section 5.2 gives a firm answer: **it does not**.
 
 ## 1. Two generations of the 3D module
 
@@ -214,8 +215,9 @@ This mirrors the 2D contract **word for word**: after changing a `QwtSymbol` you
 
 Complementing it is **push instead of query**: the z-range needed for color normalization is not fetched by the functor via `plot()->hull()` (that would need a reverse pointer); `Qwt3DSurface::pushColorRange()` pushes the union hull's range into the functor through `setActiveRange()` before building the VBO.
 
-!!! note "Why `invalidateColors()` instead of automatic notification"
-    Automatic notification would force the value object to store a pointer to its owner — which is exactly the reverse-pointer problem all over again. An explicit call puts "who marks the dirty state" on the surface of the code; a reader can see the source of the invalidation immediately.
+> **Note — Why `invalidateColors()` instead of automatic notification**
+>
+> Automatic notification would force the value object to store a pointer to its owner — which is exactly the reverse-pointer problem all over again. An explicit call puts "who marks the dirty state" on the surface of the code; a reader can see the source of the invalidation immediately.
 
 ### 3.4 Principle 4: render on the Core Profile
 
@@ -387,8 +389,9 @@ flowchart TD
 
 No step in this chain requires a lower layer to call back into a higher one: the data source **returns** data, the item **requests** a refresh, and the window **aggregates** hulls to decide the coordinate box — responsibility flows along a single-direction chain. Note the hull handling in particular: `Qwt3DPlot::hull()` is the **union of all item bounding boxes**, and the coordinate system refits accordingly, so multi-item scenes need no manual range synchronization.
 
-!!! warning "Attach first, load data second"
-    The hull is recomputed only inside `itemChanged()` — `Qwt3DPlot::attach()` itself does not recompute it. If you call `loadFromData()` *before* `attach()` and then never mutate another property, the item's notification has already fired while it was unattached (`itemChanged()` only notifies the plot when `plot()` is non-null), so the window's hull stays degenerate, the coordinate box never forms, and the plot renders **completely blank with no warning**. The correct order is `item->attach(plot)` first, then `loadFromData()` and the various setters.
+> **Warning — Attach first, load data second**
+>
+> The hull is recomputed only inside `itemChanged()` — `Qwt3DPlot::attach()` itself does not recompute it. If you call `loadFromData()` *before* `attach()` and then never mutate another property, the item's notification has already fired while it was unattached (`itemChanged()` only notifies the plot when `plot()` is non-null), so the window's hull stays degenerate, the coordinate box never forms, and the plot renders **completely blank with no warning**. The correct order is `item->attach(plot)` first, then `loadFromData()` and the various setters.
 
 ### 4.4 Colors and themes: plugging into the core ecosystem
 
@@ -479,8 +482,9 @@ An architecture article that lists only strengths is worthless. An honest invent
 | item bounding hull | axis-aligned box (`ParallelEpiped`), no post-rotation AABB | `Qwt3DPlotItem::hull()` contract |
 | automated tests for the 3D render path | none yet (`tests/` currently covers only the 2D picker) | `tests/` |
 
-!!! bug "If you depend on the items above"
-    Check this table before upgrading. The legacy module could draw floor projections and enrichments (see archived screenshots in the repository); the new module has the data interfaces ready but the pixels have not caught up — this is a **deliberate concession** (see section 3.6), not an oversight.
+> **Bug — If you depend on the items above**
+>
+> Check this table before upgrading. The legacy module could draw floor projections and enrichments (see archived screenshots in the repository); the new module has the data interfaces ready but the pixels have not caught up — this is a **deliberate concession** (see section 3.6), not an oversight.
 
 ## 7. Code and example index
 

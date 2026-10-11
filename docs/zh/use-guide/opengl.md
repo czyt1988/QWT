@@ -87,8 +87,9 @@ canvas->setPaintAttribute(QwtPlotCanvas::OpenGLBuffer, true);
 plot->setCanvas(canvas);
 ```
 
-!!! info
-    `QwtPlotOpenGLCanvas` 直接渲染到 `QOpenGLWidget`，通常比 `OpenGLBuffer` 方案性能更好。不过 `OpenGLBuffer` 在包含复杂混合排布的桌面应用中集成更顺畅。
+> **信息**
+>
+> `QwtPlotOpenGLCanvas` 直接渲染到 `QOpenGLWidget`，通常比 `OpenGLBuffer` 方案性能更好。不过 `OpenGLBuffer` 在包含复杂混合排布的桌面应用中集成更顺畅。
 
 ### 何时使用 OpenGL 画布
 
@@ -99,9 +100,10 @@ plot->setCanvas(canvas);
 | 实时流式数据 | `QwtPlotOpenGLCanvas`，帧率更稳定 |
 | 复杂布局的混合控件 UI | `QwtPlotCanvas` + `OpenGLBuffer`，集成更友好 |
 
-!!! example "相关示例"
-    - `examples/realtime` — 高吞吐量的实时绘图
-    - `examples/oscilloscope` — 示波器风格的波形显示
+> **示例 — 相关示例**
+>
+> - `examples/realtime` — 高吞吐量的实时绘图
+> - `examples/oscilloscope` — 示波器风格的波形显示
 
 实时绘图与示波器的例子截图如下：
 

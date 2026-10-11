@@ -2,8 +2,9 @@
 
 This document explains why the 3D plotting module (`qwt::plot3d`) was completely refactored, what the original architecture looked like and its problems, the refactoring approach, the resulting architecture, and the benefits it brings. It is intended for developers maintaining or extending the 3D module.
 
-!!! info "Scope"
-    The refactor ships in **v7.3.5** on the `new3d` branch. For the end-user usage guide see [3D Plot Introduction](../use-guide/3d-plot.md); for the per-module conventions see [`src/plot3d/AGENTS.md`](../../src/plot3d/AGENTS.md).
+> **Info — Scope**
+>
+> The refactor ships in **v7.3.5** on the `new3d` branch. For the end-user usage guide see [3D Plot Introduction](../use-guide/3d-plot.md); for the per-module conventions see [`src/plot3d/AGENTS.md`](../../src/plot3d/AGENTS.md).
 
 ## 1. Why Refactor
 
@@ -311,8 +312,9 @@ Removed: `graphplot.h`, `multiplot.h`, `volumeplot.h`, `meshplot.cpp`, `gridplot
 | `plot->setCoordinateStyle(...)` | use `Qwt3DCoordinateSystem` API directly |
 | `SIGNAL()/SLOT()` connects | new-style `connect()` function pointers |
 
-!!! warning "Breaking change"
-    This is a source-incompatible refactor. Existing 3D user code must migrate call sites from widget-level data/style APIs to the corresponding `Qwt3DSurface` item APIs. See the [changelog](../../CHANGES.md) for the full list.
+> **Warning — Breaking change**
+>
+> This is a source-incompatible refactor. Existing 3D user code must migrate call sites from widget-level data/style APIs to the corresponding `Qwt3DSurface` item APIs. See the [changelog](../../CHANGES.md) for the full list.
 
 ## 8. Conclusion
 

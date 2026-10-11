@@ -142,11 +142,12 @@ QVector<double> yValues;
 curve->setSamples(yValues);
 ```
 
-!!! warning "setRawSamples 注意事项"
-    使用 `setRawSamples()` 时，曲线不会复制数据，而是直接引用你提供的数组。你必须确保：
-    1. 数组在曲线存在期间始终有效
-    2. 数组内容不应被修改（除非你知道后果）
-    3. 曲线销毁前不要释放数组
+> **警告 — setRawSamples 注意事项**
+>
+> 使用 `setRawSamples()` 时，曲线不会复制数据，而是直接引用你提供的数组。你必须确保：
+> 1. 数组在曲线存在期间始终有效
+> 2. 数组内容不应被修改（除非你知道后果）
+> 3. 曲线销毁前不要释放数组
 
 ### 3. 曲线样式配置
 
@@ -316,8 +317,9 @@ curve->setPaintAttribute(QwtPlotCurve::ImageBuffer, true);             // 图像
 | `MinimizeMemory` | 减少临时内存使用（可能降低性能） |
 | `ImageBuffer` | 用图像缓冲绘制散点（适用于百万级数据） |
 
-!!! note "默认设置"
-    从 Qwt 7.x 开始，默认启用 `ClipPolygons | FilterPointsLTTB`，无需手动开启降采样优化。
+> **说明 — 默认设置**
+>
+> 从 Qwt 7.x 开始，默认启用 `ClipPolygons | FilterPointsLTTB`，无需手动开启降采样优化。
 
 #### 降采样算法详解
 
@@ -345,8 +347,9 @@ curve->setPaintAttribute(QwtPlotCurve::ImageBuffer, true);             // 图像
 curve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, true);
 ```
 
-!!! warning "FilterPointsPixel 注意"
-    该算法会覆盖 `FilterPointsAggressive` 的效果（两者同时设置时 Pixel 优先）。由于每列只保留4个点，高频细节可能被丢失，适合趋势观察而非精确分析。
+> **警告 — FilterPointsPixel 注意**
+>
+> 该算法会覆盖 `FilterPointsAggressive` 的效果（两者同时设置时 Pixel 优先）。由于每列只保留4个点，高频细节可能被丢失，适合趋势观察而非精确分析。
 
 ##### FilterPointsLTTB — MinMax桶降采样（默认启用）
 
@@ -363,11 +366,12 @@ curve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, true);
 curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);
 ```
 
-!!! note "FilterPointsLTTB vs FilterPointsPixel"
-    - LTTB 保留原始 X 坐标（非像素对齐），波形轮廓更精确
-    - Pixel 将所有点强制对齐到像素列，实现简单但性能不一定更优
-    - 当数据量不足以从降采样中获益时，LTTB 会自动回退到 Quad 算法
-    - 实测表明 LTTB 在百万级数据下性能优于 Pixel（见下方基准测试结果）
+> **说明 — FilterPointsLTTB vs FilterPointsPixel**
+>
+> - LTTB 保留原始 X 坐标（非像素对齐），波形轮廓更精确
+> - Pixel 将所有点强制对齐到像素列，实现简单但性能不一定更优
+> - 当数据量不足以从降采样中获益时，LTTB 会自动回退到 Quad 算法
+> - 实测表明 LTTB 在百万级数据下性能优于 Pixel（见下方基准测试结果）
 
 #### 如何选择渲染方法
 
@@ -405,11 +409,12 @@ QwtPlotCurve* debugCurve = new QwtPlotCurve("调试");
 debugCurve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, false);
 ```
 
-!!! tip "大数据量综合建议"
-    - 实时更新场景：关闭 `setAutoReplot()`，批量更新后手动调用 `replot()`
-    - X 轴单调递增数据：`FilterPointsLTTB` 会自动二分查找可见范围，无需手动裁剪数据
-    - 缩放/平移频繁的场景：默认已启用 `FilterPointsLTTB`，实测性能最优
-    - 需要截图或导出的高质量绘图：可临时关闭降采样，使用 `FilterPointsAggressive` 获得更精确的输出
+> **提示 — 大数据量综合建议**
+>
+> - 实时更新场景：关闭 `setAutoReplot()`，批量更新后手动调用 `replot()`
+> - X 轴单调递增数据：`FilterPointsLTTB` 会自动二分查找可见范围，无需手动裁剪数据
+> - 缩放/平移频繁的场景：默认已启用 `FilterPointsLTTB`，实测性能最优
+> - 需要截图或导出的高质量绘图：可临时关闭降采样，使用 `FilterPointsAggressive` 获得更精确的输出
 
 #### 基准测试结果
 
@@ -430,8 +435,9 @@ debugCurve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, false);
 - `FilterPoints` 基础过滤反而最慢，因为过滤开销大于收益
 - 无优化（None）比 `FilterPoints` 快，说明基础过滤在大数据量下不划算
 
-!!! note "自行测试"
-    你可以运行 `examples/bench/renderbench` 示例来测试不同渲染方法的性能。该工具支持配置数据量、帧数、波形类型，并提供单方法测试和批量对比模式，运行结束后会生成详细的 Markdown 格式报告。
+> **说明 — 自行测试**
+>
+> 你可以运行 `examples/bench/renderbench` 示例来测试不同渲染方法的性能。该工具支持配置数据量、帧数、波形类型，并提供单方法测试和批量对比模式，运行结束后会生成详细的 Markdown 格式报告。
 
 ### 7. 图例样式配置
 
@@ -508,12 +514,13 @@ private:
 };
 ```
 
-!!! example "相关示例"
-    - 曲线样式演示：`examples/2D/curvedemo`
-    - 简单曲线：`examples/2D/simpleplot`
-    - 实时数据：`examples/2D/cpuplot`
-    - 实时绘图：`examples/2D/realtime`
-    - 示波器：`examples/2D/oscilloscope`
+> **示例 — 相关示例**
+>
+> - 曲线样式演示：`examples/2D/curvedemo`
+> - 简单曲线：`examples/2D/simpleplot`
+> - 实时数据：`examples/2D/cpuplot`
+> - 实时绘图：`examples/2D/realtime`
+> - 示波器：`examples/2D/oscilloscope`
 
 实时数据与实时绘图、示波器的例子截图如下：
 

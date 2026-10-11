@@ -67,8 +67,9 @@ parasitePlot->axisWidget(QwtAxis::XTop)->setScaleColor(curColor);
 
 要创建寄生绘图，首先需要创建宿主绘图，寄生绘图是在宿主绘图基础上通过`QwtPlot::createParasitePlot`函数创建，此函数返回寄生绘图的指针；寄生绘图的对象也是`QwtPlot`,通过函数`QwtPlot::isHostPlot`和`QwtPlot::isParasitePlot`可以区分这个绘图是寄生绘图还是宿主绘图。如果当前是寄生绘图，可以通过`QwtPlot::hostPlot`获取宿主绘图指针，如果当前是宿主绘图，可以通过`QwtPlot::parasitePlots`获取所有寄生绘图指针
 
-!!! warning "注意"
-    一个绘图不会既是寄生绘图也是宿主绘图的情况，也就是说，如果绘图是寄生绘图，那么他自身不允许再创建寄生绘图，在寄生绘图上调用`createParasitePlot`将返回`nullptr`
+> **警告 — 注意**
+>
+> 一个绘图不会既是寄生绘图也是宿主绘图的情况，也就是说，如果绘图是寄生绘图，那么他自身不允许再创建寄生绘图，在寄生绘图上调用`createParasitePlot`将返回`nullptr`
 
 寄生绘图创建后，可以按照正常绘图那样设置它的属性
 
@@ -166,8 +167,9 @@ plot->axisWidget(QwtAxis::YLeft)->setEdgeMargin(100);
 3. 将新值设置给对应轴的 QwtScaleWidget
 4. 宿主的 margin 予以保留（不覆盖用户可能手工设置的值）。
 
-!!! warning "注意"
-    `QwtPlot::updateAxisEdgeMargin`/`QwtPlot::updateAllAxisEdgeMargin`不会改变宿主绘图的`margin`属性
+> **警告 — 注意**
+>
+> `QwtPlot::updateAxisEdgeMargin`/`QwtPlot::updateAllAxisEdgeMargin`不会改变宿主绘图的`margin`属性
 
 在添加寄生轴后，绘图显示前，你应该手动调用`updateAllAxisEdgeMargin`来更新寄生绘图坐标轴的布局
 
@@ -193,8 +195,9 @@ for (QwtPlot* oneplot : plotList) {
 }
 ```
 
-!!! tips "注意"
-    任意绘图调用 `QwtPlot::plotList` 函数都能返回所有绘图列表，无论在寄生绘图还是宿主绘图中调用，结果相同。
+> **提示 — 注意**
+>
+> 任意绘图调用 `QwtPlot::plotList` 函数都能返回所有绘图列表，无论在寄生绘图还是宿主绘图中调用，结果相同。
 
 ### 处理坐标变换
 
@@ -245,8 +248,9 @@ const QwtScaleMap yMap = itemPlot->canvasMap(item->yAxis());
 QPointF screenPos = QwtScaleMap::transform(xMap, yMap, valuePoint);
 ```
 
-!!! example "坐标转换示例"
-    可参考 `QwtPlotSeriesDataPicker` 类中 `pickYValue` 和 `pickNearestPoint` 的实现，该类用于拾取曲线点，已考虑寄生绘图的情况。
+> **示例 — 坐标转换示例**
+>
+> 可参考 `QwtPlotSeriesDataPicker` 类中 `pickYValue` 和 `pickNearestPoint` 的实现，该类用于拾取曲线点，已考虑寄生绘图的情况。
 
 ## 注意事项
 
@@ -264,5 +268,6 @@ QPointF screenPos = QwtScaleMap::transform(xMap, yMap, valuePoint);
 - 寄生绘图的位置由宿主绘图控制
 
 
-!!! example "寄生绘图示例"
-    完整的示例代码可参阅`examples/parasitePlot`
+> **示例 — 寄生绘图示例**
+>
+> 完整的示例代码可参阅`examples/parasitePlot`

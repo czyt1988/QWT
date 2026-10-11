@@ -83,5 +83,6 @@ Before committing code, please verify the following items:
 - **Build Instructions**: [Build Guide](../build-guide/build-instructions.md)
 - **Project Overview**: [AGENTS.md](../AGENTS.md)
 
-!!! tip "AI Agent Developers"
-    If you are an AI Agent, please read the `AGENTS.md` file first, which contains quick-start guides and key project information.
+> **Tip — AI Agent Developers**
+>
+> If you are an AI Agent, please read the `AGENTS.md` file first, which contains quick-start guides and key project information.

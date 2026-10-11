@@ -43,9 +43,10 @@ figure->addAxes(plot, QRectF(0.0, 0.0, 0.5, 0.5));
 figure->addAxes(plot, 0.0, 0.0, 0.5, 0.5);
 ```
 
-!!! warning "Normalized Coordinate Notes"
-    - Uses the standard Qt top-left coordinate system
-    - Normalized coordinate range is [0,1]
+> **Warning — Normalized Coordinate Notes**
+>
+> - Uses the standard Qt top-left coordinate system
+> - Normalized coordinate range is [0,1]
 
 #### Adding with Grid Layout
 
@@ -98,10 +99,11 @@ hostPlot->setAxisTitle(QwtAxis::YLeft, "Primary Y");
 parasiteYRight->setAxisTitle(QwtAxis::YRight, "Secondary Y");
 ```
 
-!!! warning "Parasite Plot Notes"
-    - Parasite plots cannot be the currently active axis
-    - Parasite plots are automatically hidden when the host axis is removed
-    - If the host plot is destroyed, the parasite plot is destroyed along with it
+> **Warning — Parasite Plot Notes**
+>
+> - Parasite plots cannot be the currently active axis
+> - Parasite plots are automatically hidden when the host axis is removed
+> - If the host plot is destroyed, the parasite plot is destroyed along with it
 
 For detailed usage of parasite plots, refer to: [Parasite Plots](parasite-axes.md)
 
@@ -179,8 +181,9 @@ The result is shown below:
 
 ![qwt_figure_align](../assets/picture/figure-scale-aligment.png)
 
-!!! warning "Axis Alignment Notes"
-    Only visible axes can be aligned. If an axis is not visible, it cannot be aligned. For example, in the above case, the right Y-axes of `plot2`, `plot4`, and `hostPlot` cannot be aligned because the axis widgets of `plot2` and `plot4` are not visible.
+> **Warning — Axis Alignment Notes**
+>
+> Only visible axes can be aligned. If an axis is not visible, it cannot be aligned. For example, in the above case, the right Y-axes of `plot2`, `plot4`, and `hostPlot` cannot be aligned because the axis widgets of `plot2` and `plot4` are not visible.
 
 ## Figure Overlay
 
@@ -261,5 +264,6 @@ overlay->showPercentText(false);
 
 This overlay provides users with an intuitive, interactive way to manage and adjust multiple plot components within `QwtFigure`, improving user experience and operational efficiency.
 
-!!! example "Parasite Plot Example"
-    Complete example code can be found in `examples/figure`
+> **Example — Parasite Plot Example**
+>
+> Complete example code can be found in `examples/figure`

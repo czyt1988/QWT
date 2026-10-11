@@ -117,11 +117,12 @@ histogram->setBrush(QBrush(Qt::lightGray));
 // Note: Outline style requires intervals to be in ascending order and non-overlapping
 ```
 
-!!! warning "Outline Style Requirements"
-    Outline style requires the following conditions:
-    1. Intervals must be in ascending order
-    2. Intervals must not overlap
-    3. Preferably no gaps between intervals
+> **Warning — Outline Style Requirements**
+>
+> Outline style requires the following conditions:
+> 1. Intervals must be in ascending order
+> 2. Intervals must not overlap
+> 3. Preferably no gaps between intervals
 
 #### Lines Style
 
@@ -237,10 +238,12 @@ double max = interval.maxValue();      // Maximum value
 bool contains = interval.contains(50); // Check if value is within interval
 ```
 
-!!! tip "Histogram Application Scenarios"
-    - Statistical data distribution frequency
-    - Image brightness distribution analysis
-    - Discretized display of continuous variables
+> **Tip — Histogram Application Scenarios**
+>
+> - Statistical data distribution frequency
+> - Image brightness distribution analysis
+> - Discretized display of continuous variables
 
-!!! example "Related Examples"
-    - Histogram demo: Created in conjunction with custom examples
+> **Example — Related Examples**
+>
+> - Histogram demo: Created in conjunction with custom examples

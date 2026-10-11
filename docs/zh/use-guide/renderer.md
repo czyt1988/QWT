@@ -135,11 +135,13 @@ renderer.renderDocument(plot, "plot.pdf", sizeMm, 300);  // 300 DPI
 | `setDiscardFlag()` | 设置忽略选项 |
 | `resetDiscardFlags()` | 重置忽略选项 |
 
-!!! tip "导出建议"
-    - 打印使用PDF或高分辨率PNG（300 DPI）
-    - 网页使用SVG或PNG
-    - 文档嵌入使用PDF或SVG
-    - 截图分享使用PNG或JPG
+> **提示 — 导出建议**
+>
+> - 打印使用PDF或高分辨率PNG（300 DPI）
+> - 网页使用SVG或PNG
+> - 文档嵌入使用PDF或SVG
+> - 截图分享使用PNG或JPG
 
-!!! example "相关示例"
-    - 导出功能演示：`examples/2D/barchart`
+> **示例 — 相关示例**
+>
+> - 导出功能演示：`examples/2D/barchart`

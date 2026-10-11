@@ -137,11 +137,13 @@ vectorField->setColorMagnitude(true);  // Enable color mapping
 | `setColorMap()` | Set color map |
 | `setColorMagnitude()` | Enable color-magnitude mapping |
 
-!!! tip "Application Scenarios"
-    - Fluid mechanics: Flow velocity field visualization
-    - Electromagnetics: Electric/magnetic field distribution
-    - Meteorology: Wind direction field display
-    - Mathematical analysis: Vector function visualization
+> **Tip — Application Scenarios**
+>
+> - Fluid mechanics: Flow velocity field visualization
+> - Electromagnetics: Electric/magnetic field distribution
+> - Meteorology: Wind direction field display
+> - Mathematical analysis: Vector function visualization
 
-!!! example "Related Examples"
-    - Vector field demo: `playground/vectorfield`
+> **Example — Related Examples**
+>
+> - Vector field demo: `playground/vectorfield`

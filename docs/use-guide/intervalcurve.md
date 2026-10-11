@@ -148,11 +148,13 @@ curve->setSymbol(symbol);
 | `setOutlinePen()` | Set boundary line pen |
 | `setOutlineMode()` | Set boundary display mode |
 
-!!! tip "Application Scenarios"
-    - Experimental data error display
-    - Confidence interval visualization
-    - Fluctuation range display
-    - Prediction interval display
+> **Tip — Application Scenarios**
+>
+> - Experimental data error display
+> - Confidence interval visualization
+> - Fluctuation range display
+> - Prediction interval display
 
-!!! example "Related Examples"
-    - Interval curve demo: See custom examples
+> **Example — Related Examples**
+>
+> - Interval curve demo: See custom examples

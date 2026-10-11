@@ -8,8 +8,9 @@ Qwt 7.0 是基于原版 Qwt 6.2.0 的现代化改进版本，遵循 Qwt 的开�
 
 ## 2D/3D绘图一体化
 
-!!! success "qwt同时支持2D/3D"
-    Qwt 7.0 将原 `QwtPlot3D` 库整合进来，实现了 **2D和3D绘图的一体化支持**。现在一个库就能同时满足二维和三维数据可视化需求。
+> **亮点 — qwt同时支持2D/3D**
+>
+> Qwt 7.0 将原 `QwtPlot3D` 库整合进来，实现了 **2D和3D绘图的一体化支持**。现在一个库就能同时满足二维和三维数据可视化需求。
 
 ### 3D绘图模块概述
 
@@ -35,8 +36,9 @@ Qwt 7.0 内置完整的3D绘图能力，支持：
 | `Qwt3DSurface` | 3D表面图item，显示连续曲面（同时支持网格和单元数据） |
 | `Qwt3DFunction` | 数据生成器，根据 z = f(x, y) 数学函数生成曲面 |
 
-!!! note "无命名空间"
-    所有3D类直接使用 `Qwt3D` 前缀定义在全局作用域（如 `Qwt3DPlot`、`Qwt3DSurface`）。不再有 `namespace Qwt3D`。
+> **说明 — 无命名空间**
+>
+> 所有3D类直接使用 `Qwt3D` 前缀定义在全局作用域（如 `Qwt3DPlot`、`Qwt3DSurface`）。不再有 `namespace Qwt3D`。
 
 ### 使用示例
 
@@ -83,13 +85,15 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot)
 target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 ```
 
-!!! tip "2D/3D一体化优势"
-    - **统一引入**：无需单独引入两个库，简化项目依赖
-    - **一致风格**：2D和3D绘图API风格统一，降低学习成本
-    - **灵活选择**：根据需求独立链接2D或3D模块
+> **提示 — 2D/3D一体化优势**
+>
+> - **统一引入**：无需单独引入两个库，简化项目依赖
+> - **一致风格**：2D和3D绘图API风格统一，降低学习成本
+> - **灵活选择**：根据需求独立链接2D或3D模块
 
-!!! example "完整示例"
-    详细使用方法请参考 [3D绘图简介](3d-plot.md)，示例代码位于 `examples/3D/simpleplot3D`
+> **示例 — 完整示例**
+>
+> 详细使用方法请参考 [3D绘图简介](3d-plot.md)，示例代码位于 `examples/3D/simpleplot3D`
 
 ## 架构与构建升级
 
@@ -123,13 +127,15 @@ Qwt 7.0 提供了一种极简的引入方式 —— 将整个库合并为单文�
 
 只需将这两个文件加入您的项目，无需复杂的构建配置，特别适合小型项目或快速原型开发。
 
-!!! warning "注意"
-    单文件是由工具自动合成的，请勿直接编辑 `QwtPlot.h` 和 `QwtPlot.cpp` 文件。
+> **警告 — 注意**
+>
+> 单文件是由工具自动合成的，请勿直接编辑 `QwtPlot.h` 和 `QwtPlot.cpp` 文件。
 
 ## QwtFigure — 多绘图布局容器
 
-!!! success "核心新特性"
-    `QwtFigure` 是 Qwt 7.0 最重要的新增功能之一，提供类似 matplotlib Figure 的多绘图布局能力。
+> **亮点 — 核心新特性**
+>
+> `QwtFigure` 是 Qwt 7.0 最重要的新增功能之一，提供类似 matplotlib Figure 的多绘图布局能力。
 
 ### 功能概述
 
@@ -182,13 +188,15 @@ figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
 - 支持选择当前激活的绘图组件
 - 提供清晰的可视化反馈（边框、控制点、尺寸信息）
 
-!!! example "完整示例"
-    详细使用方法请参考 [QwtFigure绘图容器窗口](figure-widget.md)，示例代码位于 `examples/figure`
+> **示例 — 完整示例**
+>
+> 详细使用方法请参考 [QwtFigure绘图容器窗口](figure-widget.md)，示例代码位于 `examples/figure`
 
 ## 寄生绘图 — 多坐标轴系统
 
-!!! success "核心新特性"
-    寄生绘图（Parasite Axes）允许在同一绘图区域内创建任意多个独立坐标轴，完美解决多Y轴、多X轴的复杂绘图需求。
+> **亮点 — 核心新特性**
+>
+> 寄生绘图（Parasite Axes）允许在同一绘图区域内创建任意多个独立坐标轴，完美解决多Y轴、多X轴的复杂绘图需求。
 
 ### 工作原理
 
@@ -221,13 +229,15 @@ curve->attach(parasitePlot);
 
 ![parasite-plot](../../assets/screenshots/parasite-plot.png)
 
-!!! example "完整示例"
-    详细使用方法请参考 [寄生绘图使用指南](parasite-axes.md)，示例代码位于 `examples/parasitePlot`
+> **示例 — 完整示例**
+>
+> 详细使用方法请参考 [寄生绘图使用指南](parasite-axes.md)，示例代码位于 `examples/parasitePlot`
 
 ## 交互功能重构
 
-!!! success "重要改进"
-    Qwt 7.0 对交互控件进行了全面重构，提供更流畅的用户体验。
+> **亮点 — 重要改进**
+>
+> Qwt 7.0 对交互控件进行了全面重构，提供更流畅的用户体验。
 
 ### 实时平移 — QwtPlotPanner
 
@@ -262,16 +272,19 @@ QwtPlotCanvasZoomer* canvasZoomer = new QwtPlotCanvasZoomer(plot->canvas());
 | `QwtPlotPanner` | `QwtPlotCachePanner` | 带缓存的绘图平移器 |
 | - | `QwtPlotPanner` | 新增：实时平移器 |
 
-!!! tip "迁移提示"
-    原有代码基本无需修改，新接口保持向后兼容。如需使用原来的缓存式平移，可使用 `CachePanner` 相关类。
+> **提示 — 迁移提示**
+>
+> 原有代码基本无需修改，新接口保持向后兼容。如需使用原来的缓存式平移，可使用 `CachePanner` 相关类。
 
-!!! example "完整示例"
-    详细使用方法请参考 [平移工具](panner.md) 和 [缩放工具](zoomer.md)
+> **示例 — 完整示例**
+>
+> 详细使用方法请参考 [平移工具](panner.md) 和 [缩放工具](zoomer.md)
 
 ## 坐标轴内置交互动作
 
-!!! success "新特性 v7.0.5+"
-    坐标轴交互动作允许用户通过鼠标直接操作坐标轴，体验类似 QCustomPlot 的交互方式。
+> **亮点 — 新特性 v7.0.5+**
+>
+> 坐标轴交互动作允许用户通过鼠标直接操作坐标轴，体验类似 QCustomPlot 的交互方式。
 
 ### 功能演示
 
@@ -317,13 +330,15 @@ plot->axisWidget(QwtAxis::YLeft)->setSelectionColor(Qt::blue);
 plot->axisWidget(QwtAxis::YLeft)->setSelectedPenWidthOffset(1.5);
 ```
 
-!!! example "完整示例"
-    详细使用方法请参考 [坐标轴交互动作](scale-builtin-action.md)
+> **示例 — 完整示例**
+>
+> 详细使用方法请参考 [坐标轴交互动作](scale-builtin-action.md)
 
 ## 数据拾取功能
 
-!!! success "新特性 v7.0.6+"
-    `QwtPlotSeriesDataPicker` 提供了强大的数据拾取功能，鼠标移动时实时显示数据点信息。
+> **亮点 — 新特性 v7.0.6+**
+>
+> `QwtPlotSeriesDataPicker` 提供了强大的数据拾取功能，鼠标移动时实时显示数据点信息。
 
 ### 功能演示
 
@@ -367,15 +382,17 @@ picker->setTextBackgroundBrush(QBrush(QColor(255, 255, 255, 180)));
 - 搜索窗口默认为曲线点数的 5%
 - 避免全曲线遍历，大幅提升性能
 
-!!! example "完整示例"
-    详细使用方法请参考 [数据拾取](pick-value.md)
+> **示例 — 完整示例**
+>
+> 详细使用方法请参考 [数据拾取](pick-value.md)
 
 ## 新增图表类型
 
 ### 箱线图 — QwtPlotBoxChart
 
-!!! success "新特性 v7.2.0+"
-    `QwtPlotBoxChart` 提供完整的箱线图（Box-and-Whisker Plot）支持，直观展示数据统计分布特征。
+> **亮点 — 新特性 v7.2.0+**
+>
+> `QwtPlotBoxChart` 提供完整的箱线图（Box-and-Whisker Plot）支持，直观展示数据统计分布特征。
 
 ![BoxChart](../../assets/screenshots/BoxChart.png)
 
@@ -408,15 +425,17 @@ boxChart->setBrush(QColor(100, 150, 200, 150));
 boxChart->setBoxStyle(QwtPlotBoxChart::Notch);
 ```
 
-!!! example "完整示例"
-    详细使用方法请参考 [箱线图使用指南](boxchart.md)，示例代码位于 `examples/2D/boxchart`
+> **示例 — 完整示例**
+>
+> 详细使用方法请参考 [箱线图使用指南](boxchart.md)，示例代码位于 `examples/2D/boxchart`
 
 ## 其他实用功能
 
 ### 刻度朝内显示
 
-!!! success "新特性 v7.2.1+"
-    支持将坐标轴刻度线显示在绘图区域内部，适合紧凑布局场景。
+> **亮点 — 新特性 v7.2.1+**
+>
+> 支持将坐标轴刻度线显示在绘图区域内部，适合紧凑布局场景。
 
 ![ticks_inside](../../assets/screenshots/ticks_inside.png)
 
@@ -426,8 +445,9 @@ plot->setAxisTickDirection(QwtAxis::YLeft, QwtPlot::TickInside);
 plot->setAxisTickDirection(QwtAxis::XBottom, QwtPlot::TickInside);
 ```
 
-!!! example "完整示例"
-    详细使用方法请参考 [刻度朝内显示使用指南](ticks-inside.md)，示例代码位于 `examples/2D/ticks_inside`
+> **示例 — 完整示例**
+>
+> 详细使用方法请参考 [刻度朝内显示使用指南](ticks-inside.md)，示例代码位于 `examples/2D/ticks_inside`
 
 ### NaN/Inf 异常值处理
 
@@ -494,8 +514,9 @@ Qwt 7.0 是一次全面的现代化升级：
 
 ---
 
-!!! info "获取更多信息"
-    - **项目地址**: [GitHub](https://github.com/czyt1988/QWT) / [Gitee](https://gitee.com/czyt1988/QWT)
-    - **构建说明**: [构建指引](../build-guide/build-instructions.md)
-    - **引入方式**: [引入Qwt](import-qwt.md)
-    - **变更日志**: [CHANGES-CN.md](../../CHANGES-CN.md)
+> **信息 — 获取更多信息**
+>
+> - **项目地址**: [GitHub](https://github.com/czyt1988/QWT) / [Gitee](https://gitee.com/czyt1988/QWT)
+> - **构建说明**: [构建指引](../build-guide/build-instructions.md)
+> - **引入方式**: [引入Qwt](import-qwt.md)
+> - **变更日志**: [CHANGES-CN.md](../../CHANGES-CN.md)

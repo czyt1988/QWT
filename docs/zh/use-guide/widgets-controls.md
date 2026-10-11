@@ -230,16 +230,18 @@ compass->setNeedle(new QwtCompassWindArrow());
 | `setTracking()` | 设置鼠标跟踪 |
 | `setWrapping()` | 设置循环模式 |
 
-!!! tip "控件使用建议"
-    - 仪表盘适合角度或方向显示
-    - 旋钮适合参数调节
-    - 滑块适合线性范围调整
-    - 温度计适合进度或温度显示
-    - 滚轮适合连续平滑调节
+> **提示 — 控件使用建议**
+>
+> - 仪表盘适合角度或方向显示
+> - 旋钮适合参数调节
+> - 滑块适合线性范围调整
+> - 温度计适合进度或温度显示
+> - 滚轮适合连续平滑调节
 
-!!! example "相关示例"
-    - 控件演示：`examples/2D/controls`
-    - 指南针：`examples/2D/dials`
+> **示例 — 相关示例**
+>
+> - 控件演示：`examples/2D/controls`
+> - 指南针：`examples/2D/dials`
 
 控件演示的更多截图如下：
 

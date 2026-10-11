@@ -67,8 +67,9 @@ The result of the above code is shown below:
 
 To create a parasite plot, you first need to create the host plot. The parasite plot is created on top of the host plot via the `QwtPlot::createParasitePlot` function, which returns a pointer to the parasite plot. The parasite plot object is also a `QwtPlot`. You can distinguish whether a plot is a parasite or host plot using the `QwtPlot::isHostPlot` and `QwtPlot::isParasitePlot` functions. If the current plot is a parasite plot, you can get the host plot pointer via `QwtPlot::hostPlot`. If the current plot is a host plot, you can get all parasite plot pointers via `QwtPlot::parasitePlots`.
 
-!!! warning "Note"
-    A plot cannot be both a parasite plot and a host plot at the same time. In other words, if a plot is a parasite plot, it is not allowed to create its own parasite plots. Calling `createParasitePlot` on a parasite plot will return `nullptr`.
+> **Warning — Note**
+>
+> A plot cannot be both a parasite plot and a host plot at the same time. In other words, if a plot is a parasite plot, it is not allowed to create its own parasite plots. Calling `createParasitePlot` on a parasite plot will return `nullptr`.
 
 After a parasite plot is created, its properties can be set just like a normal plot.
 
@@ -166,8 +167,9 @@ The general calculation process is as follows:
 3. Set the new values to the corresponding axis QwtScaleWidget
 4. The host's margin is preserved (to avoid overwriting values the user may have set manually).
 
-!!! warning "Note"
-    `QwtPlot::updateAxisEdgeMargin`/`QwtPlot::updateAllAxisEdgeMargin` do not modify the host plot's `margin` property.
+> **Warning — Note**
+>
+> `QwtPlot::updateAxisEdgeMargin`/`QwtPlot::updateAllAxisEdgeMargin` do not modify the host plot's `margin` property.
 
 After adding parasite axes and before displaying the plot, you should manually call `updateAllAxisEdgeMargin` to update the parasite plot axis layout.
 
@@ -191,8 +193,9 @@ for (QwtPlot* oneplot : plotList) {
 }
 ```
 
-!!! tips "Note"
-    Calling `QwtPlot::plotList` on any plot will return the complete list of all plots, whether called from a parasite plot or a host plot — the result is the same.
+> **Tip — Note**
+>
+> Calling `QwtPlot::plotList` on any plot will return the complete list of all plots, whether called from a parasite plot or a host plot — the result is the same.
 
 ### Handling Coordinate Transforms
 
@@ -243,8 +246,9 @@ const QwtScaleMap yMap = itemPlot->canvasMap(item->yAxis());
 QPointF screenPos = QwtScaleMap::transform(xMap, yMap, valuePoint);
 ```
 
-!!! example "Coordinate Transform Example"
-    Refer to the `pickYValue` and `pickNearestPoint` implementations in the `QwtPlotSeriesDataPicker` class, which is used for picking curve points and already accounts for parasite plots.
+> **Example — Coordinate Transform Example**
+>
+> Refer to the `pickYValue` and `pickNearestPoint` implementations in the `QwtPlotSeriesDataPicker` class, which is used for picking curve points and already accounts for parasite plots.
 
 ## Notes
 
@@ -261,5 +265,6 @@ QPointF screenPos = QwtScaleMap::transform(xMap, yMap, valuePoint);
 - Parasite plots have the `Qt::WA_TransparentForMouseEvents` attribute set, meaning they do not accept any mouse events — all mouse events are handled by the host plot
 - Parasite plot positions are controlled by the host plot
 
-!!! example "Parasite Plot Example"
-    Complete example code can be found in `examples/parasitePlot`
+> **Example — Parasite Plot Example**
+>
+> Complete example code can be found in `examples/parasitePlot`

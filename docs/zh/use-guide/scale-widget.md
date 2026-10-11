@@ -248,13 +248,15 @@ plot->setAxisTitlePlacement(QwtAxis::YLeft, QwtScaleWidget::TitleInside);
 | `setTickPosition()` | 设置刻度位置 |
 | `setScaleDraw()` | 设置刻度绘制对象 |
 
-!!! tip "坐标轴配置建议"
-    - 对于数值轴，使用自动刻度即可满足大多数需求
-    - 对于时间轴，使用 `QwtDateScaleEngine`
-    - 对于对数轴，使用 `QwtLogScaleEngine`
+> **提示 — 坐标轴配置建议**
+>
+> - 对于数值轴，使用自动刻度即可满足大多数需求
+> - 对于时间轴，使用 `QwtDateScaleEngine`
+> - 对于对数轴，使用 `QwtLogScaleEngine`
 
-!!! example "相关示例"
-    - 坐标轴交互：`examples/2D` 中多个示例
-    - 外置轴标题：`examples/2D/outsideTitle`
-    - 颜色条：`examples/2D/spectrogram`
-    - 刻度演示：`playground/scaleengine`
+> **示例 — 相关示例**
+>
+> - 坐标轴交互：`examples/2D` 中多个示例
+> - 外置轴标题：`examples/2D/outsideTitle`
+> - 颜色条：`examples/2D/spectrogram`
+> - 刻度演示：`playground/scaleengine`

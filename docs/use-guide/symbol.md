@@ -206,11 +206,13 @@ symbol->setPen(Qt::NoPen);
 | `setPinPoint()` | Set pin point position |
 | `drawSymbol()` | Draw symbol |
 
-!!! tip "Symbol Usage Recommendations"
-    - Use small symbols or no symbols when data points are dense
-    - Use large symbols to emphasize key data points
-    - Use different shapes for different data series for easy distinction
-    - Unfilled symbols (Cross, XCross) have better performance
+> **Tip — Symbol Usage Recommendations**
+>
+> - Use small symbols or no symbols when data points are dense
+> - Use large symbols to emphasize key data points
+> - Use different shapes for different data series for easy distinction
+> - Unfilled symbols (Cross, XCross) have better performance
 
-!!! example "Related Examples"
-    - Symbol demo: `playground/symbols`
+> **Example — Related Examples**
+>
+> - Symbol demo: `playground/symbols`

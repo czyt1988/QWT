@@ -263,15 +263,17 @@ peakMarker->attach(plot);
 | `setLabelOrientation()` | 设置标签方向 |
 | `setSpacing()` | 设置标签间距 |
 
-!!! tip "标记层级控制"
-    标记通常应绘制在其他绘图项上方，可以通过设置Z值控制：
-    ```cpp
-    marker->setZ(100);  // 较高的Z值会在上层绘制
-    ```
+> **提示 — 标记层级控制**
+>
+> 标记通常应绘制在其他绘图项上方，可以通过设置Z值控制：
+> ```cpp
+> marker->setZ(100);  // 较高的Z值会在上层绘制
+> ```
 
-!!! example "相关示例"
-    - 曲线峰值标注：`examples/2D/bode`
-    - 曲线追踪器：`playground/curvetracker`
+> **示例 — 相关示例**
+>
+> - 曲线峰值标注：`examples/2D/bode`
+> - 曲线追踪器：`playground/curvetracker`
 
 曲线峰值标注的例子截图如下：
 

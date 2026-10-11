@@ -15,10 +15,11 @@ This document defines the coding standards for the Qwt project to ensure consist
 
 The project uses a `.clang-format` configuration file for code formatting.
 
-!!! tip "Formatting Suggestions"
-    - Run clang-format before committing code
-    - Configure your IDE for automatic formatting (triggered on save)
-    - Maintain consistency with existing code style
+> **Tip — Formatting Suggestions**
+>
+> - Run clang-format before committing code
+> - Configure your IDE for automatic formatting (triggered on save)
+> - Maintain consistency with existing code style
 
 ## C++11 Compatibility Macros
 
@@ -108,8 +109,9 @@ for (const auto& item : container) { }
 for (const auto& item : qwt_as_const(container)) { }
 ```
 
-!!! warning "Important"
-    Qt containers may undergo implicit sharing detachment (deep copy) during iteration. Using `qwt_as_const` avoids this issue.
+> **Warning — Important**
+>
+> Qt containers may undergo implicit sharing detachment (deep copy) during iteration. Using `qwt_as_const` avoids this issue.
 
 ## Qt Development Best Practices
 
@@ -155,8 +157,9 @@ Q_SLOT:       // instead of slot:
 public Q_SLOTS:  // instead of public slots:
 ```
 
-!!! warning "Prohibited"
-    Do not use lowercase macros such as `slot` or `signal`, as they may cause issues with certain compilers.
+> **Warning — Prohibited**
+>
+> Do not use lowercase macros such as `slot` or `signal`, as they may cause issues with certain compilers.
 
 ## Naming Conventions
 

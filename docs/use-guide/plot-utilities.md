@@ -156,8 +156,9 @@ QwtPlotArrowMarker* arrow = QwtPlotFactory::createArrowMarker(
     plot, QPointF(0, 0), QPointF(3, 5));
 ```
 
-!!! tip "Complete Factory Method List"
-    `QwtPlotFactory` covers all **9 data plot items** and **7 decorator items**. See the API documentation for the full list.
+> **Tip — Complete Factory Method List**
+>
+> `QwtPlotFactory` covers all **9 data plot items** and **7 decorator items**. See the API documentation for the full list.
 
 ## QwtPlotItemInfo — Type Queries
 
@@ -522,8 +523,9 @@ The utility classes cover all plot item types in Qwt 7:
 | `QwtPlotLegendItem` | `createLegend()` |
 | `QwtPlotScaleItem` | `createScaleItem()` |
 
-!!! example "Related Examples"
-    See the examples under `examples/2D/` for practical usage of these utility classes in context.
+> **Example — Related Examples**
+>
+> See the examples under `examples/2D/` for practical usage of these utility classes in context.
 
 ## Higher-Level Wrapper: QwtPyPlot
 

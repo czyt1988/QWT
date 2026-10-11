@@ -162,8 +162,9 @@ grid->attach(&plot);
 
 网格是独立的绘图项，用于显示坐标参考线。所有绘图项都通过 `attach()` 方法附加到 QwtPlot，QwtPlot 会自动管理附加项的生命周期。
 
-!!! tip "绘图项生命周期"
-    当绘图项附加到 QwtPlot 后，QwtPlot 会持有该绘图项的引用。在 QwtPlot 销毁时，所有附加的绘图项也会被自动删除。因此，你不需要手动管理绘图项的内存。
+> **提示 — 绘图项生命周期**
+>
+> 当绘图项附加到 QwtPlot 后，QwtPlot 会持有该绘图项的引用。在 QwtPlot 销毁时，所有附加的绘图项也会被自动删除。因此，你不需要手动管理绘图项的内存。
 
 #### 3. 创建曲线并设置样式
 
@@ -216,8 +217,9 @@ curve->setSamples(points);
 | `setSamples(const double* x, const double* y, int size)` | 从原始数组设置 |
 | `setRawSamples(const double* x, const double* y, int size)` | 直接引用外部数组（不复制） |
 
-!!! warning "setRawSamples 注意事项"
-    使用 `setRawSamples()` 时，Qwt 不会复制数据，而是直接引用你提供的数组。这意味着你必须确保数组在曲线存在期间一直有效，且不要修改数组内容。
+> **警告 — setRawSamples 注意事项**
+>
+> 使用 `setRawSamples()` 时，Qwt 不会复制数据，而是直接引用你提供的数组。这意味着你必须确保数组在曲线存在期间一直有效，且不要修改数组内容。
 
 #### 6. 设置坐标轴
 
@@ -256,8 +258,9 @@ plot.setAutoReplot(true);  // 数据变化时自动刷新
 
 启用自动刷新后，每当绘图项的数据或属性发生变化时，QwtPlot 会自动调用 `replot()` 更新显示。默认情况下，你需要手动调用 `replot()` 来刷新绘图。
 
-!!! tip "性能提示"
-    对于实时更新的场景，建议关闭自动刷新，在批量更新完成后手动调用一次 `replot()`，这样可以避免频繁刷新带来的性能开销。
+> **提示 — 性能提示**
+>
+> 对于实时更新的场景，建议关闭自动刷新，在批量更新完成后手动调用一次 `replot()`，这样可以避免频繁刷新带来的性能开销。
 
 ## QwtPlot 核心方法
 
@@ -272,7 +275,8 @@ plot.setAutoReplot(true);  // 数据变化时自动刷新
 | `setAutoReplot()` | 设置自动刷新模式 |
 | `exportPlot()` | 导出绘图到文件 |
 
-!!! example "相关示例"
-    - 基础绘图：`examples/2D/simpleplot`
-    - 曲线样式演示：`examples/2D/curvedemo`
-    - 实时数据：`examples/2D/cpuplot`
+> **示例 — 相关示例**
+>
+> - 基础绘图：`examples/2D/simpleplot`
+> - 曲线样式演示：`examples/2D/curvedemo`
+> - 实时数据：`examples/2D/cpuplot`

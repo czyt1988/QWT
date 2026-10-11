@@ -2,10 +2,11 @@
 
 > **摘要** —— 当一条曲线的采样数远超画布的像素列数时，继续把每一个点交给光栅化器既昂贵又没有意义：绝大多数点共享同一个像素列，属于信息论意义上的**冗余采样**。本文先从可视化的带宽瓶颈出发，形式化地定义"降采样保真度"；然后完整推导经典 LTTB（Largest Triangle Three Buckets）算法的三角形面积准则；接着剖析 QWT7 所采用的 **MinMax 桶**变体——它把 LTTB 的"最大三角形"启发式替换为"每桶保留极值"的确定性规则，从而获得可证明的包络性质与 SIMD 友好的计算结构（AVX2/SSE4.2 运行时派发）；最后用一组可复现的实验（8× 超采样光栅化度量）量化四种降采样策略在五种典型信号上的像素级保真度，并给出完整的代码实践。
 
-!!! abstract "核心结论"
-    - 对百万级曲线，`FilterPointsLTTB`（MinMax 桶）在 1,000,000 点上把重绘耗时从 262 ms/帧（3.8 FPS）降到 133 ms/帧（7.5 FPS），且保真度最高（`clean` 列占比 61%–97%，取决于信号）
-    - MinMax 桶保留了经典 LTTB 的"视觉形状保持"优点，但提供了后者没有的**确定性极值保留**保证，并可使用 SIMD 指令加速逐桶 argmin/argmax
-    - 桶数的选择 $N_b = 2W$（每个像素列 2 个桶、4 个输出点）对应可视化的奈奎斯特极限：低于每列 0.5 周期的内容可被无失真复现
+> **摘要 — 核心结论**
+>
+> - 对百万级曲线，`FilterPointsLTTB`（MinMax 桶）在 1,000,000 点上把重绘耗时从 262 ms/帧（3.8 FPS）降到 133 ms/帧（7.5 FPS），且保真度最高（`clean` 列占比 61%–97%，取决于信号）
+> - MinMax 桶保留了经典 LTTB 的"视觉形状保持"优点，但提供了后者没有的**确定性极值保留**保证，并可使用 SIMD 指令加速逐桶 argmin/argmax
+> - 桶数的选择 $N_b = 2W$（每个像素列 2 个桶、4 个输出点）对应可视化的奈奎斯特极限：低于每列 0.5 周期的内容可被无失真复现
 
 ---
 
@@ -513,8 +514,9 @@ curve->setSmoothAlgorithm(QwtPlotCurve::GaussianSmoothing);
 curve->setSmoothWindow(15);
 ```
 
-!!! warning "属性互斥"
-    `FilterPointsPixel`、`FilterPointsLTTB`、`FilterPointsAggressive` 三者同时开启时由 `QwtPointMapper` 内部优先级裁决：`Pixel > MinMax > Aggressive`。不要同时开，生效语义即优先级最高者。
+> **警告 — 属性互斥**
+>
+> `FilterPointsPixel`、`FilterPointsLTTB`、`FilterPointsAggressive` 三者同时开启时由 `QwtPointMapper` 内部优先级裁决：`Pixel > MinMax > Aggressive`。不要同时开，生效语义即优先级最高者。
 
 ### 7.2 直接使用 SIMD 工具
 

@@ -144,8 +144,9 @@ plot->show();
 | `-.` | 点划线 |
 | `:` | 点线 |
 
-!!! tip "matplotlib 行为兼容"
-    当只指定标记而没有线型时（如 `"ro"`），线条会自动隐藏，仅显示标记点。这与 matplotlib 的行为一致。
+> **提示 — matplotlib 行为兼容**
+>
+> 当只指定标记而没有线型时（如 `"ro"`），线条会自动隐藏，仅显示标记点。这与 matplotlib 的行为一致。
 
 ## 绘图方法
 
@@ -469,8 +470,9 @@ int main(int argc, char* argv[])
 | `enablePan(enable)` | 启用/禁用平移 |
 | `enableZoom(enable)` | 启用/禁用缩放 |
 
-!!! example "相关示例"
-    完整示例位于 `examples/2D/pyplot/` 目录，包含 8 个 Tab 页展示各种 QwtPyPlot 功能。
+> **示例 — 相关示例**
+>
+> 完整示例位于 `examples/2D/pyplot/` 目录，包含 8 个 Tab 页展示各种 QwtPyPlot 功能。
 
 PyPlot 的例子截图如下：
 

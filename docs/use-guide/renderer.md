@@ -135,11 +135,13 @@ renderer.renderDocument(plot, "plot.pdf", sizeMm, 300);  // 300 DPI
 | `setDiscardFlag()` | Set discard option |
 | `resetDiscardFlags()` | Reset discard options |
 
-!!! tip "Export Recommendations"
-    - Use PDF or high-resolution PNG (300 DPI) for printing
-    - Use SVG or PNG for web pages
-    - Use PDF or SVG for document embedding
-    - Use PNG or JPG for screenshot sharing
+> **Tip — Export Recommendations**
+>
+> - Use PDF or high-resolution PNG (300 DPI) for printing
+> - Use SVG or PNG for web pages
+> - Use PDF or SVG for document embedding
+> - Use PNG or JPG for screenshot sharing
 
-!!! example "Related Examples"
-    - Export functionality demo: `examples/2D/barchart`
+> **Example — Related Examples**
+>
+> - Export functionality demo: `examples/2D/barchart`

@@ -206,10 +206,12 @@ ma10->attach(plot);
 | Down | `Negative` | close < open |
 | Neutral | `Neutral` | close == open |
 
-!!! tip "Color Conventions"
-    - Chinese market: Red for up, green for down
-    - International market: Green for up, red for down
-    - Colors can be adjusted as needed
+> **Tip — Color Conventions**
+>
+> - Chinese market: Red for up, green for down
+> - International market: Green for up, red for down
+> - Colors can be adjusted as needed
 
-!!! example "Related Examples"
-    - Stock chart demo: `examples/2D/stockchart`
+> **Example — Related Examples**
+>
+> - Stock chart demo: `examples/2D/stockchart`

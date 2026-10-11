@@ -106,9 +106,10 @@ struct QwtBoxSample {
 };
 ```
 
-!!! info "Parameter Order Note"
-    Constructor parameter order: `position, whiskerLower, q1, median, q3, whiskerUpper`
-    Ensure parameters are passed in the correct order, otherwise the box plot will display incorrectly
+> **Info — Parameter Order Note**
+>
+> Constructor parameter order: `position, whiskerLower, q1, median, q3, whiskerUpper`
+> Ensure parameters are passed in the correct order, otherwise the box plot will display incorrectly
 
 #### QwtBoxOutlierSample
 
@@ -259,11 +260,12 @@ flowchart LR
 | `StandardDeviation` | Normally distributed data | Uses mean +/- n*standard deviation to determine range |
 | `StandardError` | Statistical inference | Uses mean +/- n*standard error, suitable for sample statistical inference |
 
-!!! tip "Method Selection Recommendations"
-    - **General data analysis**: Use Tukey method (default)
-    - **Custom outlier criteria**: Use Percentile or adjust the Tukey coefficient
-    - **Display full data distribution**: Use MinMax
-    - **Normal distribution testing**: Use StandardDeviation
+> **Tip — Method Selection Recommendations**
+>
+> - **General data analysis**: Use Tukey method (default)
+> - **Custom outlier criteria**: Use Percentile or adjust the Tukey coefficient
+> - **Display full data distribution**: Use MinMax
+> - **Normal distribution testing**: Use StandardDeviation
 
 ### 4. Box Style Configuration
 
@@ -280,10 +282,11 @@ boxChart->setBoxStyle(QwtPlotBoxChart::Diamond);
 boxChart->setBoxStyle(QwtPlotBoxChart::Notch);
 ```
 
-!!! info "Style Selection Guide"
-    - `Rect`: Standard box plot style, suitable for most scenarios
-    - `Diamond`: Suitable for comparing distribution symmetry across multiple groups
-    - `Notch`: Notch represents the median confidence interval; if notches of two groups do not overlap, their medians are significantly different
+> **Info — Style Selection Guide**
+>
+> - `Rect`: Standard box plot style, suitable for most scenarios
+> - `Diamond`: Suitable for comparing distribution symmetry across multiple groups
+> - `Notch`: Notch represents the median confidence interval; if notches of two groups do not overlap, their medians are significantly different
 
 ### 5. Display Orientation Switching
 
@@ -299,9 +302,10 @@ boxChart->setOrientation(Qt::Horizontal);
 
 When switching orientation, note the following:
 
-!!! warning "Refresh After Orientation Switch"
-    After switching orientation, call `plot->replot()` or `plot->setAxisAutoScale()` to refresh the axes,
-    otherwise the axis ranges may not adapt to the new data orientation
+> **Warning — Refresh After Orientation Switch**
+>
+> After switching orientation, call `plot->replot()` or `plot->setAxisAutoScale()` to refresh the axes,
+> otherwise the axis ranges may not adapt to the new data orientation
 
 ```cpp
 // Complete orientation switching example

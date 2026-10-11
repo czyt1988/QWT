@@ -118,17 +118,20 @@ plot->replot();
 
 ## 注意事项
 
-!!! info "样式继承"
-    朝内刻度线自动继承朝外刻度的样式设置，包括：
-    - 刻度长度（通过 `QwtScaleDraw::setTickLength()` 设置）
-    - 线宽（通过 `QwtScaleDraw::setPenWidthF()` 设置）
-    - 颜色（通过 `QwtScaleWidget::setScaleColor()` 设置）
+> **信息 — 样式继承**
+>
+> 朝内刻度线自动继承朝外刻度的样式设置，包括：
+> - 刻度长度（通过 `QwtScaleDraw::setTickLength()` 设置）
+> - 线宽（通过 `QwtScaleDraw::setPenWidthF()` 设置）
+> - 颜色（通过 `QwtScaleWidget::setScaleColor()` 设置）
 
-!!! warning "刷新时机"
-    调用 `setAxisTickDirection()` 后会自动触发 `autoRefresh()`，在 `autoReplot` 开启时会自动刷新。如需立即刷新，可调用 `replot()`。
+> **警告 — 刷新时机**
+>
+> 调用 `setAxisTickDirection()` 后会自动触发 `autoRefresh()`，在 `autoReplot` 开启时会自动刷新。如需立即刷新，可调用 `replot()`。
 
-!!! tip "配合寄生轴使用"
-    刻度朝内功能可与寄生轴（Parasite Plot）配合使用，每个寄生绘图可独立设置刻度方向。
+> **提示 — 配合寄生轴使用**
+>
+> 刻度朝内功能可与寄生轴（Parasite Plot）配合使用，每个寄生绘图可独立设置刻度方向。
 
 ## 与 QwtPlotScaleItem 的区别
 
@@ -139,13 +142,14 @@ plot->replot();
 | 显示位置 | 替换/改变主轴刻度 | 作为独立图层叠加 |
 | 适用场景 | 需要紧凑布局或特殊效果 | 需要在画布内显示参考刻度 |
 
-!!! example "示例代码"
-    完整示例位于：`examples/2D/ticks_inside/`
-    
-    该示例展示了：
-    - 四个坐标轴独立控制
-    - 实时切换刻度方向
-    - 批量设置功能
+> **示例 — 示例代码**
+>
+> 完整示例位于：`examples/2D/ticks_inside/`
+>
+> 该示例展示了：
+> - 四个坐标轴独立控制
+> - 实时切换刻度方向
+> - 批量设置功能
 
 ## 参考资料
 

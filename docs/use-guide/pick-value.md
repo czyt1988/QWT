@@ -71,8 +71,9 @@ Y-value picking mode effect:
 
 In Y-value picking mode, you can set whether to perform interpolation calculation via the `setInterpolationMode` method. Interpolation calculation can improve data accuracy. If points are sparse, the Y value corresponding to the current X position is calculated using linear interpolation.
 
-!!! info "Note"
-    Interpolation is enabled by default.
+> **Info — Note**
+>
+> Interpolation is enabled by default.
 
 ```cpp
 // No interpolation, use the nearest data point
@@ -111,11 +112,13 @@ The search window can be set in the following ways:
 
 The default search window size is -5, meaning 5% of the curve points.
 
-!!! warning "Note"
-    The default threshold for enabling the window search algorithm in Qwt7 is 1000 data points, meaning the window setting only takes effect when the curve has more than 1000 points.
+> **Warning — Note**
+>
+> The default threshold for enabling the window search algorithm in Qwt7 is 1000 data points, meaning the window setting only takes effect when the curve has more than 1000 points.
 
-!!! note "Notes"
-    The window optimization algorithm requires curve data to be sorted in ascending order by X coordinate. If using a custom data source, ensure the data is properly sorted.
+> **Note — Notes**
+>
+> The window optimization algorithm requires curve data to be sorted in ascending order by X coordinate. If using a custom data source, ensure the data is properly sorted.
 
 
 ## Other Property Settings
@@ -133,8 +136,9 @@ picker->setTextBackgroundBrush(QBrush(QColor(255, 255, 255, 180)));
 picker->setTextAlignment(Qt::AlignLeft | Qt::AlignTop);
 ```
 
-!!! Bug "Bug"
-    The drawing area of `QwtPlotSeriesDataPicker` is the layer of the host plot. Parasite plots are child windows of the host plot, so graphics drawn by parasite plots overlay the host plot. This means curves displayed by parasite plots appear above the drawing area of `QwtPlotSeriesDataPicker`. The current parasite plot architecture cannot make `QwtPlotSeriesDataPicker` content appear above parasite plots.
+> **Bug — Bug**
+>
+> The drawing area of `QwtPlotSeriesDataPicker` is the layer of the host plot. Parasite plots are child windows of the host plot, so graphics drawn by parasite plots overlay the host plot. This means curves displayed by parasite plots appear above the drawing area of `QwtPlotSeriesDataPicker`. The current parasite plot architecture cannot make `QwtPlotSeriesDataPicker` content appear above parasite plots.
 
 ### Feature Point Drawing
 
@@ -207,16 +211,18 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 ### Left Button Only
 
-!!! info "Note"
-    Click signals **only respond to the left mouse button** (Qt::LeftButton). Right-click and middle-click do not trigger these signals.
+> **Info — Note**
+>
+> Click signals **only respond to the left mouse button** (Qt::LeftButton). Right-click and middle-click do not trigger these signals.
 
 ### Double-Fire Behavior
 
-!!! warning "Note"
-    When the user double-clicks, the `clicked()` signal is fired first, followed by the `doubleClicked()` signal.
-    This is standard Qt behavior, not a bug.
-
-    If you need to distinguish between single-click and double-click, it is recommended to connect only one of the signals, not both.
+> **Warning — Note**
+>
+> When the user double-clicks, the `clicked()` signal is fired first, followed by the `doubleClicked()` signal.
+> This is standard Qt behavior, not a bug.
+>
+> If you need to distinguish between single-click and double-click, it is recommended to connect only one of the signals, not both.
 
 ## Getting Picked Data
 
@@ -250,8 +256,9 @@ QList<FeaturePoint> featurePoints() const;
 
 `featurePoints()` returns all feature points picked at the current tracker position. This method is typically called in `clicked` or `doubleClicked` signal handlers to get data at the click position.
 
-!!! tip "Tip"
-    The returned list may contain multiple `FeaturePoint` entries, as the mouse position may correspond to data points from multiple curves simultaneously (especially in Y-value picking mode).
+> **Tip — Tip**
+>
+> The returned list may contain multiple `FeaturePoint` entries, as the mouse position may correspond to data points from multiple curves simultaneously (especially in Y-value picking mode).
 
 ## Group Signal Forwarding
 
@@ -269,9 +276,10 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 ### Sync-Before-Signal
 
-!!! info "Important Feature"
-    Before emitting click signals, the Group synchronizes the positions of all other pickers in the group.
-    This means when the `clicked` signal fires, `featurePoints()` of all pickers in the group have already been updated to the synchronized position.
+> **Info — Important Feature**
+>
+> Before emitting click signals, the Group synchronizes the positions of all other pickers in the group.
+> This means when the `clicked` signal fires, `featurePoints()` of all pickers in the group have already been updated to the synchronized position.
 
 This feature is very useful for multi-subplot linked scenarios: when the user clicks a subplot, the pickers in other subplots have already been synchronized to the corresponding proportional X-axis position, allowing direct retrieval of data from all subplots at the same proportional position.
 

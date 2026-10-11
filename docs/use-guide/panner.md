@@ -1,7 +1,8 @@
 # Panning Tool
 
-!!! success "New Feature"
-    `QwtPlotPicker` is a completely refactored real-time interactive plot picker, providing a more intuitive user experience than the original `QwtPlotPicker` which implemented panning through caching.
+> **Success — New Feature**
+>
+> `QwtPlotPicker` is a completely refactored real-time interactive plot picker, providing a more intuitive user experience than the original `QwtPlotPicker` which implemented panning through caching.
 
 The `Qwt6` version of `QwtPlotPicker` was based on a cache-based panning mechanism, which had two main issues:
 
@@ -25,8 +26,9 @@ The new `QwtPlotPicker` provides complete axis support:
 - ✅ DateTime Scale
 - ✅ Multiple axes
 
-!!! warning "Using the Original Cache-Based Picker"
-    If you want to use the original cache-based picker, you can use `QwtPlotCachePicker`.
+> **Warning — Using the Original Cache-Based Picker**
+>
+> If you want to use the original cache-based picker, you can use `QwtPlotCachePicker`.
 
 | Class Changes                  | Property | Base Class |
 |---------------------------|------|-------|
@@ -74,5 +76,6 @@ panner->setOrientations(Qt::Horizontal | Qt::Vertical); // Default: horizontal a
 // panner->setOrientations(Qt::Vertical);              // Vertical only
 ```
 
-!!! warning "Note"
-    `QwtPlotPanner` differs from `QwtPlotPicker` in that it does not need to bind to axes, because the movement applies to the entire canvas. During canvas movement, all axes are moved.
+> **Warning — Note**
+>
+> `QwtPlotPanner` differs from `QwtPlotPicker` in that it does not need to bind to axes, because the movement applies to the entire canvas. During canvas movement, all axes are moved.

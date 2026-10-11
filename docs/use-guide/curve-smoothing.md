@@ -2,10 +2,11 @@
 
 > **Abstract** — Downsampling solves "too many points to draw"; smoothing solves "it still looks like noise". The conclusion of the companion article becomes the premise here: the MinMax bucket reduction **deliberately keeps the extremes of every bucket**, so the extremes of random jitter survive as well — measured on a 100,000-sample spectrum (900×500 canvas) the noise band of the reduced polyline is on average 65 pixel rows thick. The render smoothing of QWT7.4 applies a low-pass filter directly to the polyline in the paint pipeline: **Gaussian weighted convolution** and **Savitzky-Golay local polynomial regression**, both touching only the $y$ coordinates and never the sample data. This article derives the mathematical structure of both kernels from the bias-variance decomposition — including the Savitzky-Golay moment conditions, the parity argument that makes order 2 and order 3 identical, and the identity "the noise gain equals the centre coefficient" — and then dissects the third piece, **feature preservation**: a wide baseline, a MAD (median absolute deviation) noise estimate and a soft-threshold blend restore peaks and dips to their original position and height. All properties come with numerical experiments and complete code.
 
-!!! abstract "Key results"
-    - The Gaussian kernel ($\sigma = w/4$) suppresses noise best (residual noise 28.6% of the input at $w=15$), but its peak attenuation has a closed form $b/\sqrt{b^2+\sigma^2}$: a kernel with $\sigma=3.75$ cuts a peak of width $b=3$ by 35% of its height
-    - The Savitzky-Golay kernel is the convolution form of a local polynomial least-squares fit: any polynomial of degree $\le p$ passes undistorted (polynomial reproduction theorem), so peak shapes survive — at the cost of about 36% more residual noise than the Gaussian at the same window ($\sqrt{g}=0.389$ vs $0.287$)
-    - Feature preservation turns "linear, indiscriminate attenuation" into "nonlinear, selective restoration": at the default $\tau=3$, the top row of a narrow peak and the bottom row of a deep dip stay **row-identical** to the unsmoothed rendering, while the noise band collapses from 65.4 px to 6.1 px (Gaussian + LTTB, 900×500 canvas, measured)
+> **Abstract — Key results**
+>
+> - The Gaussian kernel ($\sigma = w/4$) suppresses noise best (residual noise 28.6% of the input at $w=15$), but its peak attenuation has a closed form $b/\sqrt{b^2+\sigma^2}$: a kernel with $\sigma=3.75$ cuts a peak of width $b=3$ by 35% of its height
+> - The Savitzky-Golay kernel is the convolution form of a local polynomial least-squares fit: any polynomial of degree $\le p$ passes undistorted (polynomial reproduction theorem), so peak shapes survive — at the cost of about 36% more residual noise than the Gaussian at the same window ($\sqrt{g}=0.389$ vs $0.287$)
+> - Feature preservation turns "linear, indiscriminate attenuation" into "nonlinear, selective restoration": at the default $\tau=3$, the top row of a narrow peak and the bottom row of a deep dip stay **row-identical** to the unsmoothed rendering, while the noise band collapses from 65.4 px to 6.1 px (Gaussian + LTTB, 900×500 canvas, measured)
 
 ---
 
@@ -518,8 +519,9 @@ When reading the article alongside the example, start with the picture and only 
 | strong noise, weak features | combine `FilterPointsPixel` with smoothing (noise band ~2.7 px, see the example docs) |
 | interactive tuning | `examples/2D/curvesmoothing`: switch algorithm / window / order / threshold live, run 50-replot benchmarks |
 
-!!! tip "What the window counts"
-    The window counts *polyline points*, not samples: after MinMax reduction the polyline has ≈ 4W points, so window 15 covers about 4 pixel columns horizontally. The span scales with the pixel ratio while zooming — the smoothing strength is constant in screen space (Section 6).
+> **Tip — What the window counts**
+>
+> The window counts *polyline points*, not samples: after MinMax reduction the polyline has ≈ 4W points, so window 15 covers about 4 pixel columns horizontally. The span scales with the pixel ratio while zooming — the smoothing strength is constant in screen space (Section 6).
 
 ## 9. Summary
 

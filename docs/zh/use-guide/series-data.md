@@ -88,10 +88,11 @@ curve->setRawSamples(x, y, 1000);
 // 数据变化时无需重新设置，直接replot即可
 ```
 
-!!! warning "setRawSamples注意事项"
-    - 外部数组必须保持有效直到曲线销毁
-    - 不要修改数组大小，只修改内容
-    - 数据更新后需调用replot刷新显示
+> **警告 — setRawSamples注意事项**
+>
+> - 外部数组必须保持有效直到曲线销毁
+> - 不要修改数组大小，只修改内容
+> - 数据更新后需调用replot刷新显示
 
 ### 3. 自定义数据类
 
@@ -249,15 +250,17 @@ plot->replot();
 | `setRawSamples()` | 引用外部数组 |
 | `data()` | 获取数据对象 |
 
-!!! tip "数据管理建议"
-    - 静态数据：使用 `setSamples()` 复制数据
-    - 大数据：使用 `setRawSamples()` 避免复制
-    - 动态数据：实现自定义 `QwtSeriesData`
-    - 函数数据：使用 `QwtSyntheticSeriesData`
+> **提示 — 数据管理建议**
+>
+> - 静态数据：使用 `setSamples()` 复制数据
+> - 大数据：使用 `setRawSamples()` 避免复制
+> - 动态数据：实现自定义 `QwtSeriesData`
+> - 函数数据：使用 `QwtSyntheticSeriesData`
 
-!!! example "相关示例"
-    - 实时数据：`examples/2D/realtime`
-    - CPU监控：`examples/2D/cpuplot`
+> **示例 — 相关示例**
+>
+> - 实时数据：`examples/2D/realtime`
+> - CPU监控：`examples/2D/cpuplot`
 
 实时数据与CPU监控的例子截图如下：
 

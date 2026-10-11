@@ -193,10 +193,12 @@ legendItem->setMaxColumns(1);
 | `setLegendIconSize()` | Set icon size |
 | `setTitle()` | Set title (legend text) |
 
-!!! tip "Legend Usage Recommendations"
-    - Few curves (<5): Right-side legend
-    - Many curves (5-10): Bottom legend
-    - Very many curves (>10): Consider using embedded legend or grouped display
+> **Tip — Legend Usage Recommendations**
+>
+> - Few curves (<5): Right-side legend
+> - Many curves (5-10): Bottom legend
+> - Very many curves (>10): Consider using embedded legend or grouped display
 
-!!! example "Related Examples"
-    - Legend demo: `examples/2D/legends`
+> **Example — Related Examples**
+>
+> - Legend demo: `examples/2D/legends`

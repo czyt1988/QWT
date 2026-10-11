@@ -89,8 +89,9 @@ grid->attach(plot);
 plot->replot();
 ```
 
-!!! tip "Grid Layer Order"
-    Grids should typically be drawn below other plot items. By default, QwtPlotGrid has a low Z value and is drawn first. Use `grid->setZ(-10)` or similar methods to adjust if needed.
+> **Tip — Grid Layer Order**
+>
+> Grids should typically be drawn below other plot items. By default, QwtPlotGrid has a low Z value and is drawn first. Use `grid->setZ(-10)` or similar methods to adjust if needed.
 
 ### 2. Grid Line Style Configuration
 
@@ -179,11 +180,12 @@ const QwtScaleDiv& xDiv = grid->xScaleDiv();
 const QwtScaleDiv& yDiv = grid->yScaleDiv();
 ```
 
-!!! info "Tick Division Types"
-    QwtScaleDiv supports three tick levels:
-    - `MajorTick` - Major ticks (numeric labels displayed)
-    - `MinorTick` - Minor ticks (small tick marks)
-    - `MediumTick` - Medium ticks (between major and minor)
+> **Info — Tick Division Types**
+>
+> QwtScaleDiv supports three tick levels:
+> - `MajorTick` - Major ticks (numeric labels displayed)
+> - `MinorTick` - Minor ticks (small tick marks)
+> - `MediumTick` - Medium ticks (between major and minor)
 
 ## Complete Example
 
@@ -255,8 +257,10 @@ plot->replot();
 | `xScaleDiv()` | Get X-axis tick division |
 | `yScaleDiv()` | Get Y-axis tick division |
 
-!!! tip "Special Meaning of Zero Line Width"
-    In Qt, a line width of 0 means using a "cosmetic line width" (a fast 1-pixel-wide rendering line). For grid lines, using `0.0` as the line width produces the thinnest possible lines.
+> **Tip — Special Meaning of Zero Line Width**
+>
+> In Qt, a line width of 0 means using a "cosmetic line width" (a fast 1-pixel-wide rendering line). For grid lines, using `0.0` as the line width produces the thinnest possible lines.
 
-!!! example "Related Examples"
-    - All plotting examples include grids: `examples/2D/` directory
+> **Example — Related Examples**
+>
+> - All plotting examples include grids: `examples/2D/` directory

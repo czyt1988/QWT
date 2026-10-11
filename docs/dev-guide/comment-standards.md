@@ -4,9 +4,10 @@ This document defines the standards for writing code comments in the Qwt project
 
 ## Language Requirements
 
-!!! warning "Important: English Only"
-    Qwt is an international project. **All comments in source code (including Doxygen documentation comments) must be written in English; Chinese is not permitted.**
-    Chinese documentation is only allowed in the `docs/` directory.
+> **Warning — Important: English Only**
+>
+> Qwt is an international project. **All comments in source code (including Doxygen documentation comments) must be written in English; Chinese is not permitted.**
+> Chinese documentation is only allowed in the `docs/` directory.
 
 ## Key Requirements
 
@@ -31,10 +32,11 @@ Doxygen keywords must use the `@` prefix (e.g., `@brief`, `@param`, `@return`, `
 
 ## Comment Placement Principles
 
-!!! info "Core Principles"
-    - **Detailed comments** go in `.cpp` files
-    - **Brief comments** go in `.h` files
-    - Keep header files clean and avoid excessive comment content
+> **Info — Core Principles**
+>
+> - **Detailed comments** go in `.cpp` files
+> - **Brief comments** go in `.h` files
+> - Keep header files clean and avoid excessive comment content
 
 ## Source File Comment Standards
 
@@ -114,8 +116,9 @@ public:
 };
 ```
 
-!!! warning "Note"
-    **Do not** write detailed Doxygen comment blocks in header files. Detailed content should be placed in the corresponding `.cpp` file.
+> **Warning — Note**
+>
+> **Do not** write detailed Doxygen comment blocks in header files. Detailed content should be placed in the corresponding `.cpp` file.
 
 ## Class Comment Standards
 

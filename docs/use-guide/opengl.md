@@ -87,8 +87,9 @@ canvas->setPaintAttribute(QwtPlotCanvas::OpenGLBuffer, true);
 plot->setCanvas(canvas);
 ```
 
-!!! info
-    `QwtPlotOpenGLCanvas` renders directly to a `QOpenGLWidget` and generally offers better performance than the `OpenGLBuffer` approach. However, `OpenGLBuffer` integrates more seamlessly into desktop applications with mixed widget layouts.
+> **Info**
+>
+> `QwtPlotOpenGLCanvas` renders directly to a `QOpenGLWidget` and generally offers better performance than the `OpenGLBuffer` approach. However, `OpenGLBuffer` integrates more seamlessly into desktop applications with mixed widget layouts.
 
 ### When to Use OpenGL Canvas
 
@@ -99,9 +100,10 @@ plot->setCanvas(canvas);
 | Real-time streaming data | `QwtPlotOpenGLCanvas` for consistent frame rates |
 | Mixed widget UI with complex layouts | `QwtPlotCanvas` with `OpenGLBuffer` for better integration |
 
-!!! example "Related examples"
-    - `examples/realtime` — real-time plotting with high data throughput
-    - `examples/oscilloscope` — oscilloscope-style waveform display
+> **Example — Related examples**
+>
+> - `examples/realtime` — real-time plotting with high data throughput
+> - `examples/oscilloscope` — oscilloscope-style waveform display
 
 Screenshots of real-time plotting and oscilloscope:
 

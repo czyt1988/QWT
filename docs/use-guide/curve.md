@@ -142,11 +142,12 @@ QVector<double> yValues;
 curve->setSamples(yValues);
 ```
 
-!!! warning "setRawSamples Considerations"
-    When using `setRawSamples()`, the curve does not copy the data but directly references the provided arrays. You must ensure:
-    1. The arrays remain valid for the lifetime of the curve
-    2. The array contents should not be modified (unless you understand the consequences)
-    3. Do not deallocate the arrays before the curve is destroyed
+> **Warning — setRawSamples Considerations**
+>
+> When using `setRawSamples()`, the curve does not copy the data but directly references the provided arrays. You must ensure:
+> 1. The arrays remain valid for the lifetime of the curve
+> 2. The array contents should not be modified (unless you understand the consequences)
+> 3. Do not deallocate the arrays before the curve is destroyed
 
 ### 3. Curve Style Configuration
 
@@ -316,8 +317,9 @@ curve->setPaintAttribute(QwtPlotCurve::ImageBuffer, true);             // Image 
 | `MinimizeMemory` | Reduce temporary memory usage (may decrease performance) |
 | `ImageBuffer` | Use image buffer for drawing scatter points (suitable for millions of data points) |
 
-!!! note "Default Settings"
-    Starting from Qwt 7.x, `ClipPolygons | FilterPointsLTTB` is enabled by default. No manual setup is needed for basic optimization, and `FilterPointsLTTB` performs best in benchmarks for most scenarios.
+> **Note — Default Settings**
+>
+> Starting from Qwt 7.x, `ClipPolygons | FilterPointsLTTB` is enabled by default. No manual setup is needed for basic optimization, and `FilterPointsLTTB` performs best in benchmarks for most scenarios.
 
 #### Downsampling Algorithms in Detail
 
@@ -345,8 +347,9 @@ Bins data by screen pixel columns, keeping only first/min/max/last Y values per 
 curve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, true);
 ```
 
-!!! warning "FilterPointsPixel Caveats"
-    This algorithm overrides `FilterPointsAggressive` when both are set (Pixel takes priority). Since only 4 points per column are retained, high-frequency details may be lost — suitable for trend observation rather than precise analysis.
+> **Warning — FilterPointsPixel Caveats**
+>
+> This algorithm overrides `FilterPointsAggressive` when both are set (Pixel takes priority). Since only 4 points per column are retained, high-frequency details may be lost — suitable for trend observation rather than precise analysis.
 
 ##### FilterPointsLTTB — MinMax Bucket Downsampling (Default, Recommended)
 
@@ -363,11 +366,12 @@ Divides the visible data range into N equal-count buckets (N = 2 × canvas width
 curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);
 ```
 
-!!! note "FilterPointsLTTB vs FilterPointsPixel"
-    - LTTB preserves original X coordinates (not pixel-aligned), producing more accurate waveform contours
-    - Pixel forces all points to pixel columns — simpler implementation but not necessarily faster
-    - When data is too small to benefit from downsampling, LTTB automatically falls back to the Quad algorithm
-    - Benchmarks show LTTB outperforms Pixel on million-level data (see benchmark results below)
+> **Note — FilterPointsLTTB vs FilterPointsPixel**
+>
+> - LTTB preserves original X coordinates (not pixel-aligned), producing more accurate waveform contours
+> - Pixel forces all points to pixel columns — simpler implementation but not necessarily faster
+> - When data is too small to benefit from downsampling, LTTB automatically falls back to the Quad algorithm
+> - Benchmarks show LTTB outperforms Pixel on million-level data (see benchmark results below)
 
 #### How to Choose a Rendering Method
 
@@ -415,11 +419,12 @@ debugCurve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, false);
 debugCurve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, false);
 ```
 
-!!! tip "Comprehensive Tips for Large Datasets"
-    - Real-time updates: Disable `setAutoReplot()`, call `replot()` manually after batch updates
-    - Monotonically increasing X data: `FilterPointsLTTB` automatically uses binary search for the visible range — no manual data trimming needed
-    - Frequent zoom/pan scenarios: `FilterPointsLTTB` is already enabled by default and is the fastest in benchmarks
-    - High-quality screenshots or exports: Temporarily disable downsampling, or use `FilterPointsAggressive` for the most accurate output
+> **Tip — Comprehensive Tips for Large Datasets**
+>
+> - Real-time updates: Disable `setAutoReplot()`, call `replot()` manually after batch updates
+> - Monotonically increasing X data: `FilterPointsLTTB` automatically uses binary search for the visible range — no manual data trimming needed
+> - Frequent zoom/pan scenarios: `FilterPointsLTTB` is already enabled by default and is the fastest in benchmarks
+> - High-quality screenshots or exports: Temporarily disable downsampling, or use `FilterPointsAggressive` for the most accurate output
 
 #### Benchmark Results
 
@@ -440,8 +445,9 @@ Below is a real-world performance comparison with 1,000,000 data points (canvas 
 - `FilterPoints` basic filtering is actually the slowest — overhead exceeds benefit
 - No optimization (None) is faster than `FilterPoints`, confirming basic filtering is counterproductive at this scale
 
-!!! note "Run Your Own Tests"
-    You can run the `examples/bench/renderbench` example to benchmark rendering methods on your own hardware. The tool supports configurable data size, frame count, and waveform type, with both single-method and batch comparison modes. It generates a detailed Markdown report upon completion.
+> **Note — Run Your Own Tests**
+>
+> You can run the `examples/bench/renderbench` example to benchmark rendering methods on your own hardware. The tool supports configurable data size, frame count, and waveform type, with both single-method and batch comparison modes. It generates a detailed Markdown report upon completion.
 
 ### 7. Legend Style Configuration
 
@@ -518,12 +524,13 @@ private:
 };
 ```
 
-!!! example "Related Examples"
-    - Curve style demo: `examples/2D/curvedemo`
-    - Simple curve: `examples/2D/simpleplot`
-    - Real-time data: `examples/2D/cpuplot`
-    - Real-time plotting: `examples/2D/realtime`
-    - Oscilloscope: `examples/2D/oscilloscope`
+> **Example — Related Examples**
+>
+> - Curve style demo: `examples/2D/curvedemo`
+> - Simple curve: `examples/2D/simpleplot`
+> - Real-time data: `examples/2D/cpuplot`
+> - Real-time plotting: `examples/2D/realtime`
+> - Oscilloscope: `examples/2D/oscilloscope`
 
 Screenshots of real-time data, real-time plotting, and oscilloscope:
 

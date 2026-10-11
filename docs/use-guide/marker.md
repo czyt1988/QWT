@@ -263,15 +263,17 @@ Label alignment relative to the marker point is controlled by `Qt::AlignmentFlag
 | `setLabelOrientation()` | Set label orientation |
 | `setSpacing()` | Set label spacing |
 
-!!! tip "Marker Layer Control"
-    Markers should typically be drawn above other plot items. This can be controlled by setting the Z value:
-    ```cpp
-    marker->setZ(100);  // Higher Z value draws on top
-    ```
+> **Tip — Marker Layer Control**
+>
+> Markers should typically be drawn above other plot items. This can be controlled by setting the Z value:
+> ```cpp
+> marker->setZ(100);  // Higher Z value draws on top
+> ```
 
-!!! example "Related Examples"
-    - Curve peak annotation: `examples/2D/bode`
-    - Curve tracker: `playground/curvetracker`
+> **Example — Related Examples**
+>
+> - Curve peak annotation: `examples/2D/bode`
+> - Curve tracker: `playground/curvetracker`
 
 Screenshot of the curve peak annotation:
 

@@ -43,8 +43,9 @@ find_package(OpenGL COMPONENTS OpenGL REQUIRED)
 target_link_libraries(YOU_APP_TARGET PRIVATE OpenGL::GLU)
 ```
 
-!!! tip "提示"
-    qwt7.1之后合并了`qwtplot3d`库，因此需要引入opengl相关的依赖。GLU仅用于gl2ps矢量导出回退。
+> **提示 — 提示**
+>
+> qwt7.1之后合并了`qwtplot3d`库，因此需要引入opengl相关的依赖。GLU仅用于gl2ps矢量导出回退。
 
 ## 基于cmake引入QWT库
 
@@ -58,8 +59,9 @@ target_link_libraries(YOU_APP_TARGET PRIVATE OpenGL::GLU)
 
 把安装目录下的`lib/cmake/qwt`位置设置给`qwt_DIR`变量(CMake在执行`find_package(xx)`时，会先查看是否有`xx_DIR`变量，如果有，会先查询`xx_DIR`下是否有对应的`xxConfig.cmake`文件)
 
-!!! tips "提示"
-    如果你使用默认安装目录，那么`qwt_DIR`变量可以不设置，cmake能自动找到
+> **提示 — 提示**
+>
+> 如果你使用默认安装目录，那么`qwt_DIR`变量可以不设置，cmake能自动找到
 
 例如:
 
@@ -107,5 +109,6 @@ target_link_libraries(YOU_APP_TARGET PRIVATE qwt::plot3d) # 会自动把qt的依
 
 但如果你使用类似`vistual studio`的界面来手动引入库，你除了添加lib文件外，还需要指定预定于宏。引入qwtcore库你需要预定义宏`QWTCORE_DLL`，引入qwtplot库你需要预定义宏`QWT_DLL`，引入qwtplot3d库你需要预定义宏`QWT3D_DLL`
 
-!!! tips "提示"
-    作为现代c++项目，强烈建议使用cmake构建你的项目，这些预定义项都在cmake的配置中预制好
+> **提示 — 提示**
+>
+> 作为现代c++项目，强烈建议使用cmake构建你的项目，这些预定义项都在cmake的配置中预制好

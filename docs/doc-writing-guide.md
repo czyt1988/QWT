@@ -107,20 +107,27 @@ classDiagram
 Use Markdown extension syntax to highlight important information:
 
 ```markdown
-!!! warning "Important Warning"
-    Information that could lead to serious issues
 
-!!! info "Note"
-    Supplementary information
+> **Warning — Important Warning**
+>
+> Information that could lead to serious issues
 
-!!! tip "Tip"
-    Usage tips and recommendations
+> **Info — Note**
+>
+> Supplementary information
 
-!!! example "Example"
-    Example code path: `examples/xxx`
+> **Tip — Tip**
+>
+> Usage tips and recommendations
 
-!!! bug "Known Issue"
-    Known defects and workarounds
+> **Example — Example**
+>
+> Example code path: `examples/xxx`
+
+> **Bug — Known Issue**
+>
+> Known defects and workarounds
+
 ```
 
 ### 6. Property/Method Description Format
@@ -285,8 +292,9 @@ classDiagram
 [Configuration code]
 ```
 
-!!! warning "Note"
-    Important reminder
+> **Warning — Note**
+>
+> Important reminder
 
 
 

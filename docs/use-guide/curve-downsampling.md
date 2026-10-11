@@ -2,10 +2,11 @@
 
 > **Abstract** — When a curve has far more samples than the canvas has pixel columns, feeding every point to the rasterizer is both expensive and pointless: most samples share one pixel column and are, in an information theoretic sense, **redundant sampling**. This article starts with the bandwidth bottleneck of the screen, and formalizes what "downsampling fidelity" means. It then derives the triangle-area criterion of the classic LTTB (Largest Triangle Three Buckets) algorithm in full, and dissects the **MinMax bucket** variant QWT7 uses instead: it replaces the "largest triangle" heuristic with the deterministic rule "keep the extremes of every bucket", which yields provable envelope properties and a SIMD-friendly computational structure (AVX2/SSE4.2 with runtime dispatch). A reproducible experiment suite (8× supersampled raster metrics) quantifies the pixel-level fidelity of four reduction strategies on five typical signals, and a complete code section shows how to use it.
 
-!!! abstract "Key results"
-    - On a million-point curve, `FilterPointsLTTB` (MinMax buckets) cuts the replot time from 262 ms/frame (3.8 FPS) to 133 ms/frame (7.5 FPS), with the best fidelity of all strategies (61%–97% pixel-exact columns depending on the signal)
-    - The MinMax bucket keeps the "visual shape preservation" of classic LTTB, but adds a **deterministic extreme-preservation guarantee** that LTTB lacks, and reduces the core computation to a SIMD-friendly argmin/argmax
-    - The bucket budget $N_b = 2W$ (two buckets per pixel column, four output points per column) matches the display Nyquist limit: content below 0.5 cycles per column is reproduced without loss
+> **Abstract — Key results**
+>
+> - On a million-point curve, `FilterPointsLTTB` (MinMax buckets) cuts the replot time from 262 ms/frame (3.8 FPS) to 133 ms/frame (7.5 FPS), with the best fidelity of all strategies (61%–97% pixel-exact columns depending on the signal)
+> - The MinMax bucket keeps the "visual shape preservation" of classic LTTB, but adds a **deterministic extreme-preservation guarantee** that LTTB lacks, and reduces the core computation to a SIMD-friendly argmin/argmax
+> - The bucket budget $N_b = 2W$ (two buckets per pixel column, four output points per column) matches the display Nyquist limit: content below 0.5 cycles per column is reproduced without loss
 
 ---
 
@@ -515,8 +516,9 @@ curve->setSmoothAlgorithm(QwtPlotCurve::GaussianSmoothing);
 curve->setSmoothWindow(15);
 ```
 
-!!! warning "Mutual exclusion"
-    When several of `FilterPointsPixel`, `FilterPointsLTTB` and `FilterPointsAggressive` are enabled at once, the internal priority in `QwtPointMapper` decides: `Pixel > MinMax > Aggressive`. Do not enable several of them; the effect is the one on top.
+> **Warning — Mutual exclusion**
+>
+> When several of `FilterPointsPixel`, `FilterPointsLTTB` and `FilterPointsAggressive` are enabled at once, the internal priority in `QwtPointMapper` decides: `Pixel > MinMax > Aggressive`. Do not enable several of them; the effect is the one on top.
 
 ### 7.2 Using the SIMD utility directly
 

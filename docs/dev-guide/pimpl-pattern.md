@@ -44,10 +44,11 @@ private:
 };
 ```
 
-!!! tip "PIMPL Pattern Advantages"
-    - **Build Speed**: Modifying private members only requires recompiling a single cpp file
-    - **Binary Compatibility**: Changes to private members do not affect ABI compatibility
-    - **Clean Headers**: Header files only contain public interface declarations
+> **Tip — PIMPL Pattern Advantages**
+>
+> - **Build Speed**: Modifying private members only requires recompiling a single cpp file
+> - **Binary Compatibility**: Changes to private members do not affect ABI compatibility
+> - **Clean Headers**: Header files only contain public interface declarations
 
 ## Qwt PIMPL Macros
 
@@ -139,8 +140,9 @@ MyClass::MyClass(QObject* parent)
 }
 ```
 
-!!! info "Macro Expansion"
-    `QWT_PIMPL_CONSTRUCT` expands to: `m_data(qwt_make_unique<PrivateData>(this))`
+> **Info — Macro Expansion**
+>
+> `QWT_PIMPL_CONSTRUCT` expands to: `m_data(qwt_make_unique<PrivateData>(this))`
 
 ### Step 4: Destructor Handling
 
@@ -302,26 +304,29 @@ int MyClass::value() const
 
 ### When to Use the PIMPL Pattern
 
-!!! tip "Recommended Scenarios"
-    - The class has many private members or private methods
-    - The class header has many dependencies and you want to reduce compilation dependencies
-    - Binary compatibility needs to be maintained (e.g., public API of a library)
-    - Private members may change frequently
+> **Tip — Recommended Scenarios**
+>
+> - The class has many private members or private methods
+> - The class header has many dependencies and you want to reduce compilation dependencies
+> - Binary compatibility needs to be maintained (e.g., public API of a library)
+> - Private members may change frequently
 
 ### When PIMPL is Not Necessary
 
-!!! info "Optional Scenarios"
-    - Simple, small classes with few private members
-    - Internal helper classes that do not need to hide their implementation
-    - Performance-sensitive scenarios (PIMPL has a slight overhead from indirect access)
+> **Info — Optional Scenarios**
+>
+> - Simple, small classes with few private members
+> - Internal helper classes that do not need to hide their implementation
+> - Performance-sensitive scenarios (PIMPL has a slight overhead from indirect access)
 
 ### Important Notes
 
-!!! warning "Important Reminders"
-    1. **Constructor Must Initialize**: Use `QWT_PIMPL_CONSTRUCT` or manually initialize `m_data`
-    2. **Use QWT_DC for Const Functions**: Ensure const correctness
-    3. **PrivateData Constructor Parameter**: Must accept the host pointer to initialize `q_ptr`
-    4. **Do Not Expose PrivateData in the Header**: The PrivateData class definition should only exist in the cpp file
+> **Warning — Important Reminders**
+>
+> 1. **Constructor Must Initialize**: Use `QWT_PIMPL_CONSTRUCT` or manually initialize `m_data`
+> 2. **Use QWT_DC for Const Functions**: Ensure const correctness
+> 3. **PrivateData Constructor Parameter**: Must accept the host pointer to initialize `q_ptr`
+> 4. **Do Not Expose PrivateData in the Header**: The PrivateData class definition should only exist in the cpp file
 
 ## Macro Expansion Details
 

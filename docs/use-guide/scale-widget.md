@@ -248,13 +248,15 @@ Effect (from the example `examples/2D/outsideTitle`; left: single plot, right: m
 | `setTickPosition()` | Set tick position |
 | `setScaleDraw()` | Set scale draw object |
 
-!!! tip "Axis Configuration Recommendations"
-    - For numeric axes, automatic scaling meets most needs
-    - For time axes, use `QwtDateScaleEngine`
-    - For logarithmic axes, use `QwtLogScaleEngine`
+> **Tip — Axis Configuration Recommendations**
+>
+> - For numeric axes, automatic scaling meets most needs
+> - For time axes, use `QwtDateScaleEngine`
+> - For logarithmic axes, use `QwtLogScaleEngine`
 
-!!! example "Related Examples"
-    - Axis interaction: Multiple examples in `examples/2D`
-    - Outside axis titles: `examples/2D/outsideTitle`
-    - Color bar: `examples/2D/spectrogram`
-    - Tick demo: `playground/scaleengine`
+> **Example — Related Examples**
+>
+> - Axis interaction: Multiple examples in `examples/2D`
+> - Outside axis titles: `examples/2D/outsideTitle`
+> - Color bar: `examples/2D/spectrogram`
+> - Tick demo: `playground/scaleengine`

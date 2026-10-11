@@ -118,17 +118,20 @@ plot->replot();
 
 ## Notes
 
-!!! info "Style Inheritance"
-    Inward tick marks automatically inherit the style settings of outward ticks, including:
-    - Tick length (set via `QwtScaleDraw::setTickLength()`)
-    - Line width (set via `QwtScaleDraw::setPenWidthF()`)
-    - Color (set via `QwtScaleWidget::setScaleColor()`)
+> **Info — Style Inheritance**
+>
+> Inward tick marks automatically inherit the style settings of outward ticks, including:
+> - Tick length (set via `QwtScaleDraw::setTickLength()`)
+> - Line width (set via `QwtScaleDraw::setPenWidthF()`)
+> - Color (set via `QwtScaleWidget::setScaleColor()`)
 
-!!! warning "Refresh Timing"
-    Calling `setAxisTickDirection()` automatically triggers `autoRefresh()`. When `autoReplot` is enabled, it will refresh automatically. To refresh immediately, call `replot()`.
+> **Warning — Refresh Timing**
+>
+> Calling `setAxisTickDirection()` automatically triggers `autoRefresh()`. When `autoReplot` is enabled, it will refresh automatically. To refresh immediately, call `replot()`.
 
-!!! tip "Use with Parasite Axes"
-    The inward tick feature can be used with parasite plots (Parasite Plot). Each parasite plot can independently set its tick direction.
+> **Tip — Use with Parasite Axes**
+>
+> The inward tick feature can be used with parasite plots (Parasite Plot). Each parasite plot can independently set its tick direction.
 
 ## Differences from QwtPlotScaleItem
 
@@ -139,13 +142,14 @@ plot->replot();
 | Display Position | Replaces/changes main axis ticks | Overlays as independent layer |
 | Use Cases | Compact layout or special effects needed | Reference scales needed inside canvas |
 
-!!! example "Example Code"
-    Complete example located at: `examples/2D/ticks_inside/`
-
-    This example demonstrates:
-    - Independent control of four axes
-    - Real-time tick direction switching
-    - Batch setting functionality
+> **Example — Example Code**
+>
+> Complete example located at: `examples/2D/ticks_inside/`
+>
+> This example demonstrates:
+> - Independent control of four axes
+> - Real-time tick direction switching
+> - Batch setting functionality
 
 ## References
 

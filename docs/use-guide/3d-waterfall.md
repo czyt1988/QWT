@@ -83,8 +83,9 @@ plot->coordinates()->axes[Y1].setLabelString("Frames ago");
 plot->coordinates()->axes[Z1].setLabelString("Amplitude");
 ```
 
-!!! note "Anisotropic data and view scaling"
-    A typical spectrum waterfall spans bins `0..M-1`, amplitude `0..1` and depth `0..capacity-1` — strongly anisotropic. Use `AUTOFILL`, which normalizes every axis to the largest data range *before* the projection is derived, and then shape the normalized cube with `plot->setScale()` (the example uses `(1.0, 0.35, 0.6)`: full bin width, compressed depth, 60% amplitude height). Under `DATARATIO` the raw proportions leave the curtains a 1-unit sliver inside a 255-unit scene, and per-axis `setScale()` cannot rescue it because the projection radius is derived from the unscaled hull.
+> **Note — Anisotropic data and view scaling**
+>
+> A typical spectrum waterfall spans bins `0..M-1`, amplitude `0..1` and depth `0..capacity-1` — strongly anisotropic. Use `AUTOFILL`, which normalizes every axis to the largest data range *before* the projection is derived, and then shape the normalized cube with `plot->setScale()` (the example uses `(1.0, 0.35, 0.6)`: full bin width, compressed depth, 60% amplitude height). Under `DATARATIO` the raw proportions leave the curtains a 1-unit sliver inside a 255-unit scene, and per-axis `setScale()` cannot rescue it because the projection radius is derived from the unscaled hull.
 
 ### 2. Live Waterfall (30 Hz)
 
@@ -127,8 +128,9 @@ scale->setLabels(labels);
 axis.setScale(scale);
 ```
 
-!!! warning "Pitfall: every axis needs its own scale object"
-    `Qwt3DAxis::setScale()` stores the scale in a clone pointer that **clones and consumes** the passed object. Sharing one `Qwt3DTextScale*` between several axes leaves a dangling pointer and crashes. Create one instance per axis.
+> **Warning — Pitfall: every axis needs its own scale object**
+>
+> `Qwt3DAxis::setScale()` stores the scale in a clone pointer that **clones and consumes** the passed object. Sharing one `Qwt3DTextScale*` between several axes leaves a dangling pointer and crashes. Create one instance per axis.
 
 ### 4. Coloring and the Color Functor
 

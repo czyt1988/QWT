@@ -4,8 +4,9 @@
 
 **Qwt 7 对 NaN 数据进行了全面的正确性处理和性能优化**，这是原版 Qwt 6 所不具备的能力。在 Qwt 6 中，NaN 数据会导致 boundingRect 被污染（返回无效矩形）、坐标映射产生错误像素坐标、自动缩放失效等一系列 bug。Qwt 7 从底层工具函数到上层绘制管线，构建了完整的 NaN 处理体系。
 
-!!! success "Qwt 7 新增功能"
-    NaN 数据的正确处理和性能优化是 Qwt 7 相对于原版 Qwt 6.2.0 的重要改进之一。所有核心改进均在 2025 年 12 月由项目维护者添加。
+> **亮点 — Qwt 7 新增功能**
+>
+> NaN 数据的正确处理和性能优化是 Qwt 7 相对于原版 Qwt 6.2.0 的重要改进之一。所有核心改进均在 2025 年 12 月由项目维护者添加。
 
 ## NaN 处理架构概览
 
@@ -257,8 +258,9 @@ QwtArgMinMaxResult qwtSimdArgMinMax(const double* data, int count)
 | Sticks | ⚠️ 未处理 | 直接迭代 |
 | Steps | ⚠️ 未处理 | 直接迭代 |
 
-!!! warning "注意"
-    `Sticks`、`Steps` 和 `Dots` 的 `MinimizeMemory` 路径目前**不检查 NaN**，直接将 NaN 值传递给 `xMap.transform()` / `yMap.transform()`。在大多数情况下这不会导致崩溃（NaN 会被变换为某个无效像素坐标），但可能产生错误的渲染结果。建议需要处理 NaN 的场景优先使用 `Lines` 风格。
+> **警告 — 注意**
+>
+> `Sticks`、`Steps` 和 `Dots` 的 `MinimizeMemory` 路径目前**不检查 NaN**，直接将 NaN 值传递给 `xMap.transform()` / `yMap.transform()`。在大多数情况下这不会导致崩溃（NaN 会被变换为某个无效像素坐标），但可能产生错误的渲染结果。建议需要处理 NaN 的场景优先使用 `Lines` 风格。
 
 ## 自动缩放中的 NaN 防护
 
@@ -327,8 +329,9 @@ rasterData->setAttribute(QwtRasterData::WithoutGaps, true);
 
 ## nanperf 性能基准测试
 
-!!! success "Qwt 7 新增示例"
-    `examples/2D/nanperf/` 是 Qwt 7 专门新增的性能基准测试示例，用于对比测试不同 NaN 分布和不同降采样模式下的渲染性能。原版 Qwt 6 没有此示例。
+> **亮点 — Qwt 7 新增示例**
+>
+> `examples/2D/nanperf/` 是 Qwt 7 专门新增的性能基准测试示例，用于对比测试不同 NaN 分布和不同降采样模式下的渲染性能。原版 Qwt 6 没有此示例。
 
 ### 示例概述
 
@@ -441,18 +444,19 @@ flowchart LR
 
 ### 运行 nanperf 示例
 
-!!! note "构建与运行"
-    nanperf 示例默认包含在构建中。使用 `build.ps1` 构建后，可在 `build/bin/` 目录下找到 `nanperf.exe`。
-
-    ```powershell
-    # 构建（包含示例）
-    .\build.ps1 build
-
-    # 运行
-    .\build\bin\nanperf.exe
-    ```
-
-    也可在 CMake 构建时通过 `-DQWT_CONFIG_BUILD_EXAMPLE=ON`（默认）确保示例被构建。
+> **说明 — 构建与运行**
+>
+> nanperf 示例默认包含在构建中。使用 `build.ps1` 构建后，可在 `build/bin/` 目录下找到 `nanperf.exe`。
+>
+> ```powershell
+> # 构建（包含示例）
+> .\build.ps1 build
+>
+> # 运行
+> .\build\bin\nanperf.exe
+> ```
+>
+> 也可在 CMake 构建时通过 `-DQWT_CONFIG_BUILD_EXAMPLE=ON`（默认）确保示例被构建。
 
 ### 界面操作指南
 

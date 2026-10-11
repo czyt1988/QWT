@@ -106,9 +106,10 @@ struct QwtBoxSample {
 };
 ```
 
-!!! info "参数顺序说明"
-    构造函数参数顺序为：`position, whiskerLower, q1, median, q3, whiskerUpper`
-    请确保传入参数顺序正确，否则箱线图会显示异常
+> **信息 — 参数顺序说明**
+>
+> 构造函数参数顺序为：`position, whiskerLower, q1, median, q3, whiskerUpper`
+> 请确保传入参数顺序正确，否则箱线图会显示异常
 
 #### QwtBoxOutlierSample
 
@@ -261,11 +262,12 @@ flowchart LR
 | `StandardDeviation` | 正态分布数据 | 使用均值 ± n×标准差确定范围 |
 | `StandardError` | 统计推断 | 使用均值 ± n×标准误，适合样本统计推断 |
 
-!!! tip "方法选择建议"
-    - **一般数据分析**：使用 Tukey 方法（默认）
-    - **自定义异常标准**：使用 Percentile 或调整 Tukey 系数
-    - **展示完整数据分布**：使用 MinMax
-    - **正态分布检验**：使用 StandardDeviation
+> **提示 — 方法选择建议**
+>
+> - **一般数据分析**：使用 Tukey 方法（默认）
+> - **自定义异常标准**：使用 Percentile 或调整 Tukey 系数
+> - **展示完整数据分布**：使用 MinMax
+> - **正态分布检验**：使用 StandardDeviation
 
 ### 4. 箱体样式配置
 
@@ -282,10 +284,11 @@ boxChart->setBoxStyle(QwtPlotBoxChart::Diamond);
 boxChart->setBoxStyle(QwtPlotBoxChart::Notch);
 ```
 
-!!! info "样式选择指南"
-    - `Rect`：标准箱线图样式，适合大多数场景
-    - `Diamond`：适合对比多个组的数据分布对称性
-    - `Notch`：缺口表示中位数置信区间，若两组缺口不重叠则中位数显著不同
+> **信息 — 样式选择指南**
+>
+> - `Rect`：标准箱线图样式，适合大多数场景
+> - `Diamond`：适合对比多个组的数据分布对称性
+> - `Notch`：缺口表示中位数置信区间，若两组缺口不重叠则中位数显著不同
 
 ### 5. 显示方向切换
 
@@ -301,9 +304,10 @@ boxChart->setOrientation(Qt::Horizontal);
 
 切换方向时需要注意：
 
-!!! warning "方向切换后刷新"
-    切换方向后应调用 `plot->replot()` 或 `plot->setAxisAutoScale()` 刷新坐标轴，
-    否则坐标轴范围可能不适配新的数据方向
+> **警告 — 方向切换后刷新**
+>
+> 切换方向后应调用 `plot->replot()` 或 `plot->setAxisAutoScale()` 刷新坐标轴，
+> 否则坐标轴范围可能不适配新的数据方向
 
 ```cpp
 // 完整的方向切换示例

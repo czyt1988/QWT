@@ -71,8 +71,9 @@ Y值拾取模式效果如下：
 
 y值拾取模式下，可以通过`setInterpolationMode`方法设置是否进行插值计算，插值计算可以提高数据的精度，如果点比较稀疏，会通过线性插值方式计算出当前x轴对应的y值。
 
-!!! info "注意"
-    插值方式默认开启
+> **信息 — 注意**
+>
+> 插值方式默认开启
 
 ```cpp
 // 不进行插值，使用最近的数据点
@@ -110,11 +111,13 @@ int nearestSearchWindowSize() const;
 
 搜索窗口大小默认为-5，也就是曲线点数的5%
 
-!!! warning "注意"
-    Qwt7默认启用窗口搜索算法的阈值是1000个数据点，也就是说如果曲线点数超过1000窗口设置才会生效
+> **警告 — 注意**
+>
+> Qwt7默认启用窗口搜索算法的阈值是1000个数据点，也就是说如果曲线点数超过1000窗口设置才会生效
 
-!!! note "注意事项"
-    窗口优化算法要求曲线数据必须按X坐标升序排列。如果使用自定义数据源，请确保数据已正确排序。
+> **说明 — 注意事项**
+>
+> 窗口优化算法要求曲线数据必须按X坐标升序排列。如果使用自定义数据源，请确保数据已正确排序。
 
 
 ## 其它属性设置
@@ -132,8 +135,9 @@ picker->setTextBackgroundBrush(QBrush(QColor(255, 255, 255, 180)));
 picker->setTextAlignment(Qt::AlignLeft | Qt::AlignTop);
 ```
 
-!!! Bug "Bug"
-    `QwtPlotSeriesDataPicker`的绘制区域是宿主绘图的图层，寄生绘图的属于宿主绘图的子窗口，因此寄生绘图绘制的图元会覆盖宿主绘图，也就是说寄生绘图显示的曲线是在`QwtPlotSeriesDataPicker`的绘制区域之上。目前的寄生绘图架构无法让`QwtPlotSeriesDataPicker`的内容显示在寄生绘图之上
+> **已知问题 — Bug**
+>
+> `QwtPlotSeriesDataPicker`的绘制区域是宿主绘图的图层，寄生绘图的属于宿主绘图的子窗口，因此寄生绘图绘制的图元会覆盖宿主绘图，也就是说寄生绘图显示的曲线是在`QwtPlotSeriesDataPicker`的绘制区域之上。目前的寄生绘图架构无法让`QwtPlotSeriesDataPicker`的内容显示在寄生绘图之上
 
 ### 特征点绘制
 
@@ -206,16 +210,18 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 ### 左键限制 (Left Button Only)
 
-!!! info "注意"
-    点击信号**仅响应鼠标左键** (Qt::LeftButton)。右键和中键点击不会触发这些信号。
+> **信息 — 注意**
+>
+> 点击信号**仅响应鼠标左键** (Qt::LeftButton)。右键和中键点击不会触发这些信号。
 
 ### 双击触发行为 (Double-Fire Behavior)
 
-!!! warning "注意"
-    当用户双击时，会先触发 `clicked()` 信号，然后触发 `doubleClicked()` 信号。
-    这是 Qt 的标准行为，不是 Bug。
-    
-    如果你需要区分单击和双击，建议只连接其中一个信号，不要同时连接两个信号。
+> **警告 — 注意**
+>
+> 当用户双击时，会先触发 `clicked()` 信号，然后触发 `doubleClicked()` 信号。
+> 这是 Qt 的标准行为，不是 Bug。
+>
+> 如果你需要区分单击和双击，建议只连接其中一个信号，不要同时连接两个信号。
 
 ## 数据获取 (Getting Picked Data)
 
@@ -249,8 +255,9 @@ QList<FeaturePoint> featurePoints() const;
 
 `featurePoints()` 返回当前 tracker 位置拾取到的所有特征点列表。通常在 `clicked` 或 `doubleClicked` 信号处理器中调用此方法获取点击位置的数据。
 
-!!! tip "提示"
-    返回的列表可能包含多个 `FeaturePoint`，因为鼠标位置可能同时对应多条曲线的数据点（特别是在 Y 值拾取模式下）。
+> **提示 — 提示**
+>
+> 返回的列表可能包含多个 `FeaturePoint`，因为鼠标位置可能同时对应多条曲线的数据点（特别是在 Y 值拾取模式下）。
 
 ## 组内信号转发 (Group Signal Forwarding)
 
@@ -268,9 +275,10 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 ### 同步机制 (Sync-Before-Signal)
 
-!!! info "重要特性"
-    Group 在发出点击信号之前，会先同步组内所有其他 picker 的位置。
-    这意味着当 `clicked` 信号触发时，组内所有 picker 的 `featurePoints()` 都已经更新到同步后的位置。
+> **信息 — 重要特性**
+>
+> Group 在发出点击信号之前，会先同步组内所有其他 picker 的位置。
+> 这意味着当 `clicked` 信号触发时，组内所有 picker 的 `featurePoints()` 都已经更新到同步后的位置。
 
 这个特性对于多子图联动场景非常有用：当用户点击某个子图时，其他子图的 picker 已经同步到对应的 X 轴比例位置，可以直接获取所有子图在相同比例位置的数据。
 

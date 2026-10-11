@@ -106,10 +106,11 @@ scatter->setSamples(xData, yData);
 scatter->attach(plot);
 ```
 
-!!! tip "Dots vs Symbol Performance"
-    - `Dots` style draws pixel points directly, suitable for millions of data points
-    - `NoCurve + Symbol` treats each point as a full symbol drawing object, suitable for small datasets
-    - For real-time scatter plots, `Dots` is recommended
+> **Tip — Dots vs Symbol Performance**
+>
+> - `Dots` style draws pixel points directly, suitable for millions of data points
+> - `NoCurve + Symbol` treats each point as a full symbol drawing object, suitable for small datasets
+> - For real-time scatter plots, `Dots` is recommended
 
 ### 3. Multiple Symbol Styles
 
@@ -159,8 +160,9 @@ scatter->setSymbolJitter(0.05);  // 5% jitter range
 // Note: setSymbolJitter is a method of QwtPlotCurve
 ```
 
-!!! info "Jitter Principle"
-    Jitter adds a random offset to each point's X coordinate during rendering, dispersing overlapping points to make the data density distribution easier to observe.
+> **Info — Jitter Principle**
+>
+> Jitter adds a random offset to each point's X coordinate during rendering, dispersing overlapping points to make the data density distribution easier to observe.
 
 ### 5. Multiple Scatter Data Groups
 
@@ -264,7 +266,8 @@ scatter->setSymbol(customSymbol);
 | `setPinPoint()` | Set symbol anchor position |
 | `drawSymbol()` | Draw symbol |
 
-!!! example "Related Examples"
-    - Scatter plot: `examples/2D/scatterplot`
-    - Symbol demo: `playground/symbols`
-    - Curve styles: `examples/2D/curvedemo`
+> **Example — Related Examples**
+>
+> - Scatter plot: `examples/2D/scatterplot`
+> - Symbol demo: `playground/symbols`
+> - Curve styles: `examples/2D/curvedemo`

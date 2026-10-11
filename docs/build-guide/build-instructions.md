@@ -1,7 +1,8 @@
 # QWT Build Instructions
 
-!!! tip
-    You don't have to build QWT as a dynamic library. Simply add `QwtPlot.h` and `QwtPlot.cpp` (located in the `src-amalgamate` directory) to your project.
+> **Tip**
+>
+> You don't have to build QWT as a dynamic library. Simply add `QwtPlot.h` and `QwtPlot.cpp` (located in the `src-amalgamate` directory) to your project.
 
 This article explains in detail how to build QWT as a **dynamic library**. If you are not familiar with C++ build systems, you can simply add `QwtPlot.h` and `QwtPlot.cpp` to your project to use it.
 
@@ -22,8 +23,9 @@ This article explains in detail how to build QWT as a **dynamic library**. If yo
 | `QWT_CONFIG_BUILD_STATIC_EXAMPLE` | `ON` | Build statically linked examples. Note: building static examples may require a relatively long compilation time |
 | `QWT_CONFIG_BUILD_TESTS` | `OFF` | Build test programs |
 
-!!! tip
-    Starting from QWT 7.1, the QwtPlot3D code has been integrated to provide unified 2D and 3D chart support. The QwtPlot3D code originates from [https://github.com/SciDAVis/qwtplot3d](https://github.com/SciDAVis/qwtplot3d).
+> **Tip**
+>
+> Starting from QWT 7.1, the QwtPlot3D code has been integrated to provide unified 2D and 3D chart support. The QwtPlot3D code originates from [https://github.com/SciDAVis/qwtplot3d](https://github.com/SciDAVis/qwtplot3d).
 
 ### Basic Build Steps
 
@@ -37,11 +39,12 @@ This article explains in detail how to build QWT as a **dynamic library**. If yo
     cmake -B build -S . -G "Visual Studio 15 2017" -A x64 -DQt5_DIR="C:\Qt\Qt5.14.2\5.14.2\msvc2017_64\lib\cmake\Qt5"
     ```
 
-    !!! tip
-        If `cmake.exe` is not in your PATH, you need to specify the full program path in the command above. For example, if CMake is installed at `C:\Program Files (x86)\cmake3.27.9\bin\cmake.exe`, the command should be written as:
-        ```shell
-        "C:\Program Files (x86)\cmake3.27.9\bin\cmake.exe" -B build -S . -G "Visual Studio 15 2017" -A x64 -DQt5_DIR="C:\Qt\Qt5.14.2\5.14.2\msvc2017_64\lib\cmake\Qt5"
-        ```
+    > **Tip**
+    >
+    > If `cmake.exe` is not in your PATH, you need to specify the full program path in the command above. For example, if CMake is installed at `C:\Program Files (x86)\cmake3.27.9\bin\cmake.exe`, the command should be written as:
+    > ```shell
+    > "C:\Program Files (x86)\cmake3.27.9\bin\cmake.exe" -B build -S . -G "Visual Studio 15 2017" -A x64 -DQt5_DIR="C:\Qt\Qt5.14.2\5.14.2\msvc2017_64\lib\cmake\Qt5"
+    > ```
 
 6. After completion, you can run the install command to install the library to a specified directory:
 
@@ -50,8 +53,9 @@ cmake --build build --target install --config Debug
 cmake --build build --target install --config Release
 ```
 
-!!! tip
-    If you are not familiar with the CMake command line, you can use tools such as `Qt Creator` or `Visual Studio` to build the project.
+> **Tip**
+>
+> If you are not familiar with the CMake command line, you can use tools such as `Qt Creator` or `Visual Studio` to build the project.
 
 ### Quick Build with build.ps1 (Windows)
 

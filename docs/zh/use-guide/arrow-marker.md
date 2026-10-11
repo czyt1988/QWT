@@ -189,13 +189,15 @@ arrow->setLegendIconSize(QSize(32, 16));
 | `setTailPen(pen)` | 设置 tail 轮廓画笔 |
 | `setTailCustomPath(path)` | 设置 tail 自定义路径 |
 
-!!! tip "提示"
-    - 使用 `setRenderHint(QwtPlotItem::RenderAntialiased, true)` 启用抗锯齿，使箭头线条更平滑。
-    - `StartLengthAngle` 模式下，长度以像素为单位，缩放坐标轴时箭头长度不变。
-    - `ExplicitPoints` 模式下，起止点使用坐标值，缩放时箭头会跟随变化。
+> **提示 — 提示**
+>
+> - 使用 `setRenderHint(QwtPlotItem::RenderAntialiased, true)` 启用抗锯齿，使箭头线条更平滑。
+> - `StartLengthAngle` 模式下，长度以像素为单位，缩放坐标轴时箭头长度不变。
+> - `ExplicitPoints` 模式下，起止点使用坐标值，缩放时箭头会跟随变化。
 
-!!! example "相关示例"
-    - 箭头标注示例：`examples/2D/sinusplot`
+> **示例 — 相关示例**
+>
+> - 箭头标注示例：`examples/2D/sinusplot`
 
 箭头标注的例子截图如下：
 

@@ -188,14 +188,16 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 | `axisScaleEngine()` | Get scale engine |
 | `axisScaleDiv()` | Get scale division |
 
-!!! tip "Scale Optimization Recommendations"
-    - Use linear engine for linear data (default)
-    - Use logarithmic engine for large-range data (spanning multiple orders of magnitude)
-    - Use date engine for time series data
-    - Manually set scale division for special requirements
+> **Tip — Scale Optimization Recommendations**
+>
+> - Use linear engine for linear data (default)
+> - Use logarithmic engine for large-range data (spanning multiple orders of magnitude)
+> - Use date engine for time series data
+> - Manually set scale division for special requirements
 
-!!! example "Related Examples"
-    - Scale engine demo: `playground/scaleengine`
+> **Example — Related Examples**
+>
+> - Scale engine demo: `playground/scaleengine`
 
 Screenshot of the scale engine demo:
 

@@ -228,10 +228,11 @@ spectrogram->setRenderThreadCount(4);  // Use 4 threads for parallel rendering
 // Default value is 0 (single-threaded)
 ```
 
-!!! tip "Multi-Threaded Rendering Recommendations"
-    - When data exceeds 1 million pixels, multi-threading is recommended
-    - Set thread count to the number of CPU cores, not exceeding 8
-    - Multi-threaded rendering is most effective in image mode
+> **Tip — Multi-Threaded Rendering Recommendations**
+>
+> - When data exceeds 1 million pixels, multi-threading is recommended
+> - Set thread count to the number of CPU cores, not exceeding 8
+> - Multi-threaded rendering is most effective in image mode
 
 ### 7. Using Matrix Data
 
@@ -301,11 +302,13 @@ plot->setAxisVisible(QwtAxis::YRight, true);
 | `QwtAlphaColorMap` | Alpha color map with transparency variation |
 | `QwtLogColorMap` | Logarithmic color map, suitable for wide-range data |
 
-!!! tip "Application Scenarios"
-    - Scientific data analysis: Temperature fields, pressure fields, etc.
-    - Image processing: Heatmaps, density maps
-    - Acoustic analysis: Spectrograms, sonar images
-    - Geographic data: Topographic maps, ocean depth maps
+> **Tip — Application Scenarios**
+>
+> - Scientific data analysis: Temperature fields, pressure fields, etc.
+> - Image processing: Heatmaps, density maps
+> - Acoustic analysis: Spectrograms, sonar images
+> - Geographic data: Topographic maps, ocean depth maps
 
-!!! example "Related Examples"
-    - Spectrogram demo: `examples/2D/spectrogram`
+> **Example — Related Examples**
+>
+> - Spectrogram demo: `examples/2D/spectrogram`

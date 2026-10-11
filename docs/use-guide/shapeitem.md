@@ -119,14 +119,16 @@ shapeItem->setBrush(QBrush(Qt::yellow, Qt::FDiagPattern));  // Diagonal line fil
 | `setFillMode()` | Set fill mode |
 | `setRenderHint()` | Set render hint |
 
-!!! tip "Application Scenarios"
-    - Region annotation
-    - Background areas
-    - Clip region marking
-    - Custom geometric shapes
+> **Tip — Application Scenarios**
+>
+> - Region annotation
+> - Background areas
+> - Clip region marking
+> - Custom geometric shapes
 
-!!! example "Related Examples"
-    - Shape demo: `playground/shapes`
+> **Example — Related Examples**
+>
+> - Shape demo: `playground/shapes`
 
 Screenshot of the shape demo:
 

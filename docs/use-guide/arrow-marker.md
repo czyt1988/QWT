@@ -189,13 +189,15 @@ arrow->setLegendIconSize(QSize(32, 16));
 | `setTailPen(pen)` | Set tail outline pen |
 | `setTailCustomPath(path)` | Set tail custom QPainterPath |
 
-!!! tip "Tips"
-    - Enable anti-aliasing with `setRenderHint(QwtPlotItem::RenderAntialiased, true)` for smoother lines.
-    - In `StartLengthAngle` mode, length is in pixels — the arrow does not resize when zooming.
-    - In `ExplicitPoints` mode, start/end use plot coordinates — the arrow scales with axis changes.
+> **Tip — Tips**
+>
+> - Enable anti-aliasing with `setRenderHint(QwtPlotItem::RenderAntialiased, true)` for smoother lines.
+> - In `StartLengthAngle` mode, length is in pixels — the arrow does not resize when zooming.
+> - In `ExplicitPoints` mode, start/end use plot coordinates — the arrow scales with axis changes.
 
-!!! example "Related Examples"
-    - Arrow annotation demo: `examples/2D/sinusplot`
+> **Example — Related Examples**
+>
+> - Arrow annotation demo: `examples/2D/sinusplot`
 
 Screenshot of the arrow annotation:
 

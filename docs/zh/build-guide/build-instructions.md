@@ -1,7 +1,8 @@
 # QWT构建说明
 
-!!! tip
-    你可以不把QWT编译为动态库，只需把`QwtPlot.h`和`QwtPlot.cpp`（这两个文件位于`src-amalgamate`目录下）引入你的工程即可
+> **提示**
+>
+> 你可以不把QWT编译为动态库，只需把`QwtPlot.h`和`QwtPlot.cpp`（这两个文件位于`src-amalgamate`目录下）引入你的工程即可
 
 此文会详细介绍如何构建QWT为**动态库**，如果你不熟悉C++的构建，你只需把`QwtPlot.h`和`QwtPlot.cpp`引入你的工程即可使用
 
@@ -22,8 +23,9 @@
 | `QWT_CONFIG_BUILD_STATIC_EXAMPLE` | `ON` | 构建静态链接示例。注意：构建静态示例会需要相对较长的编译时间 |
 | `QWT_CONFIG_BUILD_TESTS` | `OFF` | 构建测试程序 |
 
-!!! tip
-    QWT 7.1之后的版本把QwtPlot3D的代码整合，实现了2D和3D图表。v7.3.5起3D模块完全重构为 Plot+Item 架构，使用现代 OpenGL（VBO/VAO + GLSL 3.3 Core 着色器），不再使用旧版固定管线。原始 QwtPlot3D 代码来自[https://github.com/SciDAVis/qwtplot3d](https://github.com/SciDAVis/qwtplot3d)
+> **提示**
+>
+> QWT 7.1之后的版本把QwtPlot3D的代码整合，实现了2D和3D图表。v7.3.5起3D模块完全重构为 Plot+Item 架构，使用现代 OpenGL（VBO/VAO + GLSL 3.3 Core 着色器），不再使用旧版固定管线。原始 QwtPlot3D 代码来自[https://github.com/SciDAVis/qwtplot3d](https://github.com/SciDAVis/qwtplot3d)
 
 ### 基本构建步骤
 
@@ -37,11 +39,12 @@
     cmake -B build -S . -G "Visual Studio 15 2017" -A x64 -DQt5_DIR="C:\Qt\Qt5.14.2\5.14.2\msvc2017_64\lib\cmake\Qt5"
     ```
  
-    !!! tip
-        如果`cmake.exe`不在环境变量中，上例子需指定完整的程序路径。例如cmake安装路径为`C:\Program Files (x86)\cmake3.27.9\bin\cmake.exe`,那 么上例子应该写为：
-        ```shell
-        "C:\Program Files (x86)\cmake3.27.9\bin\cmake.exe" -B build -S . -G "Visual Studio 15 2017" -A x64 -DQt5_DIR="C:\Qt\Qt5.14. 2\5.14.2\msvc2017_64\lib\cmake\Qt5"
-        ```
+    > **提示**
+    >
+    > 如果`cmake.exe`不在环境变量中，上例子需指定完整的程序路径。例如cmake安装路径为`C:\Program Files (x86)\cmake3.27.9\bin\cmake.exe`,那 么上例子应该写为：
+    > ```shell
+    > "C:\Program Files (x86)\cmake3.27.9\bin\cmake.exe" -B build -S . -G "Visual Studio 15 2017" -A x64 -DQt5_DIR="C:\Qt\Qt5.14. 2\5.14.2\msvc2017_64\lib\cmake\Qt5"
+    > ```
 
 6. 执行完成后，可以执行安装命令，把库安装到指定目录：
 
@@ -50,5 +53,6 @@ cmake --build build --target install --config Debug
 cmake --build build --target install --config Release
 ```
 
-!!! tip
-    如果你对cmake命令行不熟悉，可以使用`Qt Creator`或`Visual Studio`等工具进行构建。
+> **提示**
+>
+> 如果你对cmake命令行不熟悉，可以使用`Qt Creator`或`Visual Studio`等工具进行构建。

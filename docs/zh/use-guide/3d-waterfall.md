@@ -83,8 +83,9 @@ plot->coordinates()->axes[Y1].setLabelString("Frames ago");
 plot->coordinates()->axes[Z1].setLabelString("Amplitude");
 ```
 
-!!! note "强各向异性数据与视图缩放"
-    典型频谱瀑布的跨度是 bins `0..M-1`、幅度 `0..1`、深度 `0..capacity-1` —— 强各向异性。应使用 `AUTOFILL`：它在推导投影之前把每个轴归一化到最大数据范围，之后再用 `plot->setScale()` 塑造归一化立方体（示例用 `(1.0, 0.35, 0.6)`：满 bin 宽、压缩深度、60% 幅度高度）。在 `DATARATIO` 下真实比例会让帘幕成为 255 单位宽场景里 1 单位高的细条，而且逐轴 `setScale()` 救不回来——投影半径是按未缩放的 hull 推导的。
+> **说明 — 强各向异性数据与视图缩放**
+>
+> 典型频谱瀑布的跨度是 bins `0..M-1`、幅度 `0..1`、深度 `0..capacity-1` —— 强各向异性。应使用 `AUTOFILL`：它在推导投影之前把每个轴归一化到最大数据范围，之后再用 `plot->setScale()` 塑造归一化立方体（示例用 `(1.0, 0.35, 0.6)`：满 bin 宽、压缩深度、60% 幅度高度）。在 `DATARATIO` 下真实比例会让帘幕成为 255 单位宽场景里 1 单位高的细条，而且逐轴 `setScale()` 救不回来——投影半径是按未缩放的 hull 推导的。
 
 ### 2. 实时瀑布（30 Hz）
 
@@ -127,8 +128,9 @@ scale->setLabels(labels);
 axis.setScale(scale);
 ```
 
-!!! warning "坑：每个轴各要一个 scale 对象"
-    `Qwt3DAxis::setScale()` 会把 scale 交给一个克隆指针，**克隆并消耗**传入的对象。在多个轴之间共享同一个 `Qwt3DTextScale*` 会留下悬垂指针并崩溃。每个轴各建一个实例。
+> **警告 — 坑：每个轴各要一个 scale 对象**
+>
+> `Qwt3DAxis::setScale()` 会把 scale 交给一个克隆指针，**克隆并消耗**传入的对象。在多个轴之间共享同一个 `Qwt3DTextScale*` 会留下悬垂指针并崩溃。每个轴各建一个实例。
 
 ### 4. 上色与颜色 functor
 

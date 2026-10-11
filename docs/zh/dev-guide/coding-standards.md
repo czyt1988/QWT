@@ -15,10 +15,11 @@
 
 项目使用 `.clang-format` 配置文件进行代码格式化。
 
-!!! tip "格式化建议"
-    - 在提交代码前运行 clang-format 格式化
-    - IDE 可配置自动格式化（保存时触发）
-    - 保持与现有代码风格一致
+> **提示 — 格式化建议**
+>
+> - 在提交代码前运行 clang-format 格式化
+> - IDE 可配置自动格式化（保存时触发）
+> - 保持与现有代码风格一致
 
 ## C++11 兼容性宏
 
@@ -108,8 +109,9 @@ for (const auto& item : container) { }
 for (const auto& item : qwt_as_const(container)) { }
 ```
 
-!!! warning "重要"
-    Qt 容器在迭代时可能发生隐式共享分离（深拷贝），使用 `qwt_as_const` 可避免此问题。
+> **警告 — 重要**
+>
+> Qt 容器在迭代时可能发生隐式共享分离（深拷贝），使用 `qwt_as_const` 可避免此问题。
 
 ## Qt 开发最佳实践
 
@@ -155,8 +157,9 @@ Q_SLOT:       // 而非 slot:
 public Q_SLOTS:  // 而非 public slots:
 ```
 
-!!! warning "禁止"
-    不要使用 `slot`、`signal` 等小写命名的宏，它们在某些编译器下可能有问题。
+> **警告 — 禁止**
+>
+> 不要使用 `slot`、`signal` 等小写命名的宏，它们在某些编译器下可能有问题。
 
 ## 命名规范
 

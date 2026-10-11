@@ -162,8 +162,9 @@ grid->attach(&plot);
 
 The grid is a standalone plot item used to display coordinate reference lines. All plot items are attached to QwtPlot via the `attach()` method, and QwtPlot automatically manages the lifecycle of attached items.
 
-!!! tip "Plot Item Lifecycle"
-    Once a plot item is attached to QwtPlot, QwtPlot holds a reference to that item. When QwtPlot is destroyed, all attached plot items are automatically deleted as well. Therefore, you do not need to manually manage the memory of plot items.
+> **Tip — Plot Item Lifecycle**
+>
+> Once a plot item is attached to QwtPlot, QwtPlot holds a reference to that item. When QwtPlot is destroyed, all attached plot items are automatically deleted as well. Therefore, you do not need to manually manage the memory of plot items.
 
 #### 3. Creating a Curve and Setting Its Style
 
@@ -216,8 +217,9 @@ The `setSamples()` method is used to set the data points of the curve. Qwt provi
 | `setSamples(const double* x, const double* y, int size)` | Set from raw arrays |
 | `setRawSamples(const double* x, const double* y, int size)` | Directly reference external arrays (no copy) |
 
-!!! warning "setRawSamples Caveats"
-    When using `setRawSamples()`, Qwt does not copy the data but directly references the arrays you provide. This means you must ensure the arrays remain valid for the lifetime of the curve and must not modify the array contents.
+> **Warning — setRawSamples Caveats**
+>
+> When using `setRawSamples()`, Qwt does not copy the data but directly references the arrays you provide. This means you must ensure the arrays remain valid for the lifetime of the curve and must not modify the array contents.
 
 #### 6. Setting Axes
 
@@ -256,8 +258,9 @@ plot.setAutoReplot(true);  // Auto-refresh when data changes
 
 When auto-replot is enabled, QwtPlot automatically calls `replot()` to update the display whenever a plot item's data or properties change. By default, you need to manually call `replot()` to refresh the plot.
 
-!!! tip "Performance Tip"
-    For real-time update scenarios, it is recommended to disable auto-replot and manually call `replot()` once after batch updates are complete. This avoids the performance overhead of frequent refreshes.
+> **Tip — Performance Tip**
+>
+> For real-time update scenarios, it is recommended to disable auto-replot and manually call `replot()` once after batch updates are complete. This avoids the performance overhead of frequent refreshes.
 
 ## QwtPlot Core Methods
 
@@ -272,7 +275,8 @@ When auto-replot is enabled, QwtPlot automatically calls `replot()` to update th
 | `setAutoReplot()` | Set auto-replot mode |
 | `exportPlot()` | Export the plot to a file |
 
-!!! example "Related Examples"
-    - Basic plot: `examples/2D/simpleplot`
-    - Curve style demo: `examples/2D/curvedemo`
-    - Real-time data: `examples/2D/cpuplot`
+> **Example — Related Examples**
+>
+> - Basic plot: `examples/2D/simpleplot`
+> - Curve style demo: `examples/2D/curvedemo`
+> - Real-time data: `examples/2D/cpuplot`

@@ -230,16 +230,18 @@ All widgets inherit from `QwtAbstractSlider` and share the following methods:
 | `setTracking()` | Set mouse tracking |
 | `setWrapping()` | Set wrap mode |
 
-!!! tip "Widget Usage Recommendations"
-    - Dials are suitable for angle or direction display
-    - Knobs are suitable for parameter adjustment
-    - Sliders are suitable for linear range adjustment
-    - Thermometers are suitable for progress or temperature display
-    - Wheels are suitable for continuous smooth adjustment
+> **Tip — Widget Usage Recommendations**
+>
+> - Dials are suitable for angle or direction display
+> - Knobs are suitable for parameter adjustment
+> - Sliders are suitable for linear range adjustment
+> - Thermometers are suitable for progress or temperature display
+> - Wheels are suitable for continuous smooth adjustment
 
-!!! example "Related Examples"
-    - Widget demo: `examples/2D/controls`
-    - Compass: `examples/2D/dials`
+> **Example — Related Examples**
+>
+> - Widget demo: `examples/2D/controls`
+> - Compass: `examples/2D/dials`
 
 More screenshots of the widget demo:
 

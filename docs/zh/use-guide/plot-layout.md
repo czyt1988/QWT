@@ -68,8 +68,9 @@ layout->setCanvasMargin(15, QwtAxis::YLeft);
 int margin = layout->canvasMargin(QwtAxis::XBottom);
 ```
 
-!!! tip "边距作用"
-    画布边距主要用于控制坐标轴刻度标签与画布边缘的距离，防止刻度标签被裁剪。
+> **提示 — 边距作用**
+>
+> 画布边距主要用于控制坐标轴刻度标签与画布边缘的距离，防止刻度标签被裁剪。
 
 ### 设置组件间距
 
@@ -101,9 +102,10 @@ layout->setAlignCanvasToScale(QwtAxis::YLeft, false);
 bool aligned = layout->alignCanvasToScale(QwtAxis::YRight);
 ```
 
-!!! info "对齐效果说明"
-    - **对齐模式**：画布边界与坐标轴刻度线精确对齐，刻度标签可能延伸到画布外
-    - **不对齐模式**：画布保持固定大小，坐标轴区域独立计算，刻度标签完整显示
+> **信息 — 对齐效果说明**
+>
+> - **对齐模式**：画布边界与坐标轴刻度线精确对齐，刻度标签可能延伸到画布外
+> - **不对齐模式**：画布保持固定大小，坐标轴区域独立计算，刻度标签完整显示
 
 ### 图例位置配置
 
@@ -202,8 +204,9 @@ layout->setLegendPosition(QwtPlot::RightLegend, 0.25);
 plot->replot();
 ```
 
-!!! warning "布局变更时机"
-    布局设置变更后，需要调用 `plot->replot()` 或等待下次自动刷新才能看到效果。
+> **警告 — 布局变更时机**
+>
+> 布局设置变更后，需要调用 `plot->replot()` 或等待下次自动刷新才能看到效果。
 
 ## 最小尺寸提示
 
@@ -217,6 +220,7 @@ QSize minSize = layout->minimumSizeHint(plot);
 plot->setMinimumSize(minSize);
 ```
 
-!!! example "相关示例"
-    - 基础布局：所有 `examples/2D/` 下的示例
-    - 多绘图布局：`examples/figure`（使用 QwtFigure）
+> **示例 — 相关示例**
+>
+> - 基础布局：所有 `examples/2D/` 下的示例
+> - 多绘图布局：`examples/figure`（使用 QwtFigure）

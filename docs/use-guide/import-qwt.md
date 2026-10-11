@@ -43,8 +43,9 @@ find_package(OpenGL COMPONENTS OpenGL REQUIRED)
 target_link_libraries(YOU_APP_TARGET PRIVATE OpenGL::GLU)
 ```
 
-!!! tip "Tip"
-    Since Qwt 7.1, the `qwtplot3d` library has been merged, so OpenGL-related dependencies are required. GLU is only needed for gl2ps vector export.
+> **Tip — Tip**
+>
+> Since Qwt 7.1, the `qwtplot3d` library has been merged, so OpenGL-related dependencies are required. GLU is only needed for gl2ps vector export.
 
 ## Importing the QWT Library via CMake
 
@@ -58,8 +59,9 @@ To import the `QWT` library via CMake, follow these steps:
 
 Set the `qwt_DIR` variable to the `lib/cmake/qwt` path under the installation directory. (When CMake executes `find_package(xx)`, it first checks whether an `xx_DIR` variable exists. If so, it looks for the corresponding `xxConfig.cmake` file under `xx_DIR`.)
 
-!!! tips "Tip"
-    If you use the default installation directory, you can skip setting the `qwt_DIR` variable — CMake will find it automatically.
+> **Tip — Tip**
+>
+> If you use the default installation directory, you can skip setting the `qwt_DIR` variable — CMake will find it automatically.
 
 For example:
 
@@ -122,5 +124,6 @@ The `qwt` project provides three modules:
 
 However, if you use an IDE such as `Visual Studio` to manually import the library, you need to specify the predefined macros in addition to adding the lib files. When importing the qwtcore library, you need the predefined macro `QWTCORE_DLL`. When importing the qwtplot library compiled as a DLL, you need the predefined macro `QWT_DLL`. When importing the qwtplot3d library, you need the predefined macro `QWT3D_DLL`.
 
-!!! tips "Tip"
-    As a modern C++ project, it is strongly recommended to use CMake to build your project. All these predefined macros are pre-configured in the CMake configuration.
+> **Tip — Tip**
+>
+> As a modern C++ project, it is strongly recommended to use CMake to build your project. All these predefined macros are pre-configured in the CMake configuration.

@@ -14,9 +14,10 @@
 要避免）哪些宏，并附上一个可直接使用的 `.pro` 文件。可运行的示例位于
 `examples/qmakeExample/`。
 
-!!! tip
-    单文件方式非常适合快速集成、原型验证和单文件部署。如果你需要使用共享库，请按
-    [CMake 构建说明](build-instructions.md)和[引入 qwt](../use-guide/import-qwt.md) 指南操作。
+> **提示**
+>
+> 单文件方式非常适合快速集成、原型验证和单文件部署。如果你需要使用共享库，请按
+> [CMake 构建说明](build-instructions.md)和[引入 qwt](../use-guide/import-qwt.md) 指南操作。
 
 ## 前置条件
 
@@ -57,9 +58,10 @@ DLL，也不在消费 DLL）。
 | `QWT_DEBUG_DRAW` | `0` | 详细的绘图诊断输出。可选；设为 `1` 启用。 |
 | `QWT_DEBUG_PRINT` | `0` | 详细的打印诊断输出。可选；设为 `1` 启用。 |
 
-!!! warning
-    `QWT_CONFIG_*`（例如 `QWT_CONFIG_QWTSVG`）是 **CMake 构建选项**，不是 C++ 预处理宏。
-    它们对合并单文件无效——单文件始终包含完整功能集。
+> **警告**
+>
+> `QWT_CONFIG_*`（例如 `QWT_CONFIG_QWTSVG`）是 **CMake 构建选项**，不是 C++ 预处理宏。
+> 它们对合并单文件无效——单文件始终包含完整功能集。
 
 你**也不需要** `QT_NO_KEYWORDS` 或 `CONFIG += no_keywords`。Qwt 内部使用
 `Q_SIGNALS` / `Q_SLOTS` 宏，无论 Qt 关键字是否启用都能正常工作。
@@ -105,11 +107,12 @@ unix:!macx {
 }
 ```
 
-!!! tip "为什么 `QwtPlot.h` 要放进 `HEADERS`"
-    合并头文件包含全部 `Q_OBJECT` 声明（共 50 处），而 `QwtPlot.cpp` 中一个都没有。
-    把 `QwtPlot.h` 放入 `HEADERS`，qmake 的自动 moc 就会生成 `moc_QwtPlot.cpp`，其中
-    包含全部元对象代码——这正是 CMake `AUTOMOC` 的 qmake 等价物。`QwtPlot.cpp` 永远
-    不需要单独的 moc 步骤。
+> **提示 — 为什么 `QwtPlot.h` 要放进 `HEADERS`**
+>
+> 合并头文件包含全部 `Q_OBJECT` 声明（共 50 处），而 `QwtPlot.cpp` 中一个都没有。
+> 把 `QwtPlot.h` 放入 `HEADERS`，qmake 的自动 moc 就会生成 `moc_QwtPlot.cpp`，其中
+> 包含全部元对象代码——这正是 CMake `AUTOMOC` 的 qmake 等价物。`QwtPlot.cpp` 永远
+> 不需要单独的 moc 步骤。
 
 ## 构建步骤
 
@@ -125,9 +128,10 @@ nmake               # Windows + MSVC（在“开发者命令提示符”中运�
 
 或者，在 **Qt Creator** 中打开 `qmakeExample.pro`，直接在 IDE 中构建。
 
-!!! note
-    `src-amalgamate/QwtPlot.cpp` 是一个约 2.4 MB 的合并源文件，内联了整个 Qwt 工程。
-    首次编译明显比普通示例慢；之后的增量构建很快，因为只会重编译发生变化的文件。
+> **说明**
+>
+> `src-amalgamate/QwtPlot.cpp` 是一个约 2.4 MB 的合并源文件，内联了整个 Qwt 工程。
+> 首次编译明显比普通示例慢；之后的增量构建很快，因为只会重编译发生变化的文件。
 
 ## C++ 标准
 

@@ -69,8 +69,9 @@ layout->setCanvasMargin(15, QwtAxis::YLeft);
 int margin = layout->canvasMargin(QwtAxis::XBottom);
 ```
 
-!!! tip "Margin Purpose"
-    Canvas margins are primarily used to control the distance between axis tick labels and the canvas edge, preventing tick labels from being clipped.
+> **Tip — Margin Purpose**
+>
+> Canvas margins are primarily used to control the distance between axis tick labels and the canvas edge, preventing tick labels from being clipped.
 
 ### Setting Component Spacing
 
@@ -102,9 +103,10 @@ layout->setAlignCanvasToScale(QwtAxis::YLeft, false);
 bool aligned = layout->alignCanvasToScale(QwtAxis::YRight);
 ```
 
-!!! info "Alignment Effect Description"
-    - **Aligned mode**: Canvas boundaries precisely align with axis tick marks; tick labels may extend beyond the canvas
-    - **Non-aligned mode**: Canvas maintains a fixed size; axis areas are calculated independently; tick labels are fully displayed
+> **Info — Alignment Effect Description**
+>
+> - **Aligned mode**: Canvas boundaries precisely align with axis tick marks; tick labels may extend beyond the canvas
+> - **Non-aligned mode**: Canvas maintains a fixed size; axis areas are calculated independently; tick labels are fully displayed
 
 ### Fixed Canvas Size
 
@@ -140,21 +142,23 @@ layout->resetFixedCanvasSize();
 layout->setFixedCanvasSize(QwtAxis::YLeft, false);
 ```
 
-!!! tip "When to use it"
-    This is mainly intended for **parasite plot** setups where the host and
-    parasite share the canvas area. Locking the host canvas prevents the two
-    from drifting out of alignment when one of them grows axis labels.
+> **Tip — When to use it**
+>
+> This is mainly intended for **parasite plot** setups where the host and
+> parasite share the canvas area. Locking the host canvas prevents the two
+> from drifting out of alignment when one of them grows axis labels.
 
-!!! note "How it behaves"
-    - **Auto mode**: the canvas edge offsets (relative to the plot rect) are
-      captured on the first layout after enabling and then pinned. The canvas
-      neither moves nor shrinks when labels grow; on window resize the offsets
-      are preserved so the canvas grows or shrinks with the window.
-    - **Manual mode**: the canvas is pinned to the exact given size and centered
-      along each fixed direction.
-    - Axis thickness is *not* clamped, so a scale widget whose labels grew past
-      the available space extends beyond the plot rect and its overflow is
-      clipped. This is the intended trade-off for a stable canvas.
+> **Note — How it behaves**
+>
+> - **Auto mode**: the canvas edge offsets (relative to the plot rect) are
+>   captured on the first layout after enabling and then pinned. The canvas
+>   neither moves nor shrinks when labels grow; on window resize the offsets
+>   are preserved so the canvas grows or shrinks with the window.
+> - **Manual mode**: the canvas is pinned to the exact given size and centered
+>   along each fixed direction.
+> - Axis thickness is *not* clamped, so a scale widget whose labels grew past
+>   the available space extends beyond the plot rect and its overflow is
+>   clipped. This is the intended trade-off for a stable canvas.
 
 ### Legend Position Configuration
 
@@ -253,8 +257,9 @@ layout->setLegendPosition(QwtPlot::RightLegend, 0.25);
 plot->replot();
 ```
 
-!!! warning "Layout Change Timing"
-    After layout settings are changed, you need to call `plot->replot()` or wait for the next automatic refresh to see the effect.
+> **Warning — Layout Change Timing**
+>
+> After layout settings are changed, you need to call `plot->replot()` or wait for the next automatic refresh to see the effect.
 
 ## Minimum Size Hints
 
@@ -268,6 +273,7 @@ QSize minSize = layout->minimumSizeHint(plot);
 plot->setMinimumSize(minSize);
 ```
 
-!!! example "Related Examples"
-    - Basic layout: All examples under `examples/2D/`
-    - Multi-plot layout: `examples/figure` (using QwtFigure)
+> **Example — Related Examples**
+>
+> - Basic layout: All examples under `examples/2D/`
+> - Multi-plot layout: `examples/figure` (using QwtFigure)

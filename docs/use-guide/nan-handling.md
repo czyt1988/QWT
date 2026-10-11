@@ -4,8 +4,9 @@ In scientific and engineering data visualization, missing data is a common scena
 
 **Qwt 7 provides comprehensive correctness handling and performance optimization for NaN data**, a capability absent from the original Qwt 6. In Qwt 6, NaN data causes boundingRect pollution (returning invalid rectangles), incorrect pixel coordinates during mapping, broken autoscaling, and a series of other bugs. Qwt 7 builds a complete NaN handling system from low-level utility functions up to the rendering pipeline.
 
-!!! success "Qwt 7 New Feature"
-    Correct NaN data handling and performance optimization is one of the major improvements of Qwt 7 over the original Qwt 6.2.0. All core improvements were added in December 2025 by the project maintainer.
+> **Success — Qwt 7 New Feature**
+>
+> Correct NaN data handling and performance optimization is one of the major improvements of Qwt 7 over the original Qwt 6.2.0. All core improvements were added in December 2025 by the project maintainer.
 
 ## NaN Handling Architecture Overview
 
@@ -257,8 +258,9 @@ Different drawing styles have varying degrees of NaN handling coverage:
 | Sticks | ⚠️ Not handled | Direct iteration |
 | Steps | ⚠️ Not handled | Direct iteration |
 
-!!! warning "Note"
-    The `Sticks`, `Steps`, and `Dots` `MinimizeMemory` paths currently **do not check for NaN**, passing NaN values directly to `xMap.transform()` / `yMap.transform()`. In most cases this will not cause a crash (NaN is transformed to some invalid pixel coordinate), but may produce incorrect rendering results. For scenarios requiring NaN handling, prefer the `Lines` style.
+> **Warning — Note**
+>
+> The `Sticks`, `Steps`, and `Dots` `MinimizeMemory` paths currently **do not check for NaN**, passing NaN values directly to `xMap.transform()` / `yMap.transform()`. In most cases this will not cause a crash (NaN is transformed to some invalid pixel coordinate), but may produce incorrect rendering results. For scenarios requiring NaN handling, prefer the `Lines` style.
 
 ## NaN Protection in Autoscaling
 
@@ -327,8 +329,9 @@ rasterData->setAttribute(QwtRasterData::WithoutGaps, true);
 
 ## nanperf Performance Benchmark
 
-!!! success "Qwt 7 New Example"
-    `examples/2D/nanperf/` is a performance benchmark example newly added in Qwt 7, designed to comparatively test rendering performance under different NaN distributions and downsampling modes. The original Qwt 6 does not have this example.
+> **Success — Qwt 7 New Example**
+>
+> `examples/2D/nanperf/` is a performance benchmark example newly added in Qwt 7, designed to comparatively test rendering performance under different NaN distributions and downsampling modes. The original Qwt 6 does not have this example.
 
 ### Overview
 
@@ -441,18 +444,19 @@ flowchart LR
 
 ### Running the nanperf Example
 
-!!! note "Build & Run"
-    The nanperf example is included in the build by default. After building with `build.ps1`, find `nanperf.exe` in the `build/bin/` directory.
-
-    ```powershell
-    # Build (including examples)
-    .\build.ps1 build
-
-    # Run
-    .\build\bin\nanperf.exe
-    ```
-
-    You can also ensure examples are built via `-DQWT_CONFIG_BUILD_EXAMPLE=ON` (default) during CMake configuration.
+> **Note — Build & Run**
+>
+> The nanperf example is included in the build by default. After building with `build.ps1`, find `nanperf.exe` in the `build/bin/` directory.
+>
+> ```powershell
+> # Build (including examples)
+> .\build.ps1 build
+>
+> # Run
+> .\build\bin\nanperf.exe
+> ```
+>
+> You can also ensure examples are built via `-DQWT_CONFIG_BUILD_EXAMPLE=ON` (default) during CMake configuration.
 
 ### UI Operation Guide
 

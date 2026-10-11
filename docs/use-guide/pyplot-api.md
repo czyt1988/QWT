@@ -144,8 +144,9 @@ Examples: "r-o"  → red solid line + circle marker
 | `-.` | Dash-dot |
 | `:` | Dotted |
 
-!!! tip "Matplotlib Behavior"
-    When only a marker is specified without a line style (e.g. `"ro"`), the line is automatically hidden, showing only marker points. This matches matplotlib behavior.
+> **Tip — Matplotlib Behavior**
+>
+> When only a marker is specified without a line style (e.g. `"ro"`), the line is automatically hidden, showing only marker points. This matches matplotlib behavior.
 
 ## Plotting Methods
 
@@ -469,8 +470,9 @@ int main(int argc, char* argv[])
 | `enablePan(enable)` | Enable/disable panning |
 | `enableZoom(enable)` | Enable/disable zooming |
 
-!!! example "Related Examples"
-    A complete example is located in `examples/2D/pyplot/`, containing 8 tabs demonstrating various QwtPyPlot features.
+> **Example — Related Examples**
+>
+> A complete example is located in `examples/2D/pyplot/`, containing 8 tabs demonstrating various QwtPyPlot features.
 
 Screenshot of the PyPlot example:
 

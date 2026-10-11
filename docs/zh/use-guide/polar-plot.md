@@ -221,15 +221,17 @@ struct QwtPointPolar {
 | `setPen()` | 设置线条样式 |
 | `setSymbol()` | 设置数据点符号 |
 
-!!! tip "极坐标应用场景"
-    - 雷达显示
-    - 天文数据（星图）
-    - 方向分布统计
-    - 天线辐射图
+> **提示 — 极坐标应用场景**
+>
+> - 雷达显示
+> - 天文数据（星图）
+> - 方向分布统计
+> - 天线辐射图
 
-!!! example "相关示例"
-    - 极坐标演示：`examples/2D/polardemo`
-    - 极坐标光谱图：`examples/2D/polarspectrogram`
+> **示例 — 相关示例**
+>
+> - 极坐标演示：`examples/2D/polardemo`
+> - 极坐标光谱图：`examples/2D/polarspectrogram`
 
 极坐标光谱图的例子截图如下：
 

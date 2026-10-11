@@ -206,10 +206,12 @@ ma10->attach(plot);
 | 下跌 | `Negative` | close < open |
 | 平盘 | `Neutral` | close == open |
 
-!!! tip "颜色约定"
-    - 中国市场：红涨绿跌
-    - 国际市场：绿涨红跌
-    - 可根据需要调整颜色配置
+> **提示 — 颜色约定**
+>
+> - 中国市场：红涨绿跌
+> - 国际市场：绿涨红跌
+> - 可根据需要调整颜色配置
 
-!!! example "相关示例"
-    - 股票图演示：`examples/2D/stockchart`
+> **示例 — 相关示例**
+>
+> - 股票图演示：`examples/2D/stockchart`

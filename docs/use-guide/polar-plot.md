@@ -221,15 +221,17 @@ struct QwtPointPolar {
 | `setPen()` | Set line style |
 | `setSymbol()` | Set data point symbol |
 
-!!! tip "Polar Plot Application Scenarios"
-    - Radar displays
-    - Astronomical data (star charts)
-    - Directional distribution statistics
-    - Antenna radiation patterns
+> **Tip — Polar Plot Application Scenarios**
+>
+> - Radar displays
+> - Astronomical data (star charts)
+> - Directional distribution statistics
+> - Antenna radiation patterns
 
-!!! example "Related Examples"
-    - Polar demo: `examples/2D/polardemo`
-    - Polar spectrogram: `examples/2D/polarspectrogram`
+> **Example — Related Examples**
+>
+> - Polar demo: `examples/2D/polardemo`
+> - Polar spectrogram: `examples/2D/polarspectrogram`
 
 Screenshot of the polar spectrogram:
 

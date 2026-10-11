@@ -123,11 +123,13 @@ label->setRotation(45.0);  // 45 degree rotation
 | `setRotation()` | Set rotation angle |
 | `setGeometry()` | Set geometry region |
 
-!!! tip "Application Scenarios"
-    - Chart title or descriptive text
-    - Fixed position annotations
-    - Unit descriptions
-    - Version information display
+> **Tip — Application Scenarios**
+>
+> - Chart title or descriptive text
+> - Fixed position annotations
+> - Unit descriptions
+> - Version information display
 
-!!! example "Related Examples"
-    - Text label demo: See custom examples
+> **Example — Related Examples**
+>
+> - Text label demo: See custom examples

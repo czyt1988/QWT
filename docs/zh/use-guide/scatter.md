@@ -106,10 +106,11 @@ scatter->setSamples(xData, yData);
 scatter->attach(plot);
 ```
 
-!!! tip "Dots vs Symbol 性能"
-    - `Dots` 样式直接绘制像素点，适合百万级数据
-    - `NoCurve + Symbol` 每个点都是一个完整的符号绘制对象，适合少量数据
-    - 对于实时更新的散点图，推荐使用 `Dots`
+> **提示 — Dots vs Symbol 性能**
+>
+> - `Dots` 样式直接绘制像素点，适合百万级数据
+> - `NoCurve + Symbol` 每个点都是一个完整的符号绘制对象，适合少量数据
+> - 对于实时更新的散点图，推荐使用 `Dots`
 
 ### 3. 多种符号样式
 
@@ -159,8 +160,9 @@ scatter->setSymbolJitter(0.05);  // 5%的抖动范围
 // 注意：setSymbolJitter是QwtPlotCurve的方法
 ```
 
-!!! info "抖动原理"
-    抖动会在绘制时为每个点的X坐标添加随机偏移，使重叠点分散显示，便于观察数据密度分布。
+> **信息 — 抖动原理**
+>
+> 抖动会在绘制时为每个点的X坐标添加随机偏移，使重叠点分散显示，便于观察数据密度分布。
 
 ### 5. 多组散点数据
 
@@ -264,7 +266,8 @@ scatter->setSymbol(customSymbol);
 | `setPinPoint()` | 设置符号锚点位置 |
 | `drawSymbol()` | 绘制符号 |
 
-!!! example "相关示例"
-    - 散点图：`examples/2D/scatterplot`
-    - 符号演示：`playground/symbols`
-    - 曲线样式：`examples/2D/curvedemo`
+> **示例 — 相关示例**
+>
+> - 散点图：`examples/2D/scatterplot`
+> - 符号演示：`playground/symbols`
+> - 曲线样式：`examples/2D/curvedemo`

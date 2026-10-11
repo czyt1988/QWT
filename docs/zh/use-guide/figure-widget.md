@@ -43,9 +43,10 @@ figure->addAxes(plot, QRectF(0.0, 0.0, 0.5, 0.5));
 figure->addAxes(plot, 0.0, 0.0, 0.5, 0.5);
 ```
 
-!!! warning "归一化坐标注意事项"
-    - 使用 Qt 标准的左上角坐标系
-    - 归一化坐标范围为 [0,1]
+> **警告 — 归一化坐标注意事项**
+>
+> - 使用 Qt 标准的左上角坐标系
+> - 归一化坐标范围为 [0,1]
 
 #### 使用网格布局添加
 
@@ -98,10 +99,11 @@ hostPlot->setAxisTitle(QwtAxis::YLeft, "Primary Y");
 parasiteYRight->setAxisTitle(QwtAxis::YRight, "Secondary Y");
 ```
 
-!!! warning "寄生绘图注意事项"
-    - 寄生绘图不能作为当前激活的坐标轴
-    - 寄生绘图会随着宿主轴的移除而被自动隐藏
-    - 如果宿主绘图销毁，寄生绘图会跟随销毁
+> **警告 — 寄生绘图注意事项**
+>
+> - 寄生绘图不能作为当前激活的坐标轴
+> - 寄生绘图会随着宿主轴的移除而被自动隐藏
+> - 如果宿主绘图销毁，寄生绘图会跟随销毁
 
 寄生绘图的详细使用方法请参考：[寄生绘图](parasite-axes.md)
 
@@ -179,8 +181,9 @@ figure->addAxisAlignment({ plot2, plot4 }, QwtAxis::YLeft);
 
 ![qwt_figure_align](../../assets/picture/figure-scale-aligment.png)
 
-!!! warning "坐标轴对齐注意事项"
-    只有可显示的坐标轴才可以对齐，如果坐标轴不显示，是无法对齐的，例如上面例子的`plot2`, `plot4`和`hostPlot`的右坐标轴就无法对齐，因为`plot2`, `plot4`的坐标轴窗口不可见
+> **警告 — 坐标轴对齐注意事项**
+>
+> 只有可显示的坐标轴才可以对齐，如果坐标轴不显示，是无法对齐的，例如上面例子的`plot2`, `plot4`和`hostPlot`的右坐标轴就无法对齐，因为`plot2`, `plot4`的坐标轴窗口不可见
 
 ## figure操作蒙版
 
@@ -261,7 +264,6 @@ overlay->showPercentText(false);
 
 这个操作蒙版为用户提供了一种直观、交互式的方式来管理和调整 `QwtFigure` 中的多个绘图组件，提升用户体验和操作效率
 
-!!! example "寄生绘图示例"
-    完整的示例代码可参阅`examples/figure`
-
-
+> **示例 — 寄生绘图示例**
+>
+> 完整的示例代码可参阅`examples/figure`
