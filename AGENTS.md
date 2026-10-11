@@ -96,35 +96,6 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="..."
 | | `qwt_matrix_raster_data.h/.cpp` | `QwtMatrixRasterData`：矩阵栅格数据 |
 | | `qwt_grid_raster_data.h/.cpp` | `QwtGridRasterData`：网格栅格数据（v7 新增） |
 
-`src/core/CMakeLists.txt` 完整文件列表：
-
-```cmake
-set(QWTCORE_HEADER_FILES
-    qwtcore_global.h
-    qwt_colormap.h           qwt_color_cycle.h        qwt_colormap_preset.h
-    qwt_math.h               qwt_interval.h           qwt_point_3d.h
-    qwt_point_polar.h        qwt_system_clock.h       qwt_algorithm.hpp
-    qwt_qt5qt6_compat.hpp    qwt_samples.h            qwt_bezier.h
-    qwt_clipper.h            qwt_date.h               qwt_transform.h
-    qwt_scale_map.h          qwt_scale_div.h          qwt_simd_argminmax.h
-    qwt_box_statistics.h     qwt_grid_data.hpp
-    qwt_scale_engine.h       qwt_series_data.h        qwt_point_data.h
-    qwt_series_store.h       qwt_raster_data.h        qwt_matrix_raster_data.h
-    qwt_grid_raster_data.h
-)
-
-set(QWTCORE_SOURCE_FILES
-    qwt_colormap.cpp         qwt_color_cycle.cpp      qwt_colormap_preset.cpp
-    qwt_math.cpp             qwt_interval.cpp         qwt_point_3d.cpp
-    qwt_point_polar.cpp      qwt_system_clock.cpp     qwt_bezier.cpp
-    qwt_clipper.cpp          qwt_date.cpp             qwt_transform.cpp
-    qwt_scale_map.cpp        qwt_scale_div.cpp        qwt_simd_argminmax.cpp
-    qwt_box_statistics.cpp
-    qwt_scale_engine.cpp     qwt_series_data.cpp      qwt_point_data.cpp
-    qwt_raster_data.cpp      qwt_matrix_raster_data.cpp
-    qwt_grid_raster_data.cpp
-)
-```
 
 ### 条件编译模块
 
@@ -351,3 +322,23 @@ theme.apply(plot);  // plot 是 Qwt3DPlot* 指针
 - CI 自动部署 GitHub Pages（仅 master 分支 push 触发）
 - 构建文档依赖：`pip install -r requirements-docs.txt`
 - 在线文档：https://czyt1988.github.io/QWT/zh/
+
+## Git 操作
+
+- 每完成一个完整任务就提交一次，不要只改不提交；
+- 提交信息使用英文 **Conventional Commits**（`feat` / `fix` / `docs` / `style` / `refactor` / `perf` / `test` / `build` / `ci` / `chore` / `revert`）。
+- 版本遵循 **SemVer**，每次发版更新 `CHANGELOG.md`，同步修改`CHANGELOG-zh.md`。
+
+在进行代码提交时，应避免将一个大任务的全部改动积压到最后一次性提交。每个提交应尽量保持原子性，并尽可能保证可独立构建、测试通过、审查和回滚。这样可以缩小变更范围，降低合并时产生大量冲突的概率。
+
+### Worktree 工作流
+
+多任务并行时互不干扰：任何改动都不在主工作树进行，一律在 `.worktree/` 下的独立 worktree 内完成。开始工作前必须执行以下四步：
+
+1. **拉取 worktree**：先确定源分支（任务结束必须合并回它），从它拉出任务分支：
+   ```bash
+   git worktree add .worktree/<任务名> -b <feature|fix>/<任务名> <源分支>
+   ```
+   此后改动、构建、提交只在 `.worktree/<任务名>` 内进行。
+2. **合并回源分支**：任务完成后，任务分支必须合并回当初拉取它的源分支——从哪个分支拉取，就合并回哪个分支，禁止合并到其他分支。源分支在主工作树时，切到源分支执行 `git merge <任务分支>`。
+3. **完成标准**：合并必须干净成功、无冲突并通过构建/测试验证后才算完成；冲突必须当场解决，不得把冲突、半合并或未验证状态留给用户。收尾：确认 worktree 内改动已全部提交并合并后，用 `git worktree remove --force .worktree/<任务名>` 清理现场（含 submodule 的 worktree 不加 `--force` 会被 git 拒绝删除），再删除任务分支。

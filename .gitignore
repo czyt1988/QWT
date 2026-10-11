@@ -18,6 +18,7 @@ build*
 ~*.pptx
 ~*.docx
 *.drawio.bkp
+.obsidian/
 temp-*
 tmp
 tmp-file
