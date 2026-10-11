@@ -264,11 +264,12 @@ int Qwt3DWaterfall::samplesPerTrace() const
  * @brief Appends one trace as the newest window entry
  * @param values Sample values of the trace
  * @param count Number of samples in values
- * @details The first push fixes samplesPerTrace(); later traces with a
- *          different length are truncated to the established bin count so
- *          the window width (and the hull x-range) never jitters. When the
- *          window is full the oldest trace is dropped; the surviving slots
- *          are rotated by cheap QVector moves, never deep copies.
+ * @details The first push fixes samplesPerTrace(); later traces are fitted
+ *          into the established bin count (longer ones truncated, shorter
+ *          ones zero-padded) so the window width (and the hull x-range)
+ *          never jitters. When the window is full the oldest trace is
+ *          dropped; the surviving slots are rotated by cheap QVector moves,
+ *          never deep copies.
  */
 void Qwt3DWaterfall::pushTrace(const double* values, int count)
 {
@@ -279,8 +280,11 @@ void Qwt3DWaterfall::pushTrace(const double* values, int count)
     if (d->m_count == 0)
         d->m_samplesPerTrace = count;
 
-    const int n = std::min(count, d->m_samplesPerTrace);
-    QVector<double> trace(n);
+    // Fit the incoming frame into the established bin count: truncate longer
+    // frames, zero-pad shorter ones, so every slot has the full bin width.
+    const int M = d->m_samplesPerTrace;
+    const int n = std::min(count, M);
+    QVector<double> trace(M, 0.0);
     std::copy(values, values + n, trace.begin());
 
     if (d->m_count == d->m_capacity) {
