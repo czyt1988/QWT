@@ -507,7 +507,7 @@ int main(int argc, char** argv)
 - **底部控件**：`Algorithm`（Gaussian / Savitzky-Golay）、`Window`、`SG Order`、`Preserve`（特征保护阈值）、`Downsampling`（`LTTB (default)` / `Pixel (QCustomPlot style)`，用于对比平滑与两种降采样的组合效果），以及 `Run Benchmark` 按钮（两个图各跑 50 次 replot）；
 - 两图下方的 `last` 标签分别显示各自最近一次重绘的耗时——可以直接看出平滑的开销在毫秒量级以下（第 7 节实测 0.1 ms）。
 
-对照阅读时建议先只看图的变化再回来看公式：把 `Preserve` 调到 0，同一个窄峰会立刻"矮一截"，那就是第 3.3 节 \(R(b) = b/\sqrt{b^2+\sigma^2}\) 在屏幕上的样子。
+对照阅读时建议先只看图的变化再回来看公式：把 `Preserve` 调到 0，同一个窄峰会立刻"矮一截"，那就是第 3.3 节 $R(b) = b/\sqrt{b^2+\sigma^2}$ 在屏幕上的样子。
 
 ### 8.3 参数选择指南
 

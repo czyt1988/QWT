@@ -507,7 +507,7 @@ From left to right:
 - **Bottom controls**: `Algorithm` (Gaussian / Savitzky-Golay), `Window`, `SG Order`, `Preserve` (feature preservation threshold), `Downsampling` (`LTTB (default)` / `Pixel (QCustomPlot style)` — to compare the smoothing against both reductions), plus a `Run Benchmark` button that replots both plots 50 times each;
 - The `last` label under each plot shows its most recent replot time — the smoothing overhead is in the sub-millisecond range (see the 0.1 ms measured in Section 7).
 
-When reading the article alongside the example, start with the picture and only then return to the formulas: set `Preserve` to 0 and the same narrow peak immediately shrinks — that is \(R(b) = b/\sqrt{b^2+\sigma^2}\) from Section 3.3 on screen.
+When reading the article alongside the example, start with the picture and only then return to the formulas: set `Preserve` to 0 and the same narrow peak immediately shrinks — that is $R(b) = b/\sqrt{b^2+\sigma^2}$ from Section 3.3 on screen.
 
 ### 8.3 Parameter selection guide
 
