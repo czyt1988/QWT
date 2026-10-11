@@ -495,6 +495,19 @@ int main(int argc, char** argv)
 
 **效果**：左曲线呈现 60 多像素厚的噪声带；右曲线噪声带收敛为 ~6 px 的细线，而三个窄峰的峰顶像素行与左曲线完全相同——数据 `data()` 未被动过一字。
 
+上面这段代码最小程度复刻了官方示例 **`examples/2D/curvesmoothing`** 的用法。官方示例在同一窗口内并排摆下"默认渲染"与"平滑渲染"两幅图，并把全部参数暴露为实时控件：
+
+![curvesmoothing 示例：100,000 点噪声频谱的平滑对比](../../assets/screenshots/curvesmoothing.png)
+
+图中（左 → 右）分别是：
+
+- **左图（plain）**：100,000 点频谱走默认管线（`FilterPointsLTTB` 降采样），噪声呈毛糙的竖直毛边；
+- **右图（smooth）**：同样数据 + 渲染平滑，噪声带收敛为细线，窄峰与深谷保持原位；
+- **底部控件**：`Algorithm`（Gaussian / Savitzky-Golay）、`Window`、`SG Order`、`Preserve`（特征保护阈值）、`Downsampling`（`LTTB (default)` / `Pixel (QCustomPlot style)`，用于对比平滑与两种降采样的组合效果），以及 `Run Benchmark` 按钮（两个图各跑 50 次 replot）；
+- 两图下方的 `last` 标签分别显示各自最近一次重绘的耗时——可以直接看出平滑的开销在毫秒量级以下（第 7 节实测 0.1 ms）。
+
+对照阅读时建议先只看图的变化再回来看公式：把 `Preserve` 调到 0，同一个窄峰会立刻"矮一截"，那就是第 3.3 节 \(R(b) = b/\sqrt{b^2+\sigma^2}\) 在屏幕上的样子。
+
 ### 8.3 参数选择指南
 
 | 目标 | 建议 |

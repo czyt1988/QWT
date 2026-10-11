@@ -54,6 +54,18 @@ $$
 
 （数据来自 QWT7.2.1 + Qt 5.15.16 的 renderbench 示例；不同硬件上绝对数值有差异，相对关系一致。）
 
+上表的数字由仓库自带的基准示例程序 **`examples/bench/renderbench`** 实测而来——它是 `examples/bench/` 下专门用于对比各种降采样算法的演示程序：
+
+![renderbench 示例：五种降采样算法的实时基准对比](../../assets/screenshots/renderbench.png)
+
+界面从左到右分别是：
+
+- **控制面板**：`Points`（1,000 – 10,000,000，默认 1,000,000）、`Frames`（10 – 1000，默认 100）、`Wave`（平滑波 / 白噪声）、`Method`（`None` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB` 五种绘制方式），以及 `Run`（单跑当前方法）与 `Run All (Compare)`（批量对比全部方法）；
+- **绘图区**：数据由 `WindowedSeriesData` 在滚动的窗口内按需生成，X 轴跟随窗口，因此每次重绘的工作量与真实的滚动场景一致；
+- **报告对话框**：跑完自动弹出 Markdown 报告，含环境（QWT/Qt 版本、画布尺寸）、参数与全部方法的耗时 / 帧率汇总，可一键复制。
+
+除了测速，这个例子的更大价值是**肉眼对比**：把 `Method` 在 `FilterPointsLTTB` 与 `FilterPointsPixel` 之间反复切换，同一批数据下窄峰的保存方式差异（见第 4.4 节与第 6 节表 1）会直接显现在眼前。
+
 注意 `FilterPoints` 反而比不降采样更慢：它只剔除**完全重合**的像素点，百万点里几乎没有完全重合的点，过滤检查本身成了额外开销——这提示我们：降采样必须真正做出"合并"决策，而不是"筛选"。
 
 ### 1.3 降采样算法的一般框架
@@ -542,7 +554,8 @@ const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 
 1. Steinarsson, S. *Downsampling Time Series for Visual Representation.* MSc thesis, University of Iceland, 2013.
 2. QWT7 源码：`src/plot/qwt_point_mapper.cpp`（`qwtMinMaxBucketReduce`、`qwtPixelColumnReduce`、`qwtFindVisibleRange`）、`src/core/qwt_simd_argminmax.cpp`。
-3. QWT7 基准示例：`examples/bench/renderbench`。
-4. CHANGES.md，v7.2.x："Added `FilterPointsPixel` and `FilterPointsLTTB` paint attributes…"
+3. QWT7 基准示例：`examples/bench/renderbench`（五种降采样方法的实时耗时与批量对比）。
+4. QWT7 NaN 渲染示例：`examples/2D/nanperf`（NaN 比例可调，同样对五种 PointFilter 绘制属性做扫描对比）。
+5. CHANGES.md，v7.2.x："Added `FilterPointsPixel` and `FilterPointsLTTB` paint attributes…"
 
 *配套阅读：* [曲线渲染平滑：高斯卷积、Savitzky-Golay 回归与特征保护](curve-smoothing.md) —— 降采样之后的像素噪声如何被移除。

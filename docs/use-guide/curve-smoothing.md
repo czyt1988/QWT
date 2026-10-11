@@ -495,6 +495,19 @@ int main(int argc, char** argv)
 
 **Effect**: the grey curve shows a noise band 60+ pixel rows thick; the blue curve's band collapses to ~6 px, while the top pixel rows of the three narrow peaks are identical in both curves — and `data()` was never touched.
 
+The snippet above is a minimal version of what the official example, **`examples/2D/curvesmoothing`**, demonstrates. That example puts the default rendering and the smoothed rendering side by side in one window and exposes every parameter as a live control:
+
+![curvesmoothing example: smoothing a 100,000-sample noisy spectrum](../assets/screenshots/curvesmoothing.png)
+
+From left to right:
+
+- **Left plot (plain)**: the 100,000-sample spectrum through the default pipeline (`FilterPointsLTTB` reduction only); the noise shows as a coarse vertical fringe;
+- **Right plot (smooth)**: the same samples plus render smoothing — the noise band collapses to a thin line while the narrow peaks and the deep dip stay where they are;
+- **Bottom controls**: `Algorithm` (Gaussian / Savitzky-Golay), `Window`, `SG Order`, `Preserve` (feature preservation threshold), `Downsampling` (`LTTB (default)` / `Pixel (QCustomPlot style)` — to compare the smoothing against both reductions), plus a `Run Benchmark` button that replots both plots 50 times each;
+- The `last` label under each plot shows its most recent replot time — the smoothing overhead is in the sub-millisecond range (see the 0.1 ms measured in Section 7).
+
+When reading the article alongside the example, start with the picture and only then return to the formulas: set `Preserve` to 0 and the same narrow peak immediately shrinks — that is \(R(b) = b/\sqrt{b^2+\sigma^2}\) from Section 3.3 on screen.
+
 ### 8.3 Parameter selection guide
 
 | goal | suggestion |

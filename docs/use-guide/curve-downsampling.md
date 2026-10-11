@@ -54,6 +54,18 @@ When $N \gg W$, on average $N/W$ samples land in every pixel column. Their spati
 
 (Absolute numbers depend on hardware; the ordering is stable. QWT7.2.1 + Qt 5.15.16, renderbench example.)
 
+Those numbers were measured with the benchmark example that ships in the repository, **`examples/bench/renderbench`** — the program under `examples/bench/` dedicated to comparing the downsampling algorithms:
+
+![renderbench example: live benchmark of the five reduction strategies](../assets/screenshots/renderbench.png)
+
+The interface consists of three parts:
+
+- **Control panel**: `Points` (1,000 – 10,000,000, default 1,000,000), `Frames` (10 – 1000, default 100), `Wave` (smooth wave / white noise), `Method` (`None` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB`), plus `Run` (single method) and `Run All (Compare)` (batch comparison of every method);
+- **Plot area**: the data is generated on demand by `WindowedSeriesData` inside a sliding window that follows the X axis, so every replot does the work of a real scrolling view;
+- **Report dialog**: pops up after a run with a Markdown report (environment, QWT/Qt versions, canvas size, parameters) and per-method timing / FPS summary, copied to the clipboard with one click.
+
+Beyond timing, the example's greater value is the **visual comparison**: switching `Method` back and forth between `FilterPointsLTTB` and `FilterPointsPixel` shows exactly how the same data treats narrow peaks (Sections 4.4 and 6, Table 1).
+
 Note that `FilterPoints` is *slower* than no reduction: it only removes pixels that map to **exactly** the same position, which is rare among a million points — the filtering itself becomes pure overhead. The lesson: downsampling must decide how to **merge** points, not merely how to skip them.
 
 ### 1.3 The general two-stage framework
@@ -546,7 +558,8 @@ const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 
 1. Steinarsson, S. *Downsampling Time Series for Visual Representation.* MSc thesis, University of Iceland, 2013.
 2. QWT7 sources: `src/plot/qwt_point_mapper.cpp` (`qwtMinMaxBucketReduce`, `qwtPixelColumnReduce`, `qwtFindVisibleRange`), `src/core/qwt_simd_argminmax.cpp`.
-3. QWT7 benchmark example: `examples/bench/renderbench`.
-4. CHANGES.md, v7.2.x: "Added `FilterPointsPixel` and `FilterPointsLTTB` paint attributes …"
+3. QWT7 benchmark example: `examples/bench/renderbench` (live timings and batch comparison of the five reduction methods).
+4. QWT7 NaN rendering example: `examples/2D/nanperf` (adjustable NaN ratio, sweeps the same five point-filter paint attributes).
+5. CHANGES.md, v7.2.x: "Added `FilterPointsPixel` and `FilterPointsLTTB` paint attributes …"
 
 *Companion article:* [Curve Rendering: Gaussian, Savitzky-Golay and Feature Preservation](curve-smoothing.md) — how the pixel noise that survives downsampling is removed.
