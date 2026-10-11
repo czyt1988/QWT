@@ -46,6 +46,7 @@ private Q_SLOTS:
     void textScaleLabels();
     void textScaleSurvivesClonePtr();
     void textScaleSurvivesCoordinateReinit();
+    void axisTitlesSurviveCoordinateReinit();
     void textScaleNumericFallback();
 
     // P1 regression: attach() must recalculate the scene

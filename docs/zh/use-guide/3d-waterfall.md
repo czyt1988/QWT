@@ -71,6 +71,12 @@ for (int i = 0; i < 64; ++i)
     waterfall->pushTrace(frame(i));            // QVector<double>，256 bins
 
 plot->setAspectRatioMode(AUTOFILL);
+
+// 轴标题（x = bin、y = 深度、z = 幅度）；设置标题即启用其绘制，
+// 且标题在坐标系重建后仍然保留
+plot->coordinates()->axes[X1].setLabelString("Bin");
+plot->coordinates()->axes[Y1].setLabelString("Frames ago");
+plot->coordinates()->axes[Z1].setLabelString("Amplitude");
 ```
 
 !!! note "强各向异性数据与视图缩放"

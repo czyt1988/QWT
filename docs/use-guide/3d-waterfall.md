@@ -71,6 +71,12 @@ for (int i = 0; i < 64; ++i)
     waterfall->pushTrace(frame(i));            // QVector<double>, 256 bins
 
 plot->setAspectRatioMode(AUTOFILL);
+
+// Axis titles (x = bin, y = depth, z = amplitude); setting a title
+// enables its drawing and the titles survive coordinate re-creations
+plot->coordinates()->axes[X1].setLabelString("Bin");
+plot->coordinates()->axes[Y1].setLabelString("Frames ago");
+plot->coordinates()->axes[Z1].setLabelString("Amplitude");
 ```
 
 !!! note "Anisotropic data and view scaling"

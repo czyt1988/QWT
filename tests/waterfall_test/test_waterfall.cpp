@@ -413,6 +413,38 @@ void TestWaterfall::textScaleSurvivesCoordinateReinit()
     QCOMPARE(textScale->labels(), labels);
 }
 
+void TestWaterfall::axisTitlesSurviveCoordinateReinit()
+{
+    // Qwt3DCoordinateSystem::init() runs on every hull change. It used to
+    // clear all axis label strings (via destroy()) and title drawing had to
+    // be enabled separately with setLabel(true), so live plots lost their
+    // X/Y/Z axis titles immediately after the first data update.
+    Qwt3DPlot plot;
+
+    auto* coords = plot.coordinates();
+    coords->axes[ X1 ].setLabelString("Bin");
+    coords->axes[ Y1 ].setLabelString("Frames ago");
+    coords->axes[ Z1 ].setLabelString("Amplitude");
+
+    // Setting a title enables its drawing
+    QVERIFY(coords->axes[ X1 ].label());
+    QVERIFY(coords->axes[ Z1 ].label());
+
+    auto* waterfall = new Qwt3DWaterfall();
+    waterfall->setTraceCapacity(4);
+    waterfall->pushTrace(flatTrace(1.0));
+    waterfall->attach(&plot);
+
+    // Hull changes recreate the coordinate system; titles must survive
+    waterfall->pushTrace(flatTrace(2.0));
+    waterfall->pushTrace(flatTrace(3.0));
+
+    QCOMPARE(coords->axes[ X1 ].labelString(), QString("Bin"));
+    QCOMPARE(coords->axes[ Y1 ].labelString(), QString("Frames ago"));
+    QCOMPARE(coords->axes[ Z1 ].labelString(), QString("Amplitude"));
+    QVERIFY(coords->axes[ Y1 ].label());
+}
+
 void TestWaterfall::textScaleNumericFallback()
 {
     // Indices beyond the label list must fall back to a numeric label,

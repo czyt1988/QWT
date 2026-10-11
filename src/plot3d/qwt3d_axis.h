@@ -63,6 +63,8 @@ public:
 
     // Sets label content
     void setLabelString(QString const& name);
+    // Returns whether the axis title is drawn
+    bool label() const;
     // Returns label content
     QString labelString() const;
     void setLabelPosition(const Triple& pos, ANCHOR);

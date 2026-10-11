@@ -76,9 +76,10 @@ Qwt3DCoordinateSystem::~Qwt3DCoordinateSystem()
 
 void Qwt3DCoordinateSystem::destroy()
 {
-    for (unsigned i = 0; i != axes.size(); ++i)
-        axes[ i ].setLabelString("");
-
+    // NOTE: axis titles are user configuration. init() calls destroy() on
+    // every coordinate system recreation (for items with a drifting hull:
+    // every data update), so clearing the label strings here silently
+    // removed the X/Y/Z axis titles from live plots.
     detachAll();
 }
 

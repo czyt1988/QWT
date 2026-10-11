@@ -403,6 +403,20 @@ void Qwt3DAxis::setLabelString(QString const& name)
 {
     QWT_D(d);
     d->m_label.setString(name);
+    // Setting a title implies the intent to show it; label drawing is
+    // off by default and was easy to leave off silently.
+    if (!name.isEmpty())
+        d->m_drawLabel = true;
+}
+
+/**
+ * @brief Returns whether the axis title is drawn
+ * @return True after setLabel(true) or after setting a non-empty label string
+ */
+bool Qwt3DAxis::label() const
+{
+    QWT_DC(d);
+    return d->m_drawLabel;
 }
 
 /**

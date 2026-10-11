@@ -20,6 +20,7 @@
 - 修复 `Qwt3DPlot::attach()` 不重算场景的问题：若数据在 `attach()` 之前装载、且中间没有调用任何 setter（因此未触发 `itemChanged()`），plot 的 hull 停留在 (0,0,0)-(0,0,0)，画面全白且无任何警告。z 排序 + hull 并集 + 坐标系更新被抽取为私有 `recalculateScene()`，`attach()` 与 `detach()` 现在也会调用，detach 后 hull 同步收缩。已加回归测试（`tests/waterfall_test`）
 - 修复派生 `Qwt3DScale` 在 `Qwt3DAxis::setScale()` 内被切片的问题：`Qwt3DClonePtr` 赋值经 `clone()` 克隆，未 override `clone()` 的派生 scale 的自定义 `ticLabel()` 静默失效（实测逐像素零差异）。`Qwt3DTextScale` 已 override；`Qwt3DLinearScale` 新增 protected `copyLinearScaleState()` 供派生类复制 autoscaler 状态
 - 修复 `Qwt3DWaterfall::pushTrace()` 对短轨迹的越界读取：入帧按已建立的 bin 宽度装填（超长截断、过短零填充）
+- 修复 3D 轴标题在实时绘图上不显示的问题：`Qwt3DCoordinateSystem::destroy()`（`init()` 每次重建坐标系时调用）会清空所有轴的标签字符串，且标题绘制默认关闭、必须另行调用 `setLabel(true)`。现在 `setLabelString()` 设置非空标题即启用绘制，`init()`/`destroy()` 不再清除标题；新增 `Qwt3DAxis::label()` 暴露绘制开关
 - 修复 `Qwt3DCoordinateSystem::init()` 每次重建时把所有轴的 scale 重置为 `LINEARSCALE`：对 hull 逐帧变化的 item（实时瀑布），用户设置的 `Qwt3DTextScale` 会被静默丢弃、深度轴回退为数字标签。现在 `init()` 只重建几何，并新增 `Qwt3DAxis::scale()` 暴露当前 scale
 - 修复 `Qwt3DWaterfall::Tube` 融合成一整块并拖垮帧率的问题：扫掠半径原先在数据空间各向同性，在各向异性视图缩放下相邻轨迹互相重叠、截面被拉成板状，且每帧重建每条轨迹的全部环站。现在半径按各轴 hull 范围取比例（视图空间正圆、上限为半个槽位间距），密集轨迹降采样到 ≤129 个环站（128 条 × 256 bin 实测 17 → 62 fps）
 
