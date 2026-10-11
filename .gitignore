@@ -1,4 +1,5 @@
-﻿bin_*
+﻿.worktree/
+bin_*
 build*
 !build.md
 !build.ps1
