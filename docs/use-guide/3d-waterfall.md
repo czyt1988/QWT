@@ -8,6 +8,10 @@ The axes follow the module convention that the value axis is z (as in `Qwt3DSurf
 
 ![waterfall3D example](../assets/screenshots-3D/waterfall3D.png)
 
+The same live scene in the outline-only `Wireframe` style - the cheapest way to render a dense window, and a good way to inspect the trace stack without the fill:
+
+![waterfall3D wireframe style](../assets/screenshots-3D/waterfall3D-2.png)
+
 ## Key Features
 
 - **Built-in sliding window** — `pushTrace()` appends the newest trace and drops the oldest; no user-side window or depth bookkeeping

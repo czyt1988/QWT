@@ -211,6 +211,29 @@ Beyond surfaces, the 3D module ships more `Qwt3DPlotItem` types — see their de
 - [3D Line Plot](3d-line-plot.md) (`Qwt3DLine`) — `Tube` (lit swept cylinder) / `Lines` / `Dots`, per-vertex colormap.
 - [3D Waterfall](3d-waterfall.md) (`Qwt3DWaterfall`) — sliding-window waterfall of 1D traces (spectra), `Ribbon`/`RibbonMesh`/`Wireframe`/`Tube` styles, depth/amplitude/solid coloring.
 
+### Live Waterfall (Stacked Traces)
+
+A waterfall draws a stream of one-dimensional traces (spectra, chromatograms, ...) as stacked curves along the depth axis. One `Qwt3DWaterfall` item owns the whole live machinery - sliding window, depth numbering, ribbon geometry and coloring - so a waterfall is a push-per-tick affair:
+
+```cpp
+#include <qwt3d_waterfall.h>
+
+auto* waterfall = new Qwt3DWaterfall();
+waterfall->attach(plot);                      // attach before pushing data
+waterfall->setTraceCapacity(64);              // sliding window size
+waterfall->setPlotStyle(Qwt3DWaterfall::RibbonMesh);
+waterfall->setColorMode(Qwt3DWaterfall::ByAmplitude);
+waterfall->setColorRange(0.0, 1.0);           // stable live colors
+
+// per timer tick:
+waterfall->pushTrace(frame);                  // QVector<double>, one spectrum
+```
+
+Where to look:
+
+- [3D Waterfall](3d-waterfall.md) - styles, color modes, sliding-window semantics, depth-axis text labels, pitfalls and performance notes
+- `examples/3D/waterfall3D` - the complete live demo: 2D spectrum + peak hold on top, 3D sliding-window waterfall below, toolbar for window size / style / colormap / color mode / opacity, plus `--screenshot`, `--selftest` and `--fps` automation arguments
+
 ### Theme System (v7.3.1+)
 
 The `Qwt3DTheme` class provides one-click switching of 3D plot visual styles, encapsulating all visual attributes including background color, mesh color, data colormap, axis colors, title styling, lighting presets, and shading modes.
@@ -348,6 +371,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
     - Dynamic 3D surface (QwtFigure integration): `examples/3D/figureSurface3D`
     - 3D bar chart: `examples/3D/bar3D`
     - 3D line plot: `examples/3D/line3D`
+    - 3D waterfall (live sliding window): `examples/3D/waterfall3D`
 
 Screenshots of 3D axis configuration, 3D enrichments, 3D auto switch, and dynamic 3D surface:
 

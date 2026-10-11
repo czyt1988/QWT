@@ -232,3 +232,4 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
     - 光谱图综合示例：`examples/2D/spectrogram`
     - 极坐标光谱图：`examples/2D/polarspectrogram`
     - 3D 表面图：`examples/3D/figureSurface3D`
+    - 3D 瀑布图（按幅度上色的轨迹）：`examples/3D/waterfall3D`

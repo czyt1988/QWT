@@ -230,3 +230,4 @@ Whenever the data has a meaningful center (a zero value or a reference), a two-s
     - Spectrogram: `examples/2D/spectrogram`
     - Polar spectrogram: `examples/2D/polarspectrogram`
     - 3D surface: `examples/3D/figureSurface3D`
+    - 3D waterfall (amplitude-colored traces): `examples/3D/waterfall3D`

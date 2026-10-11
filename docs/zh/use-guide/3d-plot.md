@@ -211,6 +211,29 @@ overlay->attach(plot);
 - [3D线图](3d-line-plot.md)（`Qwt3DLine`）：`Tube`（带光照扫掠圆柱）/ `Lines` / `Dots`，逐顶点 colormap。
 - [3D瀑布图](3d-waterfall.md)（`Qwt3DWaterfall`）：滑动窗口瀑布图，`Ribbon`/`RibbonMesh`/`Wireframe`/`Tube` 样式，按深度/幅度/纯色上色。
 
+### 实时瀑布（堆叠轨迹）
+
+瀑布图把一连串一维轨迹（频谱、色谱……）沿深度轴堆叠绘制。一个 `Qwt3DWaterfall` item 就拥有全部实时机制——滑动窗口、深度编号、帘幕几何与上色——因此画瀑布就是"每个 tick 推一条轨迹"：
+
+```cpp
+#include <qwt3d_waterfall.h>
+
+auto* waterfall = new Qwt3DWaterfall();
+waterfall->attach(plot);                      // 先 attach 再推数据
+waterfall->setTraceCapacity(64);              // 滑动窗口大小
+waterfall->setPlotStyle(Qwt3DWaterfall::RibbonMesh);
+waterfall->setColorMode(Qwt3DWaterfall::ByAmplitude);
+waterfall->setColorRange(0.0, 1.0);           // 实时颜色稳定
+
+// 每个定时器 tick：
+waterfall->pushTrace(frame);                  // QVector<double>，一条频谱
+```
+
+去哪里看：
+
+- [3D瀑布图](3d-waterfall.md) —— 样式、上色模式、滑动窗口语义、深度轴文字、坑与性能建议
+- `examples/3D/waterfall3D` —— 完整实时演示：上图 2D 频谱 + 峰值保持，下图 3D 滑动窗口瀑布；工具栏可切换窗口大小/样式/配色/上色模式/不透明度；另有 `--screenshot`、`--selftest`、`--fps` 自动化参数
+
 ### 主题系统（v7.3.1+）
 
 `Qwt3DTheme` 类提供一键切换 3D 绘图视觉风格的能力，封装了背景色、网格色、数据色彩映射（colormap）、坐标轴颜色、标题样式、光照预设、着色模式等全部视觉属性。
@@ -348,6 +371,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
     - 动态3D曲面（QwtFigure集成）：`examples/3D/figureSurface3D`
     - 3D柱状图：`examples/3D/bar3D`
     - 3D线图：`examples/3D/line3D`
+    - 3D瀑布图（实时滑动窗口）：`examples/3D/waterfall3D`
 
 3D轴配置、3D增强、3D自动切换与动态3D曲面的例子截图如下：
 

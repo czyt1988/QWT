@@ -168,4 +168,4 @@ plot->coordinates()->setTicLengthScale(0.02);
 
 !!! example "Related Examples"
     - 3D line plot: `examples/3D/line3D`
-    - For a live sliding-window of many traces see [3D Waterfall](3d-waterfall.md) (`Qwt3DWaterfall`)
+    - For a live sliding-window of many traces see [3D Waterfall](3d-waterfall.md) (`Qwt3DWaterfall`), demoed by `examples/3D/waterfall3D`

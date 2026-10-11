@@ -503,6 +503,7 @@ flowchart LR
 | `examples/3D/qwtplot3d` | 综合演示：主题切换、颜色条、5 种数据源切换、动画曲面、保存位图 |
 | `examples/3D/bar3D` | `Qwt3DBar`：1D 序列 / 2D 网格柱状图与样式面板 |
 | `examples/3D/line3D` | `Qwt3DLine`：`Lines`/`Tube`/`Dots`、点形状与逐顶点着色 |
+| `examples/3D/waterfall3D` | `Qwt3DWaterfall`：2D 实时频谱 + 3D 滑动窗口瀑布同框，全部样式/上色模式，`--screenshot`/`--selftest`/`--fps` 自动化 |
 | `examples/3D/figureSurface3D` | 3D 曲面窗口与 2D 横截面/时间序列在 `QwtFigure` 中同框联动 |
 
 综合演示与 3D 曲面渲染效果（截图存档于 `docs/assets/screenshots-3D/`，要核对当前版本的实际效果请运行上面的示例）：

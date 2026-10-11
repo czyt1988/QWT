@@ -8,6 +8,10 @@
 
 ![waterfall3D 示例](../../assets/screenshots-3D/waterfall3D.png)
 
+同一实时场景的 `Wireframe`（仅描边）样式——密集窗口下开销最低的渲染方式，也适合在不加填充时观察轨迹堆叠：
+
+![waterfall3D Wireframe 样式](../../assets/screenshots-3D/waterfall3D-2.png)
+
 ## 核心特性
 
 - **内置滑动窗口** — `pushTrace()` 追加最新轨迹并丢弃最旧轨迹；用户无需自己管理窗口或深度编号

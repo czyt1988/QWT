@@ -503,6 +503,7 @@ An architecture article that lists only strengths is worthless. An honest invent
 | `examples/3D/qwtplot3d` | comprehensive demo: theme switching, color legend, 5 data sources, animated surface, pixmap export |
 | `examples/3D/bar3D` | `Qwt3DBar`: 1D series / 2D grid bars with a style dock |
 | `examples/3D/line3D` | `Qwt3DLine`: `Lines`/`Tube`/`Dots`, point shapes, per-vertex coloring |
+| `examples/3D/waterfall3D` | `Qwt3DWaterfall`: live 2D spectrum + 3D sliding-window waterfall, all styles/color modes, `--screenshot`/`--selftest`/`--fps` automation |
 | `examples/3D/figureSurface3D` | a 3D surface window together with 2D cross-section/time-series curves in one `QwtFigure` |
 
 Rendering effects of the surface, color legend and coordinate box (screenshots archived in `docs/assets/screenshots-3D/`; run the examples above to check the current build):

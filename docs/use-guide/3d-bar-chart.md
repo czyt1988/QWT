@@ -179,3 +179,4 @@ plot->coordinates()->setTicLengthScale(0.02);
 
 !!! example "Related Examples"
     - 3D bar chart: `examples/3D/bar3D`
+    - Live stacked traces (spectra) instead of bars: [3D Waterfall](3d-waterfall.md), `examples/3D/waterfall3D`

@@ -178,3 +178,4 @@ plot->coordinates()->setTicLengthScale(0.02);
 
 !!! example "相关示例"
     - 3D 柱状图：`examples/3D/bar3D`
+    - 不用柱状而用实时堆叠轨迹（频谱）：[3D瀑布图](3d-waterfall.md)，示例 `examples/3D/waterfall3D`
