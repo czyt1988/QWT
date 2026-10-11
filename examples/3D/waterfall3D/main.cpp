@@ -21,7 +21,14 @@ int main(int argc, char* argv[])
     // Unattended screenshot mode for documentation builds:
     //   waterfall3D --screenshot file.png [--screenshot-delay ms]
     //   waterfall3D --selftest [dir]
+    //   waterfall3D --size WxH   (window size, e.g. 1200x800)
     const QStringList args = app.arguments();
+    const int sizeIdx = args.indexOf("--size");
+    if (sizeIdx >= 0 && sizeIdx + 1 < args.size()) {
+        const QStringList wh = args.at(sizeIdx + 1).split('x');
+        if (wh.size() == 2)
+            w.resize(wh.at(0).toInt(), wh.at(1).toInt());
+    }
     const int selftestIdx = args.indexOf("--selftest");
     if (selftestIdx >= 0) {
         const QString dir = (selftestIdx + 1 < args.size())
