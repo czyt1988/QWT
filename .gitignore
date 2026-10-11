@@ -110,6 +110,7 @@ CMakeSettings.json
 
 # Python byte code
 *.pyc
+__pycache__/
 
 # Binaries
 # --------

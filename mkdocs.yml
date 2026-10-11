@@ -93,8 +93,8 @@ plugins:
             - Charts:
                 - Core Plot Items:
                     - Curve: use-guide/curve.md
-                    - Curve Downsampling: use-guide/curve-downsampling.md
-                    - Curve Smoothing: use-guide/curve-smoothing.md
+                    - "Downsampling: LTTB & MinMax": use-guide/curve-downsampling.md
+                    - "Smoothing: Gaussian & Savitzky-Golay": use-guide/curve-smoothing.md
                     - Scatter: use-guide/scatter.md
                     - Grid: use-guide/grid.md
                     - Marker: use-guide/marker.md
@@ -174,8 +174,8 @@ plugins:
             - 图表类型:
                 - 核心绘图项:
                     - 曲线图: use-guide/curve.md
-                    - 曲线降采样算法: use-guide/curve-downsampling.md
-                    - 曲线平滑: use-guide/curve-smoothing.md
+                    - "降采样：LTTB 与 MinMax 桶": use-guide/curve-downsampling.md
+                    - "平滑：高斯与 Savitzky-Golay": use-guide/curve-smoothing.md
                     - 散点图: use-guide/scatter.md
                     - 网格线: use-guide/grid.md
                     - 标记点: use-guide/marker.md
@@ -250,7 +250,17 @@ markdown_extensions:
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  # TeX math for the algorithm deep dives: $ ... $ inline, $$ ... $$
+  # (arithmatex normalizes both to \( ... \) / \[ ... \] in the HTML,
+  # which MathJax then typesets)
+  - pymdownx.arithmatex:
+      generic: true
 
 # Custom CSS
 extra_css:
   - stylesheets/extra.css
+
+# MathJax renders the TeX formulas ( see docs/javascripts/mathjax.js )
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
