@@ -339,6 +339,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 | `setScale(x, y, z)` | Set scale ratio |
 | `setZoom(z)` | Set zoom level |
 | `enableMouse(bool)` | Enable/disable mouse interaction |
+| `setMouseSpeed(rot, scale, shift)` | Set the mouse drag speeds (rotation turns per widget dimension / scaling gain / shifting units) |
+| `mouseSpeed(rot, scale, shift)` | Read the mouse drag speeds |
+| `setRollMouse(state)` | Set an extra roll gesture around the Y axis (middle button by default) |
+| `rollMouse()` | Returns the roll gesture |
 | `showColorLegend(bool)` | Show/hide color legend |
 | `applyTheme(preset)` / `applyTheme(name)` | Apply a theme |
 | `setBackgroundColor(RGBA)` | Set background color |
