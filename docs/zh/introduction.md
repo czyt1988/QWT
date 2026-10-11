@@ -39,24 +39,26 @@ Qt 生态里能画图的库不多，主流的有 `QCustomPlot`、`Qwt`、`Qt Cha
 
 ## 快速集成
 
-=== "CMake（推荐）"
+**CMake（推荐）**
 
-    ```cmake
-    find_package(qwt REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot)
-    # 3D 绘图
-    target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
-    ```
 
-=== "单文件引入"
+```cmake
+find_package(qwt REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot)
+# 3D 绘图
+target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
+```
 
-    ```cpp
-    // 将 src-amalgamate/QwtPlot.h 和 QwtPlot.cpp 加入项目
-    #include "QwtPlot.h"
+**单文件引入**
 
-    auto* plot = new QwtPlot("My Plot");
-    auto* curve = new QwtPlotCurve("Data");
-    ```
+
+```cpp
+// 将 src-amalgamate/QwtPlot.h 和 QwtPlot.cpp 加入项目
+#include "QwtPlot.h"
+
+auto* plot = new QwtPlot("My Plot");
+auto* curve = new QwtPlotCurve("Data");
+```
 
 ## 项目地址
 

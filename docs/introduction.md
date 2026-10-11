@@ -39,24 +39,26 @@ There are only a handful of plotting libraries in the Qt ecosystem. The mainstre
 
 ## Quick Integration
 
-=== "CMake (Recommended)"
+**CMake (Recommended)**
 
-    ```cmake
-    find_package(qwt REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot)
-    # 3D plotting
-    target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
-    ```
 
-=== "Single File"
+```cmake
+find_package(qwt REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot)
+# 3D plotting
+target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
+```
 
-    ```cpp
-    // Add src-amalgamate/QwtPlot.h and QwtPlot.cpp to your project
-    #include "QwtPlot.h"
+**Single File**
 
-    auto* plot = new QwtPlot("My Plot");
-    auto* curve = new QwtPlotCurve("Data");
-    ```
+
+```cpp
+// Add src-amalgamate/QwtPlot.h and QwtPlot.cpp to your project
+#include "QwtPlot.h"
+
+auto* plot = new QwtPlot("My Plot");
+auto* curve = new QwtPlotCurve("Data");
+```
 
 ## Project Links
 

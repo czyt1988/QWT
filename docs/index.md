@@ -218,48 +218,51 @@ designed for scientific computing and engineering data visualization.
 <p>Integrate QWT into your project in minutes.</p>
 </div>
 
-=== "CMake (Recommended)"
+**CMake (Recommended)**
 
-    ```cmake
-    # Find and link QWT
-    find_package(qwt REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot)
 
-    # For 3D plotting
-    target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
-    ```
+```cmake
+# Find and link QWT
+find_package(qwt REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot)
 
-=== "Single File"
+# For 3D plotting
+target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
+```
 
-    ```cpp
-    // Add two files to your project:
-    //   src-amalgamate/QwtPlot.h
-    //   src-amalgamate/QwtPlot.cpp
+**Single File**
 
-    #include "QwtPlot.h"
 
-    auto* plot = new QwtPlot();
-    auto* curve = new QwtPlotCurve("My Data");
-    ```
+```cpp
+// Add two files to your project:
+//   src-amalgamate/QwtPlot.h
+//   src-amalgamate/QwtPlot.cpp
 
-=== "First Plot"
+#include "QwtPlot.h"
 
-    ```cpp
-    #include <qwt_plot.h>
-    #include <qwt_plot_curve.h>
+auto* plot = new QwtPlot();
+auto* curve = new QwtPlotCurve("My Data");
+```
 
-    auto* plot = new QwtPlot("My First Plot");
-    auto* curve = new QwtPlotCurve("Sine Wave");
+**First Plot**
 
-    QVector<QPointF> data;
-    for (double x = 0; x < 10.0; x += 0.1)
-        data.append(QPointF(x, std::sin(x)));
-    curve->setSamples(data);
 
-    curve->attach(plot);
-    plot->resize(600, 400);
-    plot->show();
-    ```
+```cpp
+#include <qwt_plot.h>
+#include <qwt_plot_curve.h>
+
+auto* plot = new QwtPlot("My First Plot");
+auto* curve = new QwtPlotCurve("Sine Wave");
+
+QVector<QPointF> data;
+for (double x = 0; x < 10.0; x += 0.1)
+    data.append(QPointF(x, std::sin(x)));
+curve->setSamples(data);
+
+curve->attach(plot);
+plot->resize(600, 400);
+plot->show();
+```
 
 </div>
 </div>

@@ -217,48 +217,51 @@ hide:
 <p>几分钟内将 QWT 集成到你的项目中。</p>
 </div>
 
-=== "CMake（推荐）"
+**CMake（推荐）**
 
-    ```cmake
-    # 查找并链接 QWT
-    find_package(qwt REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot)
 
-    # 3D 绘图
-    target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
-    ```
+```cmake
+# 查找并链接 QWT
+find_package(qwt REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot)
 
-=== "单文件引入"
+# 3D 绘图
+target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
+```
 
-    ```cpp
-    // 将以下两个文件加入项目：
-    //   src-amalgamate/QwtPlot.h
-    //   src-amalgamate/QwtPlot.cpp
+**单文件引入**
 
-    #include "QwtPlot.h"
 
-    auto* plot = new QwtPlot();
-    auto* curve = new QwtPlotCurve("My Data");
-    ```
+```cpp
+// 将以下两个文件加入项目：
+//   src-amalgamate/QwtPlot.h
+//   src-amalgamate/QwtPlot.cpp
 
-=== "第一个绘图"
+#include "QwtPlot.h"
 
-    ```cpp
-    #include <qwt_plot.h>
-    #include <qwt_plot_curve.h>
+auto* plot = new QwtPlot();
+auto* curve = new QwtPlotCurve("My Data");
+```
 
-    auto* plot = new QwtPlot("My First Plot");
-    auto* curve = new QwtPlotCurve("Sine Wave");
+**第一个绘图**
 
-    QVector<QPointF> data;
-    for (double x = 0; x < 10.0; x += 0.1)
-        data.append(QPointF(x, std::sin(x)));
-    curve->setSamples(data);
 
-    curve->attach(plot);
-    plot->resize(600, 400);
-    plot->show();
-    ```
+```cpp
+#include <qwt_plot.h>
+#include <qwt_plot_curve.h>
+
+auto* plot = new QwtPlot("My First Plot");
+auto* curve = new QwtPlotCurve("Sine Wave");
+
+QVector<QPointF> data;
+for (double x = 0; x < 10.0; x += 0.1)
+    data.append(QPointF(x, std::sin(x)));
+curve->setSamples(data);
+
+curve->attach(plot);
+plot->resize(600, 400);
+plot->show();
+```
 
 </div>
 </div>
