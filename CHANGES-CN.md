@@ -1,3 +1,25 @@
+## tag:v7.5.0 (未发布)
+
+### 新功能
+
+- **3D 瀑布图 item（Qwt3DWaterfall）**
+    - 新增 `Qwt3DPlotItem`：把一维轨迹序列（频谱、色谱……）沿深度轴堆叠绘制，内置滑动窗口——`pushTrace()` 追加最新轨迹并丢弃最旧轨迹，用户无需自己管理窗口或深度编号
+    - 轨迹的深度坐标即槽位索引，hull 的 z 范围单调增长到 `[0, traceCapacity()-1]` 后保持稳定 —— 实时瀑布不会出现逐帧深度轴自动缩放抖动
+    - 四种几何样式：`Ribbon`（填充帘幕，默认）、`RibbonMesh`（帘幕 + 描边，描边固定在填充之后绘制）、`Wireframe`、`Tube`（带光照，与 `Qwt3DLine::Tube` 同一构造方式）
+    - 三种上色模式：`ByDepth`（默认）、`ByAmplitude`（按采样值上色）、`Solid`；`setColorRange()` 固定色域让实时幅度颜色稳定；基线、不透明度与描边可调；一个 item 只向图例贡献一条渐变
+    - 新增示例 `examples/3D/waterfall3D`：上图 2D 实时频谱 + 峰值保持，下图 3D 滑动窗口瀑布，两图喂同一帧；工具栏可切换窗口大小/样式/配色/上色模式/不透明度；自动化参数 `--screenshot`、`--selftest`、`--fps`（64 条 × 256 bin、双视图同时刷新实测 51.8 fps）
+    - 新增使用指南《3D瀑布图》（中英双语，含截图）；RTTI 值 `Rtti_Plot3DWaterfall = 1004`；`Qwt3DTheme::applyToItem()` 新增分支；classincludes 转发头
+- **Qwt3DTextScale：深度轴用户自定义刻度文字**
+    - 主刻度标签来自字符串列表的线性 scale，瀑布深度轴可以显示 "-63"、"-48"、……、"0"（距当前帧数）而不是原始数字；越界下标回退为数字标签
+- **Qwt3DColorMapColor：可选取色坐标轴**
+    - 新增 `Qwt3DColorSource` 枚举（`ColorFromX`/`ColorFromY`/`ColorFromZ`）与 `setSourceAxis()`/`sourceAxis()`；活动范围作用于所选轴。默认 `ColorFromZ` 保持既有 surface/bar/line 渲染逐像素不变；`ColorFromY` 支撑幅度上色。`Qwt3DWaterfall::setColorMode()` 会自动切换 functor 的取色轴
+
+### Bug 修复
+
+- 修复 `Qwt3DPlot::attach()` 不重算场景的问题：若数据在 `attach()` 之前装载、且中间没有调用任何 setter（因此未触发 `itemChanged()`），plot 的 hull 停留在 (0,0,0)-(0,0,0)，画面全白且无任何警告。z 排序 + hull 并集 + 坐标系更新被抽取为私有 `recalculateScene()`，`attach()` 与 `detach()` 现在也会调用，detach 后 hull 同步收缩。已加回归测试（`tests/waterfall_test`）
+- 修复派生 `Qwt3DScale` 在 `Qwt3DAxis::setScale()` 内被切片的问题：`Qwt3DClonePtr` 赋值经 `clone()` 克隆，未 override `clone()` 的派生 scale 的自定义 `ticLabel()` 静默失效（实测逐像素零差异）。`Qwt3DTextScale` 已 override；`Qwt3DLinearScale` 新增 protected `copyLinearScaleState()` 供派生类复制 autoscaler 状态
+- 修复 `Qwt3DWaterfall::pushTrace()` 对短轨迹的越界读取：入帧按已建立的 bin 宽度装填（超长截断、过短零填充）
+
 ## tag:v7.4.2 (2026-10-10)
 
 ### 新功能
