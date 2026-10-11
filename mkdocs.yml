@@ -103,6 +103,7 @@ plugins:
                     - Box Chart: use-guide/boxchart.md
                     - Histogram: use-guide/histogram.md
                     - Spectrogram: use-guide/spectrogram.md
+                    - Colormap Presets: use-guide/colormap.md
                     - Trading Curve: use-guide/tradingcurve.md
                     - Vector Field: use-guide/vectorfield.md
                     - Interval Curve: use-guide/intervalcurve.md
@@ -184,6 +185,7 @@ plugins:
                     - 箱形图: use-guide/boxchart.md
                     - 直方图: use-guide/histogram.md
                     - 光谱图/热力图: use-guide/spectrogram.md
+                    - Colormap预设: use-guide/colormap.md
                     - K线图: use-guide/tradingcurve.md
                     - 向量场图: use-guide/vectorfield.md
                     - 区间曲线: use-guide/intervalcurve.md
