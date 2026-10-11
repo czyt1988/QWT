@@ -4,12 +4,14 @@
 
 3D 模块总览见 [3D绘图简介](3d-plot.md)。`Qwt3DWaterfall` 是一个 `Qwt3DPlotItem`，与 `Qwt3DSurface`、`Qwt3DLine` 遵循相同的 attach/draw/hull 契约。
 
+坐标轴遵循模块约定（数值轴为 z，与 `Qwt3DSurface` 一致）：**x = bin 值、y = 轨迹在窗口中的位置（深度）、z = 幅度**（朝上）。请据此标注轴（`X1` "Bin"、`Y1` "Frames ago"、`Z1` "Amplitude"）；`Qwt3DTextScale` 应放在深度轴上。
+
 ![waterfall3D 示例](../../assets/screenshots-3D/waterfall3D.png)
 
 ## 核心特性
 
 - **内置滑动窗口** — `pushTrace()` 追加最新轨迹并丢弃最旧轨迹；用户无需自己管理窗口或深度编号
-- **深度轴稳定** — 轨迹的深度坐标就是槽位索引，hull 的 z 范围单调增长到 `[0, traceCapacity()-1]` 后保持稳定：不会出现逐帧的深度轴自动缩放抖动
+- **深度轴稳定** — 轨迹的深度坐标就是槽位索引，hull 的 y 范围单调增长到 `[0, traceCapacity()-1]` 后保持稳定：不会出现逐帧的深度轴自动缩放抖动
 - **四种几何样式** — `Ribbon`（填充帘幕）、`RibbonMesh`（帘幕 + 描边）、`Wireframe`（仅描边）、`Tube`（带光照的实体管）
 - **三种上色模式** — 按深度位置、按幅度（采样值）、纯色
 - **深度轴文字刻度** — 用 `Qwt3DTextScale` 把深度轴标成 "距当前帧数" / 时间戳
@@ -32,7 +34,7 @@
 | 模式 | 说明 |
 |------|------|
 | `Qwt3DWaterfall::ByDepth` | colormap 按轨迹在窗口中的位置取色（默认）。每条帘幕为单色。 |
-| `Qwt3DWaterfall::ByAmplitude` | colormap 按采样值取色 —— 常见的"频谱强度"外观。会自动把 `Qwt3DColorMapColor` functor 切到 y 坐标（`setSourceAxis(ColorFromY)`）。 |
+| `Qwt3DWaterfall::ByAmplitude` | colormap 按采样值取色 —— 常见的"频谱强度"外观。会自动把 `Qwt3DColorMapColor` functor 切到 z 坐标（`setSourceAxis(ColorFromZ)`）。 |
 | `Qwt3DWaterfall::Solid` | `setColor()` 指定的纯色。 |
 
 ### 滑动窗口语义
@@ -41,7 +43,7 @@
 
 - `pushTrace()` 把新轨迹写入最新槽位；窗口满时先丢弃最旧槽位（槽位搬移是廉价的移动语义，不做深拷贝）。
 - 第一条 `pushTrace()` 确定 `samplesPerTrace()`。之后的帧会被装进这个 bin 宽度（超长截断、过短零填充），窗口宽度（以及 hull 的 x 范围）不会抖动。
-- 轨迹的深度 z 就是槽位索引，因此 hull 的 z 范围只会从 `[0,0]` 单调增长到 `[0, traceCapacity()-1]` 后保持稳定 —— 这正是实时瀑布"零自定义代码即可用"的关键，轴自动缩放不会逐帧闪烁。
+- 轨迹的深度 y 就是槽位索引，因此 hull 的 y 范围只会从 `[0,0]` 单调增长到 `[0, traceCapacity()-1]` 后保持稳定 —— 这正是实时瀑布"零自定义代码即可用"的关键，轴自动缩放不会逐帧闪烁。
 - `setDepthOrder(NewestBehind)` 反转方向（最新轨迹在 `z == 0`），不改变 hull 范围。
 - `setTraceCapacity()` 缩小时保留最新的轨迹；扩大时保留现有数据并让窗口重新填满。
 - `clear()` 清空窗口，但保留容量、样式与颜色。
@@ -68,11 +70,11 @@ waterfall->setColorRange(0.0, 1.0);            // 固定色域，避免自动范
 for (int i = 0; i < 64; ++i)
     waterfall->pushTrace(frame(i));            // QVector<double>，256 bins
 
-plot->setAspectRatioMode(DATARATIO);
+plot->setAspectRatioMode(AUTOFILL);
 ```
 
 !!! note "强各向异性数据与视图缩放"
-    典型频谱瀑布的跨度是 bins `0..M-1`、幅度 `0..1`、深度 `0..capacity-1` —— 强各向异性。应使用 `AUTOFILL`：它在推导投影之前把每个轴归一化到最大数据范围，之后再用 `plot->setScale()` 塑造归一化立方体（示例用 `(1.0, 0.6, 0.35)`：满宽、60% 幅度高度、压缩深度）。在 `DATARATIO` 下真实比例会让帘幕成为 255 单位宽场景里 1 单位高的细条，而且逐轴 `setScale()` 救不回来——投影半径是按未缩放的 hull 推导的。
+    典型频谱瀑布的跨度是 bins `0..M-1`、幅度 `0..1`、深度 `0..capacity-1` —— 强各向异性。应使用 `AUTOFILL`：它在推导投影之前把每个轴归一化到最大数据范围，之后再用 `plot->setScale()` 塑造归一化立方体（示例用 `(1.0, 0.35, 0.6)`：满 bin 宽、压缩深度、60% 幅度高度）。在 `DATARATIO` 下真实比例会让帘幕成为 255 单位宽场景里 1 单位高的细条，而且逐轴 `setScale()` 救不回来——投影半径是按未缩放的 hull 推导的。
 
 ### 2. 实时瀑布（30 Hz）
 
@@ -89,7 +91,7 @@ waterfall->pushTrace(frame);          // 触发 itemChanged() -> update()
 
 实时瀑布务必调用 `setColorRange()`：`ByAmplitude` 的自动范围跟随当前数据最小/最大值，颜色会逐帧漂移。固定色域让"黄色 = 0 dB、紫色 = 底噪"保持稳定。
 
-示例还会塑造归一化视图（`AUTOFILL` 加 `setScale(1.0, 0.6, 0.35)`，压缩深度轴），并在显示前预填满窗口，瀑布从满窗开始而不是从一条曲线慢慢爬升。
+示例还会塑造归一化视图（`AUTOFILL` 加 `setScale(1.0, 0.35, 0.6)`，压缩深度轴），并在显示前预填满窗口，瀑布从满窗开始而不是从一条曲线慢慢爬升。
 
 ### 3. 深度轴文字（"距当前帧数"）
 
@@ -107,7 +109,7 @@ for (int k = 0; k <= majors; ++k) {
     labels << QString::number(-framesAgo);   // "-63", "-48", "-32", "-16", "0"
 }
 
-auto& axis = plot->coordinates()->axes[Z1];
+auto& axis = plot->coordinates()->axes[Y1];   // 深度沿 y 轴
 axis.setAutoScale(false);
 axis.setMajors(majors);
 auto* scale = new Qwt3DTextScale();
@@ -133,7 +135,7 @@ waterfall->setColorMode(Qwt3DWaterfall::Solid);
 waterfall->setColor(RGBA(0.4, 0.6, 0.9, 1.0));
 ```
 
-`setColorMode(ByAmplitude)` 会通过新增的 `setSourceAxis(ColorFromY)` 把 `Qwt3DColorMapColor` functor 切到 y 坐标；`ByDepth` 切回 z。默认 source 是 `ColorFromZ`，因此既有的 surface/bar/line 渲染不受影响。若使用其它类型的 functor，则由其所有者决定如何解释 `(x, y, z)` 参数。
+`setColorMode(ByAmplitude)` 会通过 `setSourceAxis(ColorFromZ)` 把 `Qwt3DColorMapColor` functor 切到 z 坐标（幅度轴）；`ByDepth` 切到 y（深度轴）。functor 默认 source 是 `ColorFromZ`，因此既有的 surface/bar/line 渲染不受影响。若使用其它类型的 functor，则由其所有者决定如何解释 `(x, y, z)` 参数。
 
 颜色在 VBO 构建时烘焙；就地修改 functor 后需调用 `invalidateColors()`（或任意 setter）触发重建。
 

@@ -125,10 +125,11 @@ QWidget* MainWindow::createBottomPlot()
     m_plot3d->enableMouse(true);
     m_plot3d->enableKeyboard(true);
 
+    // Axis convention: x = bin, y = depth (trace index), z = amplitude
     auto* coords = m_plot3d->coordinates();
     coords->axes[ X1 ].setLabelString("Bin");
-    coords->axes[ Y1 ].setLabelString("Amplitude");
-    coords->axes[ Z1 ].setLabelString("Frames ago");
+    coords->axes[ Y1 ].setLabelString("Frames ago");
+    coords->axes[ Z1 ].setLabelString("Amplitude");
     for (unsigned i = 0; i < coords->axes.size(); ++i) {
         coords->axes[ i ].setMajors(5);
         coords->axes[ i ].setMinors(2);
@@ -163,7 +164,7 @@ void MainWindow::rebuildDepthAxisLabels()
     }
 
     auto* coords = m_plot3d->coordinates();
-    for (int axis : { Z1, Z2, Z3, Z4 }) {
+    for (int axis : { Y1, Y2, Y3, Y4 }) {
         auto& a = coords->axes[ static_cast< size_t >(axis) ];
         a.setAutoScale(false);
         a.setMajors(majors);
@@ -354,10 +355,11 @@ void MainWindow::onResetView()
     // waterfall data (bins 0..255, amplitude 0..1, depth 0..capacity-1)
     // needs; under DATARATIO the per-axis setScale() below would shrink the
     // geometry away from a projection sized for the raw ranges. The scales
-    // then shape the normalized cube: full width, 60% amplitude height and a
-    // depth compressed to about a third - the classic waterfall proportions.
+    // then shape the normalized cube: full bin width, a depth compressed to
+    // about a third and 60% amplitude height - the classic waterfall
+    // proportions (x = bin, y = depth, z = amplitude).
     m_plot3d->setRotation(55.0, 0.0, 25.0);
-    m_plot3d->setScale(1.0, 0.6, 0.35);
+    m_plot3d->setScale(1.0, 0.35, 0.6);
     m_plot3d->setZoom(1.1);
     m_plot3d->setViewportShift(0.0, 0.0);
     m_plot3d->setAspectRatioMode(AUTOFILL);

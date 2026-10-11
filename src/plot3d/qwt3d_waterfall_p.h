@@ -51,8 +51,9 @@ public:
     // Traces are stored at the front indices [0, m_count), ordered oldest to
     // newest. When the window is full a push rotates all slots down by one
     // (O(capacity) cheap QVector moves, no deep copy) and writes the new trace
-    // into the last slot. The depth z of a trace is its slot index (possibly
-    // mirrored by the depth order), so the hull z-range only grows.
+    // into the last slot. The depth y of a trace is its slot index (possibly
+    // mirrored by the depth order), so the hull y-range only grows; the
+    // amplitude lives on z (3D module convention: value axis up).
     std::vector< QVector<double> > m_traces;
     int m_capacity;
     int m_count;

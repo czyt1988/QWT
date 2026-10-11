@@ -4,12 +4,14 @@
 
 For an overview of the 3D module see [3D Plot Introduction](3d-plot.md). `Qwt3DWaterfall` is a `Qwt3DPlotItem` and follows the same attach/draw/hull contract as `Qwt3DSurface` and `Qwt3DLine`.
 
+The axes follow the module convention that the value axis is z (as in `Qwt3DSurface`): **x = bin value, y = trace position in the window (depth), z = amplitude** (up). Label them accordingly (`X1` "Bin", `Y1` "Frames ago", `Z1` "Amplitude"); the depth axis is the one to put a `Qwt3DTextScale` on.
+
 ![waterfall3D example](../assets/screenshots-3D/waterfall3D.png)
 
 ## Key Features
 
 - **Built-in sliding window** — `pushTrace()` appends the newest trace and drops the oldest; no user-side window or depth bookkeeping
-- **Stable depth axis** — the depth coordinate of a trace is its slot index, so the hull z-range grows monotonically to `[0, traceCapacity()-1]` and then stays pinned: no per-frame depth autoscale jitter
+- **Stable depth axis** — the depth coordinate of a trace is its slot index, so the hull y-range grows monotonically to `[0, traceCapacity()-1]` and then stays pinned: no per-frame depth autoscale jitter
 - **Four geometry styles** — `Ribbon` (filled curtain), `RibbonMesh` (curtain + outline), `Wireframe` (outline only), `Tube` (lit solid strokes)
 - **Three color modes** — by depth position, by amplitude (sample value), or solid
 - **Text scale for the depth axis** — label the depth axis with "frames ago" / timestamps via `Qwt3DTextScale`
@@ -32,7 +34,7 @@ For an overview of the 3D module see [3D Plot Introduction](3d-plot.md). `Qwt3DW
 | Mode | Description |
 |------|-------------|
 | `Qwt3DWaterfall::ByDepth` | Colormap over the trace position in the window (default). Each curtain gets a flat color from the colormap. |
-| `Qwt3DWaterfall::ByAmplitude` | Colormap over the sample value — the usual "spectrum intensity" look. Retargets a `Qwt3DColorMapColor` functor to the y coordinate (`setSourceAxis(ColorFromY)`) automatically. |
+| `Qwt3DWaterfall::ByAmplitude` | Colormap over the sample value — the usual "spectrum intensity" look. Retargets a `Qwt3DColorMapColor` functor to the z coordinate (`setSourceAxis(ColorFromZ)`) automatically. |
 | `Qwt3DWaterfall::Solid` | Single color from `setColor()`. |
 
 ### Sliding Window Semantics
@@ -41,7 +43,7 @@ The window is a fixed set of `traceCapacity()` slots ordered oldest to newest:
 
 - `pushTrace()` writes the new trace into the newest slot; when the window is full the oldest slot is dropped first (cheap slot moves, no deep copies).
 - The first `pushTrace()` fixes `samplesPerTrace()`. Later frames are fitted into that bin count (longer ones truncated, shorter ones zero-padded), so the window width — and the hull x-range — never jitters.
-- Because the depth z of a trace is its slot index, the hull z-range only ever grows from `[0,0]` to `[0, traceCapacity()-1]` and then stays stable. This is what makes a live waterfall "just work" without axis-autoscale flicker.
+- Because the depth y of a trace is its slot index, the hull y-range only ever grows from `[0,0]` to `[0, traceCapacity()-1]` and then stays stable. This is what makes a live waterfall "just work" without axis-autoscale flicker.
 - `setDepthOrder(NewestBehind)` mirrors the direction (newest trace at `z == 0`) without changing the hull extent.
 - `setTraceCapacity()` shrink keeps the newest traces; grow keeps everything and lets the window fill up again.
 - `clear()` empties the window but keeps capacity, style and colors.
@@ -68,11 +70,11 @@ waterfall->setColorRange(0.0, 1.0);            // fix the range, no autoscale ji
 for (int i = 0; i < 64; ++i)
     waterfall->pushTrace(frame(i));            // QVector<double>, 256 bins
 
-plot->setAspectRatioMode(DATARATIO);
+plot->setAspectRatioMode(AUTOFILL);
 ```
 
 !!! note "Anisotropic data and view scaling"
-    A typical spectrum waterfall spans bins `0..M-1`, amplitude `0..1` and depth `0..capacity-1` — strongly anisotropic. Use `AUTOFILL`, which normalizes every axis to the largest data range *before* the projection is derived, and then shape the normalized cube with `plot->setScale()` (the example uses `(1.0, 0.6, 0.35)`: full width, 60% amplitude height, compressed depth). Under `DATARATIO` the raw proportions leave the curtains a 1-unit sliver inside a 255-unit scene, and per-axis `setScale()` cannot rescue it because the projection radius is derived from the unscaled hull.
+    A typical spectrum waterfall spans bins `0..M-1`, amplitude `0..1` and depth `0..capacity-1` — strongly anisotropic. Use `AUTOFILL`, which normalizes every axis to the largest data range *before* the projection is derived, and then shape the normalized cube with `plot->setScale()` (the example uses `(1.0, 0.35, 0.6)`: full bin width, compressed depth, 60% amplitude height). Under `DATARATIO` the raw proportions leave the curtains a 1-unit sliver inside a 255-unit scene, and per-axis `setScale()` cannot rescue it because the projection radius is derived from the unscaled hull.
 
 ### 2. Live Waterfall (30 Hz)
 
@@ -89,7 +91,7 @@ waterfall->pushTrace(frame);          // triggers itemChanged() -> update()
 
 `setColorRange()` is essential for a live waterfall: the automatic `ByAmplitude` range follows the current data minimum/maximum and would make the colors crawl frame by frame. A fixed range keeps e.g. "yellow = 0 dB, purple = noise floor" stable.
 
-The example additionally shapes the normalized view (`AUTOFILL` plus `setScale(1.0, 0.6, 0.35)`, compressing the depth axis) and pre-fills the window before showing, so the waterfall starts full instead of crawling up from a single trace.
+The example additionally shapes the normalized view (`AUTOFILL` plus `setScale(1.0, 0.35, 0.6)`, compressing the depth axis) and pre-fills the window before showing, so the waterfall starts full instead of crawling up from a single trace.
 
 ### 3. Depth Axis Text ("frames ago")
 
@@ -107,7 +109,7 @@ for (int k = 0; k <= majors; ++k) {
     labels << QString::number(-framesAgo);   // "-63", "-48", "-32", "-16", "0"
 }
 
-auto& axis = plot->coordinates()->axes[Z1];
+auto& axis = plot->coordinates()->axes[Y1];   // depth runs along y
 axis.setAutoScale(false);
 axis.setMajors(majors);
 auto* scale = new Qwt3DTextScale();
@@ -133,7 +135,7 @@ waterfall->setColorMode(Qwt3DWaterfall::Solid);
 waterfall->setColor(RGBA(0.4, 0.6, 0.9, 1.0));
 ```
 
-`setColorMode(ByAmplitude)` retargets a `Qwt3DColorMapColor` functor to the y coordinate via the new `setSourceAxis(ColorFromY)`; `ByDepth` retargets it back to z. The default source is `ColorFromZ`, so existing surface/bar/line rendering is unchanged. With a functor of a different type the owner decides how to interpret the `(x, y, z)` argument.
+`setColorMode(ByAmplitude)` retargets a `Qwt3DColorMapColor` functor to the z coordinate (the amplitude axis) via `setSourceAxis(ColorFromZ)`; `ByDepth` retargets it to y (the depth axis). The functor default is `ColorFromZ`, so existing surface/bar/line rendering is unchanged. With a functor of a different type the owner decides how to interpret the `(x, y, z)` argument.
 
 Colors are baked into the VBO at build time; after mutating the functor in place, call `invalidateColors()` (or any setter) to rebuild.
 

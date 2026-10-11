@@ -15,11 +15,14 @@
  *          and the item maintains the sliding window, the depth numbering, the
  *          ribbon geometry and the color mapping.
  *
- * The depth coordinate of a trace is its slot index inside the window, so the
- * hull z-range grows monotonically from [0,0] to [0, traceCapacity()-1] and
- * then stays stable - no per-frame depth autoscale jitter, no user-side depth
- * bookkeeping. The amplitude (y) range still follows the data; fix it with
- * setColorRange() for stable amplitude colors in a live waterfall.
+ * The axes follow the 3D module convention (the value axis is z, as in
+ * Qwt3DSurface): x = bin value, y = trace position in the window (depth),
+ * z = amplitude. The depth coordinate of a trace is its slot index inside
+ * the window, so the hull y-range grows monotonically from [0,0] to
+ * [0, traceCapacity()-1] and then stays stable - no per-frame depth
+ * autoscale jitter, no user-side depth bookkeeping. The amplitude (z) range
+ * still follows the data; fix it with setColorRange() for stable amplitude
+ * colors in a live waterfall.
  *
  * @code
  * auto* waterfall = new Qwt3DWaterfall();
@@ -60,8 +63,8 @@ public:
     /// Depth direction of the sliding window
     enum DepthOrder
     {
-        NewestInFront,  ///< The newest trace sits at the largest z (default)
-        NewestBehind    ///< The newest trace sits at z == 0
+        NewestInFront,  ///< The newest trace sits at the largest y (default)
+        NewestBehind    ///< The newest trace sits at y == 0
     };
 
     Qwt3DWaterfall();
@@ -126,7 +129,8 @@ public:
     /// Returns true when a fixed color range is active
     bool hasFixedColorRange() const;
 
-    /// Returns the ribbon baseline (defaults to the current amplitude minimum)
+    /// Returns the ribbon baseline on the amplitude (z) axis (defaults to
+    /// the current amplitude minimum)
     double baseline() const;
     /// Sets the ribbon baseline
     void setBaseline(double value);
