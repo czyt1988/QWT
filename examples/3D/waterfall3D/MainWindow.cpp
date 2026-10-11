@@ -120,6 +120,8 @@ QWidget* MainWindow::createBottomPlot()
     m_waterfall->setTraceCapacity(DEFAULT_CAPACITY);
 
     m_plot3d->showColorLegend(true);
+    // Label the legend with the amplitude window instead of color indices
+    m_plot3d->legend()->setLimits(0.0, 1.0);
     m_plot3d->enableMouse(true);
     m_plot3d->enableKeyboard(true);
 
@@ -347,17 +349,18 @@ void MainWindow::onResetView()
     // the per-axis scales normalize x to the depth span and exaggerate the
     // amplitude axis - the classic waterfall look. The z (depth) axis is
     // compressed to about a third of the x span.
-    const int capacity = m_waterfall->traceCapacity();
-    const double zSpan = qMax(1.0, double(capacity - 1));
-    const double xSpan = qMax(1.0, double(qMax(1, m_generator->binCount() - 1)));
-    const double ySpan = qMax(1e-6, m_waterfall->hull().maxVertex.y
-        - m_waterfall->hull().minVertex.y);
-
+    // AUTOFILL normalizes every axis to the largest data range BEFORE the
+    // projection radius is derived, which is what strongly anisotropic
+    // waterfall data (bins 0..255, amplitude 0..1, depth 0..capacity-1)
+    // needs; under DATARATIO the per-axis setScale() below would shrink the
+    // geometry away from a projection sized for the raw ranges. The scales
+    // then shape the normalized cube: full width, 60% amplitude height and a
+    // depth compressed to about a third - the classic waterfall proportions.
     m_plot3d->setRotation(55.0, 0.0, 25.0);
-    m_plot3d->setScale(zSpan / xSpan, 0.5 * zSpan / ySpan, 0.35);
-    m_plot3d->setZoom(0.75);
+    m_plot3d->setScale(1.0, 0.6, 0.35);
+    m_plot3d->setZoom(1.1);
     m_plot3d->setViewportShift(0.0, 0.0);
-    m_plot3d->setAspectRatioMode(DATARATIO);
+    m_plot3d->setAspectRatioMode(AUTOFILL);
 }
 
 void MainWindow::runSelfTest(const QString& screenshotDir)

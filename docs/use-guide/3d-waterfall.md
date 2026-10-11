@@ -72,7 +72,7 @@ plot->setAspectRatioMode(DATARATIO);
 ```
 
 !!! note "Anisotropic data and view scaling"
-    A typical spectrum waterfall spans bins `0..M-1`, amplitude `0..1` and depth `0..capacity-1` — strongly anisotropic. Under `DATARATIO` (true proportions) the curtains would be a 1-unit sliver inside a 255-unit scene. Use `plot->setScale()` to normalize x to the depth span and exaggerate the amplitude axis; the example's *Reset view* action derives these scales from the actual hull.
+    A typical spectrum waterfall spans bins `0..M-1`, amplitude `0..1` and depth `0..capacity-1` — strongly anisotropic. Use `AUTOFILL`, which normalizes every axis to the largest data range *before* the projection is derived, and then shape the normalized cube with `plot->setScale()` (the example uses `(1.0, 0.6, 0.35)`: full width, 60% amplitude height, compressed depth). Under `DATARATIO` the raw proportions leave the curtains a 1-unit sliver inside a 255-unit scene, and per-axis `setScale()` cannot rescue it because the projection radius is derived from the unscaled hull.
 
 ### 2. Live Waterfall (30 Hz)
 
@@ -89,7 +89,7 @@ waterfall->pushTrace(frame);          // triggers itemChanged() -> update()
 
 `setColorRange()` is essential for a live waterfall: the automatic `ByAmplitude` range follows the current data minimum/maximum and would make the colors crawl frame by frame. A fixed range keeps e.g. "yellow = 0 dB, purple = noise floor" stable.
 
-The example additionally compresses the depth axis (`setScale(zSpan/xSpan, ..., 0.35)`) and pre-fills the window before showing, so the waterfall starts full instead of crawling up from a single trace.
+The example additionally shapes the normalized view (`AUTOFILL` plus `setScale(1.0, 0.6, 0.35)`, compressing the depth axis) and pre-fills the window before showing, so the waterfall starts full instead of crawling up from a single trace.
 
 ### 3. Depth Axis Text ("frames ago")
 
