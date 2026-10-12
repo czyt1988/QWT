@@ -11,6 +11,7 @@
 #include <QToolButton>
 #include <QComboBox>
 #include <QLabel>
+#include "../../common/qwt_example_screenshot.h"
 
 namespace
 {
@@ -51,6 +52,18 @@ namespace
 
             connect( modeBox, SIGNAL(activated(int)), plot, SLOT(setResampleMode(int)) );
             connect( btnExport, SIGNAL(clicked()), plot, SLOT(exportPlot()) );
+
+            // Visual variants for unattended screenshot generation. The combo
+            // is connected to activated() only, so apply the mode directly.
+            QwtExampleScreenshot::addVariant( "nearest", [modeBox, plot]() {
+                modeBox->setCurrentIndex( 0 ); plot->setResampleMode( 0 );
+            } );
+            QwtExampleScreenshot::addVariant( "bilinear", [modeBox, plot]() {
+                modeBox->setCurrentIndex( 1 ); plot->setResampleMode( 1 );
+            } );
+            QwtExampleScreenshot::addVariant( "bicubic", [modeBox, plot]() {
+                modeBox->setCurrentIndex( 2 ); plot->setResampleMode( 2 );
+            } );
         }
     };
 }
@@ -62,6 +75,8 @@ int main( int argc, char* argv[] )
     MainWindow window;
     window.resize( 600, 400 );
     window.show();
+
+    QwtExampleScreenshot::start( &window );
 
     return app.exec();
 }

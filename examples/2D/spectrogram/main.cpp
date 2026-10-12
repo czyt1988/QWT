@@ -17,6 +17,7 @@
 #include <QVariant>
 
 #include <QwtColorMapPreset>
+#include "../../common/qwt_example_screenshot.h"
 
 namespace
 {
@@ -118,6 +119,9 @@ MainWindow::MainWindow( QWidget* parent )
     connect( plot, SIGNAL(rendered(const QString&)),
         statusBar(), SLOT(showMessage(const QString&)),
         Qt::QueuedConnection );
+
+    // Visual variant for unattended screenshot generation
+    QwtExampleScreenshot::addVariant( "contour", [btnContour]() { btnContour->setChecked( true ); } );
 }
 
 int main( int argc, char* argv[] )
@@ -128,6 +132,8 @@ int main( int argc, char* argv[] )
     MainWindow window;
     window.resize( 600, 400 );
     window.show();
+
+    QwtExampleScreenshot::start( &window );
 
     return app.exec();
 }

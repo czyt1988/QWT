@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include <QApplication>
 #include <QDir>
+#include "../../common/qwt_example_screenshot.h"
 
 int main(int argc, char* argv[])
 {
@@ -19,5 +20,7 @@ int main(int argc, char* argv[])
     }
 
     win.show();
+
+    QwtExampleScreenshot::start( &win );
     return app.exec();
 }

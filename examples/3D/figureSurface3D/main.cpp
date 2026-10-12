@@ -1,6 +1,7 @@
 #include <QApplication>
 
 #include "MainWindow.h"
+#include "../../common/qwt_example_screenshot.h"
 
 int main(int argc, char* argv[])
 {
@@ -8,6 +9,8 @@ int main(int argc, char* argv[])
 
     MainWindow w;
     w.show();
+
+    QwtExampleScreenshot::start( &w );
 
     return app.exec();
 }

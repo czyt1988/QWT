@@ -11,6 +11,7 @@
 #include <QToolButton>
 #include <QComboBox>
 #include <QTabWidget>
+#include "../../common/qwt_example_screenshot.h"
 
 namespace
 {
@@ -108,6 +109,8 @@ int main( int argc, char* argv[] )
 
     tabWidget.resize( 800, 600 );
     tabWidget.show();
+
+    QwtExampleScreenshot::start( &tabWidget );
 
     return app.exec();
 }

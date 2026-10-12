@@ -5,6 +5,7 @@
 
 #include <QApplication>
 #include "MainWindow.h"
+#include "../../common/qwt_example_screenshot.h"
 
 // 创建示例应用程序
 int main(int argc, char* argv[])
@@ -17,6 +18,8 @@ int main(int argc, char* argv[])
     w.resize(1200, 800);
 
     w.show();
+
+    QwtExampleScreenshot::start( &w );
 
     return app.exec();
 }

@@ -10,6 +10,7 @@
 #include <QComboBox>
 #include <QToolBar>
 #include <QToolButton>
+#include "../../common/qwt_example_screenshot.h"
 
 namespace
 {
@@ -42,6 +43,10 @@ namespace
 
             connect( typeBox, SIGNAL(currentIndexChanged(int)),
                 plot, SLOT(setMode(int)) );
+
+            // Visual variants for unattended screenshot generation
+            QwtExampleScreenshot::addVariant( "bar", [typeBox]() { typeBox->setCurrentIndex( 0 ); } );
+            QwtExampleScreenshot::addVariant( "tube", [typeBox]() { typeBox->setCurrentIndex( 1 ); } );
         }
     };
 }
@@ -54,6 +59,8 @@ int main( int argc, char* argv[] )
     window.setObjectName( "MainWindow" );
     window.resize( 600, 400 );
     window.show();
+
+    QwtExampleScreenshot::start( &window );
 
     return app.exec();
 }

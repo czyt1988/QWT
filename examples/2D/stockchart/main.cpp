@@ -10,6 +10,7 @@
 #include <QComboBox>
 #include <QToolBar>
 #include <QToolButton>
+#include "../../common/qwt_example_screenshot.h"
 
 namespace
 {
@@ -52,6 +53,8 @@ int main( int argc, char* argv[] )
     MainWindow window;
     window.resize( 600, 400 );
     window.show();
+
+    QwtExampleScreenshot::start( &window );
 
     return app.exec();
 }

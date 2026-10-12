@@ -17,6 +17,7 @@
 #include <cmath>
 #include <QVector>
 #include <QPointF>
+#include "../../common/qwt_example_screenshot.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -335,6 +336,8 @@ int main(int argc, char* argv[])
     tabWidget.addTab(createAnnotationDemo(), "Annotations");
     
     tabWidget.show();
+
+    QwtExampleScreenshot::start( &tabWidget );
     
     return app.exec();
 }

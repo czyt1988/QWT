@@ -15,6 +15,7 @@
 #include <QPainter>
 #include <QApplication>
 #include <QFrame>
+#include "../../common/qwt_example_screenshot.h"
 
 const int Size    = 27;
 const int CurvCnt = 6;
@@ -166,6 +167,8 @@ int main(int argc, char* argv[])
 
     curveBox.resize(300, 600);
     curveBox.show();
+
+    QwtExampleScreenshot::start( &curveBox );
 
     return app.exec();
 }

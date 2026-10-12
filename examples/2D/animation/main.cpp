@@ -9,6 +9,7 @@
 
 #include "Plot.h"
 #include <QApplication>
+#include "../../common/qwt_example_screenshot.h"
 
 #ifndef QWT_NO_OPENGL
     #if QT_VERSION < 0x050000
@@ -51,6 +52,8 @@ int main( int argc, char* argv[] )
     AminatedPlot plot;
     plot.resize( 400, 400 );
     plot.show();
+
+    QwtExampleScreenshot::start( &plot );
 
     return app.exec();
 }

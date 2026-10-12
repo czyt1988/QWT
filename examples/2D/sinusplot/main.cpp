@@ -21,6 +21,7 @@
 #include <QLayout>
 #include "qwt_legend.h"
 #include "qwt_plot_legenditem.h"
+#include "../../common/qwt_example_screenshot.h"
 //-----------------------------------------------------------------
 //      A simple example which shows how to use QwtPlot connected
 //      to a data class without any storage, calculating each values
@@ -300,6 +301,8 @@ int main(int argc, char* argv[])
 
     window.resize(600, 400);
     window.show();
+
+    QwtExampleScreenshot::start( &window );
 
     return app.exec();
 }

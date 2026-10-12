@@ -10,6 +10,7 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QComboBox>
+#include "../../common/qwt_example_screenshot.h"
 
 namespace
 {
@@ -55,6 +56,10 @@ MainWindow::MainWindow( QWidget* parent )
     chart->setOrientation( orientationBox->currentIndex() );
     connect( orientationBox, SIGNAL(currentIndexChanged(int)),
         chart, SLOT(setOrientation(int)) );
+
+    // Visual variants for unattended screenshot generation
+    QwtExampleScreenshot::addVariant( "grouped", [typeBox]() { typeBox->setCurrentIndex( 0 ); } );
+    QwtExampleScreenshot::addVariant( "stacked", [typeBox]() { typeBox->setCurrentIndex( 1 ); } );
 }
 
 int main( int argc, char* argv[] )
@@ -65,6 +70,8 @@ int main( int argc, char* argv[] )
 
     window.resize( 600, 400 );
     window.show();
+
+    QwtExampleScreenshot::start( &window );
 
     return app.exec();
 }

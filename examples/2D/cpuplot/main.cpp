@@ -8,6 +8,7 @@
 #include <QApplication>
 #include <QLayout>
 #include <QLabel>
+#include "../../common/qwt_example_screenshot.h"
 
 int main( int argc, char** argv )
 {
@@ -32,6 +33,8 @@ int main( int argc, char** argv )
 
     vBox.resize( 600, 400 );
     vBox.show();
+
+    QwtExampleScreenshot::start( &vBox );
 
     return app.exec();
 }

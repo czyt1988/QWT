@@ -22,6 +22,7 @@
 #include <QPushButton>
 #include <QDebug>
 #include <cmath>
+#include "../common/qwt_example_screenshot.h"
 
 using namespace Qt;
 
@@ -998,6 +999,8 @@ int main(int argc, char* argv[])
         "right-click drag to pan on Plots 3/5, scroll to zoom on Plot 7",
         8000);
     mainWindow.show();
+
+    QwtExampleScreenshot::start( &mainWindow );
 
     return app.exec();
 }

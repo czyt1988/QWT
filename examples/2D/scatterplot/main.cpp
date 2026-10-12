@@ -7,6 +7,7 @@
 
 #include <QwtMath>
 #include <QApplication>
+#include "../../common/qwt_example_screenshot.h"
 
 static inline double randomValue()
 {
@@ -48,6 +49,8 @@ int main( int argc, char* argv[] )
     ScatterPlot plot;
     plot.resize( 800, 600 );
     plot.show();
+
+    QwtExampleScreenshot::start( &plot );
 
     return app.exec();
 }

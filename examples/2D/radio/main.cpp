@@ -32,6 +32,7 @@
 #include <QwtGlobal>
 #include <QWidget>
 #include <QLayout>
+#include "../../common/qwt_example_screenshot.h"
 
 namespace
 {
@@ -85,6 +86,8 @@ int main(int argc, char* argv[])
 
     MainWindow window;
     window.show();
+
+    QwtExampleScreenshot::start( &window );
 
     return app.exec();
 }

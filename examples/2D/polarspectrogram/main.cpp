@@ -14,6 +14,7 @@
 #include <QLabel>
 
 #include <QwtColorMapPreset>
+#include "../../common/qwt_example_screenshot.h"
 
 namespace
 {
@@ -85,6 +86,8 @@ int main( int argc, char* argv[] )
     MainWindow window;
     window.resize( 700, 600 );
     window.show();
+
+    QwtExampleScreenshot::start( &window );
 
     return app.exec();
 }

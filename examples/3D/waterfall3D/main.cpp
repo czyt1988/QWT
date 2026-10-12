@@ -3,6 +3,7 @@
 #include <QTimer>
 
 #include "MainWindow.h"
+#include "../../common/qwt_example_screenshot.h"
 
 int main(int argc, char* argv[])
 {
@@ -18,17 +19,14 @@ int main(int argc, char* argv[])
     MainWindow w;
     w.show();
 
-    // Unattended screenshot mode for documentation builds:
-    //   waterfall3D --screenshot file.png [--screenshot-delay ms]
+    QwtExampleScreenshot::start( &w );
+
+    // Unattended modes for documentation builds:
+    //   waterfall3D --screenshot file.png [--screenshot-delay ms] [--size WxH]
     //   waterfall3D --selftest [dir]
-    //   waterfall3D --size WxH   (window size, e.g. 1200x800)
+    // The screenshot protocol is shared with the other examples, see
+    // examples/common/qwt_example_screenshot.h.
     const QStringList args = app.arguments();
-    const int sizeIdx = args.indexOf("--size");
-    if (sizeIdx >= 0 && sizeIdx + 1 < args.size()) {
-        const QStringList wh = args.at(sizeIdx + 1).split('x');
-        if (wh.size() == 2)
-            w.resize(wh.at(0).toInt(), wh.at(1).toInt());
-    }
     const int selftestIdx = args.indexOf("--selftest");
     if (selftestIdx >= 0) {
         const QString dir = (selftestIdx + 1 < args.size())
@@ -49,18 +47,6 @@ int main(int argc, char* argv[])
     if (fpsIdx >= 0) {
         QTimer::singleShot(12000, &w, [&w]() {
             qInfo("FPS: %s", w.statusLine().toLatin1().constData());
-            QApplication::quit();
-        });
-    }
-    const int shotIdx = args.indexOf("--screenshot");
-    if (shotIdx >= 0) {
-        const QString file = (shotIdx + 1 < args.size())
-            ? args.at(shotIdx + 1) : QStringLiteral("waterfall3D.png");
-        const int delayIdx = args.indexOf("--screenshot-delay");
-        const int delay = (delayIdx >= 0 && delayIdx + 1 < args.size())
-            ? args.at(delayIdx + 1).toInt() : 6000;
-        QTimer::singleShot(delay, &w, [&w, file]() {
-            w.grab().save(file);
             QApplication::quit();
         });
     }

@@ -10,6 +10,7 @@
 #include <QwtLegend>
 
 #include <QApplication>
+#include "../../common/qwt_example_screenshot.h"
 
 int main( int argc, char* argv[] )
 {
@@ -43,6 +44,8 @@ int main( int argc, char* argv[] )
 
     plot.resize( 600, 400 );
     plot.show();
+
+    QwtExampleScreenshot::start( &plot );
 
     return app.exec();
 }

@@ -16,6 +16,7 @@
 #include <QLabel>
 #include <QGroupBox>
 #include <QLayout>
+#include "../../common/qwt_example_screenshot.h"
 
 namespace
 {
@@ -163,6 +164,8 @@ int main( int argc, char* argv[] )
     SystemBox box;
     box.resize( box.sizeHint().expandedTo( QSize( 600, 400 ) ) );
     box.show();
+
+    QwtExampleScreenshot::start( &box );
 
     return app.exec();
 }

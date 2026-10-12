@@ -7,6 +7,7 @@
 #include "SamplingThread.h"
 
 #include <QApplication>
+#include "../../common/qwt_example_screenshot.h"
 
 int main( int argc, char* argv[] )
 {
@@ -31,6 +32,8 @@ int main( int argc, char* argv[] )
         &samplingThread, SLOT(setInterval(double)) );
 
     window.show();
+
+    QwtExampleScreenshot::start( &window );
 
     samplingThread.start();
     window.start();

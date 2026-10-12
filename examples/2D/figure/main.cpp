@@ -1,5 +1,6 @@
 ﻿#include <QApplication>
 #include "MainWindow.h"
+#include "../../common/qwt_example_screenshot.h"
 
 /**
  * @brief 创建一个寄生轴
@@ -17,5 +18,7 @@ int main(int argc, char* argv[])
     mainWindow.setWindowTitle("QwtFigure Layout Example with Log Scales");
     mainWindow.resize(1200, 800);
     mainWindow.show();
+
+    QwtExampleScreenshot::start( &mainWindow );
     return app.exec();
 }

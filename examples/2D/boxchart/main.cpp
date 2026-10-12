@@ -11,6 +11,7 @@
 #include <QToolButton>
 #include <QComboBox>
 #include <QLabel>
+#include "../../common/qwt_example_screenshot.h"
 
 namespace
 {
@@ -77,6 +78,8 @@ int main( int argc, char* argv[] )
 
     window.resize( 700, 500 );
     window.show();
+
+    QwtExampleScreenshot::start( &window );
 
     return app.exec();
 }

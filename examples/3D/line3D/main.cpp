@@ -22,6 +22,7 @@
 #include "qwt3d_plot.h"
 #include "qwt3d_theme.h"
 #include "qwt3d_types.h"
+#include "../../common/qwt_example_screenshot.h"
 
 class LineWindow : public QMainWindow
 {
@@ -166,5 +167,7 @@ int main(int argc, char* argv[])
     QApplication app(argc, argv);
     LineWindow w;
     w.show();
+
+    QwtExampleScreenshot::start( &w );
     return app.exec();
 }

@@ -8,6 +8,7 @@
 
 #include <QApplication>
 #include <QTabWidget>
+#include "../../common/qwt_example_screenshot.h"
 
 int main( int argc, char* argv[] )
 {
@@ -17,7 +18,13 @@ int main( int argc, char* argv[] )
     tabWidget.addTab( new CompassGrid, "Compass" );
     tabWidget.addTab( new CockpitGrid, "Cockpit" );
 
+    // Visual variants for unattended screenshot generation
+    QwtExampleScreenshot::addVariant( "compass", [&tabWidget]() { tabWidget.setCurrentIndex( 0 ); } );
+    QwtExampleScreenshot::addVariant( "cockpit", [&tabWidget]() { tabWidget.setCurrentIndex( 1 ); } );
+
     tabWidget.show();
+
+    QwtExampleScreenshot::start( &tabWidget );
 
     return app.exec();
 }

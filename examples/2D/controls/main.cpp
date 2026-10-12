@@ -14,6 +14,7 @@
 
 #include <QApplication>
 #include <QTabWidget>
+#include "../../common/qwt_example_screenshot.h"
 
 namespace
 {
@@ -52,8 +53,16 @@ int main( int argc, char* argv[] )
 
     TabWidget tabWidget;
 
+    // Visual variants for unattended screenshot generation
+    QwtExampleScreenshot::addVariant( "sliders", [&tabWidget]() { tabWidget.setCurrentIndex( 0 ); } );
+    QwtExampleScreenshot::addVariant( "wheel-thermo", [&tabWidget]() { tabWidget.setCurrentIndex( 1 ); } );
+    QwtExampleScreenshot::addVariant( "knob", [&tabWidget]() { tabWidget.setCurrentIndex( 2 ); } );
+    QwtExampleScreenshot::addVariant( "dial", [&tabWidget]() { tabWidget.setCurrentIndex( 3 ); } );
+
     tabWidget.resize( 800, 600 );
     tabWidget.show();
+
+    QwtExampleScreenshot::start( &tabWidget );
 
     return app.exec();
 }
