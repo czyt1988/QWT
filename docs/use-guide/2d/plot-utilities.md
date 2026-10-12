@@ -527,6 +527,21 @@ The utility classes cover all plot item types in Qwt 7:
 >
 > See the examples under `examples/2D/` for practical usage of these utility classes in context.
 
+### Qt stylesheet (QSS) presets
+
+Besides the programmatic API, `QwtPlot` is an ordinary QWidget and accepts Qt stylesheets. The repository ships four ready-made QSS presets in `examples/2D/stylesheets/` (`blue.css`, `choco.css`, `oily.css`, `rosy.css`) that define borders, rounded corners and gradient backgrounds for the `QwtPlot` widget:
+
+```cpp
+QFile css("examples/2D/stylesheets/blue.css");
+css.open(QFile::ReadOnly);
+plot->setStyleSheet(QString::fromUtf8(css.readAll()));
+```
+
+> **Tip**
+>
+> QSS only affects the widget appearance (canvas border, background, ...); pens, brushes and symbols of plot items remain governed by `QwtPlotStyling` and each item's own properties.
+
+
 ## Higher-Level Wrapper: QwtPyPlot
 
 If you are familiar with matplotlib's interface style, you can use [QwtPyPlot](pyplot-api.md) for a more concise plotting experience. `QwtPyPlot` uses the utility classes described above internally, but provides a one-stop interface similar to `plt.plot()`:

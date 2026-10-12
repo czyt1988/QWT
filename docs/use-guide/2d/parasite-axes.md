@@ -267,4 +267,4 @@ QPointF screenPos = QwtScaleMap::transform(xMap, yMap, valuePoint);
 
 > **Example — Parasite Plot Example**
 >
-> Complete example code can be found in `examples/parasitePlot`
+> Complete example code can be found in `examples/2D/parasitePlot`

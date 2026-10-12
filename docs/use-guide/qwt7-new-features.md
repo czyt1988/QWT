@@ -190,7 +190,7 @@ Result after alignment:
 
 > **Example — Complete Example**
 >
-> For detailed usage, refer to [QwtFigure Plot Container Window](2d/figure-widget.md). Example code is located in `examples/figure`.
+> For detailed usage, refer to [QwtFigure Plot Container Window](2d/figure-widget.md). Example code is located in `examples/2D/figure`.
 
 ## Parasite Axes — Multi-Axis System
 
@@ -231,7 +231,7 @@ Multiple parasite plots can be created to overlay any number of axes:
 
 > **Example — Complete Example**
 >
-> For detailed usage, refer to the [Parasite Axes Guide](2d/parasite-axes.md). Example code is located in `examples/parasitePlot`.
+> For detailed usage, refer to the [Parasite Axes Guide](2d/parasite-axes.md). Example code is located in `examples/2D/parasitePlot`.
 
 ## Interaction Feature Overhaul
 

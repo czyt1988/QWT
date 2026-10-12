@@ -73,6 +73,11 @@ int margin = layout->canvasMargin(QwtAxis::XBottom);
 >
 > Canvas margins are primarily used to control the distance between axis tick labels and the canvas edge, preventing tick labels from being clipped.
 
+The arrow in the figure below marks the region governed by the canvas margin (legacy screenshot; the concept is unchanged):
+
+![Canvas margin: the whitespace between axes and canvas](../../assets/picture/about-setCanvasMargin.png)
+
+
 ### Setting Component Spacing
 
 Spacing controls the distance between the title, canvas, legend, and footer:
@@ -276,4 +281,4 @@ plot->setMinimumSize(minSize);
 > **Example — Related Examples**
 >
 > - Basic layout: All examples under `examples/2D/`
-> - Multi-plot layout: `examples/figure` (using QwtFigure)
+> - Multi-plot layout: `examples/2D/figure` (using QwtFigure)

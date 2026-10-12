@@ -83,6 +83,11 @@ Two mainstream strategies:
 
 Sections 3 and 4 develop these two ideas. Both share the same output budget of $4W$ points per canvas — the difference is the shape of the buckets and how representatives are chosen.
 
+The figure below zooms into one narrow peak and compares the four strategies against the full-data reference (top left):
+
+![Pixel-level comparison of the four downsampling strategies around a narrow peak: reference, uniform stride, classic LTTB, MinMax bucket](../assets/algorithms/fig_lttb_overview.png)
+
+
 ## 2. Fidelity metric: the column envelope
 
 The immediate consequence of pixelation: **horizontal detail inside one pixel column is invisible to the eye**. Fidelity should therefore be defined per pixel column.

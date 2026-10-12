@@ -72,6 +72,11 @@ int margin = layout->canvasMargin(QwtAxis::XBottom);
 >
 > 画布边距主要用于控制坐标轴刻度标签与画布边缘的距离，防止刻度标签被裁剪。
 
+下图中箭头所指即画布边距生效的区域（旧版界面截图，概念不变）：
+
+![画布边距示意：坐标轴与画布之间的空白区域](../../../assets/picture/about-setCanvasMargin.png)
+
+
 ### 设置组件间距
 
 间距控制标题、画布、图例、页脚之间的距离：
@@ -223,4 +228,4 @@ plot->setMinimumSize(minSize);
 > **示例 — 相关示例**
 >
 > - 基础布局：所有 `examples/2D/` 下的示例
-> - 多绘图布局：`examples/figure`（使用 QwtFigure）
+> - 多绘图布局：`examples/2D/figure`（使用 QwtFigure）

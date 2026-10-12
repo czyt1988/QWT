@@ -145,6 +145,24 @@ greaterThan(QT_MAJOR_VERSION, 5) {
 }
 ```
 
+## CMake 单文件构建：staticExample
+
+qmake 之外，仓库还提供 CMake 版本的单文件构建示例 `examples/staticExample/`：它把 `src-amalgamate/QwtPlot.h/.cpp` 直接加入 `add_executable()`，不依赖任何 qwt 库目标，验证"两个文件即可嵌入 Qwt"的承诺：
+
+```cmake
+add_executable(${QWT_APP_NAME}
+    main.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/../../src-amalgamate/QwtPlot.h
+    ${CMAKE_CURRENT_LIST_DIR}/../../src-amalgamate/QwtPlot.cpp
+)
+target_include_directories(${QWT_APP_NAME} PUBLIC "${CMAKE_CURRENT_LIST_DIR}/../../src-amalgamate")
+```
+
+在主工程中以 `-DQWT_CONFIG_BUILD_STATIC_EXAMPLE=ON`（默认 ON）构建即可生成该示例。运行效果：
+
+![staticExample：单文件构建的静态链接示例](../../assets/screenshots/staticExample.png)
+
+
 ## 常见问题
 
 | 问题 | 解决办法 |

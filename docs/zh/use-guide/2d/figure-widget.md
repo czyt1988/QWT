@@ -266,4 +266,4 @@ overlay->showPercentText(false);
 
 > **示例 — 寄生绘图示例**
 >
-> 完整的示例代码可参阅`examples/figure`
+> 完整的示例代码可参阅`examples/2D/figure`

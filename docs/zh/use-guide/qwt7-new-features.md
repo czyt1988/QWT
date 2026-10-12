@@ -190,7 +190,7 @@ figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
 
 > **示例 — 完整示例**
 >
-> 详细使用方法请参考 [QwtFigure绘图容器窗口](2d/figure-widget.md)，示例代码位于 `examples/figure`
+> 详细使用方法请参考 [QwtFigure绘图容器窗口](2d/figure-widget.md)，示例代码位于 `examples/2D/figure`
 
 ## 寄生绘图 — 多坐标轴系统
 
@@ -231,7 +231,7 @@ curve->attach(parasitePlot);
 
 > **示例 — 完整示例**
 >
-> 详细使用方法请参考 [寄生绘图使用指南](2d/parasite-axes.md)，示例代码位于 `examples/parasitePlot`
+> 详细使用方法请参考 [寄生绘图使用指南](2d/parasite-axes.md)，示例代码位于 `examples/2D/parasitePlot`
 
 ## 交互功能重构
 

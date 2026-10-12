@@ -266,4 +266,4 @@ This overlay provides users with an intuitive, interactive way to manage and adj
 
 > **Example — Parasite Plot Example**
 >
-> Complete example code can be found in `examples/figure`
+> Complete example code can be found in `examples/2D/figure`

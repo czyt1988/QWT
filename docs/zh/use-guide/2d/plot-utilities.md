@@ -530,6 +530,21 @@ void setupPlot(QwtPlot* plot)
 >
 > 工具类的使用方式可以结合现有的 `examples/2D/` 下的示例进行理解。
 
+### Qt 样式表（QSS）预设
+
+除程序化接口外，`QwtPlot` 作为普通 QWidget 也接受 Qt 样式表。仓库在 `examples/2D/stylesheets/` 提供四套现成的 QSS 预设（`blue.css`、`choco.css`、`oily.css`、`rosy.css`），为 `QwtPlot` 控件定义边框、圆角与渐变背景：
+
+```cpp
+QFile css("examples/2D/stylesheets/blue.css");
+css.open(QFile::ReadOnly);
+plot->setStyleSheet(QString::fromUtf8(css.readAll()));
+```
+
+> **提示**
+>
+> QSS 只作用于控件外观（画布边框、背景等）；绘图项的画笔、画刷与符号仍以 `QwtPlotStyling` 和各 item 自身属性为准。
+
+
 ## 高层封装：QwtPyPlot
 
 如果你熟悉 matplotlib 的接口风格，可以使用 [QwtPyPlot](pyplot-api.md) 获得更简洁的绘图体验。`QwtPyPlot` 在内部使用上述工具类，但提供了类似 `plt.plot()` 的一站式接口：
