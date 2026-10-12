@@ -7,7 +7,7 @@
 **特性**
 
 - ✅ **自动图例项生成**：根据绘图项自动生成图例条目
-- ✅ **交互式图例**：支持点击图例项隐藏/显示对应绘图项
+- ✅ **交互式图例**：支持点击图例项隐藏/显示对应绘图项（需通过 `setDefaultItemMode()` 开启）
 - ✅ **灵活布局**：支持多种图例布局方式
 - ✅ **样式自定义**：可自定义图例项的图标和文字样式
 
@@ -65,16 +65,23 @@ plot->insertLegend(legend, QwtPlot::RightLegend);  // 右侧图例
 
 ### 2. 图例交互
 
-默认情况下，点击图例项可以切换对应绘图项的显示状态：
+图例项默认是只读的（`QwtLegendData::ReadOnly`）。交互通过 `QwtLegend::setDefaultItemMode()` 开启；`Checkable` 模式的图例会发出 `checked()` 信号，通常连接到槽里，用 `QwtPlot::infoToItem()` 切换对应绘图项的可见性：
 
 ```cpp
-// 启用/禁用图例点击交互
-legend->setItemMode(QwtLegend::ClickableItem);  // 可点击（默认）
-// 或 legend->setItemMode(QwtLegend::ReadOnlyItem);  // 只读模式
+#include <QwtLegendData>
 
-// 点击图例项的效果：
-// - 切换对应绘图项的显示状态（显示/隐藏）
-// - 图例项图标会同步显示/隐藏状态
+// 让图例条目可勾选（模式：ReadOnly、Clickable、Checkable）
+legend->setDefaultItemMode(QwtLegendData::Checkable);
+
+// 勾选/取消勾选时切换对应绘图项的显示状态
+QObject::connect(legend, &QwtLegend::checked, plot,
+    [plot](const QVariant& itemInfo, bool on, int) {
+        if (QwtPlotItem* plotItem = plot->infoToItem(itemInfo))
+            plotItem->setVisible(on);
+    });
+
+// Clickable 模式则发出 clicked(itemInfo, index) 信号，
+// 具体响应完全由应用程序决定。
 ```
 
 ### 3. 设置图例位置和比例
@@ -93,20 +100,27 @@ layout->setLegendRatio(0.15);  // 图例占15%
 
 ### 4. 图例样式配置
 
-`QwtLegend` 是普通的 Qt 控件，可以用 `setFont()` 设置字体、用样式表设置背景与边框，还可以逐个定制图例项的样式。下面的例子演示这三个层面的定制：
+`QwtLegend` 是普通的 Qt 控件，可以用 `setFont()` 设置字体、用样式表设置背景与边框。单个图例条目是位于 `contentsWidget()` 内的 `QwtLegendLabel` 控件（`QwtTextLabel` 子类），可以通过 `legendWidget()`/`legendWidgets()` 按绘图项查找，也可以批量定制。下面的例子演示这三个层面的定制：
 
 ```cpp
+#include <QwtLegendLabel>
+
 // 设置图例字体
 legend->setFont(QFont("Arial", 9));
 
 // 设置图例背景
 legend->setStyleSheet("background-color: white; border: 1px solid gray;");
 
-// 设置图例项样式
-for (int i = 0; i < legend->itemCount(); i++) {
-    QWidget* item = legend->item(i);
-    item->setFont(QFont("Arial", 10));
-}
+// 设置图例项样式：条目都是 contentsWidget() 的子控件
+const QList<QwtLegendLabel*> labels =
+    legend->contentsWidget()->findChildren<QwtLegendLabel*>();
+for (QwtLegendLabel* label : labels)
+    label->setFont(QFont("Arial", 10));
+
+// 单个条目可以通过对应绘图项的 item info 查找
+//（curve 为任意挂载到 plot 上的 QwtPlotItem）
+QwtLegendLabel* label = qobject_cast<QwtLegendLabel*>(
+    legend->legendWidget(plot->itemToInfo(curve)));
 ```
 
 ### 5. 绘图项的图例属性
@@ -141,21 +155,27 @@ curve->setLegendIconSize(QSize(30, 20));
 
 ### 7. 外部图例控件
 
-图例可以放在绘图外部：
+图例可以放在绘图外部。QwtPlot 没有专门的“连接外部图例”方法——把绘图的 `legendDataChanged()` 信号连到外部 `QwtLegend` 的 `updateLegend()` 槽，再用 `QwtPlot::updateLegend()` 填充当前绘图项即可：
 
 ```cpp
 // 创建外部图例
 QwtLegend* externalLegend = new QwtLegend(parentWidget);
 
-// 连接绘图和图例
-plot->connectExternalLegend(externalLegend);
+// 将绘图的 legendDataChanged() 信号连接到外部图例的 updateLegend() 槽
+QObject::connect(plot, &QwtPlot::legendDataChanged,
+    externalLegend, &QwtLegend::updateLegend);
+
+// 用当前绘图项填充新图例
+plot->updateLegend();
+
+externalLegend->show();
 
 // 图例会自动更新，但不会占用绘图空间
 ```
 
 ### 8. 内嵌图例项
 
-使用 `QwtPlotLegendItem` 在画布内显示图例：
+使用 `QwtPlotLegendItem` 在画布内显示图例。位置通过 `setAlignmentInCanvas()` 用标准 `Qt::Alignment` 标志选择：
 
 ```cpp
 #include <QwtPlotLegendItem>
@@ -164,9 +184,13 @@ plot->connectExternalLegend(externalLegend);
 QwtPlotLegendItem* legendItem = new QwtPlotLegendItem();
 legendItem->attach(plot);
 
-// 设置位置（画布相对坐标）
-legendItem->setPosition(QwtPlotLegendItem::TopRight);  // 右上角
-// 其他位置：TopLeft, BottomLeft, BottomRight, Right, Left
+// 在画布内对齐（此处为右上角）
+legendItem->setAlignmentInCanvas(Qt::AlignRight | Qt::AlignTop);
+// 其他组合：Qt::AlignLeft|Qt::AlignTop（左上）、
+// Qt::AlignLeft|Qt::AlignBottom、Qt::AlignRight|Qt::AlignBottom 等
+
+// 可选：与画布边框的像素偏移
+legendItem->setOffsetInCanvas(Qt::Horizontal | Qt::Vertical, 10);
 
 // 设置背景
 legendItem->setBackgroundBrush(QBrush(Qt::white));
@@ -174,7 +198,7 @@ legendItem->setBackgroundBrush(QBrush(Qt::white));
 // 设置边框
 legendItem->setBorderPen(QPen(Qt::gray, 1));
 
-// 设置最大宽度（像素）
+// 设置最大列数
 legendItem->setMaxColumns(1);
 ```
 
@@ -184,24 +208,33 @@ legendItem->setMaxColumns(1);
 
 | 方法 | 说明 |
 |------|------|
-| `insertLegend()` | 插入图例 |
-| `connectExternalLegend()` | 连接外部图例 |
+| `insertLegend()` | 插入图例（位置与占比作为参数） |
+| `legend()` | 返回当前图例 |
+| `legendDataChanged()` | 用于驱动外部图例的信号 |
+| `updateLegend()` | 发出所有绘图项的图例数据 |
+| `itemToInfo()` / `infoToItem()` | 绘图项与图例 item info 的相互转换 |
 
 ### QwtLegend方法
 
 | 方法 | 说明 |
 |------|------|
-| `setItemMode()` | 设置交互模式 |
-| `itemCount()` | 获取图例项数量 |
-| `item()` | 获取图例项控件 |
+| `setDefaultItemMode()` | 设置交互模式（`QwtLegendData::ReadOnly`/`Clickable`/`Checkable`） |
+| `setMaxColumns()` | 设置最大列数 |
+| `legendWidget()` / `legendWidgets()` | 返回某绘图项对应的条目控件 |
+| `itemInfo()` | 返回条目控件对应的 item info |
+| `contentsWidget()` | 返回容纳所有条目的控件 |
+| `clicked()` / `checked()` | 交互信号 |
 
 ### QwtPlotItem图例方法
 
 | 方法 | 说明 |
 |------|------|
-| `setLegendAttribute()` | 设置图例属性 |
+| `setItemAttribute()` | 在图例中显示/隐藏该项（`QwtPlotItem::Legend`） |
 | `setLegendIconSize()` | 设置图标大小 |
+| `legendIcon()` | 返回图例图标（派生类可重写） |
 | `setTitle()` | 设置标题（图例文字） |
+
+> **说明** `setLegendAttribute()`（`LegendShowLine`/`LegendShowSymbol`/`LegendShowBrush`）是 `QwtPlotCurve` 的方法，控制曲线如何渲染自己的图例图标。
 
 > **提示 — 图例使用建议**
 >

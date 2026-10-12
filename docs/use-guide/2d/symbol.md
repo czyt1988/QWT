@@ -23,16 +23,20 @@
 | Diamond | `Diamond` | Diamond |
 | Triangle | `Triangle` | Upward-pointing triangle |
 | Down Triangle | `DTriangle` | Downward-pointing triangle |
+| Up Triangle | `UTriangle` | Upward-pointing triangle |
 | Left Triangle | `LTriangle` | Left-pointing triangle |
 | Right Triangle | `RTriangle` | Right-pointing triangle |
-| Cross | `Cross` | Plus-shaped cross |
-| X Cross | `XCross` | X-shaped cross |
-| Star | `Star1` | Six-pointed star |
-| Star2 | `Star2` | Five-pointed star |
+| Cross | `Cross` | Plus-shaped cross (+) |
+| X Cross | `XCross` | Diagonal cross (X) |
+| Horizontal Line | `HLine` | Horizontal line |
+| Vertical Line | `VLine` | Vertical line |
+| Star | `Star1` | X combined with + |
+| Star2 | `Star2` | Six-pointed star |
 | Hexagon | `Hexagon` | Regular hexagon |
 | Path | `Path` | Custom QPainterPath |
+| Pixmap | `Pixmap` | QPixmap bitmap |
 | Graphic | `Graphic` | QwtGraphic object |
-| SVG | `Svg` | SVG graphic |
+| SVG | `SvgDocument` | SVG document graphic |
 
 ## Usage
 
@@ -72,9 +76,9 @@ Symbols are handed to a curve with `QwtPlotCurve::setSymbol()` (the curve takes 
 
 QwtPlotCurve* curve = new QwtPlotCurve();
 
-// Set symbol
+// Set symbol (QwtSymbol has no Circle style - use Ellipse with a square size)
 curve->setSymbol(new QwtSymbol(
-    QwtSymbol::Circle,
+    QwtSymbol::Ellipse,
     QBrush(Qt::yellow),
     QPen(Qt::blue, 1),
     QSize(6, 6)
@@ -152,19 +156,23 @@ symbol->setSize(15, 8);  // Width 15, height 8
 
 ### 6. Symbol Pin Point
 
-Setting the anchor position of the symbol relative to the data point:
+The pin point defines the position *inside the symbol's own coordinate system* (painter path coordinates for `Path`, pixel coordinates for `Pixmap`, viewBox coordinates for `SvgDocument`) that is aligned to the data point. It only applies to `Path`, `Pixmap`, `Graphic` and `SvgDocument` symbols; the coordinates are **not** normalized to [0,1]. By default the pin point is disabled and symbols are centered on the data point.
 
 ```cpp
-// Default pin point is at symbol center
-symbol->setPinPoint(QPointF(0.5, 0.5));  // Relative position (0.5 is center)
+// Pin point alignment is disabled by default: the symbol is centered
+// on the data point.
 
-// Set pin point at symbol bottom center
-symbol->setPinPoint(QPointF(0.5, 1.0));
-
-// Set pin point at symbol top-left corner
+// Align the symbol at the origin (0, 0) of its own coordinate system -
+// e.g. the tip of an arrow drawn at (0, 0) then sits exactly on the
+// data value. setPinPoint() enables the alignment by default:
 symbol->setPinPoint(QPointF(0.0, 0.0));
 
-// Pin point uses normalized coordinates [0,1]
+// Any other position in symbol coordinates works as well,
+// e.g. a point 5 pixels right/below the origin:
+symbol->setPinPoint(QPointF(5.0, 5.0));
+
+// Disable the pin point alignment: the symbol is centered again
+symbol->setPinPointEnabled(false);
 ```
 
 ### 7. Symbol Fill Styles

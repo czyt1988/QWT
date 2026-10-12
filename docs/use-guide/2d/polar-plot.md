@@ -54,12 +54,34 @@ The polar plot example is located at: `examples/2D/polardemo`. Screenshot:
 
 ### 1. Creating a Polar Plot
 
-A polar plot combines three ingredients: the `QwtPolarPlot` widget itself (azimuth and radius scales set via `setScale()`), a `QwtPolarGrid` item for the background, and one or more `QwtPolarCurve` items fed with `QwtPointPolar` samples. The example below assembles them into a complete chart:
+A polar plot combines three ingredients: the `QwtPolarPlot` widget itself (azimuth and radius scales set via `setScale()`), a `QwtPolarGrid` item for the background, and one or more `QwtPolarCurve` items. Curves consume `QwtPointPolar` samples wrapped in a `QwtSeriesData<QwtPointPolar>` object passed to `setData()` — for a plain `QVector` of samples a minimal `QwtArraySeriesData` subclass is enough. The example below assembles them into a complete chart:
 
 ```cpp
 #include <QwtPolarPlot>
 #include <QwtPolarGrid>
 #include <QwtPolarCurve>
+#include <qwt_series_data.h>
+
+#include <cmath>
+
+// QwtPolarCurve consumes QwtSeriesData<QwtPointPolar>; a minimal
+// array-based subclass only needs to provide the bounding rectangle
+class PolarSeriesData : public QwtArraySeriesData<QwtPointPolar>
+{
+public:
+    PolarSeriesData(const QVector<QwtPointPolar>& samples)
+        : QwtArraySeriesData<QwtPointPolar>(samples)
+    {
+    }
+
+    virtual QRectF boundingRect() const override
+    {
+        if (cachedBoundingRect.width() < 0.0)
+            cachedBoundingRect = qwtBoundingRect(*this);
+
+        return cachedBoundingRect;
+    }
+};
 
 // Create polar plot
 QwtPolarPlot* polarPlot = new QwtPolarPlot();
@@ -82,10 +104,10 @@ QwtPolarCurve* curve = new QwtPolarCurve("Curve Data");
 // Prepare data (angle, radius)
 QVector<QwtPointPolar> samples;
 for (int angle = 0; angle < 360; angle += 10) {
-    double radius = 50 + 30 * std::sin(angle * 3.0 * M_PI / 180.0);
+    const double radius = 50 + 30 * std::sin(angle * 3.0 * M_PI / 180.0);
     samples << QwtPointPolar(angle, radius);
 }
-curve->setSamples(samples);
+curve->setData(new PolarSeriesData(samples));
 curve->setPen(QPen(Qt::blue, 2));
 
 curve->attach(polarPlot);
@@ -94,38 +116,41 @@ polarPlot->replot();
 
 ### 2. Polar Grid Configuration
 
-`QwtPolarGrid` draws both families of grid lines — `showGrid()` toggles the azimuth rays and radius circles by scale id — while `showAxis()` switches the tick labels on or off for each of the `AxisAzimuth`, `AxisLeft`, `AxisRight`, `AxisTop`, and `AxisBottom` axes:
+`QwtPolarGrid` draws both families of grid lines — `showGrid()` toggles the azimuth rays and radius circles by scale id (`QwtPolar::Azimuth` / `QwtPolar::Radius`) — while `showAxis()` switches the tick labels on or off for each of the `QwtPolar::AxisAzimuth`, `AxisLeft`, `AxisRight`, `AxisTop`, and `AxisBottom` axes:
 
 ```cpp
 QwtPolarGrid* grid = new QwtPolarGrid();
 
 // Show angle grid lines (rays)
-grid->showGrid(QwtPolarGrid::Azimuth, true);
+grid->showGrid(QwtPolar::Azimuth, true);
 
 // Show radius grid lines (concentric circles)
-grid->showGrid(QwtPolarGrid::Radius, true);
+grid->showGrid(QwtPolar::Radius, true);
 
 // Set grid style
 grid->setPen(QPen(Qt::lightGray, 0.5));
 
 // Show tick labels
-grid->showAxis(QwtPolarGrid::AxisAzimuth, true);  // Angle labels
-grid->showAxis(QwtPolarGrid::AxisLeft, true);     // Left radius labels
-grid->showAxis(QwtPolarGrid::AxisRight, true);    // Right radius labels
-grid->showAxis(QwtPolarGrid::AxisTop, true);      // Top radius labels
-grid->showAxis(QwtPolarGrid::AxisBottom, true);   // Bottom radius labels
+grid->showAxis(QwtPolar::AxisAzimuth, true);  // Angle labels
+grid->showAxis(QwtPolar::AxisLeft, true);     // Left radius labels
+grid->showAxis(QwtPolar::AxisRight, true);    // Right radius labels
+grid->showAxis(QwtPolar::AxisTop, true);      // Top radius labels
+grid->showAxis(QwtPolar::AxisBottom, true);   // Bottom radius labels
 ```
 
 ### 3. Polar Curve Style
 
-`QwtPolarCurve::setStyle()` chooses between `Lines` (points connected by straight segments, optionally smoothed by a curve fitter) and `NoCurve` (symbols only); pen and `QwtSymbol` are set exactly as on Cartesian curves:
+`QwtPolarCurve::setStyle()` chooses between `Lines` (points connected by straight segments, optionally smoothed by a curve fitter) and `NoCurve` (symbols only); values above `UserCurve` (100) are reserved for user-defined styles. Pen and `QwtSymbol` are set exactly as on Cartesian curves:
 
 ```cpp
+#include <QwtSymbol>
+
 QwtPolarCurve* curve = new QwtPolarCurve();
 
 // Set curve style
 curve->setStyle(QwtPolarCurve::Lines);  // Line style
-// Other styles: NoCurve (no lines), Dots (scatter)
+// Available styles: NoCurve (draw symbols only), Lines, UserCurve (> 100,
+// reserved for user-specific styles); for a scatter plot use NoCurve + a symbol
 
 // Set line style
 curve->setPen(QPen(Qt::red, 2));
@@ -153,7 +178,7 @@ polarPlot->setScale(QwtPolar::Azimuth, 360.0, 0.0);  // Decreasing from 360 to 0
 
 ### 5. Radius Range Settings
 
-The radius axis is adjusted the same way, with `setScaleMaxMinor()` additionally controlling the minor ticks between two majors; for data spanning several orders of magnitude, `setScaleEngine()` installs a logarithmic engine (`QwtLogScaleEngine`) on the radius scale:
+The radius axis is adjusted the same way, with `setScaleMaxMinor()` additionally controlling the minor ticks between two majors; for data spanning several orders of magnitude, `setScaleEngine()` installs a logarithmic engine (`QwtLogScaleEngine`, the same core engine as for Cartesian axes) on the radius scale:
 
 ```cpp
 // Set radius range
@@ -163,9 +188,10 @@ polarPlot->setScale(QwtPolar::Radius, 0.0, 200.0);
 polarPlot->setScaleMaxMajor(QwtPolar::Radius, 5);   // 5 major ticks
 polarPlot->setScaleMaxMinor(QwtPolar::Radius, 4);   // 4 minor ticks per interval
 
-// Logarithmic radius scale
-#include <QwtPolarScaleEngine>
-polarPlot->setScaleEngine(QwtPolar::Radius, new QwtPolarLogScaleEngine());
+// Logarithmic radius scale (the radius interval must be positive then)
+#include <QwtScaleEngine>
+polarPlot->setScaleEngine(QwtPolar::Radius, new QwtLogScaleEngine());
+polarPlot->setScale(QwtPolar::Radius, 1.0, 200.0);
 ```
 
 ### 6. Polar Markers
@@ -174,6 +200,7 @@ polarPlot->setScaleEngine(QwtPolar::Radius, new QwtPolarLogScaleEngine());
 
 ```cpp
 #include <QwtPolarMarker>
+#include <QwtSymbol>
 
 QwtPolarMarker* marker = new QwtPolarMarker();
 
@@ -203,17 +230,18 @@ marker->attach(polarPlot);
 
 ## Data Point Structure
 
-All polar items consume `QwtPointPolar` samples, which simply pair an azimuth (in degrees) with a radius; the constructor taking a `QPointF` converts Cartesian coordinates automatically:
+All polar items consume `QwtPointPolar` samples, which simply pair an azimuth (in degrees) with a radius, accessible through `azimuth()` / `radius()`; the constructor taking a `QPointF` converts Cartesian coordinates automatically, and `toPoint()` converts back:
 
 ```cpp
 // Polar coordinate point
-struct QwtPointPolar {
-    double azimuth;  // Angle (in degrees)
-    double radius;   // Radius
+QwtPointPolar point(90.0, 80.0);  // azimuth 90 degrees, radius 80
 
-    // Can convert from Cartesian coordinates
-    QwtPointPolar(const QPointF& point);  // Automatically calculates angle and radius
-};
+double a = point.azimuth();  // angle
+double r = point.radius();   // radius
+
+// Can convert from Cartesian coordinates
+QwtPointPolar polar(QPointF(1.0, 1.0));  // automatically calculates angle and radius
+QPointF cartesian = polar.toPoint();     // and back
 ```
 
 ## Core Method Summary
@@ -232,7 +260,7 @@ struct QwtPointPolar {
 
 | Method | Description |
 |------|------|
-| `setSamples()` | Set data |
+| `setData()` | Set data (takes ownership of a `QwtSeriesData<QwtPointPolar>` object) |
 | `setStyle()` | Set curve style |
 | `setPen()` | Set line style |
 | `setSymbol()` | Set data point symbol |

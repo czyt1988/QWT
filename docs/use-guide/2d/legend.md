@@ -7,7 +7,7 @@
 **Features**
 
 - ✅ **Automatic legend item generation**: Automatically generates legend entries based on plot items
-- ✅ **Interactive legend**: Supports clicking legend items to hide/show corresponding plot items
+- ✅ **Interactive legend**: Supports clicking legend items to hide/show corresponding plot items (opt-in via `setDefaultItemMode()`)
 - ✅ **Flexible layout**: Supports multiple legend layout modes
 - ✅ **Style customization**: Customizable icon and text styles for legend items
 
@@ -65,16 +65,23 @@ plot->insertLegend(legend, QwtPlot::RightLegend);  // Right-side legend
 
 ### 2. Legend Interaction
 
-By default, clicking a legend item toggles the display state of the corresponding plot item:
+Legend items are read-only by default (`QwtLegendData::ReadOnly`). Interaction is enabled with `QwtLegend::setDefaultItemMode()`; a `Checkable` legend then emits the `checked()` signal, which is typically connected to toggle the visibility of the corresponding plot item via `QwtPlot::infoToItem()`:
 
 ```cpp
-// Enable/disable legend click interaction
-legend->setItemMode(QwtLegend::ClickableItem);  // Clickable (default)
-// or legend->setItemMode(QwtLegend::ReadOnlyItem);  // Read-only mode
+#include <QwtLegendData>
 
-// Effect of clicking a legend item:
-// - Toggles the display state of the corresponding plot item (show/hide)
-// - Legend item icon synchronizes with show/hide state
+// Make legend entries checkable (modes: ReadOnly, Clickable, Checkable)
+legend->setDefaultItemMode(QwtLegendData::Checkable);
+
+// Toggle the visibility of the plot item behind the legend entry
+QObject::connect(legend, &QwtLegend::checked, plot,
+    [plot](const QVariant& itemInfo, bool on, int) {
+        if (QwtPlotItem* plotItem = plot->infoToItem(itemInfo))
+            plotItem->setVisible(on);
+    });
+
+// Clickable mode emits clicked(itemInfo, index) instead,
+// leaving the reaction completely to the application.
 ```
 
 ### 3. Setting Legend Position and Ratio
@@ -93,20 +100,27 @@ layout->setLegendRatio(0.15);  // Legend occupies 15%
 
 ### 4. Legend Style Configuration
 
-Since `QwtLegend` is a regular Qt widget, its font can be set with `setFont()` and its background and border with a style sheet, while individual legend entries can be styled one by one. The example below shows these three levels of customization:
+Since `QwtLegend` is a regular Qt widget, its font can be set with `setFont()` and its background and border with a style sheet. The individual legend entries are `QwtLegendLabel` widgets (a `QwtTextLabel` subclass) living inside `contentsWidget()`; they can be found with `legendWidget()`/`legendWidgets()` for a single plot item, or styled in bulk. The example below shows these three levels of customization:
 
 ```cpp
+#include <QwtLegendLabel>
+
 // Set legend font
 legend->setFont(QFont("Arial", 9));
 
 // Set legend background
 legend->setStyleSheet("background-color: white; border: 1px solid gray;");
 
-// Set legend item style
-for (int i = 0; i < legend->itemCount(); i++) {
-    QWidget* item = legend->item(i);
-    item->setFont(QFont("Arial", 10));
-}
+// Set legend item style: the entries are children of contentsWidget()
+const QList<QwtLegendLabel*> labels =
+    legend->contentsWidget()->findChildren<QwtLegendLabel*>();
+for (QwtLegendLabel* label : labels)
+    label->setFont(QFont("Arial", 10));
+
+// A single entry can be looked up via the item info of its plot item
+// (curve being any QwtPlotItem attached to the plot)
+QwtLegendLabel* label = qobject_cast<QwtLegendLabel*>(
+    legend->legendWidget(plot->itemToInfo(curve)));
 ```
 
 ### 5. Plot Item Legend Properties
@@ -141,21 +155,28 @@ curve->setLegendIconSize(QSize(30, 20));
 
 ### 7. External Legend Widget
 
-The legend can be placed outside the plot:
+The legend can be placed outside the plot. There is no dedicated "connect external legend" call - the plot's `legendDataChanged()` signal is simply connected to the `updateLegend()` slot of the external `QwtLegend`, and `QwtPlot::updateLegend()` populates it with the current items:
 
 ```cpp
 // Create external legend
 QwtLegend* externalLegend = new QwtLegend(parentWidget);
 
-// Connect plot and legend
-plot->connectExternalLegend(externalLegend);
+// Connect the plot's legendDataChanged() signal with the
+// updateLegend() slot of the external legend
+QObject::connect(plot, &QwtPlot::legendDataChanged,
+    externalLegend, &QwtLegend::updateLegend);
 
-// Legend updates automatically without occupying plot space
+// Populate the new legend with the current plot items
+plot->updateLegend();
+
+externalLegend->show();
+
+// The legend now updates automatically without occupying plot space
 ```
 
 ### 8. Embedded Legend Item
 
-Use `QwtPlotLegendItem` to display legend inside the canvas:
+Use `QwtPlotLegendItem` to display legend inside the canvas. Its position is chosen with `setAlignmentInCanvas()` using standard `Qt::Alignment` flags:
 
 ```cpp
 #include <QwtPlotLegendItem>
@@ -164,9 +185,13 @@ Use `QwtPlotLegendItem` to display legend inside the canvas:
 QwtPlotLegendItem* legendItem = new QwtPlotLegendItem();
 legendItem->attach(plot);
 
-// Set position (canvas-relative coordinates)
-legendItem->setPosition(QwtPlotLegendItem::TopRight);  // Top-right corner
-// Other positions: TopLeft, BottomLeft, BottomRight, Right, Left
+// Align the legend in the canvas (top-right corner here)
+legendItem->setAlignmentInCanvas(Qt::AlignRight | Qt::AlignTop);
+// Other combinations: Qt::AlignLeft|Qt::AlignTop (top-left),
+// Qt::AlignLeft|Qt::AlignBottom, Qt::AlignRight|Qt::AlignBottom, ...
+
+// Optional pixel offset from the canvas border
+legendItem->setOffsetInCanvas(Qt::Horizontal | Qt::Vertical, 10);
 
 // Set background
 legendItem->setBackgroundBrush(QBrush(Qt::white));
@@ -184,24 +209,33 @@ legendItem->setMaxColumns(1);
 
 | Method | Description |
 |------|------|
-| `insertLegend()` | Insert legend |
-| `connectExternalLegend()` | Connect external legend |
+| `insertLegend()` | Insert legend (position and ratio as arguments) |
+| `legend()` | Return the current legend |
+| `legendDataChanged()` | Signal to feed an external legend |
+| `updateLegend()` | Emit legend data for all plot items |
+| `itemToInfo()` / `infoToItem()` | Translate between plot item and legend item info |
 
 ### QwtLegend Methods
 
 | Method | Description |
 |------|------|
-| `setItemMode()` | Set interaction mode |
-| `itemCount()` | Get number of legend items |
-| `item()` | Get legend item widget |
+| `setDefaultItemMode()` | Set interaction mode (`QwtLegendData::ReadOnly`/`Clickable`/`Checkable`) |
+| `setMaxColumns()` | Set maximum number of columns |
+| `legendWidget()` / `legendWidgets()` | Return the entry widget(s) of a plot item |
+| `itemInfo()` | Return the item info of an entry widget |
+| `contentsWidget()` | Return the widget holding all entries |
+| `clicked()` / `checked()` | Interaction signals |
 
 ### QwtPlotItem Legend Methods
 
 | Method | Description |
 |------|------|
-| `setLegendAttribute()` | Set legend property |
+| `setItemAttribute()` | Show/hide the item on the legend (`QwtPlotItem::Legend`) |
 | `setLegendIconSize()` | Set icon size |
+| `legendIcon()` | Return (and in derived classes override) the legend icon |
 | `setTitle()` | Set title (legend text) |
+
+> **Note** `setLegendAttribute()` (`LegendShowLine`/`LegendShowSymbol`/`LegendShowBrush`) is a method of `QwtPlotCurve`, controlling how the curve renders its legend icon.
 
 > **Tip — Legend Usage Recommendations**
 >

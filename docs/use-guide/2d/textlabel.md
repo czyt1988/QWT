@@ -6,10 +6,10 @@
 
 **Features**
 
-- Canvas coordinate positioning: Uses position relative to canvas, does not transform with axes
-- Text style support: Supports font, color, margin, and other style configuration
-- Alignment control: Configurable text alignment relative to the anchor point
-- Background settings: Configurable text background color or border
+- Canvas-aligned positioning: Aligned to the plot canvas, does not transform with axes
+- Text style support: Supports font, color, background, border and other style configuration
+- Alignment control: Alignment inside the canvas rect configured through the render flags of `QwtText`
+- Margin setting: Distance between the canvas contents rect and the label rect via `setMargin()`
 
 ## Basic Concepts
 
@@ -44,7 +44,7 @@ The diagram below shows how a text label is pinned to a fixed relative position 
 
 ### 1. Creating a Text Label
 
-The text content and its appearance are wrapped in a `QwtText` object (font, color, etc.) and handed to the item through `setText()`; the item is then mounted onto the plot with `attach()`. The example below creates a description label pinned to the upper right corner of the canvas:
+The text content and its appearance are wrapped in a `QwtText` object (font, color, alignment flags, etc.) and handed to the item through `setText()`; the item is then mounted onto the plot with `attach()`. There is no explicit position setter - the label is aligned inside the plot canvas according to the render flags of the `QwtText`. The example below creates a description label pinned to the upper right corner of the canvas:
 
 ```cpp
 #include <QwtPlot>
@@ -60,13 +60,14 @@ QwtPlotTextLabel* label = new QwtPlotTextLabel();
 QwtText text("Chart Description");
 text.setFont(QFont("Arial", 12, QFont::Bold));
 text.setColor(Qt::black);
+
+// Align the label at the upper right corner of the canvas
+text.setRenderFlags(Qt::AlignRight | Qt::AlignTop);
 label->setText(text);
 
-// Set position (relative to canvas coordinates)
-label->setPos(0.9, 0.1);  // Upper right corner (90% width, 10% height)
-
-// Set alignment
-label->setAlignment(Qt::AlignRight | Qt::AlignTop);
+// Keep 10 pixels distance between the canvas contents rect
+// and the rectangle where the label can be displayed
+label->setMargin(10);
 
 label->attach(plot);
 plot->replot();
@@ -91,47 +92,69 @@ text.setBackgroundBrush(QBrush(QColor(255, 255, 200)));
 // Set border
 text.setBorderPen(QPen(Qt::gray, 1));
 
-// Set margins
-text.setMargins(5);  // Spacing between text and border
+// Round the corners of the background
+text.setBorderRadius(4);
 
 label->setText(text);
+
+// The distance between the canvas contents rect and the label
+// is a property of the label item (QwtText has no margins):
+label->setMargin(5);
 ```
 
 ### 3. Position and Alignment
 
-The label position is given in normalized canvas coordinates ranging from 0 to 1, while the alignment decides which corner or side of the text rectangle is anchored to that point. The code below demonstrates a centered label and lists other common alignment combinations:
+The label always covers the canvas rect (shrunk by `setMargin()`) and the alignment decides where inside this rect the text is placed; it is configured through the render flags of the `QwtText` (any combination of `Qt::AlignmentFlag` values). The code below demonstrates a centered label and lists other common alignment combinations:
 
 ```cpp
-// Set position (normalized coordinates, range [0,1])
-label->setPos(0.5, 0.5);  // Canvas center
+// Centered label - the alignment is part of the QwtText
+QwtText text("Centered Label");
+text.setRenderFlags(Qt::AlignCenter);
+label->setText(text);
 
-// Set alignment (relative to anchor point)
-label->setAlignment(Qt::AlignCenter);
+// Distance between the canvas contents rect and the label rect
+label->setMargin(20);
 
-// Other alignment options:
-// Qt::AlignLeft | Qt::AlignTop    - Upper left
-// Qt::AlignRight | Qt::AlignBottom - Lower right
-// Qt::AlignHCenter | Qt::AlignVCenter - Center
+// Other alignment options (QwtText::setRenderFlags):
+// Qt::AlignLeft | Qt::AlignTop      - Upper left
+// Qt::AlignRight | Qt::AlignBottom  - Lower right
+// Qt::AlignHCenter | Qt::AlignTop   - Centered at the top
 ```
 
-### 4. Rotated Text
+### 4. Custom Placement via textRect()
 
-For diagonal annotations the text can be rotated around its anchor by an arbitrary angle in degrees. The example below rotates a label by 45 degrees:
+`QwtPlotTextLabel` does not support rotated text - when a rotated annotation is needed, implement a custom `QwtPlotItem` and use `QPainter::rotate()` in its `draw()` method. The hook for custom placement inside the canvas is the virtual method `textRect()`: it receives the canvas rect with margins subtracted plus the size required by the text and returns the rect where the label is drawn. The example below pins the label to the lower right corner:
 
 ```cpp
-// Set text rotation angle
-label->setRotation(45.0);  // 45 degree rotation
+// QwtPlotTextLabel has no setRotation(): for rotated text, derive from
+// QwtPlotItem and rotate the painter inside draw() instead.
+
+class MyTextLabel : public QwtPlotTextLabel
+{
+public:
+    QRectF textRect(const QRectF& rect, const QSizeF& textSize) const override
+    {
+        // Pin the label to the lower right corner, 10 pixels away
+        QRectF r(QPointF(), textSize);
+        r.moveBottomRight(rect.bottomRight() - QPointF(10, 10));
+        return r;
+    }
+};
+
+MyTextLabel* label = new MyTextLabel();
+label->setText(QwtText("Custom Placement"));
+label->attach(plot);
 ```
 
 ## Core Methods Summary
 
 | Method | Description |
 |--------|-------------|
-| `setText()` | Set text content |
-| `setPos()` | Set position (normalized coordinates) |
-| `setAlignment()` | Set alignment |
-| `setRotation()` | Set rotation angle |
-| `setGeometry()` | Set geometry region |
+| `setText()` | Set the text (a `QwtText` carrying font, color, alignment flags, background) |
+| `text()` | Return the current text |
+| `setMargin()` | Distance between the canvas contents rect and the label rect |
+| `margin()` | Return the margin |
+| `textRect()` | Virtual hook computing the rect where the label is drawn |
 
 > **Tip — Application Scenarios**
 >

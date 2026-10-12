@@ -9,7 +9,7 @@
 - ✅ **任意形状支持**：支持 QPainterPath 定义的各种几何形状
 - ✅ **坐标绑定**：形状位置使用绘图坐标，随缩放变换
 - ✅ **样式自定义**：可设置填充、边框、颜色等样式
-- ✅ **填充优化**：支持多种填充模式提升渲染性能
+- ✅ **渲染优化**：多边形裁剪（`ClipPolygons`）与抽点简化（`setRenderTolerance()`）提升渲染性能
 
 ## 基本概念
 
@@ -25,12 +25,15 @@ QwtPlotShapeItem 的形状使用绘图坐标定位，而非像素坐标：
      └───────────────→ X轴
 ```
 
-### 填充模式
+### 绘制属性与图例模式
 
-| 模式 | 枚举值 | 说明 |
+`QwtPlotShapeItem` 没有填充模式（fill mode）设置；渲染与图例行为分别由绘制属性和图例模式控制：
+
+| 设置 | 枚举值 | 说明 |
 |------|--------|------|
-| 基础填充 | `Base` | 简单填充，性能最佳 |
-| 图形填充 | `Graphic` | 使用QwtGraphic存储，支持缓存 |
+| 绘制属性 | `ClipPolygons` | 绘制前先裁剪多边形；深度缩放时可显著提速，但曲线/椭圆路径需先转换为多边形，可能反而变慢 |
+| 图例模式 | `LegendShape` | 在图例中显示形状的缩小版本 |
+| 图例模式 | `LegendColor` | 在图例中显示一个填色矩形 |
 
 ## 使用方法
 
@@ -100,14 +103,18 @@ polygon->attach(plot);
 
 ### 4. 样式配置
 
-外观可通过 `setRenderHint()`（如继承自 `QwtPlotItem` 的 `RenderAntialiased` 抗锯齿）、`setPen()`（`Qt::DashLine` 虚线边框）和 `setBrush()` 调整——画刷同样支持 `Qt::FDiagPattern` 等 Qt 图案实现斜线填充。下面的代码组合了这些样式选项：
+外观可通过 `setRenderHint()`（如继承自 `QwtPlotItem` 的 `RenderAntialiased` 抗锯齿）、`setPen()`（`Qt::DashLine` 虚线边框）和 `setBrush()` 调整——画刷同样支持 `Qt::FDiagPattern` 等 Qt 图案实现斜线填充。性能相关选项为 `ClipPolygons` 绘制属性（`setPaintAttribute()`）与 `setRenderTolerance()` 抽点简化；没有填充模式设置。下面的代码组合了这些选项：
 
 ```cpp
-// 设置填充模式
-shapeItem->setFillMode(QwtPlotShapeItem::Graphic);
+// 绘制前裁剪多边形（性能选项）
+shapeItem->setPaintAttribute(QwtPlotShapeItem::ClipPolygons, true);
 
-// 设置渲染提示
-shapeItem->setRenderHint(QwtPlotShapeItem::RenderAntialiased);
+// 用抽点算法（Douglas-Peucker）简化路径；
+// 容差 <= 0.0 时禁用抽点
+shapeItem->setRenderTolerance(1.0);
+
+// 设置渲染提示（继承自 QwtPlotItem）
+shapeItem->setRenderHint(QwtPlotItem::RenderAntialiased);
 
 // 设置边框样式
 shapeItem->setPen(QPen(Qt::black, 1, Qt::DashLine));
@@ -120,11 +127,15 @@ shapeItem->setBrush(QBrush(Qt::yellow, Qt::FDiagPattern));  // 斜线填充
 
 | 方法 | 说明 |
 |------|------|
-| `setShape()` | 设置形状路径 |
+| `setShape()` | 以 `QPainterPath` 设置形状 |
+| `setRect()` | 以矩形设置形状（便捷接口） |
+| `setPolygon()` | 以多边形设置形状（便捷接口） |
 | `setPen()` | 设置边框画笔 |
-| `setBrush()` | 设置填充画笔 |
-| `setFillMode()` | 设置填充模式 |
-| `setRenderHint()` | 设置渲染提示 |
+| `setBrush()` | 设置填充画刷 |
+| `setPaintAttribute()` | 开关 `ClipPolygons` 裁剪 |
+| `setRenderTolerance()` | 设置路径简化的抽点容差 |
+| `setLegendMode()` | 设置图例显示方式（`LegendShape` / `LegendColor`） |
+| `setRenderHint()` | 设置渲染提示（继承自 `QwtPlotItem`） |
 
 > **提示 — 应用场景**
 >

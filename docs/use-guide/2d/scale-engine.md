@@ -27,10 +27,10 @@
 
 ```cpp
 QwtScaleDiv contains:
-- Interval: Data range [min, max]
-- MajorTicks: List of major tick positions
-- MinorTicks: List of minor tick positions
-- MediumTicks: List of medium tick positions
+- interval() / lowerBound() / upperBound(): data range [min, max]
+- ticks(QwtScaleDiv::MajorTick): list of major tick positions
+- ticks(QwtScaleDiv::MinorTick): list of minor tick positions
+- ticks(QwtScaleDiv::MediumTick): list of medium tick positions
 ```
 
 ## Usage
@@ -77,16 +77,18 @@ plot->setAxisScale(QwtAxis::YLeft, 0.001, 1000);  // Spans 6 orders of magnitude
 Used for time series data:
 
 ```cpp
+#include <QwtDate>
 #include <QwtDateScaleEngine>
 #include <QwtDateScaleDraw>
 
 // Set date scale engine
 plot->setAxisScaleEngine(QwtAxis::XBottom, new QwtDateScaleEngine());
 
-// Set date scale drawing
+// Set date scale drawing - the format is selected per
+// QwtDate::IntervalType (not by a QwtDateScaleDraw enum)
 QwtDateScaleDraw* dateDraw = new QwtDateScaleDraw();
-dateDraw->setDateFormat(QwtDateScaleDraw::Month, QString("yyyy-MM"));  // Month format
-dateDraw->setDateFormat(QwtDateScaleDraw::Day, QString("MM-dd"));      // Day format
+dateDraw->setDateFormat(QwtDate::Month, QString("yyyy-MM"));  // Month format
+dateDraw->setDateFormat(QwtDate::Day, QString("MM-dd"));      // Day format
 plot->setAxisScaleDraw(QwtAxis::XBottom, dateDraw);
 
 // Set time range
@@ -127,7 +129,7 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 
 ### 5. Scale Engine Properties
 
-The tick layout is fine-tuned through `QwtScaleEngine::Attribute` flags set with `setAttribute()`: `IncludeReference` forces the reference value to appear as a tick, `Symmetric` forces a symmetric range, `Floating` lets the endpoints float instead of snapping to ticks, and `Inverted` inverts the direction; `setMargins()` adds extra space at both ends. The example below fetches the engine of the bottom axis and adjusts these properties:
+The tick layout is fine-tuned through `QwtScaleEngine::Attribute` flags set with `setAttribute()`: `IncludeReference` forces the reference value to appear as a tick, `Symmetric` forces a symmetric range, `Floating` lets the endpoints float instead of snapping to ticks, and `Inverted` inverts the direction; `setMargins(lower, upper)` adds extra space at both ends of the scale (measured in scale units - for `QwtLogScaleEngine` in decades). The example below fetches the engine of the bottom axis and adjusts these properties:
 
 ```cpp
 // Get scale engine
@@ -138,13 +140,16 @@ engine->setAttribute(QwtScaleEngine::IncludeReference, true);  // Include refere
 engine->setAttribute(QwtScaleEngine::Symmetric, false);        // Asymmetric range
 engine->setAttribute(QwtScaleEngine::Floating, false);         // Non-floating endpoints
 
-// Set margins
-engine->setMargins(0.05);  // 5% margin
+// Set the lower and upper margins (in scale units)
+engine->setMargins(0.5, 0.5);
+
+// The reference value used by IncludeReference/Symmetric
+engine->setReference(0.0);
 ```
 
 ### 6. Calculating Scale Division
 
-An engine can also be used standalone: `divideScale()` takes the data range plus the maximum numbers of major and minor steps and returns a ready-made `QwtScaleDiv`, which can then be applied with `QwtPlot::setAxisScaleDiv()`. The example below computes the division with a local `QwtLinearScaleEngine`:
+An engine can also be used standalone: `divideScale(x1, x2, maxMajorSteps, maxMinorSteps, stepSize = 0.0)` takes the data range plus the maximum numbers of major and minor steps (and optionally a fixed step size) and returns a ready-made `QwtScaleDiv`, which can then be applied with `QwtPlot::setAxisScaleDiv()`. The example below computes the division with a local `QwtLinearScaleEngine`:
 
 ```cpp
 #include <QwtScaleEngine>
@@ -152,9 +157,10 @@ An engine can also be used standalone: `divideScale()` takes the data range plus
 // Manually use engine to calculate ticks
 QwtLinearScaleEngine engine;
 QwtScaleDiv scaleDiv = engine.divideScale(
-    0, 100,        // Data range
-    10, 5,         // Max major ticks, max minor ticks
-    0, 100         // Reference range (optional)
+    0, 100,   // Data range
+    10, 5     // Max major steps, max minor steps
+    // Optional 5th parameter: a fixed step size
+    // (0.0, the default, lets the engine choose one)
 );
 
 // Apply result
@@ -172,18 +178,18 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 
 ## Date Format Levels
 
-`QwtDateScaleDraw` supports different time-level formats:
+`QwtDateScaleDraw::setDateFormat()` selects a format per `QwtDate::IntervalType`; the table below lists the levels with a typical custom format (the built-in defaults vary slightly between platforms):
 
-| Level | Enum Value | Description |
+| Level | Enum Value | Typical Format |
 |------|--------|------|
-| `Millisecond` | Millisecond level | "hh:mm:ss.zzz" |
-| `Second` | Second level | "hh:mm:ss" |
-| `Minute` | Minute level | "hh:mm" |
-| `Hour` | Hour level | "hh:mm" |
-| `Day` | Day level | "MM-dd" |
-| `Week` | Week level | "MM-dd" |
-| `Month` | Month level | "yyyy-MM" |
-| `Year` | Year level | "yyyy" |
+| Millisecond | `QwtDate::Millisecond` | "hh:mm:ss:zzz" |
+| Second | `QwtDate::Second` | "hh:mm:ss" |
+| Minute | `QwtDate::Minute` | "hh:mm" |
+| Hour | `QwtDate::Hour` | "hh:mm" |
+| Day | `QwtDate::Day` | "dd MMM yyyy" |
+| Week | `QwtDate::Week` | "Www yyyy" |
+| Month | `QwtDate::Month` | "MMM yyyy" |
+| Year | `QwtDate::Year` | "yyyy" |
 
 ## Core Method Summary
 

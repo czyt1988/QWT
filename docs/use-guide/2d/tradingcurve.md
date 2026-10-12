@@ -40,15 +40,22 @@ Each K-line contains four price data points:
 
 ### Data Structure
 
-Uses `QwtTradingSample` to represent each K-line's data:
+Uses `QwtOHLCSample` (declared in `qwt_samples.h`, also reachable via `#include <QwtOHLCSample>`) to represent each K-line's data. Note that the constructor takes the prices in **time, open, high, low, close** order:
 
 ```cpp
-struct QwtTradingSample {
+class QwtOHLCSample {
+public:
+    QwtOHLCSample(double time = 0.0, double open = 0.0,
+                  double high = 0.0, double low = 0.0, double close = 0.0);
+
+    QwtInterval boundingInterval() const;  // Interval spanned by the prices
+    bool isValid() const;                  // low <= open/close <= high
+
     double time;      // Time point (X-axis position)
     double open;      // Open price
-    double close;     // Close price
     double high;      // High price
     double low;       // Low price
+    double close;     // Close price
 };
 ```
 
@@ -73,24 +80,24 @@ plot->setCanvasBackground(Qt::white);
 // Create K-line chart
 QwtPlotTradingCurve* curve = new QwtPlotTradingCurve("Daily K-Line");
 
-// Set style
-curve->setStyle(QwtPlotTradingCurve::CandleStick);
+// Set symbol style
+curve->setSymbolStyle(QwtPlotTradingCurve::CandleStick);
 
 // Set up/down colors
-curve->setSymbolBrush(QwtPlotTradingCurve::Positive,
+curve->setSymbolBrush(QwtPlotTradingCurve::Increasing,
     QBrush(Qt::red));   // Up (close > open): red
-curve->setSymbolBrush(QwtPlotTradingCurve::Negative,
-    QBrush(Qt::green)); // Down (close < open): green
+curve->setSymbolBrush(QwtPlotTradingCurve::Decreasing,
+    QBrush(Qt::green)); // Down (close <= open): green
 
 // Set body width
-curve->setSymbolExtent(0.8);  // 80% of relative width
+curve->setSymbolExtent(0.8);  // 0.8 scale (x-axis) units wide
 
-// Prepare data
-QVector<QwtTradingSample> samples;
-samples << QwtTradingSample(1, 10.0, 10.5, 11.0, 9.5);   // Up
-samples << QwtTradingSample(2, 10.5, 10.2, 10.8, 10.0);  // Down
-samples << QwtTradingSample(3, 10.2, 10.8, 11.2, 10.1);  // Up
-samples << QwtTradingSample(4, 10.8, 10.6, 11.0, 10.4);  // Down
+// Prepare data: QwtOHLCSample(time, open, high, low, close)
+QVector<QwtOHLCSample> samples;
+samples << QwtOHLCSample(1, 10.0, 11.0, 9.5, 10.5);   // Up
+samples << QwtOHLCSample(2, 10.5, 10.8, 10.0, 10.2);  // Down
+samples << QwtOHLCSample(3, 10.2, 11.2, 10.1, 10.8);  // Up
+samples << QwtOHLCSample(4, 10.8, 11.0, 10.4, 10.6);  // Down
 
 curve->setSamples(samples);
 curve->attach(plot);
@@ -104,21 +111,17 @@ plot->replot();
 
 #### Candlestick Style
 
-In `CandleStick` mode the box between open and close is filled according to the price direction: `setSymbolBrush()` takes a `Direction` (`Increasing` when the close is above the open, `Decreasing` otherwise) plus a brush, while `setSymbolPen()` sets the pen used to stroke the candles. The snippet below assigns distinct fills for up and down days:
+In `CandleStick` mode the box between open and close is filled according to the price direction: `setSymbolBrush()` takes a `Direction` (`Increasing` when the close is above the open, `Decreasing` otherwise) plus a brush. The outline pen is set globally via `setSymbolPen()` — there is no per-direction pen overload — and a flat sample (open == close) is painted with the `Decreasing` brush, as there is no separate neutral state. The snippet below assigns distinct fills for up and down days:
 
 ```cpp
-curve->setStyle(QwtPlotTradingCurve::CandleStick);
+curve->setSymbolStyle(QwtPlotTradingCurve::CandleStick);
 
-// Set up/down styles
-curve->setSymbolBrush(QwtPlotTradingCurve::Positive, QBrush(Qt::red));
-curve->setSymbolPen(QwtPlotTradingCurve::Positive, QPen(Qt::darkRed, 1));
+// Set up/down fills (one brush per direction)
+curve->setSymbolBrush(QwtPlotTradingCurve::Increasing, QBrush(Qt::red));    // Up
+curve->setSymbolBrush(QwtPlotTradingCurve::Decreasing, QBrush(Qt::green));  // Down
 
-curve->setSymbolBrush(QwtPlotTradingCurve::Negative, QBrush(Qt::green));
-curve->setSymbolPen(QwtPlotTradingCurve::Negative, QPen(Qt::darkGreen, 1));
-
-// Neutral style (open == close)
-curve->setSymbolBrush(QwtPlotTradingCurve::Neutral, QBrush(Qt::gray));
-curve->setSymbolPen(QwtPlotTradingCurve::Neutral, QPen(Qt::black, 1));
+// The outline pen is shared by both directions
+curve->setSymbolPen(QPen(Qt::black, 1));
 ```
 
 #### American Bar Style
@@ -126,7 +129,7 @@ curve->setSymbolPen(QwtPlotTradingCurve::Neutral, QPen(Qt::black, 1));
 `Bar` style draws only the vertical line spanning low to high, with small horizontal ticks marking the open (left) and close (right) prices — no filled body. Switch to it with `setSymbolStyle(QwtPlotTradingCurve::Bar)`:
 
 ```cpp
-curve->setStyle(QwtPlotTradingCurve::Bar);
+curve->setSymbolStyle(QwtPlotTradingCurve::Bar);
 
 // American bar shows lines only, no body drawn
 // Line extends from low to high, with small horizontal marks indicating open and close prices
@@ -152,16 +155,16 @@ curve->setMaxSymbolWidth(20); // Maximum 20 pixels wide
 `setSamples()` is overloaded to accept either a `QVector<QwtOHLCSample>` — each sample storing time, open, high, low, and close — or a `QwtSeriesData<QwtOHLCSample>*` for custom data sources. Both forms are shown below:
 
 ```cpp
-// Using QwtTradingSample array
-QVector<QwtTradingSample> samples;
+// Using a QVector of QwtOHLCSample
+QVector<QwtOHLCSample> samples;
 for (int i = 0; i < count; i++) {
-    samples << QwtTradingSample(
-        time[i], open[i], close[i], high[i], low[i]
+    samples << QwtOHLCSample(
+        time[i], open[i], high[i], low[i], close[i]
     );
 }
 curve->setSamples(samples);
 
-// Using QwtSeriesData
+// Using QwtSeriesData (QwtSeriesData<QwtOHLCSample>*)
 curve->setSamples(seriesData);
 ```
 
@@ -204,11 +207,11 @@ ma10->attach(plot);
 
 | Method | Description |
 |--------|-------------|
-| `setSamples()` | Set K-line data |
-| `setStyle()` | Set K-line style |
-| `setSymbolBrush()` | Set up/down fill color |
-| `setSymbolPen()` | Set up/down border color |
-| `setSymbolExtent()` | Set body width |
+| `setSamples()` | Set K-line data (`QVector<QwtOHLCSample>` or `QwtSeriesData<QwtOHLCSample>*`) |
+| `setSymbolStyle()` | Set K-line symbol style (`Bar` / `CandleStick`) |
+| `setSymbolBrush()` | Set the fill brush for one direction (`Increasing` / `Decreasing`) |
+| `setSymbolPen()` | Set the symbol outline pen (one global pen, shared by both directions) |
+| `setSymbolExtent()` | Set body width in scale units |
 | `setMinSymbolWidth()` | Set minimum width (pixels) |
 | `setMaxSymbolWidth()` | Set maximum width (pixels) |
 
@@ -216,9 +219,8 @@ ma10->attach(plot);
 
 | State | Enum Value | Condition |
 |-------|-----------|-----------|
-| Up | `Positive` | close > open |
-| Down | `Negative` | close < open |
-| Neutral | `Neutral` | close == open |
+| Up | `Increasing` | close > open |
+| Down | `Decreasing` | close <= open (a flat close == open uses the `Decreasing` brush) |
 
 > **Tip — Color Conventions**
 >

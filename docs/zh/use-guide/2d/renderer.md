@@ -15,21 +15,21 @@
 
 ### 1. 导出到图片文件
 
-所有文件导出都经由 `QwtPlotRenderer::renderDocument()` 完成：传入 plot、目标文件名（由扩展名决定格式）、输出尺寸以及以 DPI 为单位的分辨率（默认 85）。下面的例子把同一个 plot 分别写成 PNG、JPG 和 BMP：
+所有文件导出都经由 `QwtPlotRenderer::renderDocument()` 完成：传入 plot、目标文件名（由扩展名决定格式）、以**毫米**为单位的输出尺寸（`QSizeF`）以及以 DPI 为单位的分辨率（默认 85）。对于图片格式，像素尺寸按 `mm / 25.4 * DPI` 换算得到。下面的例子把同一个 plot 分别写成 PNG、JPG 和 BMP：
 
 ```cpp
 #include <QwtPlotRenderer>
 
 QwtPlotRenderer renderer;
 
-// 导出到PNG
-renderer.renderDocument(plot, "plot.png", QSize(800, 600), 300);  // 300 DPI
+// 导出到PNG：200 x 150 mm、300 DPI（约 2362 x 1772 像素）
+renderer.renderDocument(plot, "plot.png", QSizeF(200, 150), 300);
 
-// 导出到JPG
-renderer.renderDocument(plot, "plot.jpg", QSize(800, 600), 150);
+// 导出到JPG：相同物理尺寸、150 DPI（约 1181 x 886 像素）
+renderer.renderDocument(plot, "plot.jpg", QSizeF(200, 150), 150);
 
-// 导出到BMP
-renderer.renderDocument(plot, "plot.bmp", QSize(800, 600));
+// 导出到BMP，使用默认分辨率 85 DPI
+renderer.renderDocument(plot, "plot.bmp", QSizeF(200, 150));
 
 // 文件格式自动根据扩展名判断
 ```
@@ -61,15 +61,20 @@ renderer.renderDocument(plot, "plot.svg", QSizeF(200, 150));
 
 ### 4. 导出到QImage/QPixmap
 
-除了写文件，渲染器还能画进内存中的绘图设备：`renderTo(QwtPlot*, QPaintDevice&)` 重载接受按所需尺寸与 DPI 准备好的 `QImage` 或 `QPixmap`，便于在应用内显示或做后续图像处理：
+除了写文件，渲染器还能画进内存中的绘图设备：`renderTo(QwtPlot*, QPaintDevice&)` 重载接受任何自行按所需像素尺寸创建的 `QImage` 或 `QPixmap`，便于在应用内显示或做后续图像处理：
 
 ```cpp
-// 导出为QImage
+// 导出为QImage：先创建图像，再渲染到其中
 QSize size(800, 600);
-QImage image = renderer.renderToImage(plot, size, 300);  // 300 DPI
+QImage image(size, QImage::Format_ARGB32);
+image.fill(Qt::white);
+renderer.renderTo(plot, image);
+image.save("plot.png");  // 可选：保存为文件
 
 // 导出为QPixmap
-QPixmap pixmap = renderer.renderToPixmap(plot, size, 300);
+QPixmap pixmap(size);
+pixmap.fill(Qt::white);
+renderer.renderTo(plot, pixmap);
 
 // 可用于应用程序内显示或进一步处理
 ```
@@ -86,10 +91,10 @@ renderer.setDiscardFlag(QwtPlotRenderer::DiscardFooter, true);    // 忽略页�
 renderer.setDiscardFlag(QwtPlotRenderer::DiscardCanvasBackground, true);  // 忽略画布背景
 
 // 设置框架选项
-renderer.setDiscardFlag(QwtPlotRenderer::DiscardFrames, true);    // 忽略边框框架
+renderer.setDiscardFlag(QwtPlotRenderer::DiscardCanvasFrame, true);  // 忽略画布边框
 
-// 恢复默认
-renderer.resetDiscardFlags();
+// 恢复默认：赋空标志集（渲染全部组件）
+renderer.setDiscardFlags(QwtPlotRenderer::DiscardNone);
 ```
 
 ### 6. 打印功能
@@ -99,14 +104,14 @@ renderer.resetDiscardFlags();
 ```cpp
 #include <QPrinter>
 
-// 打印到打印机
+// 打印到打印机（或通过 setOutputFileName 输出为 PDF 文件）
 QPrinter printer(QPrinter::HighResolution);
-printer.setOutputFileName("print.pdf");  // 或使用 printer.printerName()
+printer.setOutputFileName("print.pdf");  // 不设置则输出到物理打印机
 
-renderer.renderDocument(plot, &printer);
+renderer.renderTo(plot, printer);
 
-// 或直接使用QwtPlot的print方法
-plot->print(printer);
+// 也可以用 exportTo()：弹出文件对话框并导出到所选文件
+renderer.exportTo(plot, "plot.pdf");
 ```
 
 ### 7. 使用毫米单位设置尺寸
@@ -133,21 +138,21 @@ renderer.renderDocument(plot, "plot.pdf", sizeMm, 300);  // 300 DPI
 
 | 选项 | 说明 |
 |------|------|
+| `DiscardBackground` | 忽略绘图背景 |
 | `DiscardTitle` | 忽略标题 |
 | `DiscardLegend` | 忽略图例 |
 | `DiscardFooter` | 忽略页脚 |
 | `DiscardCanvasBackground` | 忽略画布背景 |
-| `DiscardFrames` | 忽略边框 |
+| `DiscardCanvasFrame` | 忽略画布边框（使用样式表时无效，此时边框属于背景的一部分） |
 
 ## 核心方法总结
 
 | 方法 | 说明 |
 |------|------|
-| `renderDocument()` | 导出到文件 |
-| `renderToImage()` | 导出为QImage |
-| `renderToPixmap()` | 导出为QPixmap |
-| `setDiscardFlag()` | 设置忽略选项 |
-| `resetDiscardFlags()` | 重置忽略选项 |
+| `renderDocument()` | 导出到文件（由扩展名或显式格式参数决定格式） |
+| `renderTo()` | 渲染到 `QPaintDevice`（`QImage`/`QPixmap`）、`QPrinter` 或 `QSvgGenerator` |
+| `exportTo()` | 弹出文件对话框并导出到所选文件 |
+| `setDiscardFlag()` / `setDiscardFlags()` | 设置/重置忽略选项（`DiscardNone` 表示全部渲染） |
 
 > **提示 — 导出建议**
 >

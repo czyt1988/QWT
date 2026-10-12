@@ -27,10 +27,10 @@
 
 ```cpp
 QwtScaleDiv包含:
-- Interval: 数据范围 [min, max]
-- MajorTicks: 主刻度位置列表
-- MinorTicks: 次刻度位置列表
-- MediumTicks: 中等刻度位置列表
+- interval() / lowerBound() / upperBound(): 数据范围 [min, max]
+- ticks(QwtScaleDiv::MajorTick): 主刻度位置列表
+- ticks(QwtScaleDiv::MinorTick): 次刻度位置列表
+- ticks(QwtScaleDiv::MediumTick): 中等刻度位置列表
 ```
 
 ## 使用方法
@@ -77,16 +77,18 @@ plot->setAxisScale(QwtAxis::YLeft, 0.001, 1000);  // 跨越6个数量级
 用于时间序列数据：
 
 ```cpp
+#include <QwtDate>
 #include <QwtDateScaleEngine>
 #include <QwtDateScaleDraw>
 
 // 设置日期刻度引擎
 plot->setAxisScaleEngine(QwtAxis::XBottom, new QwtDateScaleEngine());
 
-// 设置日期刻度绘制
+// 设置日期刻度绘制——格式按 QwtDate::IntervalType 选择
+//（没有 QwtDateScaleDraw 自己的级别枚举）
 QwtDateScaleDraw* dateDraw = new QwtDateScaleDraw();
-dateDraw->setDateFormat(QwtDateScaleDraw::Month, QString("yyyy-MM"));  // 月份格式
-dateDraw->setDateFormat(QwtDateScaleDraw::Day, QString("MM-dd"));      // 日期格式
+dateDraw->setDateFormat(QwtDate::Month, QString("yyyy-MM"));  // 月份格式
+dateDraw->setDateFormat(QwtDate::Day, QString("MM-dd"));      // 日期格式
 plot->setAxisScaleDraw(QwtAxis::XBottom, dateDraw);
 
 // 设置时间范围
@@ -127,7 +129,7 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 
 ### 5. 刻度引擎属性
 
-刻度布局通过 `setAttribute()` 设置 `QwtScaleEngine::Attribute` 标志来微调：`IncludeReference` 强制参考值处出现刻度、`Symmetric` 强制范围对称、`Floating` 允许端点不落在刻度上、`Inverted` 反转刻度方向；`setMargins()` 则在两端追加边距。下面的例子取得底部轴的引擎并调整这些属性：
+刻度布局通过 `setAttribute()` 设置 `QwtScaleEngine::Attribute` 标志来微调：`IncludeReference` 强制参考值处出现刻度、`Symmetric` 强制范围对称、`Floating` 允许端点不落在刻度上、`Inverted` 反转刻度方向；`setMargins(lower, upper)` 则在刻度两端追加边距（以刻度单位计——`QwtLogScaleEngine` 中以“十倍程”为单位）。下面的例子取得底部轴的引擎并调整这些属性：
 
 ```cpp
 // 获取刻度引擎
@@ -138,13 +140,16 @@ engine->setAttribute(QwtScaleEngine::IncludeReference, true);  // 包含参考�
 engine->setAttribute(QwtScaleEngine::Symmetric, false);        // 不对称范围
 engine->setAttribute(QwtScaleEngine::Floating, false);         // 不浮动端点
 
-// 设置边距
-engine->setMargins(0.05);  // 5%边距
+// 设置下、上边距（以刻度单位计）
+engine->setMargins(0.5, 0.5);
+
+// IncludeReference/Symmetric 使用的参考值
+engine->setReference(0.0);
 ```
 
 ### 6. 计算刻度划分
 
-刻度引擎也可以独立使用：`divideScale()` 接收数据范围以及主/次刻度的最大数量，返回现成的 `QwtScaleDiv`，随后可用 `QwtPlot::setAxisScaleDiv()` 应用。下面的例子用一个局部 `QwtLinearScaleEngine` 计算刻度划分：
+刻度引擎也可以独立使用：`divideScale(x1, x2, maxMajorSteps, maxMinorSteps, stepSize = 0.0)` 接收数据范围以及主/次刻度的最大数量（还可传入固定步长），返回现成的 `QwtScaleDiv`，随后可用 `QwtPlot::setAxisScaleDiv()` 应用。下面的例子用一个局部 `QwtLinearScaleEngine` 计算刻度划分：
 
 ```cpp
 #include <QwtScaleEngine>
@@ -152,9 +157,10 @@ engine->setMargins(0.05);  // 5%边距
 // 手动使用引擎计算刻度
 QwtLinearScaleEngine engine;
 QwtScaleDiv scaleDiv = engine.divideScale(
-    0, 100,        // 数据范围
-    10, 5,         // 最大主刻度数，最大次刻度数
-    0, 100         // 参考范围（可选）
+    0, 100,   // 数据范围
+    10, 5     // 最大主刻度数，最大次刻度数
+    // 可选的第5个参数：固定步长
+    //（默认 0.0，由引擎自行选择）
 );
 
 // 应用结果
@@ -172,18 +178,18 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 
 ## 日期格式级别
 
-`QwtDateScaleDraw` 支持不同时间级别的格式：
+`QwtDateScaleDraw::setDateFormat()` 按 `QwtDate::IntervalType` 选择格式；下表列出各级别及一种典型的自定义格式（内置默认格式因平台略有差异）：
 
-| 级别 | 枚举值 | 说明 |
+| 级别 | 枚举值 | 典型格式 |
 |------|--------|------|
-| `Millisecond` | 毫秒级 | "hh:mm:ss.zzz" |
-| `Second` | 秒级 | "hh:mm:ss" |
-| `Minute` | 分钟级 | "hh:mm" |
-| `Hour` | 小时级 | "hh:mm" |
-| `Day` | 日级 | "MM-dd" |
-| `Week` | 周级 | "MM-dd" |
-| `Month` | 月级 | "yyyy-MM" |
-| `Year` | 年级 | "yyyy" |
+| 毫秒级 | `QwtDate::Millisecond` | "hh:mm:ss:zzz" |
+| 秒级 | `QwtDate::Second` | "hh:mm:ss" |
+| 分钟级 | `QwtDate::Minute` | "hh:mm" |
+| 小时级 | `QwtDate::Hour` | "hh:mm" |
+| 日级 | `QwtDate::Day` | "dd MMM yyyy" |
+| 周级 | `QwtDate::Week` | "Www yyyy" |
+| 月级 | `QwtDate::Month` | "MMM yyyy" |
+| 年级 | `QwtDate::Year` | "yyyy" |
 
 ## 核心方法总结
 

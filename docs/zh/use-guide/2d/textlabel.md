@@ -6,10 +6,10 @@
 
 **特性**
 
-- ✅ **画布坐标定位**：使用相对画布位置，不随坐标轴变换
-- ✅ **文本样式支持**：支持字体、颜色、边距等样式配置
-- ✅ **对齐控制**：可设置文本相对于定位点的对齐方式
-- ✅ **背景设置**：可设置文本背景颜色或边框
+- ✅ **画布对齐定位**：对齐到绘图画布，不随坐标轴变换
+- ✅ **文本样式支持**：支持字体、颜色、背景、边框等样式配置
+- ✅ **对齐控制**：通过 `QwtText` 的 render flags 设置在画布矩形内的对齐方式
+- ✅ **边距设置**：通过 `setMargin()` 设置画布内容区与标签矩形的距离
 
 ## 基本概念
 
@@ -43,7 +43,7 @@
 
 ### 1. 创建文本标签
 
-文本内容与外观封装在 `QwtText` 对象中（字体、颜色等），通过 `setText()` 交给标签项，再用 `attach()` 挂载到绘图。下面的例子创建一个固定在画布右上角的说明标签：
+文本内容与外观封装在 `QwtText` 对象中（字体、颜色、对齐标志等），通过 `setText()` 交给标签项，再用 `attach()` 挂载到绘图。标签没有独立的位置设置接口——它按照 `QwtText` 的 render flags 在画布矩形内对齐。下面的例子创建一个固定在画布右上角的说明标签：
 
 ```cpp
 #include <QwtPlot>
@@ -59,13 +59,13 @@ QwtPlotTextLabel* label = new QwtPlotTextLabel();
 QwtText text("图表说明");
 text.setFont(QFont("Arial", 12, QFont::Bold));
 text.setColor(Qt::black);
+
+// 通过 render flags 让标签对齐到画布右上角
+text.setRenderFlags(Qt::AlignRight | Qt::AlignTop);
 label->setText(text);
 
-// 设置位置（相对画布坐标）
-label->setPos(0.9, 0.1);  // 右上角（90%宽度, 10%高度）
-
-// 设置对齐方式
-label->setAlignment(Qt::AlignRight | Qt::AlignTop);
+// 画布内容区与标签可显示矩形之间保留 10 像素距离
+label->setMargin(10);
 
 label->attach(plot);
 plot->replot();
@@ -90,47 +90,69 @@ text.setBackgroundBrush(QBrush(QColor(255, 255, 200)));
 // 设置边框
 text.setBorderPen(QPen(Qt::gray, 1));
 
-// 设置边距
-text.setMargins(5);  // 文本与边框的间距
+// 设置背景圆角
+text.setBorderRadius(4);
 
 label->setText(text);
+
+// 画布内容区与标签之间的距离属于标签项的属性
+//（QwtText 没有 margins 接口）：
+label->setMargin(5);
 ```
 
 ### 3. 位置和对齐
 
-标签位置用相对画布的归一化坐标表示（取值 0~1），对齐方式则决定文本矩形的哪个角或哪条边锚定到该点上。下面的代码演示居中标签，并列出其他常用对齐组合：
+标签始终覆盖画布矩形（先扣除 `setMargin()` 边距），对齐方式决定文本在这个矩形内的落点；它通过 `QwtText` 的 render flags 配置（可任意组合 `Qt::AlignmentFlag` 取值）。下面的代码演示居中标签，并列出其他常用对齐组合：
 
 ```cpp
-// 设置位置（归一化坐标，范围[0,1]）
-label->setPos(0.5, 0.5);  // 画布中心
+// 居中标签——对齐方式是 QwtText 的一部分
+QwtText text("居中标签");
+text.setRenderFlags(Qt::AlignCenter);
+label->setText(text);
 
-// 设置对齐（相对于定位点）
-label->setAlignment(Qt::AlignCenter);
+// 画布内容区与标签矩形的距离
+label->setMargin(20);
 
-// 其他对齐选项：
-// Qt::AlignLeft | Qt::AlignTop    - 左上
-// Qt::AlignRight | Qt::AlignBottom - 右下
-// Qt::AlignHCenter | Qt::AlignVCenter - 中心
+// 其他对齐选项（QwtText::setRenderFlags）：
+// Qt::AlignLeft | Qt::AlignTop      - 左上
+// Qt::AlignRight | Qt::AlignBottom  - 右下
+// Qt::AlignHCenter | Qt::AlignTop   - 顶部居中
 ```
 
-### 4. 旋转文本
+### 4. 通过 textRect() 自定义落点
 
-需要斜向标注时，可以让文本绕定位点旋转任意角度（单位为度）。下面的例子将标签旋转 45 度：
+`QwtPlotTextLabel` 不支持旋转文本——需要旋转标注时，请自定义 `QwtPlotItem` 子类，在其 `draw()` 中用 `QPainter::rotate()` 实现。画布内自定义落点的真实钩子是虚函数 `textRect()`：它接收扣除边距后的画布矩形和文本所需尺寸，返回标签实际绘制的矩形。下面的例子把标签钉在右下角：
 
 ```cpp
-// 设置文本旋转角度
-label->setRotation(45.0);  // 45度旋转
+// QwtPlotTextLabel 没有 setRotation()：需要旋转文本时，
+// 请继承 QwtPlotItem 并在 draw() 中旋转 painter。
+
+class MyTextLabel : public QwtPlotTextLabel
+{
+public:
+    QRectF textRect(const QRectF& rect, const QSizeF& textSize) const override
+    {
+        // 把标签钉在右下角，向内留 10 像素
+        QRectF r(QPointF(), textSize);
+        r.moveBottomRight(rect.bottomRight() - QPointF(10, 10));
+        return r;
+    }
+};
+
+MyTextLabel* label = new MyTextLabel();
+label->setText(QwtText("自定义落点"));
+label->attach(plot);
 ```
 
 ## 核心方法总结
 
 | 方法 | 说明 |
 |------|------|
-| `setText()` | 设置文本内容 |
-| `setPos()` | 设置位置（归一化坐标） |
-| `setAlignment()` | 设置对齐方式 |
-| `setRotation()` | 设置旋转角度 |
-| `setGeometry()` | 设置几何区域 |
+| `setText()` | 设置文本（`QwtText` 承载字体、颜色、对齐标志、背景） |
+| `text()` | 返回当前文本 |
+| `setMargin()` | 画布内容区与标签矩形的距离 |
+| `margin()` | 返回边距 |
+| `textRect()` | 计算标签绘制矩形的虚函数（自定义落点钩子） |
 
 > **提示 — 应用场景**
 >

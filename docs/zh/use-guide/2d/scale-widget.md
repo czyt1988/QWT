@@ -68,7 +68,7 @@ plot->replot();
 
 ### 2. 获取坐标轴控件
 
-需要更精细的控制时，可用 `QwtPlot::axisWidget()` 取得坐标轴底层的控件；它是普通的 `QWidget`，用 `setFont()` 设置刻度标签字体、`setTitle()` 传入带样式的 `QwtText`，颜色则跟随控件调色板。下面的例子对底部轴控件做样式定制：
+需要更精细的控制时，可用 `QwtPlot::axisWidget()` 取得坐标轴底层的控件；它是 `QwtScaleWidget`，用 `setFont()` 设置刻度标签字体、`setTitle()` 传入带样式的 `QwtText`，用 `setScaleColor()`/`setTextColor()` 分别设置骨干线/刻度与刻度标签的颜色。下面的例子对底部轴控件做样式定制：
 
 ```cpp
 // 获取特定位置的坐标轴控件
@@ -83,27 +83,30 @@ title.setFont(QFont("Arial", 10, QFont::Bold));
 title.setColor(Qt::darkBlue);
 scaleWidget->setTitle(title);
 
-// 设置刻度颜色
-scaleWidget->setPalette(QPalette(Qt::black));
+// 设置刻度与标签颜色
+scaleWidget->setScaleColor(Qt::black);   // 骨干线与刻度线
+scaleWidget->setTextColor(Qt::darkGray); // 刻度标签
 ```
 
 ### 3. 内置交互功能（Qwt7新增）
 
-Qwt 7.0 新增了坐标轴内置交互功能，支持在坐标轴上直接进行平移和缩放操作：
+Qwt 7.0 新增了坐标轴内置交互功能：点击激活坐标轴后，拖动即可平移、滚轮即可缩放对应轴的刻度范围。功能通过 `setBuildinActions()` 以标志位方式开启（`ActionNone`、`ActionClickPan`、`ActionWheelZoom`、`ActionAll`）：
 
 ```cpp
 // 获取坐标轴控件
 QwtScaleWidget* scaleWidget = plot->axisWidget(QwtAxis::XBottom);
 
-// 启用内置平移功能
-scaleWidget->setBuiltInAction(QwtScaleWidget::Pan, true);
+// 启用内置的点击拖动平移和滚轮缩放
+scaleWidget->setBuildinActions(QwtScaleWidget::ActionClickPan | QwtScaleWidget::ActionWheelZoom);
 
-// 启用内置缩放功能
-scaleWidget->setBuiltInAction(QwtScaleWidget::Zoom, true);
+// 或一次性启用全部内置动作
+// scaleWidget->setBuildinActions(QwtScaleWidget::ActionAll);
 
-// 设置交互的鼠标按钮
-scaleWidget->setActionButton(Qt::LeftButton);  // 左键拖动平移
-scaleWidget->setActionButtons(Qt::MiddleButton, Qt::ControlModifier);  // Ctrl+中键缩放
+// 每次滚轮缩放的系数（默认 1.2）
+scaleWidget->setZoomFactor(1.2);
+
+// 坐标轴被选中时的高亮颜色
+scaleWidget->setSelectionColor(Qt::blue);
 ```
 
 平移效果：
@@ -118,7 +121,7 @@ scaleWidget->setActionButtons(Qt::MiddleButton, Qt::ControlModifier);  // Ctrl+�
 
 ### 4. 颜色条显示
 
-用于光谱图等需要颜色映射的场景：
+用于光谱图等需要颜色映射的场景。颜色条没有独立的位置设置接口——它画在哪一侧由刻度绘制（scale draw）的对齐方式决定：
 
 ```cpp
 // 启用颜色条
@@ -127,29 +130,28 @@ scaleWidget->setColorBarEnabled(true);
 // 设置颜色条宽度
 scaleWidget->setColorBarWidth(20);
 
-// 设置颜色映射
+// 为取值区间设置颜色映射（控件接管 colorMap 所有权）
 QwtLinearColorMap* colorMap = new QwtLinearColorMap(Qt::blue, Qt::red);
 scaleWidget->setColorMap(QwtInterval(0, 100), colorMap);
-
-// 设置颜色条位置
-scaleWidget->setColorBarPosition(QwtScaleWidget::Right);  // 在刻度右侧
 ```
 
 ### 5. 刻度绘制样式
 
-`QwtScaleWidget` 还提供刻度线外观的设置：刻度画在骨干线的哪一侧（外侧、内侧或双侧）、主/次刻度的像素长度，以及刻度与轴线之间的间距。下面的代码演示这些设置：
+刻度线外观不在 `QwtScaleWidget` 本身设置：刻度朝向（画布外侧/内侧）是 `QwtPlot` 的按轴配置，刻度长度与刻度-标签间距则属于 `scaleWidget->scaleDraw()` 返回的 `QwtScaleDraw` 对象。下面的代码演示这些设置：
 
 ```cpp
-// 设置刻度位置（相对于轴的方向）
-scaleWidget->setTickPosition(QwtScaleWidget::Outside);  // 刻度在外侧
-// 其他选项：Inside（内侧）、Both（双侧）
+// 刻度朝向：QwtPlot 的按轴设置
+//（另见《向内刻度使用指南》）
+plot->setAxisTickDirection(QwtAxis::XBottom, QwtPlot::TickOutside);
+// 其他选项：QwtPlot::TickInside（刻度画进画布内侧）
 
-// 设置刻度长度
-scaleWidget->setMajorTickLength(10);  // 主刻度长度（像素）
-scaleWidget->setMinorTickLength(5);   // 次刻度长度（像素）
+// 刻度长度：在刻度绘制对象上按刻度类型设置
+scaleWidget->scaleDraw()->setTickLength(QwtScaleDiv::MajorTick, 10.0);  // 主刻度长度（像素）
+scaleWidget->scaleDraw()->setTickLength(QwtScaleDiv::MediumTick, 7.0);  // 中刻度长度
+scaleWidget->scaleDraw()->setTickLength(QwtScaleDiv::MinorTick, 5.0);   // 次刻度长度
 
-// 设置刻度边距
-scaleWidget->setTickMargin(2);        // 刻度与轴线的间距
+// 刻度与刻度标签的间距（默认 4 像素）
+scaleWidget->scaleDraw()->setSpacing(2.0);
 ```
 
 ### 6. 刻度标签格式化
@@ -241,6 +243,7 @@ plot->setAxisTitlePlacement(QwtAxis::YLeft, QwtScaleWidget::TitleInside);
 | `setAxisScale()` | 设置轴范围 |
 | `setAxisAutoScale()` | 启用自动刻度 |
 | `setAxisVisible()` | 设置轴可见性 |
+| `setAxisTickDirection()` | 设置刻度朝向（`TickOutside`/`TickInside`） |
 | `axisWidget()` | 获取轴控件 |
 | `setAxisMaxMajor()` | 设置主刻度数量上限 |
 | `setAxisMaxMinor()` | 设置次刻度数量上限 |
@@ -252,10 +255,11 @@ plot->setAxisTitlePlacement(QwtAxis::YLeft, QwtScaleWidget::TitleInside);
 | `setTitle()` | 设置轴标题 |
 | `setTitlePlacement()` | 设置标题位置（`TitleInside`/`TitleOutside`） |
 | `setFont()` | 设置标签字体 |
-| `setBuiltInAction()` | 启用内置交互 |
+| `setScaleColor()` / `setTextColor()` | 设置骨干线/刻度与标签颜色 |
+| `setBuildinActions()` | 启用内置交互（`ActionClickPan`/`ActionWheelZoom`/`ActionAll`） |
 | `setColorBarEnabled()` | 启用颜色条 |
 | `setColorMap()` | 设置颜色映射 |
-| `setTickPosition()` | 设置刻度位置 |
+| `scaleDraw()` | 访问刻度绘制对象（刻度长度用 `setTickLength()`） |
 | `setScaleDraw()` | 设置刻度绘制对象 |
 
 > **提示 — 坐标轴配置建议**

@@ -34,11 +34,18 @@ Each point displays a vector (direction + magnitude)
 Uses `QwtVectorFieldSample` to represent a single vector:
 
 ```cpp
-struct QwtVectorFieldSample {
-    double x;       // X coordinate
-    double y;       // Y coordinate
-    double vx;      // X component
-    double vy;      // Y component
+class QwtVectorFieldSample {
+public:
+    QwtVectorFieldSample(double x = 0.0, double y = 0.0,
+                         double vx = 0.0, double vy = 0.0);
+
+    QPointF pos() const;  // Position as QPointF
+    bool isNull() const;  // True when vx == vy == 0
+
+    double x;   // X coordinate of the position
+    double y;   // Y coordinate of the position
+    double vx;  // X component of the vector
+    double vy;  // Y component of the vector
 };
 ```
 
@@ -85,30 +92,41 @@ The arrow shape is provided by a `QwtVectorFieldSymbol` implementation — `QwtV
 ```cpp
 #include <QwtVectorFieldSymbol>
 
-// Create arrow symbol
-QwtVectorFieldSymbol* symbol = new QwtVectorFieldSymbol();
-symbol->setStyle(QwtVectorFieldSymbol::Arrow);  // Arrow style
+// QwtVectorFieldSymbol is an abstract base class; use one of the
+// built-in implementations (ownership passes to the field item):
 
-// Set arrow color
-symbol->setPen(QPen(Qt::blue, 1));
+// Filled arrow with adjustable head/tail width
+vectorField->setSymbol(new QwtVectorFieldArrow(8.0, 2.0));
+
+// Or: line-based thin arrow (this is the default symbol)
+vectorField->setSymbol(new QwtVectorFieldThinArrow(6.0));
+
+// Pen and brush are set on the field item itself, not on the symbol:
+// the pen strokes the arrow outline, the brush fills it
+vectorField->setPen(QPen(Qt::blue, 1));
+vectorField->setBrush(QBrush(Qt::blue));
 
 // Set arrow length scale
 vectorField->setMagnitudeScaleFactor(0.5);  // Scale factor
-
-vectorField->setSymbol(symbol);
 ```
 
 ### 3. Vector Magnitude Mapping
 
-Magnitude-to-length mapping is governed by `setMagnitudeScaleFactor()`, a linear factor applied to each vector's magnitude, optionally clamped with `setMinArrowLength()` / `setMaxArrowLength()`. The snippet below varies the scale factor to change how arrow length responds to magnitude:
+Magnitude-to-length mapping is governed by `setMagnitudeScaleFactor()`, a linear factor applied to each vector's magnitude (active while the `MagnitudeAsLength` mode is enabled, which is the default), optionally clamped with `setMinArrowLength()` / `setMaxArrowLength()`. The snippet below shows linear mapping, clamping, and a fixed-length configuration:
 
 ```cpp
-// Map vector magnitude to arrow length
-vectorField->setMagnitudeScaleFactor(1.0);  // Linear mapping
+// Map vector magnitude to arrow length (MagnitudeAsLength is on by default)
+vectorField->setMagnitudeMode(QwtPlotVectorField::MagnitudeAsLength, true);
+vectorField->setMagnitudeScaleFactor(1.0);  // Length = magnitude * factor
 
-// Set fixed arrow length (ignore magnitude)
-vectorField->setMagnitudeScaleFactor(0.0);
-vectorField->setSymbolSize(10);  // Fixed 10 pixels
+// Clamp the computed length into 5...20 pixels
+vectorField->setMinArrowLength(5);
+vectorField->setMaxArrowLength(20);
+
+// Fixed arrow length (ignore magnitude): set minimum and maximum
+// to the same value, so every non-null vector renders 10 pixels long
+vectorField->setMinArrowLength(10);
+vectorField->setMaxArrowLength(10);
 ```
 
 ### 4. Display Density Control
@@ -116,11 +134,11 @@ vectorField->setSymbolSize(10);  // Fixed 10 pixels
 Density is reduced by averaging neighbouring samples into grid cells: `setRasterSize()` defines the cell size, and the `FilterVectors` paint attribute (enabled via `setPaintAttribute()`) activates the filtering. The snippet below configures this decimation:
 
 ```cpp
-// Set sampling density (avoid overcrowding)
-vectorField->setSamplesPerInch(20);  // 20 vectors per inch
+// Average all vectors inside grid cells of 20 x 20 pixels into one arrow
+vectorField->setRasterSize(QSizeF(20, 20));
 
-// Or set fixed skip interval
-vectorField->setIndirectionCount(2);  // Display every 2nd point
+// Activate the filtering (without FilterVectors, every sample is drawn)
+vectorField->setPaintAttribute(QwtPlotVectorField::FilterVectors, true);
 ```
 
 ### 5. Color Mapping
@@ -133,19 +151,29 @@ Color-by-magnitude requires a `QwtColorMap` — e.g. a `QwtLinearColorMap` betwe
 // Set color based on vector magnitude
 QwtLinearColorMap* colorMap = new QwtLinearColorMap(Qt::blue, Qt::red);
 vectorField->setColorMap(colorMap);
-vectorField->setColorMagnitude(true);  // Enable color mapping
+
+// Enable magnitude-to-color mapping
+vectorField->setMagnitudeMode(QwtPlotVectorField::MagnitudeAsColor, true);
+
+// Value interval spanned by the color map; when left unset (invalid),
+// the range is determined from the samples themselves
+vectorField->setMagnitudeRange(QwtInterval(0.0, 2.0));
 ```
 
 ## Core Methods Summary
 
 | Method | Description |
 |--------|-------------|
-| `setSamples()` | Set vector data |
-| `setSymbol()` | Set arrow symbol |
-| `setMagnitudeScaleFactor()` | Set magnitude scale factor |
-| `setSamplesPerInch()` | Set display density |
-| `setColorMap()` | Set color map |
-| `setColorMagnitude()` | Enable color-magnitude mapping |
+| `setSamples()` | Set vector data (`QVector<QwtVectorFieldSample>` or `QwtVectorFieldData*`) |
+| `setSymbol()` | Set the arrow symbol (`QwtVectorFieldArrow` / `QwtVectorFieldThinArrow`) |
+| `setPen()` / `setBrush()` | Set the arrow outline pen / fill brush |
+| `setMagnitudeScaleFactor()` | Set the magnitude-to-length scale factor |
+| `setMinArrowLength()` / `setMaxArrowLength()` | Clamp the arrow length (pixels) |
+| `setRasterSize()` + `setPaintAttribute(FilterVectors)` | Reduce display density by averaging vectors per grid cell |
+| `setColorMap()` | Set the color map used for `MagnitudeAsColor` |
+| `setMagnitudeMode()` | Enable `MagnitudeAsColor` / `MagnitudeAsLength` mapping |
+| `setMagnitudeRange()` | Set the magnitude interval mapped by the color map |
+| `setIndicatorOrigin()` | Set the arrow anchor (`OriginHead` / `OriginTail` / `OriginCenter`) |
 
 > **Tip — Application Scenarios**
 >

@@ -15,28 +15,33 @@
 
 ### Interval Curve Composition
 
-The diagram below sketches the anatomy of an interval curve — a median curve framed by its upper and lower bounds:
+The diagram below sketches the anatomy of a `Tube` interval curve — the upper and lower interval bounds connected into two boundary curves, with the area between them filled:
 
 ```text
      Upper bound
        ───────
-      /      \
-     /  Curve \     ← Median curve
-    /          \
+      /       \
+     / Filled  \    ← Area filled with brush()
+    /   area    \
    ────────────
      Lower bound
 
-Interval curve shows: median curve + upper/lower bounds
+Boundary curves are stroked with pen(), the area between them filled with brush()
 ```
 
 ### Data Structure
 
-Uses `QwtIntervalSample` to represent interval data:
+Uses `QwtIntervalSample` to represent interval data — a position value on one axis paired with an interval on the other:
 
 ```cpp
-struct QwtIntervalSample {
-    double value;      // Median value (curve position)
-    QwtInterval interval; // Interval range [min, max]
+class QwtIntervalSample {
+public:
+    QwtIntervalSample();
+    QwtIntervalSample(double value, const QwtInterval& interval);
+    QwtIntervalSample(double value, double min, double max);
+
+    double value;           // Position value (curve position)
+    QwtInterval interval;   // Interval range [min, max]
 };
 ```
 
@@ -44,9 +49,9 @@ struct QwtIntervalSample {
 
 | Style | Enum Value | Description |
 |-------|-----------|-------------|
-| No curve | `NoCurve` | Show interval fill or symbols only |
-| Curve | `Tube` | Draw interval filled area |
-| Error bars | `ErrorBars` | Draw error bar lines |
+| No curve | `NoCurve` | Don't draw a curve; symbols (e.g. error bars) are still displayed |
+| Tube | `Tube` | Draw the upper/lower bounds as two curves with `pen()` and fill the area between them with `brush()` |
+| User curve | `UserCurve` | Reserved for derived classes that overload `drawSeries()` |
 
 ## Usage
 
@@ -69,7 +74,7 @@ QwtPlotIntervalCurve* curve = new QwtPlotIntervalCurve("Error Range");
 // Set style
 curve->setStyle(QwtPlotIntervalCurve::Tube);
 
-// Set median curve style
+// Set the pen for the upper/lower boundary curves
 curve->setPen(QPen(Qt::blue, 2));
 
 // Set interval fill style
@@ -89,21 +94,19 @@ plot->replot();
 
 ### 2. Error Bar Style
 
-Error-bar rendering is configured through the `QwtIntervalSymbol` attached with `setSymbol()`: the symbol's `Style` picks the cap shape (`Bar` draws a line with end caps) and the symbol's own `setPen()` determines the stroke. The snippet below attaches a `Bar` symbol to the curve:
+`CurveStyle` has no dedicated error-bar value — error bars are realized by switching the curve style to `NoCurve` and attaching a `QwtIntervalSymbol` via `setSymbol()`: the symbol's `Style` picks the cap shape (`Bar` draws a line with end caps), the symbol's own `setPen()` determines the stroke and `setWidth()` the cap size. Note that `setSymbol()` takes ownership of the pointer. The snippet below draws error bars only:
 
 ```cpp
-curve->setStyle(QwtPlotIntervalCurve::ErrorBars);
+// Draw the per-interval symbols only, no tube
+curve->setStyle(QwtPlotIntervalCurve::NoCurve);
 
-// Set error bar line style
-curve->setPen(QPen(Qt::black, 1));
-
-// Set error bar symbol (optional)
+// Error bar symbol: line with end caps
 QwtIntervalSymbol* symbol = new QwtIntervalSymbol(QwtIntervalSymbol::Bar);
 symbol->setPen(QPen(Qt::black, 1));
-curve->setSymbol(symbol);
+symbol->setWidth(5);  // Error bar cap width (pixels)
 
-// Set error bar width
-curve->setWidth(5);  // Error bar cross-line width (pixels)
+// Ownership of the symbol is transferred to the curve
+curve->setSymbol(symbol);
 ```
 
 ### 3. Tube Style Configuration
@@ -113,20 +116,16 @@ In `Tube` style the upper and lower bounds are stroked with the item's `setPen()
 ```cpp
 curve->setStyle(QwtPlotIntervalCurve::Tube);
 
-// Median curve style
+// Boundary curve style (both the upper and the lower bound use this pen)
 curve->setPen(QPen(Qt::red, 2));
 
-// Fill style
+// Fill style for the area between the boundaries
 curve->setBrush(QBrush(QColor(255, 200, 200, 150)));
-
-// Boundary line style
-curve->setOutlinePen(QPen(Qt::darkRed, 1));
-curve->setOutlineMode(QwtPlotIntervalCurve::OutlineBoth);  // Draw both upper and lower bounds
 ```
 
 ### 4. Symbol Configuration
 
-`QwtIntervalSymbol` is constructed with a `Style` — `Bar` for a line with end caps, `Box` for a plain rectangle — and tuned via `setPen()`, `setBrush()`, and `setWidth()` (stroke/cap width in pixels) before being assigned to the curve with `setSymbol()`. The example below creates a blue `Bar` symbol 8 pixels wide:
+`QwtIntervalSymbol` is constructed with a `Style` — `Bar` for a line with end caps, `Box` for a plain rectangle — and tuned via `setPen()`, `setBrush()`, and `setWidth()` (stroke/cap width in pixels) before being assigned to the curve with `setSymbol()`, which takes ownership of the pointer. The example below creates a blue `Bar` symbol 8 pixels wide:
 
 ```cpp
 #include <QwtIntervalSymbol>
@@ -138,25 +137,25 @@ QwtIntervalSymbol* symbol = new QwtIntervalSymbol(QwtIntervalSymbol::Bar);
 symbol->setPen(QPen(Qt::blue, 1));
 symbol->setWidth(8);  // Symbol width (pixels)
 
-curve->setSymbol(symbol);
+curve->setSymbol(symbol);  // Ownership is transferred to the curve
 
-// Symbol types:
-// - Bar: Horizontal line (standard error bar)
-// - Box: Rectangle
-// - Diamond: Diamond shape
+// Symbol styles:
+// - NoSymbol: No symbol is drawn
+// - Bar: Line with end caps (standard error bar)
+// - Box: Plain rectangle using pen() and brush()
+// - UserSymbol: Reserved for derived classes of QwtIntervalSymbol
 ```
 
 ## Core Methods Summary
 
 | Method | Description |
 |--------|-------------|
-| `setSamples()` | Set interval data |
-| `setStyle()` | Set curve style |
-| `setPen()` | Set median curve pen |
-| `setBrush()` | Set interval fill brush |
-| `setSymbol()` | Set interval symbol |
-| `setOutlinePen()` | Set boundary line pen |
-| `setOutlineMode()` | Set boundary display mode |
+| `setSamples()` | Set interval data (`QVector<QwtIntervalSample>` or `QwtSeriesData<QwtIntervalSample>*`) |
+| `setStyle()` | Set curve style (`NoCurve` / `Tube`) |
+| `setPen()` | Set the pen stroking the boundary curves (`Tube` style) |
+| `setBrush()` | Set the brush filling the tube area |
+| `setSymbol()` | Set the interval symbol drawn per sample (ownership transferred) |
+| `setPaintAttribute()` | Toggle clipping hints (`ClipPolygons` / `ClipSymbol`) |
 
 > **Tip — Application Scenarios**
 >

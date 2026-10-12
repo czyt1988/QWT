@@ -23,16 +23,20 @@
 | 菱形 | `Diamond` | 菱形 |
 | 三角形 | `Triangle` | 向上三角形 |
 | 倒三角 | `DTriangle` | 向下三角形 |
+| 上三角 | `UTriangle` | 向上三角形 |
 | 左三角 | `LTriangle` | 向左三角形 |
 | 右三角 | `RTriangle` | 向右三角形 |
 | 十字 | `Cross` | +形十字 |
-| X十字 | `XCross` | X形十字 |
-| 星形 | `Star1` | 六角星 |
-| 星形2 | `Star2` | 五角星 |
+| X十字 | `XCross` | X形斜十字 |
+| 水平线 | `HLine` | 水平线段 |
+| 垂直线 | `VLine` | 垂直线段 |
+| 星形 | `Star1` | X 与 + 组合的星形 |
+| 星形2 | `Star2` | 六角星 |
 | 六边形 | `Hexagon` | 正六边形 |
 | 路径 | `Path` | 自定义QPainterPath |
+| 位图 | `Pixmap` | QPixmap 位图 |
 | 图形 | `Graphic` | QwtGraphic对象 |
-| SVG | `Svg` | SVG图形 |
+| SVG | `SvgDocument` | SVG文档图形 |
 
 ## 使用方法
 
@@ -72,9 +76,9 @@ symbol2->setSize(8, 8);
 
 QwtPlotCurve* curve = new QwtPlotCurve();
 
-// 设置符号
+// 设置符号（QwtSymbol 没有 Circle 枚举，圆形用正方形尺寸的 Ellipse 实现）
 curve->setSymbol(new QwtSymbol(
-    QwtSymbol::Circle,
+    QwtSymbol::Ellipse,
     QBrush(Qt::yellow),
     QPen(Qt::blue, 1),
     QSize(6, 6)
@@ -152,19 +156,22 @@ symbol->setSize(15, 8);  // 宽15，高8
 
 ### 6. 符号图钉点
 
-设置符号相对于数据点的锚点位置：
+图钉点（pin point）定义的是**符号自身坐标系内**（`Path` 为 painter path 坐标、`Pixmap` 为像素坐标、`SvgDocument` 为 viewBox 坐标）与数据点对齐的位置，它仅对 `Path`、`Pixmap`、`Graphic`、`SvgDocument` 这几种符号生效，坐标**不是** [0,1] 归一化值。默认图钉点未启用，符号以中心对齐数据点。
 
 ```cpp
-// 默认图钉点在符号中心
-symbol->setPinPoint(QPointF(0.5, 0.5));  // 相对位置（0.5为中心）
+// 默认未启用图钉点对齐：符号中心对准数据点
 
-// 设置图钉点在符号底部中心
-symbol->setPinPoint(QPointF(0.5, 1.0));
-
-// 设置图钉点在符号左上角
+// 让符号自身坐标系的原点 (0, 0) 对准数据点——
+// 例如把画在 (0, 0) 处的箭头尖端正压在数据值上。
+// setPinPoint() 会同时启用对齐：
 symbol->setPinPoint(QPointF(0.0, 0.0));
 
-// 图钉点使用归一化坐标[0,1]
+// 符号坐标系内的任意位置都可以，
+// 例如原点右下方 5 个单位处：
+symbol->setPinPoint(QPointF(5.0, 5.0));
+
+// 关闭图钉点对齐：符号恢复为以中心对准数据点
+symbol->setPinPointEnabled(false);
 ```
 
 ### 7. 符号填充样式

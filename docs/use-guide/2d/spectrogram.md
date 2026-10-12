@@ -44,10 +44,16 @@ The class diagram below shows the key players and how they relate: `QwtPlotSpect
 
 ```mermaid
 classDiagram
-    class QwtPlotRasterItem {
-        +setData()
-        +setColorMap()
+    class QwtPlotItem {
+        +attach()
+        +setRenderHint()
         +setRenderThreadCount()
+    }
+
+    class QwtPlotRasterItem {
+        +setAlpha()
+        +setCachePolicy()
+        +setPaintAttribute()
     }
 
     class QwtPlotSpectrogram {
@@ -69,6 +75,7 @@ classDiagram
         +colorTable()
     }
 
+    QwtPlotItem <|-- QwtPlotRasterItem
     QwtPlotRasterItem <|-- QwtPlotSpectrogram
     QwtPlotSpectrogram --> QwtRasterData : uses
     QwtPlotSpectrogram --> QwtColorMap : uses
@@ -120,11 +127,13 @@ plot->replot();
 
 ### 2. Custom Raster Data
 
-Create a `QwtRasterData` derived class to provide data:
+Create a `QwtRasterData` derived class to provide data: implement the pure virtual `interval()` and `value()` methods — contour line computation is optional, the base class already provides a CONREC implementation:
 
 ```cpp
 #include <QwtRasterData>
 #include <QwtInterval>
+
+#include <cmath>
 
 // Custom raster data class
 class MyRasterData : public QwtRasterData
@@ -132,30 +141,41 @@ class MyRasterData : public QwtRasterData
 public:
     MyRasterData()
     {
+        // Optional performance hint: no NaN gaps inside the bounding rectangle
+        setAttribute(QwtRasterData::WithoutGaps, true);
+
         // Set data range
-        setInterval(Qt::XAxis, QwtInterval(0, 100));
-        setInterval(Qt::YAxis, QwtInterval(0, 100));
-        setInterval(Qt::ZAxis, QwtInterval(0, 1));  // Value range
+        m_intervals[Qt::XAxis] = QwtInterval(0, 100);
+        m_intervals[Qt::YAxis] = QwtInterval(0, 100);
+        m_intervals[Qt::ZAxis] = QwtInterval(0, 1);  // Value range
     }
 
-    // Return value at specified position (core method)
+    // Return the bounding interval for an axis (pure virtual)
+    virtual QwtInterval interval(Qt::Axis axis) const override
+    {
+        if (axis >= 0 && axis <= 2)
+            return m_intervals[axis];
+
+        return QwtInterval();
+    }
+
+    // Return value at specified position (core method, pure virtual)
     virtual double value(double x, double y) const override
     {
         // Example: compute value at position
-        double dx = x - 50;
-        double dy = y - 50;
-        double dist = std::sqrt(dx * dx + dy * dy);
+        const double dx = x - 50;
+        const double dy = y - 50;
+        const double dist = std::sqrt(dx * dx + dy * dy);
         return std::exp(-dist / 20.0);  // Gaussian distribution
     }
 
-    // Optional: return contour line data
-    virtual QList<QwtContourLine> contourLines(
-        const QList<double>& levels,
-        const QRectF& rect) const override
-    {
-        // Implement contour line computation
-        return QwtRasterData::contourLines(levels, rect);
-    }
+    // Optional: override the contour line computation (ContourLines is
+    // QMap<double, QPolygonF>); the base class runs the CONREC algorithm:
+    // virtual ContourLines contourLines(const QRectF& rect, const QSize& raster,
+    //     const QList<double>& levels, ConrecFlags flags) const override;
+
+private:
+    QwtInterval m_intervals[3];
 };
 ```
 
@@ -184,18 +204,27 @@ spectrogram->setColorMap(colorMap);
 
 #### Predefined Color Maps
 
-Besides defining your own stops, Qwt ships ready-made maps such as `QwtHueColorMap`, which cycles through the hue range for a rainbow effect, and `QwtAlphaColorMap`, which varies the transparency of a fixed color; any of them is assigned through the same `setColorMap()` call:
+Besides defining your own stops, Qwt ships ready-made maps such as `QwtHueColorMap`, which cycles the hue of the HSV model for a rainbow effect, `QwtAlphaColorMap`, which varies the transparency of a fixed color, and `QwtSaturationValueColorMap`, which varies saturation and/or value for a fixed hue; any of them is assigned through the same `setColorMap()` call:
 
 ```cpp
 // Use Qwt's built-in Hue color map (rainbow)
 QwtHueColorMap* hueMap = new QwtHueColorMap();
-hueMap->setHueRange(0.0, 360.0);  // Full hue range
+hueMap->setHueInterval(0, 359);  // Full hue circle (HSV hue: 0-359)
+hueMap->setSaturation(255);
+hueMap->setValue(255);
 spectrogram->setColorMap(hueMap);
 
-// Use Alpha color map (transparency variation)
-QwtAlphaColorMap* alphaMap = new QwtAlphaColorMap();
-alphaMap->setAlphaRange(0, 255);
+// Use Alpha color map (transparency variation of one color)
+QwtAlphaColorMap* alphaMap = new QwtAlphaColorMap(Qt::darkBlue);
+alphaMap->setAlphaInterval(0, 255);  // From fully transparent to opaque
 spectrogram->setColorMap(alphaMap);
+
+// Use Saturation/Value color map (fixed hue, varying saturation and value)
+QwtSaturationValueColorMap* svMap = new QwtSaturationValueColorMap();
+svMap->setHue(220);
+svMap->setSaturationInterval(100, 255);
+svMap->setValueInterval(70, 255);
+spectrogram->setColorMap(svMap);
 ```
 
 ### 4. Contour Display
@@ -221,14 +250,17 @@ spectrogram->setDisplayMode(QwtPlotSpectrogram::ContourMode, true);
 
 ### 5. Data Resolution Settings
 
-Raster rendering offers a quality-versus-speed trade-off: `QwtPlotSpectrogram` inherits from `QwtPlotRasterItem` and `QwtPlotItem` a set of render settings — for example the `RenderAntialiased` render hint toggled via `setRenderHint()` — that control how the data grid is resampled onto pixels:
+Raster rendering offers a quality-versus-speed trade-off. There is no explicit "pixel size" setter — the image is normally rendered in the resolution of the paint device. What you can control: `QwtRasterData::pixelHint()` lets the data suggest a pixel grid aligned to the data raster (implemented automatically by `QwtMatrixRasterData`), the `PaintInDeviceResolution` paint attribute expands such an image to device resolution before it is passed to QPainter, `RenderAntialiased` (inherited from `QwtPlotItem`) toggles antialiasing, and `setCachePolicy()` keeps a rendered image between repaints:
 
 ```cpp
-// Set pixel resolution (size of data unit per pixel)
-spectrogram->setPixelSize(2.0);  // 2 data units per pixel
+// Expand a data-aligned image (per pixelHint()) to paint device resolution
+spectrogram->setPaintAttribute(QwtPlotRasterItem::PaintInDeviceResolution, true);
 
-// Or use recommended resolution for automatic calculation
-spectrogram->setRenderHint(QwtPlotRasterItem::RenderAntialiased);
+// Antialiasing render hint (inherited from QwtPlotItem)
+spectrogram->setRenderHint(QwtPlotItem::RenderAntialiased, true);
+
+// Cache the rendered image instead of recomputing it on every repaint
+spectrogram->setCachePolicy(QwtPlotRasterItem::PaintCache);
 ```
 
 ### 6. Multi-Threaded Rendering
@@ -239,7 +271,8 @@ Large rasters can be rendered in parallel: `setRenderThreadCount()`, inherited f
 // Set rendering thread count (improves large data rendering performance)
 spectrogram->setRenderThreadCount(4);  // Use 4 threads for parallel rendering
 
-// Default value is 0 (single-threaded)
+// The default is 1 (single-threaded); 0 selects the system specific ideal thread count
+spectrogram->setRenderThreadCount(0);
 ```
 
 > **Tip — Multi-Threaded Rendering Recommendations**
@@ -278,7 +311,7 @@ spectrogram->setData(matrixData);
 
 ### 8. Color Bar
 
-Add a color bar to show the correspondence between colors and values:
+Add a color bar to show the correspondence between colors and values (the scale widget takes ownership of the color map, so pass a new instance rather than reusing the spectrogram's one):
 
 ```cpp
 #include <QwtScaleWidget>
@@ -289,7 +322,7 @@ rightAxis->setColorBarEnabled(true);
 rightAxis->setColorBarWidth(20);
 
 // Set color bar range and color map
-rightAxis->setColorMap(QwtInterval(0, 100), colorMap);
+rightAxis->setColorMap(QwtInterval(0, 100), new QwtLinearColorMap(Qt::darkBlue, Qt::yellow));
 
 // Show right axis
 plot->setAxisVisible(QwtAxis::YRight, true);
@@ -304,8 +337,8 @@ plot->setAxisVisible(QwtAxis::YRight, true);
 | `setDisplayMode()` | Set display mode |
 | `setContourLevels()` | Set contour levels |
 | `setDefaultContourPen()` | Set contour line pen |
-| `setPixelSize()` | Set pixel resolution |
-| `setRenderThreadCount()` | Set rendering thread count |
+| `setColorTableSize()` | Set the number of color table entries (for `Indexed` color maps) |
+| `setRenderThreadCount()` | Set rendering thread count (inherited from `QwtPlotItem`) |
 | `data()` | Get raster data |
 | `colorMap()` | Get color map |
 
@@ -313,10 +346,10 @@ plot->setAxisVisible(QwtAxis::YRight, true);
 
 | Class | Description |
 |-------|-------------|
-| `QwtLinearColorMap` | Linear color map with smooth color transitions |
-| `QwtHueColorMap` | Hue-based color map with rainbow effect |
-| `QwtAlphaColorMap` | Alpha color map with transparency variation |
-| `QwtLogColorMap` | Logarithmic color map, suitable for wide-range data |
+| `QwtLinearColorMap` | Linear color map built from color stops, with smooth color transitions |
+| `QwtHueColorMap` | Varies the hue of the HSV color model for a rainbow effect |
+| `QwtAlphaColorMap` | Varies the alpha value (transparency) of a fixed color |
+| `QwtSaturationValueColorMap` | Varies saturation and/or value for a fixed hue in the HSV color model |
 
 > **Tip — Application Scenarios**
 >

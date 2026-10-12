@@ -40,15 +40,22 @@
 
 ### 数据结构
 
-使用 `QwtTradingSample` 表示每根K线的数据：
+使用 `QwtOHLCSample`（声明于 `qwt_samples.h`，也可通过 `#include <QwtOHLCSample>` 引入）表示每根K线的数据。注意构造函数的参数顺序为**时间、开盘、最高、最低、收盘**：
 
 ```cpp
-struct QwtTradingSample {
+class QwtOHLCSample {
+public:
+    QwtOHLCSample(double time = 0.0, double open = 0.0,
+                  double high = 0.0, double low = 0.0, double close = 0.0);
+
+    QwtInterval boundingInterval() const;  // 价格覆盖的区间
+    bool isValid() const;                  // 校验 low <= open/close <= high
+
     double time;      // 时间点（X轴位置）
     double open;      // 开盘价
-    double close;     // 收盘价
     double high;      // 最高价
     double low;       // 最低价
+    double close;     // 收盘价
 };
 ```
 
@@ -73,24 +80,24 @@ plot->setCanvasBackground(Qt::white);
 // 创建K线图
 QwtPlotTradingCurve* curve = new QwtPlotTradingCurve("日K线");
 
-// 设置样式
-curve->setStyle(QwtPlotTradingCurve::CandleStick);
+// 设置符号样式
+curve->setSymbolStyle(QwtPlotTradingCurve::CandleStick);
 
 // 设置涨跌颜色
-curve->setSymbolBrush(QwtPlotTradingCurve::Positive, 
+curve->setSymbolBrush(QwtPlotTradingCurve::Increasing,
     QBrush(Qt::red));   // 涨（收盘>开盘）：红色
-curve->setSymbolBrush(QwtPlotTradingCurve::Negative,
-    QBrush(Qt::green)); // 跌（收盘<开盘）：绿色
+curve->setSymbolBrush(QwtPlotTradingCurve::Decreasing,
+    QBrush(Qt::green)); // 跌（收盘<=开盘）：绿色
 
 // 设置箱体宽度
-curve->setSymbolExtent(0.8);  // 相对宽度的80%
+curve->setSymbolExtent(0.8);  // 宽度为0.8个坐标（X轴）单位
 
-// 准备数据
-QVector<QwtTradingSample> samples;
-samples << QwtTradingSample(1, 10.0, 10.5, 11.0, 9.5);   // 涨
-samples << QwtTradingSample(2, 10.5, 10.2, 10.8, 10.0);  // 跌
-samples << QwtTradingSample(3, 10.2, 10.8, 11.2, 10.1);  // 涨
-samples << QwtTradingSample(4, 10.8, 10.6, 11.0, 10.4);  // 跌
+// 准备数据：QwtOHLCSample(时间, 开盘, 最高, 最低, 收盘)
+QVector<QwtOHLCSample> samples;
+samples << QwtOHLCSample(1, 10.0, 11.0, 9.5, 10.5);   // 涨
+samples << QwtOHLCSample(2, 10.5, 10.8, 10.0, 10.2);  // 跌
+samples << QwtOHLCSample(3, 10.2, 11.2, 10.1, 10.8);  // 涨
+samples << QwtOHLCSample(4, 10.8, 11.0, 10.4, 10.6);  // 跌
 
 curve->setSamples(samples);
 curve->attach(plot);
@@ -104,21 +111,17 @@ plot->replot();
 
 #### 蜡烛图样式
 
-`CandleStick` 模式下，开盘价与收盘价之间的箱体按价格方向填充：`setSymbolBrush()` 接受一个 `Direction`（收盘高于开盘为 `Increasing`，反之为 `Decreasing`）和画刷，`setSymbolPen()` 则设置蜡烛的描边画笔。下面的代码为涨跌分别指定不同的填充：
+`CandleStick` 模式下，开盘价与收盘价之间的箱体按价格方向填充：`setSymbolBrush()` 接受一个 `Direction`（收盘高于开盘为 `Increasing`，反之为 `Decreasing`）和画刷；描边画笔则通过 `setSymbolPen()` 全局设置——没有按方向区分的画笔重载——且平盘样本（开盘=收盘）会按 `Decreasing` 的画刷绘制，不存在独立的平盘状态。下面的代码为涨跌分别指定不同的填充：
 
 ```cpp
-curve->setStyle(QwtPlotTradingCurve::CandleStick);
+curve->setSymbolStyle(QwtPlotTradingCurve::CandleStick);
 
-// 设置涨跌样式
-curve->setSymbolBrush(QwtPlotTradingCurve::Positive, QBrush(Qt::red));
-curve->setSymbolPen(QwtPlotTradingCurve::Positive, QPen(Qt::darkRed, 1));
+// 设置涨跌填充（按方向各一个画刷）
+curve->setSymbolBrush(QwtPlotTradingCurve::Increasing, QBrush(Qt::red));    // 涨
+curve->setSymbolBrush(QwtPlotTradingCurve::Decreasing, QBrush(Qt::green));  // 跌
 
-curve->setSymbolBrush(QwtPlotTradingCurve::Negative, QBrush(Qt::green));
-curve->setSymbolPen(QwtPlotTradingCurve::Negative, QPen(Qt::darkGreen, 1));
-
-// 平盘样式（开盘=收盘）
-curve->setSymbolBrush(QwtPlotTradingCurve::Neutral, QBrush(Qt::gray));
-curve->setSymbolPen(QwtPlotTradingCurve::Neutral, QPen(Qt::black, 1));
+// 描边画笔为两个方向共用
+curve->setSymbolPen(QPen(Qt::black, 1));
 ```
 
 #### 美国线样式
@@ -126,7 +129,7 @@ curve->setSymbolPen(QwtPlotTradingCurve::Neutral, QPen(Qt::black, 1));
 `Bar` 样式只绘制从最低价到最高价的竖线，并以左右小横线标记开盘价与收盘价，不绘制箱体。通过 `setSymbolStyle(QwtPlotTradingCurve::Bar)` 切换：
 
 ```cpp
-curve->setStyle(QwtPlotTradingCurve::Bar);
+curve->setSymbolStyle(QwtPlotTradingCurve::Bar);
 
 // 美国线仅显示线条，不绘制箱体
 // 线条从最低价到最高价，左右小横线标记开盘和收盘价
@@ -152,16 +155,16 @@ curve->setMaxSymbolWidth(20); // 最大20像素宽
 `setSamples()` 提供两种重载：一种接收 `QVector<QwtOHLCSample>`——每个样本包含时间、开盘、最高、最低、收盘五个值；另一种接收 `QwtSeriesData<QwtOHLCSample>*`，便于接入自定义数据源。下面的代码演示了这两种写法：
 
 ```cpp
-// 使用QwtTradingSample数组
-QVector<QwtTradingSample> samples;
+// 使用QwtOHLCSample数组
+QVector<QwtOHLCSample> samples;
 for (int i = 0; i < count; i++) {
-    samples << QwtTradingSample(
-        time[i], open[i], close[i], high[i], low[i]
+    samples << QwtOHLCSample(
+        time[i], open[i], high[i], low[i], close[i]
     );
 }
 curve->setSamples(samples);
 
-// 使用QwtSeriesData
+// 使用QwtSeriesData（QwtSeriesData<QwtOHLCSample>*）
 curve->setSamples(seriesData);
 ```
 
@@ -204,11 +207,11 @@ ma10->attach(plot);
 
 | 方法 | 说明 |
 |------|------|
-| `setSamples()` | 设置K线数据 |
-| `setStyle()` | 设置K线样式 |
-| `setSymbolBrush()` | 设置涨跌填充色 |
-| `setSymbolPen()` | 设置涨跌边框色 |
-| `setSymbolExtent()` | 设置箱体宽度 |
+| `setSamples()` | 设置K线数据（`QVector<QwtOHLCSample>` 或 `QwtSeriesData<QwtOHLCSample>*`） |
+| `setSymbolStyle()` | 设置K线符号样式（`Bar` / `CandleStick`） |
+| `setSymbolBrush()` | 按方向（`Increasing` / `Decreasing`）设置箱体填充画刷 |
+| `setSymbolPen()` | 设置符号描边画笔（全局一支，两个方向共用） |
+| `setSymbolExtent()` | 设置箱体宽度（坐标单位） |
 | `setMinSymbolWidth()` | 设置最小宽度（像素） |
 | `setMaxSymbolWidth()` | 设置最大宽度（像素） |
 
@@ -216,9 +219,8 @@ ma10->attach(plot);
 
 | 状态 | 枚举值 | 判断条件 |
 |------|--------|----------|
-| 上涨 | `Positive` | close > open |
-| 下跌 | `Negative` | close < open |
-| 平盘 | `Neutral` | close == open |
+| 上涨 | `Increasing` | close > open |
+| 下跌 | `Decreasing` | close <= open（平盘 close == open 也使用 `Decreasing` 画刷） |
 
 > **提示 — 颜色约定**
 >

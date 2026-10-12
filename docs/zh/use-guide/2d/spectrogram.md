@@ -43,10 +43,16 @@
 
 ```mermaid
 classDiagram
-    class QwtPlotRasterItem {
-        +setData()
-        +setColorMap()
+    class QwtPlotItem {
+        +attach()
+        +setRenderHint()
         +setRenderThreadCount()
+    }
+
+    class QwtPlotRasterItem {
+        +setAlpha()
+        +setCachePolicy()
+        +setPaintAttribute()
     }
     
     class QwtPlotSpectrogram {
@@ -68,6 +74,7 @@ classDiagram
         +colorTable()
     }
     
+    QwtPlotItem <|-- QwtPlotRasterItem
     QwtPlotRasterItem <|-- QwtPlotSpectrogram
     QwtPlotSpectrogram --> QwtRasterData : 使用
     QwtPlotSpectrogram --> QwtColorMap : 使用
@@ -119,11 +126,13 @@ plot->replot();
 
 ### 2. 自定义栅格数据
 
-创建 `QwtRasterData` 派生类提供数据：
+创建 `QwtRasterData` 派生类提供数据：实现纯虚函数 `interval()` 与 `value()` 即可——等高线计算是可选的，基类已内置 CONREC 算法实现：
 
 ```cpp
 #include <QwtRasterData>
 #include <QwtInterval>
+
+#include <cmath>
 
 // 自定义栅格数据类
 class MyRasterData : public QwtRasterData
@@ -131,30 +140,41 @@ class MyRasterData : public QwtRasterData
 public:
     MyRasterData()
     {
+        // 可选的性能提示：包围盒内没有NaN空洞
+        setAttribute(QwtRasterData::WithoutGaps, true);
+
         // 设置数据范围
-        setInterval(Qt::XAxis, QwtInterval(0, 100));
-        setInterval(Qt::YAxis, QwtInterval(0, 100));
-        setInterval(Qt::ZAxis, QwtInterval(0, 1));  // 值范围
+        m_intervals[Qt::XAxis] = QwtInterval(0, 100);
+        m_intervals[Qt::YAxis] = QwtInterval(0, 100);
+        m_intervals[Qt::ZAxis] = QwtInterval(0, 1);  // 值范围
     }
 
-    // 返回指定位置的值（核心方法）
+    // 返回某个轴的包围区间（纯虚函数）
+    virtual QwtInterval interval(Qt::Axis axis) const override
+    {
+        if (axis >= 0 && axis <= 2)
+            return m_intervals[axis];
+
+        return QwtInterval();
+    }
+
+    // 返回指定位置的值（核心方法，纯虚函数）
     virtual double value(double x, double y) const override
     {
         // 示例：计算位置对应的值
-        double dx = x - 50;
-        double dy = y - 50;
-        double dist = std::sqrt(dx * dx + dy * dy);
+        const double dx = x - 50;
+        const double dy = y - 50;
+        const double dist = std::sqrt(dx * dx + dy * dy);
         return std::exp(-dist / 20.0);  // 高斯分布
     }
 
-    // 可选：返回等高线数据
-    virtual QList<QwtContourLine> contourLines(
-        const QList<double>& levels,
-        const QRectF& rect) const override
-    {
-        // 实现等高线计算
-        return QwtRasterData::contourLines(levels, rect);
-    }
+    // 可选：重写等高线计算（ContourLines 即 QMap<double, QPolygonF>），
+    // 基类默认运行CONREC算法：
+    // virtual ContourLines contourLines(const QRectF& rect, const QSize& raster,
+    //     const QList<double>& levels, ConrecFlags flags) const override;
+
+private:
+    QwtInterval m_intervals[3];
 };
 ```
 
@@ -183,18 +203,27 @@ spectrogram->setColorMap(colorMap);
 
 #### 预定义颜色映射
 
-除了自己定义色标，Qwt 还提供现成的颜色映射：`QwtHueColorMap` 遍历色相范围产生彩虹效果，`QwtAlphaColorMap` 则改变固定颜色的透明度；它们都通过同一个 `setColorMap()` 调用赋给 spectrogram：
+除了自己定义色标，Qwt 还提供现成的颜色映射：`QwtHueColorMap` 遍历 HSV 模型的色相产生彩虹效果，`QwtAlphaColorMap` 改变固定颜色的透明度，`QwtSaturationValueColorMap` 则在固定色相下改变饱和度与明度；它们都通过同一个 `setColorMap()` 调用赋给 spectrogram：
 
 ```cpp
 // 使用Qwt内置的Hue色图（彩虹色）
 QwtHueColorMap* hueMap = new QwtHueColorMap();
-hueMap->setHueRange(0.0, 360.0);  // 全色相范围
+hueMap->setHueInterval(0, 359);  // 全色相环（HSV色相：0-359）
+hueMap->setSaturation(255);
+hueMap->setValue(255);
 spectrogram->setColorMap(hueMap);
 
-// 使用Alpha色图（透明度变化）
-QwtAlphaColorMap* alphaMap = new QwtAlphaColorMap();
-alphaMap->setAlphaRange(0, 255);
+// 使用Alpha色图（单一颜色的透明度变化）
+QwtAlphaColorMap* alphaMap = new QwtAlphaColorMap(Qt::darkBlue);
+alphaMap->setAlphaInterval(0, 255);  // 从全透明到不透明
 spectrogram->setColorMap(alphaMap);
+
+// 使用饱和度/明度色图（固定色相，变化饱和度与明度）
+QwtSaturationValueColorMap* svMap = new QwtSaturationValueColorMap();
+svMap->setHue(220);
+svMap->setSaturationInterval(100, 255);
+svMap->setValueInterval(70, 255);
+spectrogram->setColorMap(svMap);
 ```
 
 ### 4. 等高线显示
@@ -220,14 +249,17 @@ spectrogram->setDisplayMode(QwtPlotSpectrogram::ContourMode, true);
 
 ### 5. 数据分辨率设置
 
-栅格渲染存在质量与速度的权衡：`QwtPlotSpectrogram` 从 `QwtPlotRasterItem` / `QwtPlotItem` 继承了一组渲染设置——例如用 `setRenderHint()` 开关 `RenderAntialiased` 渲染提示——控制数据网格到像素的重采样方式：
+栅格渲染存在质量与速度的权衡。没有显式的"像素大小"设置项——图像通常按绘图设备的分辨率渲染。可控的手段有：`QwtRasterData::pixelHint()` 让数据给出与数据栅格对齐的像素网格提示（`QwtMatrixRasterData` 自动实现）；`PaintInDeviceResolution` 绘制属性会把这种对齐数据的图像放大到设备分辨率后再交给 QPainter；`RenderAntialiased`（继承自 `QwtPlotItem`）开关抗锯齿；`setCachePolicy()` 可在多次重绘之间缓存已渲染的图像：
 
 ```cpp
-// 设置像素分辨率（每个像素代表的数据单元大小）
-spectrogram->setPixelSize(2.0);  // 每个像素2个数据单位
+// 把按pixelHint()对齐数据的图像放大到绘图设备分辨率
+spectrogram->setPaintAttribute(QwtPlotRasterItem::PaintInDeviceResolution, true);
 
-// 或者使用推荐分辨率自动计算
-spectrogram->setRenderHint(QwtPlotRasterItem::RenderAntialiased);
+// 抗锯齿渲染提示（继承自QwtPlotItem）
+spectrogram->setRenderHint(QwtPlotItem::RenderAntialiased, true);
+
+// 缓存已渲染的图像，避免每次重绘都重新计算
+spectrogram->setCachePolicy(QwtPlotRasterItem::PaintCache);
 ```
 
 ### 6. 多线程渲染
@@ -238,7 +270,8 @@ spectrogram->setRenderHint(QwtPlotRasterItem::RenderAntialiased);
 // 设置渲染线程数（提升大数据渲染性能）
 spectrogram->setRenderThreadCount(4);  // 使用4个线程并行渲染
 
-// 默认值为0（单线程）
+// 默认值为1（单线程）；传0则由系统选择理想的线程数
+spectrogram->setRenderThreadCount(0);
 ```
 
 > **提示 — 多线程渲染建议**
@@ -277,7 +310,7 @@ spectrogram->setData(matrixData);
 
 ### 8. 颜色条（Color Bar）
 
-添加颜色条显示颜色与数值的对应关系：
+添加颜色条显示颜色与数值的对应关系（刻度控件会接管颜色映射的所有权，因此要传入新实例，不要复用 spectrogram 已持有的那份）：
 
 ```cpp
 #include <QwtScaleWidget>
@@ -288,7 +321,7 @@ rightAxis->setColorBarEnabled(true);
 rightAxis->setColorBarWidth(20);
 
 // 设置颜色条范围和颜色映射
-rightAxis->setColorMap(QwtInterval(0, 100), colorMap);
+rightAxis->setColorMap(QwtInterval(0, 100), new QwtLinearColorMap(Qt::darkBlue, Qt::yellow));
 
 // 显示右侧坐标轴
 plot->setAxisVisible(QwtAxis::YRight, true);
@@ -303,8 +336,8 @@ plot->setAxisVisible(QwtAxis::YRight, true);
 | `setDisplayMode()` | 设置显示模式 |
 | `setContourLevels()` | 设置等高线级别 |
 | `setDefaultContourPen()` | 设置等高线画笔 |
-| `setPixelSize()` | 设置像素分辨率 |
-| `setRenderThreadCount()` | 设置渲染线程数 |
+| `setColorTableSize()` | 设置颜色表条目数（用于 `Indexed` 格式颜色映射） |
+| `setRenderThreadCount()` | 设置渲染线程数（继承自 `QwtPlotItem`） |
 | `data()` | 获取栅格数据 |
 | `colorMap()` | 获取颜色映射 |
 
@@ -312,10 +345,10 @@ plot->setAxisVisible(QwtAxis::YRight, true);
 
 | 类名 | 说明 |
 |------|------|
-| `QwtLinearColorMap` | 线性颜色映射，颜色平滑过渡 |
-| `QwtHueColorMap` | 色相颜色映射，彩虹色效果 |
-| `QwtAlphaColorMap` | Alpha颜色映射，透明度变化 |
-| `QwtLogColorMap` | 对数颜色映射，适合大范围数据 |
+| `QwtLinearColorMap` | 由色标构成的线性颜色映射，颜色平滑过渡 |
+| `QwtHueColorMap` | 变化HSV模型的色相，产生彩虹色效果 |
+| `QwtAlphaColorMap` | 变化固定颜色的Alpha值（透明度） |
+| `QwtSaturationValueColorMap` | 固定色相，变化HSV模型的饱和度与明度 |
 
 > **提示 — 应用场景**
 >

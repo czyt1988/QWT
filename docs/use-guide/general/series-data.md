@@ -15,7 +15,7 @@
 
 ### Data Interface Structure
 
-The class diagram below outlines the `QwtSeriesData<T>` interface — `size()`, `sample(i)`, `boundingRect()` and the optional `setRectOfInterest()` — together with the built-in derivations: `QwtPointSeriesData` stores `QPointF` samples in a `QVector`, the generic `QwtArraySeriesData<T>` stores arrays of any sample type, and the synthetic class computes samples on the fly from a function without storing them (its concrete implementation in the source is named `QwtSyntheticPointData`):
+The class diagram below outlines the `QwtSeriesData<T>` interface — `size()`, `sample(i)`, `boundingRect()` and the optional `setRectOfInterest()` — together with the built-in derivations: the generic `QwtArraySeriesData<T>` stores samples in a `QVector` and adds `setSamples()` / `samples()`, `QwtPointSeriesData` is its specialization for `QPointF` samples, and `QwtSyntheticPointData` derives from `QwtPointSeriesData` to compute samples on the fly from a pure virtual `y(double x)` function without storing them:
 
 ```mermaid
 classDiagram
@@ -26,32 +26,36 @@ classDiagram
         +setRectOfInterest(rect)
     }
 
-    class QwtPointSeriesData {
-        +setSamples()
-        +samples()
-    }
-
     class QwtArraySeriesData~T~ {
         +setSamples()
         +samples()
     }
 
-    class QwtSyntheticSeriesData {
-        +value(x) double
+    class QwtPointSeriesData {
+        +boundingRect() QRectF
     }
 
-    QwtSeriesData <|-- QwtPointSeriesData
+    class QwtSyntheticPointData {
+        +y(x) double
+        +x(index) double
+        +setSize(size)
+        +setInterval(interval)
+    }
+
     QwtSeriesData <|-- QwtArraySeriesData
-    QwtSeriesData <|-- QwtSyntheticSeriesData
+    QwtArraySeriesData <|-- QwtPointSeriesData
+    QwtPointSeriesData <|-- QwtSyntheticPointData
 ```
 
 ### Built-in Data Classes
 
 | Class Name | Description |
 |------|------|
-| `QwtPointSeriesData` | Stores QPointF data points |
-| `QwtArraySeriesData<T>` | Stores arbitrary type data arrays |
-| `QwtSyntheticSeriesData` | Generates function data (not stored) |
+| `QwtArraySeriesData<T>` | Stores arrays of arbitrary sample types in a `QVector`, provides `setSamples()` / `samples()` |
+| `QwtPointSeriesData` | Stores `QPointF` data points (`QwtArraySeriesData<QPointF>`) |
+| `QwtSyntheticPointData` | Generates function data on the fly from `y(double x)` (not stored) |
+
+Further specializations of `QwtArraySeriesData<T>` exist for other sample types, e.g. `QwtPoint3DSeriesData`, `QwtIntervalSeriesData`, `QwtSetSeriesData`, `QwtTradingChartData` and `QwtBoxChartData`.
 
 ## Usage
 
@@ -105,7 +109,7 @@ curve->setRawSamples(x, y, 1000);
 Implementing a custom data source:
 
 ```cpp
-#include <QwtSeriesData>
+#include <QwtPointSeriesData>  // Provides the QwtSeriesData<T> template and the built-in point data classes
 
 // Custom database data source
 class DatabaseSeriesData : public QwtSeriesData<QPointF>
@@ -157,29 +161,31 @@ curve->setData(new DatabaseSeriesData("measurements"));
 
 ### 4. Function-Generated Data
 
-Using `QwtSyntheticSeriesData` to generate function curves:
+`QwtSyntheticPointData` generates function curves without storing any samples: subclass it, implement the pure virtual `y(double x)`, and pass the number of equidistant samples plus the x interval to the base constructor — when the interval is left invalid, the points are computed for the visible plot area instead:
 
 ```cpp
-#include <QwtSyntheticSeriesData>
+#include <cmath>
+#include <QwtInterval>
+#include <QwtSyntheticPointData>
 
 // Function data generator
-class FunctionSeriesData : public QwtSyntheticSeriesData
+class FunctionSeriesData : public QwtSyntheticPointData
 {
 public:
-    FunctionSeriesData(double(*func)(double), double xMin, double xMax)
-        : QwtSyntheticSeriesData(xMin, xMax)
+    FunctionSeriesData(double (*func)(double), double xMin, double xMax)
+        : QwtSyntheticPointData(200, QwtInterval(xMin, xMax))  // 200 equidistant samples
         , m_function(func)
     {
     }
 
-    // Return y value at specified x position
-    virtual double value(double x) const override
+    // Return y value at specified x position (the only pure virtual to implement)
+    virtual double y(double x) const override
     {
         return m_function(x);
     }
 
 private:
-    double(*m_function)(double);
+    double (*m_function)(double);
 };
 
 // Use function to generate data
@@ -187,12 +193,12 @@ double myFunction(double x) {
     return std::sin(x) * std::cos(2 * x);
 }
 
-curve->setData(new FunctionSeriesData(myFunction, 0, 10));
+curve->setData(new FunctionSeriesData(myFunction, 0.0, 10.0));
 ```
 
 ### 5. Real-time Data Updates
 
-For streaming scenarios a small custom `QwtSeriesData<QPointF>` subclass is often the cleanest solution: the `RealtimeSeriesData` below maintains a rolling window of at most 1000 points, invalidates the cached `boundingRect()` whenever a point is appended, and leaves the refresh to a plain `plot->replot()` call after each `appendPoint()`:
+For streaming scenarios a small custom `QwtSeriesData<QPointF>` subclass is often the cleanest solution: the `RealtimeSeriesData` below maintains a rolling window of at most 1000 points, invalidates the inherited `cachedBoundingRect` cache whenever a point is appended so that `boundingRect()` recomputes it with the `qwtBoundingRect()` helper, and leaves the refresh to a plain `plot->replot()` call after each `appendPoint()`:
 
 ```cpp
 // Real-time data scenario
@@ -210,23 +216,23 @@ public:
         if (m_points.size() > m_maxPoints) {
             m_points.removeFirst();
         }
-        m_boundingRect = QRectF();  // Reset bounds, trigger recalculation
+        // Invalidate the cached bounding rect to trigger recalculation
+        cachedBoundingRect = QRectF(0.0, 0.0, -1.0, -1.0);
     }
 
     virtual size_t size() const override { return m_points.size(); }
-    virtual QPointF sample(size_t i) const override { return m_points[i]; }
+    virtual QPointF sample(size_t i) const override { return m_points[static_cast<int>(i)]; }
     virtual QRectF boundingRect() const override
     {
-        if (m_boundingRect.isNull()) {
-            m_boundingRect = calculateBounds();
+        if (!cachedBoundingRect.isValid()) {
+            cachedBoundingRect = qwtBoundingRect(*this);
         }
-        return m_boundingRect;
+        return cachedBoundingRect;
     }
 
 private:
     QVector<QPointF> m_points;
     int m_maxPoints;
-    QRectF m_boundingRect;
 };
 
 // Usage
@@ -263,10 +269,11 @@ plot->replot();
 > - Static data: Use `setSamples()` to copy data
 > - Large data: Use `setRawSamples()` to avoid copying
 > - Dynamic data: Implement custom `QwtSeriesData`
-> - Function data: Use `QwtSyntheticSeriesData`
+> - Function data: Use `QwtSyntheticPointData`
 
 > **Example — Related Examples**
 >
+> - Function-generated data: `examples/2D/sinusplot`
 > - Real-time data: `examples/2D/realtime`
 > - CPU monitor: `examples/2D/cpuplot`
 

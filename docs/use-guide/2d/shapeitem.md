@@ -9,7 +9,7 @@
 - Arbitrary shape support: Supports various geometric shapes defined by QPainterPath
 - Coordinate binding: Shape positions use plot coordinates, scaling with transformations
 - Style customization: Configurable fill, border, color, and other styles
-- Fill optimization: Supports multiple fill modes for improved rendering performance
+- Rendering optimization: Polygon clipping (`ClipPolygons`) and point weeding (`setRenderTolerance()`) improve rendering performance
 
 ## Basic Concepts
 
@@ -26,12 +26,15 @@ QwtPlotShapeItem shapes are positioned using plot coordinates, not pixel coordin
      └───────────────→ X-axis
 ```
 
-### Fill Modes
+### Paint Attributes and Legend Modes
 
-| Mode | Enum Value | Description |
+`QwtPlotShapeItem` has no fill-mode setting; rendering and legend behavior are controlled by a paint attribute and a legend mode instead:
+
+| Setting | Enum Value | Description |
 |------|-----------|-------------|
-| Base fill | `Base` | Simple fill, best performance |
-| Graphic fill | `Graphic` | Stored using QwtGraphic, supports caching |
+| Paint attribute | `ClipPolygons` | Clip polygons before painting them; speeds up deep zoom, but converting curves/ellipses to polygons may hurt performance for such paths |
+| Legend mode | `LegendShape` | Display a scaled down version of the shape on the legend |
+| Legend mode | `LegendColor` | Display a filled rectangle on the legend |
 
 ## Usage
 
@@ -101,14 +104,18 @@ polygon->attach(plot);
 
 ### 4. Style Configuration
 
-Appearance is tuned through `setRenderHint()` (e.g. `RenderAntialiased`, inherited from `QwtPlotItem`), `setPen()` (dashed outlines via `Qt::DashLine`), and `setBrush()` — the brush also accepts Qt pattern fills such as `Qt::FDiagPattern` for hatching. The snippet below combines these style options:
+Appearance is tuned through `setRenderHint()` (e.g. `RenderAntialiased`, inherited from `QwtPlotItem`), `setPen()` (dashed outlines via `Qt::DashLine`), and `setBrush()` — the brush also accepts Qt pattern fills such as `Qt::FDiagPattern` for hatching. Performance options are the `ClipPolygons` paint attribute (`setPaintAttribute()`) and point weeding via `setRenderTolerance()`; there is no fill-mode setting. The snippet below combines these options:
 
 ```cpp
-// Set fill mode
-shapeItem->setFillMode(QwtPlotShapeItem::Graphic);
+// Clip polygons before painting (performance option)
+shapeItem->setPaintAttribute(QwtPlotShapeItem::ClipPolygons, true);
 
-// Set render hint
-shapeItem->setRenderHint(QwtPlotShapeItem::RenderAntialiased);
+// Simplify the path with point weeding (Douglas-Peucker);
+// a tolerance <= 0.0 disables weeding
+shapeItem->setRenderTolerance(1.0);
+
+// Set render hint (inherited from QwtPlotItem)
+shapeItem->setRenderHint(QwtPlotItem::RenderAntialiased);
 
 // Set border style
 shapeItem->setPen(QPen(Qt::black, 1, Qt::DashLine));
@@ -121,11 +128,15 @@ shapeItem->setBrush(QBrush(Qt::yellow, Qt::FDiagPattern));  // Diagonal line fil
 
 | Method | Description |
 |--------|-------------|
-| `setShape()` | Set shape path |
+| `setShape()` | Set the shape as a `QPainterPath` |
+| `setRect()` | Set the shape as a rectangle (convenience) |
+| `setPolygon()` | Set the shape as a polygon (convenience) |
 | `setPen()` | Set border pen |
 | `setBrush()` | Set fill brush |
-| `setFillMode()` | Set fill mode |
-| `setRenderHint()` | Set render hint |
+| `setPaintAttribute()` | Toggle `ClipPolygons` clipping |
+| `setRenderTolerance()` | Set the weeding tolerance for path simplification |
+| `setLegendMode()` | Set legend display (`LegendShape` / `LegendColor`) |
+| `setRenderHint()` | Set render hint (inherited from `QwtPlotItem`) |
 
 > **Tip — Application Scenarios**
 >

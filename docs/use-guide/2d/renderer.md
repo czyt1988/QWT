@@ -15,21 +15,21 @@
 
 ### 1. Export to Image File
 
-All file exports go through `QwtPlotRenderer::renderDocument()`: you pass the plot, the target filename (whose extension selects the format), the output size, and the resolution in DPI (default 85). The example below writes the same plot as PNG, JPG, and BMP:
+All file exports go through `QwtPlotRenderer::renderDocument()`: you pass the plot, the target filename (whose extension selects the format), the output size **in millimeters** (`QSizeF`), and the resolution in DPI (default 85). For image formats the pixel dimensions are derived as `mm / 25.4 * DPI`. The example below writes the same plot as PNG, JPG, and BMP:
 
 ```cpp
 #include <QwtPlotRenderer>
 
 QwtPlotRenderer renderer;
 
-// Export to PNG
-renderer.renderDocument(plot, "plot.png", QSize(800, 600), 300);  // 300 DPI
+// Export to PNG: 200 x 150 mm at 300 DPI (about 2362 x 1772 pixels)
+renderer.renderDocument(plot, "plot.png", QSizeF(200, 150), 300);
 
-// Export to JPG
-renderer.renderDocument(plot, "plot.jpg", QSize(800, 600), 150);
+// Export to JPG: same physical size at 150 DPI (about 1181 x 886 pixels)
+renderer.renderDocument(plot, "plot.jpg", QSizeF(200, 150), 150);
 
-// Export to BMP
-renderer.renderDocument(plot, "plot.bmp", QSize(800, 600));
+// Export to BMP with the default resolution of 85 DPI
+renderer.renderDocument(plot, "plot.bmp", QSizeF(200, 150));
 
 // File format is automatically determined by extension
 ```
@@ -61,15 +61,20 @@ renderer.renderDocument(plot, "plot.svg", QSizeF(200, 150));
 
 ### 4. Export to QImage/QPixmap
 
-Instead of writing a file, the renderer can also draw into an in-memory paint device: the `renderTo(QwtPlot*, QPaintDevice&)` overload accepts any `QImage` or `QPixmap` prepared at the desired size and DPI, which is handy for embedding the result in an application or post-processing it:
+Instead of writing a file, the renderer can also draw into an in-memory paint device: the `renderTo(QwtPlot*, QPaintDevice&)` overload accepts any `QImage` or `QPixmap` that you create yourself at the desired pixel size, which is handy for embedding the result in an application or post-processing it:
 
 ```cpp
-// Export as QImage
+// Export as QImage: create the image, then render into it
 QSize size(800, 600);
-QImage image = renderer.renderToImage(plot, size, 300);  // 300 DPI
+QImage image(size, QImage::Format_ARGB32);
+image.fill(Qt::white);
+renderer.renderTo(plot, image);
+image.save("plot.png");  // optional: write it to a file
 
 // Export as QPixmap
-QPixmap pixmap = renderer.renderToPixmap(plot, size, 300);
+QPixmap pixmap(size);
+pixmap.fill(Qt::white);
+renderer.renderTo(plot, pixmap);
 
 // Can be used for in-application display or further processing
 ```
@@ -86,10 +91,10 @@ renderer.setDiscardFlag(QwtPlotRenderer::DiscardFooter, true);    // Ignore foot
 renderer.setDiscardFlag(QwtPlotRenderer::DiscardCanvasBackground, true);  // Ignore canvas background
 
 // Set frame options
-renderer.setDiscardFlag(QwtPlotRenderer::DiscardFrames, true);    // Ignore border frames
+renderer.setDiscardFlag(QwtPlotRenderer::DiscardCanvasFrame, true);  // Ignore the canvas frame
 
-// Restore defaults
-renderer.resetDiscardFlags();
+// Restore defaults: assign the empty flag set (render everything)
+renderer.setDiscardFlags(QwtPlotRenderer::DiscardNone);
 ```
 
 ### 6. Print Function
@@ -99,14 +104,14 @@ For printing, a configured `QPrinter` is handed to the renderer (`renderTo(QwtPl
 ```cpp
 #include <QPrinter>
 
-// Print to printer
+// Print to a printer (or to a PDF file via setOutputFileName)
 QPrinter printer(QPrinter::HighResolution);
-printer.setOutputFileName("print.pdf");  // Or use printer.printerName()
+printer.setOutputFileName("print.pdf");  // Leave unset to print on a physical printer
 
-renderer.renderDocument(plot, &printer);
+renderer.renderTo(plot, printer);
 
-// Or directly use QwtPlot's print method
-plot->print(printer);
+// Alternatively, exportTo() opens a file dialog and renders to the chosen file
+renderer.exportTo(plot, "plot.pdf");
 ```
 
 ### 7. Using Millimeter Units for Size
@@ -133,21 +138,21 @@ renderer.renderDocument(plot, "plot.pdf", sizeMm, 300);  // 300 DPI
 
 | Option | Description |
 |------|------|
+| `DiscardBackground` | Ignore the plot background |
 | `DiscardTitle` | Ignore title |
 | `DiscardLegend` | Ignore legend |
 | `DiscardFooter` | Ignore footer |
 | `DiscardCanvasBackground` | Ignore canvas background |
-| `DiscardFrames` | Ignore borders |
+| `DiscardCanvasFrame` | Ignore the canvas frame (no effect with style sheets, where the frame is part of the background) |
 
 ## Core Method Summary
 
 | Method | Description |
 |------|------|
-| `renderDocument()` | Export to file |
-| `renderToImage()` | Export as QImage |
-| `renderToPixmap()` | Export as QPixmap |
-| `setDiscardFlag()` | Set discard option |
-| `resetDiscardFlags()` | Reset discard options |
+| `renderDocument()` | Export to a file (format chosen by extension or passed explicitly) |
+| `renderTo()` | Render into a `QPaintDevice` (`QImage`/`QPixmap`), a `QPrinter` or a `QSvgGenerator` |
+| `exportTo()` | Open a file dialog and export to the selected file |
+| `setDiscardFlag()` / `setDiscardFlags()` | Set/reset discard options (`DiscardNone` renders everything) |
 
 > **Tip — Export Recommendations**
 >

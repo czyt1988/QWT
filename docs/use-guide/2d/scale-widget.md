@@ -68,7 +68,7 @@ plot->replot();
 
 ### 2. Getting Axis Widget
 
-For finer control, fetch the underlying widget of an axis with `QwtPlot::axisWidget()`; it is a regular `QWidget`, so `setFont()` styles the tick labels, `setTitle()` accepts a styled `QwtText`, and the colors follow the widget palette. The example below customizes the bottom axis widget:
+For finer control, fetch the underlying widget of an axis with `QwtPlot::axisWidget()`; it is a `QwtScaleWidget`, so `setFont()` styles the tick labels, `setTitle()` accepts a styled `QwtText`, and `setScaleColor()`/`setTextColor()` set the colors of the backbone/ticks and of the tick labels. The example below customizes the bottom axis widget:
 
 ```cpp
 // Get axis widget at a specific position
@@ -83,27 +83,30 @@ title.setFont(QFont("Arial", 10, QFont::Bold));
 title.setColor(Qt::darkBlue);
 scaleWidget->setTitle(title);
 
-// Set tick color
-scaleWidget->setPalette(QPalette(Qt::black));
+// Set tick/backbone and tick label colors
+scaleWidget->setScaleColor(Qt::black);   // Backbone and ticks
+scaleWidget->setTextColor(Qt::darkGray); // Tick labels
 ```
 
 ### 3. Built-in Interaction Features (New in Qwt7)
 
-Qwt 7.0 adds built-in axis interaction features, supporting direct panning and zooming on axes:
+Qwt 7.0 adds built-in axis interaction: after an axis is activated by clicking it, dragging pans and the mouse wheel zooms the corresponding axis scale. The features are enabled as flags with `setBuildinActions()` (`ActionNone`, `ActionClickPan`, `ActionWheelZoom`, `ActionAll`):
 
 ```cpp
 // Get axis widget
 QwtScaleWidget* scaleWidget = plot->axisWidget(QwtAxis::XBottom);
 
-// Enable built-in panning
-scaleWidget->setBuiltInAction(QwtScaleWidget::Pan, true);
+// Enable built-in click-drag panning and wheel zooming
+scaleWidget->setBuildinActions(QwtScaleWidget::ActionClickPan | QwtScaleWidget::ActionWheelZoom);
 
-// Enable built-in zooming
-scaleWidget->setBuiltInAction(QwtScaleWidget::Zoom, true);
+// Or enable all built-in actions at once
+// scaleWidget->setBuildinActions(QwtScaleWidget::ActionAll);
 
-// Set interaction mouse buttons
-scaleWidget->setActionButton(Qt::LeftButton);  // Left button drag panning
-scaleWidget->setActionButtons(Qt::MiddleButton, Qt::ControlModifier);  // Ctrl+middle button zooming
+// Zoom factor per wheel step (default 1.2)
+scaleWidget->setZoomFactor(1.2);
+
+// Highlight color of the axis while it is selected
+scaleWidget->setSelectionColor(Qt::blue);
 ```
 
 Panning effect:
@@ -118,7 +121,7 @@ For detailed axis interaction documentation, refer to: [Axis Interaction Actions
 
 ### 4. Color Bar Display
 
-Used for scenarios requiring color mapping such as spectrograms:
+Used for scenarios requiring color mapping such as spectrograms. There is no separate color bar position setter - the side where the bar is drawn follows the alignment of the scale draw:
 
 ```cpp
 // Enable color bar
@@ -127,29 +130,28 @@ scaleWidget->setColorBarEnabled(true);
 // Set color bar width
 scaleWidget->setColorBarWidth(20);
 
-// Set color map
+// Set color map for a value interval (the widget takes ownership)
 QwtLinearColorMap* colorMap = new QwtLinearColorMap(Qt::blue, Qt::red);
 scaleWidget->setColorMap(QwtInterval(0, 100), colorMap);
-
-// Set color bar position
-scaleWidget->setColorBarPosition(QwtScaleWidget::Right);  // On the right side of ticks
 ```
 
 ### 5. Tick Drawing Style
 
-`QwtScaleWidget` also exposes the tick mark appearance: which side of the backbone the ticks are drawn on (outside, inside, or both), the pixel length of major and minor ticks, and the margin between the ticks and the axis line. The snippet below shows these settings:
+The tick mark appearance is not configured on `QwtScaleWidget` itself: the direction (outside/inside the canvas) is a `QwtPlot` setting per axis, while tick lengths and the tick-to-label spacing belong to the `QwtScaleDraw` object returned by `scaleWidget->scaleDraw()`. The snippet below shows these settings:
 
 ```cpp
-// Set tick position (relative to axis direction)
-scaleWidget->setTickPosition(QwtScaleWidget::Outside);  // Ticks on outside
-// Other options: Inside (inside), Both (both sides)
+// Tick direction: a QwtPlot per-axis setting
+// (see also the "Inward-Facing Ticks" guide)
+plot->setAxisTickDirection(QwtAxis::XBottom, QwtPlot::TickOutside);
+// Other option: QwtPlot::TickInside (ticks drawn into the canvas)
 
-// Set tick length
-scaleWidget->setMajorTickLength(10);  // Major tick length (pixels)
-scaleWidget->setMinorTickLength(5);   // Minor tick length (pixels)
+// Tick lengths: set on the scale draw, per tick type
+scaleWidget->scaleDraw()->setTickLength(QwtScaleDiv::MajorTick, 10.0);  // Major ticks (pixels)
+scaleWidget->scaleDraw()->setTickLength(QwtScaleDiv::MediumTick, 7.0);  // Medium ticks
+scaleWidget->scaleDraw()->setTickLength(QwtScaleDiv::MinorTick, 5.0);   // Minor ticks
 
-// Set tick margin
-scaleWidget->setTickMargin(2);        // Distance between ticks and axis line
+// Distance between ticks and tick labels (default 4 pixels)
+scaleWidget->scaleDraw()->setSpacing(2.0);
 ```
 
 ### 6. Tick Label Formatting
@@ -241,6 +243,7 @@ Effect (from the example `examples/2D/outsideTitle`; left: single plot, right: m
 | `setAxisScale()` | Set axis range |
 | `setAxisAutoScale()` | Enable auto scaling |
 | `setAxisVisible()` | Set axis visibility |
+| `setAxisTickDirection()` | Set tick direction (`TickOutside`/`TickInside`) |
 | `axisWidget()` | Get axis widget |
 | `setAxisMaxMajor()` | Set maximum number of major ticks |
 | `setAxisMaxMinor()` | Set maximum number of minor ticks |
@@ -252,10 +255,11 @@ Effect (from the example `examples/2D/outsideTitle`; left: single plot, right: m
 | `setTitle()` | Set axis title |
 | `setTitlePlacement()` | Set title placement (`TitleInside`/`TitleOutside`) |
 | `setFont()` | Set label font |
-| `setBuiltInAction()` | Enable built-in interaction |
+| `setScaleColor()` / `setTextColor()` | Set backbone/tick and label colors |
+| `setBuildinActions()` | Enable built-in interaction (`ActionClickPan`/`ActionWheelZoom`/`ActionAll`) |
 | `setColorBarEnabled()` | Enable color bar |
 | `setColorMap()` | Set color map |
-| `setTickPosition()` | Set tick position |
+| `scaleDraw()` | Access the scale draw (tick lengths via `setTickLength()`) |
 | `setScaleDraw()` | Set scale draw object |
 
 > **Tip — Axis Configuration Recommendations**

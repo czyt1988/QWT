@@ -34,11 +34,18 @@
 使用 `QwtVectorFieldSample` 表示单个向量：
 
 ```cpp
-struct QwtVectorFieldSample {
-    double x;       // X坐标
-    double y;       // Y坐标
-    double vx;      // X分量
-    double vy;      // Y分量
+class QwtVectorFieldSample {
+public:
+    QwtVectorFieldSample(double x = 0.0, double y = 0.0,
+                         double vx = 0.0, double vy = 0.0);
+
+    QPointF pos() const;  // 以QPointF返回位置
+    bool isNull() const;  // vx == vy == 0 时为true
+
+    double x;   // 位置的X坐标
+    double y;   // 位置的Y坐标
+    double vx;  // 向量的X分量
+    double vy;  // 向量的Y分量
 };
 ```
 
@@ -85,30 +92,41 @@ plot->replot();
 ```cpp
 #include <QwtVectorFieldSymbol>
 
-// 创建箭头符号
-QwtVectorFieldSymbol* symbol = new QwtVectorFieldSymbol();
-symbol->setStyle(QwtVectorFieldSymbol::Arrow);  // 箭头样式
+// QwtVectorFieldSymbol 是抽象基类，需使用其内置实现类
+// （所有权转移给向量场项）：
 
-// 设置箭头颜色
-symbol->setPen(QPen(Qt::blue, 1));
+// 实心箭头，可指定头宽与尾宽
+vectorField->setSymbol(new QwtVectorFieldArrow(8.0, 2.0));
+
+// 或：细线箭头（这是默认符号）
+vectorField->setSymbol(new QwtVectorFieldThinArrow(6.0));
+
+// 画笔与画刷设置在向量场项上，而不是符号上：
+// 画笔描边，画刷填充箭头
+vectorField->setPen(QPen(Qt::blue, 1));
+vectorField->setBrush(QBrush(Qt::blue));
 
 // 设置箭头长度比例
 vectorField->setMagnitudeScaleFactor(0.5);  // 缩放因子
-
-vectorField->setSymbol(symbol);
 ```
 
 ### 3. 向量大小映射
 
-大小到长度的映射由 `setMagnitudeScaleFactor()` 控制——对每个向量的大小施加线性缩放因子，还可用 `setMinArrowLength()` / `setMaxArrowLength()` 限定箭头长度范围。下面的代码通过调整缩放因子改变箭头长度对向量大小的响应：
+大小到长度的映射由 `setMagnitudeScaleFactor()` 控制——对每个向量的大小施加线性缩放因子（在 `MagnitudeAsLength` 模式生效时起作用，该模式默认开启），还可用 `setMinArrowLength()` / `setMaxArrowLength()` 限定箭头长度范围。下面的代码演示线性映射、长度限制与固定长度三种配置：
 
 ```cpp
-// 将向量大小映射到箭头长度
-vectorField->setMagnitudeScaleFactor(1.0);  // 线性映射
+// 将向量大小映射到箭头长度（MagnitudeAsLength 默认已开启）
+vectorField->setMagnitudeMode(QwtPlotVectorField::MagnitudeAsLength, true);
+vectorField->setMagnitudeScaleFactor(1.0);  // 长度 = 大小 * 缩放因子
 
-// 设置固定箭头长度（忽略大小）
-vectorField->setMagnitudeScaleFactor(0.0);
-vectorField->setSymbolSize(10);  // 固定10像素
+// 将计算出的长度限制在5~20像素之间
+vectorField->setMinArrowLength(5);
+vectorField->setMaxArrowLength(20);
+
+// 固定箭头长度（忽略大小）：将最小值与最大值设为相同值，
+// 所有非零向量都渲染为10像素长
+vectorField->setMinArrowLength(10);
+vectorField->setMaxArrowLength(10);
 ```
 
 ### 4. 显示密度控制
@@ -116,11 +134,11 @@ vectorField->setSymbolSize(10);  // 固定10像素
 显示密度通过栅格化过滤降低：`setRasterSize()` 定义栅格单元大小，配合 `setPaintAttribute()` 启用 `FilterVectors` 属性后，同一单元内的样本会被平均合并。下面的代码演示这一抽稀配置：
 
 ```cpp
-// 设置采样密度（避免过度拥挤）
-vectorField->setSamplesPerInch(20);  // 每英寸20个向量
+// 将20 x 20像素栅格单元内的所有向量平均合并为一个箭头
+vectorField->setRasterSize(QSizeF(20, 20));
 
-// 或设置固定跳过间隔
-vectorField->setIndirectionCount(2);  // 每隔2个点显示一个
+// 启用过滤（不开启FilterVectors时每个样本都会绘制）
+vectorField->setPaintAttribute(QwtPlotVectorField::FilterVectors, true);
 ```
 
 ### 5. 颜色映射
@@ -133,19 +151,29 @@ vectorField->setIndirectionCount(2);  // 每隔2个点显示一个
 // 根据向量大小设置颜色
 QwtLinearColorMap* colorMap = new QwtLinearColorMap(Qt::blue, Qt::red);
 vectorField->setColorMap(colorMap);
-vectorField->setColorMagnitude(true);  // 启用颜色映射
+
+// 启用大小到颜色的映射
+vectorField->setMagnitudeMode(QwtPlotVectorField::MagnitudeAsColor, true);
+
+// 色带覆盖的数值区间；不设置（无效区间）时
+// 由样本数据自动确定范围
+vectorField->setMagnitudeRange(QwtInterval(0.0, 2.0));
 ```
 
 ## 核心方法总结
 
 | 方法 | 说明 |
 |------|------|
-| `setSamples()` | 设置向量数据 |
-| `setSymbol()` | 设置箭头符号 |
-| `setMagnitudeScaleFactor()` | 设置大小缩放因子 |
-| `setSamplesPerInch()` | 设置显示密度 |
-| `setColorMap()` | 设置颜色映射 |
-| `setColorMagnitude()` | 启用颜色大小映射 |
+| `setSamples()` | 设置向量数据（`QVector<QwtVectorFieldSample>` 或 `QwtVectorFieldData*`） |
+| `setSymbol()` | 设置箭头符号（`QwtVectorFieldArrow` / `QwtVectorFieldThinArrow`） |
+| `setPen()` / `setBrush()` | 设置箭头描边画笔 / 填充画刷 |
+| `setMagnitudeScaleFactor()` | 设置大小到长度的缩放因子 |
+| `setMinArrowLength()` / `setMaxArrowLength()` | 限制箭头长度（像素） |
+| `setRasterSize()` + `setPaintAttribute(FilterVectors)` | 按栅格单元平均合并向量，降低显示密度 |
+| `setColorMap()` | 设置 `MagnitudeAsColor` 使用的颜色映射 |
+| `setMagnitudeMode()` | 启用 `MagnitudeAsColor` / `MagnitudeAsLength` 映射 |
+| `setMagnitudeRange()` | 设置颜色映射覆盖的大小区间 |
+| `setIndicatorOrigin()` | 设置箭头锚点（`OriginHead` / `OriginTail` / `OriginCenter`） |
 
 > **提示 — 应用场景**
 >
