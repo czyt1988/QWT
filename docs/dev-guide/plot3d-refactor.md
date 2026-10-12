@@ -241,7 +241,7 @@ flowchart TD
         Enr --> draw
     end
     Widget -->|"ctx = Qwt3DRenderContext"| Surface
-    Item <|-- Surface
+    Surface -.->|"inherits from"| Item
     Surface -->|"plot() up-ref (legal)"| Widget
 ```
 
