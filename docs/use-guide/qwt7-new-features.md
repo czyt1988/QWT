@@ -93,7 +93,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 > **Example — Complete Example**
 >
-> For detailed usage, refer to [Introduction to 3D Plotting](3d-plot.md). Example code is located in `examples/3D/simpleplot3D`.
+> For detailed usage, refer to [Introduction to 3D Plotting](3d/3d-plot.md). Example code is located in `examples/3D/simpleplot3D`.
 
 ## Architecture and Build Upgrades
 
@@ -190,7 +190,7 @@ Result after alignment:
 
 > **Example — Complete Example**
 >
-> For detailed usage, refer to [QwtFigure Plot Container Window](figure-widget.md). Example code is located in `examples/figure`.
+> For detailed usage, refer to [QwtFigure Plot Container Window](2d/figure-widget.md). Example code is located in `examples/2D/figure`.
 
 ## Parasite Axes — Multi-Axis System
 
@@ -231,7 +231,7 @@ Multiple parasite plots can be created to overlay any number of axes:
 
 > **Example — Complete Example**
 >
-> For detailed usage, refer to the [Parasite Axes Guide](parasite-axes.md). Example code is located in `examples/parasitePlot`.
+> For detailed usage, refer to the [Parasite Axes Guide](2d/parasite-axes.md). Example code is located in `examples/2D/parasitePlot`.
 
 ## Interaction Feature Overhaul
 
@@ -278,7 +278,7 @@ To maintain naming clarity, some class names have been adjusted:
 
 > **Example — Complete Example**
 >
-> For detailed usage, refer to the [Panner Tool](panner.md) and [Zoomer Tool](zoomer.md).
+> For detailed usage, refer to the [Panner Tool](2d/panner.md) and [Zoomer Tool](2d/zoomer.md).
 
 ## Built-in Axis Interactive Actions
 
@@ -332,7 +332,7 @@ plot->axisWidget(QwtAxis::YLeft)->setSelectedPenWidthOffset(1.5);
 
 > **Example — Complete Example**
 >
-> For detailed usage, refer to [Axis Interactive Actions](scale-builtin-action.md).
+> For detailed usage, refer to [Axis Interactive Actions](2d/scale-builtin-action.md).
 
 ## Data Picking Feature
 
@@ -384,7 +384,7 @@ For large datasets, Qwt 7 provides a window search algorithm:
 
 > **Example — Complete Example**
 >
-> For detailed usage, refer to [Data Picking](pick-value.md).
+> For detailed usage, refer to [Data Picking](2d/pick-value.md).
 
 ## New Chart Types
 
@@ -427,7 +427,7 @@ boxChart->setBoxStyle(QwtPlotBoxChart::Notch);
 
 > **Example — Complete Example**
 >
-> For detailed usage, refer to the [Box Chart Guide](boxchart.md). Example code is located in `examples/2D/boxchart`.
+> For detailed usage, refer to the [Box Chart Guide](2d/boxchart.md). Example code is located in `examples/2D/boxchart`.
 
 ## Other Useful Features
 
@@ -447,7 +447,7 @@ plot->setAxisTickDirection(QwtAxis::XBottom, QwtPlot::TickInside);
 
 > **Example — Complete Example**
 >
-> For detailed usage, refer to the [Inward-Facing Ticks Guide](ticks-inside.md). Example code is located in `examples/2D/ticks_inside`.
+> For detailed usage, refer to the [Inward-Facing Ticks Guide](2d/ticks-inside.md). Example code is located in `examples/2D/ticks_inside`.
 
 ### NaN/Inf Anomaly Value Handling
 
@@ -519,4 +519,4 @@ These new features make Qwt a more modern, more powerful, and more user-friendly
 > - **Project Repository**: [GitHub](https://github.com/czyt1988/QWT) / [Gitee](https://gitee.com/czyt1988/QWT)
 > - **Build Instructions**: [Build Guide](../build-guide/build-instructions.md)
 > - **Import Method**: [Importing Qwt](import-qwt.md)
-> - **Changelog**: [CHANGES.md](../CHANGES.md)
+> - **Changelog**: [CHANGES.md](../../CHANGES.md)

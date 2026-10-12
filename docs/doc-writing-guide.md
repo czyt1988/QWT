@@ -8,6 +8,44 @@ Do not use: Material admonitions (`!!!`, `???`), tabbed content (`=== "tab"`), a
 
 Project documentation diagrams should primarily use `mermaid`.
 
+The site enables the `nl2br` Markdown extension: **every single line break inside a paragraph renders as a hard line break (`<br>`)**. Never hard-wrap prose — write each paragraph as one continuous line and separate blocks with blank lines. Hard-wrapped source text is exactly what produces "broken line wrapping" artifacts on the rendered site.
+
+## Documentation System: Folders and Audiences
+
+The documentation tree is organized by audience. Place every new page by asking "who is this for?" first:
+
+| Folder | Audience | Answers | Style |
+|--------|----------|---------|-------|
+| `build-guide/` | Users integrating QWT into their builds | "How do I compile/link QWT?" | Exact, verified commands per platform and build system |
+| `use-guide/` | End users of the library | "How do I draw X / do Y?" | Cookbook tutorials: plain language, step-by-step, richly illustrated |
+| `tech-report/` | Developers wanting depth: principles & performance | "Why is it designed this way? How well does it perform?" | Paper-standard articles with derivations and reproducible experiments |
+| `dev-guide/` | Contributors to QWT itself | "What conventions does the codebase follow?" | Normative: coding/comment standards, architecture records |
+
+### use-guide/ — the QWT Cookbook
+
+`use-guide/` is layered so the whole directory reads as one book (the "QWT Cookbook"):
+
+- `use-guide/*.md` (root): universal getting-started material that is neither 2D- nor 3D-specific — importing the library, the first plot, release feature overviews;
+- `use-guide/2d/`: everything about 2D plotting — chart items, containers & layout, axes & scales, interaction, rendering & export, high-level APIs;
+- `use-guide/3d/`: the `Qwt3DPlot` + `Qwt3DPlotItem` world;
+- `use-guide/general/`: cross-cutting topics shared by 2D and 3D or independent of both — series data, NaN semantics, colormaps, control widgets.
+
+Writing principles for tutorials:
+
+1. **Plain and progressive**: assume the reader knows Qt but not QWT; lead with the task, then concepts, then API details ("what → why → how");
+2. **Richly illustrated**: every tutorial page shows results — reference the bundled example's screenshot from `docs/assets/screenshots/` (or `screenshots-3D/`) and describe what it shows;
+3. **Every example is covered**: each program under `examples/` is mentioned by at least one tutorial page, ideally with its screenshot; when adding an example, add or update the referencing page in the same change;
+4. **Book style**: chapters stand alone but cross-link freely (related topics, deep dives); keep terminology consistent across chapters;
+5. **Runnable code**: examples compile as-is with their includes shown.
+
+### tech-report/ — publication-standard articles
+
+`tech-report/` holds the algorithm/architecture deep dives; `tech-report/index.md` states the full standard and the topic roadmap. In one paragraph: paper structure (abstract, derivation, experiments, discussion, references), matplotlib-generated data figures with reproducible scripts in `docs/assets/algorithms/`, mermaid for pipelines and architecture, benchmarks that state their environment, and an honest failure-mode analysis. Tutorials and reports cross-link: the tutorial answers "how", the report answers "why and how well".
+
+### Bilingual parity
+
+English pages live at the `docs/` root, Chinese pages under `docs/zh/` with the same relative paths (`docs/use-guide/2d/curve.md` ↔ `docs/zh/use-guide/2d/curve.md`). Any added, moved or restructured page must be updated in **both** trees in the same change, including the two `nav` blocks in `mkdocs.yml`.
+
 ## Document Structure
 
 ### 1. Heading Hierarchy

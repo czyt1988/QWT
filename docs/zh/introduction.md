@@ -73,7 +73,7 @@ auto* curve = new QwtPlotCurve("Data");
 <div class="grid cards" markdown>
 
 - ![Figure Widget](../assets/screenshots/qwt_figure.png)
-  `examples/figure`
+  `examples/2D/figure`
 
 - ![Simple Plot](../assets/screenshots/simpleplot.png)
   `examples/2D/simpleplot`
@@ -133,7 +133,7 @@ auto* curve = new QwtPlotCurve("Data");
   `examples/2D/polardemo`
 
 - ![Parasite Plot](../assets/screenshots/parasite-plot.png)
-  `examples/parasitePlot`
+  `examples/2D/parasitePlot`
 
 - ![Bode Plot](../assets/screenshots/bode.png)
   `examples/2D/bode`

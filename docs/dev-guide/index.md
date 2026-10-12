@@ -81,7 +81,7 @@ Before committing code, please verify the following items:
 
 - **Documentation Writing Standards**: [Documentation Writing Standards](../doc-writing-guide.md)
 - **Build Instructions**: [Build Guide](../build-guide/build-instructions.md)
-- **Project Overview**: [AGENTS.md](../AGENTS.md)
+- **Project Overview**: [AGENTS.md](../../AGENTS.md)
 
 > **Tip — AI Agent Developers**
 >

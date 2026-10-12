@@ -63,6 +63,9 @@ plugins:
                 - Overview:
                     - Qwt Introduction: introduction.md
                     - Qwt 7.0 New Features: use-guide/qwt7-new-features.md
+                - Installation:
+                    - Import Qwt: use-guide/import-qwt.md
+                    - First Plot: use-guide/first-plot.md
                 - Build Guide:
                     - Build Instructions: build-guide/build-instructions.md
                     - Qmake Single-File Build: build-guide/qmake-single-file.md
@@ -74,65 +77,62 @@ plugins:
                     - 3D Module Refactor: dev-guide/plot3d-refactor.md
                     - Doc Writing Guide: doc-writing-guide.md
             - User Guide:
-                - Basic Usage:
-                    - Import Qwt: use-guide/import-qwt.md
-                    - First Plot: use-guide/first-plot.md
-                    - Picker State Machine: use-guide/picker-state-machine.md
-                - Plot Container & Layout:
-                    - Figure Widget: use-guide/figure-widget.md
-                    - Parasite Axes: use-guide/parasite-axes.md
-                    - Plot Layout: use-guide/plot-layout.md
-                - Data Processing:
-                    - Series Data: use-guide/series-data.md
-                    - NaN Handling: use-guide/nan-handling.md
-                - Styles & Symbols:
-                    - Symbol: use-guide/symbol.md
-                - Utility Classes:
-                    - Plot Utilities: use-guide/plot-utilities.md
-                    - PyPlot API: use-guide/pyplot-api.md
-            - Charts:
-                - Core Plot Items:
-                    - Curve: use-guide/curve.md
-                    - "Downsampling: LTTB & MinMax": use-guide/curve-downsampling.md
-                    - "Smoothing: Gaussian & Savitzky-Golay": use-guide/curve-smoothing.md
-                    - Scatter: use-guide/scatter.md
-                    - Grid: use-guide/grid.md
-                    - Marker: use-guide/marker.md
-                    - Arrow Marker: use-guide/arrow-marker.md
-                    - Bar Chart: use-guide/barchart.md
-                    - Box Chart: use-guide/boxchart.md
-                    - Histogram: use-guide/histogram.md
-                    - Spectrogram: use-guide/spectrogram.md
-                    - Colormap Presets: use-guide/colormap.md
-                    - Trading Curve: use-guide/tradingcurve.md
-                    - Vector Field: use-guide/vectorfield.md
-                    - Interval Curve: use-guide/intervalcurve.md
-                    - Shape Item: use-guide/shapeitem.md
-                    - Text Label: use-guide/textlabel.md
-                - Polar Plot:
-                    - Polar Plot: use-guide/polar-plot.md
-                - 3D Plot:
-                    - 3D Plot Introduction: use-guide/3d-plot.md
-                    - 3D Plot Architecture: use-guide/3d-architecture.md
-                    - 3D Bar Chart: use-guide/3d-bar-chart.md
-                    - 3D Line Plot: use-guide/3d-line-plot.md
-                    - 3D Waterfall: use-guide/3d-waterfall.md
-                    - OpenGL Canvas: use-guide/opengl.md
-                - Control Widgets:
-                    - Widgets & Controls: use-guide/widgets-controls.md
-            - Interaction:
-                - Plot Interaction:
-                    - Scale Built-in Action: use-guide/scale-builtin-action.md
-                    - Pick Value: use-guide/pick-value.md
-                    - Panner: use-guide/panner.md
-                    - Zoomer: use-guide/zoomer.md
-                    - Renderer: use-guide/renderer.md
-                - Axis System:
-                    - Scale Widget: use-guide/scale-widget.md
-                    - Ticks Inside: use-guide/ticks-inside.md
-                    - Scale Engine: use-guide/scale-engine.md
-                - Legend:
-                    - Legend Widget: use-guide/legend.md
+                - 2D Plotting:
+                    - Chart Items:
+                        - Curve: use-guide/2d/curve.md
+                        - Rendering Performance & Smoothing: use-guide/2d/rendering-performance.md
+                        - Scatter: use-guide/2d/scatter.md
+                        - Grid: use-guide/2d/grid.md
+                        - Marker: use-guide/2d/marker.md
+                        - Arrow Marker: use-guide/2d/arrow-marker.md
+                        - Bar Chart: use-guide/2d/barchart.md
+                        - Box Chart: use-guide/2d/boxchart.md
+                        - Histogram: use-guide/2d/histogram.md
+                        - Spectrogram: use-guide/2d/spectrogram.md
+                        - Trading Curve: use-guide/2d/tradingcurve.md
+                        - Vector Field: use-guide/2d/vectorfield.md
+                        - Interval Curve: use-guide/2d/intervalcurve.md
+                        - Shape Item: use-guide/2d/shapeitem.md
+                        - Text Label: use-guide/2d/textlabel.md
+                        - Symbol: use-guide/2d/symbol.md
+                        - Polar Plot: use-guide/2d/polar-plot.md
+                    - Containers & Layout:
+                        - Figure Widget: use-guide/2d/figure-widget.md
+                        - Parasite Axes: use-guide/2d/parasite-axes.md
+                        - Plot Layout: use-guide/2d/plot-layout.md
+                        - Legend Widget: use-guide/2d/legend.md
+                    - Axes & Scales:
+                        - Scale Widget: use-guide/2d/scale-widget.md
+                        - Scale Engine: use-guide/2d/scale-engine.md
+                        - Ticks Inside: use-guide/2d/ticks-inside.md
+                    - Interaction:
+                        - Picker State Machine: use-guide/2d/picker-state-machine.md
+                        - Pick Value: use-guide/2d/pick-value.md
+                        - Panner: use-guide/2d/panner.md
+                        - Zoomer: use-guide/2d/zoomer.md
+                        - Scale Built-in Action: use-guide/2d/scale-builtin-action.md
+                    - Rendering & Export:
+                        - Plot Renderer: use-guide/2d/renderer.md
+                        - OpenGL Canvas: use-guide/2d/opengl.md
+                    - High-Level APIs:
+                        - Plot Utilities: use-guide/2d/plot-utilities.md
+                        - PyPlot API: use-guide/2d/pyplot-api.md
+                - 3D Plotting:
+                    - 3D Plot Introduction: use-guide/3d/3d-plot.md
+                    - 3D Plot Architecture: use-guide/3d/3d-architecture.md
+                    - 3D Bar Chart: use-guide/3d/3d-bar-chart.md
+                    - 3D Line Plot: use-guide/3d/3d-line-plot.md
+                    - 3D Waterfall: use-guide/3d/3d-waterfall.md
+                - General Topics:
+                    - Series Data: use-guide/general/series-data.md
+                    - NaN Handling: use-guide/general/nan-handling.md
+                    - Colormap Presets: use-guide/general/colormap.md
+                    - Widgets & Controls: use-guide/general/widgets-controls.md
+            - Tech Reports:
+                - Tech Reports:
+                    - Overview: tech-report/index.md
+                    - "Downsampling: LTTB & MinMax": tech-report/curve-downsampling.md
+                    - "Smoothing: Gaussian & Savitzky-Golay": tech-report/curve-smoothing.md
             - API:
                 - API Docs:
                     - API Home: doxygen_en/index.html
@@ -147,6 +147,9 @@ plugins:
                 - 概述:
                     - Qwt简介: introduction.md
                     - Qwt 7.0新特性: use-guide/qwt7-new-features.md
+                - 安装与上手:
+                    - 引入qwt: use-guide/import-qwt.md
+                    - 第一个绘图: use-guide/first-plot.md
                 - 构建指南:
                     - 构建说明: build-guide/build-instructions.md
                     - qmake单文件构建: build-guide/qmake-single-file.md
@@ -158,65 +161,62 @@ plugins:
                     - 3D模块重构: dev-guide/plot3d-refactor.md
                     - 文档编写指南: doc-writing-guide.md
             - 使用指南:
-                - 基本使用:
-                    - 引入qwt: use-guide/import-qwt.md
-                    - 第一个绘图: use-guide/first-plot.md
-                    - 状态机介绍: use-guide/picker-state-machine.md
-                - 绘图容器与布局:
-                    - Figure绘图容器: use-guide/figure-widget.md
-                    - 多坐标轴的创建: use-guide/parasite-axes.md
-                    - 布局管理: use-guide/plot-layout.md
-                - 数据处理:
-                    - 数据系列: use-guide/series-data.md
-                    - NaN数据处理: use-guide/nan-handling.md
-                - 样式与符号:
-                    - 符号样式: use-guide/symbol.md
-                - 工具类:
-                    - 绘图工具类: use-guide/plot-utilities.md
-                    - PyPlot接口: use-guide/pyplot-api.md
-            - 图表类型:
-                - 核心绘图项:
-                    - 曲线图: use-guide/curve.md
-                    - "降采样：LTTB 与 MinMax 桶": use-guide/curve-downsampling.md
-                    - "平滑：高斯与 Savitzky-Golay": use-guide/curve-smoothing.md
-                    - 散点图: use-guide/scatter.md
-                    - 网格线: use-guide/grid.md
-                    - 标记点: use-guide/marker.md
-                    - 箭头标记: use-guide/arrow-marker.md
-                    - 柱状图: use-guide/barchart.md
-                    - 箱形图: use-guide/boxchart.md
-                    - 直方图: use-guide/histogram.md
-                    - 光谱图/热力图: use-guide/spectrogram.md
-                    - Colormap预设: use-guide/colormap.md
-                    - K线图: use-guide/tradingcurve.md
-                    - 向量场图: use-guide/vectorfield.md
-                    - 区间曲线: use-guide/intervalcurve.md
-                    - 形状项: use-guide/shapeitem.md
-                    - 文本标签: use-guide/textlabel.md
-                - 极坐标绘图:
-                    - 极坐标绘图: use-guide/polar-plot.md
+                - 2D绘图:
+                    - 核心绘图项:
+                        - 曲线图: use-guide/2d/curve.md
+                        - 渲染性能与平滑: use-guide/2d/rendering-performance.md
+                        - 散点图: use-guide/2d/scatter.md
+                        - 网格线: use-guide/2d/grid.md
+                        - 标记点: use-guide/2d/marker.md
+                        - 箭头标记: use-guide/2d/arrow-marker.md
+                        - 柱状图: use-guide/2d/barchart.md
+                        - 箱形图: use-guide/2d/boxchart.md
+                        - 直方图: use-guide/2d/histogram.md
+                        - 光谱图/热力图: use-guide/2d/spectrogram.md
+                        - K线图: use-guide/2d/tradingcurve.md
+                        - 向量场图: use-guide/2d/vectorfield.md
+                        - 区间曲线: use-guide/2d/intervalcurve.md
+                        - 形状项: use-guide/2d/shapeitem.md
+                        - 文本标签: use-guide/2d/textlabel.md
+                        - 符号样式: use-guide/2d/symbol.md
+                        - 极坐标绘图: use-guide/2d/polar-plot.md
+                    - 容器与布局:
+                        - Figure绘图容器: use-guide/2d/figure-widget.md
+                        - 多坐标轴的创建: use-guide/2d/parasite-axes.md
+                        - 布局管理: use-guide/2d/plot-layout.md
+                        - 图例控件: use-guide/2d/legend.md
+                    - 坐标轴系统:
+                        - 坐标轴控件: use-guide/2d/scale-widget.md
+                        - 刻度计算引擎: use-guide/2d/scale-engine.md
+                        - 刻度朝内显示: use-guide/2d/ticks-inside.md
+                    - 交互操作:
+                        - 状态机介绍: use-guide/2d/picker-state-machine.md
+                        - 数据拾取工具: use-guide/2d/pick-value.md
+                        - 平移工具: use-guide/2d/panner.md
+                        - 缩放工具: use-guide/2d/zoomer.md
+                        - 坐标轴交互动作: use-guide/2d/scale-builtin-action.md
+                    - 渲染与导出:
+                        - 绘图导出: use-guide/2d/renderer.md
+                        - OpenGL画布: use-guide/2d/opengl.md
+                    - 高层接口:
+                        - 绘图工具类: use-guide/2d/plot-utilities.md
+                        - PyPlot接口: use-guide/2d/pyplot-api.md
                 - 3D绘图:
-                    - 3D绘图简介: use-guide/3d-plot.md
-                    - 3D绘图架构: use-guide/3d-architecture.md
-                    - 3D柱状图: use-guide/3d-bar-chart.md
-                    - 3D线图: use-guide/3d-line-plot.md
-                    - 3D瀑布图: use-guide/3d-waterfall.md
-                    - OpenGL画布: use-guide/opengl.md
-                - 控件组件:
-                    - 仪表盘与滑块: use-guide/widgets-controls.md
-            - 交互操作:
-                - 绘图交互:
-                    - 坐标轴交互动作: use-guide/scale-builtin-action.md
-                    - 数据拾取工具: use-guide/pick-value.md
-                    - 平移工具: use-guide/panner.md
-                    - 缩放工具: use-guide/zoomer.md
-                    - 绘图导出: use-guide/renderer.md
-                - 坐标轴系统:
-                    - 坐标轴控件: use-guide/scale-widget.md
-                    - 刻度朝内显示: use-guide/ticks-inside.md
-                    - 刻度计算引擎: use-guide/scale-engine.md
-                - 图例系统:
-                    - 图例控件: use-guide/legend.md
+                    - 3D绘图简介: use-guide/3d/3d-plot.md
+                    - 3D绘图架构: use-guide/3d/3d-architecture.md
+                    - 3D柱状图: use-guide/3d/3d-bar-chart.md
+                    - 3D线图: use-guide/3d/3d-line-plot.md
+                    - 3D瀑布图: use-guide/3d/3d-waterfall.md
+                - 综合主题:
+                    - 数据系列: use-guide/general/series-data.md
+                    - NaN数据处理: use-guide/general/nan-handling.md
+                    - Colormap预设: use-guide/general/colormap.md
+                    - 仪表盘与滑块: use-guide/general/widgets-controls.md
+            - 技术报告:
+                - 技术报告:
+                    - 总览: tech-report/index.md
+                    - "降采样：LTTB 与 MinMax 桶": tech-report/curve-downsampling.md
+                    - "平滑：高斯与 Savitzky-Golay": tech-report/curve-smoothing.md
             - API:
                 - API文档:
                     - API文档首页: doxygen_cn/index.html
@@ -254,7 +254,7 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
   # TeX math for the algorithm deep dives: $ ... $ inline, $$ ... $$
-  # (arithmatex normalizes both to \( ... \) / \[ ... \] in the HTML,
+  # (arithmatex normalizes both to \( ... \) / \[ ... \) in the HTML,
   # which MathJax then typesets)
   - pymdownx.arithmatex:
       generic: true
