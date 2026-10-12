@@ -245,7 +245,7 @@ $$
 | 极值保留 | ❌ 不保证 | ✅ 每桶极值必然保留 |
 | 尖峰对 | ❌ 系统性丢弃（同桶二选一） | ✅ 上冲下冲同时保留 |
 | SIMD 化 | 面积比较难以向量化 | argmin/argmax 天然可向量化 |
-| NaN 语义 | 需要显式处理 | IEEE-754 比较天然忽略 NaN（见 5.4 节） |
+| NaN 语义 | 需要显式处理 | 预扫描 + NaN-aware 标量分支兜底；内核级 IEEE-754“天然忽略”不可靠（见 5.4 节与[SIMD 基准篇](simd-argminmax.md)） |
 
 MinMax 桶是对 LTTB 的**确定性近似**：两者都以"索引域等数分桶 + 保留形状代表点"为骨架，区别在于代表点的选取准则。把面积准则换成极值准则之后，算法获得三个可证明的性质。
 
@@ -373,7 +373,7 @@ $$
 \mathbf{i}^{(k+1)}_j = \begin{cases} 4k + j & v_{4k+j} < \mathbf{m}^{(k)}_j \\ \mathbf{i}^{(k)}_j & \text{otherwise} \end{cases}
 $$
 
-比较用**有序谓词** `_CMP_LT_OQ`（ordered, quiet）：$\mathrm{NaN} < x$ 与 $x < \mathrm{NaN}$ 均为假，因此 NaN 永远不会赢得比较、不会污染索引向量——**NaN 被 IEEE-754 语义天然忽略**。向量循环结束后做水平归约（跨 lane 求最小/最大），尾部不足一个向量宽的元素由标量循环收尾；最后若 min/max 仍为 NaN（全 NaN 输入），返回哨兵值 $\{0, 0, \text{DBL\_MAX}, -\text{DBL\_MAX}\}$。
+比较用有序谓词 `_CMP_LT_OQ`（ordered, quiet）：$\mathrm{NaN} < x$ 与 $x < \mathrm{NaN}$ 均为假，NaN 永远不会赢得比较；但值向量走的 `minpd`/`maxpd` 硬件指令在任一操作数为 NaN 时返回第二操作数，NaN 可覆盖累加值、待后续真值将其恢复后便与索引向量脱节——因此 NaN 不会污染**值**结果（输出值仍是某个真实元素，尽管极值可能丢失），**索引**语义在多 lane 归约下却不可靠，存在索引指向 NaN 元素的组合输出（定量矩阵见[SIMD 基准篇](simd-argminmax.md) 2.3 节），这正是渲染管线必须先做 NaN 预扫描的原因。向量循环结束后做水平归约（跨 lane 求最小/最大），尾部不足一个向量宽的元素由标量循环收尾；最后若 min/max 仍为 NaN（全 NaN 输入），返回哨兵值 $\{0, 0, \text{DBL\_MAX}, -\text{DBL\_MAX}\}$。
 
 ```cpp
 // src/core/qwt_simd_argminmax.cpp —— AVX2 路径的核心循环
@@ -556,7 +556,7 @@ const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 
 - 可视化是一个**带宽受限的采样问题**：画布 $W$ 列像素的奈奎斯特极限决定了高于 $2W$ 的采样率全部冗余。
 - 经典 LTTB 用"最大三角形面积"启发式选点，简单、$O(N)$、视觉质量好，但**不保证保留极值**，对尖峰对有系统性丢失。
-- QWT7 的 MinMax 桶把准则替换为"每桶保极值"：获得可证明的全局极值保留、无自交、分辨率与像素极限匹配三条性质，同时保留了索引域分桶的视觉形状保真，并把核心计算化简为 SIMD 友好的 argmin/argmax（AVX2/SSE4.2/标量运行时派发，NaN 语义天然正确）。
+- QWT7 的 MinMax 桶把准则替换为"每桶保极值"：获得可证明的全局极值保留、无自交、分辨率与像素极限匹配三条性质，同时保留了索引域分桶的视觉形状保真，并把核心计算化简为 SIMD 友好的 argmin/argmax（AVX2/SSE4.2/标量运行时派发，NaN 语义靠预扫描 + 标量分支保证）。
 - 实验表明：默认的 $N_b = 2W$ 桶预算位于保真度-性能拐点；`FilterPointsLTTB` 在 100 万点上把重绘从 262 ms/帧降至 133 ms/帧，同时保住约 99% 的列包络。
 
 ## 9. 参考文献
