@@ -53,3 +53,21 @@ endif()
 # NOTE: qmakeExample is a qmake-based project that uses the src-amalgamate
 #       single file. It is NOT built by CMake.
 #       Build it with: cd examples/qmakeExample && qmake && make
+
+# Regenerates the documentation screenshots (docs/assets/screenshots*) by
+# running the examples with the unattended screenshot protocol, see
+# examples/SCREENSHOTS.md. Requires the examples to be built.
+if(WIN32)
+    find_program(QWT_POWERSHELL powershell)
+    if(QWT_POWERSHELL)
+        add_custom_target(update-screenshots
+            COMMAND "${QWT_POWERSHELL}" -NoProfile -ExecutionPolicy Bypass
+                    -File "${CMAKE_CURRENT_LIST_DIR}/update-screenshots.ps1"
+                    -BuildDir "${CMAKE_BINARY_DIR}"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
+            COMMENT "Updating documentation screenshots from examples"
+            VERBATIM
+        )
+    endif()
+endif()
+

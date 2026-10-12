@@ -1,0 +1,326 @@
+{
+    "$comment": [
+        "Manifest for examples/update-screenshots.ps1 - regenerates the documentation",
+        "screenshots in docs/assets/screenshots{,-3D} by running the examples with the",
+        "unattended screenshot protocol implemented in examples/common/qwt_example_screenshot.h.",
+        "",
+        "Entry fields:",
+        "  name      example target name ( executable in <build>/bin, Debug adds a 'd' suffix )",
+        "  shots[]   one capture per entry:",
+        "    output   path relative to docs/assets",
+        "    size     window size WxH passed as --size ( = output image size )",
+        "    delay    milliseconds passed as --screenshot-delay ( optional, default below )",
+        "    variant  visual variant passed as --variant ( optional, see addVariant in main.cpp )",
+        "    args     extra command line arguments ( optional )",
+        "  raw       examples with their own capture mode ( e.g. colormap ):",
+        "    args     arguments, {assets} is replaced by the absolute docs/assets path",
+        "    outputs  files that must exist after the run ( relative to docs/assets )",
+        "    postMove [from, to] pairs applied after a successful run ( relative to docs/assets )",
+        "  skipped[] outputs that cannot be regenerated, with the reason ( documentation only )",
+        "",
+        "New entries: add the example's shots here, integrate the helper into its main.cpp",
+        "and rerun:  powershell -File examples/update-screenshots.ps1 -Only <name>"
+    ],
+    "defaults": {
+        "delay": 2000,
+        "timeoutPadSec": 20
+    },
+    "examples": [
+        {
+            "name": "animation",
+            "shots": [
+                { "output": "screenshots/animated.png", "size": "400x376", "delay": 2500 }
+            ]
+        },
+        {
+            "name": "BarChart",
+            "shots": [
+                { "output": "screenshots/BarChart-grouped.png", "size": "602x432", "variant": "grouped" },
+                { "output": "screenshots/BarChart-stacked.png", "size": "602x432", "variant": "stacked" }
+            ]
+        },
+        {
+            "name": "bode",
+            "shots": [
+                { "output": "screenshots/bode.png", "size": "542x473" }
+            ]
+        },
+        {
+            "name": "BoxChart",
+            "shots": [
+                { "output": "screenshots/BoxChart.png", "size": "702x532" }
+            ]
+        },
+        {
+            "name": "colormap",
+            "$comment": "Own headless mode: writes one PNG per preset + overview.png + colormap.png into the given directory",
+            "raw": {
+                "args": [ "--screenshot", "{assets}/screenshots/colormap" ],
+                "outputs": [
+                    "screenshots/colormap/overview.png",
+                    "screenshots/colormap/viridis.png",
+                    "screenshots/colormap/jet.png"
+                ],
+                "postMove": [
+                    [ "screenshots/colormap/colormap.png", "screenshots/colormap.png" ]
+                ]
+            }
+        },
+        {
+            "name": "controls",
+            "shots": [
+                { "output": "screenshots/controls-sliders.png", "size": "794x575", "variant": "sliders" },
+                { "output": "screenshots/controls-wheel-thermo.png", "size": "794x575", "variant": "wheel-thermo" },
+                { "output": "screenshots/controls-knob.png", "size": "794x575", "variant": "knob" },
+                { "output": "screenshots/controls-dial.png", "size": "794x575", "variant": "dial" }
+            ]
+        },
+        {
+            "name": "cpuplot",
+            "shots": [
+                { "output": "screenshots/cpuplot.png", "size": "602x444", "delay": 3000 }
+            ]
+        },
+        {
+            "name": "curvedemo",
+            "shots": [
+                { "output": "screenshots/curvedemo.png", "size": "302x632" }
+            ]
+        },
+        {
+            "name": "curvesmoothing",
+            "shots": [
+                { "output": "screenshots/curvesmoothing.png", "size": "1434x832", "delay": 2500 }
+            ]
+        },
+        {
+            "name": "dials",
+            "shots": [
+                { "output": "screenshots/dials-compass.png", "size": "454x296", "variant": "compass" },
+                { "output": "screenshots/dials-cockpit.png", "size": "454x296", "variant": "cockpit" }
+            ]
+        },
+        {
+            "name": "distrowatch",
+            "shots": [
+                { "output": "screenshots/distrowatch.png", "size": "600x567" }
+            ]
+        },
+        {
+            "name": "figure",
+            "shots": [
+                { "output": "screenshots/qwt_figure.png", "size": "1200x756", "delay": 2500 }
+            ]
+        },
+        {
+            "name": "friedberg",
+            "shots": [
+                { "output": "screenshots/friedberg-bar.png", "size": "600x409", "variant": "bar" },
+                { "output": "screenshots/friedberg-tube.png", "size": "600x409", "variant": "tube" }
+            ]
+        },
+        {
+            "name": "itemeditor",
+            "shots": [
+                { "output": "screenshots/itemeditor.png", "size": "602x494" }
+            ]
+        },
+        {
+            "name": "legends",
+            "shots": [
+                { "output": "screenshots/legends.png", "size": "702x532" }
+            ]
+        },
+        {
+            "name": "nanperf",
+            "$comment": "No documentation reference yet - generated for completeness",
+            "shots": [
+                { "output": "screenshots/nanperf.png", "size": "1200x880", "delay": 3000 }
+            ]
+        },
+        {
+            "name": "oscilloscope",
+            "shots": [
+                { "output": "screenshots/oscilloscope.png", "size": "802x493", "delay": 3000 }
+            ]
+        },
+        {
+            "name": "outsideTitle",
+            "shots": [
+                { "output": "screenshots/outside-title.png", "size": "1216x599" }
+            ]
+        },
+        {
+            "name": "parasitePlot",
+            "shots": [
+                { "output": "screenshots/parasite-plot.png", "size": "1182x738", "delay": 2500 }
+            ]
+        },
+        {
+            "name": "polardemo",
+            "shots": [
+                { "output": "screenshots/polardemo.png", "size": "802x632" }
+            ]
+        },
+        {
+            "name": "polarspectrogram",
+            "shots": [
+                { "output": "screenshots/polarspectrogram.png", "size": "702x632", "delay": 3000 }
+            ]
+        },
+        {
+            "name": "pyplot_demo",
+            "shots": [
+                { "output": "screenshots/pyplot.png", "size": "902x632", "delay": 2500 }
+            ]
+        },
+        {
+            "name": "radio",
+            "shots": [
+                { "output": "screenshots/radio.png", "size": "616x234" }
+            ]
+        },
+        {
+            "name": "rasterview",
+            "$comment": "-1: Nearest Neighbour resampling, -2: Bicubic resampling",
+            "shots": [
+                { "output": "screenshots/rasterview-1.png", "size": "602x477", "variant": "nearest" },
+                { "output": "screenshots/rasterview-2.png", "size": "602x477", "variant": "bicubic" }
+            ]
+        },
+        {
+            "name": "realtime",
+            "shots": [
+                { "output": "screenshots/realtime.png", "size": "798x502", "delay": 3000 }
+            ]
+        },
+        {
+            "name": "refreshtest",
+            "shots": [
+                { "output": "screenshots/refreshtest.png", "size": "788x541", "delay": 2500 }
+            ]
+        },
+        {
+            "name": "renderbench",
+            "shots": [
+                { "output": "screenshots/renderbench.png", "size": "1605x632", "delay": 2500 }
+            ]
+        },
+        {
+            "name": "scatterplot",
+            "shots": [
+                { "output": "screenshots/scatterplot.png", "size": "802x632" }
+            ]
+        },
+        {
+            "name": "simpleplot",
+            "shots": [
+                { "output": "screenshots/simpleplot.png", "size": "602x432" }
+            ]
+        },
+        {
+            "name": "sinusplot",
+            "shots": [
+                { "output": "screenshots/sinusplot.png", "size": "602x432" }
+            ]
+        },
+        {
+            "name": "spectrogram",
+            "shots": [
+                { "output": "screenshots/spectrogram.png", "size": "602x432", "delay": 2500 },
+                { "output": "screenshots/spectrogram-contour.png", "size": "602x432", "delay": 2500, "variant": "contour" }
+            ]
+        },
+        {
+            "name": "splineeditor",
+            "shots": [
+                { "output": "screenshots/splineeditor.png", "size": "802x632" }
+            ]
+        },
+        {
+            "name": "staticExample",
+            "shots": [
+                { "output": "screenshots/staticExample.png", "size": "1602x1232", "delay": 3500 }
+            ]
+        },
+        {
+            "name": "stockchart",
+            "shots": [
+                { "output": "screenshots/stockchart.png", "size": "602x432" }
+            ]
+        },
+        {
+            "name": "sysinfo",
+            "shots": [
+                { "output": "screenshots/sysinfo.png", "size": "602x432" }
+            ]
+        },
+        {
+            "name": "ticks_inside",
+            "shots": [
+                { "output": "screenshots/ticks_inside.png", "size": "802x632" }
+            ]
+        },
+        {
+            "name": "tvplot",
+            "shots": [
+                { "output": "screenshots/tvplot.png", "size": "602x461", "delay": 2500 }
+            ]
+        },
+        {
+            "name": "qwtplot3d",
+            "$comment": "Successor of the removed simpleplot3D example - regenerates screenshots-3D/simpleplot3D.png",
+            "shots": [
+                { "output": "screenshots-3D/simpleplot3D.png", "size": "960x640", "delay": 3500, "variant": "plot" }
+            ]
+        },
+        {
+            "name": "figureSurface3D",
+            "shots": [
+                { "output": "screenshots-3D/figureSurface3D.png", "size": "1282x832", "delay": 3500 }
+            ]
+        },
+        {
+            "name": "bar3D",
+            "$comment": "No documentation reference yet - generated for completeness",
+            "shots": [
+                { "output": "screenshots-3D/bar3D.png", "size": "960x720", "delay": 3500 }
+            ]
+        },
+        {
+            "name": "line3D",
+            "$comment": "No documentation reference yet - generated for completeness",
+            "shots": [
+                { "output": "screenshots-3D/line3D.png", "size": "960x720", "delay": 3500 }
+            ]
+        },
+        {
+            "name": "waterfall3D",
+            "$comment": "waterfall3D-2 shows the Wireframe style ( --style 2 )",
+            "shots": [
+                { "output": "screenshots-3D/waterfall3D.png", "size": "1200x800", "delay": 7000 },
+                { "output": "screenshots-3D/waterfall3D-2.png", "size": "1002x752", "delay": 7000, "args": [ "--style", "2" ] }
+            ]
+        }
+    ],
+    "skipped": [
+        { "output": "screenshots/curvetracker.png", "reason": "playground example, not built by default" },
+        { "output": "screenshots/graphicscale.png", "reason": "playground example, not built by default" },
+        { "output": "screenshots/plotmatrix.png", "reason": "playground example, not built by default" },
+        { "output": "screenshots/rescaler.png", "reason": "playground example, not built by default" },
+        { "output": "screenshots/scaleengine.png", "reason": "playground example, not built by default" },
+        { "output": "screenshots/shapes.png", "reason": "playground example, not built by default" },
+        { "output": "screenshots/svgmap.png", "reason": "playground example, not built by default" },
+        { "output": "screenshots/symbols.png", "reason": "playground example, not built by default" },
+        { "output": "screenshots/timescale.png", "reason": "playground example, not built by default" },
+        { "output": "screenshots/vectorfield.png", "reason": "playground example, not built by default" },
+        { "output": "screenshots/series-data-picker.png", "reason": "interactive tooltip capture, no example binary produces it" },
+        { "output": "screenshots/figure-widget-overlay.gif", "reason": "animated GIF, requires screen recording" },
+        { "output": "screenshots/qwt-realtime-panner.gif", "reason": "animated GIF, requires screen recording" },
+        { "output": "screenshots/qwt-scale-builtin-action-pan.gif", "reason": "animated GIF, requires screen recording" },
+        { "output": "screenshots/qwt-scale-builtin-action-zoom.gif", "reason": "animated GIF, requires screen recording" },
+        { "output": "screenshots-3D/axes.png", "reason": "source example removed in the v7.3.3 3D refactor" },
+        { "output": "screenshots-3D/enrichments.png", "reason": "source example removed in the v7.3.3 3D refactor" },
+        { "output": "screenshots-3D/autoswitch.png", "reason": "source example removed in the v7.3.3 3D refactor" }
+    ]
+}
