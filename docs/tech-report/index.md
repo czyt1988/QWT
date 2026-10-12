@@ -35,7 +35,7 @@ Tech reports are held to publication standards. On top of the general rules in t
 | [Downsampling Curves for the Screen: LTTB Theory and the QWT7 MinMax Bucket](curve-downsampling.md) | The visualization bandwidth bottleneck, classical LTTB derivation, three provable properties of the MinMax bucket variant, SIMD argmin/argmax, pixel-level fidelity experiments | `src/plot/qwt_point_mapper.cpp`, `src/core/qwt_simd_argminmax.cpp` | `examples/bench/renderbench`, `examples/2D/nanperf` |
 | [Curve Rendering: Gaussian, Savitzky-Golay and Feature Preservation](curve-smoothing.md) | Bias-variance decomposition, full derivation of both filter kernels (moment conditions, noise-gain identity), MAD-based feature preservation, end-to-end pixel experiments | `src/plot/qwt_curve_smoothing.cpp` | `examples/2D/curvesmoothing` |
 
-The two reports are companions: the downsampling report answers "too many points to draw", the smoothing report answers "the drawing looks like noise". Together they cover the core tension of the `QwtPlotCurve` rendering pipeline — data volume versus visual quality.
+The two reports are companions: the downsampling report answers "too many points to draw", the smoothing report answers "the drawing looks like noise". Together they cover the core tension of the `QwtPlotCurve` rendering pipeline — data volume versus visual quality. For the hands-on, tutorial-level introduction see [Rendering Performance & Curve Smoothing](../use-guide/2d/rendering-performance.md).
 
 ## Topic Roadmap (planned)
 

@@ -35,7 +35,7 @@
 | [LTTB 降采样算法原理与 QWT7 的 MinMax 桶实现](curve-downsampling.md) | 可视化带宽瓶颈、经典 LTTB 推导、MinMax 桶变体的三条性质、SIMD argmin/argmax、像素级保真度实验 | `src/plot/qwt_point_mapper.cpp`、`src/core/qwt_simd_argminmax.cpp` | `examples/bench/renderbench`、`examples/2D/nanperf` |
 | [曲线渲染平滑：高斯卷积、Savitzky-Golay 回归与特征保护](curve-smoothing.md) | 偏差-方差分解、两种滤波核的完整推导（矩条件、噪声增益恒等式）、MAD 特征保护、端到端像素实验 | `src/plot/qwt_curve_smoothing.cpp` | `examples/2D/curvesmoothing` |
 
-两篇报告互为配套：降采样篇回答"点太多画不动怎么办"，平滑篇回答"画出来像噪声怎么办"，共同覆盖 `QwtPlotCurve` 渲染管线中数据量与视觉质量这对核心矛盾。
+两篇报告互为配套：降采样篇回答"点太多画不动怎么办"，平滑篇回答"画出来像噪声怎么办"，共同覆盖 `QwtPlotCurve` 渲染管线中数据量与视觉质量这对核心矛盾。对应的教程级快速上手见[渲染性能与曲线平滑](../use-guide/2d/rendering-performance.md)。
 
 ## 选题路线图（规划中）
 

@@ -80,6 +80,7 @@ plugins:
                 - 2D Plotting:
                     - Chart Items:
                         - Curve: use-guide/2d/curve.md
+                        - Rendering Performance & Smoothing: use-guide/2d/rendering-performance.md
                         - Scatter: use-guide/2d/scatter.md
                         - Grid: use-guide/2d/grid.md
                         - Marker: use-guide/2d/marker.md
@@ -163,6 +164,7 @@ plugins:
                 - 2D绘图:
                     - 核心绘图项:
                         - 曲线图: use-guide/2d/curve.md
+                        - 渲染性能与平滑: use-guide/2d/rendering-performance.md
                         - 散点图: use-guide/2d/scatter.md
                         - 网格线: use-guide/2d/grid.md
                         - 标记点: use-guide/2d/marker.md
