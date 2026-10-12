@@ -10494,6 +10494,34 @@ public:
 	QwtScaleDraw();
 	~QwtScaleDraw() override;
 
+	/**
+	 * @brief Corner miter flags
+	 * @details When a miter flag is set, the backbone is extended by its pen width
+	 *          beyond the corresponding end of the scale, so that it intersects with
+	 *          the backbone of a perpendicular scale ending at the same canvas corner.
+	 *          For vertical scales AtStart/AtEnd refer to the top/bottom end,
+	 *          for horizontal scales to the left/right end.
+	 * @sa setCornerMiter(), cornerMiter()
+	 */
+	enum CornerMiterFlag
+	{
+		/// Do not extend the backbone
+		NoMiter = 0x0,
+
+		/// Extend the backbone beyond the start of the scale
+		MiterAtStart = 0x1,
+
+		/// Extend the backbone beyond the end of the scale
+		MiterAtEnd = 0x2
+	};
+
+	Q_DECLARE_FLAGS(CornerMiter, CornerMiterFlag)
+
+	/// Set the corner miter flags
+	void setCornerMiter(CornerMiter miter);
+	/// @return the corner miter flags
+	CornerMiter cornerMiter() const;
+
 	/// Get the border distance hint
 	void getBorderDistHint(const QFont&, int& start, int& end) const;
 	/// Get the minimum label distance
@@ -10559,6 +10587,8 @@ private:
 
 	QWT_DECLARE_PRIVATE(QwtScaleDraw)
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtScaleDraw::CornerMiter)
 
 /**
  * @brief Move the position of the scale
@@ -23951,12 +23981,12 @@ public:
 	{
 	}
 
-	bool operator==(const Qwt3DMouseState& ms)
+	bool operator==(const Qwt3DMouseState& ms) const
 	{
 		return mb_ == ms.mb_ && km_ == ms.km_;
 	}
 
-	bool operator!=(const Qwt3DMouseState& ms)
+	bool operator!=(const Qwt3DMouseState& ms) const
 	{
 		return !operator==(ms);
 	}
@@ -23978,12 +24008,12 @@ public:
 	{
 	}
 
-	bool operator==(const Qwt3DKeyboardState& ms)
+	bool operator==(const Qwt3DKeyboardState& ms) const
 	{
 		return key_ == ms.key_ && km_ == ms.km_;
 	}
 
-	bool operator!=(const Qwt3DKeyboardState& ms)
+	bool operator!=(const Qwt3DKeyboardState& ms) const
 	{
 		return !operator==(ms);
 	}
@@ -24595,7 +24625,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -25195,7 +25228,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -25305,6 +25341,19 @@ class QwtColorMap;
 class QString;
 
 /**
+ * @brief Selects which coordinate of the (x, y, z) functor argument is mapped
+ * @details The default (ColorFromZ) preserves the historical behavior of
+ *          coloring by the z coordinate. ColorFromY allows amplitude coloring
+ *          for items whose value axis is y (e.g. Qwt3DWaterfall traces).
+ */
+enum Qwt3DColorSource
+{
+	ColorFromX,
+	ColorFromY,
+	ColorFromZ   // default, preserves the existing behavior
+};
+
+/**
  * @brief Adapts a QwtColorMap (from qwt::core) for use as a Qwt3DColor.
  * @details Bridges the 2D colormap infrastructure into the 3D color functor system.
  */
@@ -25326,6 +25375,12 @@ public:
 	void setInterval(double min, double max);
 	void reset(unsigned size = 256);
 	void setAlpha(double a);
+
+	/// Selects which coordinate of the (x, y, z) argument feeds the colormap;
+	/// the active range (setActiveRange()) applies to the selected axis
+	void setSourceAxis(Qwt3DColorSource source);
+	/// Returns the source coordinate selection (default ColorFromZ)
+	Qwt3DColorSource sourceAxis() const;
 
 	// Returns the preset name passed to the constructor (empty if constructed from QwtColorMap*)
 	QString presetName() const;
@@ -25350,6 +25405,7 @@ private:
 	bool m_useManualInterval;
 	double m_alpha;
 	QString m_presetName;
+	Qwt3DColorSource m_source;
 };
 
 #endif
@@ -25948,7 +26004,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -26786,7 +26845,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -27437,7 +27499,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -28077,7 +28142,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -28394,6 +28462,7 @@ private:
 
 #include <vector>
 #include <qstring.h>
+#include <QVector>
 
 /*** Start of inlined file: qwt3d_types.h ***/
 #if defined(_MSC_VER) /* MSVC Compiler */
@@ -28981,7 +29050,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -29056,6 +29128,9 @@ protected:
 	// Returns a new heap based object utilized from Qwt3DClonePtr
 	Qwt3DScale* clone() const override;
 	void calculate() override;
+
+	// Copies the linear autoscaler state (for derived clone() implementations)
+	void copyLinearScaleState(const Qwt3DLinearScale& other);
 };
 
 /**
@@ -29078,6 +29153,47 @@ protected:
 
 private:
 	void setupCounter(double& k, int& step);
+};
+
+/**
+ * @brief Linear scale whose major tic labels come from a user supplied string list
+ * @details Qwt3DAxis::drawTicLabel() asks the scale for the label of every major
+ *          tic via ticLabel(idx). With this scale the depth axis of a waterfall
+ *          can read "t=-2.4s", "frame 17", ... instead of plain numbers.
+ *
+ * Qwt3DAxis::setScale() hands the scale object to a Qwt3DClonePtr, whose
+ * assignment calls clone(). Any derived scale that does not override clone()
+ * is sliced to its base class right inside setScale(), and the custom
+ * ticLabel() silently stops working. Qwt3DTextScale overrides clone(), so it
+ * survives the clone; user-defined scale classes must do the same.
+ *
+ * @code
+ * auto* scale = new Qwt3DTextScale();
+ * scale->setLabels({ "oldest", "-32", "-16", "newest" });
+ * plot->coordinates()->axes[Qwt3D::Z1].setScale(scale);
+ * plot->coordinates()->axes[Qwt3D::Z1].setMajors(3);
+ * @endcode
+ */
+class QWT3D_EXPORT Qwt3DTextScale : public Qwt3DLinearScale
+{
+	friend class Qwt3DAxis;
+	friend class Qwt3DClonePtr< Qwt3DScale >;
+
+public:
+	Qwt3DTextScale();
+
+	/// Sets the label list (indexed by major tic index)
+	void setLabels(const QVector<QString>& labels);
+	/// Returns the label list
+	QVector<QString> labels() const;
+
+protected:
+	QString ticLabel(unsigned int idx) const override;
+	// Must override: Qwt3DAxis::setScale() clones the object via Qwt3DClonePtr
+	Qwt3DScale* clone() const override;
+
+private:
+	QVector<QString> m_labels;
 };
 
 #endif  // QWT3D_SCALE_H
@@ -29194,6 +29310,8 @@ public:
 
 	// Sets label content
 	void setLabelString(QString const& name);
+	// Returns whether the axis title is drawn
+	bool label() const;
 	// Returns label content
 	QString labelString() const;
 	void setLabelPosition(const Triple& pos, ANCHOR);
@@ -29211,6 +29329,8 @@ public:
 	bool scaling() const;
 	void setScale(SCALETYPE);
 	void setScale(Qwt3DScale* item);
+	// Returns the active scale object (the clone stored by setScale())
+	const Qwt3DScale* scale() const;
 	// Turns number drawing on or off
 	void setNumbers(bool val);
 	// Returns, if number drawing is on or off
@@ -30151,7 +30271,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -30802,7 +30925,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -31446,7 +31572,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -32242,7 +32371,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -32888,7 +33020,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -33045,11 +33180,11 @@ public:
 	// Returns pointer to ColorLegend object
 	Qwt3DColorLegend* legend();
 
-	// Returns rotation around X axis [-360..360] (some angles are equivalent)
+	// Returns the rotation around the X axis in degrees, mouse/keyboard input wraps it into [0..360)
 	double xRotation() const;
-	// Returns rotation around Y axis [-360..360] (some angles are equivalent)
+	// Returns the rotation around the Y axis in degrees, mouse/keyboard input wraps it into [0..360)
 	double yRotation() const;
-	// Returns rotation around Z axis [-360..360] (some angles are equivalent)
+	// Returns the rotation around the Z axis in degrees, mouse/keyboard input wraps it into [0..360)
 	double zRotation() const;
 
 	// Returns shift along X axis (object coordinates)
@@ -33157,6 +33292,18 @@ public:
 	void setKeySpeed(double rot, double scale, double shift);
 	// Gets speed for keyboard driven transformations
 	void keySpeed(double& rot, double& scale, double& shift) const;
+
+	// Sets the mouse drag speeds: rotation turns per widget dimension,
+	// exponential gain of the drag scaling, world units of dragging shift
+	void setMouseSpeed(double rot, double scale, double shift);
+	// Gets the mouse drag speeds
+	void mouseSpeed(double& rot, double& scale, double& shift) const;
+
+	// Sets an additional mouse gesture for the y axis rotation (the roll),
+	// Qwt3DMouseState() turns the extra gesture off
+	void setRollMouse(Qwt3DMouseState state);
+	// Returns the additional roll gesture
+	Qwt3DMouseState rollMouse() const;
 
 	// Returns true, if Lighting is enabled, false else
 	bool lightingEnabled() const;
@@ -33347,6 +33494,9 @@ private:
 
 	void applyLight(unsigned idx);
 	void applyLights();
+
+	// Sorts items by z-order, recomputes the union hull and the coordinate system
+	void recalculateScene();
 };
 
 #endif  // QWT3D_PLOT_H
@@ -33945,7 +34095,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -34704,7 +34857,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -35447,7 +35603,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif
@@ -36189,7 +36348,10 @@ enum Rtti3DValues
 	Rtti_Plot3DBar = 1002,
 
 	/// For Qwt3DLine
-	Rtti_Plot3DLine = 1003
+	Rtti_Plot3DLine = 1003,
+
+	/// For Qwt3DWaterfall
+	Rtti_Plot3DWaterfall = 1004
 };
 
 #endif

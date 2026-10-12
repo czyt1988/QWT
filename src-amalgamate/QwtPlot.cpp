@@ -18283,7 +18283,6 @@ void QwtAbstractScaleDraw::invalidateCache()
 
 /*** Start of inlined file: qwt_scale_draw.cpp ***/
 #include <qpainter.h>
-#include <qpaintengine.h>
 #include <qmath.h>
 
 static inline double qwtEffectivePenWidth(const QwtAbstractScaleDraw* scaleDraw)
@@ -18291,215 +18290,44 @@ static inline double qwtEffectivePenWidth(const QwtAbstractScaleDraw* scaleDraw)
 	return qwtMaxF(scaleDraw->penWidthF(), 1.0);
 }
 
-namespace QwtScaleRendererReal
+namespace
 {
-inline qreal penWidth(const QPainter* painter, const QwtScaleDraw* scaleDraw)
+/*
+	Backbone and ticks are filled as device pixel aligned rectangles instead of
+	being stroked with a pen: every edge lands on an integer device coordinate,
+	so the scale renders as crisp hairlines at any device pixel ratio and the
+	pen width truncates to whole device pixels (a width of 1.0 always paints
+	a single device pixel wide line).
+ */
+inline int qwtDevicePenWidth(const QPainter* painter, qreal deviceStep)
 {
-	qreal width = scaleDraw->penWidthF();
-#if 1
-	if (width <= 0.0)
-		width = 1.0;
-#endif
-
-	if (painter->pen().isCosmetic()) {
-		const QTransform& transform = painter->transform();
-
-		switch (scaleDraw->alignment()) {
-		case QwtScaleDraw::LeftScale:
-		case QwtScaleDraw::RightScale: {
-			width /= transform.m11();
-			break;
-		}
-		case QwtScaleDraw::TopScale:
-		case QwtScaleDraw::BottomScale: {
-			width /= transform.m22();
-			break;
-		}
-		}
-	}
-
-	return width;
+	return qMax(1, static_cast<int>(painter->pen().widthF() * deviceStep + 1e-6));
 }
 
-inline void drawBackbone(QPainter* painter, const QwtScaleDraw* scaleDraw)
+inline int qwtDeviceTickLength(qreal length, qreal deviceStep)
 {
-	const qreal pw2 = 0.5 * penWidth(painter, scaleDraw);
-
-	const QPointF pos  = scaleDraw->pos();
-	const qreal length = scaleDraw->length();
-
-	switch (scaleDraw->alignment()) {
-	case QwtScaleDraw::LeftScale: {
-		const qreal x = pos.x() + 1.0 - pw2;
-		QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-		break;
-	}
-	case QwtScaleDraw::RightScale: {
-		const qreal x = pos.x() - 1.0 + pw2;
-		QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-		break;
-	}
-	case QwtScaleDraw::TopScale: {
-		const qreal y = pos.y() + 1.0 - pw2;
-		QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-		break;
-	}
-	case QwtScaleDraw::BottomScale: {
-		const qreal y = pos.y() - 1.0 + pw2;
-		QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-		break;
-	}
-	}
+	return qMax(1, qRound(length * deviceStep));
 }
 
-inline void drawTick(QPainter* painter, const QwtScaleDraw* scaleDraw, qreal tickPos, qreal tickLength)
+inline void qwtFillDeviceRect(QPainter* painter, const QRect& deviceRect)
 {
-	const QPointF pos = scaleDraw->pos();
-
-	qreal pw = 0.0;
-
-	if (scaleDraw->hasComponent(QwtScaleDraw::Backbone))
-		pw = penWidth(painter, scaleDraw);
-
-	const qreal length = tickLength + pw;
-
 	/*
-		Those correction offsets have been found by try and error.
-		They need to be understood and replaced by a calculation,
-		that makes sense. TODO ...
+		Map the device pixel aligned rectangle back into paint coordinates:
+		the edges land on integer device pixels after the paint engine has
+		applied the device pixel ratio, so backbone and ticks stay crisp
+		hairlines at any scaling.
 	 */
-	const qreal off1 = 1.0;
-	const qreal off2 = (scaleDraw->penWidthF() <= 0.0) ? 0.5 : 0.0;
-
-	switch (scaleDraw->alignment()) {
-	case QwtScaleDraw::LeftScale: {
-		const qreal x = pos.x() + off1 - off2;
-		QwtPainter::drawLine(painter, x, tickPos, x - length, tickPos);
-
-		break;
-	}
-	case QwtScaleDraw::RightScale: {
-		const qreal x = pos.x() - off1 + off2;
-		QwtPainter::drawLine(painter, x, tickPos, x + length, tickPos);
-		break;
-	}
-	case QwtScaleDraw::TopScale: {
-		const qreal y = pos.y() + off1 - 2 * off2;
-		QwtPainter::drawLine(painter, tickPos, y, tickPos, y - length);
-
-		break;
-	}
-	case QwtScaleDraw::BottomScale: {
-		const qreal y = pos.y() - off1 + off2;
-		QwtPainter::drawLine(painter, tickPos, y, tickPos, y + length);
-
-		break;
-	}
-	}
-}
+	painter->fillRect(painter->deviceTransform().inverted().mapRect(QRectF(deviceRect)), painter->pen().color());
 }
 
-namespace QwtScaleRendererInt
+inline qreal qwtDeviceX(const QTransform& tr, qreal x)
 {
-inline void drawBackbone(QPainter* painter, const QwtScaleDraw* scaleDraw)
-{
-	const int pw = qMax(qRound(scaleDraw->penWidthF()), 1);
-
-	const qreal length = scaleDraw->length();
-	const QPointF pos  = scaleDraw->pos();
-
-	switch (scaleDraw->alignment()) {
-	case QwtScaleDraw::LeftScale: {
-		const qreal x = qRound(pos.x() - (pw - 1) / 2);
-		QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-		break;
-	}
-	case QwtScaleDraw::RightScale: {
-		const qreal x = qRound(pos.x() + pw / 2);
-		QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-		break;
-	}
-	case QwtScaleDraw::TopScale: {
-		const qreal y = qRound(pos.y() - (pw - 1) / 2);
-		QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-		break;
-	}
-	case QwtScaleDraw::BottomScale: {
-		const qreal y = qRound(pos.y() + pw / 2);
-		QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-		break;
-	}
-	}
+	return tr.map(QPointF(x, 0.0)).x();
 }
 
-inline void drawTick(QPainter* painter, const QwtScaleDraw* scaleDraw, qreal tickPos, qreal tickLength)
+inline qreal qwtDeviceY(const QTransform& tr, qreal y)
 {
-	const QPointF pos = scaleDraw->pos();
-	tickPos           = qRound(tickPos);
-
-	int pw = 0;
-	if (scaleDraw->hasComponent(QwtScaleDraw::Backbone))
-		pw = qMax(qRound(scaleDraw->penWidthF()), 1);
-
-	int len = qMax(qRound(tickLength), 1);
-
-	// the width of ticks at the borders might extent the backbone
-	len += pw;
-
-	if (painter->pen().capStyle() == Qt::FlatCap)
-		len++;  // the end point is not rendered
-
-	qreal off = 0.0;
-
-	if (painter->paintEngine()->type() == QPaintEngine::X11) {
-		if (pw == 1) {
-			// In opposite to raster, X11 paints the end point
-			off = 1.0;
-		}
-	}
-
-	switch (scaleDraw->alignment()) {
-	case QwtScaleDraw::LeftScale: {
-		const qreal x1 = qRound(pos.x()) + 1;
-		const qreal x2 = x1 - len + 1;
-
-		QwtPainter::drawLine(painter, x2, tickPos, x1 - off, tickPos);
-
-		break;
-	}
-	case QwtScaleDraw::RightScale: {
-		const qreal x1 = qRound(pos.x());
-		const qreal x2 = x1 + len - 1;
-
-		QwtPainter::drawLine(painter, x1, tickPos, x2 - off, tickPos);
-
-		break;
-	}
-	case QwtScaleDraw::BottomScale: {
-		const qreal y1 = qRound(pos.y());
-		const qreal y2 = y1 + len - 1;
-
-		QwtPainter::drawLine(painter, tickPos, y1, tickPos, y2 - off);
-
-		break;
-	}
-	case QwtScaleDraw::TopScale: {
-		const qreal y1 = qRound(pos.y());
-		const qreal y2 = y1 - len + 1;
-
-		QwtPainter::drawLine(painter, tickPos, y2 + 1, tickPos, y1 + 1 - off);
-
-		break;
-	}
-	}
+	return tr.map(QPointF(0.0, y)).y();
 }
 }
 
@@ -18518,6 +18346,8 @@ public:
 
 	Qt::Alignment labelAlignment;
 	double labelRotation;
+
+	QwtScaleDraw::CornerMiter cornerMiter { QwtScaleDraw::NoMiter };
 };
 
 /**
@@ -18533,6 +18363,31 @@ QwtScaleDraw::QwtScaleDraw() : QWT_PIMPL_CONSTRUCT
 //! Destructor
 QwtScaleDraw::~QwtScaleDraw()
 {
+}
+
+/**
+ * @brief Set the corner miter flags
+ * @param miter Flags specifying which ends of the backbone are extended
+ *              into a corner shared with a perpendicular scale
+ * @details QwtScaleWidget sets the flags from the visibility of the
+ *          perpendicular axes of the plot; standalone use keeps NoMiter.
+ * @sa cornerMiter()
+ */
+void QwtScaleDraw::setCornerMiter(CornerMiter miter)
+{
+	QWT_D(d);
+	d->cornerMiter = miter;
+}
+
+/**
+ * @brief Get the corner miter flags
+ * @return Flags specifying which ends of the backbone are extended
+ * @sa setCornerMiter()
+ */
+QwtScaleDraw::CornerMiter QwtScaleDraw::cornerMiter() const
+{
+	QWT_DC(d);
+	return d->cornerMiter;
 }
 
 /**
@@ -18864,15 +18719,63 @@ QPointF QwtScaleDraw::labelPosition(double value) const
  */
 void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
 {
-	if (len <= 0)
+	if (len <= 0.0)
 		return;
 
+	QWT_DC(d);
 	const double tval = scaleMap().transform(value);
 
-	if (QwtPainter::roundingAlignment(painter))
-		QwtScaleRendererInt::drawTick(painter, this, tval, len);
-	else
-		QwtScaleRendererReal::drawTick(painter, this, tval, len);
+	const QTransform tr = painter->deviceTransform();
+	const qreal sx      = qAbs(tr.m11());
+	const qreal sy      = qAbs(tr.m22());
+
+	const bool hasBackbone = hasComponent(QwtAbstractScaleDraw::Backbone);
+
+	switch (d->alignment) {
+	case LeftScale:
+	case RightScale: {
+		const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sx) : 0;
+		const int inner   = qRound(qwtDeviceX(tr, d->pos.x()));
+		const int tickLen = qwtDeviceTickLength(len, sx);
+
+		// the tick ends at the inner edge of the backbone band, never crossing it
+		int x0, w;
+		if (d->alignment == LeftScale) {
+			x0 = hasBackbone ? inner - pw + 1 - tickLen : inner - tickLen + 1;
+			w  = tickLen + pw;
+		} else {
+			x0 = inner;
+			w  = tickLen + pw;
+		}
+
+		const int th  = qwtDevicePenWidth(painter, sy);
+		const int row = qRound(qwtDeviceY(tr, tval));
+
+		qwtFillDeviceRect(painter, QRect(x0, row - (th - 1) / 2, w, th));
+		break;
+	}
+	case TopScale:
+	case BottomScale: {
+		const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sy) : 0;
+		const int inner   = qRound(qwtDeviceY(tr, d->pos.y()));
+		const int tickLen = qwtDeviceTickLength(len, sy);
+
+		int y0, h;
+		if (d->alignment == TopScale) {
+			y0 = hasBackbone ? inner - pw + 1 - tickLen : inner - tickLen + 1;
+			h  = tickLen + pw;
+		} else {
+			y0 = inner;
+			h  = tickLen + pw;
+		}
+
+		const int th  = qwtDevicePenWidth(painter, sx);
+		const int col = qRound(qwtDeviceX(tr, tval));
+
+		qwtFillDeviceRect(painter, QRect(col - (th - 1) / 2, y0, th, h));
+		break;
+	}
+	}
 }
 
 /**
@@ -18885,10 +18788,47 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
  */
 void QwtScaleDraw::drawBackbone(QPainter* painter) const
 {
-	if (QwtPainter::roundingAlignment(painter))
-		QwtScaleRendererInt::drawBackbone(painter, this);
-	else
-		QwtScaleRendererReal::drawBackbone(painter, this);
+	QWT_DC(d);
+	const QTransform tr = painter->deviceTransform();
+	const qreal sx      = qAbs(tr.m11());
+	const qreal sy      = qAbs(tr.m22());
+
+	switch (d->alignment) {
+	case LeftScale:
+	case RightScale: {
+		const int pw    = qwtDevicePenWidth(painter, sx);
+		const int inner = qRound(qwtDeviceX(tr, d->pos.x()));
+		const int x0    = (d->alignment == LeftScale) ? inner - pw + 1 : inner;
+
+		int y0 = qRound(qwtDeviceY(tr, d->pos.y()));
+		int y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
+		if (d->cornerMiter & MiterAtStart)
+			y0 -= pw;
+		if (d->cornerMiter & MiterAtEnd)
+			y1 += pw;
+
+		// the length can be negative (QwtPolarGrid)
+		qwtFillDeviceRect(painter, QRect(x0, qMin(y0, y1), pw, qAbs(y1 - y0) + 1));
+		break;
+	}
+	case TopScale:
+	case BottomScale: {
+		const int pw    = qwtDevicePenWidth(painter, sy);
+		const int inner = qRound(qwtDeviceY(tr, d->pos.y()));
+		const int y0    = (d->alignment == TopScale) ? inner - pw + 1 : inner;
+
+		int x0 = qRound(qwtDeviceX(tr, d->pos.x()));
+		int x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
+		if (d->cornerMiter & MiterAtStart)
+			x0 -= pw;
+		if (d->cornerMiter & MiterAtEnd)
+			x1 += pw;
+
+		// the length can be negative (QwtPolarGrid)
+		qwtFillDeviceRect(painter, QRect(qMin(x0, x1), y0, qAbs(x1 - x0) + 1, pw));
+		break;
+	}
+	}
 }
 
 /**
@@ -19809,6 +19749,38 @@ void QwtScaleWidget::paintEvent(QPaintEvent* event)
  */
 void QwtScaleWidget::draw(QPainter* painter) const
 {
+	/*
+		Extend the backbone into the canvas corners that are shared with
+		a visible perpendicular axis, so that both backbones intersect
+		instead of ending in a diagonal step.
+	 */
+	if (const QwtPlot* plot = qobject_cast<const QwtPlot*>(parentWidget())) {
+		QwtAxisId startAxis, endAxis;
+		if (m_data->scaleDraw->orientation() == Qt::Vertical) {
+			startAxis = QwtAxis::XTop;
+			endAxis   = QwtAxis::XBottom;
+		} else {
+			startAxis = QwtAxis::YLeft;
+			endAxis   = QwtAxis::YRight;
+		}
+
+		const auto meetsBackbone = [plot](QwtAxisId axisId) {
+			if (!plot->isAxisVisible(axisId))
+				return false;
+
+			const QwtScaleDraw* sd = plot->axisScaleDraw(axisId);
+			return sd && sd->hasComponent(QwtAbstractScaleDraw::Backbone);
+		};
+
+		QwtScaleDraw::CornerMiter miter = QwtScaleDraw::NoMiter;
+		if (meetsBackbone(startAxis))
+			miter |= QwtScaleDraw::MiterAtStart;
+		if (meetsBackbone(endAxis))
+			miter |= QwtScaleDraw::MiterAtEnd;
+
+		// the miter is a pure paint-time flag of our own scale draw
+		const_cast<QwtScaleDraw*>(m_data->scaleDraw.get())->setCornerMiter(miter);
+	}
 
 	m_data->scaleDraw->draw(painter, palette());
 
@@ -88223,6 +88195,20 @@ void Qwt3DAxis::setLabelString(QString const& name)
 {
 	QWT_D(d);
 	d->m_label.setString(name);
+	// Setting a title implies the intent to show it; label drawing is
+	// off by default and was easy to leave off silently.
+	if (!name.isEmpty())
+		d->m_drawLabel = true;
+}
+
+/**
+ * @brief Returns whether the axis title is drawn
+ * @return True after setLabel(true) or after setting a non-empty label string
+ */
+bool Qwt3DAxis::label() const
+{
+	QWT_DC(d);
+	return d->m_drawLabel;
 }
 
 /**
@@ -88267,6 +88253,16 @@ void Qwt3DAxis::setScale(Qwt3DScale* val)
 {
 	QWT_D(d);
 	d->m_scale = Qwt3DClonePtr< Qwt3DScale >(val);
+}
+
+/**
+ * @brief Returns the active scale object
+ * @return Const pointer to the scale clone stored by setScale()
+ */
+const Qwt3DScale* Qwt3DAxis::scale() const
+{
+	QWT_DC(d);
+	return &*d->m_scale;
 }
 
 void Qwt3DAxis::setScale(SCALETYPE val)
@@ -88828,9 +88824,10 @@ Qwt3DCoordinateSystem::~Qwt3DCoordinateSystem()
 
 void Qwt3DCoordinateSystem::destroy()
 {
-	for (unsigned i = 0; i != axes.size(); ++i)
-		axes[ i ].setLabelString("");
-
+	// NOTE: axis titles are user configuration. init() calls destroy() on
+	// every coordinate system recreation (for items with a drifting hull:
+	// every data update), so clearing the label strings here silently
+	// removed the X/Y/Z axis titles from live plots.
 	detachAll();
 }
 
@@ -88840,8 +88837,11 @@ void Qwt3DCoordinateSystem::init(Triple first, Triple second)
 
 	destroy();
 
-	for (unsigned i = 0; i != axes.size(); ++i)
-		axes[ i ].setScale(LINEARSCALE);
+	// NOTE: the per-axis scale objects are user configuration (scale type,
+	// Qwt3DTextScale labels, ...) and are created by the Qwt3DAxis ctor.
+	// init() rebuilds geometry only; resetting the scales here would silently
+	// discard user settings on every coordinate system recreation (which for
+	// items with a drifting hull happens on every data update).
 
 	Triple dv = second - first;
 
@@ -89897,6 +89897,11 @@ public:
 	Qwt3DMouseState m_xscaleMState, m_yscaleMState, m_zscaleMState;
 	Qwt3DMouseState m_zoomMState;
 	Qwt3DMouseState m_xshiftMState, m_yshiftMState;
+	Qwt3DMouseState m_rollMState;
+
+	// Mouse drag speeds: turns per widget dimension (rotation), exponential gain
+	// (scaling) and world units per widget dimension (shifting)
+	double m_mouseRotSpeed, m_mouseScaleSpeed, m_mouseShiftSpeed;
 
 	bool m_mouseInputEnabled;
 
@@ -89942,6 +89947,23 @@ public:
 
 using std::max;
 
+namespace
+{
+
+/**
+		Wraps an angle into [0, 360) without quantizing it. Quantizing the stored
+		angle to whole degrees would discard the sub degree motion of a slow
+		drag, which makes the scene stick on wide widgets or high resolution
+		mice.
+*/
+double wrapAngle(double degrees)
+{
+	degrees = std::fmod(degrees, 360.0);
+	return (degrees < 0.0) ? degrees + 360.0 : degrees;
+}
+
+} // namespace
+
 /**
 		Standard mouse button Function. Prepares the call to mouseMoveEvent
 		@see mouseMoveEvent()
@@ -89979,9 +90001,9 @@ void Qwt3DPlot::mouseMoveEvent(QMouseEvent* e)
 
 	QPoint diff = qwt::compat::eventPos(e) - d->m_lastMouseMovePosition;
 
-	setRotationMouse(bstate, 3, diff);
-	setScaleMouse(bstate, 5, diff);
-	setShiftMouse(bstate, 2, diff);
+	setRotationMouse(bstate, d->m_mouseRotSpeed, diff);
+	setScaleMouse(bstate, d->m_mouseScaleSpeed, diff);
+	setShiftMouse(bstate, d->m_mouseShiftSpeed, diff);
 
 	d->m_lastMouseMovePosition = qwt::compat::eventPos(e);
 }
@@ -90001,11 +90023,11 @@ void Qwt3DPlot::setRotationMouse(Qwt3DMouseState bstate, double accel, QPoint di
 	double new_zrot = zRotation();
 
 	if (bstate == d->m_xrotMState)
-		new_xrot = static_cast< int >(std::round(xRotation() + relyz)) % 360;
-	if (bstate == d->m_yrotMState)
-		new_yrot = static_cast< int >(std::round(yRotation() + relx)) % 360;
+		new_xrot = wrapAngle(new_xrot + relyz);
+	if (bstate == d->m_yrotMState || bstate == d->m_rollMState)
+		new_yrot = wrapAngle(new_yrot + relx);
 	if (bstate == d->m_zrotMState)
-		new_zrot = static_cast< int >(std::round(zRotation() + relx)) % 360;
+		new_zrot = wrapAngle(new_zrot + relx);
 
 	setRotation(new_xrot, new_yrot, new_zrot);
 }
@@ -90087,6 +90109,7 @@ void Qwt3DPlot::wheelEvent(QWheelEvent* e)
 		rotate around x axis: Qt::LeftButton
 		rotate around y axis: Qt::LeftButton | Qt::ShiftButton
 		rotate around z axis: Qt::LeftButton
+		roll (y axis) extra:  Qt::MiddleButton (setRollMouse())
 		scale x:              Qt::LeftButton | Qt::AltButton
 		scale y:              Qt::LeftButton | Qt::AltButton
 		scale z:              Qt::LeftButton | Qt::AltButton | Qt::ShiftButton
@@ -90177,17 +90200,17 @@ void Qwt3DPlot::setRotationKeyboard(Qwt3DKeyboardState kseq, double speed)
 	double new_zrot = zRotation();
 
 	if (kseq == d->m_xrotKState[ 0 ])
-		new_xrot = static_cast< int >(std::round(xRotation() + relyz)) % 360;
+		new_xrot = wrapAngle(xRotation() + relyz);
 	if (kseq == d->m_xrotKState[ 1 ])
-		new_xrot = static_cast< int >(std::round(xRotation() - relyz)) % 360;
+		new_xrot = wrapAngle(xRotation() - relyz);
 	if (kseq == d->m_yrotKState[ 0 ])
-		new_yrot = static_cast< int >(std::round(yRotation() + relx)) % 360;
+		new_yrot = wrapAngle(yRotation() + relx);
 	if (kseq == d->m_yrotKState[ 1 ])
-		new_yrot = static_cast< int >(std::round(yRotation() - relx)) % 360;
+		new_yrot = wrapAngle(yRotation() - relx);
 	if (kseq == d->m_zrotKState[ 0 ])
-		new_zrot = static_cast< int >(std::round(zRotation() + relx)) % 360;
+		new_zrot = wrapAngle(zRotation() + relx);
 	if (kseq == d->m_zrotKState[ 1 ])
-		new_zrot = static_cast< int >(std::round(zRotation() - relx)) % 360;
+		new_zrot = wrapAngle(zRotation() - relx);
 
 	setRotation(new_xrot, new_yrot, new_zrot);
 }
@@ -90358,6 +90381,71 @@ void Qwt3DPlot::keySpeed(double& rot, double& scale, double& shift) const
 	rot   = d->m_kbdRotSpeed;
 	scale = d->m_kbdScaleSpeed;
 	shift = d->m_kbdShiftSpeed;
+}
+
+/**
+  @brief Sets the mouse drag speeds
+  @param rot Full turns a drag across the whole widget rotates the scene around an axis
+  @param scale Exponential gain of the drag driven scaling
+  @param shift World units of the drag driven shifting per widget dimension
+  @details Values <= 0 are ignored, so the current setting is kept. The defaults are
+  (0.5, 5, 2): a rotation drag covers half a turn per widget dimension, i.e. the
+  same sensitivity as the 3D rotation of matplotlib, and a drag of one widget
+  dimension scales by exp(5) - 1.
+  @see mouseSpeed(), setKeySpeed()
+*/
+void Qwt3DPlot::setMouseSpeed(double rot, double scale, double shift)
+{
+	QWT_D(d);
+	if (rot > 0)
+		d->m_mouseRotSpeed = rot;
+	if (scale > 0)
+		d->m_mouseScaleSpeed = scale;
+	if (shift > 0)
+		d->m_mouseShiftSpeed = shift;
+}
+
+/**
+  @brief Returns the mouse drag speeds
+  @param[out] rot Turns per widget dimension
+  @param[out] scale Exponential gain of the drag driven scaling
+  @param[out] shift World units of the drag driven shifting per widget dimension
+  @see setMouseSpeed()
+*/
+void Qwt3DPlot::mouseSpeed(double& rot, double& scale, double& shift) const
+{
+	QWT_DC(d);
+	rot   = d->m_mouseRotSpeed;
+	scale = d->m_mouseScaleSpeed;
+	shift = d->m_mouseShiftSpeed;
+}
+
+/**
+  @brief Sets an additional mouse gesture for the y axis rotation
+  @param state Mouse state that rolls the scene (rotation around the y axis)
+  @details The y rotation is the one rotation a plain left drag cannot reach: the
+  horizontal drag component drives the z rotation and the vertical one the x
+  rotation. assignMouse() holds a single state for the y rotation
+  (@c Qt::LeftButton @c | @c Qt::ShiftModifier by default), so the constructor binds
+  the middle button here as an extra roll gesture. Pass Qwt3DMouseState() to turn
+  the extra gesture off again.
+  @see rollMouse(), assignMouse()
+*/
+void Qwt3DPlot::setRollMouse(Qwt3DMouseState state)
+{
+	QWT_D(d);
+	d->m_rollMState = state;
+}
+
+/**
+  @brief Returns the additional roll gesture
+  @return Mouse state set with setRollMouse()
+  @see setRollMouse()
+*/
+Qwt3DMouseState Qwt3DPlot::rollMouse() const
+{
+	QWT_DC(d);
+	return d->m_rollMState;
 }
 
 /*** End of inlined file: qwt3d_mousekeyboard.cpp ***/
@@ -91225,6 +91313,9 @@ Qwt3DPlot::PrivateData::PrivateData(Qwt3DPlot* q)
 	, m_titleAnchor(TopCenter)
 	, m_lastMouseMovePosition(0, 0)
 	, m_pressed(false)
+	, m_mouseRotSpeed(0.5)
+	, m_mouseScaleSpeed(5.0)
+	, m_mouseShiftSpeed(2.0)
 	, m_mouseInputEnabled(true)
 	, m_kPressed(false)
 	, m_kbdInputEnabled(true)
@@ -91261,6 +91352,9 @@ Qwt3DPlot::Qwt3DPlot(QWidget* parent) : QOpenGLWidget(parent), QWT_PIMPL_CONSTRU
 				Qwt3DMouseState(Qt::LeftButton, Qt::AltModifier | Qt::ControlModifier),
 				Qwt3DMouseState(Qt::LeftButton, Qt::ControlModifier),
 				Qwt3DMouseState(Qt::LeftButton, Qt::ControlModifier));
+	// The roll is the one rotation a plain left drag cannot reach: the middle
+	// button is bound to it in addition to the Shift+left assignment above.
+	setRollMouse(Qwt3DMouseState(Qt::MiddleButton));
 
 	assignKeyboard(Qt::Key_Down,
 				   Qt::Key_Up,
@@ -91946,59 +92040,15 @@ QOpenGLShaderProgram* Qwt3DPlot::textShader() const
 // --- Item list management ---
 
 /**
- * @brief Attach a plot item to this plot
- * @param item Pointer to the item to attach
- * @details Inserts the item into the internal list and sorts by z-order.
- *          If the item is already attached, it is not duplicated.
+ * @brief Recalculates the scene from the attached items
+ * @details Sorts the item list by z-order, recomputes the plot hull as the
+ *          union of all item hulls and recreates the coordinate system.
+ *          Shared by attach(), detach() and itemChanged() so that the scene
+ *          reflects the items even when no itemChanged() follows the list
+ *          mutation (e.g. data was loaded before attach()).
+ *          With an empty item list the hull resets to (0,0,0)-(0,0,0).
  */
-void Qwt3DPlot::attach(Qwt3DPlotItem* item)
-{
-	QWT_D(d);
-	if (!item || d->m_items.contains(item))
-		return;
-
-	d->m_items.append(item);
-	// Sort by z-order (ascending)
-	std::sort(d->m_items.begin(), d->m_items.end(),
-		[](const Qwt3DPlotItem* a, const Qwt3DPlotItem* b) {
-			return a->z() < b->z();
-		});
-
-	update();
-}
-
-/**
- * @brief Detach a plot item from this plot
- * @param item Pointer to the item to detach
- * @details Removes the item from the internal list. Does not delete the item.
- */
-void Qwt3DPlot::detach(Qwt3DPlotItem* item)
-{
-	QWT_D(d);
-	if (!item)
-		return;
-
-	d->m_items.removeAll(item);
-	update();
-}
-
-/**
- * @brief Returns the list of attached items (sorted by z-order)
- */
-const QList< Qwt3DPlotItem* >& Qwt3DPlot::itemList() const
-{
-	QWT_DC(d);
-	return d->m_items;
-}
-
-/**
- * @brief Called by Qwt3DPlotItem when its data or properties change
- * @param item The item that changed
- * @details Re-sorts the item list by z-order, recalculates the plot hull
- *          as the union of all items' hulls, updates the coordinate system,
- *          and triggers a repaint.
- */
-void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
+void Qwt3DPlot::recalculateScene()
 {
 	QWT_D(d);
 	// Re-sort by z-order
@@ -92022,7 +92072,70 @@ void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
 		}
 		d->m_hull = ParallelEpiped(minV, maxV);
 		createCoordinateSystem(minV, maxV);
+	} else {
+		d->m_hull = ParallelEpiped(Triple(0, 0, 0), Triple(0, 0, 0));
 	}
+}
+
+/**
+ * @brief Attach a plot item to this plot
+ * @param item Pointer to the item to attach
+ * @details Inserts the item into the internal list, recalculates the scene
+ *          (z-order sort, hull union, coordinate system) and triggers a repaint.
+ *          If the item is already attached, nothing happens.
+ *          The scene recalculation makes the plot show items whose data was
+ *          loaded before attach() even when no further itemChanged() follows.
+ */
+void Qwt3DPlot::attach(Qwt3DPlotItem* item)
+{
+	QWT_D(d);
+	if (!item || d->m_items.contains(item))
+		return;
+
+	d->m_items.append(item);
+	recalculateScene();
+
+	update();
+}
+
+/**
+ * @brief Detach a plot item from this plot
+ * @param item Pointer to the item to detach
+ * @details Removes the item from the internal list, recalculates the scene
+ *          (the hull shrinks to the union of the remaining items) and
+ *          triggers a repaint. Does not delete the item.
+ */
+void Qwt3DPlot::detach(Qwt3DPlotItem* item)
+{
+	QWT_D(d);
+	if (!item)
+		return;
+
+	d->m_items.removeAll(item);
+	recalculateScene();
+
+	update();
+}
+
+/**
+ * @brief Returns the list of attached items (sorted by z-order)
+ */
+const QList< Qwt3DPlotItem* >& Qwt3DPlot::itemList() const
+{
+	QWT_DC(d);
+	return d->m_items;
+}
+
+/**
+ * @brief Called by Qwt3DPlotItem when its data or properties change
+ * @param item The item that changed
+ * @details Re-sorts the item list by z-order, recalculates the plot hull
+ *          as the union of all items' hulls, updates the coordinate system,
+ *          and triggers a repaint.
+ */
+void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
+{
+	recalculateScene();
 
 	update();
 }
@@ -94289,6 +94402,20 @@ Qwt3DScale* Qwt3DLinearScale::clone() const
 }
 
 /**
+ * @brief Copies the linear autoscaler state from another Qwt3DLinearScale
+ * @param other Source scale to copy from
+ * @details Qwt3DLinearScale is a friend of Qwt3DLinearAutoScaler, so this
+ *          protected member gives derived scales (e.g. Qwt3DTextScale) access
+ *          to the autoscaler state copy inside their clone() overrides.
+ */
+void Qwt3DLinearScale::copyLinearScaleState(const Qwt3DLinearScale& other)
+{
+	QWT_D(d);
+	const auto* od = other.d_func();
+	d->m_autoscaler.copyStateFrom(od->m_autoscaler);
+}
+
+/**
  * @brief Creates the major and minor vector for the scale
  */
 void Qwt3DLinearScale::calculate()
@@ -94526,6 +94653,70 @@ QString Qwt3DLogScale::ticLabel(unsigned int idx) const
 		return QString::number(pow(double(10), val));
 	}
 	return QString("");
+}
+
+/****************************
+ *
+ * Qwt3DTextScale
+ *
+ ****************************/
+
+Qwt3DTextScale::Qwt3DTextScale()
+	: Qwt3DLinearScale()
+{
+}
+
+/**
+ * @brief Sets the label list used for the major tics
+ * @param labels Labels indexed by major tic index
+ * @details Indices beyond the list size fall back to the numeric label.
+ */
+void Qwt3DTextScale::setLabels(const QVector<QString>& labels)
+{
+	m_labels = labels;
+}
+
+/**
+ * @brief Returns the label list
+ * @return The labels set with setLabels()
+ */
+QVector<QString> Qwt3DTextScale::labels() const
+{
+	return m_labels;
+}
+
+/**
+ * @brief Returns the custom label of the major tic at index idx
+ * @param idx The current major tic index
+ * @return The user supplied string for a valid index, the numeric label else
+ * @details Falls back to Qwt3DLinearScale::ticLabel() (the plain tic value)
+ *          when idx is out of range, so a short label list never produces
+ *          empty axis annotations.
+ */
+QString Qwt3DTextScale::ticLabel(unsigned int idx) const
+{
+	if (idx < static_cast< unsigned int >(m_labels.size()))
+		return m_labels[ static_cast< int >(idx) ];
+
+	return Qwt3DLinearScale::ticLabel(idx);
+}
+
+/**
+ * @brief Returns a new heap based object utilized from Qwt3DClonePtr
+ * @return A new Qwt3DTextScale copy
+ * @details Qwt3DAxis::setScale() stores the object in a Qwt3DClonePtr whose
+ *          assignment calls clone(). A derived scale without a clone()
+ *          override would be sliced to the base class right there, silently
+ *          dropping the custom ticLabel(). This override copies the base
+ *          state (copyFrom) plus the label list.
+ */
+Qwt3DScale* Qwt3DTextScale::clone() const
+{
+	auto* copy = new Qwt3DTextScale();
+	copy->copyFrom(*this);
+	copy->copyLinearScaleState(*this);
+	copy->m_labels = m_labels;
+	return copy;
 }
 
 /*** End of inlined file: qwt3d_scale.cpp ***/
@@ -99208,12 +99399,14 @@ Qwt3DColorMapColor::Qwt3DColorMapColor(const QString& presetName, unsigned size)
 	, m_useManualInterval(false)
 	, m_alpha(1.0)
 	, m_presetName(presetName)
+	, m_source(ColorFromZ)
 {
 	rebuildColorVector(size);
 }
 
 Qwt3DColorMapColor::Qwt3DColorMapColor(::QwtColorMap* colorMap, unsigned size)
 	: m_colorMap(colorMap), m_manualMin(0.0), m_manualMax(1.0), m_useManualInterval(false), m_alpha(1.0)
+	, m_source(ColorFromZ)
 {
 	rebuildColorVector(size);
 }
@@ -99223,7 +99416,7 @@ Qwt3DColorMapColor::~Qwt3DColorMapColor()
 	delete m_colorMap;
 }
 
-RGBA Qwt3DColorMapColor::operator()(double, double, double z) const
+RGBA Qwt3DColorMapColor::operator()(double x, double y, double z) const
 {
 	double zMin, zMax;
 	if (m_useManualInterval) {
@@ -99234,7 +99427,11 @@ RGBA Qwt3DColorMapColor::operator()(double, double, double z) const
 		zMax = activeZMax();
 	}
 
-	const QRgb rgb = m_colorMap->rgb(zMin, zMax, z);
+	// The selected source coordinate feeds the colormap; the active range
+	// always applies to that same coordinate.
+	const double v = (m_source == ColorFromX) ? x : (m_source == ColorFromY) ? y : z;
+
+	const QRgb rgb = m_colorMap->rgb(zMin, zMax, v);
 	RGBA rgba;
 	rgba.r = qRed(rgb) / 255.0;
 	rgba.g = qGreen(rgb) / 255.0;
@@ -99284,6 +99481,28 @@ void Qwt3DColorMapColor::setAlpha(double a)
 		return;
 	m_alpha = a;
 	rebuildColorVector(static_cast< unsigned >(m_colors.size()));
+}
+
+/**
+ * @brief Selects which coordinate of the (x, y, z) functor argument feeds the colormap
+ * @param source The source coordinate (ColorFromX, ColorFromY or ColorFromZ)
+ * @details The default ColorFromZ preserves the historical behavior. The active
+ *          range pushed by the owning item via setActiveRange() applies to the
+ *          selected coordinate. The legend color vector is unaffected: it always
+ *          shows the colormap over the active range.
+ */
+void Qwt3DColorMapColor::setSourceAxis(Qwt3DColorSource source)
+{
+	m_source = source;
+}
+
+/**
+ * @brief Returns the source coordinate selection
+ * @return The current Qwt3DColorSource (default ColorFromZ)
+ */
+Qwt3DColorSource Qwt3DColorMapColor::sourceAxis() const
+{
+	return m_source;
 }
 
 void Qwt3DColorMapColor::rebuildColorVector(unsigned size)
@@ -99373,6 +99592,176 @@ double Qwt3DColorMapColor::manualMax() const
 
 
 /*** Start of inlined file: qwt3d_theme.cpp ***/
+
+/*** Start of inlined file: qwt3d_waterfall.h ***/
+#ifndef QWT3D_WATERFALL_H
+#define QWT3D_WATERFALL_H
+
+#include <QVector>
+
+/**
+ * @brief 3D waterfall plot item with a built-in sliding window
+ * @details A waterfall renders a sequence of one-dimensional traces (spectra,
+ *          chromatograms, ...) as stacked curves along the depth axis. The item
+ *          owns the storage: push one trace per sample interval with pushTrace()
+ *          and the item maintains the sliding window, the depth numbering, the
+ *          ribbon geometry and the color mapping.
+ *
+ * The axes follow the 3D module convention (the value axis is z, as in
+ * Qwt3DSurface): x = bin value, y = trace position in the window (depth),
+ * z = amplitude. The depth coordinate of a trace is its slot index inside
+ * the window, so the hull y-range grows monotonically from [0,0] to
+ * [0, traceCapacity()-1] and then stays stable - no per-frame depth
+ * autoscale jitter, no user-side depth bookkeeping. The amplitude (z) range
+ * still follows the data; fix it with setColorRange() for stable amplitude
+ * colors in a live waterfall.
+ *
+ * @code
+ * auto* waterfall = new Qwt3DWaterfall();
+ * waterfall->attach(plot);
+ * waterfall->setTraceCapacity(64);
+ * waterfall->setPlotStyle(Qwt3DWaterfall::RibbonMesh);
+ * waterfall->setColorMode(Qwt3DWaterfall::ByAmplitude);
+ * waterfall->setColorRange(0.0, 1.0);      // fix the range, no autoscale jitter
+ *
+ * // per timer tick (30 Hz):
+ * waterfall->pushTrace(frame);             // QVector<double>, 256 bins
+ * @endcode
+ *
+ * @sa Qwt3DPlotItem, Qwt3DLine, Qwt3DColor
+ */
+class QWT3D_EXPORT Qwt3DWaterfall : public Qwt3DPlotItem
+{
+	QWT_DECLARE_PRIVATE(Qwt3DWaterfall)
+
+public:
+	/// Geometry style of a trace
+	enum PlotStyle
+	{
+		Ribbon,      ///< Filled curtain from the baseline up to the trace (default)
+		RibbonMesh,  ///< Ribbon plus a line outline drawn on top
+		Wireframe,   ///< Line outline only (no fill)
+		Tube         ///< Lit tube swept along the trace (thick strokes)
+	};
+
+	/// Where the per-vertex color comes from
+	enum ColorMode
+	{
+		ByDepth,      ///< Colormap over the trace position in the window (default)
+		ByAmplitude,  ///< Colormap over the sample value
+		Solid         ///< Single color (setColor)
+	};
+
+	/// Depth direction of the sliding window
+	enum DepthOrder
+	{
+		NewestInFront,  ///< The newest trace sits at the largest y (default)
+		NewestBehind    ///< The newest trace sits at y == 0
+	};
+
+	Qwt3DWaterfall();
+	~Qwt3DWaterfall() override;
+
+	// ---- Data / sliding window ----
+
+	/// Returns the number of visible traces (window size)
+	int traceCapacity() const;
+	/// Sets the window size (>= 1); excess traces are dropped
+	void setTraceCapacity(int count);
+	/// Returns how many traces are currently stored (<= traceCapacity)
+	int traceCount() const;
+	/// Returns the bin count of the stored traces (0 before the first push)
+	int samplesPerTrace() const;
+
+	/// Appends one trace (newest); drops the oldest when the window is full
+	void pushTrace(const double* values, int count);
+	/// Appends one trace from a QVector
+	void pushTrace(const QVector<double>& values);
+	/// Clears all traces (capacity, style and colors are kept)
+	void clear();
+
+	/// Sets the x value of every bin (empty means 0..samplesPerTrace-1)
+	void setBinValues(const QVector<double>& x);
+	/// Returns the current bin values
+	QVector<double> binValues() const;
+
+	/// Returns the depth order
+	DepthOrder depthOrder() const;
+	/// Sets the depth order
+	void setDepthOrder(DepthOrder order);
+
+	// ---- Style ----
+
+	/// Returns the geometry style
+	PlotStyle plotStyle() const;
+	/// Sets the geometry style
+	void setPlotStyle(PlotStyle style);
+	/// Returns the color mode
+	ColorMode colorMode() const;
+	/// Sets the color mode
+	void setColorMode(ColorMode mode);
+
+	/// Sets the solid color (Solid mode, and the default outline color)
+	void setColor(RGBA color);
+	/// Returns the solid color
+	RGBA color() const;
+
+	/// Sets the data color functor (takes ownership)
+	void setDataColor(Qwt3DColor* color);
+	/// Returns the data color functor
+	const Qwt3DColor* dataColor() const;
+	/// Marks colors stale, rebuilding the VBO on the next draw
+	void invalidateColors();
+
+	/// Fixes the color range (disables the automatic range); essential for
+	/// stable amplitude colors in a live waterfall
+	void setColorRange(double min, double max);
+	/// Returns to the automatic color range
+	void resetColorRange();
+	/// Returns true when a fixed color range is active
+	bool hasFixedColorRange() const;
+
+	/// Returns the ribbon baseline on the amplitude (z) axis (defaults to
+	/// the current amplitude minimum)
+	double baseline() const;
+	/// Sets the ribbon baseline
+	void setBaseline(double value);
+	/// Lets the baseline follow the amplitude minimum again
+	void resetBaseline();
+
+	/// Returns the ribbon alpha (0..1, default 1)
+	double opacity() const;
+	/// Sets the ribbon alpha
+	void setOpacity(double alpha);
+
+	/// Returns the outline color (RibbonMesh / Wireframe / Tube outline)
+	RGBA outlineColor() const;
+	/// Sets the outline color
+	void setOutlineColor(RGBA color);
+	/// Returns the outline line width
+	double outlineWidth() const;
+	/// Sets the outline line width (Lines-based styles only)
+	void setOutlineWidth(double width);
+
+	// ---- Qwt3DPlotItem interface ----
+
+	int rtti() const override;
+	void draw() override;
+	ParallelEpiped hull() const override;
+	void populateLegendColors(ColorVector& colors) const override;
+
+private:
+	void buildVBO();
+	void buildOutlineVBO();
+	void buildTubeVBO();
+	void pushColorRange() const;
+	void ensureDataColor();
+};
+
+#endif // QWT3D_WATERFALL_H
+
+/*** End of inlined file: qwt3d_waterfall.h ***/
+
 #include <qfont.h>
 
 // GL constants for material/light properties (used in setMaterialComponent/setLightComponent)
@@ -99868,7 +100257,8 @@ void Qwt3DTheme::apply(Qwt3DPlot* plot) const
  *          line width, smooth mesh, data color (from preset), plot style, and
  *          shading. Qwt3DBar receives mesh color/line width, bar style (mapped
  *          from the theme's plot style), and the data color functor. Qwt3DLine
- *          receives the solid color and the data color functor.
+ *          receives the solid color and the data color functor. Qwt3DWaterfall
+ *          receives the outline color/width and the data color functor.
  */
 void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item) const
 {
@@ -99908,6 +100298,14 @@ void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item) const
 		line->setColor(m_meshColor);
 		auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
 		line->setDataColor(colorMap);
+		return;
+	}
+
+	if (auto* waterfall = dynamic_cast<Qwt3DWaterfall*>(item)) {
+		waterfall->setOutlineColor(m_meshColor);
+		waterfall->setOutlineWidth(m_meshLineWidth);
+		auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+		waterfall->setDataColor(colorMap);
 		return;
 	}
 }
