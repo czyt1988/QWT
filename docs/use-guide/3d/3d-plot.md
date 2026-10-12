@@ -153,29 +153,17 @@ classDiagram
 
 
 | Class | Description |
-
 |-------|-------------|
-
 | `Qwt3DPlot` | 3D rendering window (QOpenGLWidget), manages GL context, view, lighting, coordinate system, and item list |
-
 | `Qwt3DPlotItem` | Abstract base class for all 3D plot items (attach/detach/draw/hull) |
-
 | `Qwt3DSurface` | 3D surface plot item, displays continuous surfaces (handles both grid and cell data) |
-
 | `Qwt3DBar` | 3D bar chart item (1D series or 2D grid histogram); per-bar cuboids with flat normals |
-
 | `Qwt3DLine` | 3D line/curve item; Tube (swept cylinder, lit) / Lines / Dots styles |
-
 | `Qwt3DWaterfall` | 3D waterfall item with a built-in sliding window; stacked traces (spectra) along the depth axis |
-
 | `Qwt3DFunction` | Data generator that creates surfaces from z = f(x, y) mathematical functions |
-
 | `Qwt3DParametricSurface` | Data generator for parametric surfaces r(u, v) |
-
 | `Qwt3DCoordinateSystem` | 3D coordinate system with 12 axes, box/frame styles |
-
 | `Qwt3DColorLegend` | 3D color bar / legend |
-
 | `Qwt3DTheme` | 3D theme system, encapsulates background, mesh, colormap, axes, lighting, and all visual attributes |
 
 
@@ -501,27 +489,16 @@ The `Qwt3DTheme` class provides one-click switching of 3D plot visual styles, en
 
 
 | Preset Name | Description |
-
 |-------------|-------------|
-
 | `Default` | White background + jet colormap + no lighting |
-
 | `Dark` | Dark gray background + viridis + soft lighting |
-
 | `Scientific` | White background + jet + studio lighting |
-
 | `Warm` | Warm-toned background + hot colormap |
-
 | `Cool` | Cool-toned background + cool colormap |
-
 | `Matplotlib` | matplotlib style (viridis + soft lighting) |
-
 | `EarthTones` | Earth tones + autumn colormap |
-
 | `Ocean` | Ocean tones + winter colormap |
-
 | `HighContrast` | Black background with white lines for high contrast |
-
 | `Presentation` | Large fonts + thick lines, suitable for presentations |
 
 
@@ -605,17 +582,11 @@ QStringList presets = QwtColorMapPreset::availablePresets();
 
 
 | Preset | Description |
-
 |--------|-------------|
-
 | `NoLighting` | No lighting, solid color rendering |
-
 | `FlatLight` | Uniform ambient light |
-
 | `Studio` | Classic three-point lighting |
-
 | `Outdoor` | Strong directional light + ambient |
-
 | `Soft` | Soft diffuse lighting |
 
 
@@ -665,33 +636,19 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 
 | Method | Description |
-
 |--------|-------------|
-
 | `attach(item)` / `detach(item)` | Attach/detach a plot item |
-
 | `itemList()` | Get list of attached items |
-
 | `setRotation(x, y, z)` | Set rotation angles (degrees) |
-
 | `setScale(x, y, z)` | Set scale ratio |
-
 | `setZoom(z)` | Set zoom level |
-
 | `enableMouse(bool)` | Enable/disable mouse interaction |
-
 | `setMouseSpeed(rot, scale, shift)` | Set the mouse drag speeds (rotation turns per widget dimension / scaling gain / shifting units) |
-
 | `mouseSpeed(rot, scale, shift)` | Read the mouse drag speeds |
-
 | `setRollMouse(state)` | Set an extra roll gesture around the Y axis (middle button by default) |
-
 | `rollMouse()` | Returns the roll gesture |
-
 | `showColorLegend(bool)` | Show/hide color legend |
-
 | `applyTheme(preset)` / `applyTheme(name)` | Apply a theme |
-
 | `setBackgroundColor(RGBA)` | Set background color |
 
 
@@ -701,25 +658,15 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 
 | Method | Description |
-
 |--------|-------------|
-
 | `loadFromData(...)` | Load data array into the surface (3 overloads: grid double**, grid Triple**, cell) |
-
 | `setResolution(int)` | Set data resolution (1 = all data, higher = downsample) |
-
 | `setPlotStyle(PLOTSTYLE)` | Set rendering style (WIREFRAME, HIDDENLINE, FILLED, FILLEDMESH, POINTS) |
-
 | `setDataColor(Qwt3DColor*)` | Set data color functor (takes ownership) |
-
 | `setMeshColor(RGBA)` / `setMeshLineWidth(double)` | Configure mesh appearance |
-
 | `setFloorStyle(FLOORSTYLE)` | Set floor projection style |
-
 | `setShading(SHADINGSTYLE)` | Set shading mode (FLAT, GOURAUD) |
-
 | `addEnrichment(Qwt3DEnrichment&)` | Add vertex/edge/face enrichment |
-
 | `setNormalLength(double)` / `showNormals(bool)` | Configure surface normals |
 
 
@@ -729,17 +676,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 
 | Method | Description |
-
 |--------|-------------|
-
 | `operator()(x, y)` | Pure virtual — user implements z = f(x, y) |
-
 | `assign(Qwt3DSurface&)` | Assign target surface item |
-
 | `setDomain(minX, maxX, minY, maxY)` | Set X/Y data range |
-
 | `setMesh(columns, rows)` | Set grid resolution |
-
 | `create()` / `create(surface&)` | Generate and load surface data |
 
 

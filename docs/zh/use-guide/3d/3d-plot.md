@@ -153,29 +153,17 @@ classDiagram
 
 
 | 类名 | 说明 |
-
 |------|------|
-
 | `Qwt3DPlot` | 3D渲染窗口（QOpenGLWidget），管理GL上下文、视图、光照、坐标系统和item列表 |
-
 | `Qwt3DPlotItem` | 所有3D绘图item的抽象基类（attach/detach/draw/hull） |
-
 | `Qwt3DSurface` | 3D表面图item，显示连续曲面（同时支持网格和单元数据） |
-
 | `Qwt3DBar` | 3D柱状图item（1D序列或2D网格直方图）；逐柱立方体，扁平法向 |
-
 | `Qwt3DLine` | 3D线图item；Tube（扫掠圆柱、带光照）/ Lines / Dots 三种样式 |
-
 | `Qwt3DWaterfall` | 3D瀑布图item，内置滑动窗口；沿深度轴堆叠一维轨迹（频谱等） |
-
 | `Qwt3DFunction` | 数据生成器，根据 z = f(x, y) 数学函数生成曲面 |
-
 | `Qwt3DParametricSurface` | 参数曲面数据生成器 r(u, v) |
-
 | `Qwt3DCoordinateSystem` | 3D坐标系统，12轴，支持BOX/FRAME样式 |
-
 | `Qwt3DColorLegend` | 3D颜色条/图例 |
-
 | `Qwt3DTheme` | 3D主题系统，封装背景、网格、colormap、坐标轴、光照等全部视觉属性 |
 
 
@@ -501,27 +489,16 @@ waterfall->pushTrace(frame);                  // QVector<double>，一条频谱
 
 
 | 预设名称 | 说明 |
-
 |---------|------|
-
 | `Default` | 白底 + jet 色彩映射 + 无光照 |
-
 | `Dark` | 深灰底 + viridis + 柔和光照 |
-
 | `Scientific` | 白底 + jet + 工作室光照 |
-
 | `Warm` | 暖色底 + hot 色彩映射 |
-
 | `Cool` | 冷色底 + cool 色彩映射 |
-
 | `Matplotlib` | matplotlib 风格（viridis + 柔和光照） |
-
 | `EarthTones` | 大地色调 + autumn 色彩映射 |
-
 | `Ocean` | 海洋色调 + winter 色彩映射 |
-
 | `HighContrast` | 黑底白线高对比度 |
-
 | `Presentation` | 大字体 + 粗线条，适合演示 |
 
 
@@ -605,17 +582,11 @@ QStringList presets = QwtColorMapPreset::availablePresets();
 
 
 | 预设 | 说明 |
-
 |------|------|
-
 | `NoLighting` | 无光照，纯色渲染 |
-
 | `FlatLight` | 均匀环境光 |
-
 | `Studio` | 经典三点照明 |
-
 | `Outdoor` | 强方向光 + 环境光 |
-
 | `Soft` | 柔和漫射光 |
 
 
@@ -665,25 +636,15 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 
 | 方法 | 说明 |
-
 |------|------|
-
 | `attach(item)` / `detach(item)` | 挂载/卸载绘图item |
-
 | `itemList()` | 获取已挂载的item列表 |
-
 | `setRotation(x, y, z)` | 设置旋转角度（度） |
-
 | `setScale(x, y, z)` | 设置缩放比例 |
-
 | `setZoom(z)` | 设置缩放级别 |
-
 | `enableMouse(bool)` | 启用/禁用鼠标交互 |
-
 | `showColorLegend(bool)` | 显示/隐藏颜色条 |
-
 | `applyTheme(preset)` / `applyTheme(name)` | 应用主题 |
-
 | `setBackgroundColor(RGBA)` | 设置背景色 |
 
 
@@ -693,25 +654,15 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 
 | 方法 | 说明 |
-
 |------|------|
-
 | `loadFromData(...)` | 加载数据数组（3个重载：网格double**、网格Triple**、单元） |
-
 | `setResolution(int)` | 设置数据分辨率（1=使用全部数据，值越大下采样越强） |
-
 | `setPlotStyle(PLOTSTYLE)` | 设置渲染样式（WIREFRAME, HIDDENLINE, FILLED, FILLEDMESH, POINTS） |
-
 | `setDataColor(Qwt3DColor*)` | 设置数据颜色函数（获取所有权） |
-
 | `setMeshColor(RGBA)` / `setMeshLineWidth(double)` | 配置网格外观 |
-
 | `setFloorStyle(FLOORSTYLE)` | 设置地板投影样式 |
-
 | `setShading(SHADINGSTYLE)` | 设置着色模式（FLAT, GOURAUD） |
-
 | `addEnrichment(Qwt3DEnrichment&)` | 添加顶点/边/面装饰 |
-
 | `setNormalLength(double)` / `showNormals(bool)` | 配置曲面法线 |
 
 
@@ -721,17 +672,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 
 | 方法 | 说明 |
-
 |------|------|
-
 | `operator()(x, y)` | 纯虚函数 — 用户实现 z = f(x, y) |
-
 | `assign(Qwt3DSurface&)` | 绑定目标曲面item |
-
 | `setDomain(minX, maxX, minY, maxY)` | 设置X/Y数据范围 |
-
 | `setMesh(columns, rows)` | 设置网格分辨率 |
-
 | `create()` / `create(surface&)` | 生成并加载曲面数据 |
 
 

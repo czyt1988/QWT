@@ -217,13 +217,9 @@ What is written:
 
 
 | File | Description |
-
 |------|-------------|
-
 | `<preset>.png` × 22 | one render per preset (1280×800, field + color bar + axes) |
-
 | `overview.png` | a 2×11 grid of all gradients |
-
 | `colormap.png` | a screenshot of the window itself |
 
 
@@ -245,51 +241,28 @@ Below are the gradients of all 22 presets (sampled from `create("name")`, ordere
 
 
 | Name | Category | Characteristics | Typical use |
-
 |------|----------|-----------------|-------------|
-
 | `viridis` | Sequential · uniform | purple-green-yellow, matplotlib default | first choice, papers |
-
 | `plasma` | Sequential · uniform | purple-pink-yellow | emphasize high values |
-
 | `inferno` | Sequential · uniform | black-purple-orange-yellow | dark backgrounds, glow |
-
 | `magma` | Sequential · uniform | black-purple-pink-white | astronomy, dark data |
-
 | `cividis` | Sequential · uniform | blue-gray-yellow | color vision deficiency, grayscale print |
-
 | `jet` | Sequential · MATLAB rainbow | blue-cyan-yellow-red | legacy compatibility only |
-
 | `hot` | Sequential · thermal | black-red-yellow-white | temperature fields |
-
 | `cool` | Sequential | cyan-magenta | math demos |
-
 | `spring` | Sequential | magenta-yellow | math demos |
-
 | `summer` | Sequential | greens | math demos |
-
 | `autumn` | Sequential | red-yellow | math demos |
-
 | `winter` | Sequential | blue-green | math demos |
-
 | `gray` | Sequential · no hue | black-white | printing, grayscale docs |
-
 | `bone` | Sequential · no hue | black-gray-white with blue tint | medical imagery |
-
 | `copper` | Sequential · single hue | black-copper | geology, metallic look |
-
 | `rainbow` | Cyclic | full hue circle | periodic quantities (phase, angle) |
-
 | `hsv` | Cyclic | full HSV hue circle | data whose min equals its max |
-
 | `turbo` | Sequential · rainbow, improved | Google turbo, more uniform than jet | rainbow look without the artifacts |
-
 | `coolwarm` | Diverging | blue-white-red | signed difference fields (anomalies, errors) |
-
 | `rdylbu` | Diverging | red-yellow-blue (ColorBrewer) | anomalies, elevation fills |
-
 | `rdylgn` | Diverging | red-yellow-green (ColorBrewer) | signed ratios |
-
 | `spectral` | Diverging · multi hue | red-yellow-green-blue | distinct qualitative bands |
 
 
@@ -307,25 +280,19 @@ The comparison renders below were exported with `--screenshot`. Every image show
 
 
 | viridis | plasma |
-
 |---------|--------|
-
 | ![viridis](../../assets/screenshots/colormap/viridis.png) | ![plasma](../../assets/screenshots/colormap/plasma.png) |
 
 
 
 | inferno | magma |
-
 |---------|-------|
-
 | ![inferno](../../assets/screenshots/colormap/inferno.png) | ![magma](../../assets/screenshots/colormap/magma.png) |
 
 
 
 | cividis |
-
 |---------|
-
 | ![cividis](../../assets/screenshots/colormap/cividis.png) |
 
 
@@ -339,25 +306,19 @@ The comparison renders below were exported with `--screenshot`. Every image show
 
 
 | jet | hot | gray |
-
 |-----|-----|------|
-
 | ![jet](../../assets/screenshots/colormap/jet.png) | ![hot](../../assets/screenshots/colormap/hot.png) | ![gray](../../assets/screenshots/colormap/gray.png) |
 
 
 
 | cool | bone | copper |
-
 |------|------|--------|
-
 | ![cool](../../assets/screenshots/colormap/cool.png) | ![bone](../../assets/screenshots/colormap/bone.png) | ![copper](../../assets/screenshots/colormap/copper.png) |
 
 
 
 | spring | summer | autumn | winter |
-
 |--------|--------|--------|--------|
-
 | ![spring](../../assets/screenshots/colormap/spring.png) | ![summer](../../assets/screenshots/colormap/summer.png) | ![autumn](../../assets/screenshots/colormap/autumn.png) | ![winter](../../assets/screenshots/colormap/winter.png) |
 
 
@@ -371,9 +332,7 @@ The comparison renders below were exported with `--screenshot`. Every image show
 
 
 | rainbow | hsv | turbo |
-
 |---------|-----|-------|
-
 | ![rainbow](../../assets/screenshots/colormap/rainbow.png) | ![hsv](../../assets/screenshots/colormap/hsv.png) | ![turbo](../../assets/screenshots/colormap/turbo.png) |
 
 
@@ -387,9 +346,7 @@ Whenever the data has a meaningful center (a zero value or a reference), a two-s
 
 
 | coolwarm | rdylbu | rdylgn | spectral |
-
 |---------|--------|--------|----------|
-
 | ![coolwarm](../../assets/screenshots/colormap/coolwarm.png) | ![rdylbu](../../assets/screenshots/colormap/rdylbu.png) | ![rdylgn](../../assets/screenshots/colormap/rdylgn.png) | ![spectral](../../assets/screenshots/colormap/spectral.png) |
 
 
@@ -437,19 +394,12 @@ Whenever the data has a meaningful center (a zero value or a reference), a two-s
 
 
 | Class / file | Description |
-
 |--------------|-------------|
-
 | `QwtColorMapPreset` (`src/core/qwt_colormap_preset.h`) | factory and introspection for the 22 presets |
-
 | `QwtLinearColorMap` (`src/core/qwt_colormap.h`) | linear gradient colormap |
-
 | `QwtPlotSpectrogram` (`src/plot/qwt_plot_spectrogram.h`) | 2D spectrogram / heatmap |
-
 | `QwtScaleWidget::setColorMap()` (`src/plot/qwt_scale_widget.h`) | axis color bar |
-
 | `Qwt3DColorMapColor` (`src/plot3d/qwt3d_colormap_color.h`) | bridges core colormaps to 3D |
-
 | `Qwt3DTheme::setDataColorPreset()` (`src/plot3d/qwt3d_theme.h`) | preset selection inside 3D themes |
 
 

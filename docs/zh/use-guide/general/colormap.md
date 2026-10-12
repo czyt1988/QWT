@@ -221,13 +221,9 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 | 文件 | 说明 |
-
 |------|------|
-
 | `<预设名>.png` × 22 | 每种预设一张效果图（1280×800，含数据场、颜色条、坐标轴） |
-
 | `overview.png` | 22 种色带渐变的 2×11 总览图 |
-
 | `colormap.png` | 示例程序界面截图 |
 
 
@@ -249,51 +245,28 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 | 名称 | 类别 | 特点 | 适用场景 |
-
 |------|------|------|----------|
-
 | `viridis` | 顺序·感知均匀 | 紫-绿-黄，matplotlib 默认 | 通用首选，论文图表 |
-
 | `plasma` | 顺序·感知均匀 | 紫红-粉-亮黄 | 强调高值区域 |
-
 | `inferno` | 顺序·感知均匀 | 黑-紫-橙-亮黄 | 深色背景 / 发光效果 |
-
 | `magma` | 顺序·感知均匀 | 黑-紫-粉-近白 | 天文、暗背景数据 |
-
 | `cividis` | 顺序·感知均匀 | 蓝-灰-黄 | 色觉障碍友好、灰度打印 |
-
 | `jet` | 顺序·彩虹（MATLAB） | 蓝-青-黄-红 | 兼容旧代码，不推荐新项目 |
-
 | `hot` | 顺序·热力 | 黑-红-黄-白 | 温度场、热力图 |
-
 | `cool` | 顺序 | 青-品红 | 数学曲面示意 |
-
 | `spring` | 顺序 | 品红-黄 | 数学曲面示意 |
-
 | `summer` | 顺序 | 绿系 | 数学曲面示意 |
-
 | `autumn` | 顺序 | 红-黄 | 数学曲面示意 |
-
 | `winter` | 顺序 | 蓝-绿 | 数学曲面示意 |
-
 | `gray` | 顺序·无色相 | 黑-白灰度 | 打印、灰度文档 |
-
 | `bone` | 顺序·无色相 | 黑-灰-白带蓝调 | 医学影像风格 |
-
 | `copper` | 顺序·单色相 | 黑-铜褐 | 地质、金属质感 |
-
 | `rainbow` | 循环·彩虹 | 全色相环 | 周期性物理量（相位、角度） |
-
 | `hsv` | 循环·HSV | 全 HSV 色相环 | 周期数据的最大值等于最小值 |
-
 | `turbo` | 顺序·彩虹改进 | Google turbo，比 jet 均匀 | 需要彩虹观感又要可读性 |
-
 | `coolwarm` | 发散 | 蓝-白-红 | 含正负号的差值场（距平、误差） |
-
 | `rdylbu` | 发散 | 红-黄-蓝（ColorBrewer） | 距平、海拔填色 |
-
 | `rdylgn` | 发散 | 红-黄-绿（ColorBrewer） | 增减方向明确的比率场 |
-
 | `spectral` | 发散·多色相 | 红-黄-绿-蓝 | 定性区间也易分辨 |
 
 
@@ -311,25 +284,19 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 | viridis | plasma |
-
 |---------|--------|
-
 | ![viridis](../../../assets/screenshots/colormap/viridis.png) | ![plasma](../../../assets/screenshots/colormap/plasma.png) |
 
 
 
 | inferno | magma |
-
 |---------|-------|
-
 | ![inferno](../../../assets/screenshots/colormap/inferno.png) | ![magma](../../../assets/screenshots/colormap/magma.png) |
 
 
 
 | cividis |
-
 |---------|
-
 | ![cividis](../../../assets/screenshots/colormap/cividis.png) |
 
 
@@ -343,25 +310,19 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 | jet | hot | gray |
-
 |-----|-----|------|
-
 | ![jet](../../../assets/screenshots/colormap/jet.png) | ![hot](../../../assets/screenshots/colormap/hot.png) | ![gray](../../../assets/screenshots/colormap/gray.png) |
 
 
 
 | cool | bone | copper |
-
 |------|------|--------|
-
 | ![cool](../../../assets/screenshots/colormap/cool.png) | ![bone](../../../assets/screenshots/colormap/bone.png) | ![copper](../../../assets/screenshots/colormap/copper.png) |
 
 
 
 | spring | summer | autumn | winter |
-
 |--------|--------|--------|--------|
-
 | ![spring](../../../assets/screenshots/colormap/spring.png) | ![summer](../../../assets/screenshots/colormap/summer.png) | ![autumn](../../../assets/screenshots/colormap/autumn.png) | ![winter](../../../assets/screenshots/colormap/winter.png) |
 
 
@@ -375,9 +336,7 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 | rainbow | hsv | turbo |
-
 |---------|-----|-------|
-
 | ![rainbow](../../../assets/screenshots/colormap/rainbow.png) | ![hsv](../../../assets/screenshots/colormap/hsv.png) | ![turbo](../../../assets/screenshots/colormap/turbo.png) |
 
 
@@ -391,9 +350,7 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 | coolwarm | rdylbu | rdylgn | spectral |
-
 |---------|--------|--------|----------|
-
 | ![coolwarm](../../../assets/screenshots/colormap/coolwarm.png) | ![rdylbu](../../../assets/screenshots/colormap/rdylbu.png) | ![rdylgn](../../../assets/screenshots/colormap/rdylgn.png) | ![spectral](../../../assets/screenshots/colormap/spectral.png) |
 
 
@@ -441,19 +398,12 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 | 类 / 文件 | 说明 |
-
 |-----------|------|
-
 | `QwtColorMapPreset` (`src/core/qwt_colormap_preset.h`) | 22 种预设的工厂与查询接口 |
-
 | `QwtLinearColorMap` (`src/core/qwt_colormap.h`) | 线性渐变 colormap 实现 |
-
 | `QwtPlotSpectrogram` (`src/plot/qwt_plot_spectrogram.h`) | 2D 光谱图 / 热力图 |
-
 | `QwtScaleWidget::setColorMap()` (`src/plot/qwt_scale_widget.h`) | 坐标轴颜色条 |
-
 | `Qwt3DColorMapColor` (`src/plot3d/qwt3d_colormap_color.h`) | 3D 表面 colormap 桥接 |
-
 | `Qwt3DTheme::setDataColorPreset()` (`src/plot3d/qwt3d_theme.h`) | 3D 主题中指定预设 |
 
 
