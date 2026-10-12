@@ -93,8 +93,6 @@ plugins:
             - Charts:
                 - Core Plot Items:
                     - Curve: use-guide/curve.md
-                    - "Downsampling: LTTB & MinMax": use-guide/curve-downsampling.md
-                    - "Smoothing: Gaussian & Savitzky-Golay": use-guide/curve-smoothing.md
                     - Scatter: use-guide/scatter.md
                     - Grid: use-guide/grid.md
                     - Marker: use-guide/marker.md
@@ -133,6 +131,11 @@ plugins:
                     - Scale Engine: use-guide/scale-engine.md
                 - Legend:
                     - Legend Widget: use-guide/legend.md
+            - Tech Reports:
+                - Tech Reports:
+                    - Overview: tech-report/index.md
+                    - "Downsampling: LTTB & MinMax": tech-report/curve-downsampling.md
+                    - "Smoothing: Gaussian & Savitzky-Golay": tech-report/curve-smoothing.md
             - API:
                 - API Docs:
                     - API Home: doxygen_en/index.html
@@ -177,8 +180,6 @@ plugins:
             - 图表类型:
                 - 核心绘图项:
                     - 曲线图: use-guide/curve.md
-                    - "降采样：LTTB 与 MinMax 桶": use-guide/curve-downsampling.md
-                    - "平滑：高斯与 Savitzky-Golay": use-guide/curve-smoothing.md
                     - 散点图: use-guide/scatter.md
                     - 网格线: use-guide/grid.md
                     - 标记点: use-guide/marker.md
@@ -217,6 +218,11 @@ plugins:
                     - 刻度计算引擎: use-guide/scale-engine.md
                 - 图例系统:
                     - 图例控件: use-guide/legend.md
+            - 技术报告:
+                - 技术报告:
+                    - 总览: tech-report/index.md
+                    - "降采样：LTTB 与 MinMax 桶": tech-report/curve-downsampling.md
+                    - "平滑：高斯与 Savitzky-Golay": tech-report/curve-smoothing.md
             - API:
                 - API文档:
                     - API文档首页: doxygen_cn/index.html

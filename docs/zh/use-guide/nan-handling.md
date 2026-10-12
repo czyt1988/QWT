@@ -507,5 +507,5 @@ rasterData->setAttribute(QwtRasterData::WithoutGaps, true);
 
 ## API 参考
 
-- [曲线降采样算法](curve-downsampling.md) — 四种降采样算法的详细说明
+- [曲线降采样算法](../tech-report/curve-downsampling.md) — 四种降采样算法的详细说明
 - [曲线图](curve.md) — QwtPlotCurve 的渲染属性配置

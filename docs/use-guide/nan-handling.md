@@ -507,5 +507,5 @@ rasterData->setAttribute(QwtRasterData::WithoutGaps, true);
 
 ## API Reference
 
-- [Curve Downsampling Algorithms](curve-downsampling.md) — Detailed explanation of the four downsampling algorithms
+- [Curve Downsampling Algorithms](../tech-report/curve-downsampling.md) — Detailed explanation of the four downsampling algorithms
 - [Curve](curve.md) — QwtPlotCurve rendering attribute configuration
