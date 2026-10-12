@@ -6,8 +6,7 @@ This document defines the standards for writing code comments in the Qwt project
 
 > **Warning — Important: English Only**
 >
-> Qwt is an international project. **All comments in source code (including Doxygen documentation comments) must be written in English; Chinese is not permitted.**
-> Chinese documentation is only allowed in the `docs/` directory.
+> Qwt is an international project. **All comments in source code (including Doxygen documentation comments) must be written in English; Chinese is not permitted.** Chinese documentation is only allowed in the `docs/` directory.
 
 ## Key Requirements
 

@@ -219,8 +219,7 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 > **Warning — Note**
 >
-> When the user double-clicks, the `clicked()` signal is fired first, followed by the `doubleClicked()` signal.
-> This is standard Qt behavior, not a bug.
+> When the user double-clicks, the `clicked()` signal is fired first, followed by the `doubleClicked()` signal. This is standard Qt behavior, not a bug.
 >
 > If you need to distinguish between single-click and double-click, it is recommended to connect only one of the signals, not both.
 
@@ -278,8 +277,7 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 > **Info — Important Feature**
 >
-> Before emitting click signals, the Group synchronizes the positions of all other pickers in the group.
-> This means when the `clicked` signal fires, `featurePoints()` of all pickers in the group have already been updated to the synchronized position.
+> Before emitting click signals, the Group synchronizes the positions of all other pickers in the group. This means when the `clicked` signal fires, `featurePoints()` of all pickers in the group have already been updated to the synchronized position.
 
 This feature is very useful for multi-subplot linked scenarios: when the user clicks a subplot, the pickers in other subplots have already been synchronized to the corresponding proportional X-axis position, allowing direct retrieval of data from all subplots at the same proportional position.
 

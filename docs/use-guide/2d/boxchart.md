@@ -108,8 +108,7 @@ struct QwtBoxSample {
 
 > **Info — Parameter Order Note**
 >
-> Constructor parameter order: `position, whiskerLower, q1, median, q3, whiskerUpper`
-> Ensure parameters are passed in the correct order, otherwise the box plot will display incorrectly
+> Constructor parameter order: `position, whiskerLower, q1, median, q3, whiskerUpper` Ensure parameters are passed in the correct order, otherwise the box plot will display incorrectly
 
 #### QwtBoxOutlierSample
 
@@ -304,8 +303,7 @@ When switching orientation, note the following:
 
 > **Warning — Refresh After Orientation Switch**
 >
-> After switching orientation, call `plot->replot()` or `plot->setAxisAutoScale()` to refresh the axes,
-> otherwise the axis ranges may not adapt to the new data orientation
+> After switching orientation, call `plot->replot()` or `plot->setAxisAutoScale()` to refresh the axes, otherwise the axis ranges may not adapt to the new data orientation
 
 ```cpp
 // Complete orientation switching example

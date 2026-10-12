@@ -218,8 +218,7 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 > **警告 — 注意**
 >
-> 当用户双击时，会先触发 `clicked()` 信号，然后触发 `doubleClicked()` 信号。
-> 这是 Qt 的标准行为，不是 Bug。
+> 当用户双击时，会先触发 `clicked()` 信号，然后触发 `doubleClicked()` 信号。 这是 Qt 的标准行为，不是 Bug。
 >
 > 如果你需要区分单击和双击，建议只连接其中一个信号，不要同时连接两个信号。
 
@@ -277,8 +276,7 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 > **信息 — 重要特性**
 >
-> Group 在发出点击信号之前，会先同步组内所有其他 picker 的位置。
-> 这意味着当 `clicked` 信号触发时，组内所有 picker 的 `featurePoints()` 都已经更新到同步后的位置。
+> Group 在发出点击信号之前，会先同步组内所有其他 picker 的位置。 这意味着当 `clicked` 信号触发时，组内所有 picker 的 `featurePoints()` 都已经更新到同步后的位置。
 
 这个特性对于多子图联动场景非常有用：当用户点击某个子图时，其他子图的 picker 已经同步到对应的 X 轴比例位置，可以直接获取所有子图在相同比例位置的数据。
 

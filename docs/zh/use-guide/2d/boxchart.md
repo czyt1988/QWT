@@ -108,8 +108,7 @@ struct QwtBoxSample {
 
 > **信息 — 参数顺序说明**
 >
-> 构造函数参数顺序为：`position, whiskerLower, q1, median, q3, whiskerUpper`
-> 请确保传入参数顺序正确，否则箱线图会显示异常
+> 构造函数参数顺序为：`position, whiskerLower, q1, median, q3, whiskerUpper` 请确保传入参数顺序正确，否则箱线图会显示异常
 
 #### QwtBoxOutlierSample
 
@@ -306,8 +305,7 @@ boxChart->setOrientation(Qt::Horizontal);
 
 > **警告 — 方向切换后刷新**
 >
-> 切换方向后应调用 `plot->replot()` 或 `plot->setAxisAutoScale()` 刷新坐标轴，
-> 否则坐标轴范围可能不适配新的数据方向
+> 切换方向后应调用 `plot->replot()` 或 `plot->setAxisAutoScale()` 刷新坐标轴， 否则坐标轴范围可能不适配新的数据方向
 
 ```cpp
 // 完整的方向切换示例

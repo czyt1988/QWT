@@ -15,8 +15,7 @@ hide:
 <h1 class="qwt-hero-title">Qt Plotting Library</h1>
 
 <p class="qwt-hero-desc">
-A high-performance 2D/3D plotting library for Qt applications,
-designed for scientific computing and engineering data visualization.
+A high-performance 2D/3D plotting library for Qt applications, designed for scientific computing and engineering data visualization.
 </p>
 
 <div class="qwt-hero-pills">
