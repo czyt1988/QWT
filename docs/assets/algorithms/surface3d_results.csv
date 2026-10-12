@@ -1,0 +1,135 @@
+# Qwt3DSurface VBO/VAO pipeline benchmark - raw results (surface3d_bench.cpp)
+# GPU: Intel UHD Graphics 770 (iGPU, shared memory), driver 31.0.101.4887, GL 4.6.0; CPU: Intel Core i7-14700, 16 GB RAM
+# OS: Windows 10 19045 x64, real desktop session (windowed GL widget 900x600, DWM compositing)
+# Qt 5.15.16 (msvc2019_64), QWT 7.4.2 (commit 1b352c1), build-release: Ninja + MSVC 19.26, /MD /O2 /Ob2 /DNDEBUG
+# vsync: swapInterval=0 requested (context reports 1; DWM composites, no vsync quantization observed)
+# Scene: single Qwt3DSurface, z = sin(2r)*exp(-r^2/8) on [-3,3]^2, FILLEDMESH unless noted, viridis
+#        vertex colors (Qwt3DStandardColor default), coordinate system BOX (autodecoration), no legend/title
+# Frame protocol: 5 warmup frames, then 3 rounds x 100 frames; each frame rotates z by 0.7 deg and
+#   pumps update()+processEvents(); per-frame CPU time pooled -> min/median/p99; whole measurement
+#   repeated (retries column, max 2) if max/min round median > 1.5. NOTE: other benchmark agents
+#   shared this machine during the main matrix (retries=1 on 13 rows); finish-on supplements ran quiet.
+# finish=1 rows append glFinish() at the end of paintGL (GPU-completion view); finish=0 rows measure
+#   CPU submit only (GPU work hides in the command queue at large meshes -> see p99 stalls).
+# Upload protocol: median of 3 reps; every stage followed by glFinish. load = loadFromData (CPU copy +
+#   normals); first = first draw() after load (buildVBO: color functor + index gen + glBufferData +
+#   draw); steady = clean draw() (uniforms + glDrawElements only); recolor = after invalidateColors();
+#   res2 = after setResolution(2); propset = plain setter triggering itemChanged() (no GL).
+# Export protocol: single saveVector/savePixmap call after one rendered frame; bytes = output file size;
+#   prim_count = <polygon>+<polyline>+... elements in SVG output (gl2ps feedback capture).
+# fmt column doubles as MSAA marker for frames rows (msaa4/msaa0) and as export format for export rows.
+# Columns:
+mode,cols,style,light,coord,finish,res,fmt,sort,rounds,fpp,retries,paints,load_ms,first_draw_ms,steady_draw_ms,recolor_draw_ms,res2_draw_ms,propset_ms,frame_min_ms,frame_med_ms,frame_p99_ms,rmed1_ms,rmed2_ms,rmed3_ms,export_ms,export_bytes,prim_count
+frames,32,filled,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8079,2.2501,3.8919,2.2268,2.1951,2.3331,,,
+frames,32,filledmesh,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.7970,2.3042,4.4776,2.3061,2.4030,2.1988,,,
+frames,32,wireframe,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8498,2.2233,3.7000,2.3908,2.1768,2.1755,,,
+frames,32,hiddenline,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8274,2.1859,4.5987,2.2547,2.1413,2.1728,,,
+frames,32,points,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8745,2.1127,3.2364,2.1548,2.0913,2.0857,,,
+frames,32,noplot,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8388,2.1454,3.6092,2.1711,2.0840,2.2367,,,
+frames,64,filled,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8207,2.1764,3.7869,2.2374,2.1315,2.2072,,,
+frames,64,filledmesh,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.7999,2.2703,3.6719,2.2278,2.2385,2.3544,,,
+frames,64,wireframe,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8102,2.2488,4.9935,2.3054,2.2357,2.2393,,,
+frames,64,hiddenline,0,box,0,1,msaa4,,3,100,0,305,,,,,,,1.0612,2.7456,4.6964,2.7424,2.6796,2.8358,,,
+frames,64,points,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8717,2.3146,3.7180,2.4922,2.2249,2.2847,,,
+frames,64,noplot,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8326,2.2774,3.7077,2.3542,2.3331,2.1921,,,
+frames,128,filled,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8667,2.5274,5.5946,3.3856,2.4310,2.3338,,,
+frames,128,filledmesh,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.9390,2.6963,5.4908,2.6419,2.7624,2.6307,,,
+frames,128,wireframe,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8381,2.6474,6.2212,2.7005,2.4028,2.8475,,,
+frames,128,hiddenline,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.7759,2.4908,5.3060,2.6185,2.4685,2.3881,,,
+frames,128,points,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8881,2.4947,4.8349,2.9669,2.1662,2.2168,,,
+frames,128,noplot,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8515,2.3309,3.3628,2.4414,2.3388,2.0508,,,
+frames,256,filled,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.9718,2.5116,6.3817,2.6755,2.4722,2.4933,,,
+frames,256,filledmesh,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8583,2.7403,5.8172,3.1151,2.9114,2.6151,,,
+frames,256,wireframe,0,box,0,1,msaa4,,3,100,0,305,,,,,,,1.0350,3.1281,5.7079,2.6741,3.6761,3.0453,,,
+frames,256,hiddenline,0,box,0,1,msaa4,,3,100,0,305,,,,,,,1.0162,2.9184,6.1361,3.3680,2.7250,2.9048,,,
+frames,256,points,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.9571,2.5609,3.9224,2.5350,2.5965,2.5652,,,
+frames,256,noplot,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8424,2.1521,4.1296,2.3723,2.0685,1.9645,,,
+frames,512,filled,0,box,0,1,msaa4,,3,100,0,305,,,,,,,1.1386,3.0678,6.3909,2.7654,2.8917,3.5932,,,
+frames,512,filledmesh,0,box,0,1,msaa4,,3,100,0,305,,,,,,,1.3711,4.2808,7.7550,4.1228,4.0267,4.7700,,,
+frames,512,wireframe,0,box,0,1,msaa4,,3,100,0,305,,,,,,,1.0530,3.6798,7.6013,3.5023,3.1443,4.0203,,,
+frames,512,hiddenline,0,box,0,1,msaa4,,3,100,0,305,,,,,,,1.3901,4.2336,7.1417,4.0459,4.1091,4.8052,,,
+frames,512,points,0,box,0,1,msaa4,,3,100,0,305,,,,,,,1.0267,2.9668,6.1059,2.9849,3.0377,2.8892,,,
+frames,512,noplot,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.9723,2.3228,5.6637,2.5192,2.2932,2.2243,,,
+frames,1024,filled,0,box,0,1,msaa4,,3,100,0,305,,,,,,,1.3066,4.7491,10.4814,4.7881,5.1437,4.5396,,,
+frames,1024,filledmesh,0,box,0,1,msaa4,,3,100,1,610,,,,,,,1.2656,3.6179,479.6645,3.9876,3.4867,3.4961,,,
+frames,1024,wireframe,0,box,0,1,msaa4,,3,100,1,610,,,,,,,1.1388,3.8503,430.4976,4.1476,3.9307,3.3267,,,
+frames,1024,hiddenline,0,box,0,1,msaa4,,3,100,1,610,,,,,,,1.0748,3.1948,497.2534,3.5737,3.1213,3.0281,,,
+frames,1024,points,0,box,0,1,msaa4,,3,100,1,610,,,,,,,1.3028,2.8850,313.2254,3.1258,2.8989,2.6506,,,
+frames,1024,noplot,0,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8534,2.2256,4.0808,2.2073,2.0845,2.4379,,,
+frames,32,filled,1,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8775,2.3871,3.8245,2.6355,2.3885,2.2498,,,
+frames,32,filledmesh,1,box,0,1,msaa4,,3,100,0,305,,,,,,,1.2408,2.7885,4.6667,2.7187,2.7824,2.8785,,,
+frames,64,filled,1,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8121,2.0941,5.3893,2.1121,1.9527,2.1391,,,
+frames,64,filledmesh,1,box,0,1,msaa4,,3,100,0,305,,,,,,,1.0875,2.7300,6.3061,2.7329,2.5734,2.8614,,,
+frames,128,filled,1,box,0,1,msaa4,,3,100,0,305,,,,,,,0.8330,2.3709,4.4323,2.6235,2.3302,2.2641,,,
+frames,128,filledmesh,1,box,0,1,msaa4,,3,100,0,305,,,,,,,0.9556,2.5364,4.7662,2.8486,2.4989,2.4104,,,
+frames,256,filled,1,box,0,1,msaa4,,3,100,0,305,,,,,,,0.9652,2.5088,4.5576,2.4325,2.4653,2.7868,,,
+frames,256,filledmesh,1,box,0,1,msaa4,,3,100,0,305,,,,,,,0.9393,2.5298,5.5077,2.9729,2.4014,2.5368,,,
+frames,512,filled,1,box,0,1,msaa4,,3,100,0,305,,,,,,,1.2111,2.6387,4.7217,2.7128,2.7690,2.4451,,,
+frames,512,filledmesh,1,box,0,1,msaa4,,3,100,0,305,,,,,,,1.2638,4.2666,7.5529,4.0341,4.1212,4.6084,,,
+frames,1024,filled,1,box,0,1,msaa4,,3,100,0,305,,,,,,,1.3416,4.1976,8.6127,4.1694,3.9608,4.3643,,,
+frames,1024,filledmesh,1,box,0,1,msaa4,,3,100,1,610,,,,,,,1.3389,3.9220,490.3438,4.8245,3.8209,3.4891,,,
+frames,32,filledmesh,0,nocoord,0,1,msaa4,,3,100,1,610,,,,,,,0.2050,0.3301,7.2458,0.3335,0.3198,0.3355,,,
+frames,64,filledmesh,0,nocoord,0,1,msaa4,,3,100,1,610,,,,,,,0.1904,0.3067,22.8277,0.2985,0.3197,0.3115,,,
+frames,128,filledmesh,0,nocoord,0,1,msaa4,,3,100,1,610,,,,,,,0.2051,0.3174,28.4677,0.3017,0.3079,0.3531,,,
+frames,256,filledmesh,0,nocoord,0,1,msaa4,,3,100,1,610,,,,,,,0.2172,0.3108,53.8304,0.3124,0.3096,0.3094,,,
+frames,512,filledmesh,0,nocoord,0,1,msaa4,,3,100,1,610,,,,,,,0.2304,0.3187,150.8168,0.3179,0.2999,0.3432,,,
+frames,1024,filledmesh,0,nocoord,0,1,msaa4,,3,100,1,610,,,,,,,0.2462,0.3564,544.4138,0.3473,0.4454,0.3390,,,
+frames,128,filledmesh,0,box,1,1,msaa4,,3,100,0,305,,,,,,,3.6241,4.1508,7.8402,4.0918,4.1252,4.2496,,,
+frames,512,filledmesh,0,box,1,1,msaa4,,3,100,1,610,,,,,,,6.4998,8.4226,10.9144,7.7338,8.5649,9.0529,,,
+frames,1024,filledmesh,0,box,1,1,msaa4,,3,100,0,305,,,,,,,15.3249,19.5560,23.8280,18.8937,18.4535,21.0327,,,
+frames,128,filledmesh,0,box,0,1,msaa0,,3,100,0,305,,,,,,,1.3753,2.1951,4.3179,2.3487,2.0968,2.1709,,,
+frames,512,filledmesh,0,box,0,1,msaa0,,3,100,0,305,,,,,,,1.7652,3.5488,5.5999,3.4782,3.2812,3.8146,,,
+frames,1024,filledmesh,0,box,0,1,msaa0,,3,100,1,610,,,,,,,1.8304,3.4001,369.5364,3.4463,3.5400,3.2734,,,
+frames,1024,filledmesh,0,box,0,2,msaa4,,3,100,0,305,,,,,,,1.4047,4.4474,7.9265,4.2510,4.1937,4.8137,,,
+frames,1024,filledmesh,0,box,0,4,msaa4,,3,100,0,305,,,,,,,0.8769,2.4455,4.8818,2.4246,2.4395,2.4791,,,
+upload,32,filledmesh,0,box,1,1,,,,,0,4,0.1505,0.3606,0.3864,0.4509,0.2281,0.0004,,,,,,,,,
+upload,64,filledmesh,0,box,1,1,,,,,0,4,0.6670,0.4732,0.2478,0.4874,0.4484,0.0010,,,,,,,,,
+upload,128,filledmesh,0,box,1,1,,,,,0,4,2.7397,1.5944,0.4460,1.3645,0.7383,0.0008,,,,,,,,,
+upload,256,filledmesh,0,box,1,1,,,,,0,4,12.3807,5.7544,1.3539,4.6501,2.8969,0.0037,,,,,,,,,
+upload,512,filledmesh,0,box,1,1,,,,,0,4,45.8073,17.1345,4.3633,18.4524,10.8262,0.0049,,,,,,,,,
+upload,1024,filledmesh,0,box,1,1,,,,,0,4,185.9262,80.2341,14.3279,76.3358,42.8278,0.0060,,,,,,,,,
+export,32,filledmesh,0,box,0,1,PDF,simple,,,0,6,,,,,,,,,,,,,106.9531,83587,-1
+export,64,filledmesh,0,box,0,1,PDF,simple,,,0,6,,,,,,,,,,,,,93.6576,339978,-1
+export,128,filledmesh,0,box,0,1,PDF,simple,,,0,6,,,,,,,,,,,,,170.1775,1249284,-1
+export,256,filledmesh,0,box,0,1,PDF,simple,,,0,8,,,,,,,,,,,,,960.2319,4961768,-1
+export,512,filledmesh,0,box,0,1,PDF,simple,,,0,15,,,,,,,,,,,,,9172.1585,19456884,-1
+export,1024,filledmesh,0,box,0,1,PDF,simple,,,0,43,,,,,,,,,,,,,144737.3865,82571403,-1
+export,64,filledmesh,0,box,0,1,PDF,bsp,,,0,6,,,,,,,,,,,,,3862.0540,648349,-1
+export,128,filledmesh,0,box,0,1,PDF,bsp,,,0,6,,,,,,,,,,,,,27064.9489,1506946,-1
+export,32,filledmesh,0,box,0,1,SVG,simple,,,0,6,,,,,,,,,,,,,355.5158,24715299,200577
+export,64,filledmesh,0,box,0,1,SVG,simple,,,0,6,,,,,,,,,,,,,725.2951,52120016,427990
+export,128,filledmesh,0,box,0,1,SVG,simple,,,0,6,,,,,,,,,,,,,813.3942,58131848,473379
+export,128,filledmesh,0,box,0,1,EPS,simple,,,0,6,,,,,,,,,,,,,176.8108,1312480,-1
+export,64,filledmesh,0,box,0,1,png,simple,,,0,6,,,,,,,,,,,,,86.1775,131549,-1
+export,512,filledmesh,0,box,0,1,png,simple,,,0,6,,,,,,,,,,,,,83.4949,17262,-1
+export,1024,filledmesh,0,box,0,1,png,simple,,,0,6,,,,,,,,,,,,,115.4164,8026,-1
+frames,32,filledmesh,0,box,1,1,msaa4,,3,100,0,305,,,,,,,3.1972,3.7057,5.8244,3.7858,3.6410,3.6795,,,
+frames,64,filledmesh,0,box,1,1,msaa4,,3,100,0,305,,,,,,,2.5715,3.8329,8.6138,4.0589,3.8688,3.1030,,,
+frames,256,filledmesh,0,box,1,1,msaa4,,3,100,0,305,,,,,,,5.7122,6.7686,10.0481,6.3910,6.6111,7.1485,,,
+frames,32,noplot,0,box,1,1,msaa4,,3,100,0,305,,,,,,,2.7078,3.0272,4.1215,3.1252,3.0309,2.9580,,,
+frames,1024,noplot,0,box,1,1,msaa4,,3,100,0,305,,,,,,,2.7740,3.2007,5.4911,3.2121,3.2012,3.1568,,,
+frames,1024,filled,0,box,1,1,msaa4,,3,100,0,305,,,,,,,9.3815,10.0783,12.3021,9.8833,9.9985,10.2812,,,
+frames,1024,wireframe,0,box,1,1,msaa4,,3,100,0,305,,,,,,,11.9796,15.3696,21.6951,14.2945,14.5696,16.7974,,,
+frames,1024,points,0,box,1,1,msaa4,,3,100,0,305,,,,,,,10.5699,11.8094,14.6210,11.9222,11.2506,12.1291,,,
+frames,1024,hiddenline,0,box,1,1,msaa4,,3,100,0,305,,,,,,,15.6923,19.0977,23.5319,17.8606,18.2133,20.8120,,,
+frames,256,filled,0,box,1,1,msaa4,,3,100,0,305,,,,,,,3.6621,4.3117,6.2774,4.1934,4.2404,4.5986,,,
+frames,256,wireframe,0,box,1,1,msaa4,,3,100,0,305,,,,,,,3.1881,5.4718,9.5262,5.7133,5.4521,5.0075,,,
+frames,256,points,0,box,1,1,msaa4,,3,100,0,305,,,,,,,3.2646,3.9390,9.1963,4.2881,3.7524,3.9922,,,
+frames,1024,filledmesh,1,box,1,1,msaa4,,3,100,0,305,,,,,,,15.6398,19.4704,24.9690,18.3892,18.5866,20.9129,,,
+frames,1024,filledmesh,0,nocoord,1,1,msaa4,,3,100,0,305,,,,,,,13.4797,16.6478,20.8788,15.4126,15.5375,18.5420,,,
+frames,1024,filledmesh,0,box,1,1,msaa0,,3,100,0,305,,,,,,,11.9339,13.9308,17.6054,13.9761,12.9390,14.2499,,,
+frames,1024,filledmesh,0,box,1,2,msaa4,,3,100,0,305,,,,,,,6.2550,9.1975,14.1613,10.5694,7.5684,9.2330,,,
+frames,1024,filledmesh,0,box,1,4,msaa4,,3,100,0,305,,,,,,,5.5559,6.5470,10.2890,6.2167,6.3659,6.8662,,,
+frames,64,filled,0,box,1,1,msaa4,,3,100,0,305,,,,,,,3.1593,3.6008,6.8022,3.6791,3.6070,3.5545,,,
+frames,64,wireframe,0,box,1,1,msaa4,,3,100,0,305,,,,,,,3.1707,3.6309,7.8615,3.7494,3.5670,3.5187,,,
+frames,64,points,0,box,1,1,msaa4,,3,100,0,305,,,,,,,2.9013,3.3199,6.4240,3.4221,3.1932,3.3580,,,
+frames,64,hiddenline,0,box,1,1,msaa4,,3,100,0,305,,,,,,,3.3862,3.8564,5.6278,3.7903,3.8504,3.9379,,,
+frames,64,noplot,0,box,1,1,msaa4,,3,100,0,305,,,,,,,2.6776,3.0145,5.2381,3.0002,3.1212,2.9434,,,
+frames,512,filled,0,box,1,1,msaa4,,3,100,0,305,,,,,,,5.6758,6.1425,8.5108,6.0891,6.1113,6.7486,,,
+frames,512,wireframe,0,box,1,1,msaa4,,3,100,0,305,,,,,,,8.1462,9.9425,13.7876,9.5762,9.6005,11.2466,,,
+frames,512,points,0,box,1,1,msaa4,,3,100,1,610,,,,,,,4.7084,7.2484,10.2739,7.3604,5.4891,7.8570,,,
+frames,512,hiddenline,0,box,1,1,msaa4,,3,100,0,305,,,,,,,6.8600,8.6363,12.7835,8.7180,8.6708,8.5435,,,
+frames,512,noplot,0,box,1,1,msaa4,,3,100,0,305,,,,,,,2.7173,3.2705,5.6672,3.3351,3.2431,3.1860,,,
+frames,128,noplot,0,box,1,1,msaa4,,3,100,0,305,,,,,,,2.7387,3.1570,5.6295,3.2840,3.1702,3.0573,,,
+frames,256,noplot,0,box,1,1,msaa4,,3,100,0,305,,,,,,,2.7023,3.1559,6.2357,3.0131,3.4190,2.9908,,,
+frames,512,noplot,0,box,1,1,msaa4,,3,100,0,305,,,,,,,2.7040,3.0738,4.6402,2.9840,3.1242,3.0995,,,
