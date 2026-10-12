@@ -168,10 +168,11 @@ curve->setPen(QPen(Qt::darkBlue, 2.0, Qt::SolidLine));
 // 启用曲线拟合
 curve->setCurveAttribute(QwtPlotCurve::Fitted, true);
 
-// 设置样条拟合器（可选）
+// 设置样条拟合器（可选，默认内部为 Cardinal 样条 + 均匀参数化）
+// 需包含 <QwtSplineCurveFitter> 与 <QwtSplineCubic>
 QwtSplineCurveFitter* fitter = new QwtSplineCurveFitter();
-fitter->setFitMode(QwtSplineCurveFitter::Auto);  // 自动选择拟合模式
-curve->setCurveFitter(fitter);
+fitter->setSpline(new QwtSplineCubic());  // 换用 C2 三次样条，fitter 接管其所有权
+curve->setCurveFitter(fitter);            // curve 接管 fitter 所有权
 ```
 
 #### 阶梯样式（Steps）
