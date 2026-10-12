@@ -114,6 +114,8 @@ scatter->attach(plot);
 
 ### 3. 多种符号样式
 
+`QwtSymbol` 的构造函数依次接受形状（`Style`）、填充画刷、边框画笔和尺寸；内置形状包括 `Ellipse`、`Rect`、`Diamond`、`Triangle`、`Cross`、`XCross`、`Star1`、`Hexagon` 等，十字一类的开放形状通常配 `Qt::NoBrush` 使用。下面的代码逐一创建各种常用形状的符号：
+
 ```cpp
 // 圆形符号
 QwtSymbol* circle = new QwtSymbol(QwtSymbol::Ellipse, 
@@ -166,6 +168,8 @@ scatter->setSymbolJitter(0.05);  // 5%的抖动范围
 
 ### 5. 多组散点数据
 
+每组数据就是一个独立的 `QwtPlotCurve`，各自指定标题与符号后挂载到同一个 `QwtPlot` 即可叠加显示。下面的例子用 `Ellipse`、`Rect`、`Diamond` 三种符号区分三组 `NoCurve` 散点：
+
 ```cpp
 // 创建多组不同样式的散点
 QwtPlotCurve* group1 = new QwtPlotCurve("组A");
@@ -191,6 +195,8 @@ group3->attach(plot);
 ```
 
 ### 6. 连线与符号组合
+
+把曲线样式设为 `Lines` 的同时用 `setSymbol()` 指定符号，即可同时绘制连线和每个数据点处的标记；连线外观由曲线的 `setPen()` 控制，与符号自身的画笔、画刷互不影响。下面的例子将蓝色连线与空心椭圆标记组合：
 
 ```cpp
 // 同时显示连线和数据点符号
@@ -229,6 +235,8 @@ curve->attach(plot);
 | `Path` | 路径 | 自定义 QPainterPath |
 
 ## 自定义符号路径
+
+内置形状不够用时，可将符号样式设为 `QwtSymbol::Path`，再通过 `setPath()` 传入 `QPainterPath`；尺寸、画刷与画笔对路径同样生效。下面的例子构造一个闭合的箭头状轮廓并将其用作散点符号：
 
 ```cpp
 #include <QPainterPath>

@@ -4,6 +4,8 @@
 
 ## 概述
 
+下面的类图给出 `QwtPyPlot` 与其封装/委托的基础设施之间的关系——包括 `QwtFigure`、`QwtPlot`、`QwtPlotFactory`、`QwtPlotStyling`，以及负责解析 matplotlib 风格格式字符串的 `QwtFormatString`：
+
 ```mermaid
 classDiagram
     class QwtPyPlot {
@@ -65,6 +67,8 @@ classDiagram
 
 ### 模式一：QwtFigure 多子图模式
 
+用 `QwtFigure*` 构造 `QwtPyPlot` 即进入多子图模式：`subplot(rows, cols, index)` 在 figure 网格中创建一个子图并将其设为当前坐标轴。下面的例子构建了一个包含线图与柱状图的 2×1 布局，并以 300 DPI 保存整幅图：
+
 ```cpp
 #include <QwtFigure>
 #include <QwtPyPlot>
@@ -89,6 +93,8 @@ fig->show();
 ```
 
 ### 模式二：QwtPlot 单图模式
+
+改用 `QwtPlot*` 构造则进入单图模式——所有调用都直接作用于这个 plot，不涉及 figure 与子图管理。这是给现有 `QwtPlot` 控件添加图元最轻量的方式：
 
 ```cpp
 #include <QwtPlot>
@@ -154,6 +160,8 @@ plot->show();
 
 #### plot() — 线图
 
+`plot()` 返回 `QwtPlotCurve*`，提供三个重载：仅 y 数据（x 自动取 0, 1, 2, …）、x/y 两个向量、或一个 `QVector<QPointF>`。每个重载都接受可选的格式字符串与图例标签：
+
 ```cpp
 // y-only（x 自动为 0, 1, 2, ...）
 plt.plot({1, 4, 2, 5}, "r-o");
@@ -168,6 +176,8 @@ plt.plot(data, "g^:");
 
 #### scatter() — 散点图
 
+`scatter()` 只绘制标记点、不连线，返回 `QwtPlotCurve*`。除坐标外还接受标记大小、颜色与可选标签，便于在图例中区分多组数据：
+
 ```cpp
 // 参数：x, y, 标记大小, 颜色, 标签
 plt.scatter(x1, y1, 30, "r", "Group A");
@@ -175,6 +185,8 @@ plt.scatter(x2, y2, 50, "b", "Group B");
 ```
 
 #### bar() — 柱状图
+
+`bar()` 创建 `QwtPlotBarChart*`。简单重载只接受一组值，以样本索引作为 x 位置；第二个重载可显式给出 x 位置与柱宽：
 
 ```cpp
 // y-only 值（x 自动为索引）
@@ -186,12 +198,16 @@ plt.bar(x, values, 0.8, "b", "Sales");
 
 #### hist() — 直方图
 
+`hist()` 对原始样本自动分箱并生成 `QwtPlotHistogram*`。bins 数量默认为 10，颜色与图例标签均为可选：
+
 ```cpp
 // 自动分箱（默认 10 个 bins）
 plt.hist(data, 20, "m", "Distribution");
 ```
 
 #### imshow() — 热图
+
+`imshow()` 通过 `QwtPlotSpectrogram*` 把二维 `QVector<QVector<double>>` 矩阵映射为彩色图像。colormap 默认为 `"viridis"`；`vmin`/`vmax` 保持 0 时值域自动取自数据本身：
 
 ```cpp
 // 2D 矩阵数据，支持多种 colormap
@@ -203,6 +219,8 @@ plt.imshow(matrix, "viridis");
 
 #### contour() — 等高线
 
+`contour()` 同样返回 `QwtPlotSpectrogram*`，但绘制的是矩阵的等值线而非彩色表面。`levels` 为空时自动生成 10 条等高线；否则按给定的级别绘制，并用 `cmap` 着色：
+
 ```cpp
 // 自动 10 条等高线
 plt.contour(data);
@@ -213,6 +231,8 @@ plt.contour(data, {0.2, 0.4, 0.6, 0.8}, "hot");
 
 #### fillBetween() — 填充区域
 
+`fillBetween()` 用 `QwtPlotIntervalCurve*` 填充两条曲线 `y1(x)` 与 `y2(x)` 之间的区域。填充色以名称给出，`alpha`（默认 0.3）控制透明度：
+
 ```cpp
 // 参数：x, y1, y2, 颜色, 透明度
 plt.fillBetween(x, yLower, yUpper, "blue", 0.3);
@@ -220,17 +240,23 @@ plt.fillBetween(x, yLower, yUpper, "blue", 0.3);
 
 #### errorbar() — 误差棒
 
+`errorbar()` 把每个 `(x, y, yerr)` 三元组转换为覆盖 `y - yerr` 到 `y + yerr` 的 `QwtIntervalSample`，并以 Tube 样式的 `QwtPlotIntervalCurve*` 绘制，格式字符串照常生效：
+
 ```cpp
 plt.errorbar(x, y, yerr, "r-", "Measurement");
 ```
 
 #### quiver() — 向量场
 
+`quiver()` 创建 `QwtPlotVectorField*`，在每个位置 `(x, y)` 绘制分量为 `(u, v)` 的箭头——常用于梯度场或流场可视化：
+
 ```cpp
 plt.quiver(x, y, u, v, "k");
 ```
 
 #### candlestick() — K 线图
+
+`candlestick()` 以 `QwtPlotTradingCurve*` 渲染金融数据；每个 `QwtOHLCSample` 包含一个时间值与开盘、最高、最低、收盘四个价格：
 
 ```cpp
 QVector<QwtOHLCSample> ohlcData = ...;
@@ -253,6 +279,8 @@ plt.candlestick(ohlcData, "Stock");
 
 ### 标题与标签
 
+`setTitle()`、`setXLabel()`、`setYLabel()` 分别设置图表标题以及底部/左侧坐标轴的标题——都作用于当前坐标轴（`gca()`）：
+
 ```cpp
 plt.setTitle("My Plot");
 plt.setXLabel("Time (s)");
@@ -260,6 +288,8 @@ plt.setYLabel("Amplitude");
 ```
 
 ### 轴范围与缩放
+
+`setXLim()` / `setYLim()` 固定坐标轴的可见范围；`setXScale()` / `setYScale()` 则在 `"linear"` 与 `"log"` 两种刻度引擎之间切换：
 
 ```cpp
 // 设置轴范围
@@ -276,6 +306,8 @@ plt.setXScale("linear");
 
 ### 刻度
 
+`setXTicks()` / `setYTicks()` 用自定义列表替换自动生成的主刻度位置，并可为其指定文字标签；`invertXAxis()` / `invertYAxis()` 反转坐标轴方向：
+
 ```cpp
 // 自定义刻度位置
 plt.setXTicks({0, 2.5, 5, 7.5, 10});
@@ -290,6 +322,8 @@ plt.invertYAxis();
 
 ### 子图布局
 
+`subplot(rows, cols, index)` 把 figure 划分为网格，激活按行优先、从 1 开始编号的第 `index` 个单元格，并返回对应的 `QwtPlot*`。切换到列数更少的网格（下例中 2×2 之后的 2×1）可让该子图横跨整行：
+
 ```cpp
 QwtFigure* fig = new QwtFigure;
 QwtPyPlot plt(fig);
@@ -301,6 +335,8 @@ plt.subplot(2, 1, 2);  // 第 2 行跨 2 列（需要重新 addGridAxes）
 ```
 
 ### 寄生轴（双 Y/X 轴）
+
+`twinx()` 创建一个寄生绘图：与宿主共享底部 x 轴，但拥有自己的右侧 y 轴（`twiny()` 对应顶部 x 轴）。新绘图会自动成为当前坐标轴，也可用 `sca()` 显式切换：
 
 ```cpp
 plt.subplot(1, 1, 1);
@@ -316,11 +352,15 @@ plt.setYLabel("%");
 
 ### 紧凑布局
 
+`tightLayout()` 重新计算子图几何，使标题与轴标签互不重叠，并对齐 figure 内所有子图的 y 轴：
+
 ```cpp
 plt.tightLayout();  // 对齐所有子图的 Y 轴
 ```
 
 ## 外观设置
+
+外观由两个设置项控制：`setFaceColor()` 设置 figure 背景色，`setAxesColor()` 设置绘图区画布的背景色。两者都接受颜色名或十六进制字符串：
 
 ```cpp
 // 设置 Figure 背景色
@@ -334,6 +374,8 @@ plt.setAxesColor("white");
 
 ### 保存图片
 
+`savefig()` 把 figure 渲染为图片文件（格式由文件名后缀推断），成功时返回 `true`。可选的 `dpi` 控制导出分辨率，不传则回退到屏幕 DPI：
+
 ```cpp
 plt.savefig("output.png");        // 默认 DPI
 plt.savefig("output.png", 300);   // 300 DPI
@@ -341,11 +383,15 @@ plt.savefig("output.png", 300);   // 300 DPI
 
 ### 显示窗口
 
+`show()` 显示底层控件——多子图模式下是 `QwtFigure`，单图模式下是当前 `QwtPlot`：
+
 ```cpp
 plt.show();
 ```
 
 ### 交互控制
+
+`enablePan()` 在当前坐标轴画布上挂载 `QwtPlotPanner` 实现拖拽平移，`enableZoom()` 挂载 `QwtPlotCanvasZoomer` 实现框选缩放。两者默认为 `true`，传 `false` 可再次关闭：
 
 ```cpp
 plt.enablePan(true);   // 启用拖拽平移

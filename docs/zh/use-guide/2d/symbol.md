@@ -42,6 +42,8 @@
 
 ### 1. 创建基本符号
 
+符号既可以通过便捷构造函数 `QwtSymbol(style, brush, pen, size)` 一次性配置完成，也可以先创建空对象再用 `setStyle()`、`setBrush()`、`setPen()`、`setSize()` 逐步设置。下面的例子演示了这两种写法：
+
 ```cpp
 #include <QwtSymbol>
 
@@ -63,6 +65,8 @@ symbol2->setSize(8, 8);
 
 ### 2. 应用符号到曲线
 
+通过 `QwtPlotCurve::setSymbol()` 把符号交给曲线（曲线接管指针所有权）后，符号会在每个样本点位置重复绘制。下面的例子为曲线挂上一个填充符号：
+
 ```cpp
 #include <QwtPlotCurve>
 
@@ -80,6 +84,8 @@ curve->setSymbol(new QwtSymbol(
 ```
 
 ### 3. 常用符号形状示例
+
+便捷构造函数的第一个参数直接传 `QwtSymbol::Style` 枚举值，再为不同形状搭配填充 `QBrush` 与轮廓 `QPen`；`Cross`、`XCross` 这类线形符号通常搭配 `Qt::NoBrush` 只绘制线条。下面的代码给出几种常用形状的构建方式：
 
 ```cpp
 // 圆形符号
@@ -131,6 +137,8 @@ customSymbol->setSize(20, 20);
 
 ### 5. 符号大小设置
 
+符号尺寸由 `setSize()` 设置：它提供接受 `QSize` 与分别接受宽、高两个重载，因此可以绘制椭圆形等非正方形符号。下面的例子演示了两种形式：
+
 ```cpp
 // 设置固定大小
 symbol->setSize(QSize(10, 10));  // 10x10像素
@@ -161,6 +169,8 @@ symbol->setPinPoint(QPointF(0.0, 0.0));
 
 ### 7. 符号填充样式
 
+填充由 `setBrush()` 控制，`QBrush` 可以是纯色、渐变（如 `QLinearGradient`）或填充图案；传入 `Qt::NoBrush` 则只保留轮廓。下面的代码给出几种常见的填充写法：
+
 ```cpp
 // 简单填充
 symbol->setBrush(QBrush(Qt::red));
@@ -179,6 +189,8 @@ symbol->setBrush(QBrush(Qt::blue, Qt::DiagCrossPattern));
 ```
 
 ### 8. 边框样式
+
+边框由 `setPen()` 控制，线型、宽度与颜色都来自传入的 `QPen`；传入 `Qt::NoPen` 可完全去掉边框。下面的例子演示了几种典型的画笔配置：
 
 ```cpp
 // 实线边框

@@ -126,6 +126,8 @@ Qwt使用 `QwtAxis::Position` 枚举标识坐标轴位置：
 
 ### CMake包引入（推荐）
 
+推荐通过 CMake 包引入 Qwt：调用 `find_package(qwt)` 后，2D 绘图链接 `qwt::plot`，3D 绘图链接 `qwt::plot3d`，仅需基础工具时可单独链接 `qwt::core`，示例如下：
+
 ```cmake
 find_package(qwt REQUIRED)
 # 2D绘图（自动链接 qwt::core）
@@ -147,6 +149,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::core)
 将 `src-amalgamate/QwtPlot.h` 和 `src-amalgamate/QwtPlot.cpp` 加入项目。
 
 ## 版权信息
+
+Qwt 基于 Qwt License 1.0 发布，完整版权声明如下：
 
 ```
 Qwt Widget Library 

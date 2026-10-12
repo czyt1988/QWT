@@ -87,6 +87,8 @@ protected:
 
 ### 2.4 原始文件结构
 
+下面是重构前 `src/plot3d/` 的文件布局：单体绘图控件、未使用的 stub、分散在多文件的绘图逻辑，以及携带反向指针的基类：
+
 ```
 src/plot3d/
   qwt3d_plot.{h,cpp}            Plot3D 控件（单体）
@@ -221,6 +223,8 @@ public:
 
 ### 5.1 类职责
 
+下面的流程图勾勒了新的职责划分：`Qwt3DPlot` 是纯渲染窗口，`Qwt3DPlotItem` 是抽象基类，`Qwt3DSurface` 持有数据、VBO/VAO 资源、颜色 functor 与扩展：
+
 ```mermaid
 flowchart TD
     subgraph Widget["Qwt3DPlot (Tier 5 — 纯窗口)"]
@@ -255,6 +259,8 @@ flowchart TD
 `Qwt3DTheme::apply()` 现拆分职责：控件级属性（背景、坐标色、标题、光照）应用于 `Qwt3DPlot`，item 级属性（meshColor、dataColorPreset、plotStyle、shading、smoothMesh）通过 `dynamic_cast` 应用于已挂载的 `Qwt3DSurface` item。
 
 ### 5.3 新文件结构
+
+下面是重构后 `src/plot3d/` 的文件布局，包含新增的 item 类、渲染上下文和着色器目录：
 
 ```
 src/plot3d/

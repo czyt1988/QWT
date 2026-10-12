@@ -15,6 +15,8 @@
 
 ### Interval Curve Composition
 
+The diagram below sketches the anatomy of an interval curve — a median curve framed by its upper and lower bounds:
+
 ```text
      Upper bound
        ───────
@@ -49,6 +51,8 @@ struct QwtIntervalSample {
 ## Usage
 
 ### 1. Basic Interval Curve
+
+`QwtPlotIntervalCurve` consumes `QwtIntervalSample` data — each sample pairs a median value with a `QwtInterval` range — and its `CurveStyle` (`NoCurve` / `Tube`, default `Tube`) decides how the intervals are rendered. In `Tube` style `setPen()` strokes the boundary curves while `setBrush()` fills the area between them. The example below creates a plot and draws four samples as a translucent band:
 
 ```cpp
 #include <QwtPlot>
@@ -85,6 +89,8 @@ plot->replot();
 
 ### 2. Error Bar Style
 
+Error-bar rendering is configured through the `QwtIntervalSymbol` attached with `setSymbol()`: the symbol's `Style` picks the cap shape (`Bar` draws a line with end caps) and the symbol's own `setPen()` determines the stroke. The snippet below attaches a `Bar` symbol to the curve:
+
 ```cpp
 curve->setStyle(QwtPlotIntervalCurve::ErrorBars);
 
@@ -102,6 +108,8 @@ curve->setWidth(5);  // Error bar cross-line width (pixels)
 
 ### 3. Tube Style Configuration
 
+In `Tube` style the upper and lower bounds are stroked with the item's `setPen()` and the area between them is filled through `setBrush()` (default `Qt::NoBrush`, i.e. unfilled). The snippet below configures a red stroke with a translucent pink fill for the tube:
+
 ```cpp
 curve->setStyle(QwtPlotIntervalCurve::Tube);
 
@@ -117,6 +125,8 @@ curve->setOutlineMode(QwtPlotIntervalCurve::OutlineBoth);  // Draw both upper an
 ```
 
 ### 4. Symbol Configuration
+
+`QwtIntervalSymbol` is constructed with a `Style` — `Bar` for a line with end caps, `Box` for a plain rectangle — and tuned via `setPen()`, `setBrush()`, and `setWidth()` (stroke/cap width in pixels) before being assigned to the curve with `setSymbol()`. The example below creates a blue `Bar` symbol 8 pixels wide:
 
 ```cpp
 #include <QwtIntervalSymbol>

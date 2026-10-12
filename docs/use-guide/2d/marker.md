@@ -26,6 +26,8 @@ QwtPlotMarker supports four line styles:
 
 ### Marker Composition
 
+A single marker can combine several elements around one coordinate point: a horizontal line, a vertical line, a symbol drawn on the point itself, and a text label anchored nearby. The ASCII sketch below shows how these parts are composed around the `(x, y)` position:
+
 ```text
          Label text
             ↓
@@ -39,6 +41,8 @@ QwtPlotMarker supports four line styles:
 ## Usage
 
 ### 1. Creating a Basic Marker
+
+The marker position is given in plot data coordinates via `setValue()` (or `setXValue()` / `setYValue()` for a single axis), and the item becomes visible once it is `attach()`ed to the plot. The example below places a marker at (5, 10):
 
 ```cpp
 #include <QwtPlot>
@@ -183,6 +187,8 @@ labelMarker->attach(plot);
 ```
 
 ### 7. Comprehensive Example - Annotating Data Peaks
+
+This example combines line style, symbol and label in one marker: it scans the curve samples for the maximum, then annotates the peak with a dashed `QwtPlotMarker::VLine`, a red triangular `QwtSymbol` and a `QwtText` label showing the peak value:
 
 ```cpp
 // Find data peak and annotate it

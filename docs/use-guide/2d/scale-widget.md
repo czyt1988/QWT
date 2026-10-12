@@ -28,6 +28,8 @@ Qwt uses the `QwtAxis::Position` enum to identify axis positions:
 
 ### Axis Structure
 
+An axis is composed of the backbone with its tick marks, the tick labels beside them, and the axis title; ticks come in two lengths - long major ticks and short minor ticks. The sketch below shows the structure of a horizontal axis:
+
 ```text
           Title
          Time(s)
@@ -41,6 +43,8 @@ Ticks are divided into: major ticks (long), minor ticks (short)
 ## Usage
 
 ### 1. Setting Axes via QwtPlot
+
+Most axis settings go through `QwtPlot` directly: `setAxisTitle()` assigns the title, `setAxisScale()` fixes the value range, and `setAxisVisible()` shows or hides an axis, each addressed by a `QwtAxis::Position`. The example below configures the bottom X and left Y axes:
 
 ```cpp
 #include <QwtPlot>
@@ -63,6 +67,8 @@ plot->replot();
 ```
 
 ### 2. Getting Axis Widget
+
+For finer control, fetch the underlying widget of an axis with `QwtPlot::axisWidget()`; it is a regular `QWidget`, so `setFont()` styles the tick labels, `setTitle()` accepts a styled `QwtText`, and the colors follow the widget palette. The example below customizes the bottom axis widget:
 
 ```cpp
 // Get axis widget at a specific position
@@ -131,6 +137,8 @@ scaleWidget->setColorBarPosition(QwtScaleWidget::Right);  // On the right side o
 
 ### 5. Tick Drawing Style
 
+`QwtScaleWidget` also exposes the tick mark appearance: which side of the backbone the ticks are drawn on (outside, inside, or both), the pixel length of major and minor ticks, and the margin between the ticks and the axis line. The snippet below shows these settings:
+
 ```cpp
 // Set tick position (relative to axis direction)
 scaleWidget->setTickPosition(QwtScaleWidget::Outside);  // Ticks on outside
@@ -167,6 +175,8 @@ scaleWidget->setScaleDraw(new MyScaleDraw());
 ```
 
 ### 7. Setting Tick Division
+
+Tick divisions can either be computed automatically by the scale engine via `QwtPlot::setAxisAutoScale()`, or built by hand: fill a `QwtScaleDiv` with an interval and an explicit list of `QwtScaleDiv::MajorTick` positions, then hand it to the axis with `QwtPlot::setAxisScaleDiv()`. The example below shows both modes:
 
 ```cpp
 #include <QwtScaleDiv>

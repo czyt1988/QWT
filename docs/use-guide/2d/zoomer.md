@@ -29,6 +29,8 @@ Below is a feature comparison of these two zoomers:
 
 ### QwtPlotAxisZoomer Usage Example
 
+`QwtPlotAxisZoomer` has two constructors: one takes the X and Y axes to bind (as `QwtAxisId`) plus the canvas, and the other takes only the canvas, defaulting to `QwtAxis::XBottom` and `QwtAxis::YLeft`; the trailing `doReplot` flag (default `true`) controls whether the plot repaints automatically after zooming. The example below shows both forms:
+
 ```cpp
 #include "qwt_plot_axis_zoomer.h"
 
@@ -45,6 +47,8 @@ QwtPlotAxisZoomer* defaultZoomer = new QwtPlotAxisZoomer(plot->canvas());
 ```
 
 ### QwtPlotCanvasZoomer Usage Example
+
+`QwtPlotCanvasZoomer` needs nothing but the canvas: it zooms the plot as a whole and automatically covers all axes, including parasite plots, without any axis binding. The example below creates one in a single line:
 
 ```cpp
 #include "qwt_plot_canvas_zoomer.h"

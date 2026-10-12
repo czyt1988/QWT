@@ -302,6 +302,9 @@ graph TB
 Real-time tracking of mouse position with information display, without performing any selection operations.
 
 #### State Transition Process
+
+The list below enumerates, for each `QEvent` type, the command sequence produced by `QwtPickerTrackerMachine::transition()` and the resulting state: entering the widget or moving the mouse emits `Begin` + `Append`, subsequent moves emit `Move`, and leaving the widget emits `Remove` + `End`:
+
 ```cpp
 Initial state: 0 (not tracking)
 - QEvent::Enter / QEvent::MouseMove -> [Begin, Append] -> State 1
@@ -310,6 +313,9 @@ Initial state: 0 (not tracking)
 ```
 
 #### State Transition Diagram
+
+The state transition diagram below visualizes the same logic; the meaning of each state (State 0 = not tracking, State 1 = tracking) is defined by `QwtPickerTrackerMachine` itself via the `setState()` calls inside its `transition()` implementation:
+
 ```mermaid
 stateDiagram-v2
     [*] --> State0: Initialization
@@ -330,6 +336,9 @@ stateDiagram-v2
 Select a point through a single click.
 
 #### State Transition Process
+
+`QwtPickerClickPointMachine::transition()` completes a selection in one step: a press matching `MouseSelect1`, or a key matching `KeySelect1`, emits `Begin`, `Append`, and `End` at once and leaves the machine in State 0 — there is no intermediate state:
+
 ```cpp
 Initial state: 0 (waiting for click)
 - QEvent::MouseButtonPress (matches MouseSelect1) -> [Begin, Append, End] -> State 0
@@ -337,6 +346,9 @@ Initial state: 0 (waiting for click)
 ```
 
 #### State Transition Diagram
+
+The diagram below shows this one-shot machine as a self-loop on State 0; the state values are those maintained by `QwtPickerClickPointMachine` through its internal `setState()` calls:
+
 ```mermaid
 stateDiagram-v2
     [*] --> State0: Initialization
@@ -355,6 +367,9 @@ stateDiagram-v2
 Precisely select a point position through drag operations.
 
 #### State Transition Process
+
+`QwtPickerDragPointMachine::transition()` starts the drag on a `MouseSelect1` press (`Begin` + `Append`, entering State 1), tracks mouse moves and wheel events with `Move`, and finishes on release with `End`; a `KeySelect1` key press toggles between State 0 and State 1 for keyboard operation:
+
 ```cpp
 Initial state: 0 (waiting to start)
 - QEvent::MouseButtonPress (matches MouseSelect1) -> [Begin, Append] -> State 1
@@ -365,6 +380,9 @@ Initial state: 0 (waiting to start)
 ```
 
 #### State Transition Diagram
+
+The state transition diagram below summarizes these rules; State 0 (idle) and State 1 (dragging) are the values `QwtPickerDragPointMachine` assigns via `setState()` in its `transition()` implementation:
+
 ```mermaid
 stateDiagram-v2
     [*] --> State0: Initialization
@@ -387,6 +405,9 @@ stateDiagram-v2
 Define a rectangular area through two clicks.
 
 #### State Transition Process
+
+`QwtPickerClickRectMachine::transition()` spans three states: the first press emits `Begin` + `Append` (State 1), the first release appends the opposite corner (State 2), and only the next press emits `End` and returns to State 0 — the rectangle is thus fixed by two separate clicks:
+
 ```cpp
 Initial state: 0 (waiting for first click)
 - QEvent::MouseButtonPress (matches MouseSelect1) -> [Begin, Append] -> State 1
@@ -397,6 +418,9 @@ Initial state: 0 (waiting for first click)
 ```
 
 #### State Transition Diagram
+
+The diagram below shows this two-click sequence; State 0/1/2 are exactly the values maintained by `QwtPickerClickRectMachine` via `setState()`, marking idle, first corner placed, and rectangle awaiting confirmation:
+
 ```mermaid
 stateDiagram-v2
     [*] --> State0: Initialization
@@ -418,6 +442,9 @@ stateDiagram-v2
 Quickly select a rectangular area through drag operations.
 
 #### State Transition Process
+
+`QwtPickerDragRectMachine::transition()` emits `Begin` + `Append` + `Append` on the initial `MouseSelect1` press and jumps directly to State 2, where mouse moves produce `Move` (resizing the rubber-band rectangle) and the release produces `End`; `KeySelect1` toggles between State 0 and State 2:
+
 ```cpp
 Initial state: 0 (waiting to start)
 - QEvent::MouseButtonPress (matches MouseSelect1) -> [Begin, Append, Append] -> State 2
@@ -427,6 +454,9 @@ Initial state: 0 (waiting to start)
 ```
 
 #### State Transition Diagram
+
+The diagram below contrasts with the click-rectangle machine by skipping State 1 entirely; the state values are those `QwtPickerDragRectMachine` assigns through `setState()` — State 0 (idle) and State 2 (dragging a live rectangle):
+
 ```mermaid
 stateDiagram-v2
     [*] --> State0: Initialization
@@ -449,6 +479,9 @@ stateDiagram-v2
 Select a line segment through drag operations.
 
 #### State Transition Process
+
+`QwtPickerDragLineMachine::transition()` works like the drag-rectangle machine but selects a line segment: the initial press emits `Begin` + `Append` + `Append` (start and end points) and enters State 1, moves update the end point with `Move`, and the release emits `End`; `KeySelect1` toggles State 0/1:
+
 ```cpp
 Initial state: 0 (waiting to start)
 - QEvent::MouseButtonPress (matches MouseSelect1) -> [Begin, Append, Append] -> State 1
@@ -458,6 +491,9 @@ Initial state: 0 (waiting to start)
 ```
 
 #### State Transition Diagram
+
+The state transition diagram below shows this two-point drag; State 0 and State 1 are defined by `QwtPickerDragLineMachine`'s own `setState()` calls — idle versus dragging the line's end point:
+
 ```mermaid
 stateDiagram-v2
     [*] --> State0: Initialization
@@ -480,6 +516,9 @@ stateDiagram-v2
 Create a polygon area through multiple clicks.
 
 #### State Transition Process
+
+`QwtPickerPolygonMachine::transition()` collects vertices one by one: the first `MouseSelect1` press emits `Begin` + `Append` + `Append` (State 1), each later press adds a vertex with `Append`, moves preview the current edge with `Move`, and a press matching `MouseSelect2` closes the polygon with `End`:
+
 ```cpp
 Initial state: 0 (not started)
 - QEvent::MouseButtonPress (matches MouseSelect1) -> [Begin, Append, Append] -> State 1
@@ -490,6 +529,9 @@ Initial state: 0 (not started)
 ```
 
 #### State Transition Diagram
+
+The diagram below shows the vertex-accumulation loop in State 1 and its exit via the second mouse button; the states are those maintained by `QwtPickerPolygonMachine` through its `setState()` calls:
+
 ```mermaid
 stateDiagram-v2
     [*] --> State0: Initialization

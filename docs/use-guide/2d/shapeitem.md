@@ -37,6 +37,8 @@ QwtPlotShapeItem shapes are positioned using plot coordinates, not pixel coordin
 
 ### 1. Creating a Rectangle Shape
 
+The shape item is constructed with a legend title, and its geometry is handed to `setShape()` as a `QPainterPath` — for a plain rectangle the `setRect()` convenience overload also exists. Path coordinates are interpreted in the plot coordinate system, while `setPen()` / `setBrush()` style the outline and fill. The example below adds a semi-transparent rectangular region to a plot:
+
 ```cpp
 #include <QwtPlot>
 #include <QwtPlotShapeItem>
@@ -62,6 +64,8 @@ plot->replot();
 
 ### 2. Creating a Circle Shape
 
+Circles and ellipses are built with `QPainterPath::addEllipse()`, which takes a center point plus horizontal and vertical radii, and are then assigned via `setShape()`. The example below draws a semi-transparent red circle of radius 20 at plot coordinates (50, 50):
+
 ```cpp
 QwtPlotShapeItem* circle = new QwtPlotShapeItem("Circle");
 
@@ -76,6 +80,8 @@ circle->attach(plot);
 ```
 
 ### 3. Creating a Polygon Shape
+
+An arbitrary polygon is described by a sequence of `moveTo()` / `lineTo()` calls closed with `closeSubpath()`; alternatively `setPolygon()` accepts a `QPolygonF` directly. The example below builds a closed triangle and styles it with a green border and gray fill:
 
 ```cpp
 QwtPlotShapeItem* polygon = new QwtPlotShapeItem("Polygon");
@@ -94,6 +100,8 @@ polygon->attach(plot);
 ```
 
 ### 4. Style Configuration
+
+Appearance is tuned through `setRenderHint()` (e.g. `RenderAntialiased`, inherited from `QwtPlotItem`), `setPen()` (dashed outlines via `Qt::DashLine`), and `setBrush()` — the brush also accepts Qt pattern fills such as `Qt::FDiagPattern` for hatching. The snippet below combines these style options:
 
 ```cpp
 // Set fill mode

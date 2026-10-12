@@ -26,6 +26,8 @@ QwtPlot supports four legend positions:
 
 ### Legend Item Composition
 
+Each legend item pairs a small icon with the plot item's title, and the icon is rendered from that item's line, symbol or brush style. The sketch below shows the composition of a typical legend:
+
 ```text
 ┌───────────────────────┐
 │  [Icon]  Curve Title  │  ← Legend item
@@ -42,6 +44,8 @@ The legend demo is located at: `examples/2D/legends`. Screenshot:
 ![Legends Demo](../../assets/screenshots/legends.png)
 
 ### 1. Inserting a Legend
+
+A legend is created as a `QwtLegend` widget and handed to the plot with `QwtPlot::insertLegend()`, whose second argument picks one of the four `QwtPlot::LegendPosition` values (`LeftLegend`, `RightLegend`, `BottomLegend`, `TopLegend`, defaulting to `RightLegend`). The example below inserts a legend on the right side:
 
 ```cpp
 #include <QwtPlot>
@@ -75,6 +79,8 @@ legend->setItemMode(QwtLegend::ClickableItem);  // Clickable (default)
 
 ### 3. Setting Legend Position and Ratio
 
+The legend ratio controls how much of the plot's width or height the legend may occupy; it can be passed directly as the third argument of `insertLegend()`, or adjusted later through `QwtPlotLayout::setLegendPosition()` and `setLegendRatio()`. The example below reserves 20% for a right-side legend and then moves it to the bottom with a 15% ratio:
+
 ```cpp
 // Set legend position and ratio
 plot->insertLegend(legend, QwtPlot::RightLegend, 0.2);  // Right side, 20% width
@@ -86,6 +92,8 @@ layout->setLegendRatio(0.15);  // Legend occupies 15%
 ```
 
 ### 4. Legend Style Configuration
+
+Since `QwtLegend` is a regular Qt widget, its font can be set with `setFont()` and its background and border with a style sheet, while individual legend entries can be styled one by one. The example below shows these three levels of customization:
 
 ```cpp
 // Set legend font
@@ -120,6 +128,8 @@ curve->setLegendIconSize(QSize(20, 15));
 ```
 
 ### 6. Custom Legend Icons
+
+Legend icons are produced by the virtual method `QwtPlotItem::legendIcon()`, so derived classes can override it to draw completely custom icons; their size is controlled by `setLegendIconSize()`. The snippet below enlarges the icon size and notes where to hook in the custom drawing:
 
 ```cpp
 // Fully custom legend icon

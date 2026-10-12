@@ -31,6 +31,7 @@ Qwt 提供两种柱状图类：
 | `Stacked` | 堆叠模式：多组数据叠加显示，便于看总量 |
 
 ### 类继承结构
+`QwtPlotBarChart` 的类关系如下：它继承自 `QwtPlotAbstractBarChart`，获得基线、方向、布局策略等所有柱状图共用的能力，并混入 `QwtSeriesStore<QwtPoint3D>` 接管数据存储：
 
 ```mermaid
 classDiagram
@@ -119,6 +120,7 @@ barChart->setSamples(seriesData);
 ```
 
 ### 3. 柱体样式配置
+柱体外观由 `QwtColumnSymbol` 定制：构造函数的 `Style` 参数选择形状（内置 `Box` 实心箱体），`setFrameStyle()` 选择边框（`NoFrame` / `Plain` / `Raised`），`setPen()` 与 `setBrush()` 分别控制边框线与填充（填充支持半透明）。符号创建好后通过 `setSymbol()` 挂到柱状图上：
 
 ```cpp
 #include <QwtColumnSymbol>
@@ -142,6 +144,7 @@ barChart->setBrush(QBrush(Qt::blue));
 ```
 
 ### 4. 显示方向
+`setOrientation()` 在两种方向间切换：`Qt::Vertical`（默认，X 轴为分类、Y 轴为数值）与 `Qt::Horizontal`（Y 轴为分类、X 轴为数值，适合分类名较长的场景）：
 
 ```cpp
 // 垂直柱状图（默认）- X轴为分类，Y轴为数值
@@ -152,14 +155,15 @@ barChart->setOrientation(Qt::Horizontal);
 ```
 
 ### 5. 柱体宽度配置
+柱宽由布局策略（`setLayoutPolicy()`）与布局提示值（`setLayoutHint()`）共同决定：`AutoAdjustSamples` 按样本数均分空间、提示值作为最小宽度；`ScaleSamplesToAxes` 把提示值解释为轴坐标区间；`ScaleSampleToCanvas` 把提示值当作画布宽/高的比例；`FixedSampleSize` 则直接使用固定像素宽度：
 
 ```cpp
 // 设置布局策略
 barChart->setLayoutPolicy(QwtPlotAbstractBarChart::AutoAdjustSamples);  // 自动调整
-// 其他选项：
-// - FixedBarWidth: 固定宽度
-// - FixedSampleWidth: 固定样本宽度（包含间距）
-// - AdjustSampleWidth: 根据可用空间调整
+// 其他策略：
+// - ScaleSamplesToAxes: 提示值按轴坐标区间解释
+// - ScaleSampleToCanvas: 提示值 × 画布宽/高
+// - FixedSampleSize: 提示值为固定像素宽度
 
 // 设置布局提示值
 barChart->setLayoutHint(0.8);  // 柱体宽度占比（相对样本空间）
@@ -181,6 +185,7 @@ barChart->setBaseline(-5.0);
 ```
 
 ### 7. 多组柱状图（QwtPlotMultiBarChart）
+同一分类下并排比较多组数据时使用 `QwtPlotMultiBarChart`：每个样本点携带一组值，`setBarTitles()` 为每组设置标题（用于图例与辨识），数据通过 `setSamples()` 的重载传入：
 
 ```cpp
 #include <QwtPlotMultiBarChart>
@@ -210,6 +215,7 @@ plot->replot();
 ```
 
 ### 8. 自定义每组柱体样式
+`setSymbols()` 为每组接受一个 `QwtColumnSymbol`，第 i 个符号作用于第 i 组柱体，使各组拥有独立的填充与边框；不设置时各组颜色取自颜色循环：
 
 ```cpp
 // 为每组创建不同的符号
@@ -249,6 +255,7 @@ multiBar->setSymbols(symbols);
 | `setChartMode()` | 设置分组/堆叠模式 |
 
 ## 图例模式
+`setLegendMode()` 决定柱状图如何进入图例：`LegendChartTitle`（默认）让整张图只占一个图例条目，`LegendBarTitles` 则让每根柱（每组）各自成为一个条目，常与多组柱状图配合使用：
 
 ```cpp
 // 单一图例条目（显示图表标题）

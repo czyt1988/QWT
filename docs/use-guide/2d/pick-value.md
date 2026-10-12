@@ -194,6 +194,8 @@ The `order` parameter of the `valueString` method represents the nth feature poi
 
 ### Signal Description
 
+`QwtPlotSeriesDataPicker` emits two signals, `clicked()` and `doubleClicked()`, both carrying the sending picker and the screen position of the click as arguments. Their signatures are as follows:
+
 ```cpp
 // Single click signal
 void clicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
@@ -229,6 +231,8 @@ You can get the currently picked data point information via the `featurePoints()
 
 ### FeaturePoint Structure
 
+Each picked point is described by the nested struct `QwtPlotSeriesDataPicker::FeaturePoint`, which bundles the owning plot item (`item`), the picked coordinates (`feature`) and the index of the point within the series data (`index`). Its definition is:
+
 ```cpp
 struct FeaturePoint
 {
@@ -248,6 +252,8 @@ struct FeaturePoint
 
 ### featurePoints() Method
 
+`featurePoints()` is a const accessor that returns all feature points picked at the current tracker position as a `QList<FeaturePoint>`. Its signature is:
+
 ```cpp
 // Get the list of currently picked feature points
 QList<FeaturePoint> featurePoints() const;
@@ -264,6 +270,8 @@ QList<FeaturePoint> featurePoints() const;
 `QwtPlotSeriesDataPickerGroup` provides click signal forwarding within the group.
 
 ### Group Signal Description
+
+`QwtPlotSeriesDataPickerGroup` re-emits the `clicked()` and `doubleClicked()` signals of every picker it contains, so a single connection to the group covers all members while the `picker` argument still tells which member was clicked. The forwarded signal signatures are:
 
 ```cpp
 // Emitted when a picker in the group is clicked

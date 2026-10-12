@@ -33,6 +33,8 @@
 
 ### Arrow Structure
 
+The diagram below shows the anatomy of a `QwtPlotArrowMarker`: it spans from the start point (the tail) to the end point (the head), and each end can carry its own endpoint style.
+
 ```text
   tail                                    head
    ↓                                       ↓

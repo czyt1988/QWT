@@ -114,6 +114,8 @@ scatter->attach(plot);
 
 ### 3. Multiple Symbol Styles
 
+The `QwtSymbol` constructor takes a shape (`Style`), a fill brush, an outline pen, and a size; built-in shapes include `Ellipse`, `Rect`, `Diamond`, `Triangle`, `Cross`, `XCross`, `Star1`, and `Hexagon`. Open shapes such as the crosses are usually created with `Qt::NoBrush`. The snippet below instantiates one symbol of each common shape:
+
 ```cpp
 // Circle symbol
 QwtSymbol* circle = new QwtSymbol(QwtSymbol::Ellipse,
@@ -166,6 +168,8 @@ scatter->setSymbolJitter(0.05);  // 5% jitter range
 
 ### 5. Multiple Scatter Data Groups
 
+Each data group is simply a separate `QwtPlotCurve` with its own title and symbol, all attached to the same `QwtPlot`. The example below overlays three `NoCurve` groups distinguished by `Ellipse`, `Rect`, and `Diamond` symbols:
+
 ```cpp
 // Create multiple groups with different styles
 QwtPlotCurve* group1 = new QwtPlotCurve("Group A");
@@ -191,6 +195,8 @@ group3->attach(plot);
 ```
 
 ### 6. Lines and Symbols Combined
+
+Setting the curve style to `Lines` while also assigning a symbol via `setSymbol()` draws both the connecting line and a marker at every sample. The line appearance comes from the curve's `setPen()`, independent of the symbol's own pen and brush. The example below combines a blue line with hollow ellipse markers:
 
 ```cpp
 // Display both connecting lines and data point symbols
@@ -229,6 +235,8 @@ curve->attach(plot);
 | `Path` | Path | Custom QPainterPath |
 
 ## Custom Symbol Path
+
+For shapes beyond the built-in list, set the symbol style to `QwtSymbol::Path` and supply a `QPainterPath` through `setPath()`; size, brush, and pen still apply to the path. The example below builds a closed arrow-like outline and uses it as the scatter symbol:
 
 ```cpp
 #include <QPainterPath>

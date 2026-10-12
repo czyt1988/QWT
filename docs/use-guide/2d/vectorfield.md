@@ -50,6 +50,8 @@ The vector field example is located at: `playground/vectorfield`. Screenshot bel
 
 ### 1. Basic Vector Field Plot
 
+The field item is a plain `QwtPlotVectorField` fed with `QwtVectorFieldSample` values — each combining a position (x, y) with vector components (vx, vy) — through `setSamples()`. The example below generates a 10 x 10 trigonometric vector grid and attaches it to a plot:
+
 ```cpp
 #include <QwtPlot>
 #include <QwtPlotVectorField>
@@ -78,6 +80,8 @@ plot->replot();
 
 ### 2. Arrow Style Configuration
 
+The arrow shape is provided by a `QwtVectorFieldSymbol` implementation — `QwtVectorFieldArrow` (filled, with adjustable head and tail width) or `QwtVectorFieldThinArrow` (line-based) — assigned via `setSymbol()`, while the stroke comes from the field item's own `setPen()`. `setMagnitudeScaleFactor()` then controls how strongly the vector magnitude affects the arrow length. The snippet below wires these settings together:
+
 ```cpp
 #include <QwtVectorFieldSymbol>
 
@@ -96,6 +100,8 @@ vectorField->setSymbol(symbol);
 
 ### 3. Vector Magnitude Mapping
 
+Magnitude-to-length mapping is governed by `setMagnitudeScaleFactor()`, a linear factor applied to each vector's magnitude, optionally clamped with `setMinArrowLength()` / `setMaxArrowLength()`. The snippet below varies the scale factor to change how arrow length responds to magnitude:
+
 ```cpp
 // Map vector magnitude to arrow length
 vectorField->setMagnitudeScaleFactor(1.0);  // Linear mapping
@@ -107,6 +113,8 @@ vectorField->setSymbolSize(10);  // Fixed 10 pixels
 
 ### 4. Display Density Control
 
+Density is reduced by averaging neighbouring samples into grid cells: `setRasterSize()` defines the cell size, and the `FilterVectors` paint attribute (enabled via `setPaintAttribute()`) activates the filtering. The snippet below configures this decimation:
+
 ```cpp
 // Set sampling density (avoid overcrowding)
 vectorField->setSamplesPerInch(20);  // 20 vectors per inch
@@ -116,6 +124,8 @@ vectorField->setIndirectionCount(2);  // Display every 2nd point
 ```
 
 ### 5. Color Mapping
+
+Color-by-magnitude requires a `QwtColorMap` — e.g. a `QwtLinearColorMap` between two colors — assigned with `setColorMap()`, plus the `MagnitudeAsColor` flag enabled through `setMagnitudeMode()`; `setMagnitudeRange()` defines the value interval spanned by the map. The example below sets up a blue-to-red mapping:
 
 ```cpp
 #include <QwtColorMap>

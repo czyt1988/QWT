@@ -43,6 +43,8 @@ All new code must use the **Doxygen English format** for comments.
 
 ### Function Comment Template
 
+Public functions in `.cpp` files follow this Doxygen template, covering `@brief`, `@param`, `@return` and `@details`:
+
 ```cpp
 /**
  * @brief [Brief description]
@@ -80,6 +82,8 @@ bool calculateIntersection(const QwtPlotCurve* curve1,
 
 ### Detailed Description Example
 
+The snippet below shows a complete comment for `QwtPlotCurve::setSamples`, where `@details` documents that the data is copied internally:
+
 ```cpp
 /**
  * @brief Set the samples for the curve
@@ -100,6 +104,8 @@ void QwtPlotCurve::setSamples(const double* xData,
 `public` function declarations in header files should only have **single-line English brief comments**.
 
 ### Brief Comment Example
+
+In header files, each public function declaration gets only a single-line English comment, as in this example:
 
 ```cpp
 class MyClass {
@@ -124,6 +130,8 @@ public:
 Class Doxygen comments should be added in header files.
 
 ### Class Comment Template
+
+Class comments live in the header file and follow this template, shown here for `QwtPlot` together with its `QWT_DECLARE_PRIVATE` declaration:
 
 ```cpp
 /**
@@ -173,6 +181,8 @@ Qt signals are declared in header files and have no corresponding cpp definition
 
 ### Signal Comment Example
 
+Since signals have no cpp definition, their full Doxygen comments are written in the header file; the example below documents a signal inside the `Q_SIGNALS` block:
+
 ```cpp
 class QwtPlot : public QWidget
 {
@@ -202,6 +212,8 @@ When writing comments, please verify the following items:
 
 ### ❌ Wrong: Detailed Comments in Header Files
 
+The following example violates the placement rule by putting a detailed Doxygen block on a constructor declaration in the header file:
+
 ```cpp
 // Wrong example - too many comments in header file
 class MyClass {
@@ -216,6 +228,8 @@ public:
 ```
 
 ### ❌ Wrong: Chinese Comments in Source Code
+
+The next example violates the English-only rule by leaving a Chinese inline comment in the source file:
 
 ```cpp
 // Wrong example - Chinese comment in source code

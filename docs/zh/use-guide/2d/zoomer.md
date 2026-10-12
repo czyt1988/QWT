@@ -29,6 +29,8 @@ QwtPlotZoomer* zoomer2 = new QwtPlotZoomer(QwtAxis::XTop, QwtAxis::YRight, canva
 
 ### QwtPlotAxisZoomer 使用示例
 
+`QwtPlotAxisZoomer` 提供两种构造函数：一种传入要绑定的 X、Y 轴（`QwtAxisId`）与画布，另一种只传画布，此时默认绑定 `QwtAxis::XBottom` 与 `QwtAxis::YLeft`；末尾的 `doReplot` 参数（默认 `true`）控制缩放后是否自动重绘。下面的例子演示这两种形式：
+
 ```cpp
 #include "qwt_plot_axis_zoomer.h"
 
@@ -45,6 +47,8 @@ QwtPlotAxisZoomer* defaultZoomer = new QwtPlotAxisZoomer(plot->canvas());
 ```
 
 ### QwtPlotCanvasZoomer 使用示例
+
+`QwtPlotCanvasZoomer` 只需要画布一个参数：它对整个绘图做整体缩放，自动覆盖所有坐标轴（含寄生绘图），无需绑定任何轴。下面的例子用一行代码创建它：
 
 ```cpp
 #include "qwt_plot_canvas_zoomer.h"

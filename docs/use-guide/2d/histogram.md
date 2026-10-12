@@ -45,6 +45,8 @@ struct QwtIntervalSample {
 
 ### 1. Basic Histogram
 
+The `QwtPlotHistogram` constructor takes a title string, and `setStyle()` selects the drawing mode (`Outline` / `Columns` / `Lines`, defaulting to `Columns`). Data is fed as a list of `QwtIntervalSample`, each pairing a `QwtInterval` range with a value; `setPen()` and `setBrush()` then control the column border and fill. The example below builds a plot, fills four bins, and attaches the histogram:
+
 ```cpp
 #include <QwtPlot>
 #include <QwtPlotHistogram>
@@ -77,6 +79,8 @@ plot->replot();
 ```
 
 ### 2. Setting Data
+
+`setSamples()` is overloaded: it accepts either a `QVector<QwtIntervalSample>` of interval/value samples, or a `QwtSeriesData<QwtIntervalSample>*` for custom or dynamically generated data sources. The snippet below shows both forms:
 
 ```cpp
 // Using QwtIntervalSample array
@@ -136,6 +140,8 @@ histogram->setPen(QPen(Qt::red, 2));
 
 ### 4. Column Symbol Configuration
 
+In `Columns` style, `setSymbol()` replaces the plain pen/brush rectangle with a `QwtColumnSymbol`. The symbol's constructor takes a `Style` (here `Box`), `setFrameStyle()` picks the frame look (`NoFrame` / `Plain` / `Raised`), and the symbol's own `setPen()` / `setBrush()` control its border and fill. The example below creates a box symbol with a vertical gradient fill and assigns it to the histogram:
+
 ```cpp
 #include <QwtColumnSymbol>
 
@@ -156,6 +162,8 @@ histogram->setSymbol(symbol);
 ```
 
 ### 5. Baseline Settings
+
+`setBaseline()` defines the reference value from which each column is drawn; the default is 0.0. The snippet below resets it explicitly and shows how a negative baseline can be used to emphasize positive intervals:
 
 ```cpp
 // Set baseline position

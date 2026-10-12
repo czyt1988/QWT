@@ -13,6 +13,8 @@ This section provides detailed development standards and design pattern guidelin
 
 ## Development Workflow Overview
 
+The flowchart below outlines the standard development workflow, from understanding requirements to committing code, with the coding and commenting standards applied along the way:
+
 ```mermaid
 flowchart TD
     A[Understand Requirements] --> B[Write Code]

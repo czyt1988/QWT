@@ -17,6 +17,8 @@ PIMPL（Pointer to Implementation，指向实现的指针）是一种 C++ 设计
 
 ### 传统方式的缺陷
 
+不使用 PIMPL 时，所有私有成员都直接暴露在头文件中，传统写法如下：
+
 ```cpp
 // Traditional approach - all private members exposed in header
 class MyClass : public QObject
@@ -30,6 +32,8 @@ private:
 ```
 
 ### PIMPL 模式的优势
+
+改用 PIMPL 后，头文件只保留公共接口和一行 `QWT_DECLARE_PRIVATE` 声明，全部私有成员隐藏进 `MyClass::PrivateData`：
 
 ```cpp
 // PIMPL approach - only pointer exposed in header
@@ -186,6 +190,8 @@ QString MyClass::title() const
 
 ## 完整示例
 
+下面的类图展示了 `MyClass` 与 `PrivateData` 通过 `m_data` 和 `q_ptr` 互相引用的结构：
+
 ```mermaid
 classDiagram
     class MyClass {
@@ -208,6 +214,8 @@ classDiagram
 ```
 
 ### 头文件 MyClass.h
+
+完整的头文件只声明公共接口和 `QWT_DECLARE_PRIVATE(MyClass)` 宏，不暴露任何私有成员：
 
 ```cpp
 #ifndef MYCLASS_H
@@ -239,6 +247,8 @@ private:
 ```
 
 ### 源文件 MyClass.cpp
+
+源文件用 `QWT_DECLARE_PUBLIC` 定义 `MyClass::PrivateData`，通过 `QWT_PIMPL_CONSTRUCT` 初始化，并用 `QWT_D`/`QWT_DC` 访问私有数据：
 
 ```cpp
 #include "MyClass.h"

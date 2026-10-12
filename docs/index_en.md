@@ -81,6 +81,8 @@ Qwt uses `QwtAxis::Position` enum to identify axis positions:
 
 ### CMake Package (Recommended)
 
+The recommended way to integrate Qwt is the CMake package: call `find_package(qwt)` and link `qwt::plot` for 2D or `qwt::plot3d` for 3D, as shown below:
+
 ```cmake
 find_package(qwt REQUIRED)
 # 2D plotting
@@ -98,6 +100,8 @@ Qt6 additional: `OpenGLWidgets`
 3D features require: `OpenGL` + `OpenGLWidgets` (Qt6). GLU is only needed for gl2ps vector export.
 
 ## Copyright
+
+Qwt is published under the Qwt License, Version 1.0. The full copyright notice is reproduced below:
 
 ```
 Qwt Widget Library

@@ -4,6 +4,8 @@
 
 ## Overview
 
+The class diagram below shows how `QwtPyPlot` relates to the infrastructure it wraps and delegates to — `QwtFigure`, `QwtPlot`, `QwtPlotFactory`, and `QwtPlotStyling` — plus `QwtFormatString`, which parses matplotlib-style format strings:
+
 ```mermaid
 classDiagram
     class QwtPyPlot {
@@ -65,6 +67,8 @@ classDiagram
 
 ### Mode 1: QwtFigure Multi-Subplot Mode
 
+Constructing `QwtPyPlot` from a `QwtFigure*` enables multi-subplot mode: `subplot(rows, cols, index)` creates a cell in the figure grid and makes it the current axes. The example below builds a 2×1 layout with a line plot and a bar chart, then saves the whole figure at 300 DPI:
+
 ```cpp
 #include <QwtFigure>
 #include <QwtPyPlot>
@@ -89,6 +93,8 @@ fig->show();
 ```
 
 ### Mode 2: QwtPlot Single-Plot Mode
+
+Constructing from a `QwtPlot*` instead gives single-plot mode — every call operates directly on that plot, with no figure or subplot management. This is the lightest way to decorate an existing `QwtPlot` widget:
 
 ```cpp
 #include <QwtPlot>
@@ -154,6 +160,8 @@ Examples: "r-o"  → red solid line + circle marker
 
 #### plot() — Line Plot
 
+`plot()` returns a `QwtPlotCurve*` and offers three overloads: y-only data (x becomes 0, 1, 2, … automatically), a pair of x/y vectors, or a `QVector<QPointF>`. Each accepts an optional format string and legend label:
+
 ```cpp
 // y-only (x auto-generated as 0, 1, 2, ...)
 plt.plot({1, 4, 2, 5}, "r-o");
@@ -168,6 +176,8 @@ plt.plot(data, "g^:");
 
 #### scatter() — Scatter Plot
 
+`scatter()` draws marker-only points without connecting lines and returns a `QwtPlotCurve*`. Besides the coordinates it takes a marker size, a color, and an optional label, so several groups stay distinguishable in the legend:
+
 ```cpp
 // Parameters: x, y, marker size, color, label
 plt.scatter(x1, y1, 30, "r", "Group A");
@@ -175,6 +185,8 @@ plt.scatter(x2, y2, 50, "b", "Group B");
 ```
 
 #### bar() — Bar Chart
+
+`bar()` creates a `QwtPlotBarChart*`. The simple overload takes only values and uses the sample index as x position; the second overload accepts explicit x positions plus a bar width:
 
 ```cpp
 // y-only values (x = index)
@@ -186,12 +198,16 @@ plt.bar(x, values, 0.8, "b", "Sales");
 
 #### hist() — Histogram
 
+`hist()` bins raw samples automatically into a `QwtPlotHistogram*`. The bin count defaults to 10; color and legend label are optional:
+
 ```cpp
 // Automatic binning (default 10 bins)
 plt.hist(data, 20, "m", "Distribution");
 ```
 
 #### imshow() — Heatmap
+
+`imshow()` maps a 2D `QVector<QVector<double>>` matrix to colors through a `QwtPlotSpectrogram*`. The colormap defaults to `"viridis"`; leaving `vmin`/`vmax` at 0 derives the value range from the data itself:
 
 ```cpp
 // 2D matrix data with various colormaps
@@ -203,6 +219,8 @@ Supported colormaps: `"viridis"`, `"hot"`, `"cool"`, `"jet"`, `"gray"`
 
 #### contour() — Contour Lines
 
+`contour()` also returns a `QwtPlotSpectrogram*`, but draws isolines of the matrix instead of a colored surface. An empty `levels` list auto-generates 10 contour lines; otherwise the given levels are used and colored according to `cmap`:
+
 ```cpp
 // Auto-generate 10 contour levels
 plt.contour(data);
@@ -213,6 +231,8 @@ plt.contour(data, {0.2, 0.4, 0.6, 0.8}, "hot");
 
 #### fillBetween() — Filled Area
 
+`fillBetween()` shades the region between two curves `y1(x)` and `y2(x)` using a `QwtPlotIntervalCurve*`. The fill color is given by name, and `alpha` (default 0.3) controls its transparency:
+
 ```cpp
 // Parameters: x, y1, y2, color, alpha
 plt.fillBetween(x, yLower, yUpper, "blue", 0.3);
@@ -220,17 +240,23 @@ plt.fillBetween(x, yLower, yUpper, "blue", 0.3);
 
 #### errorbar() — Error Bars
 
+`errorbar()` turns each `(x, y, yerr)` triple into a `QwtIntervalSample` spanning `y - yerr` to `y + yerr` and draws it as a tube-style `QwtPlotIntervalCurve*`, styled with the usual format string:
+
 ```cpp
 plt.errorbar(x, y, yerr, "r-", "Measurement");
 ```
 
 #### quiver() — Vector Field
 
+`quiver()` creates a `QwtPlotVectorField*` that draws an arrow with components `(u, v)` at every position `(x, y)` — typically used for gradients or flow fields:
+
 ```cpp
 plt.quiver(x, y, u, v, "k");
 ```
 
 #### candlestick() — OHLC Chart
+
+`candlestick()` renders financial data as a `QwtPlotTradingCurve*`; each `QwtOHLCSample` bundles a time value with open, high, low, and close prices:
 
 ```cpp
 QVector<QwtOHLCSample> ohlcData = ...;
@@ -253,6 +279,8 @@ plt.candlestick(ohlcData, "Stock");
 
 ### Titles and Labels
 
+`setTitle()`, `setXLabel()`, and `setYLabel()` set the plot title and the bottom/left axis titles respectively — all applied to the current axes (`gca()`):
+
 ```cpp
 plt.setTitle("My Plot");
 plt.setXLabel("Time (s)");
@@ -260,6 +288,8 @@ plt.setYLabel("Amplitude");
 ```
 
 ### Axis Limits and Scale
+
+`setXLim()` / `setYLim()` pin the visible range of an axis, while `setXScale()` / `setYScale()` switch the axis between `"linear"` and `"log"` scaling:
 
 ```cpp
 // Set axis limits
@@ -276,6 +306,8 @@ plt.setXScale("linear");
 
 ### Ticks
 
+`setXTicks()` / `setYTicks()` replace the automatically generated major tick positions with a custom list, optionally supplying text labels for them; `invertXAxis()` / `invertYAxis()` flip the axis direction:
+
 ```cpp
 // Custom tick positions
 plt.setXTicks({0, 2.5, 5, 7.5, 10});
@@ -290,6 +322,8 @@ plt.invertYAxis();
 
 ### Subplot Layout
 
+`subplot(rows, cols, index)` splits the figure into a grid, activates the cell with the given 1-based, row-major index, and returns the underlying `QwtPlot*`. Switching to a grid with fewer columns (2×1 after 2×2 below) makes that subplot span the full row width:
+
 ```cpp
 QwtFigure* fig = new QwtFigure;
 QwtPyPlot plt(fig);
@@ -301,6 +335,8 @@ plt.subplot(2, 1, 2);  // Row 2, spans 2 columns
 ```
 
 ### Twin Axes (Dual Y/X)
+
+`twinx()` creates a parasite plot that shares the host's bottom x-axis but owns a separate y-axis on the right (`twiny()` does the same for a top x-axis). The new plot automatically becomes the current axes, and `sca()` switches between them explicitly:
 
 ```cpp
 plt.subplot(1, 1, 1);
@@ -316,11 +352,15 @@ plt.setYLabel("%");
 
 ### Tight Layout
 
+`tightLayout()` recomputes the subplot geometry so titles and axis labels do not overlap, aligning the y-axes of all subplots in the figure:
+
 ```cpp
 plt.tightLayout();  // Align Y-axes across all subplots
 ```
 
 ## Appearance
+
+Two setters control the overall look: `setFaceColor()` paints the figure background, while `setAxesColor()` paints the canvas behind the plots. Both accept color names or hex strings:
 
 ```cpp
 // Set figure background color
@@ -334,6 +374,8 @@ plt.setAxesColor("white");
 
 ### Save to File
 
+`savefig()` renders the figure into an image file (format inferred from the filename) and returns `true` on success. The optional `dpi` controls the export resolution; leaving it out falls back to the screen DPI:
+
 ```cpp
 plt.savefig("output.png");        // Default DPI
 plt.savefig("output.png", 300);   // 300 DPI
@@ -341,11 +383,15 @@ plt.savefig("output.png", 300);   // 300 DPI
 
 ### Show Window
 
+`show()` makes the underlying widget visible — the `QwtFigure` in multi-subplot mode, or the current `QwtPlot` in single-plot mode:
+
 ```cpp
 plt.show();
 ```
 
 ### Interaction Controls
+
+`enablePan()` attaches a `QwtPlotPanner` for drag-panning to the current axes' canvas, and `enableZoom()` attaches a `QwtPlotCanvasZoomer` for rubber-band zooming. Both default to `true` and can be turned off again by passing `false`:
 
 ```cpp
 plt.enablePan(true);   // Enable drag panning

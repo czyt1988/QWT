@@ -27,12 +27,16 @@
 
 ### 智能指针
 
+使用 `qwt_make_unique` 以 C++11 兼容的方式创建 `std::unique_ptr`，示例如下：
+
 ```cpp
 // 创建 unique_ptr（C++11兼容）
 auto ptr = qwt_make_unique<MyClass>(args...);
 ```
 
 ### 容器迭代
+
+迭代 Qt 容器时用 `qwt_as_const` 包裹，避免隐式共享引发的深拷贝：
 
 ```cpp
 // Qt 容器安全迭代，防止深拷贝
@@ -42,6 +46,8 @@ for (const auto& item : qwt_as_const(container)) {
 ```
 
 ### 编译期常量
+
+编译期常量使用 `constexpr` 声明，示例如下：
 
 ```cpp
 // 使用 constexpr 定义编译期常量
@@ -69,6 +75,8 @@ virtual void draw(QPainter* painter) override;
 
 ### 2. 使用 nullptr 代替 NULL
 
+下例对照了错误的 `NULL` 用法与规范要求的 `nullptr` 正确写法：
+
 ```cpp
 // ❌ 错误
 QwtPlot* plot = NULL;
@@ -79,6 +87,8 @@ QwtPlot* plot = nullptr;
 
 ### 3. 使用 static_cast 代替 C 风格强制转换
 
+下例对照了错误的 C 风格强制转换与正确的 `static_cast<>` 写法：
+
 ```cpp
 // ❌ 错误：C 风格强制转换
 int value = (int)doubleValue;
@@ -88,6 +98,8 @@ int value = static_cast<int>(doubleValue);
 ```
 
 ### 4. 使用 using 代替 typedef
+
+下例对照了错误的旧式 `typedef` 与正确的 `using` 别名写法：
 
 ```cpp
 // ❌ 错误：旧式 typedef

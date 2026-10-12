@@ -283,6 +283,8 @@ $$
 
 ### 5.1 渲染管线中的位置
 
+下图给出采样点在渲染管线中的完整路径：先由 `qwtFindVisibleRange` 二分裁剪可见区间，再按 `QwtPointMapper` 的标志优先级选择归约分支，最终生成的 `QPolygonF` 折线交给渲染平滑、裁剪与 `QPainter`。
+
 ```mermaid
 flowchart TB
     A["QwtSeriesData&lt;QPointF&gt;<br/>N 个数据点"] --> B["qwtFindVisibleRange<br/>二分裁剪可见区间<br/>(单调 x，O(log N))"]

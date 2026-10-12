@@ -50,6 +50,8 @@ English pages live at the `docs/` root, Chinese pages under `docs/zh/` with the 
 
 ### 1. Heading Hierarchy
 
+The skeleton below shows the required heading order; add deeper levels only when a section genuinely needs subdivision:
+
 ```markdown
 # Class Name / Feature Name
 ## Key Features
@@ -79,6 +81,7 @@ Each feature document must include the following sections:
 - **Every code block must be preceded and followed by text**: Explain the code's purpose, key steps, and output
 - **Avoid pure code dumps**: Code should not dominate the document; text descriptions should account for at least 60%
 - **Progressive guidance**: Organize content in a logical order of "what → why → how"
+- **No bare code under a heading**: a heading must never be followed directly by a code fence; put at least one prose paragraph between the heading and the first code block, naming the class/interface the section covers and what the code demonstrates (diagrams and pseudocode get a one-line lead-in as well)
 
 ### 2. Feature Introduction Format
 
@@ -282,6 +285,8 @@ The box chart example is located in: `examples/2D/boxchart`. Screenshot below:
 5. **Review and revise**: Check code runnability, text fluency, and format consistency
 
 ## Document Template
+
+The template assembles every rule on this page into one copy-pasteable page skeleton; square brackets mark placeholders:
 
 ```markdown
 # Feature Name Guide

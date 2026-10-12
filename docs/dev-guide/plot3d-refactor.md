@@ -87,6 +87,8 @@ Color functors likewise stored a `Qwt3D::Plot*`/`SurfacePlot*` and called back i
 
 ### 2.4 Original file structure
 
+The listing below shows the pre-refactor `src/plot3d/` layout: a monolithic plot widget, unused stubs, plotting logic split across files, and the classes carrying reverse pointers:
+
 ```
 src/plot3d/
   qwt3d_plot.{h,cpp}            Plot3D widget (monolithic)
@@ -221,6 +223,8 @@ Classes were organized into tiers; dependencies may only point downward (or same
 
 ### 5.1 Class responsibilities
 
+The flowchart below maps the new responsibilities: `Qwt3DPlot` as the pure rendering window, `Qwt3DPlotItem` as the abstract base, and `Qwt3DSurface` owning data, VBO/VAO resources, color functor and enrichments:
+
 ```mermaid
 flowchart TD
     subgraph Widget["Qwt3DPlot (Tier 5 — pure window)"]
@@ -255,6 +259,8 @@ flowchart TD
 `Qwt3DTheme::apply()` now splits responsibilities: plot-level properties (background, coordinate colors, title, lighting) apply to `Qwt3DPlot`, while item-level properties (meshColor, dataColorPreset, plotStyle, shading, smoothMesh) apply to attached `Qwt3DSurface` items via `dynamic_cast`.
 
 ### 5.3 New file structure
+
+The listing below shows the post-refactor `src/plot3d/` layout, with the new item classes, render context and shader directory:
 
 ```
 src/plot3d/

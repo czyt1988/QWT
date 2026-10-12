@@ -45,6 +45,8 @@ struct QwtIntervalSample {
 
 ### 1. 基本直方图
 
+`QwtPlotHistogram` 的构造函数接受标题字符串，`setStyle()` 选择绘制模式（`Outline` 轮廓 / `Columns` 柱状 / `Lines` 线条，默认 `Columns`）。数据以 `QwtIntervalSample` 序列传入，每个样本由 `QwtInterval` 区间和对应值组成，再由 `setPen()` 与 `setBrush()` 控制柱体边框和填充。下面的例子创建绘图与直方图、填入四个区间样本并挂载显示：
+
 ```cpp
 #include <QwtPlot>
 #include <QwtPlotHistogram>
@@ -77,6 +79,8 @@ plot->replot();
 ```
 
 ### 2. 设置数据
+
+`setSamples()` 提供两种重载：一种直接接收 `QVector<QwtIntervalSample>` 区间样本数组，另一种接收 `QwtSeriesData<QwtIntervalSample>*`，便于接入自定义或动态生成的数据源。下面的代码演示了这两种写法：
 
 ```cpp
 // 使用QwtIntervalSample数组
@@ -136,6 +140,8 @@ histogram->setPen(QPen(Qt::red, 2));
 
 ### 4. 柱体符号配置
 
+`Columns` 样式下可用 `setSymbol()` 为柱体指定 `QwtColumnSymbol`，替代默认的画笔/画刷矩形绘制。符号构造函数的 `Style` 参数选择形状（此例为 `Box` 实心箱体），`setFrameStyle()` 选择边框样式（`NoFrame` / `Plain` / `Raised`），符号自身的 `setPen()` 与 `setBrush()` 分别控制边框线与填充。下面的例子创建一个带垂直渐变填充的箱体符号并挂到直方图上：
+
 ```cpp
 #include <QwtColumnSymbol>
 
@@ -156,6 +162,8 @@ histogram->setSymbol(symbol);
 ```
 
 ### 5. 基线设置
+
+`setBaseline()` 设置柱体的绘制基准值，默认为 0.0。下面的代码演示显式重设基线，以及用负值基线突出正值区间：
 
 ```cpp
 // 设置基线位置

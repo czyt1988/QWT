@@ -26,6 +26,8 @@ The widget demo is located at: `examples/2D/controls`. Screenshots:
 
 ### 1. QwtDial - Dial
 
+`QwtDial` is a round instrument face with a needle indicating the current value — the classic gauge for angles, directions or cockpit-style displays. Its look is dominated by the needle object installed with `setNeedle()` (for instance a `QwtDialSimpleNeedle` in `Arrow` or `Ray` style), while the value itself is set through the inherited `setValue()` and announced by the `valueChanged()` signal. The example below shows a typical setup:
+
 ```cpp
 #include <QwtDial>
 
@@ -53,6 +55,8 @@ connect(dial, SIGNAL(valueChanged(double)), this, SLOT(onValueChanged(double)));
 
 ### 2. QwtKnob - Knob Control
 
+`QwtKnob` emulates a rotatable physical knob that you turn with the mouse — a familiar choice for tweaking parameters on audio or instrument panels. `setKnobStyle()` picks the surface shading (`Flat` / `Raised` / `Sunken` / `Styled`), `setKnobWidth()` sizes the knob, the current value is indicated by a marker styled with `setMarkerStyle()`, and `setTracking(true)` emits values continuously while dragging, as shown below:
+
 ```cpp
 #include <QwtKnob>
 
@@ -79,6 +83,8 @@ knob->setTracking(true);  // Update value in real-time while dragging
 ```
 
 ### 3. QwtSlider - Slider Control
+
+`QwtSlider` is Qwt's take on the familiar linear slider, ideal for adjusting a value within a bounded range. `setOrientation()` chooses between `Qt::Horizontal` and `Qt::Vertical`, `setScalePosition()` decides where the scale sits relative to the groove (`LeadingScale`, `TrailingScale` or `NoScale`), and `setHandleSize()` adjusts the grip, as in the example below:
 
 ```cpp
 #include <QwtSlider>
@@ -108,6 +114,8 @@ slider->setPageStep(10.0);
 ```
 
 ### 4. QwtThermo - Thermometer
+
+`QwtThermo` displays a value as a liquid column inside a pipe — the natural widget for temperatures, fill levels or progress. `setOrientation()` lays it out vertically or horizontally, `setFillBrush()` colors the column, `setPipeWidth()` sets the pipe thickness, and `setAlarmLevel()` together with `setAlarmBrush()` switches to a warning color once the value crosses a threshold:
 
 ```cpp
 #include <QwtThermo>
@@ -139,6 +147,8 @@ thermo->setAlarmBrush(QBrush(Qt::darkRed));
 
 ### 5. QwtWheel - Wheel Control
 
+`QwtWheel` emulates a mechanical thumb wheel for smooth, continuous value adjustment — handy wherever a slider would take too much panel space. `setRange()` defines the working interval, `setWheelWidth()` sizes the wheel, `setSingleStep()` sets the increment per notch, and `setTracking(true)` reports values while the user is still dragging, as the snippet below demonstrates:
+
 ```cpp
 #include <QwtWheel>
 
@@ -169,6 +179,8 @@ wheel->setTracking(true);
 
 ### 6. QwtCounter - Numeric Counter
 
+`QwtCounter` pairs an editable numeric display with increment/decrement buttons for precise numeric entry. `setNumButtons()` decides how many step-button pairs flank the display, `setSingleStep()` sets the amount one click adds, and `setWrapping(true)` lets the value wrap around at the range boundaries:
+
 ```cpp
 #include <QwtCounter>
 
@@ -192,6 +204,8 @@ counter->setWrap(true);  // Wrap around at boundaries
 ```
 
 ### 7. QwtCompass - Compass
+
+`QwtCompass` is a direction indicator derived from `QwtDial` that draws a compass rose instead of a plain scale. `setRose()` installs the rose drawing (for example `QwtSimpleCompassRose`), `setLabelMap()` replaces numeric tick labels with cardinal letters such as N/E/S/W, and `setNeedle()` accepts a wind-arrow needle like `QwtCompassWindArrow`, as shown below:
 
 ```cpp
 #include <QwtCompass>

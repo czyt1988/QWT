@@ -65,6 +65,8 @@ figure->addAxes(bottomLeftPlot, 2, 2, 1, 0);
 
 ### Setting Figure Appearance
 
+The overall look of a figure is controlled by four `QwtFigure` methods: `setFaceColor()` fills the background with a solid color, `setFaceBrush()` accepts any `QBrush` — including a `QLinearGradient` for a gradient background — and `setEdgeColor()` together with `setEdgeLineWidth()` draws the border:
+
 ```cpp
 // Set background color
 figure->setFaceColor(Qt::lightGray);
@@ -151,6 +153,8 @@ The result of the above example is shown below:
 ![qwt_figure](../../assets/screenshots/qwt_figure.png)
 
 ### Figure Export
+
+`QwtFigure` renders itself to an image through `saveFig()`: one overload writes an image file directly at the requested DPI (300 for print-quality output), while the other returns a `QPixmap` you can post-process or embed elsewhere:
 
 ```cpp
 // Save as image file

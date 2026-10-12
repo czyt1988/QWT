@@ -36,6 +36,8 @@ QwtPlotShapeItem 的形状使用绘图坐标定位，而非像素坐标：
 
 ### 1. 创建矩形形状
 
+`QwtPlotShapeItem` 构造时传入图例标题，几何形状以 `QPainterPath` 形式交给 `setShape()`——纯矩形也可直接使用 `setRect()` 便捷接口。路径坐标按绘图坐标系解释，`setPen()` 与 `setBrush()` 分别控制边框与填充。下面的例子在绘图上添加一个半透明矩形区域：
+
 ```cpp
 #include <QwtPlot>
 #include <QwtPlotShapeItem>
@@ -61,6 +63,8 @@ plot->replot();
 
 ### 2. 创建圆形形状
 
+圆形与椭圆通过 `QPainterPath::addEllipse()` 构造，指定中心点和横纵半径，再用 `setShape()` 赋给形状项。下面的例子在绘图坐标 (50, 50) 处绘制一个半径 20 的半透明红色圆：
+
 ```cpp
 QwtPlotShapeItem* circle = new QwtPlotShapeItem("圆形");
 
@@ -75,6 +79,8 @@ circle->attach(plot);
 ```
 
 ### 3. 创建多边形形状
+
+任意多边形由 `moveTo()` / `lineTo()` 序列加 `closeSubpath()` 闭合描述；也可直接用接收 `QPolygonF` 的 `setPolygon()` 便捷接口。下面的例子构造一个闭合三角形，并配置绿色边框与灰色填充：
 
 ```cpp
 QwtPlotShapeItem* polygon = new QwtPlotShapeItem("多边形");
@@ -93,6 +99,8 @@ polygon->attach(plot);
 ```
 
 ### 4. 样式配置
+
+外观可通过 `setRenderHint()`（如继承自 `QwtPlotItem` 的 `RenderAntialiased` 抗锯齿）、`setPen()`（`Qt::DashLine` 虚线边框）和 `setBrush()` 调整——画刷同样支持 `Qt::FDiagPattern` 等 Qt 图案实现斜线填充。下面的代码组合了这些样式选项：
 
 ```cpp
 // 设置填充模式

@@ -26,6 +26,8 @@ QwtPlotGrid 支持四种网格线类型：
 
 ### 网格结构示意
 
+下图给出四类网格线的排布方式——主网格线位于带数值标签的刻度处，次网格线穿插其间：
+
 ```text
     │    │    │    │    │    │  ← Y轴主网格（实线）
     │ ·  │ ·  │ ·  │ ·  │ ·  │  ← Y轴次网格（虚线）
@@ -36,6 +38,8 @@ QwtPlotGrid 支持四种网格线类型：
 ```
 
 ### 类关系
+
+下图给出类关系——`QwtPlotGrid` 继承自 `QwtPlotItem`，并增加网格特有的启用开关、画笔设置与刻度划分接口：
 
 ```mermaid
 classDiagram
@@ -97,6 +101,8 @@ plot->replot();
 
 #### 设置主网格样式
 
+主网格线由 `setMajorPen()` 设置，它有两种重载：既可直接传颜色、线宽和 `Qt::PenStyle`（线宽默认 `0.0`，即一像素细线），也可传入现成的 `QPen`；当前配置由 `majorPen()` 返回。下面的代码演示了两种写法：
+
 ```cpp
 // 使用颜色和宽度快速设置
 grid->setMajorPen(Qt::gray, 0.0, Qt::DotLine);
@@ -124,12 +130,16 @@ grid->setMinorPen(minorPen);
 
 #### 统一设置所有网格线
 
+若主、次网格线要用同一外观，一次 `setPen()` 调用即可同时配置两者，同样支持颜色/线宽/线型或 `QPen` 两种传参方式。下面的一行代码为所有网格线统一应用灰色点线样式：
+
 ```cpp
 // 同时设置主网格和次网格样式
 grid->setPen(Qt::gray, 0.5, Qt::DotLine);
 ```
 
 ### 3. 启用/禁用特定网格线
+
+四类网格线由 `enableX()` / `enableY()`（主网格，默认开启）与 `enableXMin()` / `enableYMin()`（次网格，默认关闭）独立开关，当前状态可通过 `xEnabled()`、`yEnabled()`、`xMinEnabled()`、`yMinEnabled()` 查询。下面的代码只保留水平网格线并打开次级网格：
 
 ```cpp
 // 仅启用水平网格线

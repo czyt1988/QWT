@@ -31,6 +31,7 @@ Qwt provides two bar chart classes:
 | `Stacked` | Stacked mode: Multiple data sets stacked to show totals |
 
 ### Class Inheritance Structure
+The class relationships of `QwtPlotBarChart` are as follows: it inherits `QwtPlotAbstractBarChart` for the capabilities shared by all bar charts (baseline, orientation, layout policy) and mixes in `QwtSeriesStore<QwtPoint3D>` for data storage:
 
 ```mermaid
 classDiagram
@@ -119,6 +120,7 @@ barChart->setSamples(seriesData);
 ```
 
 ### 3. Bar Style Configuration
+The look of a bar is customized with `QwtColumnSymbol`: the constructor's `Style` argument picks the shape (the built-in `Box`), `setFrameStyle()` picks the frame (`NoFrame` / `Plain` / `Raised`), and `setPen()` / `setBrush()` control the border line and the fill (which may be translucent). Attach the finished symbol to the chart with `setSymbol()`:
 
 ```cpp
 #include <QwtColumnSymbol>
@@ -142,6 +144,7 @@ barChart->setBrush(QBrush(Qt::blue));
 ```
 
 ### 4. Display Orientation
+`setOrientation()` switches between the two orientations: `Qt::Vertical` (default, X axis = categories, Y axis = values) and `Qt::Horizontal` (Y axis = categories, X axis = values — handy when category labels are long):
 
 ```cpp
 // Vertical bar chart (default) - X-axis for categories, Y-axis for values
@@ -152,14 +155,15 @@ barChart->setOrientation(Qt::Horizontal);
 ```
 
 ### 5. Bar Width Configuration
+Bar width is governed by the layout policy (`setLayoutPolicy()`) combined with the layout hint (`setLayoutHint()`): `AutoAdjustSamples` divides the space by sample count with the hint as a minimum width, `ScaleSamplesToAxes` reads the hint as an interval in axis coordinates, `ScaleSampleToCanvas` as a fraction of the canvas width/height, and `FixedSampleSize` as a fixed pixel width:
 
 ```cpp
 // Set layout policy
 barChart->setLayoutPolicy(QwtPlotAbstractBarChart::AutoAdjustSamples);  // Auto-adjust
-// Other options:
-// - FixedBarWidth: Fixed width
-// - FixedSampleWidth: Fixed sample width (including spacing)
-// - AdjustSampleWidth: Adjust based on available space
+// Other policies:
+// - ScaleSamplesToAxes: hint is an interval in axis coordinates
+// - ScaleSampleToCanvas: hint x canvas width/height
+// - FixedSampleSize: hint is a fixed pixel width
 
 // Set layout hint value
 barChart->setLayoutHint(0.8);  // Bar width ratio (relative to sample space)
@@ -181,6 +185,7 @@ barChart->setBaseline(-5.0);
 ```
 
 ### 7. Multi-Group Bar Chart (QwtPlotMultiBarChart)
+To compare several data sets side by side per category, use `QwtPlotMultiBarChart`: every sample carries a group of values, `setBarTitles()` names each set (used by the legend), and the data arrives through the `setSamples()` overloads:
 
 ```cpp
 #include <QwtPlotMultiBarChart>
@@ -210,6 +215,7 @@ plot->replot();
 ```
 
 ### 8. Custom Per-Group Bar Styles
+`setSymbols()` takes one `QwtColumnSymbol` per set — the i-th symbol styles the i-th bar set, giving each set its own fill and border; without them the sets take their colors from the color cycle:
 
 ```cpp
 // Create different symbols for each group
@@ -249,6 +255,7 @@ multiBar->setSymbols(symbols);
 | `setChartMode()` | Set grouped/stacked mode |
 
 ## Legend Modes
+`setLegendMode()` controls how the bar chart appears in the legend: `LegendChartTitle` (default) contributes a single entry for the whole chart, while `LegendBarTitles` gives every bar (set) its own entry — typically combined with multi-bar charts:
 
 ```cpp
 // Single legend entry (display chart title)

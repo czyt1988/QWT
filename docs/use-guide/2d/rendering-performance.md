@@ -71,6 +71,8 @@ Note that `FilterPoints` is *slower* than doing nothing: it only drops exactly-c
 
 ### Hands-on: controlling the filter attributes
 
+The snippet below controls downsampling explicitly via `QwtPlotCurve::setPaintAttribute()`: `ClipPolygons` and `FilterPointsLTTB` are already on by default, while pure-noise signals can switch to the pixel-column filter `FilterPointsPixel`.
+
 ```cpp
 #include <qwt_plot_curve.h>
 
@@ -115,6 +117,8 @@ When several filter attributes are on at once, the internals resolve them by pri
 Render smoothing fixes exactly that: a low-pass filter applied to the downsampled polyline inside the paint pipeline. **It changes pixels, not data** — the samples in `data()` are untouched, so analysis and export still see the original values.
 
 ### Hands-on: enabling smoothing
+
+The snippet below enables render smoothing on a 100,000-point noisy spectrum: `setSmoothAlgorithm()` selects the Gaussian low-pass, `setSmoothWindow()` sets the window size, and `setSmoothPreserveThreshold()` controls feature preservation.
 
 ```cpp
 QwtPlotCurve* curve = new QwtPlotCurve("spectrum");

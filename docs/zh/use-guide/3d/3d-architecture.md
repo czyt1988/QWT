@@ -257,6 +257,8 @@ flowchart TB
 
 ### 4.1 一张图看全貌
 
+下面的类图把重构后的整体架构摊开在一张画布上：`Qwt3DPlot` 管理按 z 排序的 `Qwt3DPlotItem` 列表（具体 item 为 `Qwt3DSurface`、`Qwt3DBar`、`Qwt3DLine`），`Qwt3DFunction` 负责给曲面喂数据，`Qwt3DColor` functor 决定颜色，`Qwt3DCoordinateSystem` 与 `Qwt3DTheme` 分别负责坐标盒与外观：
+
 ```mermaid
 classDiagram
     class Qwt3DPlot {
@@ -373,6 +375,8 @@ sequenceDiagram
 - **图例/标题使用固定矩阵**。这两样东西锚在屏幕上，如果跟着场景一起转就错了；窗口在最后一个绘制阶段把 modelView 换成一个不随用户交互变化的基准矩阵，保证 UI 元素稳定。
 
 ### 4.3 数据怎么流到GPU
+
+下面的流程图跟踪一份数据去往 GPU 的完整旅程：从用户定义的 `Qwt3DFunction`（或直接喂入的数组）出发，经过 `loadFromData()`、`itemChanged()` 通知与 hull 重算，直到下一帧 `draw()` 里延迟执行的 `buildVBO()` 上传和最终的 `glDrawElements` 提交：
 
 ```mermaid
 flowchart TD

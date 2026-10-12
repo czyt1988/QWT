@@ -15,6 +15,8 @@
 
 ### 区间曲线组成
 
+下图给出区间曲线的组成结构——中值曲线及其上下边界：
+
 ```text
      上限
        ───────
@@ -49,6 +51,8 @@ struct QwtIntervalSample {
 ## 使用方法
 
 ### 1. 基本区间曲线
+
+`QwtPlotIntervalCurve` 接收 `QwtIntervalSample` 数据——每个样本由中值和 `QwtInterval` 区间组成——其 `CurveStyle`（`NoCurve` / `Tube`，默认 `Tube`）决定区间的渲染方式。`Tube` 样式下 `setPen()` 绘制边界曲线，`setBrush()` 填充两者之间的区域。下面的例子创建绘图并把四个样本绘制成半透明带状区域：
 
 ```cpp
 #include <QwtPlot>
@@ -85,6 +89,8 @@ plot->replot();
 
 ### 2. 误差棒样式
 
+误差棒绘制通过 `setSymbol()` 挂载的 `QwtIntervalSymbol` 配置：符号的 `Style` 选择端帽形状（`Bar` 绘制带端帽的线段），符号自身的 `setPen()` 决定线条样式。下面的代码为曲线挂上 `Bar` 符号：
+
 ```cpp
 curve->setStyle(QwtPlotIntervalCurve::ErrorBars);
 
@@ -102,6 +108,8 @@ curve->setWidth(5);  // 误差棒横线宽度（像素）
 
 ### 3. Tube样式配置
 
+`Tube` 样式下，上下边界用项目的 `setPen()` 描边，边界之间的区域由 `setBrush()` 填充（默认 `Qt::NoBrush` 即不填充）。下面的代码为管状区域配置红色描边与半透明粉色填充：
+
 ```cpp
 curve->setStyle(QwtPlotIntervalCurve::Tube);
 
@@ -117,6 +125,8 @@ curve->setOutlineMode(QwtPlotIntervalCurve::OutlineBoth);  // 绘制上下边界
 ```
 
 ### 4. 符号配置
+
+`QwtIntervalSymbol` 构造时接受 `Style`——`Bar` 为带端帽的线段、`Box` 为矩形——可用 `setPen()`、`setBrush()` 和 `setWidth()`（线宽/端帽宽度，单位像素）配置，再通过曲线的 `setSymbol()` 挂载。下面的例子创建一个宽 8 像素的蓝色 `Bar` 符号：
 
 ```cpp
 #include <QwtIntervalSymbol>

@@ -26,6 +26,8 @@ QwtPlotGrid supports four types of grid lines:
 
 ### Grid Structure Diagram
 
+The figure below shows how the four line families interleave — major grid lines sit at the labeled axis ticks, with optional minor grid lines in between:
+
 ```text
     │    │    │    │    │    │  ← Y-axis major grid (solid lines)
     │ ·  │ ·  │ ·  │ ·  │ ·  │  ← Y-axis minor grid (dashed lines)
@@ -36,6 +38,8 @@ QwtPlotGrid supports four types of grid lines:
 ```
 
 ### Class Relationships
+
+The diagram below gives the class relationship — `QwtPlotGrid` inherits from `QwtPlotItem` and adds the grid-specific enable switches, pen setters, and scale-division interfaces:
 
 ```mermaid
 classDiagram
@@ -97,6 +101,8 @@ plot->replot();
 
 #### Setting Major Grid Style
 
+Major grid lines are styled with `setMajorPen()`, overloaded to take either a color plus width and `Qt::PenStyle` (width defaults to `0.0`, a cosmetic one-pixel line) or a ready-made `QPen`; the current setting is returned by `majorPen()`. The snippet below shows both forms:
+
 ```cpp
 // Quick setup using color and width
 grid->setMajorPen(Qt::gray, 0.0, Qt::DotLine);
@@ -124,12 +130,16 @@ grid->setMinorPen(minorPen);
 
 #### Setting All Grid Lines Uniformly
 
+When major and minor lines should share one appearance, a single `setPen()` call configures both at once, again accepting either color/width/style arguments or a `QPen`. The one-liner below applies a gray dotted style to every grid line:
+
 ```cpp
 // Set both major and minor grid styles at once
 grid->setPen(Qt::gray, 0.5, Qt::DotLine);
 ```
 
 ### 3. Enabling/Disabling Specific Grid Lines
+
+The four line families are toggled independently with `enableX()` / `enableY()` (major, on by default) and `enableXMin()` / `enableYMin()` (minor, off by default), and their current state is queried via `xEnabled()`, `yEnabled()`, `xMinEnabled()`, and `yMinEnabled()`. The snippet below keeps only the horizontal lines and turns on the minor grid:
 
 ```cpp
 // Enable horizontal grid lines only

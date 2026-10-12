@@ -15,6 +15,8 @@
 
 ### 1. 导出到图片文件
 
+所有文件导出都经由 `QwtPlotRenderer::renderDocument()` 完成：传入 plot、目标文件名（由扩展名决定格式）、输出尺寸以及以 DPI 为单位的分辨率（默认 85）。下面的例子把同一个 plot 分别写成 PNG、JPG 和 BMP：
+
 ```cpp
 #include <QwtPlotRenderer>
 
@@ -34,6 +36,8 @@ renderer.renderDocument(plot, "plot.bmp", QSize(800, 600));
 
 ### 2. 导出到PDF
 
+PDF 导出使用同一个 `renderDocument()` 入口——把文件扩展名换成 `.pdf` 即可。输出是矢量文档，任意缩放都保持清晰，适合打印与文档嵌入：
+
 ```cpp
 // 导出到PDF
 renderer.renderDocument(plot, "plot.pdf", QSizeF(200, 150), 300);  // 200x150 mm, 300 DPI
@@ -42,6 +46,8 @@ renderer.renderDocument(plot, "plot.pdf", QSizeF(200, 150), 300);  // 200x150 mm
 ```
 
 ### 3. 导出到SVG
+
+文件名以 `.svg` 结尾时，`renderDocument()` 生成可缩放的矢量图形（需要 Qwt 构建时启用 SVG 支持，即 `QWT_CONFIG_QWTSVG`）。SVG 输出保持可编辑，也能直接嵌入网页：
 
 ```cpp
 // 导出到SVG矢量格式
@@ -55,6 +61,8 @@ renderer.renderDocument(plot, "plot.svg", QSizeF(200, 150));
 
 ### 4. 导出到QImage/QPixmap
 
+除了写文件，渲染器还能画进内存中的绘图设备：`renderTo(QwtPlot*, QPaintDevice&)` 重载接受按所需尺寸与 DPI 准备好的 `QImage` 或 `QPixmap`，便于在应用内显示或做后续图像处理：
+
 ```cpp
 // 导出为QImage
 QSize size(800, 600);
@@ -67,6 +75,8 @@ QPixmap pixmap = renderer.renderToPixmap(plot, size, 300);
 ```
 
 ### 5. 导出选项
+
+`DiscardFlag` 枚举用于在输出中剔除指定组件：`DiscardBackground`、`DiscardTitle`、`DiscardLegend`、`DiscardCanvasBackground`、`DiscardFooter` 与 `DiscardCanvasFrame`。单个标志用 `setDiscardFlag()` 切换，也可以用 `setDiscardFlags()` 一次性赋值整组：
 
 ```cpp
 // 设置导出布局选项
@@ -84,6 +94,8 @@ renderer.resetDiscardFlags();
 
 ### 6. 打印功能
 
+打印时把配置好的 `QPrinter` 交给渲染器（`renderTo(QwtPlot*, QPrinter&)`），由它在页面上排布 plot；打印目标由 printer 自身决定——可以是物理打印机，也可以如下例输出为 PDF 文件：
+
 ```cpp
 #include <QPrinter>
 
@@ -98,6 +110,8 @@ plot->print(printer);
 ```
 
 ### 7. 使用毫米单位设置尺寸
+
+`renderDocument()` 的尺寸参数是 `QSizeF`，按毫米解释，因此导出文档具有确定的物理尺寸；`resolution` 参数（默认 85）设定栅格化内容所用的每英寸点数：
 
 ```cpp
 // 使用毫米单位指定尺寸

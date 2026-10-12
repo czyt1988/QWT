@@ -415,6 +415,8 @@ nanperf 的 `BenchmarkRunner::analyze()` 方法将性能差异分解为两个因
 
 ### 结果总结
 
+下面的流程图把两轮基准测试浓缩成同一个结论：1% NaN 比例下 LTTB 路径仍优于无 NaN 基准（replot 耗时 0.79x），99% 比例下所有模式都大幅加速（0.10–0.13x），SIMD 回退代价在两种情况下都可以忽略：
+
 ```mermaid
 flowchart LR
     subgraph 低NaN["1% NaN 比例"]
@@ -469,6 +471,8 @@ flowchart LR
 
 ### 数据准备
 
+缺失的样本用 quiet NaN 标记——直接用 Qt 的 `qQNaN()` 工具函数生成——像普通数值一样追加进数据向量即可；`boundingRect()` 与渲染器都会自动跳过它们，坐标轴范围无需额外处理就能保持正确：
+
 ```cpp
 // 使用 qQNaN() 生成 NaN 值
 const double nan = qQNaN();
@@ -486,6 +490,8 @@ curve->setSamples(x, y);
 
 ### 选择绘制风格
 
+处理含 NaN 的数据时优先选 `QwtPlotCurve::Lines` 风格：它具备完整的 NaN 处理，且默认启用的 `FilterPointsLTTB` 渲染属性同时提供最佳性能。`Sticks` 与 `Steps` 风格不做 NaN 检查，这类数据需要在预处理阶段先清除 NaN：
+
 ```cpp
 // 推荐：Lines 风格 — 完整的 NaN 处理
 curve->setStyle(QwtPlotCurve::Lines);
@@ -496,6 +502,8 @@ curve->setStyle(QwtPlotCurve::Lines);
 ```
 
 ### Spectrogram 中的数据缺口
+
+在频谱图中，NaN 单元默认被渲染成透明缺口——对 `QwtPlotSpectrogram` 来说这通常正是想要的效果。只有当栅格数据确实没有缺口时，才应通过 `setAttribute()` 设置 `QwtRasterData::WithoutGaps` 属性，跳过逐单元的 NaN 检查：
 
 ```cpp
 // 如果数据确实包含缺口（NaN），保持默认设置即可

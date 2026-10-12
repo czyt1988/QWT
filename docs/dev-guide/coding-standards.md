@@ -27,12 +27,16 @@ The project provides a set of compatibility macros to ensure code compiles in bo
 
 ### Smart Pointers
 
+Use `qwt_make_unique` to create a `std::unique_ptr` in a C++11-compatible way, as shown below:
+
 ```cpp
 // Create unique_ptr (C++11 compatible)
 auto ptr = qwt_make_unique<MyClass>(args...);
 ```
 
 ### Container Iteration
+
+Wrap Qt containers with `qwt_as_const` when iterating to avoid implicit-sharing deep copies:
 
 ```cpp
 // Safe Qt container iteration to prevent deep copies
@@ -42,6 +46,8 @@ for (const auto& item : qwt_as_const(container)) {
 ```
 
 ### Compile-Time Constants
+
+Declare compile-time constants with `constexpr`, as shown below:
 
 ```cpp
 // Use constexpr for compile-time constants
@@ -69,6 +75,8 @@ virtual void draw(QPainter* painter) override;
 
 ### 2. Use nullptr Instead of NULL
 
+The example below contrasts the wrong `NULL` usage with the correct `nullptr` required by the standard:
+
 ```cpp
 // ❌ Wrong
 QwtPlot* plot = NULL;
@@ -79,6 +87,8 @@ QwtPlot* plot = nullptr;
 
 ### 3. Use static_cast Instead of C-Style Casts
 
+The snippet below contrasts a C-style cast with the required `static_cast<>` form:
+
 ```cpp
 // ❌ Wrong: C-style cast
 int value = (int)doubleValue;
@@ -88,6 +98,8 @@ int value = static_cast<int>(doubleValue);
 ```
 
 ### 4. Use using Instead of typedef
+
+The example below contrasts a legacy `typedef` with the required `using` alias:
 
 ```cpp
 // ❌ Wrong: old-style typedef

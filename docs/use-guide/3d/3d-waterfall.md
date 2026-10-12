@@ -58,6 +58,8 @@ The live 3D waterfall example is located at: `examples/3D/waterfall3D` (a 2D liv
 
 ### 1. Static Waterfall (zero custom code)
 
+A one-shot waterfall needs no custom class at all: create a `Qwt3DWaterfall`, attach it to a `Qwt3DPlot` *before* feeding data, size the window with `setTraceCapacity()`, pick the geometry via `setPlotStyle()` (`Ribbon` / `RibbonMesh` / `Wireframe` / `Tube`) and the coloring via `setColorMode()`, then fill the window with one `pushTrace()` per trace, as the example below shows:
+
 ```cpp
 #include <qwt3d_plot.h>
 #include <qwt3d_waterfall.h>
@@ -88,6 +90,8 @@ plot->coordinates()->axes[Z1].setLabelString("Amplitude");
 > A typical spectrum waterfall spans bins `0..M-1`, amplitude `0..1` and depth `0..capacity-1` — strongly anisotropic. Use `AUTOFILL`, which normalizes every axis to the largest data range *before* the projection is derived, and then shape the normalized cube with `plot->setScale()` (the example uses `(1.0, 0.35, 0.6)`: full bin width, compressed depth, 60% amplitude height). Under `DATARATIO` the raw proportions leave the curtains a 1-unit sliver inside a 255-unit scene, and per-axis `setScale()` cannot rescue it because the projection radius is derived from the unscaled hull.
 
 ### 2. Live Waterfall (30 Hz)
+
+Live mode reuses the same object: configure capacity, color mode and a fixed `setColorRange()` once at startup, and afterwards each timer tick only needs a single `pushTrace()` call, which slides the window and triggers `itemChanged()` → `update()` automatically:
 
 ```cpp
 // once:
@@ -134,6 +138,8 @@ axis.setScale(scale);
 
 ### 4. Coloring and the Color Functor
 
+The three `ColorMode` values map to different color sources: `ByAmplitude` runs a `Qwt3DColorMapColor` functor — installed with `setDataColor()` and selectable by preset name such as `"plasma"` — over the sample z values, `ByDepth` colors each trace by its slot position in the window (the default), and `Solid` uses the single `RGBA` given to `setColor()`:
+
 ```cpp
 // Amplitude coloring with a specific preset:
 waterfall->setColorMode(Qwt3DWaterfall::ByAmplitude);
@@ -152,6 +158,8 @@ waterfall->setColor(RGBA(0.4, 0.6, 0.9, 1.0));
 Colors are baked into the VBO at build time; after mutating the functor in place, call `invalidateColors()` (or any setter) to rebuild.
 
 ### 5. Baseline, Opacity, Outline
+
+Three further setters fine-tune the curtain look: `setBaseline()` pins the value the ribbons start from (by default the amplitude minimum), `setOpacity()` blends the curtains, and `setOutlineColor()` / `setOutlineWidth()` style the outline drawn by the `RibbonMesh` and `Wireframe` styles:
 
 ```cpp
 waterfall->setBaseline(0.0);        // curtain starts at y == 0 (default: amplitude min)

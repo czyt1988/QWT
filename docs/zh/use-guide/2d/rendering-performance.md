@@ -71,6 +71,8 @@ QWT 7 的 `QwtPlotCurve` **默认开启** `ClipPolygons | FilterPointsLTTB` 两�
 
 ### 动手：显式控制降采样属性
 
+下面的代码演示如何通过 `QwtPlotCurve::setPaintAttribute()` 显式控制降采样：`ClipPolygons` 与 `FilterPointsLTTB` 默认已开启，纯噪声信号则可切换到像素列过滤 `FilterPointsPixel`。
+
 ```cpp
 #include <qwt_plot_curve.h>
 
@@ -115,6 +117,8 @@ MinMax 桶"保留每桶极值"的性质有一个副作用：**随机噪声的极
 渲染平滑解决这个问题：它在绘制管线中对降采样后的折线做低通滤波，**只改像素、不改数据**——`data()` 里的原始采样分毫未动，分析与导出仍然使用原始值。
 
 ### 动手：开启平滑
+
+下面的代码在十万点含噪频谱上开启渲染平滑：`setSmoothAlgorithm()` 选择高斯低通，`setSmoothWindow()` 设定窗口大小，`setSmoothPreserveThreshold()` 控制特征保护阈值。
 
 ```cpp
 QwtPlotCurve* curve = new QwtPlotCurve("spectrum");

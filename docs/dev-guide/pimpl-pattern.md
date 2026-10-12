@@ -17,6 +17,8 @@ PIMPL (Pointer to Implementation) is a C++ design pattern, also known as the "Co
 
 ### Drawbacks of the Traditional Approach
 
+Without PIMPL, every private member is exposed in the header file; the traditional approach looks like this:
+
 ```cpp
 // Traditional approach - all private members exposed in header
 class MyClass : public QObject
@@ -30,6 +32,8 @@ private:
 ```
 
 ### Advantages of the PIMPL Pattern
+
+With the PIMPL pattern, the header keeps only the public interface plus a `QWT_DECLARE_PRIVATE` declaration, while all members move into `MyClass::PrivateData`:
 
 ```cpp
 // PIMPL approach - only pointer exposed in header
@@ -186,6 +190,8 @@ QString MyClass::title() const
 
 ## Complete Example
 
+The class diagram below shows how `MyClass` and its `PrivateData` reference each other through `m_data` and `q_ptr`:
+
 ```mermaid
 classDiagram
     class MyClass {
@@ -208,6 +214,8 @@ classDiagram
 ```
 
 ### Header File MyClass.h
+
+The complete header declares only the public interface and the `QWT_DECLARE_PRIVATE(MyClass)` macro, with no private members exposed:
 
 ```cpp
 #ifndef MYCLASS_H
@@ -239,6 +247,8 @@ private:
 ```
 
 ### Source File MyClass.cpp
+
+The implementation file defines `MyClass::PrivateData` with `QWT_DECLARE_PUBLIC`, initializes it via `QWT_PIMPL_CONSTRUCT`, and accesses it through `QWT_D`/`QWT_DC`:
 
 ```cpp
 #include "MyClass.h"

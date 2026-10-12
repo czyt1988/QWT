@@ -40,6 +40,8 @@ A spectrogram maps three-dimensional data `(x, y, value)` onto a 2D plane:
 
 ### Class Inheritance Structure
 
+The class diagram below shows the key players and how they relate: `QwtPlotSpectrogram` extends the raster base class `QwtPlotRasterItem`, obtains its values from a `QwtRasterData` subclass, and converts those values into colors through a `QwtColorMap`:
+
 ```mermaid
 classDiagram
     class QwtPlotRasterItem {
@@ -81,6 +83,8 @@ The spectrogram example is located at: `examples/2D/spectrogram`. Screenshot bel
 ![Spectrogram Contour](../../assets/screenshots/spectrogram-contour.png)
 
 ### 1. Basic Spectrogram
+
+The basic setup creates a `QwtPlotSpectrogram`, enables `ImageMode` with `setDisplayMode()`, assigns a color map — here a `QwtLinearColorMap` with several intermediate stops — and passes the raster data via `setData()` before attaching the item to the plot:
 
 ```cpp
 #include <QwtPlot>
@@ -159,6 +163,8 @@ public:
 
 #### Linear Color Map
 
+`QwtLinearColorMap` interpolates between color stops added by `addColorStop()` at normalized positions from 0.0 to 1.0; `setFormat()` chooses between `QwtColorMap::RGB` (smooth transitions) and `QwtColorMap::Indexed` (color-table images):
+
 ```cpp
 // Create a linear color map from blue to red
 QwtLinearColorMap* colorMap = new QwtLinearColorMap(Qt::blue, Qt::red);
@@ -178,6 +184,8 @@ spectrogram->setColorMap(colorMap);
 
 #### Predefined Color Maps
 
+Besides defining your own stops, Qwt ships ready-made maps such as `QwtHueColorMap`, which cycles through the hue range for a rainbow effect, and `QwtAlphaColorMap`, which varies the transparency of a fixed color; any of them is assigned through the same `setColorMap()` call:
+
 ```cpp
 // Use Qwt's built-in Hue color map (rainbow)
 QwtHueColorMap* hueMap = new QwtHueColorMap();
@@ -191,6 +199,8 @@ spectrogram->setColorMap(alphaMap);
 ```
 
 ### 4. Contour Display
+
+In `ContourMode`, the spectrogram draws isolines instead of — or, with both display modes enabled, on top of — the color image: `setContourLevels()` fixes the values that get a line, and `setDefaultContourPen()` sets the pen used for all levels without a specific one:
 
 ```cpp
 // Enable contour mode
@@ -211,6 +221,8 @@ spectrogram->setDisplayMode(QwtPlotSpectrogram::ContourMode, true);
 
 ### 5. Data Resolution Settings
 
+Raster rendering offers a quality-versus-speed trade-off: `QwtPlotSpectrogram` inherits from `QwtPlotRasterItem` and `QwtPlotItem` a set of render settings — for example the `RenderAntialiased` render hint toggled via `setRenderHint()` — that control how the data grid is resampled onto pixels:
+
 ```cpp
 // Set pixel resolution (size of data unit per pixel)
 spectrogram->setPixelSize(2.0);  // 2 data units per pixel
@@ -220,6 +232,8 @@ spectrogram->setRenderHint(QwtPlotRasterItem::RenderAntialiased);
 ```
 
 ### 6. Multi-Threaded Rendering
+
+Large rasters can be rendered in parallel: `setRenderThreadCount()`, inherited from `QwtPlotItem`, distributes the image generation across the given number of threads. The default is 1 (single-threaded), while 0 asks the system to pick a suitable count:
 
 ```cpp
 // Set rendering thread count (improves large data rendering performance)
@@ -235,6 +249,8 @@ spectrogram->setRenderThreadCount(4);  // Use 4 threads for parallel rendering
 > - Multi-threaded rendering is most effective in image mode
 
 ### 7. Using Matrix Data
+
+For plain matrices there is no need to derive from `QwtRasterData` yourself: `QwtMatrixRasterData` wraps a flat `QVector<double>` via `setValueMatrix()`, takes the x/y/z extents through `setInterval()`, and interpolates between cells according to its `setResampleMode()` setting (e.g. `BilinearInterpolation`):
 
 ```cpp
 #include <QwtMatrixRasterData>

@@ -39,6 +39,8 @@
 
 ### 类继承结构
 
+下面的类图给出几个关键角色及其关系：`QwtPlotSpectrogram` 继承自栅格基类 `QwtPlotRasterItem`，从 `QwtRasterData` 子类获取数值，再经 `QwtColorMap` 把数值转换为颜色：
+
 ```mermaid
 classDiagram
     class QwtPlotRasterItem {
@@ -80,6 +82,8 @@ classDiagram
 ![Spectrogram Contour](../../../assets/screenshots/spectrogram-contour.png)
 
 ### 1. 基本光谱图
+
+基本流程是：创建 `QwtPlotSpectrogram`，用 `setDisplayMode()` 打开 `ImageMode`，指定颜色映射——这里用带若干中间色标的 `QwtLinearColorMap`——再通过 `setData()` 传入栅格数据，最后把 item attach 到 plot：
 
 ```cpp
 #include <QwtPlot>
@@ -158,6 +162,8 @@ public:
 
 #### 线性颜色映射
 
+`QwtLinearColorMap` 在 `addColorStop()` 添加的色标之间插值，色标位置取 0.0~1.0 的归一化值；`setFormat()` 在 `QwtColorMap::RGB`（平滑过渡）与 `QwtColorMap::Indexed`（颜色表图像）之间选择：
+
 ```cpp
 // 创建从蓝到红的线性颜色映射
 QwtLinearColorMap* colorMap = new QwtLinearColorMap(Qt::blue, Qt::red);
@@ -177,6 +183,8 @@ spectrogram->setColorMap(colorMap);
 
 #### 预定义颜色映射
 
+除了自己定义色标，Qwt 还提供现成的颜色映射：`QwtHueColorMap` 遍历色相范围产生彩虹效果，`QwtAlphaColorMap` 则改变固定颜色的透明度；它们都通过同一个 `setColorMap()` 调用赋给 spectrogram：
+
 ```cpp
 // 使用Qwt内置的Hue色图（彩虹色）
 QwtHueColorMap* hueMap = new QwtHueColorMap();
@@ -190,6 +198,8 @@ spectrogram->setColorMap(alphaMap);
 ```
 
 ### 4. 等高线显示
+
+在 `ContourMode` 下，spectrogram 绘制等值线而非彩色图像——两个显示模式同时打开时则叠加显示：`setContourLevels()` 指定哪些数值画线，`setDefaultContourPen()` 为没有专属画笔的级别设置默认画笔：
 
 ```cpp
 // 启用等高线模式
@@ -210,6 +220,8 @@ spectrogram->setDisplayMode(QwtPlotSpectrogram::ContourMode, true);
 
 ### 5. 数据分辨率设置
 
+栅格渲染存在质量与速度的权衡：`QwtPlotSpectrogram` 从 `QwtPlotRasterItem` / `QwtPlotItem` 继承了一组渲染设置——例如用 `setRenderHint()` 开关 `RenderAntialiased` 渲染提示——控制数据网格到像素的重采样方式：
+
 ```cpp
 // 设置像素分辨率（每个像素代表的数据单元大小）
 spectrogram->setPixelSize(2.0);  // 每个像素2个数据单位
@@ -219,6 +231,8 @@ spectrogram->setRenderHint(QwtPlotRasterItem::RenderAntialiased);
 ```
 
 ### 6. 多线程渲染
+
+大幅面栅格可以并行渲染：继承自 `QwtPlotItem` 的 `setRenderThreadCount()` 把图像生成分摊到指定数量的线程。默认值为 1（单线程），传 0 则由系统选择合适的线程数：
 
 ```cpp
 // 设置渲染线程数（提升大数据渲染性能）
@@ -234,6 +248,8 @@ spectrogram->setRenderThreadCount(4);  // 使用4个线程并行渲染
 > - 多线程渲染在图像模式效果最明显
 
 ### 7. 使用矩阵数据
+
+纯矩阵数据无需自己派生 `QwtRasterData`：`QwtMatrixRasterData` 用 `setValueMatrix()` 包装一维 `QVector<double>`，用 `setInterval()` 设定 x/y/z 范围，并按 `setResampleMode()` 的设置（如 `BilinearInterpolation`）在单元格之间插值：
 
 ```cpp
 #include <QwtMatrixRasterData>

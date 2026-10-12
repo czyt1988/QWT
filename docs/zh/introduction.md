@@ -220,6 +220,8 @@ auto* curve = new QwtPlotCurve("Data");
 
 ## 版权信息
 
+Qwt 基于 Qwt License 1.0 发布，完整版权声明如下：
+
 ```
 Qwt Widget Library
 Copyright (C) 1997   Josef Wilgen

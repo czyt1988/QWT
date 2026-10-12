@@ -26,6 +26,8 @@ Qwt 提供了一系列仪表控件组件，用于数值显示和交互控制。�
 
 ### 1. QwtDial - 仪表盘
 
+`QwtDial` 是一个带指针的圆形仪表面板，用来指示当前值，适合角度、方向、转速一类的驾驶舱式显示。外观主要由指针决定：`setNeedle()` 挂入指针对象（如 `QwtDialSimpleNeedle`，有 `Arrow` 箭头和 `Ray` 射线两种风格），数值本身通过继承来的 `setValue()` 设置，变化经 `valueChanged()` 信号发出。下面是典型的配置流程：
+
 ```cpp
 #include <QwtDial>
 
@@ -53,6 +55,8 @@ connect(dial, SIGNAL(valueChanged(double)), this, SLOT(onValueChanged(double)));
 
 ### 2. QwtKnob - 旋钮控件
 
+`QwtKnob` 模拟一个可用鼠标转动的实体旋钮，常用于音响或仪器面板上的参数微调。`setKnobStyle()` 选择表面明暗风格（`Flat` / `Raised` / `Sunken` / `Styled`），`setKnobWidth()` 决定旋钮直径，当前值由 `setMarkerStyle()` 设定的标记指示，`setTracking(true)` 则让拖动过程中实时发出数值，示例如下：
+
 ```cpp
 #include <QwtKnob>
 
@@ -79,6 +83,8 @@ knob->setTracking(true);  // 拖动时实时更新值
 ```
 
 ### 3. QwtSlider - 滑块控件
+
+`QwtSlider` 是 Qwt 版的线性滑块，适合在一个范围内连续调节数值。`setOrientation()` 在 `Qt::Horizontal` 与 `Qt::Vertical` 之间选择方向，`setScalePosition()` 决定刻度画在槽的哪一侧（`LeadingScale`、`TrailingScale` 或 `NoScale`），`setHandleSize()` 调整手柄尺寸，下面的例子演示了常用配置：
 
 ```cpp
 #include <QwtSlider>
@@ -108,6 +114,8 @@ slider->setPageStep(10.0);
 ```
 
 ### 4. QwtThermo - 温度计
+
+`QwtThermo` 把数值显示为一根管道里的液柱，是温度、液位、进度类指示的自然选择。`setOrientation()` 决定竖直还是水平摆放，`setFillBrush()` 设置液柱填充色，`setPipeWidth()` 设定管道宽度，`setAlarmLevel()` 与 `setAlarmBrush()` 则让数值越过报警阈值后切换成警告颜色：
 
 ```cpp
 #include <QwtThermo>
@@ -139,6 +147,8 @@ thermo->setAlarmBrush(QBrush(Qt::darkRed));
 
 ### 5. QwtWheel - 滚轮控件
 
+`QwtWheel` 模拟一个用拇指搓动的机械滚轮，适合连续平滑地调节数值，比滑块更省面板空间。`setRange()` 定义工作区间，`setWheelWidth()` 设定滚轮宽度，`setSingleStep()` 决定每格步进量，`setTracking(true)` 让拖动过程中实时发出数值，示例如下：
+
 ```cpp
 #include <QwtWheel>
 
@@ -169,6 +179,8 @@ wheel->setTracking(true);
 
 ### 6. QwtCounter - 数值计数器
 
+`QwtCounter` 把可编辑的数值显示框和若干组增减按钮组合在一起，用于精确的数值输入。`setNumButtons()` 决定显示框两侧各摆几组步进按钮，`setSingleStep()` 设置单击一次的增减量，`setWrapping(true)` 则让数值到达边界后回绕到另一端：
+
 ```cpp
 #include <QwtCounter>
 
@@ -192,6 +204,8 @@ counter->setWrap(true);  // 到达边界时循环
 ```
 
 ### 7. QwtCompass - 指南针
+
+`QwtCompass` 是派生自 `QwtDial` 的方向指示盘，用罗盘玫瑰替代普通刻度。`setRose()` 挂入玫瑰图形（如 `QwtSimpleCompassRose`），`setLabelMap()` 把数字刻度换成 N/E/S/W 等方位字母，`setNeedle()` 则可以换成 `QwtCompassWindArrow` 这样的风向箭头指针，下面的例子给出完整配置：
 
 ```cpp
 #include <QwtCompass>

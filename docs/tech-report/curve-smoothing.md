@@ -302,6 +302,8 @@ Every linear low-pass filter attenuates features narrower than its window (the a
 
 ### 5.1 The algorithm
 
+The flowchart below summarizes the feature-preservation pass: a wide two-box baseline estimates the background, the median absolute residual gives the noise scale, and a soft threshold blends the original polyline back wherever the low-pass result deviates by more than the threshold.
+
 ```mermaid
 flowchart TD
     A["original polyline y and low-pass result ŷ"] --> B["wide baseline B: two box passes<br/>(window w_b = max(61, 6w), prefix sums, O(n))"]
@@ -362,6 +364,8 @@ $$
 Failure modes: ① if the noise scale is underestimated (e.g. correlated rather than i.i.d. noise), `median|d|` is too small ⇒ the threshold is too low ⇒ noise points get "restored", and the protection fails; ② a **true bump wider than the baseline window** $w_b$ (a slow hump) is followed by the baseline, hence not flagged as a feature and gets smoothed — by design ("what the baseline follows is background"), but worth knowing; ③ adjacent points in the blend zone get slightly different weights, which can create a barely visible ripple (in the measurements the blend zone involves only ~1–2% of the points).
 
 ## 6. Position and order in the paint pipeline
+
+The flowchart below places render smoothing in the paint pipeline: it runs on the downsampled polyline, before polygon clipping and the optional curve fitter, so it always operates in screen space and never touches the samples in `data()`.
 
 ```mermaid
 flowchart LR
@@ -428,6 +432,8 @@ All scripts and numbers are in `docs/assets/algorithms/` (`smoothing_experiment.
 | `setSmoothPreserveThreshold()` | 3.0 | feature preservation in units of the noise scale; 0 = off |
 
 ### 8.2 Complete example
+
+The listing below is a minimal, self-contained program: `makeSpectrum()` generates 100,000 spectrum-like samples, and the same data is plotted twice with `QwtPlotCurve` — once through the default pipeline and once with Gaussian smoothing plus feature preservation — for a direct side-by-side comparison.
 
 ```cpp
 #include <qwt_plot.h>

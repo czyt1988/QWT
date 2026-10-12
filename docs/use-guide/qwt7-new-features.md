@@ -42,6 +42,8 @@ Qwt 7.0 includes built-in complete 3D plotting capabilities, supporting:
 
 ### Usage Example
 
+A minimal 3D program needs only three pieces: a `Qwt3DPlot` render window, a `Qwt3DSurface` item attached to it, and a `Qwt3DFunction` subclass defining z = f(x, y) — `setDomain()` limits the x/y ranges, `setMesh()` picks the grid resolution, and `create()` samples the function into the surface, as the example below shows:
+
 ```cpp
 #include <qwt3d_plot.h>
 #include <qwt3d_surface.h>
@@ -74,6 +76,8 @@ plot->show();
 ```
 
 ### CMake Configuration
+
+The 3D module ships as its own CMake target: `qwt::plot` provides the 2D plotting library and `qwt::plot3d` the 3D module, so projects that never draw in 3D can simply skip the second link line:
 
 ```cmake
 find_package(qwt REQUIRED)
@@ -148,6 +152,8 @@ Simply add these two files to your project without complex build configuration, 
 
 ### Usage Example
 
+`QwtFigure` accepts sub-plots in two coordinate flavors: `addAxes()` places a `QwtPlot` with a normalized `[0,1]` rectangle, while `addGridAxes()` drops it into a matplotlib-style row/column grid cell; `setSizeInches()` sets the physical figure size, as in the snippet below:
+
 ```cpp
 // Create a QwtFigure
 QwtFigure* figure = new QwtFigure();
@@ -205,6 +211,8 @@ Parasite plots share the plot area with the host plot (transparent background) b
 ![parasite-01](../assets/picture/parasite-01.png)
 
 ### Creating a Parasite Plot
+
+A parasite plot is created from its host with `QwtPlot::createParasitePlot()`, whose `QwtAxis::Position` argument picks the axis the parasite lives on; afterwards `enableAxis()` switches the parasite's own axes on or off and `setParasiteShareAxis()` lets it share an axis — such as the bottom X axis — with the host, as shown below:
 
 ```cpp
 // Create the host plot
@@ -360,6 +368,8 @@ Calculates and picks the closest point to the mouse cursor, suitable for peak da
 
 ### Usage Example
 
+`QwtPlotSeriesDataPicker` is constructed on the plot canvas, and two enums drive its behavior: `setPickMode()` selects `PickYValue` (the Y values of all curves at the current X position — the default) or `PickNearestPoint` (the sample closest to the cursor), while `setInterpolationMode()` toggles between `NoInterpolation` and `LinearInterpolation`; the snippet below also restyles the tooltip background with `setTextBackgroundBrush()`:
+
 ```cpp
 // Create a data picker
 QwtPlotSeriesDataPicker* picker = new QwtPlotSeriesDataPicker(plot->canvas());
@@ -409,6 +419,8 @@ For large datasets, Qwt 7 provides a window search algorithm:
 ![about-boxplot](../assets/picture/about-boxplot.png)
 
 ### Usage Example
+
+`QwtPlotBoxChart` accepts either pre-computed statistics or raw samples; in the pre-computed case each `QwtBoxSample` carries position, lower/upper whisker, Q1, median and Q3 and is fed through `setSamples()`, while `setBoxStyle()` picks the box appearance — `Rectangle`, `Diamond` or `Notch`, as the example below demonstrates:
 
 ```cpp
 // Create a box chart

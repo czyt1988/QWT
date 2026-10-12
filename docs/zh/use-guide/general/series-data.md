@@ -15,6 +15,8 @@
 
 ### 数据接口结构
 
+下面的类图勾勒了 `QwtSeriesData<T>` 接口——`size()`、`sample(i)`、`boundingRect()` 与可选的 `setRectOfInterest()`——以及内置的派生实现：用 `QVector` 存放 `QPointF` 样本的 `QwtPointSeriesData`、可存放任意样本类型的泛型 `QwtArraySeriesData<T>`，还有按函数即时计算、不存储数据的合成数据类（其具体实现类在源码中名为 `QwtSyntheticPointData`）：
+
 ```mermaid
 classDiagram
     class QwtSeriesData~T~ {
@@ -55,6 +57,8 @@ classDiagram
 
 ### 1. 使用内置数据类
 
+多数需求用不着自定义类：`QwtPlotCurve` 的 `setSamples()` 各种重载已经覆盖常见情况；如果想显式管理数据对象，也可以像下面两种写法那样，用 `QwtPointSeriesData` 包装数据点再通过 `setData()` 交给曲线：
+
 ```cpp
 #include <QwtPlotCurve>
 #include <QwtPointSeriesData>
@@ -74,6 +78,8 @@ curve->setData(seriesData);
 ```
 
 ### 2. 引用外部数据
+
+当数据已经存放在你自己的缓冲区里时，`setRawSamples()` 让曲线直接引用原始 `double` 数组而不做复制——这是大数据量下最快的路径——代价是数组的存活期要由你自己保证：
 
 ```cpp
 #include <QwtPlotCurve>
@@ -185,6 +191,8 @@ curve->setData(new FunctionSeriesData(myFunction, 0, 10));
 ```
 
 ### 5. 实时数据更新
+
+对流式数据场景，一个轻量的自定义 `QwtSeriesData<QPointF>` 子类往往是最干净的方案：下面的 `RealtimeSeriesData` 维护一个最多 1000 个点的滚动窗口，每次追加点后作废缓存的 `boundingRect()` 促使重算，并在 `appendPoint()` 之后用一次 `plot->replot()` 刷新显示：
 
 ```cpp
 // 实时数据场景

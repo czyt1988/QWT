@@ -42,6 +42,8 @@ Qwt 7.0 内置完整的3D绘图能力，支持：
 
 ### 使用示例
 
+一个最小的 3D 程序只需三个部件：渲染窗口 `Qwt3DPlot`、挂到它上面的 `Qwt3DSurface` 曲面 item，以及一个定义 z = f(x, y) 的 `Qwt3DFunction` 子类——`setDomain()` 限定 x/y 范围，`setMesh()` 决定网格分辨率，`create()` 把函数采样成曲面，示例如下：
+
 ```cpp
 #include <qwt3d_plot.h>
 #include <qwt3d_surface.h>
@@ -74,6 +76,8 @@ plot->show();
 ```
 
 ### CMake配置
+
+3D 模块是独立的 CMake target：`qwt::plot` 是 2D 绘图库，`qwt::plot3d` 是 3D 模块，不需要 3D 的工程可以不链接后者，配置如下：
 
 ```cmake
 find_package(qwt REQUIRED)
@@ -148,6 +152,8 @@ Qwt 7.0 提供了一种极简的引入方式 —— 将整个库合并为单文�
 
 ### 使用示例
 
+`QwtFigure` 接受两种坐标体系来添加子绘图：`addAxes()` 用归一化的 `[0,1]` 矩形摆放 `QwtPlot`，`addGridAxes()` 则把它放进类似 matplotlib subplot 的行列网格；`setSizeInches()` 设定图形的物理尺寸，示例如下：
+
 ```cpp
 // 创建 QwtFigure
 QwtFigure* figure = new QwtFigure();
@@ -205,6 +211,8 @@ figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
 ![parasite-01](../../assets/picture/parasite-01.png)
 
 ### 创建寄生绘图
+
+寄生绘图由宿主通过 `QwtPlot::createParasitePlot()` 创建，`QwtAxis::Position` 参数决定它落在哪个轴上；随后可以用 `enableAxis()` 开关寄生绘图自己的坐标轴，用 `setParasiteShareAxis()` 让它与宿主共享某个轴（如底部 X 轴），示例如下：
 
 ```cpp
 // 创建宿主绘图
@@ -360,6 +368,8 @@ plot->axisWidget(QwtAxis::YLeft)->setSelectedPenWidthOffset(1.5);
 
 ### 使用示例
 
+`QwtPlotSeriesDataPicker` 构造在绘图画布上，两个枚举决定其行为：`setPickMode()` 在 `PickYValue`（当前 X 位置处所有曲线的 Y 值，默认）与 `PickNearestPoint`（离鼠标最近的样本点）之间选择，`setInterpolationMode()` 则在 `NoInterpolation` 与 `LinearInterpolation` 之间切换；下面的示例还用 `setTextBackgroundBrush()` 调整了提示文本的背景：
+
 ```cpp
 // 创建数据拾取器
 QwtPlotSeriesDataPicker* picker = new QwtPlotSeriesDataPicker(plot->canvas());
@@ -409,6 +419,8 @@ picker->setTextBackgroundBrush(QBrush(QColor(255, 255, 255, 180)));
 ![about-boxplot](../../assets/picture/about-boxplot.png)
 
 ### 使用示例
+
+`QwtPlotBoxChart` 既接受预计算的统计量也接受原始样本：预计算时每个 `QwtBoxSample` 携带位置、下/上须、Q1、中位数与 Q3，通过 `setSamples()` 传入；`setBoxStyle()` 选择箱体样式——`Rectangle`、`Diamond` 或 `Notch`，示例如下：
 
 ```cpp
 // 创建箱线图

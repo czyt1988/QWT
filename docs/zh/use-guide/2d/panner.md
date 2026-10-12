@@ -41,6 +41,8 @@
 
 ## 基本使用方法
 
+下面的代码在绘图画布上创建 `QwtPlotPanner`，将平移绑定到鼠标中键，并连接 `panned` 信号以输出每次拖动的偏移量。
+
 ```cpp
 #include "qwt_plot_panner.h"
 #include "qwt_plot.h"

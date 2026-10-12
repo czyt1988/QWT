@@ -302,6 +302,9 @@ graph TB
 实时追踪鼠标位置并显示信息，不进行任何选择操作
 
 #### 状态转换过程
+
+下面的列表按 `QEvent` 类型给出 `QwtPickerTrackerMachine::transition()` 产生的命令序列与目标状态：进入控件或移动鼠标发出 `Begin` + `Append`，持续移动发出 `Move`，离开控件发出 `Remove` + `End`：
+
 ```cpp
 初始状态: 0 (未追踪)
 - QEvent::Enter / QEvent::MouseMove → [Begin, Append] → 状态1
@@ -310,6 +313,9 @@ graph TB
 ```
 
 #### 状态转换图
+
+下面的状态转换图将同一逻辑可视化；图中各状态的含义（状态 0 = 未追踪，状态 1 = 追踪中）由 `QwtPickerTrackerMachine` 在其 `transition()` 实现中通过 `setState()` 自行定义：
+
 ```mermaid
 stateDiagram-v2
     [*] --> 状态0: 初始化
@@ -330,6 +336,9 @@ stateDiagram-v2
 通过单次点击选择一个点
 
 #### 状态转换过程
+
+`QwtPickerClickPointMachine::transition()` 一步完成选择：匹配 `MouseSelect1` 的鼠标按下或匹配 `KeySelect1` 的按键会一次性发出 `Begin`、`Append`、`End` 并停留在状态 0——不存在中间状态：
+
 ```cpp
 初始状态: 0 (等待点击)
 - QEvent::MouseButtonPress (匹配MouseSelect1) → [Begin, Append, End] → 状态0
@@ -337,6 +346,9 @@ stateDiagram-v2
 ```
 
 #### 状态转换图
+
+下图把这个单步状态机表现为状态 0 上的自环；状态值由 `QwtPickerClickPointMachine` 内部的 `setState()` 调用维护：
+
 ```mermaid
 stateDiagram-v2
     [*] --> 状态0: 初始化
@@ -355,6 +367,9 @@ stateDiagram-v2
 通过拖拽操作精确选择点位置
 
 #### 状态转换过程
+
+`QwtPickerDragPointMachine::transition()` 在匹配 `MouseSelect1` 的按下时启动拖拽（`Begin` + `Append`，进入状态 1），用 `Move` 跟踪鼠标移动与滚轮事件，释放时以 `End` 结束；匹配 `KeySelect1` 的按键在状态 0/1 之间切换，以支持键盘操作：
+
 ```cpp
 初始状态: 0 (等待开始)
 - QEvent::MouseButtonPress (匹配MouseSelect1) → [Begin, Append] → 状态1
@@ -365,6 +380,9 @@ stateDiagram-v2
 ```
 
 #### 状态转换图
+
+下面的状态转换图概括了这些规则；状态 0（空闲）与状态 1（拖拽中）是 `QwtPickerDragPointMachine` 在其 `transition()` 实现里通过 `setState()` 赋予的值：
+
 ```mermaid
 stateDiagram-v2
     [*] --> 状态0: 初始化
@@ -387,6 +405,9 @@ stateDiagram-v2
 通过两次点击确定矩形区域
 
 #### 状态转换过程
+
+`QwtPickerClickRectMachine::transition()` 跨越三个状态：第一次按下发出 `Begin` + `Append`（状态 1），第一次释放追加对角点（状态 2），再次按下才发出 `End` 回到状态 0——矩形由两次独立点击确定：
+
 ```cpp
 初始状态: 0 (等待第一次点击)
 - QEvent::MouseButtonPress (匹配MouseSelect1) → [Begin, Append] → 状态1
@@ -397,6 +418,9 @@ stateDiagram-v2
 ```
 
 #### 状态转换图
+
+下图展示了这一“两次点击”时序；状态 0/1/2 正是 `QwtPickerClickRectMachine` 通过 `setState()` 维护的值，分别表示空闲、第一角已定、矩形待确认：
+
 ```mermaid
 stateDiagram-v2
     [*] --> 状态0: 初始化
@@ -418,6 +442,9 @@ stateDiagram-v2
 通过拖拽操作快速选择矩形区域
 
 #### 状态转换过程
+
+`QwtPickerDragRectMachine::transition()` 在首次 `MouseSelect1` 按下时发出 `Begin` + `Append` + `Append` 并直接跳到状态 2，此后鼠标移动产生 `Move`（实时改变橡皮筋矩形），释放产生 `End`；`KeySelect1` 在状态 0/2 之间切换：
+
 ```cpp
 初始状态: 0 (等待开始)
 - QEvent::MouseButtonPress (匹配MouseSelect1) → [Begin, Append, Append] → 状态2
@@ -427,6 +454,9 @@ stateDiagram-v2
 ```
 
 #### 状态转换图
+
+下图与点击矩形状态机形成对照——它完全跳过状态 1；状态值由 `QwtPickerDragRectMachine` 通过 `setState()` 赋予：状态 0（空闲）与状态 2（拖拽出实时矩形）：
+
 ```mermaid
 stateDiagram-v2
     [*] --> 状态0: 初始化
@@ -449,6 +479,9 @@ stateDiagram-v2
 通过拖拽操作选择线段
 
 #### 状态转换过程
+
+`QwtPickerDragLineMachine::transition()` 与拖拽矩形状态机类似，但选择的是一条线段：首次按下发出 `Begin` + `Append` + `Append`（起点与终点）进入状态 1，移动时以 `Move` 更新终点，释放时发出 `End`；`KeySelect1` 切换状态 0/1：
+
 ```cpp
 初始状态: 0 (等待开始)
 - QEvent::MouseButtonPress (匹配MouseSelect1) → [Begin, Append, Append] → 状态1
@@ -458,6 +491,9 @@ stateDiagram-v2
 ```
 
 #### 状态转换图
+
+下面的状态转换图展示了这一两点拖拽过程；状态 0 与状态 1 由 `QwtPickerDragLineMachine` 自己的 `setState()` 调用定义——分别表示空闲与正在拖拽线段终点：
+
 ```mermaid
 stateDiagram-v2
     [*] --> 状态0: 初始化
@@ -480,6 +516,9 @@ stateDiagram-v2
 通过多次点击创建多边形区域
 
 #### 状态转换过程
+
+`QwtPickerPolygonMachine::transition()` 逐个收集顶点：第一次 `MouseSelect1` 按下发出 `Begin` + `Append` + `Append`（状态 1），之后每次按下用 `Append` 追加顶点，移动用 `Move` 预览当前边，匹配 `MouseSelect2` 的按下以 `End` 闭合多边形：
+
 ```cpp
 初始状态: 0 (未开始)
 - QEvent::MouseButtonPress (匹配MouseSelect1) → [Begin, Append, Append] → 状态1
@@ -490,6 +529,9 @@ stateDiagram-v2
 ```
 
 #### 状态转换图
+
+下图展示了状态 1 中的顶点累积循环，以及经由第二个鼠标按键退出的路径；各状态由 `QwtPickerPolygonMachine` 通过 `setState()` 调用维护：
+
 ```mermaid
 stateDiagram-v2
     [*] --> 状态0: 初始化

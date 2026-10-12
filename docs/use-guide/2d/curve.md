@@ -36,6 +36,8 @@ QwtPlotCurve supports the following drawing styles:
 
 ### Class Inheritance
 
+The diagram below shows where `QwtPlotCurve` sits in the class hierarchy: it inherits plot-item behavior such as `attach()` and `setTitle()` from `QwtPlotItem`, series drawing from `QwtPlotSeriesItem`, and data storage from `QwtSeriesStore<QPointF>`, which is where `setSamples()`, `sample()` and `size()` come from:
+
 ```mermaid
 classDiagram
     class QwtPlotItem {
@@ -486,6 +488,8 @@ curve->setLegendIconSize(QSize(20, 10));
 | `minYValue()/maxYValue()` | Get data range |
 
 ## Real-Time Data Update Example
+
+For streaming data the usual pattern is to turn auto-replot off and drive refreshes by hand. The example below defines a `RealtimePlot` subclass of `QwtPlot` that keeps a rolling buffer of the latest 1000 points in two `QVector<double>` members, re-binds them after every append with `setRawSamples()` — which references the arrays without copying — and then calls `replot()` exactly once:
 
 ```cpp
 // Real-time data scenario

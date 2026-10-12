@@ -41,6 +41,8 @@ The `Qwt6` `QwtPlotPanner` has been completely refactored, but the interface rem
 
 ## Basic Usage
 
+The listing below attaches a `QwtPlotPanner` to the plot canvas, binds panning to the middle mouse button, and connects the `panned` signal to report each drag offset.
+
 ```cpp
 #include "qwt_plot_panner.h"
 #include "qwt_plot.h"

@@ -37,6 +37,8 @@ QwtScaleDiv contains:
 
 ### 1. Linear Scale Engine (Default)
 
+Axes use `QwtLinearScaleEngine` by default, so in most cases it is enough to enable automatic scaling with `QwtPlot::setAxisAutoScale()` and cap the tick density via `setAxisMaxMajor()` and `setAxisMaxMinor()`. The example below allows up to 10 major ticks, with up to 5 minor ticks between them, on the bottom axis:
+
 ```cpp
 #include <QwtPlot>
 
@@ -97,6 +99,8 @@ plot->setAxisScale(QwtAxis::XBottom,
 
 ### 4. Custom Scale Division
 
+When the automatic tick layout does not fit, a `QwtScaleDiv` can be assembled by hand: set its interval with `setInterval()`, fill the tick lists for `QwtScaleDiv::MajorTick` / `QwtScaleDiv::MinorTick` via `setTicks()`, and apply it with `QwtPlot::setAxisScaleDiv()`. The example below builds a division with major ticks every 20 and minor ticks every 4:
+
 ```cpp
 #include <QwtScaleDiv>
 
@@ -123,6 +127,8 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 
 ### 5. Scale Engine Properties
 
+The tick layout is fine-tuned through `QwtScaleEngine::Attribute` flags set with `setAttribute()`: `IncludeReference` forces the reference value to appear as a tick, `Symmetric` forces a symmetric range, `Floating` lets the endpoints float instead of snapping to ticks, and `Inverted` inverts the direction; `setMargins()` adds extra space at both ends. The example below fetches the engine of the bottom axis and adjusts these properties:
+
 ```cpp
 // Get scale engine
 QwtScaleEngine* engine = plot->axisScaleEngine(QwtAxis::XBottom);
@@ -137,6 +143,8 @@ engine->setMargins(0.05);  // 5% margin
 ```
 
 ### 6. Calculating Scale Division
+
+An engine can also be used standalone: `divideScale()` takes the data range plus the maximum numbers of major and minor steps and returns a ready-made `QwtScaleDiv`, which can then be applied with `QwtPlot::setAxisScaleDiv()`. The example below computes the division with a local `QwtLinearScaleEngine`:
 
 ```cpp
 #include <QwtScaleEngine>

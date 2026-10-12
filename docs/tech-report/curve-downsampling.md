@@ -285,6 +285,8 @@ The key difference: the MinMax bucket compares $y$ in the **data domain** and ma
 
 ### 5.1 Position in the paint pipeline
 
+The flowchart below traces the samples through the paint pipeline: visible-range culling by binary search (`qwtFindVisibleRange`), then the reduction branch selected by the `QwtPointMapper` flag priority, ending in the `QPolygonF` that is handed to render smoothing, clipping and `QPainter`.
+
 ```mermaid
 flowchart LR
     A["QwtSeriesData&lt;QPointF&gt;<br/>N samples"] --> B["qwtFindVisibleRange<br/>binary search<br/>(monotone x, O(log N))"]

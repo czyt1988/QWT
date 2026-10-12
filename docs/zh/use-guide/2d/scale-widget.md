@@ -28,6 +28,8 @@ Qwt 使用 `QwtAxis::Position` 枚举标识坐标轴位置：
 
 ### 坐标轴组成结构
 
+坐标轴由带刻度线的骨干线、旁边的刻度标签以及轴标题组成；刻度分为两种长度——长的主刻度与短的次刻度。下面的示意图给出一根水平轴的组成结构：
+
 ```text
           标题
          时间(s)
@@ -41,6 +43,8 @@ Qwt 使用 `QwtAxis::Position` 枚举标识坐标轴位置：
 ## 使用方法
 
 ### 1. 通过QwtPlot设置坐标轴
+
+大多数坐标轴设置直接通过 `QwtPlot` 完成：`setAxisTitle()` 设置轴标题、`setAxisScale()` 固定取值范围、`setAxisVisible()` 控制显隐，均以 `QwtAxis::Position` 指定目标轴。下面的例子配置底部 X 轴与左侧 Y 轴：
 
 ```cpp
 #include <QwtPlot>
@@ -63,6 +67,8 @@ plot->replot();
 ```
 
 ### 2. 获取坐标轴控件
+
+需要更精细的控制时，可用 `QwtPlot::axisWidget()` 取得坐标轴底层的控件；它是普通的 `QWidget`，用 `setFont()` 设置刻度标签字体、`setTitle()` 传入带样式的 `QwtText`，颜色则跟随控件调色板。下面的例子对底部轴控件做样式定制：
 
 ```cpp
 // 获取特定位置的坐标轴控件
@@ -131,6 +137,8 @@ scaleWidget->setColorBarPosition(QwtScaleWidget::Right);  // 在刻度右侧
 
 ### 5. 刻度绘制样式
 
+`QwtScaleWidget` 还提供刻度线外观的设置：刻度画在骨干线的哪一侧（外侧、内侧或双侧）、主/次刻度的像素长度，以及刻度与轴线之间的间距。下面的代码演示这些设置：
+
 ```cpp
 // 设置刻度位置（相对于轴的方向）
 scaleWidget->setTickPosition(QwtScaleWidget::Outside);  // 刻度在外侧
@@ -167,6 +175,8 @@ scaleWidget->setScaleDraw(new MyScaleDraw());
 ```
 
 ### 7. 设置刻度划分
+
+刻度划分既可以由刻度引擎通过 `QwtPlot::setAxisAutoScale()` 自动计算，也可以手动构建：为 `QwtScaleDiv` 设置区间并填入 `QwtScaleDiv::MajorTick` 位置列表，再用 `QwtPlot::setAxisScaleDiv()` 交给坐标轴。下面的例子演示这两种方式：
 
 ```cpp
 #include <QwtScaleDiv>

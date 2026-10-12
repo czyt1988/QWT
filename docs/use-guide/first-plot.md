@@ -8,6 +8,8 @@ This tutorial will help you quickly get started with the Qwt plotting library by
 
 ### Plot Item Types
 
+The class diagram below introduces the plot items you will meet most often: `QwtPlotCurve` draws lines and points, `QwtPlotGrid` draws the coordinate reference lines, `QwtPlotMarker` annotates values, and `QwtPlotBarChart` renders bars. All of them derive from the common base class `QwtPlotItem` and share its `attach()` / `detach()` / `setTitle()` interface:
+
 ```mermaid
 classDiagram
     class QwtPlotItem {
@@ -84,6 +86,8 @@ The simple plot example is located at: `examples/2D/simpleplot`. A screenshot is
 
 ### Complete Code
 
+The example below puts all the pieces together: it constructs a `QwtPlot` window, attaches a `QwtPlotGrid` and a `QwtPlotCurve` styled with a `QwtSymbol`, feeds the curve a handful of `QPointF` samples through `setSamples()`, and finally shows the window — the whole program is only about 40 lines:
+
 ```cpp
 #include <QwtPlot>
 #include <QwtPlotCurve>
@@ -145,6 +149,8 @@ int main(int argc, char* argv[])
 
 #### 1. Creating the Plot Window
 
+This first step builds the window itself: construct a plain `QwtPlot` object and give it a title plus a white canvas background via `setCanvasBackground()`:
+
 ```cpp
 QwtPlot plot;
 plot.setWindowTitle("Plot Demo");
@@ -154,6 +160,8 @@ plot.setCanvasBackground(Qt::white);
 `QwtPlot` is the main container for the plot, inheriting from `QFrame`. The canvas background color determines the base color of the plot area. It is recommended to use white or a light color for clear data display.
 
 #### 2. Adding a Grid
+
+A `QwtPlotGrid` draws the horizontal and vertical reference lines behind your data; like every plot item, it only shows up after being mounted onto the plot with `attach()`:
 
 ```cpp
 QwtPlotGrid* grid = new QwtPlotGrid();
@@ -168,6 +176,8 @@ The grid is a standalone plot item used to display coordinate reference lines. A
 
 #### 3. Creating a Curve and Setting Its Style
 
+The data itself is drawn by a `QwtPlotCurve`: `setTitle()` gives it a name for the legend, `setPen()` picks the line color and width, and `setRenderHint()` with `QwtPlotItem::RenderAntialiased` smooths the line:
+
 ```cpp
 QwtPlotCurve* curve = new QwtPlotCurve();
 curve->setTitle("Some Points");
@@ -181,6 +191,8 @@ Curves are the most commonly used plot item type:
 - `setRenderHint()` enables anti-aliased rendering for smoother lines
 
 #### 4. Setting Data Point Symbols
+
+To mark every sample with a shape, build a `QwtSymbol` — here an `Ellipse` with a yellow brush, a red pen, and a size of 8×8 pixels — and hand it to the curve with `setSymbol()`:
 
 ```cpp
 QwtSymbol* symbol = new QwtSymbol(
@@ -201,6 +213,8 @@ Symbols are used to display markers at each data point position. `QwtSymbol` sup
 - `XCross` - X-shaped cross
 
 #### 5. Setting Curve Data
+
+Samples reach the curve through `setSamples()`; the simplest overload takes a `QPolygonF` — a list of `QPointF` values — as shown below:
 
 ```cpp
 QPolygonF points;
@@ -223,6 +237,8 @@ The `setSamples()` method is used to set the data points of the curve. Qwt provi
 
 #### 6. Setting Axes
 
+Finally, `setAxisScale()` pins an axis — selected by a `QwtAxis::Position` value such as `QwtAxis::YLeft` — to a fixed range instead of letting Qwt derive one from the data:
+
 ```cpp
 plot.setAxisScale(QwtAxis::YLeft, 0.0, 10.0);
 ```
@@ -232,6 +248,8 @@ plot.setAxisScale(QwtAxis::YLeft, 0.0, 10.0);
 ## Advanced Configuration
 
 ### Multiple Curves
+
+Plotting another data series takes only a second `QwtPlotCurve`: give it its own title and pen, load its samples with `setSamples()`, and attach it to the same `QwtPlot`:
 
 ```cpp
 // Create a second curve
@@ -245,12 +263,16 @@ A single QwtPlot can have any number of plot items attached, and they are drawn 
 
 ### Setting Axis Titles
 
+Axis captions are set with `setAxisTitle()`: the first argument selects the axis position (`QwtAxis::XBottom`, `QwtAxis::YLeft`, …) and the second is the text to display:
+
 ```cpp
 plot.setAxisTitle(QwtAxis::XBottom, "Time (s)");
 plot.setAxisTitle(QwtAxis::YLeft, "Voltage (V)");
 ```
 
 ### Auto-Replot Mode
+
+If you would rather not call `replot()` yourself after every change, `setAutoReplot(true)` lets the plot refresh automatically whenever an item's data or attributes change:
 
 ```cpp
 plot.setAutoReplot(true);  // Auto-refresh when data changes

@@ -15,6 +15,8 @@
 
 ### 极坐标结构
 
+下面的示意图给出极坐标画布的布局：每个数据点由方位角与半径定位，同心圆对应半径刻度，从极点发出的射线对应角度刻度：
+
 ```text
           90°
            │
@@ -51,6 +53,8 @@
 ![Polar Demo](../../../assets/screenshots/polardemo.png)
 
 ### 1. 创建极坐标绘图
+
+一幅极坐标图由三部分组成：`QwtPolarPlot` 控件本身（用 `setScale()` 设定方位角与半径刻度）、作背景用的 `QwtPolarGrid`，以及由 `QwtPointPolar` 样本填充的若干 `QwtPolarCurve`。下面的例子把它们组装成一张完整的图：
 
 ```cpp
 #include <QwtPolarPlot>
@@ -90,6 +94,8 @@ polarPlot->replot();
 
 ### 2. 极坐标网格配置
 
+`QwtPolarGrid` 负责两族网格线——`showGrid()` 按刻度 id 开关方位角射线与半径同心圆；`showAxis()` 则分别控制 `AxisAzimuth`、`AxisLeft`、`AxisRight`、`AxisTop`、`AxisBottom` 各轴刻度标签的显示：
+
 ```cpp
 QwtPolarGrid* grid = new QwtPolarGrid();
 
@@ -112,6 +118,8 @@ grid->showAxis(QwtPolarGrid::AxisBottom, true);   // 底部半径标签
 
 ### 3. 极坐标曲线样式
 
+`QwtPolarCurve::setStyle()` 在 `Lines`（点间直线连接，可经曲线拟合器平滑）与 `NoCurve`（只画符号）之间选择；画笔与 `QwtSymbol` 的设置方式与笛卡尔曲线完全一致：
+
 ```cpp
 QwtPolarCurve* curve = new QwtPolarCurve();
 
@@ -130,6 +138,8 @@ curve->setSymbol(symbol);
 
 ### 4. 角度范围设置
 
+方位角轴使用常规的 `setScale()` / `setScaleMaxMajor()` 调用：把范围限制成一个扇形（如 0–180°）、限定主刻度数量，或交换上下限来反转角度方向：
+
 ```cpp
 // 设置角度范围（例如仅显示0-180度）
 polarPlot->setScale(QwtPolar::Azimuth, 0.0, 180.0);
@@ -142,6 +152,8 @@ polarPlot->setScale(QwtPolar::Azimuth, 360.0, 0.0);  // 从360到0递减
 ```
 
 ### 5. 半径范围设置
+
+半径轴的调整方式相同，`setScaleMaxMinor()` 还可控制两个主刻度之间的次刻度数；对跨多个数量级的数据，可用 `setScaleEngine()` 为半径刻度换上对数引擎（`QwtLogScaleEngine`）：
 
 ```cpp
 // 设置半径范围
@@ -157,6 +169,8 @@ polarPlot->setScaleEngine(QwtPolar::Radius, new QwtPolarLogScaleEngine());
 ```
 
 ### 6. 极坐标标记
+
+`QwtPolarMarker` 用于标注以 `QwtPointPolar` 给出的单个位置：`setSymbol()` 在该处绘制图标，`setLabel()` 配合 `setLabelAlignment()` 附加一个按指定方式对齐的 `QwtText` 文字说明：
 
 ```cpp
 #include <QwtPolarMarker>
@@ -188,6 +202,8 @@ marker->attach(polarPlot);
 | 半径轴 | `QwtPolar::Radius` | 半径坐标 |
 
 ## 数据点结构
+
+所有极坐标 item 都使用 `QwtPointPolar` 样本——它只是把方位角（度数）与半径配对；接受 `QPointF` 的构造函数会自动完成笛卡尔坐标转换：
 
 ```cpp
 // 极坐标点

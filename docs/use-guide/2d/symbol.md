@@ -42,6 +42,8 @@ The symbol demo is located at: `playground/symbols`. Screenshot:
 
 ### 1. Creating Basic Symbols
 
+A symbol can be fully configured in one shot through the convenience constructor `QwtSymbol(style, brush, pen, size)`, or created empty and then set up step by step with `setStyle()`, `setBrush()`, `setPen()` and `setSize()`. The example below demonstrates both approaches:
+
 ```cpp
 #include <QwtSymbol>
 
@@ -63,6 +65,8 @@ symbol2->setSize(8, 8);
 
 ### 2. Applying Symbols to Curves
 
+Symbols are handed to a curve with `QwtPlotCurve::setSymbol()` (the curve takes ownership of the pointer) and are then drawn at every sample position. The example below attaches a small filled symbol to a curve:
+
 ```cpp
 #include <QwtPlotCurve>
 
@@ -80,6 +84,8 @@ curve->setSymbol(new QwtSymbol(
 ```
 
 ### 3. Common Symbol Shape Examples
+
+The first argument of the convenience constructor is a `QwtSymbol::Style` enum value, which can be combined freely with a fill `QBrush` and an outline `QPen`; line-only shapes such as `Cross` and `XCross` are typically paired with `Qt::NoBrush`. The code below builds several commonly used shapes:
 
 ```cpp
 // Circle symbol
@@ -131,6 +137,8 @@ customSymbol->setSize(20, 20);
 
 ### 5. Symbol Size Settings
 
+The symbol dimensions are set with `setSize()`, which has two overloads: one taking a `QSize` and one taking separate width and height, so non-square symbols such as ellipses are possible. The example below shows both forms:
+
 ```cpp
 // Set fixed size
 symbol->setSize(QSize(10, 10));  // 10x10 pixels
@@ -161,6 +169,8 @@ symbol->setPinPoint(QPointF(0.0, 0.0));
 
 ### 7. Symbol Fill Styles
 
+Filling is controlled by `setBrush()`, and the `QBrush` may be a solid color, a gradient such as `QLinearGradient`, or a fill pattern; passing `Qt::NoBrush` leaves only the outline. The code below demonstrates a few common fill styles:
+
 ```cpp
 // Simple fill
 symbol->setBrush(QBrush(Qt::red));
@@ -179,6 +189,8 @@ symbol->setBrush(QBrush(Qt::blue, Qt::DiagCrossPattern));
 ```
 
 ### 8. Border Styles
+
+The border is controlled by `setPen()`, where line style, width and color all come from the supplied `QPen`; passing `Qt::NoPen` removes the border entirely. The example below shows several typical pen configurations:
 
 ```cpp
 // Solid border

@@ -50,6 +50,8 @@ struct QwtVectorFieldSample {
 
 ### 1. 基本向量场图
 
+向量场项直接构造 `QwtPlotVectorField`，数据以 `QwtVectorFieldSample` 序列传入 `setSamples()`——每个样本由位置 (x, y) 和向量分量 (vx, vy) 组成。下面的例子生成 10 x 10 的三角函数向量网格并挂载到绘图上：
+
 ```cpp
 #include <QwtPlot>
 #include <QwtPlotVectorField>
@@ -78,6 +80,8 @@ plot->replot();
 
 ### 2. 箭头样式配置
 
+箭头形状由 `QwtVectorFieldSymbol` 的实现类提供——`QwtVectorFieldArrow`（实心箭头，可指定头宽与尾宽）或 `QwtVectorFieldThinArrow`（细线箭头）——通过 `setSymbol()` 挂载，描边则由向量场项自身的 `setPen()` 控制；`setMagnitudeScaleFactor()` 决定向量大小对箭头长度的影响程度。下面的代码演示这些配置：
+
 ```cpp
 #include <QwtVectorFieldSymbol>
 
@@ -96,6 +100,8 @@ vectorField->setSymbol(symbol);
 
 ### 3. 向量大小映射
 
+大小到长度的映射由 `setMagnitudeScaleFactor()` 控制——对每个向量的大小施加线性缩放因子，还可用 `setMinArrowLength()` / `setMaxArrowLength()` 限定箭头长度范围。下面的代码通过调整缩放因子改变箭头长度对向量大小的响应：
+
 ```cpp
 // 将向量大小映射到箭头长度
 vectorField->setMagnitudeScaleFactor(1.0);  // 线性映射
@@ -107,6 +113,8 @@ vectorField->setSymbolSize(10);  // 固定10像素
 
 ### 4. 显示密度控制
 
+显示密度通过栅格化过滤降低：`setRasterSize()` 定义栅格单元大小，配合 `setPaintAttribute()` 启用 `FilterVectors` 属性后，同一单元内的样本会被平均合并。下面的代码演示这一抽稀配置：
+
 ```cpp
 // 设置采样密度（避免过度拥挤）
 vectorField->setSamplesPerInch(20);  // 每英寸20个向量
@@ -116,6 +124,8 @@ vectorField->setIndirectionCount(2);  // 每隔2个点显示一个
 ```
 
 ### 5. 颜色映射
+
+按大小着色需要一个 `QwtColorMap`（如两色之间渐变的 `QwtLinearColorMap`），用 `setColorMap()` 赋给向量场，并通过 `setMagnitudeMode()` 启用 `MagnitudeAsColor` 标志；`setMagnitudeRange()` 指定色带覆盖的数值区间。下面的例子配置蓝到红的颜色映射：
 
 ```cpp
 #include <QwtColorMap>

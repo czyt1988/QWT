@@ -193,6 +193,8 @@ protected:
 
 ### 信号说明
 
+`QwtPlotSeriesDataPicker` 发出 `clicked()` 与 `doubleClicked()` 两个信号，参数均为发出信号的 picker 指针与点击的屏幕位置，签名如下：
+
 ```cpp
 // 单击信号
 void clicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
@@ -228,6 +230,8 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 ### FeaturePoint 结构
 
+每个被拾取的点由内嵌结构体 `QwtPlotSeriesDataPicker::FeaturePoint` 描述，它打包了所属绘图项（`item`）、拾取到的坐标（`feature`）以及该点在系列数据中的索引（`index`）。其定义如下：
+
 ```cpp
 struct FeaturePoint
 {
@@ -247,6 +251,8 @@ struct FeaturePoint
 
 ### featurePoints() 方法
 
+`featurePoints()` 是一个 const 访问器，以 `QList<FeaturePoint>` 返回当前 tracker 位置拾取到的全部特征点，签名如下：
+
 ```cpp
 // 获取当前拾取到的特征点列表
 QList<FeaturePoint> featurePoints() const;
@@ -263,6 +269,8 @@ QList<FeaturePoint> featurePoints() const;
 `QwtPlotSeriesDataPickerGroup` 提供了组内点击信号的转发功能。
 
 ### 组信号说明
+
+`QwtPlotSeriesDataPickerGroup` 会转发组内每个 picker 的 `clicked()` 与 `doubleClicked()` 信号，因此只需连接 group 一次即可覆盖所有成员；参数中的 `picker` 仍然指示被点击的具体成员。转发信号的签名如下：
 
 ```cpp
 // 组内 picker 被点击时发出

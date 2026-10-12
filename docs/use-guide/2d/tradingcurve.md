@@ -60,6 +60,8 @@ The stock K-line chart example is located at: `examples/2D/stockchart`. Screensh
 
 ### 1. Basic K-Line Chart
 
+A trading curve is configured through `setSymbolStyle()` (`Bar` / `CandleStick`, default `CandleStick`): `setSymbolBrush()` assigns the body fill per price `Direction` (`Increasing` / `Decreasing`), and `setSymbolExtent()` sets the body width in scale units. Data is fed to `setSamples()` as `QwtOHLCSample` values (time, open, high, low, close). The example below renders four daily candles on a plot:
+
 ```cpp
 #include <QwtPlot>
 #include <QwtPlotTradingCurve>
@@ -102,6 +104,8 @@ plot->replot();
 
 #### Candlestick Style
 
+In `CandleStick` mode the box between open and close is filled according to the price direction: `setSymbolBrush()` takes a `Direction` (`Increasing` when the close is above the open, `Decreasing` otherwise) plus a brush, while `setSymbolPen()` sets the pen used to stroke the candles. The snippet below assigns distinct fills for up and down days:
+
 ```cpp
 curve->setStyle(QwtPlotTradingCurve::CandleStick);
 
@@ -119,6 +123,8 @@ curve->setSymbolPen(QwtPlotTradingCurve::Neutral, QPen(Qt::black, 1));
 
 #### American Bar Style
 
+`Bar` style draws only the vertical line spanning low to high, with small horizontal ticks marking the open (left) and close (right) prices — no filled body. Switch to it with `setSymbolStyle(QwtPlotTradingCurve::Bar)`:
+
 ```cpp
 curve->setStyle(QwtPlotTradingCurve::Bar);
 
@@ -127,6 +133,8 @@ curve->setStyle(QwtPlotTradingCurve::Bar);
 ```
 
 ### 3. Body Width Settings
+
+Body width is governed by three methods: `setSymbolExtent()` defines the width in scale (coordinate) units, while `setMinSymbolWidth()` and `setMaxSymbolWidth()` clamp the rendered width in pixels. The snippet below combines all three:
 
 ```cpp
 // Set body width (in relative coordinate units)
@@ -140,6 +148,8 @@ curve->setMaxSymbolWidth(20); // Maximum 20 pixels wide
 ```
 
 ### 4. Data Settings
+
+`setSamples()` is overloaded to accept either a `QVector<QwtOHLCSample>` — each sample storing time, open, high, low, and close — or a `QwtSeriesData<QwtOHLCSample>*` for custom data sources. Both forms are shown below:
 
 ```cpp
 // Using QwtTradingSample array
@@ -157,6 +167,8 @@ curve->setSamples(seriesData);
 
 ### 5. Combining with Volume Chart
 
+Volume is typically overlaid as a `QwtPlotBarChart` attached to the same plot: its `setSamples()` accepts a `QVector<double>` of per-bar values and `setBrush()` styles the columns. The example below adds a gray volume series beneath the candles:
+
 ```cpp
 // Create volume bar chart
 QwtPlotBarChart* volumeChart = new QwtPlotBarChart("Volume");
@@ -169,6 +181,8 @@ volumeChart->attach(plot);
 ```
 
 ### 6. Adding Moving Averages
+
+Moving averages are ordinary `QwtPlotCurve` items layered on top of the candles, each with its own pen and sample array. The example below overlays 5-day and 10-day moving averages:
 
 ```cpp
 #include <QwtPlotCurve>

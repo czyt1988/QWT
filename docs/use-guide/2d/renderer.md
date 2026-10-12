@@ -15,6 +15,8 @@
 
 ### 1. Export to Image File
 
+All file exports go through `QwtPlotRenderer::renderDocument()`: you pass the plot, the target filename (whose extension selects the format), the output size, and the resolution in DPI (default 85). The example below writes the same plot as PNG, JPG, and BMP:
+
 ```cpp
 #include <QwtPlotRenderer>
 
@@ -34,6 +36,8 @@ renderer.renderDocument(plot, "plot.bmp", QSize(800, 600));
 
 ### 2. Export to PDF
 
+PDF output uses the same `renderDocument()` entry point — just give the file a `.pdf` extension. The result is a vector document that stays sharp at any zoom level, ideal for printing and document embedding:
+
 ```cpp
 // Export to PDF
 renderer.renderDocument(plot, "plot.pdf", QSizeF(200, 150), 300);  // 200x150 mm, 300 DPI
@@ -42,6 +46,8 @@ renderer.renderDocument(plot, "plot.pdf", QSizeF(200, 150), 300);  // 200x150 mm
 ```
 
 ### 3. Export to SVG
+
+With a `.svg` filename, `renderDocument()` produces a scalable vector graphic (Qwt must be built with SVG support, `QWT_CONFIG_QWTSVG`). SVG output remains editable and can be embedded directly into web pages:
 
 ```cpp
 // Export to SVG vector format
@@ -55,6 +61,8 @@ renderer.renderDocument(plot, "plot.svg", QSizeF(200, 150));
 
 ### 4. Export to QImage/QPixmap
 
+Instead of writing a file, the renderer can also draw into an in-memory paint device: the `renderTo(QwtPlot*, QPaintDevice&)` overload accepts any `QImage` or `QPixmap` prepared at the desired size and DPI, which is handy for embedding the result in an application or post-processing it:
+
 ```cpp
 // Export as QImage
 QSize size(800, 600);
@@ -67,6 +75,8 @@ QPixmap pixmap = renderer.renderToPixmap(plot, size, 300);
 ```
 
 ### 5. Export Options
+
+The `DiscardFlag` enum strips selected components from the output: `DiscardBackground`, `DiscardTitle`, `DiscardLegend`, `DiscardCanvasBackground`, `DiscardFooter`, and `DiscardCanvasFrame`. Single flags are toggled with `setDiscardFlag()`, while `setDiscardFlags()` assigns the whole set at once:
 
 ```cpp
 // Set export layout options
@@ -84,6 +94,8 @@ renderer.resetDiscardFlags();
 
 ### 6. Print Function
 
+For printing, a configured `QPrinter` is handed to the renderer (`renderTo(QwtPlot*, QPrinter&)`), which lays the plot out across the page; the printer itself decides the target — a physical device or, as below, a PDF file:
+
 ```cpp
 #include <QPrinter>
 
@@ -98,6 +110,8 @@ plot->print(printer);
 ```
 
 ### 7. Using Millimeter Units for Size
+
+The size argument of `renderDocument()` is a `QSizeF` interpreted in millimeters, so the exported document has well-defined physical dimensions; the `resolution` argument (default 85) sets the dots per inch used when rasterizing content:
 
 ```cpp
 // Specify size in millimeter units

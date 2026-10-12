@@ -36,6 +36,8 @@ QwtPlotCurve 支持以下绘制样式：
 
 ### 类继承关系
 
+下面的类图展示了 `QwtPlotCurve` 在类层次中的位置：它从 `QwtPlotItem` 继承 `attach()`、`setTitle()` 等绘图项基本行为，从 `QwtPlotSeriesItem` 继承序列绘制能力，数据存取则来自 `QwtSeriesStore<QPointF>`（`setSamples()`、`sample()`、`size()` 均由它提供）：
+
 ```mermaid
 classDiagram
     class QwtPlotItem {
@@ -476,6 +478,8 @@ curve->setLegendIconSize(QSize(20, 10));
 | `minYValue()/maxYValue()` | 获取数据范围 |
 
 ## 实时数据更新示例
+
+对流式数据场景，常见做法是关闭自动刷新、改为手动控制刷新时机。下面的示例定义了一个 `QwtPlot` 子类 `RealtimePlot`：用两个 `QVector<double>` 作为滚动缓冲，只保留最近 1000 个点，每次追加后通过 `setRawSamples()` 重新绑定数组（直接引用、不复制数据），最后只调用一次 `replot()`：
 
 ```cpp
 // 实时数据场景

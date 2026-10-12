@@ -15,6 +15,8 @@
 
 ### Polar Coordinate Structure
 
+The sketch below shows the polar canvas: every data point is placed by an azimuth angle and a radius, concentric circles mark the radius scale, and rays from the pole mark the angle scale:
+
 ```text
           90°
            │
@@ -51,6 +53,8 @@ The polar plot example is located at: `examples/2D/polardemo`. Screenshot:
 ![Polar Demo](../../assets/screenshots/polardemo.png)
 
 ### 1. Creating a Polar Plot
+
+A polar plot combines three ingredients: the `QwtPolarPlot` widget itself (azimuth and radius scales set via `setScale()`), a `QwtPolarGrid` item for the background, and one or more `QwtPolarCurve` items fed with `QwtPointPolar` samples. The example below assembles them into a complete chart:
 
 ```cpp
 #include <QwtPolarPlot>
@@ -90,6 +94,8 @@ polarPlot->replot();
 
 ### 2. Polar Grid Configuration
 
+`QwtPolarGrid` draws both families of grid lines — `showGrid()` toggles the azimuth rays and radius circles by scale id — while `showAxis()` switches the tick labels on or off for each of the `AxisAzimuth`, `AxisLeft`, `AxisRight`, `AxisTop`, and `AxisBottom` axes:
+
 ```cpp
 QwtPolarGrid* grid = new QwtPolarGrid();
 
@@ -112,6 +118,8 @@ grid->showAxis(QwtPolarGrid::AxisBottom, true);   // Bottom radius labels
 
 ### 3. Polar Curve Style
 
+`QwtPolarCurve::setStyle()` chooses between `Lines` (points connected by straight segments, optionally smoothed by a curve fitter) and `NoCurve` (symbols only); pen and `QwtSymbol` are set exactly as on Cartesian curves:
+
 ```cpp
 QwtPolarCurve* curve = new QwtPolarCurve();
 
@@ -130,6 +138,8 @@ curve->setSymbol(symbol);
 
 ### 4. Angle Range Settings
 
+The azimuth axis takes the usual `setScale()` / `setScaleMaxMajor()` calls: limit the range to a sector (e.g. 0–180°), cap the number of major ticks, or swap the limits to reverse the angle direction:
+
 ```cpp
 // Set angle range (e.g., show only 0-180 degrees)
 polarPlot->setScale(QwtPolar::Azimuth, 0.0, 180.0);
@@ -142,6 +152,8 @@ polarPlot->setScale(QwtPolar::Azimuth, 360.0, 0.0);  // Decreasing from 360 to 0
 ```
 
 ### 5. Radius Range Settings
+
+The radius axis is adjusted the same way, with `setScaleMaxMinor()` additionally controlling the minor ticks between two majors; for data spanning several orders of magnitude, `setScaleEngine()` installs a logarithmic engine (`QwtLogScaleEngine`) on the radius scale:
 
 ```cpp
 // Set radius range
@@ -157,6 +169,8 @@ polarPlot->setScaleEngine(QwtPolar::Radius, new QwtPolarLogScaleEngine());
 ```
 
 ### 6. Polar Markers
+
+`QwtPolarMarker` annotates a single position given as a `QwtPointPolar`: `setSymbol()` draws an icon there, while `setLabel()` plus `setLabelAlignment()` attach a `QwtText` caption with the chosen alignment:
 
 ```cpp
 #include <QwtPolarMarker>
@@ -188,6 +202,8 @@ marker->attach(polarPlot);
 | Radius axis | `QwtPolar::Radius` | Radius coordinate |
 
 ## Data Point Structure
+
+All polar items consume `QwtPointPolar` samples, which simply pair an azimuth (in degrees) with a radius; the constructor taking a `QPointF` converts Cartesian coordinates automatically:
 
 ```cpp
 // Polar coordinate point

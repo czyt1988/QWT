@@ -257,6 +257,8 @@ The reasoning: an architectural mistake makes **every** subsequent change more e
 
 ### 4.1 The full picture
 
+The class diagram below lays the whole refactored architecture out on one canvas: `Qwt3DPlot` manages a z-ordered list of `Qwt3DPlotItem` objects — the concrete items being `Qwt3DSurface`, `Qwt3DBar` and `Qwt3DLine` — while `Qwt3DFunction` feeds data into surfaces, `Qwt3DColor` functors decide colors, and `Qwt3DCoordinateSystem` plus `Qwt3DTheme` take care of the coordinate box and the appearance:
+
 ```mermaid
 classDiagram
     class Qwt3DPlot {
@@ -373,6 +375,8 @@ Two design details deserve a closer look:
 - **Legend and title use a fixed matrix.** They are screen-anchored; if they rotated with the scene they would be wrong, so the window swaps in a baseline modelView that does not follow user interaction for the last drawing phase, keeping UI elements stable.
 
 ### 4.3 How data reaches the GPU
+
+The flowchart below follows one data set on its whole journey to the GPU: from a user-defined `Qwt3DFunction` (or directly fed arrays) through `loadFromData()`, the `itemChanged()` notification and the hull recomputation, up to the deferred `buildVBO()` upload and the final `glDrawElements` submission in the next frame's `draw()`:
 
 ```mermaid
 flowchart TD

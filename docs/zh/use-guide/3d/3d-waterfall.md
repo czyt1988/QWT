@@ -58,6 +58,8 @@
 
 ### 1. 静态瀑布（零自定义代码）
 
+一次性的静态瀑布不需要任何自定义类：创建 `Qwt3DWaterfall`，在喂数据*之前*先 attach 到 `Qwt3DPlot`，用 `setTraceCapacity()` 定窗口大小，`setPlotStyle()` 选几何风格（`Ribbon` / `RibbonMesh` / `Wireframe` / `Tube`），`setColorMode()` 定上色方式，然后每条迹线一次 `pushTrace()` 把窗口填满，如下例所示：
+
 ```cpp
 #include <qwt3d_plot.h>
 #include <qwt3d_waterfall.h>
@@ -88,6 +90,8 @@ plot->coordinates()->axes[Z1].setLabelString("Amplitude");
 > 典型频谱瀑布的跨度是 bins `0..M-1`、幅度 `0..1`、深度 `0..capacity-1` —— 强各向异性。应使用 `AUTOFILL`：它在推导投影之前把每个轴归一化到最大数据范围，之后再用 `plot->setScale()` 塑造归一化立方体（示例用 `(1.0, 0.35, 0.6)`：满 bin 宽、压缩深度、60% 幅度高度）。在 `DATARATIO` 下真实比例会让帘幕成为 255 单位宽场景里 1 单位高的细条，而且逐轴 `setScale()` 救不回来——投影半径是按未缩放的 hull 推导的。
 
 ### 2. 实时瀑布（30 Hz）
+
+实时模式复用同一个对象：初始化时把容量、颜色模式和固定的 `setColorRange()` 色域配置好，之后每个定时器 tick 只需一次 `pushTrace()`，它会自动滑动窗口并触发 `itemChanged()` → `update()` 刷新：
 
 ```cpp
 // 初始化：
@@ -134,6 +138,8 @@ axis.setScale(scale);
 
 ### 4. 上色与颜色 functor
 
+三种 `ColorMode` 对应不同的颜色来源：`ByAmplitude` 用 `Qwt3DColorMapColor` functor（通过 `setDataColor()` 安装，可按 `"plasma"` 等预设名选择）按幅度 z 值上色，`ByDepth` 按迹线在窗口中的槽位上色（默认），`Solid` 则使用 `setColor()` 给定的单一 `RGBA` 颜色：
+
 ```cpp
 // 指定 preset 的幅度上色：
 waterfall->setColorMode(Qwt3DWaterfall::ByAmplitude);
@@ -152,6 +158,8 @@ waterfall->setColor(RGBA(0.4, 0.6, 0.9, 1.0));
 颜色在 VBO 构建时烘焙；就地修改 functor 后需调用 `invalidateColors()`（或任意 setter）触发重建。
 
 ### 5. 基线、不透明度与描边
+
+另外三个 setter 用来微调帘幕观感：`setBaseline()` 固定帘幕起绘的数值（默认为幅度最小值），`setOpacity()` 让帘幕半透明混色，`setOutlineColor()` 与 `setOutlineWidth()` 则控制 `RibbonMesh` / `Wireframe` 风格描边的颜色与线宽：
 
 ```cpp
 waterfall->setBaseline(0.0);        // 帘幕从 y == 0 开始（默认：幅度最小值）

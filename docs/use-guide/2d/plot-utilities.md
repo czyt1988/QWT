@@ -4,6 +4,8 @@ Qwt 7 provides a set of utility classes in the `Qwt` namespace that simplify com
 
 ## Utility Class Overview
 
+The class diagram below outlines the five utility classes and their respective targets: `QwtPlotItemInfo` and `QwtPlotDataAccess` query and read/write plot items, `QwtPlotFactory` creates items on a `QwtPlot`, `QwtPlotTransform` converts coordinates, and `QwtPlotStyling` reads and writes visual styles:
+
 ```mermaid
 classDiagram
     class QwtPlotItemInfo {
@@ -66,6 +68,8 @@ classDiagram
 
 ### Creating Curves
 
+`createCurve()` returns an already-attached `QwtPlotCurve*` and offers three data overloads: a `QVector<QPointF>`, separate x/y vectors, or y-only values with x generated as the sample index:
+
 ```cpp
 #include <QwtPlotFactory>
 #include <QwtPlot>
@@ -90,6 +94,8 @@ The factory methods handle the entire workflow: create → set data → bind axe
 
 ### Creating Bar Charts and Histograms
 
+`createBarChart()` builds a `QwtPlotBarChart*` from plain values, whereas `createHistogram()` expects pre-binned `QwtIntervalSample` data (value plus interval bounds) and produces a `QwtPlotHistogram*`:
+
 ```cpp
 // Bar chart
 QVector<double> values = {10, 25, 30, 15, 40};
@@ -105,6 +111,8 @@ QwtPlotHistogram* hist = QwtPlotFactory::createHistogram(plot, "Distribution", h
 
 ### Creating Trading Curves (Candlestick/OHLC)
 
+`createTradingCurve()` attaches a `QwtPlotTradingCurve*` fed with `QwtOHLCSample` values — each sample carries the time plus open, high, low, and close prices:
+
 ```cpp
 QVector<QwtOHLCSample> ohlc;
 ohlc << QwtOHLCSample(1, 100, 110, 95, 105);  // time, open, high, low, close
@@ -115,6 +123,8 @@ QwtPlotTradingCurve* kline = QwtPlotFactory::createTradingCurve(plot, "Stock", o
 ```
 
 ### Creating Box Charts and Vector Fields
+
+`createBoxChart()` draws statistical boxes from `QwtBoxSample` values (position, minimum, first quartile, median, third quartile, maximum), while `createVectorField()` renders arrows from `QwtVectorFieldSample` entries carrying `(x, y, u, v)`:
 
 ```cpp
 // Box chart
@@ -130,6 +140,8 @@ QwtPlotVectorField* field = QwtPlotFactory::createVectorField(plot, "Flow", vf);
 ```
 
 ### Creating Decorator Items
+
+The decorator factories cover grids, reference lines, markers, zones, legends, and arrows: `createGrid()` takes a boolean for minor grid lines, `createHLine()` / `createVLine()` default to a gray dashed pen, and `createZone()` highlights a `QwtInterval` with the given brush:
 
 ```cpp
 // Add grid
@@ -166,6 +178,8 @@ QwtPlotArrowMarker* arrow = QwtPlotFactory::createArrowMarker(
 
 ### Type Checks
 
+A set of boolean predicates classifies items by role: `isSeriesItem()` recognizes anything carrying a data series, `isXYSeriesItem()` / `isIntervalSeriesItem()` distinguish the two sample layouts, and `isDecoratorItem()` flags non-data items such as grids and markers:
+
 ```cpp
 #include <QwtPlotItemInfo>
 
@@ -185,6 +199,8 @@ bool isDeco = QwtPlotItemInfo::isDecoratorItem(item);
 ```
 
 ### Filtering by Type
+
+`filterByRtti()` selects items from a plot by a single rtti value or by a `QSet<int>` of several types; `seriesItems()`, `xySeriesItems()`, and `visibleItems()` are ready-made shortcuts for common subsets:
 
 ```cpp
 // Get all curves from a plot
@@ -207,6 +223,8 @@ QwtPlotItemList visible = QwtPlotItemInfo::visibleItems(plot);
 
 ### Getting Basic Information
 
+`dataSize()` reports the number of samples (or -1 for items without data), `dataRect()` gives the bounding rectangle of the data, and `rttiName()` turns an rtti constant into a readable string:
+
 ```cpp
 // Get number of data points
 int count = QwtPlotItemInfo::dataSize(item);  // -1 if not a data item
@@ -223,6 +241,8 @@ QString name = QwtPlotItemInfo::rttiName(item->rtti());  // "PlotCurve"
 `QwtPlotDataAccess` dispatches through rtti to extract or set sample data from any `QwtPlotItem`, covering all 7 data types.
 
 ### Extracting XY Data
+
+`xySamples()` works on any item storing XY samples — such as `QwtPlotCurve` or `QwtPlotBarChart` — either returning a `QVector<QPointF>` or filling separate x and y vectors:
 
 ```cpp
 #include <QwtPlotDataAccess>
@@ -243,6 +263,8 @@ if (!pts.isEmpty()) {
 ```
 
 ### Extracting Other Data Types
+
+For the remaining sample layouts, dedicated getters return the native sample types: `intervalSamples()`, `ohlcSamples()`, `xyzSamples()`, `setSamples()`, `vectorFieldSamples()`, and `boxSamples()`, each yielding the corresponding `QVector` when the item's rtti matches:
 
 ```cpp
 // Interval data (QwtPlotIntervalCurve, QwtPlotHistogram)
@@ -265,6 +287,8 @@ QVector<QwtBoxSample> boxes = QwtPlotDataAccess::boxSamples(item);
 ```
 
 ### Setting Data
+
+The setters mirror the getters: `setXYSamples()` replaces the samples of an XY item (from points or from separate x/y vectors) and returns `true` on success, while `setOhlcSamples()` does the same for trading curves:
 
 ```cpp
 // Set XY data
@@ -299,6 +323,8 @@ QVector<QPointF> subset = QwtPlotDataAccess::samples(store, 10, 50);
 ```
 
 ### Range-Based Extraction and Removal
+
+`xySamplesInRange()` selects the samples falling inside a `QRectF` or an arbitrary `QPainterPath` (in data coordinates), and `removeSamplesInRange()` deletes them, returning the number of samples removed:
 
 ```cpp
 // Extract samples within a rectangular range
@@ -339,6 +365,8 @@ QPointF converted = QwtPlotTransform::transformPoint(
 
 ### Screen/Data Coordinate Conversion
 
+`toPlotPoint()` converts a position within the widget (such as a mouse click) into data coordinates, and `toScreenPoint()` performs the inverse mapping:
+
 ```cpp
 // Convert mouse click to data coordinates (common in pick operations)
 QPointF mousePos(150, 200);
@@ -350,6 +378,8 @@ QPointF screenPos = QwtPlotTransform::toScreenPoint(plot, dataPoint);
 
 ### Pixel Offset
 
+`onePixelOffset()` returns how much one pixel corresponds to in data coordinates on the given axes (defaults to `QwtAxis::XBottom` / `QwtAxis::YLeft`):
+
 ```cpp
 // Compute the data-coordinate offset for 1 pixel
 QPointF offset = QwtPlotTransform::onePixelOffset(plot);
@@ -359,6 +389,8 @@ qDebug() << "1px =" << offset.x() << "(x)," << offset.y() << "(y)";
 This is useful for implementing drag, nudge, or other pixel-precision interactions.
 
 ### Visible Range
+
+`visibleRange()` reports the data rectangle currently shown on the canvas, while `totalDataRange()` computes the union of the data items' bounding rectangles — its `onlyVisible` flag (default `true`) controls whether hidden items are included:
 
 ```cpp
 // Get the currently visible data range
@@ -378,6 +410,8 @@ QRectF visibleRange = QwtPlotTransform::totalDataRange(plot, true);
 `QwtPlotStyling` dispatches through rtti to uniformly read/write colors, pens, brushes, and symbols on any plot item.
 
 ### Unified Color Read/Write
+
+`color()` reads back an item's dominant color according to its type, and `setColor()` writes it to wherever that item keeps its color (pen, brush, …). Items without a color notion yield an invalid `QColor`, or the `defaultColor` passed to `color()`:
 
 ```cpp
 #include <QwtPlotStyling>
@@ -407,6 +441,8 @@ Color sources by item type:
 
 ### Pen and Brush
 
+`pen()` / `brush()` fetch an item's pen or brush regardless of its concrete type, and `setPen()` / `setBrush()` apply new ones, returning `true` when the item supports that property:
+
 ```cpp
 // Get pen and brush
 QPen p = QwtPlotStyling::pen(item);
@@ -420,6 +456,8 @@ QwtPlotStyling::setBrush(item, QBrush(QColor(255, 0, 0, 50)));
 ```
 
 ### Curve Symbols
+
+For `QwtPlotCurve`, `setSymbol()` builds a `QwtSymbol` from a `QwtSymbol::Style` (e.g. `Ellipse`, `Diamond`) with a size defaulting to 8×8; the color parameter is optional and, when omitted, the symbol follows the curve color. `setLineStyle()` sets the pen style and width:
 
 ```cpp
 QwtPlotCurve* curve = ...;
@@ -435,6 +473,8 @@ QwtPlotStyling::setLineStyle(curve, Qt::DashLine, 1.5);
 ```
 
 ### Recommendations and Force Replot
+
+`recommendPenWidth()` suggests a pen width from the number of points so dense curves stay readable, and `forceReplot()` redraws the plot immediately even when `autoReplot` is disabled:
 
 ```cpp
 // Recommend pen width based on data density

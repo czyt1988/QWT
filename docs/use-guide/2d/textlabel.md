@@ -24,6 +24,8 @@ Difference from `QwtPlotMarker`:
 
 ### Positioning Diagram
 
+The diagram below shows how a text label is pinned to a fixed relative position on the canvas (here the upper right corner), independent of the plot's data coordinates:
+
 ```text
 ┌────────────────────────────────────┐
 │                                    │
@@ -41,6 +43,8 @@ Difference from `QwtPlotMarker`:
 ## Usage
 
 ### 1. Creating a Text Label
+
+The text content and its appearance are wrapped in a `QwtText` object (font, color, etc.) and handed to the item through `setText()`; the item is then mounted onto the plot with `attach()`. The example below creates a description label pinned to the upper right corner of the canvas:
 
 ```cpp
 #include <QwtPlot>
@@ -70,6 +74,8 @@ plot->replot();
 
 ### 2. Text Style Configuration
 
+The visual style is carried by `QwtText`: `setFont()` sets the font, `setColor()` the text color, `setBackgroundBrush()` the background and `setBorderPen()` the border. The example below configures a label with a light-yellow background and a gray border:
+
 ```cpp
 QwtText text;
 
@@ -93,6 +99,8 @@ label->setText(text);
 
 ### 3. Position and Alignment
 
+The label position is given in normalized canvas coordinates ranging from 0 to 1, while the alignment decides which corner or side of the text rectangle is anchored to that point. The code below demonstrates a centered label and lists other common alignment combinations:
+
 ```cpp
 // Set position (normalized coordinates, range [0,1])
 label->setPos(0.5, 0.5);  // Canvas center
@@ -107,6 +115,8 @@ label->setAlignment(Qt::AlignCenter);
 ```
 
 ### 4. Rotated Text
+
+For diagonal annotations the text can be rotated around its anchor by an arbitrary angle in degrees. The example below rotates a label by 45 degrees:
 
 ```cpp
 // Set text rotation angle

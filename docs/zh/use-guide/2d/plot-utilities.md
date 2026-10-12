@@ -4,6 +4,8 @@ Qwt 7 提供了一组位于 `Qwt` 命名空间下的工具类，用于简化常�
 
 ## 工具类概览
 
+下面的类图给出五个工具类的分工：`QwtPlotItemInfo` 与 `QwtPlotDataAccess` 负责查询和读写绘图项，`QwtPlotFactory` 在 `QwtPlot` 上创建绘图项，`QwtPlotTransform` 做坐标变换，`QwtPlotStyling` 统一读写视觉样式：
+
 ```mermaid
 classDiagram
     class QwtPlotItemInfo {
@@ -66,6 +68,8 @@ classDiagram
 
 ### 创建曲线
 
+`createCurve()` 返回已完成 attach 的 `QwtPlotCurve*`，数据有三种重载：`QVector<QPointF>`、分离的 x/y 向量、或仅 y 值（x 自动取样本索引）：
+
 ```cpp
 #include <QwtPlotFactory>
 #include <QwtPlot>
@@ -90,6 +94,8 @@ QwtPlotCurve* curve3 = QwtPlotFactory::createCurve(plot, "索引曲线", yOnly);
 
 ### 创建柱状图与直方图
 
+`createBarChart()` 用一组原始值创建 `QwtPlotBarChart*`；`createHistogram()` 则需要预先分箱的 `QwtIntervalSample` 数据（值 + 区间边界），生成 `QwtPlotHistogram*`：
+
 ```cpp
 // 柱状图
 QVector<double> values = {10, 25, 30, 15, 40};
@@ -105,6 +111,8 @@ QwtPlotHistogram* hist = QwtPlotFactory::createHistogram(plot, "分布", histDat
 
 ### 创建 K 线图（交易曲线）
 
+`createTradingCurve()` 附加一个由 `QwtOHLCSample` 填充的 `QwtPlotTradingCurve*`——每个样本携带时间与开盘、最高、最低、收盘四个价格：
+
 ```cpp
 QVector<QwtOHLCSample> ohlc;
 ohlc << QwtOHLCSample(1, 100, 110, 95, 105);  // time, open, high, low, close
@@ -115,6 +123,8 @@ QwtPlotTradingCurve* kline = QwtPlotFactory::createTradingCurve(plot, "股票", 
 ```
 
 ### 创建箱线图与向量场
+
+`createBoxChart()` 依据 `QwtBoxSample`（位置、最小值、下四分位、中位数、上四分位、最大值）绘制统计箱体；`createVectorField()` 则用携带 `(x, y, u, v)` 的 `QwtVectorFieldSample` 绘制箭头：
 
 ```cpp
 // 箱线图
@@ -130,6 +140,8 @@ QwtPlotVectorField* field = QwtPlotFactory::createVectorField(plot, "流场", vf
 ```
 
 ### 创建装饰项
+
+装饰项工厂覆盖网格、参考线、标记点、高亮区域、图例与箭头：`createGrid()` 用布尔参数控制次网格线，`createHLine()` / `createVLine()` 默认灰色虚线画笔，`createZone()` 用给定画刷高亮一段 `QwtInterval` 区间：
 
 ```cpp
 // 添加网格
@@ -166,6 +178,8 @@ QwtPlotArrowMarker* arrow = QwtPlotFactory::createArrowMarker(
 
 ### 类型判断
 
+一组布尔谓词按角色对绘图项分类：`isSeriesItem()` 判断是否携带数据系列，`isXYSeriesItem()` / `isIntervalSeriesItem()` 区分两种样本形态，`isDecoratorItem()` 判断是否为网格、标记等非数据项：
+
 ```cpp
 #include <QwtPlotItemInfo>
 
@@ -185,6 +199,8 @@ bool isDeco = QwtPlotItemInfo::isDecoratorItem(item);
 ```
 
 ### 按类型过滤
+
+`filterByRtti()` 按单个 rtti 值或 `QSet<int>` 多类型集合从 plot 中筛选绘图项；`seriesItems()`、`xySeriesItems()`、`visibleItems()` 则是常用子集的现成快捷方式：
 
 ```cpp
 // 获取 plot 中所有曲线
@@ -210,6 +226,8 @@ QwtPlotItemList visible = QwtPlotItemInfo::visibleItems(plot);
 
 ### 获取基本信息
 
+`dataSize()` 返回数据点数量（非数据项返回 -1），`dataRect()` 给出数据的包围矩形，`rttiName()` 把 rtti 常量转换为可读字符串：
+
 ```cpp
 // 获取数据点数
 int count = QwtPlotItemInfo::dataSize(item);  // -1 表示非数据项
@@ -226,6 +244,8 @@ QString name = QwtPlotItemInfo::rttiName(item->rtti());  // "PlotCurve"
 `QwtPlotDataAccess` 通过 rtti 自动分发，从任意 `QwtPlotItem` 中提取或设置样本数据，覆盖全部 7 种数据类型。
 
 ### 提取 XY 数据
+
+`xySamples()` 适用于任何存储 XY 样本的绘图项（如 `QwtPlotCurve` 或 `QwtPlotBarChart`），既可返回 `QVector<QPointF>`，也可填充分离的 x、y 向量：
 
 ```cpp
 #include <QwtPlotDataAccess>
@@ -246,6 +266,8 @@ if (!pts.isEmpty()) {
 ```
 
 ### 提取其他类型数据
+
+其余样本形态由专用 getter 返回原生样本类型：`intervalSamples()`、`ohlcSamples()`、`xyzSamples()`、`setSamples()`、`vectorFieldSamples()` 与 `boxSamples()`，项的 rtti 匹配时各自返回对应的 `QVector`：
 
 ```cpp
 // 区间数据（QwtPlotIntervalCurve, QwtPlotHistogram）
@@ -268,6 +290,8 @@ QVector<QwtBoxSample> boxes = QwtPlotDataAccess::boxSamples(item);
 ```
 
 ### 设置数据
+
+setter 与 getter 对称：`setXYSamples()` 用点集或分离的 x/y 向量替换 XY 绘图项的样本，成功时返回 `true`；`setOhlcSamples()` 对交易曲线做同样的事：
 
 ```cpp
 // 设置 XY 数据
@@ -302,6 +326,8 @@ QVector<QPointF> subset = QwtPlotDataAccess::samples(store, 10, 50);
 ```
 
 ### 范围筛选与删除
+
+`xySamplesInRange()` 选出落在 `QRectF` 或任意 `QPainterPath`（数据坐标）内的样本；`removeSamplesInRange()` 则将其删除，并返回删除的样本数：
 
 ```cpp
 // 提取矩形范围内的数据点
@@ -342,6 +368,8 @@ QPointF converted = QwtPlotTransform::transformPoint(
 
 ### 屏幕/数据坐标互转
 
+`toPlotPoint()` 把控件内的位置（如鼠标点击点）换算为数据坐标，`toScreenPoint()` 做反向映射：
+
 ```cpp
 // 鼠标点击位置转数据坐标（常用于 pick 操作）
 QPointF mousePos(150, 200);
@@ -353,6 +381,8 @@ QPointF screenPos = QwtPlotTransform::toScreenPoint(plot, dataPoint);
 
 ### 像素偏移
 
+`onePixelOffset()` 返回 1 像素在指定坐标轴上对应的数据坐标偏移量（默认为 `QwtAxis::XBottom` / `QwtAxis::YLeft`）：
+
 ```cpp
 // 计算 1 像素对应的数据偏移量
 QPointF offset = QwtPlotTransform::onePixelOffset(plot);
@@ -362,6 +392,8 @@ qDebug() << "1px =" << offset.x() << "(x)," << offset.y() << "(y)";
 此方法常用于实现拖拽、微调等需要像素级精度控制的交互功能。
 
 ### 可视范围
+
+`visibleRange()` 返回画布当前显示的数据范围；`totalDataRange()` 计算各数据项包围矩形的并集，其 `onlyVisible` 参数（默认 `true`）控制是否统计隐藏项：
 
 ```cpp
 // 获取当前可视区域的数据范围
@@ -381,6 +413,8 @@ QRectF visibleRange = QwtPlotTransform::totalDataRange(plot, true);
 `QwtPlotStyling` 通过 rtti 分发，统一读写各种绘图项的颜色、画笔、画刷和符号。
 
 ### 统一颜色读写
+
+`color()` 按类型读回绘图项的主颜色，`setColor()` 则把颜色写到该项实际存放颜色的载体（画笔、画刷等）。没有颜色概念的类型返回无效 `QColor`，或返回传给 `color()` 的 `defaultColor`：
 
 ```cpp
 #include <QwtPlotStyling>
@@ -410,6 +444,8 @@ QwtPlotStyling::setColor(item, Qt::red);
 
 ### 画笔与画刷
 
+`pen()` / `brush()` 不关心具体类型即可读取绘图项的画笔或画刷，`setPen()` / `setBrush()` 应用新值，项支持该属性时返回 `true`：
+
 ```cpp
 // 获取画笔
 QPen p = QwtPlotStyling::pen(item);
@@ -423,6 +459,8 @@ QwtPlotStyling::setBrush(item, QBrush(QColor(255, 0, 0, 50)));
 ```
 
 ### 曲线符号
+
+针对 `QwtPlotCurve`，`setSymbol()` 用 `QwtSymbol::Style`（如 `Ellipse`、`Diamond`）创建符号，尺寸默认 8×8；颜色参数可选，省略时符号跟随曲线颜色。`setLineStyle()` 设置线型与线宽：
 
 ```cpp
 QwtPlotCurve* curve = ...;
@@ -438,6 +476,8 @@ QwtPlotStyling::setLineStyle(curve, Qt::DashLine, 1.5);
 ```
 
 ### 推荐值与强制重绘
+
+`recommendPenWidth()` 根据数据点数量给出建议线宽，使密集曲线保持可读；`forceReplot()` 即使 `autoReplot` 关闭也会立即重绘：
 
 ```cpp
 // 根据数据量推荐线宽

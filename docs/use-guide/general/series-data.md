@@ -15,6 +15,8 @@
 
 ### Data Interface Structure
 
+The class diagram below outlines the `QwtSeriesData<T>` interface — `size()`, `sample(i)`, `boundingRect()` and the optional `setRectOfInterest()` — together with the built-in derivations: `QwtPointSeriesData` stores `QPointF` samples in a `QVector`, the generic `QwtArraySeriesData<T>` stores arrays of any sample type, and the synthetic class computes samples on the fly from a function without storing them (its concrete implementation in the source is named `QwtSyntheticPointData`):
+
 ```mermaid
 classDiagram
     class QwtSeriesData~T~ {
@@ -55,6 +57,8 @@ classDiagram
 
 ### 1. Using Built-in Data Classes
 
+For most tasks no custom class is needed: the `setSamples()` overloads of `QwtPlotCurve` already cover the common cases, and when you prefer an explicit data object you can wrap the points in a `QwtPointSeriesData` and hand it over with `setData()`, as the two variants below show:
+
 ```cpp
 #include <QwtPlotCurve>
 #include <QwtPointSeriesData>
@@ -74,6 +78,8 @@ curve->setData(seriesData);
 ```
 
 ### 2. Referencing External Data
+
+When the samples already live in your own buffers, `setRawSamples()` lets the curve reference the raw `double` arrays instead of copying them — the fastest path for large data sets — at the cost of keeping those arrays alive yourself:
 
 ```cpp
 #include <QwtPlotCurve>
@@ -185,6 +191,8 @@ curve->setData(new FunctionSeriesData(myFunction, 0, 10));
 ```
 
 ### 5. Real-time Data Updates
+
+For streaming scenarios a small custom `QwtSeriesData<QPointF>` subclass is often the cleanest solution: the `RealtimeSeriesData` below maintains a rolling window of at most 1000 points, invalidates the cached `boundingRect()` whenever a point is appended, and leaves the refresh to a plain `plot->replot()` call after each `appendPoint()`:
 
 ```cpp
 // Real-time data scenario

@@ -65,6 +65,8 @@ figure->addAxes(bottomLeftPlot, 2, 2, 1, 0);
 
 ### 设置图形外观
 
+图形的整体外观由 `QwtFigure` 的四个方法控制：`setFaceColor()` 用纯色填充背景，`setFaceBrush()` 接受任意 `QBrush`（例如用 `QLinearGradient` 做渐变背景），`setEdgeColor()` 与 `setEdgeLineWidth()` 则负责绘制边框：
+
 ```cpp
 // 设置背景颜色
 figure->setFaceColor(Qt::lightGray);
@@ -151,6 +153,8 @@ QwtPlot* parasitePlot = hostPlot->createParasiteAxes(QwtAxis::YLeft);
 ![qwt_figure](../../../assets/screenshots/qwt_figure.png)
 
 ### 图形导出
+
+`QwtFigure` 通过 `saveFig()` 把整幅图形渲染成图片：一个重载按指定 DPI 直接写入图片文件（如 300 DPI 的打印级输出），另一个重载返回 `QPixmap`，便于后续加工或嵌入其他界面：
 
 ```cpp
 // 保存为图片文件

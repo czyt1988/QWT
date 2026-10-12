@@ -26,6 +26,8 @@ QwtPlot 支持四种图例位置：
 
 ### 图例项组成
 
+每个图例项由一个小图标和绘图项标题组成，图标根据该项的线条、符号或填充样式渲染。下面的示意图给出一个典型图例的组成：
+
 ```text
 ┌───────────────────────┐
 │  [图标]  曲线标题      │  ← 图例项
@@ -42,6 +44,8 @@ QwtPlot 支持四种图例位置：
 ![Legends Demo](../../../assets/screenshots/legends.png)
 
 ### 1. 插入图例
+
+图例以 `QwtLegend` 控件的形式创建，再通过 `QwtPlot::insertLegend()` 交给绘图；第二个参数从四个 `QwtPlot::LegendPosition` 值（`LeftLegend`、`RightLegend`、`BottomLegend`、`TopLegend`，默认 `RightLegend`）中选择。下面的例子在右侧插入图例：
 
 ```cpp
 #include <QwtPlot>
@@ -75,6 +79,8 @@ legend->setItemMode(QwtLegend::ClickableItem);  // 可点击（默认）
 
 ### 3. 设置图例位置和比例
 
+图例占比决定图例可以占用绘图宽度或高度的比例。它既可作为 `insertLegend()` 的第三个参数直接传入，也可以事后通过 `QwtPlotLayout::setLegendPosition()` 与 `setLegendRatio()` 调整。下面的例子先为右侧图例保留 20% 宽度，再把它移到底部并占 15%：
+
 ```cpp
 // 设置图例位置和占比
 plot->insertLegend(legend, QwtPlot::RightLegend, 0.2);  // 右侧，占20%宽度
@@ -86,6 +92,8 @@ layout->setLegendRatio(0.15);  // 图例占15%
 ```
 
 ### 4. 图例样式配置
+
+`QwtLegend` 是普通的 Qt 控件，可以用 `setFont()` 设置字体、用样式表设置背景与边框，还可以逐个定制图例项的样式。下面的例子演示这三个层面的定制：
 
 ```cpp
 // 设置图例字体
@@ -120,6 +128,8 @@ curve->setLegendIconSize(QSize(20, 15));
 ```
 
 ### 6. 自定义图例图标
+
+图例图标由虚方法 `QwtPlotItem::legendIcon()` 生成，派生类可以重写它绘制完全自定义的图标；图标尺寸则通过 `setLegendIconSize()` 控制。下面的代码设置了更大的图标尺寸，并指出自定义绘制的切入点：
 
 ```cpp
 // 完全自定义图例图标

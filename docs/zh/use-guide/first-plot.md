@@ -8,6 +8,8 @@
 
 ### 绘图项类型
 
+下面的类图列出了最常用的几种绘图项：画曲线和散点的 `QwtPlotCurve`、画坐标参考线的 `QwtPlotGrid`、标注数值的 `QwtPlotMarker` 以及绘制柱体的 `QwtPlotBarChart`。它们都继承自共同基类 `QwtPlotItem`，共享 `attach()` / `detach()` / `setTitle()` 这套接口：
+
 ```mermaid
 classDiagram
     class QwtPlotItem {
@@ -84,6 +86,8 @@ flowchart TD
 
 ### 完整代码
 
+下面的完整示例把所有零件拼在一起：先构造 `QwtPlot` 窗口，再挂载 `QwtPlotGrid` 网格和一条带 `QwtSymbol` 符号的 `QwtPlotCurve` 曲线，通过 `setSamples()` 喂入若干 `QPointF` 数据点，最后显示窗口——整个程序只有 40 行左右：
+
 ```cpp
 #include <QwtPlot>
 #include <QwtPlotCurve>
@@ -145,6 +149,8 @@ int main(int argc, char* argv[])
 
 #### 1. 创建绘图窗口
 
+第一步先把窗口本身建起来：直接构造一个 `QwtPlot` 对象，设置窗口标题，并用 `setCanvasBackground()` 把画布底色设为白色：
+
 ```cpp
 QwtPlot plot;
 plot.setWindowTitle("Plot Demo");
@@ -154,6 +160,8 @@ plot.setCanvasBackground(Qt::white);
 `QwtPlot` 是绘图的主容器，继承自 `QFrame`。画布背景色决定了绘图区域的底色，建议使用白色或浅色以便清晰显示数据。
 
 #### 2. 添加网格
+
+`QwtPlotGrid` 负责在数据背后画出水平和垂直参考线；和所有绘图项一样，它必须用 `attach()` 挂到绘图上才会显示：
 
 ```cpp
 QwtPlotGrid* grid = new QwtPlotGrid();
@@ -168,6 +176,8 @@ grid->attach(&plot);
 
 #### 3. 创建曲线并设置样式
 
+数据本身由 `QwtPlotCurve` 绘制：`setTitle()` 给它起一个显示在图例里的名字，`setPen()` 设置线条颜色与宽度，`setRenderHint()` 配合 `QwtPlotItem::RenderAntialiased` 打开抗锯齿：
+
 ```cpp
 QwtPlotCurve* curve = new QwtPlotCurve();
 curve->setTitle("Some Points");
@@ -181,6 +191,8 @@ curve->setRenderHint(QwtPlotItem::RenderAntialiased, true);
 - `setRenderHint()` 启用抗锯齿渲染，使线条更加平滑
 
 #### 4. 设置数据点符号
+
+想在每个数据点上画出形状，就构造一个 `QwtSymbol`——这里是 `Ellipse` 椭圆、黄色填充、红色边框、8×8 像素大小——再用 `setSymbol()` 交给曲线：
 
 ```cpp
 QwtSymbol* symbol = new QwtSymbol(
@@ -201,6 +213,8 @@ curve->setSymbol(symbol);
 - `XCross` - X形十字
 
 #### 5. 设置曲线数据
+
+数据通过 `setSamples()` 送进曲线，最简单的重载形式是传入一个装满 `QPointF` 的 `QPolygonF`，如下所示：
 
 ```cpp
 QPolygonF points;
@@ -223,6 +237,8 @@ curve->setSamples(points);
 
 #### 6. 设置坐标轴
 
+最后用 `setAxisScale()` 把某个坐标轴——以 `QwtAxis::Position` 枚举指定，如 `QwtAxis::YLeft`——固定在给定范围内，而不是让 Qwt 根据数据自动计算：
+
 ```cpp
 plot.setAxisScale(QwtAxis::YLeft, 0.0, 10.0);
 ```
@@ -232,6 +248,8 @@ plot.setAxisScale(QwtAxis::YLeft, 0.0, 10.0);
 ## 进阶配置
 
 ### 多条曲线
+
+再画一条数据序列很简单：新建第二个 `QwtPlotCurve`，给它单独的标题和画笔，用 `setSamples()` 装入数据，再 attach 到同一个 `QwtPlot` 上即可：
 
 ```cpp
 // 创建第二条曲线
@@ -245,12 +263,16 @@ curve2->attach(&plot);
 
 ### 设置坐标轴标题
 
+坐标轴的文字说明用 `setAxisTitle()` 设置：第一个参数选择轴位置（`QwtAxis::XBottom`、`QwtAxis::YLeft` 等），第二个参数是要显示的文字：
+
 ```cpp
 plot.setAxisTitle(QwtAxis::XBottom, "时间 (s)");
 plot.setAxisTitle(QwtAxis::YLeft, "电压 (V)");
 ```
 
 ### 自动刷新模式
+
+如果不想每次改动后都手动调用 `replot()`，可以用 `setAutoReplot(true)` 让绘图在数据或属性变化时自动刷新：
 
 ```cpp
 plot.setAutoReplot(true);  // 数据变化时自动刷新

@@ -415,6 +415,8 @@ Below are two sets of typical test results. Test conditions: 100,000 data points
 
 ### Results Summary
 
+The flowchart below condenses the two benchmark sweeps into a single conclusion: at a 1% NaN ratio the LTTB path still beats the no-NaN baseline (0.79x replot time), and at a 99% ratio every mode speeds up dramatically (0.10–0.13x) — the SIMD fallback penalty is negligible in both cases:
+
 ```mermaid
 flowchart LR
     subgraph LowNaN["1% NaN Ratio"]
@@ -469,6 +471,8 @@ flowchart LR
 
 ### Data Preparation
 
+Mark missing samples with a quiet NaN — Qt's `qQNaN()` helper produces one — and append them to the sample vectors like any regular value; `boundingRect()` and the renderers skip them automatically, so the axis scaling stays correct without any extra work:
+
 ```cpp
 // Use qQNaN() to generate NaN values
 const double nan = qQNaN();
@@ -486,6 +490,8 @@ curve->setSamples(x, y);
 
 ### Choosing a Drawing Style
 
+For data with NaNs prefer the `QwtPlotCurve::Lines` style: it is the style with complete NaN handling, and the default-enabled `FilterPointsLTTB` paint attribute gives the best performance at the same time. The `Sticks` and `Steps` styles do not check for NaN, so such data must be cleaned during preprocessing:
+
 ```cpp
 // Recommended: Lines style — complete NaN handling
 curve->setStyle(QwtPlotCurve::Lines);
@@ -496,6 +502,8 @@ curve->setStyle(QwtPlotCurve::Lines);
 ```
 
 ### Data Gaps in Spectrogram
+
+In a spectrogram, NaN cells are rendered as transparent holes by default — usually exactly the desired effect for a `QwtPlotSpectrogram`. Only when the raster truly has no gaps should you set the `QwtRasterData::WithoutGaps` attribute via `setAttribute()` to skip the per-cell NaN checks:
 
 ```cpp
 // If data contains gaps (NaN), keep default settings

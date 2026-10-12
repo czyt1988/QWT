@@ -220,6 +220,8 @@ auto* curve = new QwtPlotCurve("Data");
 
 ## License
 
+Qwt is published under the Qwt License, Version 1.0. The full copyright notice is reproduced below:
+
 ```
 Qwt Widget Library
 Copyright (C) 1997   Josef Wilgen

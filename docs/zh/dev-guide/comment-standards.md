@@ -43,6 +43,8 @@ Doxygen 关键字统一使用 `@` 前缀（如 `@brief`、`@param`、`@return`�
 
 ### 函数注释模板
 
+`.cpp` 文件中的 public 函数使用如下 Doxygen 模板，涵盖 `@brief`、`@param`、`@return` 与 `@details`：
+
 ```cpp
 /**
  * @brief [Brief description]
@@ -80,6 +82,8 @@ bool calculateIntersection(const QwtPlotCurve* curve1,
 
 ### 详细说明示例
 
+下例给出 `QwtPlotCurve::setSamples` 的完整注释，其中 `@details` 说明数据会在内部拷贝：
+
 ```cpp
 /**
  * @brief Set the samples for the curve
@@ -100,6 +104,8 @@ void QwtPlotCurve::setSamples(const double* xData,
 头文件中的 `public` 函数声明仅添加**单行英文简要注释**。
 
 ### 简洁注释示例
+
+头文件中每个 public 函数声明只添加单行英文简要注释，示例如下：
 
 ```cpp
 class MyClass {
@@ -124,6 +130,8 @@ public:
 类的 Doxygen 注释需要在头文件中添加。
 
 ### 类注释模板
+
+类的注释写在头文件中并遵循以下模板，这里以 `QwtPlot` 为例，连同其 `QWT_DECLARE_PRIVATE` 声明：
 
 ```cpp
 /**
@@ -173,6 +181,8 @@ Qt 的信号在头文件中声明，没有对应的 cpp 定义，因此信号的
 
 ### 信号注释示例
 
+信号没有对应的 cpp 定义，完整的 Doxygen 注释必须写在头文件中，下例展示 `Q_SIGNALS` 块内的信号注释：
+
 ```cpp
 class QwtPlot : public QWidget
 {
@@ -202,6 +212,8 @@ Q_SIGNALS:
 
 ### ❌ 错误：头文件中写详细注释
 
+下例把构造函数的详细 Doxygen 注释块直接写在头文件中，违反了注释位置原则：
+
 ```cpp
 // 错误示例 - 头文件中写太多注释
 class MyClass {
@@ -216,6 +228,8 @@ public:
 ```
 
 ### ❌ 错误：使用中文注释
+
+下例在源代码中留下了中文行内注释，违反了纯英文注释的要求：
 
 ```cpp
 // 错误示例 - 源码中使用了中文注释

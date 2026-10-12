@@ -33,6 +33,8 @@
 
 ### 箭头结构
 
+下图展示了 `QwtPlotArrowMarker` 的结构：箭头从起点（箭尾 tail）延伸到终点（箭头 head），两端可分别配置各自的端点样式。
+
 ```text
   tail (箭尾)                          head (箭头)
       ↓                                   ↓

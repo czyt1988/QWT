@@ -60,6 +60,8 @@ struct QwtTradingSample {
 
 ### 1. 基本K线图
 
+K线外观由 `setSymbolStyle()` 配置（`Bar` 美国线 / `CandleStick` 蜡烛图，默认 `CandleStick`）：`setSymbolBrush()` 按价格 `Direction`（`Increasing` 上涨 / `Decreasing` 下跌）分别指定箱体填充，`setSymbolExtent()` 设置以坐标单位计的箱体宽度；数据以 `QwtOHLCSample`（时间、开盘、最高、最低、收盘）样本传入 `setSamples()`。下面的例子在绘图上绘制四根日K线：
+
 ```cpp
 #include <QwtPlot>
 #include <QwtPlotTradingCurve>
@@ -102,6 +104,8 @@ plot->replot();
 
 #### 蜡烛图样式
 
+`CandleStick` 模式下，开盘价与收盘价之间的箱体按价格方向填充：`setSymbolBrush()` 接受一个 `Direction`（收盘高于开盘为 `Increasing`，反之为 `Decreasing`）和画刷，`setSymbolPen()` 则设置蜡烛的描边画笔。下面的代码为涨跌分别指定不同的填充：
+
 ```cpp
 curve->setStyle(QwtPlotTradingCurve::CandleStick);
 
@@ -119,6 +123,8 @@ curve->setSymbolPen(QwtPlotTradingCurve::Neutral, QPen(Qt::black, 1));
 
 #### 美国线样式
 
+`Bar` 样式只绘制从最低价到最高价的竖线，并以左右小横线标记开盘价与收盘价，不绘制箱体。通过 `setSymbolStyle(QwtPlotTradingCurve::Bar)` 切换：
+
 ```cpp
 curve->setStyle(QwtPlotTradingCurve::Bar);
 
@@ -127,6 +133,8 @@ curve->setStyle(QwtPlotTradingCurve::Bar);
 ```
 
 ### 3. 箱体宽度设置
+
+箱体宽度由三个方法共同控制：`setSymbolExtent()` 以坐标单位设定宽度，`setMinSymbolWidth()` 与 `setMaxSymbolWidth()` 分别限制渲染像素宽度的下限与上限。下面的代码组合使用了三者：
 
 ```cpp
 // 设置箱体宽度（相对坐标单位）
@@ -140,6 +148,8 @@ curve->setMaxSymbolWidth(20); // 最大20像素宽
 ```
 
 ### 4. 数据设置
+
+`setSamples()` 提供两种重载：一种接收 `QVector<QwtOHLCSample>`——每个样本包含时间、开盘、最高、最低、收盘五个值；另一种接收 `QwtSeriesData<QwtOHLCSample>*`，便于接入自定义数据源。下面的代码演示了这两种写法：
 
 ```cpp
 // 使用QwtTradingSample数组
@@ -157,6 +167,8 @@ curve->setSamples(seriesData);
 
 ### 5. 结合成交量图
 
+成交量通常以 `QwtPlotBarChart` 叠加到同一绘图上：其 `setSamples()` 接收 `QVector<double>` 逐柱数值，`setBrush()` 设置柱体填充。下面的例子添加一组灰色成交量柱：
+
 ```cpp
 // 创建成交量柱状图
 QwtPlotBarChart* volumeChart = new QwtPlotBarChart("成交量");
@@ -169,6 +181,8 @@ volumeChart->attach(plot);
 ```
 
 ### 6. 添加均线
+
+均线就是叠加在K线之上的普通 `QwtPlotCurve`，各自配置画笔与样本数据后挂载即可。下面的例子叠加 5 日与 10 日两条均线：
 
 ```cpp
 #include <QwtPlotCurve>

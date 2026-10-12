@@ -37,6 +37,8 @@ QwtScaleDiv包含:
 
 ### 1. 线性刻度引擎（默认）
 
+坐标轴默认使用 `QwtLinearScaleEngine`，多数情况下只需用 `QwtPlot::setAxisAutoScale()` 开启自动刻度，再通过 `setAxisMaxMajor()` 与 `setAxisMaxMinor()` 限制刻度密度即可。下面的例子让底部轴最多出现 10 个主刻度、每个主刻度区间最多 5 个次刻度：
+
 ```cpp
 #include <QwtPlot>
 
@@ -97,6 +99,8 @@ plot->setAxisScale(QwtAxis::XBottom,
 
 ### 4. 自定义刻度划分
 
+自动刻度不满足需求时，可以手工组装 `QwtScaleDiv`：用 `setInterval()` 设置区间，用 `setTicks()` 填入 `QwtScaleDiv::MajorTick` / `QwtScaleDiv::MinorTick` 的位置列表，再通过 `QwtPlot::setAxisScaleDiv()` 应用。下面的例子构建一个主刻度间隔 20、次刻度间隔 4 的划分：
+
 ```cpp
 #include <QwtScaleDiv>
 
@@ -123,6 +127,8 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 
 ### 5. 刻度引擎属性
 
+刻度布局通过 `setAttribute()` 设置 `QwtScaleEngine::Attribute` 标志来微调：`IncludeReference` 强制参考值处出现刻度、`Symmetric` 强制范围对称、`Floating` 允许端点不落在刻度上、`Inverted` 反转刻度方向；`setMargins()` 则在两端追加边距。下面的例子取得底部轴的引擎并调整这些属性：
+
 ```cpp
 // 获取刻度引擎
 QwtScaleEngine* engine = plot->axisScaleEngine(QwtAxis::XBottom);
@@ -137,6 +143,8 @@ engine->setMargins(0.05);  // 5%边距
 ```
 
 ### 6. 计算刻度划分
+
+刻度引擎也可以独立使用：`divideScale()` 接收数据范围以及主/次刻度的最大数量，返回现成的 `QwtScaleDiv`，随后可用 `QwtPlot::setAxisScaleDiv()` 应用。下面的例子用一个局部 `QwtLinearScaleEngine` 计算刻度划分：
 
 ```cpp
 #include <QwtScaleEngine>
