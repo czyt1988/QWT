@@ -93,7 +93,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 > **示例 — 完整示例**
 >
-> 详细使用方法请参考 [3D绘图简介](3d-plot.md)，示例代码位于 `examples/3D/simpleplot3D`
+> 详细使用方法请参考 [3D绘图简介](3d/3d-plot.md)，示例代码位于 `examples/3D/simpleplot3D`
 
 ## 架构与构建升级
 
@@ -190,7 +190,7 @@ figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
 
 > **示例 — 完整示例**
 >
-> 详细使用方法请参考 [QwtFigure绘图容器窗口](figure-widget.md)，示例代码位于 `examples/figure`
+> 详细使用方法请参考 [QwtFigure绘图容器窗口](2d/figure-widget.md)，示例代码位于 `examples/figure`
 
 ## 寄生绘图 — 多坐标轴系统
 
@@ -231,7 +231,7 @@ curve->attach(parasitePlot);
 
 > **示例 — 完整示例**
 >
-> 详细使用方法请参考 [寄生绘图使用指南](parasite-axes.md)，示例代码位于 `examples/parasitePlot`
+> 详细使用方法请参考 [寄生绘图使用指南](2d/parasite-axes.md)，示例代码位于 `examples/parasitePlot`
 
 ## 交互功能重构
 
@@ -278,7 +278,7 @@ QwtPlotCanvasZoomer* canvasZoomer = new QwtPlotCanvasZoomer(plot->canvas());
 
 > **示例 — 完整示例**
 >
-> 详细使用方法请参考 [平移工具](panner.md) 和 [缩放工具](zoomer.md)
+> 详细使用方法请参考 [平移工具](2d/panner.md) 和 [缩放工具](2d/zoomer.md)
 
 ## 坐标轴内置交互动作
 
@@ -332,7 +332,7 @@ plot->axisWidget(QwtAxis::YLeft)->setSelectedPenWidthOffset(1.5);
 
 > **示例 — 完整示例**
 >
-> 详细使用方法请参考 [坐标轴交互动作](scale-builtin-action.md)
+> 详细使用方法请参考 [坐标轴交互动作](2d/scale-builtin-action.md)
 
 ## 数据拾取功能
 
@@ -384,7 +384,7 @@ picker->setTextBackgroundBrush(QBrush(QColor(255, 255, 255, 180)));
 
 > **示例 — 完整示例**
 >
-> 详细使用方法请参考 [数据拾取](pick-value.md)
+> 详细使用方法请参考 [数据拾取](2d/pick-value.md)
 
 ## 新增图表类型
 
@@ -427,7 +427,7 @@ boxChart->setBoxStyle(QwtPlotBoxChart::Notch);
 
 > **示例 — 完整示例**
 >
-> 详细使用方法请参考 [箱线图使用指南](boxchart.md)，示例代码位于 `examples/2D/boxchart`
+> 详细使用方法请参考 [箱线图使用指南](2d/boxchart.md)，示例代码位于 `examples/2D/boxchart`
 
 ## 其他实用功能
 
@@ -447,7 +447,7 @@ plot->setAxisTickDirection(QwtAxis::XBottom, QwtPlot::TickInside);
 
 > **示例 — 完整示例**
 >
-> 详细使用方法请参考 [刻度朝内显示使用指南](ticks-inside.md)，示例代码位于 `examples/2D/ticks_inside`
+> 详细使用方法请参考 [刻度朝内显示使用指南](2d/ticks-inside.md)，示例代码位于 `examples/2D/ticks_inside`
 
 ### NaN/Inf 异常值处理
 

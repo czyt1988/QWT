@@ -4,7 +4,7 @@ This document explains why the 3D plotting module (`qwt::plot3d`) was completely
 
 > **Info — Scope**
 >
-> The refactor ships in **v7.3.5** on the `new3d` branch. For the end-user usage guide see [3D Plot Introduction](../use-guide/3d-plot.md); for the per-module conventions see [`src/plot3d/AGENTS.md`](../../src/plot3d/AGENTS.md).
+> The refactor ships in **v7.3.5** on the `new3d` branch. For the end-user usage guide see [3D Plot Introduction](../use-guide/3d/3d-plot.md); for the per-module conventions see [`src/plot3d/AGENTS.md`](../../src/plot3d/AGENTS.md).
 
 ## 1. Why Refactor
 

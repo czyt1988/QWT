@@ -124,82 +124,82 @@ hide:
 
 <div class="qwt-gallery">
 
-<a class="qwt-gallery-item" href="use-guide/figure-widget/">
+<a class="qwt-gallery-item" href="use-guide/2d/figure-widget/">
 <img src="../assets/screenshots/qwt_figure.png" alt="Figure 绘图容器" loading="lazy">
 <span>Figure 布局</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/curve/">
+<a class="qwt-gallery-item" href="use-guide/2d/curve/">
 <img src="../assets/screenshots/simpleplot.png" alt="曲线图" loading="lazy">
 <span>曲线图</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/scatter/">
+<a class="qwt-gallery-item" href="use-guide/2d/scatter/">
 <img src="../assets/screenshots/scatterplot.png" alt="散点图" loading="lazy">
 <span>散点图</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/barchart/">
+<a class="qwt-gallery-item" href="use-guide/2d/barchart/">
 <img src="../assets/screenshots/BarChart-grouped.png" alt="柱状图" loading="lazy">
 <span>柱状图</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/spectrogram/">
+<a class="qwt-gallery-item" href="use-guide/2d/spectrogram/">
 <img src="../assets/screenshots/spectrogram.png" alt="光谱图" loading="lazy">
 <span>光谱图</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/vectorfield/">
+<a class="qwt-gallery-item" href="use-guide/2d/vectorfield/">
 <img src="../assets/screenshots/vectorfield.png" alt="向量场" loading="lazy">
 <span>向量场</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/boxchart/">
+<a class="qwt-gallery-item" href="use-guide/2d/boxchart/">
 <img src="../assets/screenshots/BoxChart.png" alt="箱线图" loading="lazy">
 <span>箱线图</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/tradingcurve/">
+<a class="qwt-gallery-item" href="use-guide/2d/tradingcurve/">
 <img src="../assets/screenshots/stockchart.png" alt="K线图" loading="lazy">
 <span>K 线图</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/polar-plot/">
+<a class="qwt-gallery-item" href="use-guide/2d/polar-plot/">
 <img src="../assets/screenshots/polardemo.png" alt="极坐标绘图" loading="lazy">
 <span>极坐标绘图</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/3d-plot/">
+<a class="qwt-gallery-item" href="use-guide/3d/3d-plot/">
 <img src="../assets/screenshots-3D/simpleplot3D.png" alt="3D 曲面" loading="lazy">
 <span>3D 曲面</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/3d-plot/">
+<a class="qwt-gallery-item" href="use-guide/3d/3d-plot/">
 <img src="../assets/screenshots-3D/enrichments.png" alt="3D 增强" loading="lazy">
 <span>3D 增强</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/parasite-axes/">
+<a class="qwt-gallery-item" href="use-guide/2d/parasite-axes/">
 <img src="../assets/screenshots/parasite-plot.png" alt="多坐标轴绘图" loading="lazy">
 <span>多坐标轴</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/curve/">
+<a class="qwt-gallery-item" href="use-guide/2d/curve/">
 <img src="../assets/screenshots/oscilloscope.png" alt="示波器" loading="lazy">
 <span>示波器</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/curve/">
+<a class="qwt-gallery-item" href="use-guide/2d/curve/">
 <img src="../assets/screenshots/realtime.png" alt="实时绘图" loading="lazy">
 <span>实时绘图</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/scale-builtin-action/">
+<a class="qwt-gallery-item" href="use-guide/2d/scale-builtin-action/">
 <img src="../assets/screenshots/qwt-scale-builtin-action-zoom.gif" alt="坐标轴交互" loading="lazy">
 <span>坐标轴交互</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/widgets-controls/">
+<a class="qwt-gallery-item" href="use-guide/general/widgets-controls/">
 <img src="../assets/screenshots/dials-compass.png" alt="仪表罗盘" loading="lazy">
 <span>仪表罗盘</span>
 </a>

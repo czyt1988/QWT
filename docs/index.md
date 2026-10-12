@@ -125,82 +125,82 @@ designed for scientific computing and engineering data visualization.
 
 <div class="qwt-gallery">
 
-<a class="qwt-gallery-item" href="use-guide/figure-widget/">
+<a class="qwt-gallery-item" href="use-guide/2d/figure-widget/">
 <img src="assets/screenshots/qwt_figure.png" alt="Figure Widget" loading="lazy">
 <span>Figure Layout</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/curve/">
+<a class="qwt-gallery-item" href="use-guide/2d/curve/">
 <img src="assets/screenshots/simpleplot.png" alt="Simple Plot" loading="lazy">
 <span>Curve Plot</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/scatter/">
+<a class="qwt-gallery-item" href="use-guide/2d/scatter/">
 <img src="assets/screenshots/scatterplot.png" alt="Scatter Plot" loading="lazy">
 <span>Scatter Plot</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/barchart/">
+<a class="qwt-gallery-item" href="use-guide/2d/barchart/">
 <img src="assets/screenshots/BarChart-grouped.png" alt="Bar Chart" loading="lazy">
 <span>Bar Chart</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/spectrogram/">
+<a class="qwt-gallery-item" href="use-guide/2d/spectrogram/">
 <img src="assets/screenshots/spectrogram.png" alt="Spectrogram" loading="lazy">
 <span>Spectrogram</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/vectorfield/">
+<a class="qwt-gallery-item" href="use-guide/2d/vectorfield/">
 <img src="assets/screenshots/vectorfield.png" alt="Vector Field" loading="lazy">
 <span>Vector Field</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/boxchart/">
+<a class="qwt-gallery-item" href="use-guide/2d/boxchart/">
 <img src="assets/screenshots/BoxChart.png" alt="Box Chart" loading="lazy">
 <span>Box Chart</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/tradingcurve/">
+<a class="qwt-gallery-item" href="use-guide/2d/tradingcurve/">
 <img src="assets/screenshots/stockchart.png" alt="Stock Chart" loading="lazy">
 <span>K-Line / Stock</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/polar-plot/">
+<a class="qwt-gallery-item" href="use-guide/2d/polar-plot/">
 <img src="assets/screenshots/polardemo.png" alt="Polar Plot" loading="lazy">
 <span>Polar Plot</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/3d-plot/">
+<a class="qwt-gallery-item" href="use-guide/3d/3d-plot/">
 <img src="assets/screenshots-3D/simpleplot3D.png" alt="3D Surface" loading="lazy">
 <span>3D Surface</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/3d-plot/">
+<a class="qwt-gallery-item" href="use-guide/3d/3d-plot/">
 <img src="assets/screenshots-3D/enrichments.png" alt="3D Enrichments" loading="lazy">
 <span>3D Enrichments</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/parasite-axes/">
+<a class="qwt-gallery-item" href="use-guide/2d/parasite-axes/">
 <img src="assets/screenshots/parasite-plot.png" alt="Parasite Plot" loading="lazy">
 <span>Multi-Axis</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/curve/">
+<a class="qwt-gallery-item" href="use-guide/2d/curve/">
 <img src="assets/screenshots/oscilloscope.png" alt="Oscilloscope" loading="lazy">
 <span>Oscilloscope</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/curve/">
+<a class="qwt-gallery-item" href="use-guide/2d/curve/">
 <img src="assets/screenshots/realtime.png" alt="Real-Time" loading="lazy">
 <span>Real-Time Plot</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/scale-builtin-action/">
+<a class="qwt-gallery-item" href="use-guide/2d/scale-builtin-action/">
 <img src="assets/screenshots/qwt-scale-builtin-action-zoom.gif" alt="Axis Zoom" loading="lazy">
 <span>Axis Interaction</span>
 </a>
 
-<a class="qwt-gallery-item" href="use-guide/widgets-controls/">
+<a class="qwt-gallery-item" href="use-guide/general/widgets-controls/">
 <img src="assets/screenshots/dials-compass.png" alt="Dials &amp; Compass" loading="lazy">
 <span>Dials &amp; Compass</span>
 </a>
