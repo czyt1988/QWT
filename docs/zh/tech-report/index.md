@@ -30,27 +30,33 @@
 
 ## 现有报告
 
+### 渲染管线与性能
+
+沿"数据量 → 视觉质量 → 后端选择 → 流式更新"的主线，覆盖 QwtPlotCurve 从数据到像素的整条路径与 3D 侧的 GPU 管线。降采样篇回答"点太多画不动怎么办"，平滑篇回答"画出来像噪声怎么办"，SIMD 篇展开降采样核心内循环的向量化实测，NaN 篇处理缺失数据的语义与代价，Raster/GL 篇给出画布后端的选型判据，流式篇把前面的因子组合成实时应用的帧预算模型。
+
 | 报告 | 主题 | 关键源码 | 配套示例 |
 |------|------|----------|----------|
 | [LTTB 降采样算法原理与 QWT7 的 MinMax 桶实现](curve-downsampling.md) | 可视化带宽瓶颈、经典 LTTB 推导、MinMax 桶变体的三条性质、SIMD argmin/argmax、像素级保真度实验 | `src/plot/qwt_point_mapper.cpp`、`src/core/qwt_simd_argminmax.cpp` | `examples/bench/renderbench`、`examples/2D/nanperf` |
 | [曲线渲染平滑：高斯卷积、Savitzky-Golay 回归与特征保护](curve-smoothing.md) | 偏差-方差分解、两种滤波核的完整推导（矩条件、噪声增益恒等式）、MAD 特征保护、端到端像素实验 | `src/plot/qwt_curve_smoothing.cpp` | `examples/2D/curvesmoothing` |
+| [SIMD argmin/argmax 向量化基准](simd-argminmax.md) | AVX2 / SSE4.2 / 标量三路运行时派发实测：加速比-数组长度、缓存层级带宽与 roofline、桶大小敏感性与"SIMD 是否划算"的定量判据、三路 NaN 语义差异矩阵 | `src/core/qwt_simd_argminmax.*`、`src/plot/qwt_point_mapper.cpp` | `examples/bench/renderbench` |
+| [Raster 与 OpenGL 渲染管线](raster-vs-opengl.md) | 两条画布管线的帧时间分解（变换/光栅化/合成/blit）、GL canvas 的 QPainter-on-FBO 真实结构、点数×曲线数×画布尺寸矩阵与选型交叉点判据 | `src/plot/qwt_plot_canvas.*`、`src/plot/qwt_plot_opengl_canvas.*` | `examples/2D/refreshtest`、`examples/2D/realtime` |
+| [NaN 数据的渲染语义与性能代价](nan-rendering.md) | NaN"跳过而非切段"的桥接语义矩阵（5 种绘制属性 × NaN 分布模式）、视觉伪差像素级扫描、NaN 比例-帧时间曲线族与 boundingRect 分解 | `src/plot/qwt_point_mapper.cpp`、`src/plot/qwt_plot_curve.cpp` | `examples/2D/nanperf` |
+| [实时流式数据渲染策略](realtime-streaming.md) | 环形缓冲 / WindowedSeriesData / 全量 setData 三种数据通路的成本剖析、DirectPainter 增量重绘的真实边界、帧预算与端到端延迟模型（144 个配置实测） | `src/plot/qwt_plot_directpainter.*`、`src/core/qwt_series_data.h` | `examples/2D/oscilloscope`、`examples/2D/realtime`、`examples/2D/cpuplot` |
+| [3D 表面渲染的 VBO/VAO 管线](3d-surface-pipeline.md) | Qwt3DSurface 数据上传策略、GLSL 3.3 Core 着色器逐阶段成本、帧率-网格规模标度拟合、gl2ps 矢量导出的取舍 | `src/plot3d/` | `examples/3D/qwtplot3d`、`examples/3D/waterfall3D` |
 
-两篇报告互为配套：降采样篇回答"点太多画不动怎么办"，平滑篇回答"画出来像噪声怎么办"，共同覆盖 `QwtPlotCurve` 渲染管线中数据量与视觉质量这对核心矛盾。对应的教程级快速上手见[渲染性能与曲线平滑](../use-guide/2d/rendering-performance.md)。
+### 算法与数据语义
 
-## 选题路线图（规划中）
+深挖五个独立组件的数学基础与实现细节：样条的收敛阶、裁剪的正确性、刻度的数论、统计量的估计器选择、色彩感知的定量评测。
 
-以下是候选选题，每项都已确认仓库内有可支撑实验的源码、示例或基准程序。欢迎讨论优先级与增删：
+| 报告 | 主题 | 关键源码 | 配套示例 |
+|------|------|----------|----------|
+| [QwtSpline 样条家族](spline-family.md) | 六种参数化增量公式与仿射等价性、矩法三对角推导与 O(h⁴)/O(h²) 收敛阶实测、弦长参数化起环机理、Fitted 属性的渲染代价 | `src/plot/qwt_spline*` | `examples/2D/splineeditor`、`tests/splineprof` |
+| [多边形裁剪算法（QwtClipper）](polygon-clipping.md) | Sutherland–Hodgman 逐函数算法识别与正确性证明、平移/缩放顶点放大率实测、退化输入行为矩阵（2337 组 C++ 位级交叉验证） | `src/core/qwt_clipper.*` | `examples/2D/animation` |
+| [刻度引擎的"漂亮数字"算法](scale-engine.md) | {1,2,5} 步长基准集合的十进对偶闭包唯一性与 minimax 差距、线性/对数/日期三引擎剖析、日期刻度八级回退决策树（3013 组 C++ 交叉验证） | `src/core/qwt_scale_engine.*`、`src/plot/qwt_date_scale_engine.*` | `examples/2D/bode`、`examples/2D/stockchart` |
+| [箱线图统计量的分位数算法](boxplot-quantiles.md) | QwtBoxStatisticsCalculator 的 R-7 分位数身份判定（34,440 探针零失配）、九种 R 型定义的差异与衰减规律、1.5×IQR 离群判定敏感性与小样本病态 | `src/core/qwt_box_statistics.*` | `examples/2D/boxchart` |
+| [科学 Colormap 的色彩科学评估](colormap-color-science.md) | 22 种预设的 CIEDE2000 感知均匀性、亮度单调性、色觉缺陷模拟下的可区分性评测与场景化选择指南 | `src/core/qwt_colormap_preset.*`、`src/core/qwt_colormap.*` | `examples/2D/colormap` |
 
-1. **SIMD argmin/argmax 向量化基准** —— `qwtSimdArgMinMax` 的 AVX2 / SSE4.2 / 标量三路运行时派发实测：加速比 vs 数组长度、桶大小敏感性、roofline 分析；ARM 侧 NEON 路径对照。数据源：`src/core/qwt_simd_argminmax.*`、`examples/bench/renderbench`。预期插图：加速比条形图、吞吐量-长度曲线、roofline 散点。
-2. **Raster vs OpenGL 渲染管线基准** —— `QwtPlotCanvas` 与 `QwtPlotOpenGLCanvas` 在不同点数、曲线数、重绘频率下的端到端帧率与帧时间分解，给出"何时值得上 OpenGL"的定量判据。数据源：`examples/2D/realtime`、`examples/2D/oscilloscope`、`examples/2D/refreshtest`、`examples/bench/renderbench`。预期插图：点数-FPS 双对数曲线、帧时间堆叠分解图。
-3. **NaN 数据的渲染语义与性能代价** —— NaN 如何把折线切段、五种 PointFilter 属性在不同 NaN 比例下的帧率与视觉正确性扫描。数据源：`examples/2D/nanperf`（NaN 比例可调）、`src/plot/qwt_plot_curve.cpp` 切段路径。预期插图：NaN 比例-帧时间曲线族、切段行为示意图。
-4. **QwtSpline 样条家族：精度与性能** —— 参数化方式（均匀/弦长/向心）与插值/逼近样条的误差收敛阶、`Fitted` 属性的渲染代价、与简单贝塞尔拟合的对比。数据源：`src/plot/qwt_spline*`、`examples/2D/splineeditor`、`splineprof/`、`splinetest/`。预期插图：误差收敛双对数图、控制多边形偏差可视化、运行时对比。
-5. **多边形裁剪算法（QwtClipper）** —— 平移/缩放时裁剪路径的正确性与输出顶点放大率：裁剪算法在退化情形（自交、共线、极窄视口）下的行为与实测顶点数。数据源：`src/core/qwt_clipper.*`、`examples/2D/animation`。预期插图：裁剪前后对比图、顶点放大率曲线。
-6. **科学 colormap 的色彩科学评估** —— 22 种预设的感知均匀性定量评测（CIEDE2000 ΔE、亮度单调性、色盲模拟下的可区分性），给出场景化选择指南。数据源：`src/core/qwt_colormap_preset.*`、`examples/2D/colormap`（支持 `--screenshot` 批量导出）。预期插图：亮度剖面图、ΔE 热力图、色盲模拟前后对比。
-7. **刻度引擎的"漂亮数字"算法** —— 线性/对数/日期三种 `QwtScaleEngine` 的刻度生成策略、步长选择的数论性质、日期刻度的层级回退。数据源：`src/core/qwt_scale_engine.*`、`examples/2D/scaleengine`、时间刻度示例。预期插图：刻度分布示意图、步长选择决策树。
-8. **实时流式数据渲染策略** —— 环形缓冲 / `WindowedSeriesData` + `QwtPlotDirectPainter` + 降采样的组合模式与帧预算模型：示波器类应用如何稳定 60 FPS。数据源：`examples/2D/oscilloscope`、`examples/2D/realtime`、`examples/2D/cpuplot`。预期插图：数据流时序图、吞吐量-延迟曲线。
-9. **3D 表面渲染的 VBO/VAO 管线** —— `Qwt3DSurface` 的数据上传策略（全量/增量）、GLSL 3.3 Core 着色器管线的帧率-网格规模关系、与 gl2ps 矢量导出的取舍。数据源：`src/plot3d/`、`examples/3D/qwtplot3d`、`examples/3D/waterfall3D`。预期插图：渲染管线 mermaid 图、帧率-顶点数曲线。
-10. **箱线图统计量的分位数算法** —— `QwtBoxStatistics` 采用的分位数定义与常见 R 型分位数（R-1 … R-9）的差异、排序/流式计算代价、离群点判定的敏感性。数据源：`src/core/qwt_box_statistics.*`、`examples/2D/boxchart`。预期插图：分位数方法差异曲线、箱线结构图。
+教程级入口：渲染组对应[渲染性能与曲线平滑](../use-guide/2d/rendering-performance.md)与 [NaN 数据处理](../use-guide/general/nan-handling.md)，算法组对应[刻度计算引擎](../use-guide/2d/scale-engine.md)、[箱形图](../use-guide/2d/boxchart.md)与 [Colormap 预设](../use-guide/general/colormap.md)。
 
 ## 图表复现
 
@@ -59,9 +65,19 @@
 ```bash
 pip install matplotlib numpy
 cd docs/assets/algorithms
-python figures.py                  # 重新生成全部 fig_*.png
-python downsampling_experiment.py  # 降采样保真度实验（表 1/表 2 数据）
-python smoothing_experiment.py     # 平滑核性质实验（核系数、噪声增益、峰保持率）
+python figures.py                    # 降采样/平滑两篇的全部插图
+python downsampling_experiment.py    # 降采样保真度实验（表 1/表 2 数据）
+python smoothing_experiment.py       # 平滑核性质实验（核系数、噪声增益、峰保持率）
+python spline_experiment.py          # 样条收敛阶、起环扫描与扁平化实验
+python clipper_experiment.py         # 裁剪语义、顶点放大率与退化输入实验
+python colormap_experiment.py        # colormap 色彩科学评测（CIEDE2000、色觉模拟）
+python scaleengine_experiment.py     # 刻度引擎步长统计与日期层级实验
+python boxstats_experiment.py        # R 型分位数对比与离群敏感性实验
+python nan_experiment.py             # NaN 语义重实现 + 读取 nan_results.csv 绘图
+python simd_experiment.py            # 读取 simd_bench_results.csv 绘图（roofline、桶判据）
+python raster_opengl_experiment.py   # 读取 raster_opengl_results.csv 绘图（帧时间模型）
+python streaming_experiment.py       # 帧预算模型 + 读取 streaming_results.csv 绘图
+python surface3d_experiment.py       # 读取 surface3d_results.csv 绘图（标度拟合）
 ```
 
-新增报告的实验脚本也应放入此目录，命名与报告主题对应（如 `spline_experiment.py`），并在报告"实验"一节注明脚本名。
+性能类报告另附 C++ 基准与本机原始数据：`simd_bench.cpp`、`raster_opengl_bench.cpp`、`nan_bench.cpp`、`streaming_bench.cpp`、`surface3d_bench.cpp`（计时）与 `clipper_check.cpp`、`scaleengine_check.cpp`、`boxstats_check.cpp`、`nan_mapper_check.cpp`（正确性交叉验证，不计时）。编译命令写在各 `.cpp` 文件头部注释（MSVC 2019 + Qt 5.15，依赖仓库构建产物）；`*_results.csv` 的 `#` 头注记录了采集机器的硬件、编译配置与计时协议。在另一台机器上复现的路径：重新编译运行 bench 得到新 CSV，再重跑对应 Python 脚本重新生成插图与分析数值；交叉验证 harness 可直接运行比对语义。新增报告的实验脚本也应放入此目录，命名与报告主题对应，并在报告"实验"一节注明脚本名。

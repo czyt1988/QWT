@@ -217,6 +217,16 @@ plugins:
                     - 总览: tech-report/index.md
                     - "降采样：LTTB 与 MinMax 桶": tech-report/curve-downsampling.md
                     - "平滑：高斯与 Savitzky-Golay": tech-report/curve-smoothing.md
+                    - "SIMD argmin/argmax 基准": tech-report/simd-argminmax.md
+                    - "Raster vs OpenGL 管线": tech-report/raster-vs-opengl.md
+                    - "NaN 渲染语义与代价": tech-report/nan-rendering.md
+                    - "实时流式渲染策略": tech-report/realtime-streaming.md
+                    - "3D 表面 VBO/VAO 管线": tech-report/3d-surface-pipeline.md
+                    - "样条家族：精度与代价": tech-report/spline-family.md
+                    - "多边形裁剪：QwtClipper": tech-report/polygon-clipping.md
+                    - "刻度引擎：漂亮数字": tech-report/scale-engine.md
+                    - "箱线图分位数算法": tech-report/boxplot-quantiles.md
+                    - "Colormap 色彩科学": tech-report/colormap-color-science.md
             - API:
                 - API文档:
                     - API文档首页: doxygen_cn/index.html
