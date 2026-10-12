@@ -12,7 +12,7 @@
 
 - ✅ **22 种预设**：与 matplotlib / MATLAB 同名的科学色带，按名字创建，无需关心色标定义
 
-- ✅ **感知均匀**：viridis、plasma、inferno、magma、cividis 亮度单调，色盲友好、打印安全
+- ✅ **感知均匀**：viridis、plasma、cividis 亮度单调、色阶步长均匀，色盲友好、打印安全；inferno、magma 亮度单调，但步长均匀性略逊
 
 - ✅ **发散型色带**：coolwarm、rdylbu、rdylgn、spectral，适合含正负号的物理量
 
@@ -331,7 +331,7 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 
-`rainbow` 与 `hsv` 用于周期性数据时首尾颜色相同，可以无缝衔接；`turbo` 是 Google 给出的均衡彩虹色带，比 `jet` 的感知线性度好得多，适合必须使用彩虹观感的场合。
+`rainbow` 与 `hsv` 用于周期性数据时首尾颜色相同，可以无缝衔接；`turbo` 是 Google 给出的均衡彩虹色带，相比 `jet` 亮度回退略小，但色觉缺陷下的可区分性不如 `jet`，定量指标互有胜负（评测详见[色彩科学技术报告](../../tech-report/colormap-color-science.md)），适合必须使用彩虹观感的场合。
 
 
 
