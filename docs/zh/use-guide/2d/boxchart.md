@@ -261,10 +261,14 @@ flowchart LR
 | `StandardDeviation` | 正态分布数据 | 使用均值 ± n×标准差确定范围 |
 | `StandardError` | 统计推断 | 使用均值 ± n×标准误，适合样本统计推断 |
 
+> **已知问题 — Percentile 须线缺陷**
+>
+> 当前实现（`qwt_box_statistics.cpp`）中 Percentile 方法的 whiskerLower/whiskerUpper 所取分位数水平互换：下须取高分位数（1−c/100）、上须取低分位数（c/100），导致须线反转（whiskerLower > whiskerUpper）且全部样本被判为离群点。修复前不建议使用 Percentile 方法；需要百分位须线时请自行计算并手工填充 `QwtBoxSample`。详细分析见技术报告[箱线图统计量的分位数算法](../../tech-report/boxplot-quantiles.md)。
+
 > **提示 — 方法选择建议**
 >
 > - **一般数据分析**：使用 Tukey 方法（默认）
-> - **自定义异常标准**：使用 Percentile 或调整 Tukey 系数
+> - **自定义异常标准**：使用 Percentile 或调整 Tukey 系数（Percentile 目前存在上述已知缺陷，修复前不建议使用）
 > - **展示完整数据分布**：使用 MinMax
 > - **正态分布检验**：使用 StandardDeviation
 

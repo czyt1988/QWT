@@ -77,7 +77,7 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="..."
 | | `qwt_point_3d.h/.cpp` | `QwtPoint3D`：三维点 |
 | | `qwt_point_polar.h/.cpp` | `QwtPointPolar`：极坐标点 |
 | | `qwt_samples.h` | `QwtSamples`、`QwtBoxSample` 等样本数据结构 |
-| | `qwt_box_statistics.h/.cpp` | `QwtBoxStatistics`：箱线图统计量 |
+| | `qwt_box_statistics.h/.cpp` | `QwtBoxStatisticsCalculator`：箱线图统计量 |
 | **几何算法** | `qwt_bezier.h/.cpp` | `QwtBezier`：贝塞尔曲线（de Casteljau） |
 | | `qwt_clipper.h/.cpp` | `QwtClipper`：多边形裁剪算法 |
 | **坐标变换** | `qwt_transform.h/.cpp` | `QwtTransform` 及子类（线性、对数等） |
