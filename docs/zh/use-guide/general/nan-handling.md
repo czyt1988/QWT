@@ -247,73 +247,68 @@ QwtArgMinMaxResult qwtSimdArgMinMax(const double* data, int count)
 
 **源文件**：`src/plot/qwt_plot_curve.cpp`
 
-不同绘制风格对 NaN 的处理覆盖程度不同：
+不同绘制风格对 NaN 的处理现已全部覆盖：
 
 | 绘制风格 | NaN 处理 | 实现方式 |
 |---------|---------|---------|
 | Lines（含所有降采样模式） | ✅ 已处理 | 委托 QwtPointMapper |
 | Dots（默认路径） | ✅ 已处理 | 委托 QwtPointMapper |
 | Symbols | ✅ 已处理 | 委托 QwtPointMapper |
-| Dots（MinimizeMemory 路径） | ⚠️ 未处理 | 直接迭代 |
-| Sticks | ⚠️ 未处理 | 直接迭代 |
-| Steps | ⚠️ 未处理 | 直接迭代 |
+| Dots（MinimizeMemory 路径） | ✅ 已处理 | 直接迭代，`isSampleNanOrInf()` 跳过 |
+| Sticks | ✅ 已处理 | 直接迭代，`isSampleNanOrInf()` 跳过 |
+| Steps | ✅ 已处理 | 直接迭代，`isSampleNanOrInf()` 跳过 |
 
-> **警告 — 注意**
+> **警告 — 跳过不等于断开**
 >
-> `Sticks`、`Steps` 和 `Dots` 的 `MinimizeMemory` 路径目前**不检查 NaN**，直接将 NaN 值传递给 `xMap.transform()` / `yMap.transform()`。在大多数情况下这不会导致崩溃（NaN 会被变换为某个无效像素坐标），但可能产生错误的渲染结果。建议需要处理 NaN 的场景优先使用 `Lines` 风格。
+> 早期版本中 `Sticks`、`Steps` 与 `Dots` 的 `MinimizeMemory` 路径不检查 NaN；自提交 `17d0d13` 起这些路径（以及 `closestPoint()`）已补上 `isSampleNanOrInf()` 跳过检查，所有风格均安全。但要注意跳过语义的含义：Lines 类与 Steps 对 NaN 是"跳过并桥接"——缺口会被一条数据中不存在的线段（桥接弦）跨过，折线**不会**在缺口处断开留白；只有 `Dots`/`Sticks` 这类逐样本风格能让缺口天然空白。若需要"缺口即空白"的断线语义，必须在数据端按 NaN 把序列切成多个有限段、每段一条曲线。定量语义矩阵与像素级视觉扫描见[技术报告](../../tech-report/nan-rendering.md)。
 
 ## 自动缩放中的 NaN 防护
 
-**源文件**：`src/plot/qwt_plot.cpp`
+**源文件**：`src/plot/qwt_plot.cpp`、`src/plot/qwt_plot_axis.cpp`
 
-Qwt 7 在自动缩放计算轴范围时，检查 boundingRect 各边是否为有限值：
+自动缩放有两条独立路径，各自的 NaN 防护形式不同。`QwtPlot::rescaleAxes()` 在合并范围前检查 item boundingRect 的有效性与四边有限性（谓词为 `qwt_is_nan_or_inf()`，同时拦截 Inf）：
 
 ```cpp
-// 检查 boundingRect 是否有效（含 NaN 和无穷大检查）
-if (boundingRect.isValid() && !boundingRect.isEmpty()
-    && std::isfinite(boundingRect.left())
-    && std::isfinite(boundingRect.right())
-    && std::isfinite(boundingRect.top())
-    && std::isfinite(boundingRect.bottom())) {
-    // ... 使用 boundingRect 设置轴范围 ...
+// qwt_plot.cpp — rescaleAxes()：检查 boundingRect 是否有效（含 NaN 和无穷大检查）
+if (boundingRect.isValid() && !boundingRect.isEmpty() && !qwt_is_nan_or_inf(boundingRect.left())
+    && !qwt_is_nan_or_inf(boundingRect.right()) && !qwt_is_nan_or_inf(boundingRect.top())
+    && !qwt_is_nan_or_inf(boundingRect.bottom())) {
+    // ... 合并进自动缩放范围 ...
 }
 ```
 
-这确保了即使 boundingRect 被意外污染（例如未来回归 bug），自动缩放也不会收到无效的范围值。
+replot 时走的 `QwtPlot::updateAxes()` 则只按 `width() >= 0` / `height() >= 0` 判断：全 NaN 序列的 boundingRect 是无效矩形 `QRectF(1, 1, -2, -2)`（宽、高均为 -2），会被整体跳过，对应轴的区间保持无效，最终落到 `AxisData` 的默认范围 0–1000——这就是"全 NaN 曲线坐标轴回落 0–1000、画布空白"的来源：
+
+```cpp
+// qwt_plot_axis.cpp — updateAxes()：无效矩形被直接跳过，不会污染轴区间
+const QRectF rect = item->boundingRect();
+if (rect.width() >= 0.0)
+    boundingIntervals[item->xAxis()] |= QwtInterval(rect.left(), rect.right());
+if (rect.height() >= 0.0)
+    boundingIntervals[item->yAxis()] |= QwtInterval(rect.top(), rect.bottom());
+```
+
+两条路径的双重防护确保了即使 boundingRect 被意外污染（例如未来回归 bug），自动缩放也不会收到无效的范围值。
 
 ## 其他模块的 NaN 处理
 
 ### 等高线算法
 
-`QwtRasterData` 的 CONREC 等高线算法通过累加和检测 NaN——因为 NaN 参与加法运算会使结果变为 NaN：
+`QwtRasterData` 的 CONREC 等高线算法通过累加和检测 NaN——因为 NaN 参与加法运算会使结果变为 NaN（当前源码使用 `qwt_is_nan_or_inf()`，同时拦截 Inf）：
 
 ```cpp
-if (qIsNaN(zSum)) {
-    // 其中一个点是 NaN
+if (qwt_is_nan_or_inf(zSum)) {
+    // 其中一个点是 NaN 或 Inf
     continue;
 }
 ```
 
 ### Spectrogram 渲染
 
-Spectrogram（光谱图/热力图）将 NaN 值视为数据缺口（gap），渲染为透明像素。由于 `qIsNaN()` 未内联且 `qt_is_nan` 位于 Qt 私有头文件，`QwtPlotSpectrogram` 实现了本地的位级 NaN 检测：
+Spectrogram（光谱图/热力图）将 NaN 值视为数据缺口（gap），渲染为透明像素。早期版本因 `qIsNaN()` 未内联且 `qt_is_nan` 位于 Qt 私有头文件而实现过本地的位级 NaN 检测（`qwtIsNaN`），当前源码已将其移除，统一使用 core 模块的 `qwt_is_nan_or_inf()`。渲染时，NaN 值被渲染为透明像素（`0u`）：
 
 ```cpp
-static inline bool qwtIsNaN(double d)
-{
-    const uchar* ch = (const uchar*)&d;
-    if (QSysInfo::ByteOrder == QSysInfo::BigEndian) {
-        return (ch[0] & 0x7f) == 0x7f && ch[1] > 0xf0;
-    } else {
-        return (ch[7] & 0x7f) == 0x7f && ch[6] > 0xf0;
-    }
-}
-```
-
-渲染时，NaN 值被渲染为透明像素（`0u`）：
-
-```cpp
-if (hasGaps && qwtIsNaN(value)) {
+if (hasGaps && qwt_is_nan_or_inf(value)) {
     *line++ = 0u;  // 透明像素
 }
 ```
@@ -471,7 +466,7 @@ flowchart LR
 
 ### 数据准备
 
-缺失的样本用 quiet NaN 标记——直接用 Qt 的 `qQNaN()` 工具函数生成——像普通数值一样追加进数据向量即可；`boundingRect()` 与渲染器都会自动跳过它们，坐标轴范围无需额外处理就能保持正确：
+缺失的样本用 quiet NaN 标记——直接用 Qt 的 `qQNaN()` 工具函数生成——像普通数值一样追加进数据向量即可；`boundingRect()` 与渲染器都会自动跳过它们，坐标轴范围无需额外处理就能保持正确。注意"跳过"指折线在缺口处被桥接连通而非断开留白——需要缺口显示为空白时，参见上文"曲线绘制中的 NaN 处理覆盖"的警告与[技术报告](../../tech-report/nan-rendering.md)：
 
 ```cpp
 // 使用 qQNaN() 生成 NaN 值
@@ -490,15 +485,15 @@ curve->setSamples(x, y);
 
 ### 选择绘制风格
 
-处理含 NaN 的数据时优先选 `QwtPlotCurve::Lines` 风格：它具备完整的 NaN 处理，且默认启用的 `FilterPointsLTTB` 渲染属性同时提供最佳性能。`Sticks` 与 `Steps` 风格不做 NaN 检查，这类数据需要在预处理阶段先清除 NaN：
+所有绘制风格现在都会跳过 NaN 样本（见上文覆盖表），处理含 NaN 的数据时可优先选 `QwtPlotCurve::Lines` 风格：它具备完整的 NaN 处理，且默认启用的 `FilterPointsLTTB` 渲染属性同时提供最佳性能。注意 Lines/Steps 的跳过语义是"桥接"——缺口会被一条线段跨过而非断开留白；需要缺口显示为空白时在数据端按有限段切分成多条曲线，或改用逐样本绘制的 `Dots`/`Sticks` 风格：
 
 ```cpp
-// 推荐：Lines 风格 — 完整的 NaN 处理
+// 推荐：Lines 风格 — 完整的 NaN 处理（跳过语义，缺口以弦桥接）
 curve->setStyle(QwtPlotCurve::Lines);
 // 默认启用 FilterPointsLTTB，提供最佳性能和 NaN 兼容性
 
-// 注意：Sticks 和 Steps 风格不检查 NaN
-// 如需使用，建议在数据预处理阶段清除 NaN
+// 缺口必须显示为空白时：在数据端按有限段切分为多条曲线（每段一条），
+// 或改用 Dots / Sticks 逐样本风格
 ```
 
 ### Spectrogram 中的数据缺口
