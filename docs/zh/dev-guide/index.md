@@ -81,7 +81,7 @@ flowchart TD
 
 - **文档撰写规范**：[文档撰写规范](../doc-writing-guide.md)
 - **构建说明**：[构建指引](../build-guide/build-instructions.md)
-- **项目概述**：[AGENTS.md](../../AGENTS.md)
+- **项目概述**：[AGENTS.md](../../../AGENTS.md)
 
 > **提示 — AI Agent 开发者**
 >

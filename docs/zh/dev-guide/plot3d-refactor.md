@@ -4,7 +4,7 @@
 
 > **信息 — 范围**
 >
-> 本重构随 **v7.3.5** 发布于 `new3d` 分支。面向最终用户的使用指南见 [3D 绘图简介](../use-guide/3d/3d-plot.md)；模块级开发约定见 [`src/plot3d/AGENTS.md`](../../src/plot3d/AGENTS.md)。
+> 本重构随 **v7.3.5** 发布于 `new3d` 分支。面向最终用户的使用指南见 [3D 绘图简介](../use-guide/3d/3d-plot.md)；模块级开发约定见 [`src/plot3d/AGENTS.md`](../../../src/plot3d/AGENTS.md)。
 
 ## 1. 为何要重构
 
@@ -314,7 +314,7 @@ src/plot3d/
 
 > **警告 — 破坏性变更**
 >
-> 本重构源码不兼容。现有 3D 用户代码须将控件级数据/样式 API 调用点迁移到对应的 `Qwt3DSurface` item API。完整列表见 [更新日志](../../CHANGES-CN.md)。
+> 本重构源码不兼容。现有 3D 用户代码须将控件级数据/样式 API 调用点迁移到对应的 `Qwt3DSurface` item API。完整列表见 [更新日志](../../../CHANGES-CN.md)。
 
 ## 8. 总结
 

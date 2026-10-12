@@ -519,4 +519,4 @@ These new features make Qwt a more modern, more powerful, and more user-friendly
 > - **Project Repository**: [GitHub](https://github.com/czyt1988/QWT) / [Gitee](https://gitee.com/czyt1988/QWT)
 > - **Build Instructions**: [Build Guide](../build-guide/build-instructions.md)
 > - **Import Method**: [Importing Qwt](import-qwt.md)
-> - **Changelog**: [CHANGES.md](../CHANGES.md)
+> - **Changelog**: [CHANGES.md](../../CHANGES.md)

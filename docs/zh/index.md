@@ -274,7 +274,7 @@ plot->show();
 
 <div class="qwt-footer-links">
 <a href="use-guide/qwt7-new-features/" class="qwt-btn qwt-btn-primary">阅读文档</a>
-<a href="../../use-guide/qwt7-new-features/" class="qwt-btn qwt-btn-ghost">English Docs</a>
+<a href="../use-guide/qwt7-new-features/" class="qwt-btn qwt-btn-ghost">English Docs</a>
 <a href="https://github.com/czyt1988/QWT" class="qwt-btn qwt-btn-ghost">GitHub</a>
 <a href="https://gitee.com/czyt1988/QWT" class="qwt-btn qwt-btn-ghost">Gitee</a>
 </div>

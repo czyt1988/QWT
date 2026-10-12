@@ -519,4 +519,4 @@ Qwt 7.0 是一次全面的现代化升级：
 > - **项目地址**: [GitHub](https://github.com/czyt1988/QWT) / [Gitee](https://gitee.com/czyt1988/QWT)
 > - **构建说明**: [构建指引](../build-guide/build-instructions.md)
 > - **引入方式**: [引入Qwt](import-qwt.md)
-> - **变更日志**: [CHANGES-CN.md](../../CHANGES-CN.md)
+> - **变更日志**: [CHANGES-CN.md](../../../CHANGES-CN.md)
