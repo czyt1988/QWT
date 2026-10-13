@@ -133,6 +133,16 @@ plugins:
                     - Overview: tech-report/index.md
                     - "Downsampling: LTTB & MinMax": tech-report/curve-downsampling.md
                     - "Smoothing: Gaussian & Savitzky-Golay": tech-report/curve-smoothing.md
+                    - "SIMD argmin/argmax Benchmark": tech-report/simd-argminmax.md
+                    - "Raster vs OpenGL Pipelines": tech-report/raster-vs-opengl.md
+                    - "NaN Rendering Semantics": tech-report/nan-rendering.md
+                    - "Real-Time Streaming": tech-report/realtime-streaming.md
+                    - "3D Surface VBO/VAO Pipeline": tech-report/3d-surface-pipeline.md
+                    - "The QwtSpline Family": tech-report/spline-family.md
+                    - "Polygon Clipping: QwtClipper": tech-report/polygon-clipping.md
+                    - "Scale Engine Nice Numbers": tech-report/scale-engine.md
+                    - "Box-Plot Quantiles": tech-report/boxplot-quantiles.md
+                    - "Colormap Color Science": tech-report/colormap-color-science.md
             - API:
                 - API Docs:
                     - API Home: doxygen_en/index.html
