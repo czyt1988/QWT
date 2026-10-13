@@ -44,6 +44,15 @@
 - 修复 MinMax 桶降采样（`FilterPointsMinMaxLTTB`，即 v7.5.0 重做前的 `FilterPointsLTTB`）对含非有限坐标的数据产出伪顶点的问题：原始指针快速路径的预扫描只用 `isnan` 检查 y 值，x 为 NaN 的样本可能胜出桶极值并经 `qRound(NaN) == 0` 映射为伪顶点（钉在画布左缘的伪尖峰）；±Inf 的 y 值也能穿过预扫描进入 SIMD 路径，产出 `INT_MIN` 像素坐标。现在预扫描以 `!isfinite` 拦截非有限 y 值；SIMD 路径对每桶胜出样本的 x 做后置校验，命中桶改用标量循环重算；标量循环跳过 x/y 非有限的样本——原始指针路径与通用 `sample()` 路径语义对齐。仅 y 数据的索引系列（无原始 x 指针）不受影响。预扫描刻意保持只查 y：实测同时扫描 x 会使 1M 干净点的帧时间回归 +11%（额外内存流量），最终方案实测回归 +1.7%（噪声带内）。回归测试：`tests/nan_curve_test`
 - 修复 `qwtToPolylineFiltered`（`FilterPoints`/`WeedOutPoints` 映射路径）对全 NaN 输入返回含 NaN 坐标的单顶点多边形的问题：首非 NaN 扫描停在最后一个样本并无条件将其写入。现在全 NaN 区间返回空多边形（与 Quad 路径的早退一致），调用方"空多边形 = 无数据"的约定恢复。回归测试：`tests/nan_curve_test`
 
+- 修复 `QwtBoxStatisticsCalculator` 的 Percentile 须线水平互换：`whiskerLower` 取第 (100−c) 百分位、`whiskerUpper` 取第 c 百分位，系数 <50 时 wl > wu、样本无效且全部数据被计为离群点（技术报告回归用例 64/64）。现在水平跟随系数（c 为尾部百分比，如 5 表示第 5/95 百分位），`QwtBoxSample` 新增 `mean` 字段并由统计器填入，`QwtPlotBoxChart` 的均值标记画在该字段上（原先重复绘制中位数），同时移除无任何消费方的实例接口（`setWhiskerMethod()`/`setWhiskerCoefficient()`）。新增 `tests/box_statistics_test`
+- 修复 `QwtClipper::clipCircle` 在竖直切线上把上方点映到 `3*pi/2`（与 `qwtPolar2Pos` 及自身非竖直分支相反），圆心恰在矩形竖直边线上时多返回 π；扫描同时按小角度容差合并重合切割点（圆过矩形角点时相邻两边各报一次、坐标差几个 ulp），并对每个角度区段独立判定，消除“整圆 vs 零长弧”的 1 ulp 依赖与单位切割点下 `angles[1]` 的越界读。新增 `tests/clipper_test`（定向用例 + 暴力对照）
+- 修复 gl2ps 矢量导出的曲面颜色未定义问题：feedback 缓冲记录的是固定功能顶点色，而 GLSL 渲染路径从不写入（原始测量机上填充全部 alpha=0、曲面不可见，其他机器上是与数据无关的颜色）。`Qwt3DSurface`、坐标系网格/轴线与颜色图例在反馈回放时改用即时模式显式提交逐顶点颜色，`Qwt3DPlot::isVectorExportActive()` 由 GL 渲染模式判定，PDF/SVG 导出因此携带数据颜色。新增 `tests/plot3d_vector_export_test` 与 `surface_export_check.cpp` 探针
+- 修复 Qwt3DIO 格式注册表大小写敏感：光栅格式键是 `QImageWriter` 的小写名，`savePixmap(file, "PNG")` 静默失败（官方 3D 示例即踩中）。查表、注册与 `saveVector`/`savePixmap` 的格式判定改为大小写不敏感，未注册格式给出 qDebug 警告，示例按文件后缀推导格式。新增 `tests/plot3d_io_test`
+- 修复 3D 光照与材质参数被丢弃：`setLightComponent()`/`setMaterialComponent()`/`setShininess()` 现在真正存值，`Qwt3DSurface` 把它们上传为着色器 uniform（光源位置由 `setLightRotation` 推导、ambient/diffuse/specular 逐分量、shininess）；默认值与原先的硬编码逐像素一致，`illuminate()`/`blowout()` 切换唯一那盏灯，5 种主题光照预设因此产生不同效果。新增 getter 与 `tests/plot3d_lighting_test`
+- 修复 matplotlib 来源的 colormap 预设色标为手工近似的问题：`inferno`/`magma`/`turbo` 的色标被压缩在前 ~70% 参考曲线上再铺满全区间，`viridis`/`cividis` 最大偏离 17 ΔE00。色标现按 matplotlib 官方 256 级表在预设位置采样（生成脚本 `docs/assets/algorithms/colormap_stops_gen.py`）：色标偏差 0.000、整带偏差 0.445–1.380 ΔE00，`inferno`/`magma` 分级升到 A
+- 修复 `QwtScaleDiv::setTicks()` 存入重复刻度值（日期引擎 `qRound(i*minStep)` 塌缩）与 `QwtAbstractScaleDraw::draw()` 重复绘制重合刻度：刻度列表排序去重，与更长刻度类型同值的刻度被跳过，每个位置只画一次且保留最长长度。新增 `tests/scale_draw_test`
+- 修复两处与实现不符的注释：`QwtColorMapPreset::presetFromName()` 如实说明未知名回退 Viridis（实现从未返回 −1），`Qwt3DSurface::setResolution()` 如实说明索引步进加全量重建/重上传
+- 性能：AVX2 argmin/argmax 内核移入独立编译单元并由 CMake 以 `/arch:AVX2`（MSVC）/ `-mavx2`（GCC/Clang）编译（`qwt_simd_argminmax_avx2.cpp`）。按 x86-64 基线编译时其 256-bit 尾声混入 legacy SSE 且返回时上半 YMM 状态为脏——实测单次调用固定开销 446 ns（n=16），且同线程紧随其后的标量代码慢 16 倍；拆分后单次调用降到 13.5 ns、流式惩罚消失、MinMax 桶判据从约 481 个元素塌缩到 4–8 个。派发方仍在 CPUID 判定后才调用；amalgamate 构建照旧内联该文件
 ## tag:v7.4.2 (2026-10-10)
 
 ### 新功能
