@@ -22,6 +22,8 @@ build*
 .obsidian/
 temp-*
 tmp
+# ImGui writes its window layout next to the current working directory
+imgui.ini
 tmp-file
 .$*
 .vs

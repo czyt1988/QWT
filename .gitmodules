@@ -1,0 +1,3 @@
+[submodule "examples/bench/chartbench/qim"]
+	path = examples/bench/chartbench/qim
+	url = https://gitee.com/czyt1988/qim.git
