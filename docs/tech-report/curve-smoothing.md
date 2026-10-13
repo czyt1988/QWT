@@ -1,6 +1,6 @@
 # Curve Rendering, Denoised: Gaussian Convolution, Savitzky-Golay Regression and Feature Preservation
 
-> **Abstract** — Downsampling solves "too many points to draw"; smoothing solves "it still looks like noise". The conclusion of the companion article becomes the premise here: the MinMax bucket reduction **deliberately keeps the extremes of every bucket**, so the extremes of random jitter survive as well — measured on a 100,000-sample spectrum (900×500 canvas) the noise band of the reduced polyline is on average 65 pixel rows thick. The render smoothing of QWT7.4 applies a low-pass filter directly to the polyline in the paint pipeline: **Gaussian weighted convolution** and **Savitzky-Golay local polynomial regression**, both touching only the $y$ coordinates and never the sample data. This article derives the mathematical structure of both kernels from the bias-variance decomposition — including the Savitzky-Golay moment conditions, the parity argument that makes order 2 and order 3 identical, and the identity "the noise gain equals the centre coefficient" — and then dissects the third piece, **feature preservation**: a wide baseline, a MAD (median absolute deviation) noise estimate and a soft-threshold blend restore peaks and dips to their original position and height. All properties come with numerical experiments and complete code.
+> **Abstract** — Downsampling solves "too many points to draw"; smoothing solves "it still looks like noise". The conclusion of the companion article becomes the premise here: the MinMax bucket reduction **deliberately keeps the extremes of every bucket**, so the extremes of random jitter survive as well — measured on a 100,000-sample spectrum (900×500 canvas) the noise band of the reduced polyline is on average 65 pixel rows thick. The render smoothing introduced in v7.4.2 applies a low-pass filter directly to the polyline in the paint pipeline: **Gaussian weighted convolution** and **Savitzky-Golay local polynomial regression**, both touching only the $y$ coordinates and never the sample data. This article derives the mathematical structure of both kernels from the bias-variance decomposition — including the Savitzky-Golay moment conditions, the parity argument that makes order 2 and order 3 identical, and the identity "the noise gain equals the centre coefficient" — and then dissects the third piece, **feature preservation**: a wide baseline, a MAD (median absolute deviation) noise estimate and a soft-threshold blend restore peaks and dips to their original position and height. All properties come with numerical experiments and complete code.
 
 > **Abstract — Key results**
 >
@@ -126,8 +126,8 @@ Numbers ($w = 15$, $\sigma = 3.75$):
 | 2 | 0.493 | 0.471 | 0.667 | 0.868 |
 | 3 | 0.653 | 0.625 | 0.847 | 0.968 |
 | 5 | 0.828 | 0.800 | 0.965 | 0.997 |
-| 8 | 0.923 | 0.906 | 0.993 | 1.000 |
-| 12 | 0.964 | 0.955 | 0.999 | 1.000 |
+| 8 | 0.923 | 0.905 | 0.993 | 1.000 |
+| 12 | 0.964 | 0.954 | 0.999 | 1.000 |
 
 Narrow features 1–3 points wide — exactly the "features" Section 5 must protect — lose 35% to 73% of their height under the Gaussian kernel. **Without protection, narrow peaks do not merely round off; they visibly shrink.**
 
@@ -154,7 +154,7 @@ i.e. an **even extension** about the boundary sample itself ($y_{-k} = y_k$, no 
 
 ### 3.6 Cost
 
-Direct convolution is $O(n \cdot w)$. The Gaussian has no prefix-sum shortcut (unlike the box), but $n$ is the *reduced* polyline length (a few thousand points on a typical canvas) and $w \le 31$, so the cost is negligible: a complete replot of the 100,000-sample spectrum stays at the ~0.1 ms level with or without smoothing (Section 7). The kernel is regenerated per replot; that cost is equally negligible.
+Direct convolution is $O(n \cdot w)$. The Gaussian has no prefix-sum shortcut (unlike the box), but $n$ is the *reduced* polyline length (a few thousand points on a typical canvas) and $w \le 31$, so the cost is negligible: a complete replot of the 100,000-sample spectrum stays at the ~0.1 ms level with or without smoothing (measured with the example's `Run Benchmark`). The kernel is regenerated per replot; that cost is equally negligible.
 
 ## 4. Savitzky-Golay kernel smoothing (SavitzkyGolaySmoothing)
 
@@ -286,7 +286,7 @@ Quantitative comparison of the three filters at $w = 15$ (measured):
 | moving average (= SG $p=0,1$) | 0.258 | 0.0295 |
 | Gaussian | 0.287 | 0.0394 |
 | SG $p=2,3$ | 0.389 | 0.0717 |
-| SG $p=4$ | 0.475 | 0.1119 |
+| SG $p=4$ | 0.489 | 0.1158 |
 
 ![Filter kernels (left) and frequency responses (right)](../assets/algorithms/fig_smooth_kernels.png)
 
@@ -317,7 +317,7 @@ flowchart TD
     style D fill:#fff3e0,stroke:#ff9800
 ```
 
-**Baseline.** Two consecutive box (moving average) passes over the polyline — an approximation of a Gaussian kernel, computable in $O(n)$ with prefix sums — with a window $w_b = \max(61, 6w)$ wide enough to follow the overall shape (the slow envelope) but not the narrow features. Mathematically the baseline is the convolution of the signal with a triangular (Bartlett) kernel.
+**Baseline.** Two consecutive box (moving average) passes over the polyline — an approximation of a Gaussian kernel, computable in $O(n)$ with prefix sums — with a window $w_b = \max(61, 6w)$ (the code rounds it up to an odd value, $6w+1$ for $w \ge 11$) wide enough to follow the overall shape (the slow envelope) but not the narrow features. Mathematically the baseline is the convolution of the signal with a triangular (Bartlett) kernel.
 
 **Noise scale: MAD.** The **median** of the absolute residuals:
 
@@ -390,7 +390,7 @@ Like the downsampling stage, the smoothing is stateless and reentrant: polylines
 
 ### 7.1 End-to-end measurement
 
-Using the same generator as `examples/2D/curvesmoothing` (100,000 samples: slow envelope, humps, three narrow peaks, $\sigma=0.15$ white jitter, 1% upward spikes, 0.8% dropouts, one deterministic deep dip), pipeline = MinMax reduction → smoothing (900×500 canvas, pixel-row metric):
+Using the same generator as `examples/2D/curvesmoothing` (100,000 samples: slow envelope, humps, three narrow peaks, $\sigma=0.15$ white jitter, 1% upward spikes, 0.8% dropouts, one deterministic deep dip), pipeline = MinMax bucket reduction (`FilterPointsMinMaxLTTB`; `FilterPointsLTTB` mapped to it up to v7.4.2) → smoothing (900×500 canvas, pixel-row metric):
 
 | configuration | mean noise band (px) | peak top row | dip bottom row |
 |---|---:|---:|---:|
@@ -500,7 +500,7 @@ int main(int argc, char** argv)
 }
 ```
 
-**Effect**: the grey curve shows a noise band 60+ pixel rows thick; the blue curve's band collapses to ~6 px, while the top pixel rows of the three narrow peaks are identical in both curves — and `data()` was never touched.
+**Effect**: the grey curve shows a noise band 60+ pixel rows thick; the blue curve's band collapses to ~6 px, while the top pixel row of the narrow peak is identical in both curves — and `data()` was never touched.
 
 The snippet above is a minimal version of what the official example, **`examples/2D/curvesmoothing`**, demonstrates. That example puts the default rendering and the smoothed rendering side by side in one window and exposes every parameter as a live control:
 
@@ -510,8 +510,8 @@ From left to right:
 
 - **Left plot (plain)**: the 100,000-sample spectrum through the default pipeline (`FilterPointsLTTB` reduction only); the noise shows as a coarse vertical fringe;
 - **Right plot (smooth)**: the same samples plus render smoothing — the noise band collapses to a thin line while the narrow peaks and the deep dip stay where they are;
-- **Bottom controls**: `Algorithm` (Gaussian / Savitzky-Golay), `Window`, `SG Order`, `Preserve` (feature preservation threshold), `Downsampling` (`LTTB (default)` / `Pixel (QCustomPlot style)` — to compare the smoothing against both reductions), plus a `Run Benchmark` button that replots both plots 50 times each;
-- The `last` label under each plot shows its most recent replot time — the smoothing overhead is in the sub-millisecond range (see the 0.1 ms measured in Section 7).
+- **Bottom controls**: `Algorithm` (Gaussian / Savitzky-Golay), `Window`, `SG Order`, `Preserve` (feature preservation threshold), `Downsampling` (`None ( raw samples )` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB` (default) / `FilterPointsMinMaxLTTB`, applied to both plots), plus a `Run Benchmark` button that replots both plots 50 times each;
+- The `last` label under each plot shows its most recent replot time — the smoothing overhead is in the sub-millisecond range (measured at the ~0.1 ms level).
 
 When reading the article alongside the example, start with the picture and only then return to the formulas: set `Preserve` to 0 and the same narrow peak immediately shrinks — that is $R(b) = b/\sqrt{b^2+\sigma^2}$ from Section 3.3 on screen.
 
@@ -533,7 +533,7 @@ When reading the article alongside the example, start with the picture and only 
 
 - Downsampling preserves extremes ⇒ noise survives; render smoothing removes it with a low-pass filter in the paint pipeline, without modifying the samples.
 - **Gaussian kernel**: a $\sigma = w/4$ weighted moving window, the strongest noise suppressor ($\sqrt{g}=0.287$ at $w=15$), with the closed-form peak attenuation $R(b)=b/\sqrt{b^2+\sigma^2}$.
-- **SG kernel**: the convolution form of local polynomial least squares; the polynomial reproduction theorem keeps peak shapes intact ($p=2$ loses less than 15% on a 3-point peak), at the price of ~36% more residual noise; the moment conditions yield $p=2 = p=3$ and the identity $g=c_0$.
+- **SG kernel**: the convolution form of local polynomial least squares; the polynomial reproduction theorem keeps peak shapes intact ($p=2$ loses about 15% on a 3-point peak), at the price of ~36% more residual noise; the moment conditions yield $p=2 = p=3$ and the identity $g=c_0$.
 - **Feature preservation**: wide baseline + MAD noise scale + soft-threshold blend turns indiscriminate attenuation into selective restoration; at the default $\tau=3$ peak tops and dip bottoms are restored row-identically, and the noise band drops from 65.4 to 6.1 px (measured).
 - The stage is stateless, reentrant and $O(nw)$ with $n \approx 4W$ — a full replot of the 100,000-sample spectrum stays at ~0.1 ms.
 
