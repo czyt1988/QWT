@@ -259,10 +259,14 @@ flowchart LR
 | `StandardDeviation` | Normally distributed data | Uses mean +/- n*standard deviation to determine range |
 | `StandardError` | Statistical inference | Uses mean +/- n*standard error, suitable for sample statistical inference |
 
+> **Bug — Percentile whisker defect**
+>
+> In the current implementation (`qwt_box_statistics.cpp`) the quantile levels taken for the Percentile method's whiskerLower/whiskerUpper are swapped: the lower whisker uses the high quantile (1 - c/100) and the upper whisker uses the low quantile (c/100), which inverts the whiskers (whiskerLower > whiskerUpper) and classifies every sample as an outlier. The Percentile method is not recommended until this is fixed; if you need percentile whiskers, compute them yourself and fill `QwtBoxSample` manually. See the technical report [Quantile Algorithms for Box Plot Statistics](../../tech-report/boxplot-quantiles.md) for a detailed analysis.
+
 > **Tip — Method Selection Recommendations**
 >
 > - **General data analysis**: Use Tukey method (default)
-> - **Custom outlier criteria**: Use Percentile or adjust the Tukey coefficient
+> - **Custom outlier criteria**: Use Percentile or adjust the Tukey coefficient (Percentile currently has the known defect above — not recommended until it is fixed)
 > - **Display full data distribution**: Use MinMax
 > - **Normal distribution testing**: Use StandardDeviation
 
