@@ -594,22 +594,85 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
         // Try raw-pointer fast path for SIMD-accelerated argmin/argmax
         const QwtRawPointData raw = qwtTryGetRawPointData(series);
         if (raw.y != nullptr) {
-            // Non-finite pre-scan: samples with NaN/Inf x or y must not enter
-            // the SIMD path, where an x-NaN bucket winner would emit a phantom
-            // vertex at column qRound(NaN) == 0 and Inf extrema would map to
-            // INT_MIN pixels. Index-based series ( raw.x == nullptr ) always
-            // have finite x coordinates, so only y needs to be checked there.
-            const bool hasRawX  = raw.x != nullptr;
+            const bool hasRawX = raw.x != nullptr;
+
+            /*
+                Scalar reduction of one bucket, skipping samples with a
+                non-finite x or y like the generic path does. Used for the
+                whole range, when the pre-scan found non-finite y values,
+                and per bucket, when a SIMD bucket extremum sits on a
+                sample with a non-finite x.
+             */
+            auto reduceBucketScalar = [&](int b)
+            {
+                const int start = visFrom + static_cast< int >(b * bucketSize);
+                const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+
+                double minY = DBL_MAX, maxY = -DBL_MAX;
+                int minIdx = 0, maxIdx = 0;
+                bool first = true;
+
+                for (int i = start; i <= qMin(end, visTo); i++) {
+                    const double y = raw.y[ i ];
+                    if (!std::isfinite(y) || (hasRawX && !std::isfinite(raw.x[ i ])))
+                        continue;
+
+                    if (first) {
+                        minIdx = maxIdx = i;
+                        minY = maxY = y;
+                        first       = false;
+                    } else {
+                        if (y < minY) {
+                            minY   = y;
+                            minIdx = i;
+                        }
+                        if (y > maxY) {
+                            maxY   = y;
+                            maxIdx = i;
+                        }
+                    }
+                }
+
+                if (!first) {
+                    int sxMin, sxMax;
+                    if (hasRawX) {
+                        sxMin = qRound(raw.x[ minIdx ] * xCnv + xOff);
+                        sxMax = qRound(raw.x[ maxIdx ] * xCnv + xOff);
+                    } else {
+                        sxMin = qRound(minIdx * xCnv + xOff);
+                        sxMax = qRound(maxIdx * xCnv + xOff);
+                    }
+                    const int syMin = qRound(minY * yCnv + yOff);
+                    const int syMax = qRound(maxY * yCnv + yOff);
+                    if (minIdx <= maxIdx) {
+                        outPts[ n++ ] = Point(sxMin, syMin);
+                        if (syMax != syMin || sxMax != sxMin)
+                            outPts[ n++ ] = Point(sxMax, syMax);
+                    } else {
+                        outPts[ n++ ] = Point(sxMax, syMax);
+                        if (syMax != syMin || sxMax != sxMin)
+                            outPts[ n++ ] = Point(sxMin, syMin);
+                    }
+                }
+            };
+
+            /*
+                Non-finite pre-scan of the y values only: scanning the x
+                array as well would double the memory traffic of the scan
+                ( ~10% frame time on 1M clean points, measured ). Samples
+                with a non-finite x are caught per bucket in the SIMD path
+                below instead.
+             */
             bool hasNonFinite = false;
             for (int i = visFrom; i <= visTo; ++i) {
-                if (!std::isfinite(raw.y[ i ]) || (hasRawX && !std::isfinite(raw.x[ i ]))) {
+                if (!std::isfinite(raw.y[ i ])) {
                     hasNonFinite = true;
                     break;
                 }
             }
 
             if (!hasNonFinite) {
-                // ===== SIMD fast path: no NaN, raw pointer access =====
+                // ===== SIMD fast path: all y values are finite =====
                 for (int b = 0; b < numBuckets; b++) {
                     const int start = visFrom + static_cast< int >(b * bucketSize);
                     const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
@@ -622,8 +685,16 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
                     const int minI             = start + r.minIdx;
                     const int maxI             = start + r.maxIdx;
 
+                    if (hasRawX && (!std::isfinite(raw.x[ minI ]) || !std::isfinite(raw.x[ maxI ]))) {
+                        // a bucket extremum sits on a sample with NaN/Inf x:
+                        // qRound(NaN) == 0 would emit a phantom vertex at
+                        // column 0 - redo the bucket without those samples
+                        reduceBucketScalar(b);
+                        continue;
+                    }
+
                     int minX, maxX;
-                    if (raw.x != nullptr) {
+                    if (hasRawX) {
                         minX = qRound(raw.x[ minI ] * xCnv + xOff);
                         maxX = qRound(raw.x[ maxI ] * xCnv + xOff);
                     } else {
@@ -644,61 +715,9 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
                     }
                 }
             } else {
-                // ===== Scalar path with raw pointers (has non-finite samples) =====
-                for (int b = 0; b < numBuckets; b++) {
-                    const int start = visFrom + static_cast< int >(b * bucketSize);
-                    const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
-
-                    int minX = 0, maxX = 0;
-                    double minY = DBL_MAX, maxY = -DBL_MAX;
-                    int minIdx = 0, maxIdx = 0;
-                    bool first = true;
-
-                    for (int i = start; i <= qMin(end, visTo); i++) {
-                        const double y = raw.y[ i ];
-                        // skip non-finite samples like the generic path does,
-                        // so an x-NaN winner can't produce a phantom vertex
-                        if (!std::isfinite(y) || (hasRawX && !std::isfinite(raw.x[ i ])))
-                            continue;
-
-                        if (first) {
-                            minIdx = maxIdx = i;
-                            minY = maxY = y;
-                            first       = false;
-                        } else {
-                            if (y < minY) {
-                                minY   = y;
-                                minIdx = i;
-                            }
-                            if (y > maxY) {
-                                maxY   = y;
-                                maxIdx = i;
-                            }
-                        }
-                    }
-
-                    if (!first) {
-                        int sxMin, sxMax;
-                        if (raw.x != nullptr) {
-                            sxMin = qRound(raw.x[ minIdx ] * xCnv + xOff);
-                            sxMax = qRound(raw.x[ maxIdx ] * xCnv + xOff);
-                        } else {
-                            sxMin = qRound(minIdx * xCnv + xOff);
-                            sxMax = qRound(maxIdx * xCnv + xOff);
-                        }
-                        const int syMin = qRound(minY * yCnv + yOff);
-                        const int syMax = qRound(maxY * yCnv + yOff);
-                        if (minIdx <= maxIdx) {
-                            outPts[ n++ ] = Point(sxMin, syMin);
-                            if (syMax != syMin || sxMax != sxMin)
-                                outPts[ n++ ] = Point(sxMax, syMax);
-                        } else {
-                            outPts[ n++ ] = Point(sxMax, syMax);
-                            if (syMax != syMin || sxMax != sxMin)
-                                outPts[ n++ ] = Point(sxMin, syMin);
-                        }
-                    }
-                }
+                // ===== Scalar path with raw pointers (has non-finite y) =====
+                for (int b = 0; b < numBuckets; b++)
+                    reduceBucketScalar(b);
             }
         } else {
             // ===== Generic path: virtual sample() access =====
