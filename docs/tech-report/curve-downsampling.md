@@ -247,7 +247,7 @@ Output: reduced polyline
 | extremes | ❌ not guaranteed | ✅ every bucket extreme survives |
 | spike pairs | ❌ systematically dropped (one per bucket) | ✅ up and down stroke both kept |
 | SIMD | area comparisons hard to vectorize | argmin/argmax vectorizes naturally |
-| NaN | needs explicit handling | ignored by IEEE-754 comparisons (Sec. 5.4) |
+| NaN | needs explicit handling | pre-scan + NaN-aware scalar branch fallback; the kernel-level IEEE-754 "naturally ignored" claim is unreliable (see Sec. 5.4 and the [SIMD benchmark report](simd-argminmax.md)) |
 
 The MinMax bucket is a **deterministic approximation** of LTTB: the skeleton (index-uniform bucketing + shape representatives) is the same; only the selection criterion differs. Replacing the area criterion with the extreme criterion yields three provable properties.
 
@@ -375,7 +375,7 @@ $$
 \mathbf{i}^{(k+1)}_j = \begin{cases} 4k + j & v_{4k+j} < \mathbf{m}^{(k)}_j \\ \mathbf{i}^{(k)}_j & \text{otherwise} \end{cases}
 $$
 
-Comparisons use the **ordered predicate** `_CMP_LT_OQ`: both $\mathrm{NaN} < x$ and $x < \mathrm{NaN}$ are false, so NaN can never win a comparison nor pollute the index vectors — **NaN is ignored by the IEEE-754 semantics themselves**. After the vector loop, a horizontal reduction combines the lanes; a scalar tail loop handles the remaining elements; if min/max are still NaN (all-NaN input), the sentinel $\{0, 0, \text{DBL\_MAX}, -\text{DBL\_MAX}\}$ is returned.
+Comparisons use the ordered predicate `_CMP_LT_OQ` (ordered, quiet): both $\mathrm{NaN} < x$ and $x < \mathrm{NaN}$ are false, so NaN can never win a comparison; the value vectors, however, run through the `minpd`/`maxpd` hardware instructions, which return the second operand whenever either operand is NaN, so a NaN can overwrite an accumulator and, once a later true value restores it, fall out of step with the index vectors — NaN therefore never pollutes the **value** results (the reported value is always a real element, although an extreme may be lost), while the **index** semantics are unreliable under multi-lane reduction, with combined outputs possible where the index points at a NaN element (quantitative matrix in Section 2.3 of the [SIMD benchmark report](simd-argminmax.md)). This is exactly why the render pipeline must pre-scan for NaN. After the vector loop, a horizontal reduction combines the lanes; a scalar tail loop handles the remaining elements; if min/max are still NaN (all-NaN input), the sentinel $\{0, 0, \text{DBL\_MAX}, -\text{DBL\_MAX}\}$ is returned.
 
 ```cpp
 // src/core/qwt_simd_argminmax.cpp — the AVX2 core loop
@@ -560,7 +560,7 @@ const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 
 - Visualization is a **bandwidth-limited sampling problem**: the Nyquist limit of a $W$-column canvas makes every sample rate above $2W$ redundant.
 - Classic LTTB selects points by a "largest triangle area" heuristic: simple, $O(N)$, good visual quality — but **no extreme guarantee** and a systematic loss for spike pairs.
-- The QWT7 MinMax bucket replaces the criterion with "keep every bucket extreme": it gains the provable properties of global extreme preservation, no self-intersection, and a resolution matched to the pixel limit, while keeping the visual shape fidelity of index-domain bucketing; the core computation simplifies to a SIMD-friendly argmin/argmax (AVX2/SSE4.2/scalar, runtime dispatch, correct NaN semantics).
+- The QWT7 MinMax bucket replaces the criterion with "keep every bucket extreme": it gains the provable properties of global extreme preservation, no self-intersection, and a resolution matched to the pixel limit, while keeping the visual shape fidelity of index-domain bucketing; the core computation simplifies to a SIMD-friendly argmin/argmax (AVX2/SSE4.2/scalar, runtime dispatch, NaN semantics guaranteed by the pre-scan plus the scalar branch).
 - Experiments show the default budget $N_b = 2W$ sits on the fidelity/performance knee; `FilterPointsLTTB` reduces a million-point replot from 262 ms to 133 ms per frame while preserving about 99% of the column envelope.
 
 ## 9. References
