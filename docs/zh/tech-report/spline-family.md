@@ -28,7 +28,7 @@ $$
 
 ### 1.2 QWT 中的两条消费路径
 
-第一条是 `QwtPlotCurve` 的 `Fitted` 属性：`drawCurve()` 在 `Lines` 样式下检测到 `Fitted` 后把绘制区间强制扩到全量数据（`src/plot/qwt_plot_curve.cpp:497-502`，注释原文 "we always need the complete curve for fitting"），再经 `drawLines()` 交给 `QwtCurveFitter`。默认 fitter 是 `QwtSplineCurveFitter`，内部持有一个 **Cardinal + 均匀参数化** 的 `QwtSplineLocal`，模式为 `Path`（`src/plot/qwt_spline_curve_fitter.cpp:39-43`）。第二条是直接 API：`painterPath()`、`bezierControlLines()`、`polygon(points, tolerance)`、`equidistantPolygon(points, distance, withNodes)`，示例 `examples/2D/splineeditor` 的 `SplineFitter::fitCurve()` 走的就是 `m_spline->polygon(points, 0.5)`（`examples/2D/splineeditor/Plot.cpp:162`）。
+第一条是 `QwtPlotCurve` 的 `Fitted` 属性：`drawCurve()` 在 `Lines` 样式下检测到 `Fitted` 后把绘制区间强制扩到全量数据（`src/plot/qwt_plot_curve.cpp:548-553`，注释原文 "we always need the complete curve for fitting"），再经 `drawLines()` 交给 `QwtCurveFitter`。默认 fitter 是 `QwtSplineCurveFitter`，内部持有一个 **Cardinal + 均匀参数化** 的 `QwtSplineLocal`，模式为 `Path`（`src/plot/qwt_spline_curve_fitter.cpp:39-43`）。第二条是直接 API：`painterPath()`、`bezierControlLines()`、`polygon(points, tolerance)`、`equidistantPolygon(points, distance, withNodes)`，示例 `examples/2D/splineeditor` 的 `SplineFitter::fitCurve()` 走的就是 `m_spline->polygon(points, 0.5)`（`examples/2D/splineeditor/Plot.cpp:162`）。
 
 ### 1.3 家族总览
 
@@ -102,7 +102,7 @@ classDiagram
 | `ParameterCentripetal` | $\left(\Delta x^2+\Delta y^2\right)^{1/4}$ | `valueIncrementCentripetal` | 弦长开方，$\alpha=0.5$ |
 | `ParameterManhattan` | $\lvert\Delta x\rvert+\lvert\Delta y\rvert$ | `valueIncrementManhattan` | 比弦长快、通常更差 |
 
-后三者构成幂族 $\Delta t = \lvert\Delta p\rvert^{\alpha}$（$\alpha = 1, 0.5$；均匀可视为 $\alpha = 0$）。基类 `QwtSpline` 的默认是弦长（`qwt_spline.cpp:427`），但 `QwtSplineC1` 的构造函数把它改写为 `ParameterX`（`qwt_spline.cpp:948-951`），因此 Cubic 与 Local 的出厂默认是非参数化；`QwtSplinePleasing` 的构造函数再改写为 `ParameterUniform`（`qwt_spline_pleasing.cpp:263-266`）。
+弦长、向心与均匀三者构成幂族 $\Delta t = \lvert\Delta p\rvert^{\alpha}$（$\alpha = 1, 0.5$；均匀可视为 $\alpha = 0$）。基类 `QwtSpline` 的默认是弦长（`qwt_spline.cpp:427`），但 `QwtSplineC1` 的构造函数把它改写为 `ParameterX`（`qwt_spline.cpp:948-951`），因此 Cubic 与 Local 的出厂默认是非参数化；`QwtSplinePleasing` 的构造函数再改写为 `ParameterUniform`（`qwt_spline_pleasing.cpp:263-266`）。
 
 ### 2.2 仿射等价：等距采样时三者合一
 
@@ -198,7 +198,7 @@ $$
 
 ### 3.4 Pleasing：带张力规则的 G1 样条
 
-`QwtSplinePleasing` 是"某办公套件的曲线算法"（头文件注释），结构上仍是 Cardinal 型切向 $v_i = \Delta t_2 (p_{i+1}-p_{i-1})/(\Delta t_1+\Delta t_2)$，但每段的 Bezier 臂要乘一个张力系数 $(t_1, t_2)$，由 `qwtTensionPleasing()`（`qwt_spline_pleasing.cpp:141-166`）按三个弦长的比较给出：正常情形 $t_1=t_2=1/3$（此时臂 $= v/3$，与 Catmull-Rom 完全一致）；当 $d_{13}/3 < d_{23}$ 或 $d_{24}/3 < d_{23}$ 不成立（窄角）时，把张力缩为 $d_{23}/d_{13}$、$d_{23}/d_{24}$，即按"本段弦长占邻接弦长的比例"收紧控制臂，抑制急转处的甩出。规则在窄角处切换，切向量不再连续，故连续性只有 G1——这是"好看"换"光滑"的明确交易。实测在光滑等距数据上 Pleasing 与 Catmull-Rom 的控制点差为 5.551e-17（圆）/1.110e-16（正弦），即正常分支与 Catmull-Rom 逐位同构。
+`QwtSplinePleasing` 是"某办公套件的曲线算法"（头文件注释），结构上仍是 Cardinal 型切向 $v_i = \Delta t_2 (p_{i+1}-p_{i-1})/(\Delta t_1+\Delta t_2)$，但每段的 Bezier 臂要乘一个张力系数 $(t_1, t_2)$，由 `qwtTensionPleasing()`（`qwt_spline_pleasing.cpp:141-166`）按三个弦长的比较给出：正常情形 $t_1=t_2=1/3$（此时臂 $= v/3$，与 Catmull-Rom 完全一致）；当 $d_{13}/3 < d_{23}$ 与 $d_{24}/3 < d_{23}$ 均不成立（窄角）时，把张力缩为 $d_{23}/d_{13}$、$d_{23}/d_{24}$，即按"本段弦长占邻接弦长的比例"收紧控制臂，抑制急转处的甩出。规则在窄角处切换，切向量不再连续，故连续性只有 G1——这是"好看"换"光滑"的明确交易。实测在光滑等距数据上 Pleasing 与 Catmull-Rom 的控制点差为 5.551e-17（圆）/1.110e-16（正弦），即正常分支与 Catmull-Rom 逐位同构。
 
 ### 3.5 Basis：不过控制点的逼近样条
 
@@ -223,11 +223,11 @@ $$
 ```mermaid
 flowchart TD
     A["QwtPlotCurve::drawCurve, style = Lines"] --> B{"Fitted 属性开启?"}
-    B -->|"是"| C["from = 0, to = dataSize()-1<br/>qwt_plot_curve.cpp:497-502"]
+    B -->|"是"| C["from = 0, to = dataSize()-1<br/>qwt_plot_curve.cpp:548-553"]
     B -->|"否"| D["可见区间 from..to"]
-    C --> E["QwtPointMapper::toPolygonF<br/>优先级 Pixel 大于 MinMax 大于 Quad 大于 Weed"]
+    C --> E["QwtPointMapper::toPolygonF<br/>优先级 Pixel 大于 LTTB 大于 MinMax 大于 Quad 大于 Weed"]
     D --> E
-    E --> F["渲染平滑 Gaussian 或 Savitzky-Golay<br/>qwt_plot_curve.cpp:579-584"]
+    E --> F["渲染平滑 Gaussian 或 Savitzky-Golay<br/>qwt_plot_curve.cpp:631-635"]
     F --> G{"doFit 且 fitter 模式"}
     G -->|"Path, 默认"| H["spline painterPath 后 QPainter::drawPath<br/>Qt 光栅化器自行细分 Bezier"]
     G -->|"Polygon 或填充"| I["fitCurve 折线化<br/>toSubpathPolygons 或 polygon tol"]
@@ -235,7 +235,7 @@ flowchart TD
     I --> J
 ```
 
-三个容易被忽略的事实。其一，`doAlign = !doFit && roundingAlignment`（545 行）：开启 Fitted 后像素对齐取整被禁用，拟合在浮点像素坐标上进行——这对导出与抗锯齿是好事。其二，全量区间扩张**并不总是**意味着全量变换：默认绘制属性含 `FilterPointsLTTB`（`PrivateData` 初始化，`qwt_plot_curve.cpp:72-90`），而 `qwtMinMaxBucketReduce` 内部会先做可见区间二分裁剪（`qwt_point_mapper.cpp:569` 调 `qwtFindVisibleRange`），于是 fitter 实际拿到的是"可见窗口内约 $4W$ 个桶极值点"；只有在不带降采样属性的路径（`qwtToPointsF(qwtInvalidRect, ...)`）上，Fitted 才真正变换并拟合全部 $N$ 点。其三，fitter 的输入是**桶极值折线**：MinMax 桶输出的锯齿状极值对会被样条当作控制点忠实穿过，C2 样条尤其会把桶间锯齿放大成可见波纹——这是 Fitted 与降采样组合时的结构性风险，本文未做像素级量化，列为失效模式待复核项。
+三个容易被忽略的事实。其一，`doAlign = !doFit && roundingAlignment`（596 行）：开启 Fitted 后像素对齐取整被禁用，拟合在浮点像素坐标上进行——这对导出与抗锯齿是好事。其二，全量区间扩张**并不总是**意味着全量变换：默认绘制属性含 `FilterPointsLTTB`（`PrivateData` 初始化，`qwt_plot_curve.cpp:78-91`），自 v7.5.0 起它是真 LTTB 归约 `qwtLttbReduce`（`qwt_point_mapper.cpp:877-885`），同样先做可见区间二分裁剪（调 `qwtFindVisibleRange`），于是 fitter 实际拿到的是"可见窗口内约 $4W$ 个桶代表点"（$4\times$ 像素列数、每桶 1 点）；只有在不带降采样属性的路径（`qwtToPointsF(qwtInvalidRect, ...)`）上，Fitted 才真正变换并拟合全部 $N$ 点。其三，改用 MinMax 桶（`FilterPointsMinMaxLTTB`，v7.4.2 及之前的 `FilterPointsLTTB` 默认）时，fitter 的输入变成**桶极值折线**：锯齿状极值对会被样条当作控制点忠实穿过，C2 样条尤其会把桶间锯齿放大成可见波纹——这是 Fitted 与降采样组合时的结构性风险，本文未做像素级量化，列为失效模式待复核项。
 
 ### 4.4 QwtBezier：Willcocks 扁平化与点数放大
 
@@ -358,7 +358,7 @@ Catmull-Rom 转三次 Bezier（$c_1 = p_i + (p_{i+1}-p_{i-1})/6$）与家族内�
 5. **Akima 偏置**：2.52 阶，权重含 $\lvert f''\rvert h$ 项，曲率符号变化处偏置最大。
 6. **Basis 不过点**：$N=24$ 正弦上偏离控制点 1.231e-02；圆上精度劣于控制多边形本身。
 7. **Pleasing 的 G1 折痕**：窄角处张力规则切换导致切向不连续，放大可见棱线；这是设计意图而非缺陷，但不应在需要 C1 的下游（如等距重采样后求曲率）使用。
-8. **Fitted 的全量扩张**：无降采样属性时每帧变换并拟合全部 $N$ 点；带 `FilterPointsLTTB` 时可见区间被桶化恢复，但 fitter 输入变成桶极值折线，C2 样条会忠实穿过极值锯齿（结构性风险，未做像素级量化，待复核）。
+8. **Fitted 的全量扩张**：无降采样属性时每帧变换并拟合全部 $N$ 点；带 `FilterPointsLTTB` 时可见区间由 LTTB 归约恢复，但 fitter 输入变成约 $4W$ 点的降采样折线（换用 `FilterPointsMinMaxLTTB` 时是极值锯齿折线，C2 样条会忠实穿过它）——结构性风险，未做像素级量化，待复核。
 9. **ClosedPolygon 的参数化限制**：闭合增量必须为正，故 `ParameterX`/`ParameterY` 不可用（`qwt_spline.h` 头注释明示）；对 $x$ 非单调的闭合轮廓只能用幂族参数化。
 10. **参数化与标量路径不一致**：同一数据上 `Cubic[x]` 与 `Cubic[chordal]` 是两条不同的曲线（$N=128$ 正弦上差 17 倍误差常数），切换参数化会静默改变几何，没有告警。
 

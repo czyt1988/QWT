@@ -28,7 +28,7 @@ Unlike the downsampling problem (see the LTTB downsampling article), the spline 
 
 ### 1.2 The two consumption paths in QWT
 
-The first is the `Fitted` attribute of `QwtPlotCurve`: under the `Lines` style, `drawCurve()` detects `Fitted` and forcibly expands the paint interval to the full data set (`src/plot/qwt_plot_curve.cpp:497-502`, original comment "we always need the complete curve for fitting"), then hands it through `drawLines()` to a `QwtCurveFitter`. The default fitter is `QwtSplineCurveFitter`, which internally holds a `QwtSplineLocal` with **Cardinal + uniform parameterization** in `Path` mode (`src/plot/qwt_spline_curve_fitter.cpp:39-43`). The second is the direct API: `painterPath()`, `bezierControlLines()`, `polygon(points, tolerance)`, `equidistantPolygon(points, distance, withNodes)`; `SplineFitter::fitCurve()` in the example `examples/2D/splineeditor` takes exactly this route with `m_spline->polygon(points, 0.5)` (`examples/2D/splineeditor/Plot.cpp:162`).
+The first is the `Fitted` attribute of `QwtPlotCurve`: under the `Lines` style, `drawCurve()` detects `Fitted` and forcibly expands the paint interval to the full data set (`src/plot/qwt_plot_curve.cpp:548-553`, original comment "we always need the complete curve for fitting"), then hands it through `drawLines()` to a `QwtCurveFitter`. The default fitter is `QwtSplineCurveFitter`, which internally holds a `QwtSplineLocal` with **Cardinal + uniform parameterization** in `Path` mode (`src/plot/qwt_spline_curve_fitter.cpp:39-43`). The second is the direct API: `painterPath()`, `bezierControlLines()`, `polygon(points, tolerance)`, `equidistantPolygon(points, distance, withNodes)`; `SplineFitter::fitCurve()` in the example `examples/2D/splineeditor` takes exactly this route with `m_spline->polygon(points, 0.5)` (`examples/2D/splineeditor/Plot.cpp:162`).
 
 ### 1.3 Family overview
 
@@ -102,7 +102,7 @@ What the inheritance chain conveys is a computational contract: `QwtSplineC1` re
 | `ParameterCentripetal` | $\left(\Delta x^2+\Delta y^2\right)^{1/4}$ | `valueIncrementCentripetal` | square root of the chord length, $\alpha=0.5$ |
 | `ParameterManhattan` | $\lvert\Delta x\rvert+\lvert\Delta y\rvert$ | `valueIncrementManhattan` | faster than chordal, usually worse |
 
-The last three form the power family $\Delta t = \lvert\Delta p\rvert^{\alpha}$ ($\alpha = 1, 0.5$; uniform can be viewed as $\alpha = 0$). The base class `QwtSpline` defaults to chordal (`qwt_spline.cpp:427`), but the `QwtSplineC1` constructor rewrites it to `ParameterX` (`qwt_spline.cpp:948-951`), so Cubic and Local ship with the non-parametric default; the `QwtSplinePleasing` constructor rewrites it again to `ParameterUniform` (`qwt_spline_pleasing.cpp:263-266`).
+Chordal, centripetal and uniform form the power family $\Delta t = \lvert\Delta p\rvert^{\alpha}$ ($\alpha = 1, 0.5$; uniform can be viewed as $\alpha = 0$). The base class `QwtSpline` defaults to chordal (`qwt_spline.cpp:427`), but the `QwtSplineC1` constructor rewrites it to `ParameterX` (`qwt_spline.cpp:948-951`), so Cubic and Local ship with the non-parametric default; the `QwtSplinePleasing` constructor rewrites it again to `ParameterUniform` (`qwt_spline_pleasing.cpp:263-266`).
 
 ### 2.2 Affine equivalence: the three coincide under equidistant sampling
 
@@ -198,7 +198,7 @@ The order of convergence is set by the slope truncation error: Hermite interpola
 
 ### 3.4 Pleasing: a G1 spline with tension rules
 
-`QwtSplinePleasing` is "the curve algorithm of a certain office suite" (header comment). Structurally it is still a Cardinal-type tangent $v_i = \Delta t_2 (p_{i+1}-p_{i-1})/(\Delta t_1+\Delta t_2)$, but each segment's Bezier arms are multiplied by tension factors $(t_1, t_2)$ assigned by `qwtTensionPleasing()` (`qwt_spline_pleasing.cpp:141-166`) from comparisons of three chord lengths: in the normal case $t_1=t_2=1/3$ (arms $= v/3$, exactly Catmull-Rom); when $d_{13}/3 < d_{23}$ or $d_{24}/3 < d_{23}$ does not hold (narrow angles), the tension is shrunk to $d_{23}/d_{13}$ and $d_{23}/d_{24}$ — tightening the control arms in proportion to "this segment's chord length relative to the neighboring chords", suppressing the fling-out at sharp turns. The rule switches at narrow angles, the tangent vectors are no longer continuous, and continuity is only G1 — an explicit trade of "good looks" for "smoothness". Measured on smooth equidistant data, the control points of Pleasing and Catmull-Rom differ by 5.551e-17 (circle) / 1.110e-16 (sine): the normal branch is structurally identical to Catmull-Rom bit for bit.
+`QwtSplinePleasing` is "the curve algorithm of a certain office suite" (header comment). Structurally it is still a Cardinal-type tangent $v_i = \Delta t_2 (p_{i+1}-p_{i-1})/(\Delta t_1+\Delta t_2)$, but each segment's Bezier arms are multiplied by tension factors $(t_1, t_2)$ assigned by `qwtTensionPleasing()` (`qwt_spline_pleasing.cpp:141-166`) from comparisons of three chord lengths: in the normal case $t_1=t_2=1/3$ (arms $= v/3$, exactly Catmull-Rom); when neither $d_{13}/3 < d_{23}$ nor $d_{24}/3 < d_{23}$ holds (narrow angles), the tension is shrunk to $d_{23}/d_{13}$ and $d_{23}/d_{24}$ — tightening the control arms in proportion to "this segment's chord length relative to the neighboring chords", suppressing the fling-out at sharp turns. The rule switches at narrow angles, the tangent vectors are no longer continuous, and continuity is only G1 — an explicit trade of "good looks" for "smoothness". Measured on smooth equidistant data, the control points of Pleasing and Catmull-Rom differ by 5.551e-17 (circle) / 1.110e-16 (sine): the normal branch is structurally identical to Catmull-Rom bit for bit.
 
 ### 3.5 Basis: an approximating spline that misses the control points
 
@@ -223,11 +223,11 @@ In parametric mode all of this happens twice ($x(t)$ and $y(t)$), plus $n$ incre
 ```mermaid
 flowchart TD
     A["QwtPlotCurve::drawCurve, style = Lines"] --> B{"Fitted attribute on?"}
-    B -->|"yes"| C["from = 0, to = dataSize()-1<br/>qwt_plot_curve.cpp:497-502"]
+    B -->|"yes"| C["from = 0, to = dataSize()-1<br/>qwt_plot_curve.cpp:548-553"]
     B -->|"no"| D["visible range from..to"]
-    C --> E["QwtPointMapper::toPolygonF<br/>priority Pixel &gt; MinMax &gt; Quad &gt; Weed"]
+    C --> E["QwtPointMapper::toPolygonF<br/>priority Pixel &gt; LTTB &gt; MinMax &gt; Quad &gt; Weed"]
     D --> E
-    E --> F["render smoothing: Gaussian or Savitzky-Golay<br/>qwt_plot_curve.cpp:579-584"]
+    E --> F["render smoothing: Gaussian or Savitzky-Golay<br/>qwt_plot_curve.cpp:631-635"]
     F --> G{"doFit and fitter mode"}
     G -->|"Path, default"| H["spline painterPath, then QPainter::drawPath<br/>the Qt rasterizer subdivides the Beziers itself"]
     G -->|"Polygon or fill"| I["fitCurve flattening<br/>toSubpathPolygons or polygon(tol)"]
@@ -235,7 +235,7 @@ flowchart TD
     I --> J
 ```
 
-Three facts are easily overlooked. First, `doAlign = !doFit && roundingAlignment` (line 545): with Fitted on, pixel-aligned rounding is disabled and the fitting happens in floating-point pixel coordinates — good news for export and antialiasing. Second, the full-range expansion does **not always** mean a full transform: the default paint attributes include `FilterPointsLTTB` (`PrivateData` initialization, `qwt_plot_curve.cpp:72-90`), and `qwtMinMaxBucketReduce` internally does a visible-range binary clipping first (`qwt_point_mapper.cpp:569` calls `qwtFindVisibleRange`), so what the fitter actually receives is "about $4W$ bucket-extreme points within the visible window"; only on the path without downsampling attributes (`qwtToPointsF(qwtInvalidRect, ...)`) does Fitted truly transform and fit all $N$ points. Third, the fitter's input is the **bucket-extreme polyline**: the zigzag extreme pairs emitted by the MinMax buckets are faithfully interpolated by the spline as if they were control points, and a C2 spline in particular amplifies the inter-bucket zigzag into visible ripples — a structural risk when Fitted is combined with downsampling, not quantified at pixel level in this article and listed as a failure-mode item pending review.
+Three facts are easily overlooked. First, `doAlign = !doFit && roundingAlignment` (line 596): with Fitted on, pixel-aligned rounding is disabled and the fitting happens in floating-point pixel coordinates — good news for export and antialiasing. Second, the full-range expansion does **not always** mean a full transform: the default paint attributes include `FilterPointsLTTB` (`PrivateData` initialization, `qwt_plot_curve.cpp:78-91`), which since v7.5.0 is the true LTTB reduction `qwtLttbReduce` (`qwt_point_mapper.cpp:877-885`); it also does the visible-range binary clipping first (calling `qwtFindVisibleRange`), so what the fitter actually receives is "about $4W$ bucket-representative points within the visible window" ($4\times$ pixel columns, one point per bucket); only on the path without downsampling attributes (`qwtToPointsF(qwtInvalidRect, ...)`) does Fitted truly transform and fit all $N$ points. Third, with the MinMax buckets instead (`FilterPointsMinMaxLTTB`, the `FilterPointsLTTB` default up to v7.4.2), the fitter's input becomes the **bucket-extreme polyline**: the zigzag extreme pairs are faithfully interpolated by the spline as if they were control points, and a C2 spline in particular amplifies the inter-bucket zigzag into visible ripples — a structural risk when Fitted is combined with downsampling, not quantified at pixel level in this article and listed as a failure-mode item pending review.
 
 ### 4.4 QwtBezier: Willcocks flattening and point-count amplification
 
@@ -358,7 +358,7 @@ Stringing Sections 4.3–4.5 together, the analytic cost of one Fitted frame is:
 5. **Akima bias**: order 2.52; the weights contain a $\lvert f''\rvert h$ term, with the largest bias where the curvature changes sign.
 6. **Basis does not interpolate**: deviation from the control points of 1.231e-02 on the $N=24$ sine; on the circle it is less accurate than the control polygon itself.
 7. **Pleasing's G1 crease**: the tension rule switches at narrow angles, making the tangent discontinuous and amplifying visible ridges; this is design intent rather than a defect, but it should not feed downstream stages that need C1 (such as computing curvature after equidistant resampling).
-8. **Fitted's full-range expansion**: without downsampling attributes, every frame transforms and fits all $N$ points; with `FilterPointsLTTB`, the visible range is restored by bucketing, but the fitter input becomes the bucket-extreme polyline, and a C2 spline faithfully interpolates the extreme zigzag (structural risk, not quantified at pixel level, pending review).
+8. **Fitted's full-range expansion**: without downsampling attributes, every frame transforms and fits all $N$ points; with `FilterPointsLTTB`, the visible range is restored by the LTTB reduction, but the fitter input becomes an ~4W-point downsampled polyline (with `FilterPointsMinMaxLTTB` it is the extreme zigzag polyline, faithfully interpolated by a C2 spline) — structural risk, not quantified at pixel level, pending review.
 9. **ClosedPolygon parameterization restriction**: the closing increment must be positive, so `ParameterX`/`ParameterY` are unavailable (stated in the `qwt_spline.h` header comment); closed contours with non-monotone $x$ can only use the power-family parameterizations.
 10. **Parameterization inconsistent with the scalar path**: on the same data, `Cubic[x]` and `Cubic[chordal]` are two different curves (a factor of 17 in the error constant on the $N=128$ sine); switching the parameterization silently changes the geometry, with no warning.
 
