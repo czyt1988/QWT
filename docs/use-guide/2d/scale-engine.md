@@ -69,7 +69,8 @@ plot->setAxisScale(QwtAxis::YLeft, 0.001, 1000);  // Spans 6 orders of magnitude
 
 // Logarithmic scale characteristics:
 // - Major ticks at 10^n positions (1, 10, 100, 1000...)
-// - Minor ticks at intermediate positions (2, 3, 4, 5, 6, 7, 8, 9)
+// - Minor ticks at intermediate positions (the full 2, 3, 4, 5, 6, 7, 8, 9 set
+//   requires setAxisMaxMinor >= 9; with the default maxMinor = 5 only 2, 4, 6, 8 appear)
 ```
 
 ### 3. Date Scale Engine
