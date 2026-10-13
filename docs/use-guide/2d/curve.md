@@ -168,10 +168,11 @@ Enabling the Fitted attribute allows drawing smooth curves:
 // Enable curve fitting
 curve->setCurveAttribute(QwtPlotCurve::Fitted, true);
 
-// Set spline fitter (optional)
+// Set spline fitter (optional; internally defaults to a Cardinal spline with uniform parameterization)
+// Requires including <QwtSplineCurveFitter> and <QwtSplineCubic>
 QwtSplineCurveFitter* fitter = new QwtSplineCurveFitter();
-fitter->setFitMode(QwtSplineCurveFitter::Auto);  // Auto-select fitting mode
-curve->setCurveFitter(fitter);
+fitter->setSpline(new QwtSplineCubic());  // switch to a C2 cubic spline; the fitter takes ownership
+curve->setCurveFitter(fitter);            // the curve takes ownership of the fitter
 ```
 
 #### Steps Style
