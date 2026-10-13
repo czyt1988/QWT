@@ -1,4 +1,4 @@
-# Surface vector export check - before/after (item 3 of KNOWN-DEFECTS)
+# Surface vector export check - before/after (item 3 of KNOWN-DEFECTS-round1-fixed.md)
 # host: i7-1260P, Qt 6.7.3 (MSVC 2019 Release), Iris Xe, Windows 11
 # flat: the surface is painted by a constant red data color functor, so
 #       every surface polygon has to be exported in that color

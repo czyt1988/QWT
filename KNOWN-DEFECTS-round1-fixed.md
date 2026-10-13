@@ -1,4 +1,7 @@
-# 源码缺陷清单（技术报告写作期间实证发现，待立项修复）
+# 源码缺陷清单（第一轮 · 技术报告写作期间实证发现）
+
+> **状态：14 项全部已修复**（v7.5.0/v7.5.1）。本文件保留为历史记录；
+> 第二轮校对（2026-10-13，12 篇报告逐篇独立校对）的新发现见 `KNOWN-DEFECTS.md`。
 
 > **修复状态（2026-10-13）**：14 项全部处理完毕，实施分支 `fix/known-defects`；每项的代码/测试/文档改动见对应的提交，实验脚本已按修复后的库重跑（第 5 项的新数据在 `simd_bench_results_v75{0,1}_*.csv` / `streaming_micro_results_v75{0,1}_*.txt`，第 9 项在 `colormap_results.txt`，第 1 项在 `boxstats_results.txt`，第 2、7 项在 `clipper_results.txt`，第 3 项在 `surface_export_check.txt`），`docs/zh/tech-report/` 与 `docs/tech-report/` 的对应章节已同步。
 
