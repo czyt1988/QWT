@@ -30,7 +30,7 @@ Qwt 7.1 integrates the original `QwtPlot3D` library, providing 3D data visualiza
 
 - ✅ **Interactive operations**: Supports mouse rotation, zooming, and panning
 
-- ✅ **Lighting toggle**: Supports turning lighting on/off (the lighting parameters and material configuration are currently stored placeholders, not yet wired into the shaders — see the [technical report](../../tech-report/3d-surface-pipeline.md))
+- ✅ **Lighting and material parameters**: the lighting switch, the light rotation, the light/material components and the shininess all reach the shaders (since v7.5.1; `illuminate()`/`blowout()` switch the single light and the defaults equal the previously hardcoded values — see the [technical report](../../tech-report/3d-surface-pipeline.md))
 
 - ✅ **Theme system**: One-click visual style switching with 10 preset themes and 22 scientific colormaps
 
