@@ -1,12 +1,12 @@
 # 3D 表面渲染的 VBO/VAO 管线：数据上传、着色器阶段与网格规模标度
 
-> **摘要** —— QWT 7.3.3+ 的 3D 模块（`qwt::plot3d`）抛弃了旧 `QwtPlot3D` 的固定管线遗产，`Qwt3DSurface` 用 VBO/VAO + GLSL 3.3 Core 着色器在 GPU 上完成表面几何的全部处理：CPU 侧只负责数据装载（`loadFromData` 拷贝 z 矩阵并算 4 邻域法向）、惰性一次性构建（`buildVBO` 烘焙顶点色、生成三角形/网格线索引、`glBufferData` 全量上传）与每帧 3 个矩阵 uniform。本文把一帧拆成"固定地板（坐标系 + 标签 + 合成）+ 三角形 pass + 网格线 pass + 片元着色"四段，在 Intel UHD 770 核显上用 113 组实测单元（网格 32²–1024² × 6 种 plot style × 光照/MSAA/坐标系/分辨率开关 × 两套计时口径）量化每一段随顶点数 $V = cols \times rows$ 的标度，并给出数据更新率与导出路径的定量边界。核心发现有三：帧时间在 GPU 完成口径下近似 $t_0 + k \cdot V$（最小二乘拟合 $t_0 \approx 4.3$ ms、$k \approx 14.7$ ms/百万顶点；NOPLOT 实测地板 3.0–3.3 ms，截距高于地板的原因见 5.3 节），1024²（1M 顶点、2.1M 三角形）的 FILLEDMESH 仍能跑 51 FPS；数据没有增量更新路径，任何改动都触发全量 CPU 重建 + 重上传，1024² 的一次完整数据刷新要 252 ms（上限 4 Hz）；gl2ps 矢量导出经 feedback buffer 能捕获几何位置，但顶点色/透明度取自 feedback 缓冲中从未被着色器写入的固定功能顶点色，导出的 PDF/SVG 中曲面 alpha 全为 0（不可见），且耗时随三角形数近线性爆炸（1024² PDF 需 145 s / 82.6 MB），当前可靠的导出路径是 `grabFramebuffer` 光栅 PNG（约 0.1 s，与网格规模无关）。
+> **摘要** —— QWT 7.3.3+ 的 3D 模块（`qwt::plot3d`）抛弃了旧 `QwtPlot3D` 的固定管线遗产，`Qwt3DSurface` 用 VBO/VAO + GLSL 3.3 Core 着色器在 GPU 上完成表面几何的全部处理：CPU 侧只负责数据装载（`loadFromData` 拷贝 z 矩阵并算 4 邻域法向）、惰性一次性构建（`buildVBO` 烘焙顶点色、生成三角形/网格线索引、`glBufferData` 全量上传）与每帧 3 个矩阵 uniform。本文把一帧拆成"固定地板（坐标系 + 标签 + 合成）+ 三角形 pass + 网格线 pass + 片元着色"四段，在 Intel UHD 770 核显上用 113 组实测单元（网格 32²–1024² × 6 种 plot style × 光照/MSAA/坐标系/分辨率开关 × 两套计时口径）量化每一段随顶点数 $V = cols \times rows$ 的标度，并给出数据更新率与导出路径的定量边界。核心发现有三：帧时间在 GPU 完成口径下近似 $t_0 + k \cdot V$（最小二乘拟合 $t_0 \approx 4.3$ ms、$k \approx 14.7$ ms/百万顶点；NOPLOT 实测地板 3.0–3.3 ms，截距高于地板的原因见 5.3 节），1024²（1M 顶点、2.1M 三角形）的 FILLEDMESH 仍能跑 51 FPS；数据没有增量更新路径，任何改动都触发全量 CPU 重建 + 重上传，1024² 的一次完整数据刷新要 252 ms（上限 4 Hz）；gl2ps 矢量导出经 feedback buffer 捕获几何位置，修复前顶点色/透明度取自 feedback 缓冲中从未被着色器写入的固定功能顶点色，导出的 PDF/SVG 中曲面 alpha 全为 0（不可见），v7.5.1 起曲面、坐标系网格/轴线与颜色图例改经即时模式显式提交逐顶点颜色（见核心结论）；耗时仍随三角形数近线性爆炸（1024² PDF 需 145 s / 82.6 MB），当前最省事的导出路径仍是 `grabFramebuffer` 光栅 PNG（约 0.1 s，与网格规模无关）。
 
 > **摘要 — 核心结论**
 >
 > - **帧时间随顶点数近线性，固定地板占小网格的 80%**：GPU 完成（glFinish）口径下 FILLEDMESH 帧时间从 32² 的 3.71 ms 涨到 1024² 的 19.56 ms，仿射拟合 $t = 4.32\,\mathrm{ms} + 14.67\,\mathrm{ms/Mvertex} \cdot V$（$R^2 = 0.983$）；NOPLOT 地板（clear + 坐标系 + 刻度标签 + 合成 + 同步）在 3.01–3.27 ms 之间与 $V$ 无关，32² 时占整帧 82%。
 > - **网格线 pass 比填充 pass 更贵**：1024² 时三角形 pass（FILLED − 地板）6.88 ms，网格线 pass（FILLEDMESH − FILLED）9.48 ms——2.09M 条 1 px 线段的光栅化代价超过 2.09M 个三角形；WIREFRAME（15.37 ms）比 FILLED（10.08 ms）慢 52%，默认的 FILLEDMESH（19.56 ms）是最贵的常用样式。
-> - **片元光照近乎免费，几何与带宽才是瓶颈**：Blinn-Phong 光照开关在 1024² 的 GPU 完成口径下差 −0.09 ms（噪声内）；曲面投影面积被 AUTOFILL 归一化钉死，片元数不随 $V$ 增长，而顶点数据每帧要重读 40 MB（VBO）+ 42 MB（EBO），实测有效带宽约 10 GB/s（核显共享内存）。
+> - **片元光照近乎免费，几何与带宽才是瓶颈**：Blinn-Phong 光照开关在 1024² 的 GPU 完成口径下差 −0.09 ms（噪声内）；曲面投影面积被 AUTOFILL 归一化钉死，片元数不随 $V$ 增长，而顶点数据每帧要重读 40 MB（VBO）+ 42 MB（EBO），三角形 pass 的实测有效带宽约 9.7 GB/s（核显共享内存，5.4 节）。
 > - **数据更新是全量重建，无增量路径**：`loadFromData`（CPU 拷贝 + 法向）严格线性 $b = 1.026$（$R^2 = 0.9996$，约 177 ns/顶点），`buildVBO` + 上传约 63 ns/顶点；`invalidateColors()` 与换 colormap 同样触发整条重建（1024² 时 76.3 ms ≈ 首建的 80.2 ms）；1024² 完整刷新周期 252 ms，流式数据的刷新率上限 4 Hz。
 > - **gl2ps 矢量导出已可用于曲面输出（v7.5.1 修复）**：feedback 捕获的填充原先全部 alpha=0（PDF 的 59 个 ExtGState 均为 `/ca 0`），因为着色器路径从不写固定功能顶点色；v7.5.1 起 `Qwt3DSurface`、坐标系网格/轴线和颜色图例在反馈回放时改用即时模式显式提交逐顶点颜色，导出多边形携带数据颜色（定向检查：常量色 functor 下 on-page 多边形着色率从 0.0% 升到 53.2%，其余面积是网格线与标签位图；回归测试 `tests/plot3d_vector_export_test` 在 7.5.0 库上失败、修复后通过）。SVG 图元数膨胀 15–104 倍且随规模饱和、BSP 排序比 SIMPLE 慢 41–159 倍这两条时间/体积结论不变；光栅 PNG 导出（约 0.1 s 恒定）仍是最省事的路径。
 
@@ -45,19 +45,19 @@ flowchart TB
     S3 -.->|"itemChanged()"| P2
 ```
 
-通知路径与 2D 对齐：item 的任何 setter 调 `Qwt3DPlotItem::itemChanged()`（`src/plot3d/qwt3d_plotitem.cpp:174-179`），后者进入 `Qwt3DPlot::itemChanged()` → `recalculateScene()`（`src/plot3d/qwt3d_plot.cpp:855-860, 770-797`）：按 z 序重排 item 列表、求所有 item hull 的并集、必要时重建坐标系统，最后 `update()`。这条路径本身是纯 CPU 轻量操作（实测 `setMeshColor` 一次 0.4–6 µs），真正的重活在下一次 `draw()` 里由 `m_vboDirty` 标志触发。
+通知路径与 2D 对齐：item 的任何 setter 调 `Qwt3DPlotItem::itemChanged()`（`src/plot3d/qwt3d_plotitem.cpp:174-179`），后者进入 `Qwt3DPlot::itemChanged()` → `recalculateScene()`（`src/plot3d/qwt3d_plot.cpp:879-884, 794-821`）：按 z 序重排 item 列表、求所有 item hull 的并集、必要时重建坐标系统，最后 `update()`。这条路径本身是纯 CPU 轻量操作（实测 `setMeshColor` 一次 0.4–6 µs），真正的重活在下一次 `draw()` 里由 `m_vboDirty` 标志触发。
 
-视图变换完全在 CPU 侧：`paintGL()`（`qwt3d_plot.cpp:395-496`）用 `QMatrix4x4` 从旋转/缩放/平移状态组装 modelView，从 hull 半径组装 ortho/frustum 投影，item 每帧把这两个矩阵与法向矩阵作为 uniform 传给自己的着色器。没有任何 `glRotatef`/矩阵栈残留——这是模块的硬性规范（禁止 legacy GL）。`AUTOFILL` 宽高比模式（默认）把三个轴归一化到等长立方体，副作用是**曲面的屏幕投影面积与网格规模无关**，第 4 节的片元项因此是常数。
+视图变换完全在 CPU 侧：`paintGL()`（`qwt3d_plot.cpp:411-520`）用 `QMatrix4x4` 从旋转/缩放/平移状态组装 modelView，从 hull 半径组装 ortho/frustum 投影，item 每帧把这两个矩阵与法向矩阵作为 uniform 传给自己的着色器。没有任何 `glRotatef`/矩阵栈残留——这是模块的硬性规范（禁止 legacy GL）。`AUTOFILL` 宽高比模式（默认）把三个轴归一化到等长立方体，副作用是**曲面的屏幕投影面积与网格规模无关**，第 4 节的片元项因此是常数。
 
-主题系统 `Qwt3DTheme`（10 种预设）把背景/网格/colormap/光照打包，`applyTheme()` 一次性写入 plot 与所有已挂载 item（`qwt3d_theme.cpp:442-516`）；对 surface 的写入中，颜色类（`setDataColor` / `invalidateColors`）会触发 VBO 重建，而 `setPlotStyle` / `setMeshColor` 仅触发 `itemChanged()`（µs 级，不重建），用法见 [3D 绘图教程](../use-guide/3d/3d-plot.md)。需要提醒的是主题的"光照预设"当前只是开关（见 3.3 节）。
+主题系统 `Qwt3DTheme`（10 种预设）把背景/网格/colormap/光照打包，`applyTheme()` 一次性写入 plot 与所有已挂载 item（`qwt3d_theme.cpp:442-509`）；对 surface 的写入中，颜色类（`setDataColor` / `invalidateColors`）会触发 VBO 重建，而 `setPlotStyle` / `setMeshColor` 仅触发 `itemChanged()`（µs 级，不重建），用法见 [3D 绘图教程](../use-guide/3d/3d-plot.md)。需要提醒的是主题的"光照预设"在 v7.5.1 之前只是开关（现已真正接入灯光/材质参数，见 3.3 节）。
 
 ## 3. VBO/VAO 管线剖析
 
 ### 3.1 顶点布局与索引结构
 
-上传单元是 40 字节的交错结构体 `SurfaceVertex`（`src/plot3d/qwt3d_surface_p.h:23-28`）：位置 `QVector3D`（12 B）+ 法向 `QVector3D`（12 B）+ 颜色 `QVector4D`（16 B），对应着色器 attribute location 0/1/2（`qwt3d_surface.cpp:1014-1023`）。颜色在构建时由颜色 functor 逐顶点求值烘焙进缓冲——默认 `Qwt3DStandardColor` 从 viridis 预设采样 100 个色标再按 z 线性查表（`qwt3d_color.cpp:104-117, 124-146`），换成 `Qwt3DColorMapColor` 可接入 core 模块的 22 种科学 colormap。
+上传单元是 40 字节的交错结构体 `SurfaceVertex`（`src/plot3d/qwt3d_surface_p.h:23-28`）：位置 `QVector3D`（12 B）+ 法向 `QVector3D`（12 B）+ 颜色 `QVector4D`（16 B），对应着色器 attribute location 0/1/2（`qwt3d_surface.cpp:1036-1043`）。颜色在构建时由颜色 functor 逐顶点求值烘焙进缓冲——默认 `Qwt3DStandardColor` 从 viridis 预设采样 100 个色标再按 z 线性查表（`qwt3d_color.cpp:104-115, 124-145`），换成 `Qwt3DColorMapColor` 可接入 core 模块的 22 种科学 colormap。
 
-索引结构在 `buildVBO()`（`qwt3d_surface.cpp:842-1043`）里按固定模式生成：网格数据顶点序为 $idx = i \cdot rows + j$（列主序）；每个 quad 出 2 个三角形（6 个索引）与 2 条网格线（4 个索引），加上右/上边界补线；三角形索引与线索引**合并在同一个 EBO**（三角形在前、线在后，`qwt3d_surface.cpp:1025-1039`），绘制时用偏移量分段。由此得到解析量（与 bench 的 stderr 诊断逐项核对一致）：
+索引结构在 `buildGeometry()`/`buildVBO()`（`qwt3d_surface.cpp:848-995, 1002-1063`）里按固定模式生成：网格数据顶点序为 $idx = i \cdot rows + j$（列主序）；每个 quad 出 2 个三角形（6 个索引）与 2 条网格线（4 个索引），加上右/上边界补线；三角形索引与线索引**合并在同一个 EBO**（三角形在前、线在后，`qwt3d_surface.cpp:1050-1059`），绘制时用偏移量分段。由此得到解析量（与 bench 的 stderr 诊断逐项核对一致）：
 
 | cols=rows | 顶点数 $V$ | 三角形数 | 三角形索引 | 线索引 | VBO 字节 | EBO 字节 |
 |---:|---:|---:|---:|---:|---:|---:|
@@ -70,7 +70,7 @@ flowchart TB
 
 三个量级判断由此得出。其一，**EBO 与 VBO 几乎等大**（每顶点 10 个 uint32 索引 = 40 B，恰等于顶点 stride），一次全量重建要上传约 $80 \cdot V$ 字节，1024² 时 83.8 MB。其二，每帧绘制同样要把这些字节从共享内存过一遍（索引 + 被索引的顶点），这是大网格帧时间的主项（第 5.4 节带宽核算）。其三，CPU 侧还常驻一份 double 精度的 `Qwt3DGridData`（顶点 + 法向两个 `DataMatrix`，每顶点 48 B，1024² 时约 50 MB）加构建期的临时 `QVector<SurfaceVertex>`（40 MB）——1024² 曲面的总内存足迹约 170 MB，核显共享内存架构下这些同时挤占系统带宽。
 
-`resolution` 参数只对索引生成生效（步长跳过 quad），顶点数组始终全量构建（`qwt3d_surface.cpp:867, 894-940`）。
+`resolution` 参数只对索引生成生效（步长跳过 quad），顶点数组始终全量构建（`qwt3d_surface.cpp:871, 874-895, 898-944`）。
 
 ### 3.2 上传策略：惰性、全量、无增量
 
@@ -85,15 +85,15 @@ flowchart LR
     E["invalidateColors /<br/>setDataColor /<br/>setResolution"] -->|"m_vboDirty = true"| B
 ```
 
-第一段 `loadFromData`（`qwt3d_surface.cpp:265-305`）是纯 CPU：把 `double**` z 矩阵拷进 `Qwt3DGridData`（同时生成 x/y 坐标与 hull），再跑 `calcNormalsGrid`——每顶点 4 个邻接 quad 的归一化叉积累加（`qwt3d_surface.cpp:93-150`）。第二段 `buildVBO` 被惰性推迟到下一次 `draw()`（`qwt3d_surface.cpp:1067-1071`），做三件事：逐顶点调颜色 functor 并打包 `SurfaceVertex`、按 3.1 的模式生成两套索引、`QOpenGLBuffer::allocate` 全量上传（内部即 `glBufferData`，重新分配存储）。
+第一段 `loadFromData`（`qwt3d_surface.cpp:293-306`）是纯 CPU：把 `double**` z 矩阵拷进 `Qwt3DGridData`（同时生成 x/y 坐标与 hull），再跑 `calcNormalsGrid`——每顶点 4 个邻接 quad 的归一化叉积累加（`qwt3d_surface.cpp:94-151`）。第二段 `buildVBO` 被惰性推迟到下一次 `draw()`（`qwt3d_surface.cpp:1177-1180`），做三件事：逐顶点调颜色 functor 并打包 `SurfaceVertex`、按 3.1 的模式生成两套索引、`QOpenGLBuffer::allocate` 全量上传（内部即 `glBufferData`，重新分配存储）。
 
-**没有增量或局部更新 API。**数据改动、颜色改动（`invalidateColors` / `setDataColor`）、甚至 `setResolution` 都置 `m_vboDirty` 走同一条全量重建路径。`setResolution` 的 docstring 写着 "reducing rendered detail without rebuilding the VBO"（`qwt3d_surface.cpp:388-390`），但实现是 `d->m_vboDirty = true`（`qwt3d_surface.cpp:392-401`）——顶点数组照旧全量重建，只有索引变稀疏；实测 res=2 的重建（含 draw + glFinish 的单次计时）42.8 ms，约为同口径首建总耗时（首帧 draw 80.2 ms）的 53%——若按净构建口径（首帧 − 稳态 = 65.9 ms）对比则口径不齐，此处统一用毛耗时——与"顶点循环不变、索引量降为 1/4"的结构吻合，而不是文档暗示的零重建。唯一免重建的改动是矩阵/样式 uniform 类属性（`setMeshColor`、`setPlotStyle` 等只触发 `itemChanged`，实测 µs 级）——但注意 `setPlotStyle` 从 FILLED 切到 FILLEDMESH 不需要重建（两套索引一直都在），这是合并 EBO 设计的一个隐性收益。
+**没有增量或局部更新 API。**数据改动、颜色改动（`invalidateColors` / `setDataColor`）、甚至 `setResolution` 都置 `m_vboDirty` 走同一条全量重建路径。`setResolution` 实现置 `d->m_vboDirty = true`（`qwt3d_surface.cpp:398-407`）——顶点数组照旧全量重建，只有索引变稀疏；docstring 现已如实写明"索引步进 + 全量重建/重上传"（`qwt3d_surface.cpp:386-397`，v7.5.1 前曾声称 "reducing rendered detail without rebuilding the VBO"）；实测 res=2 的重建（含 draw + glFinish 的单次计时）42.8 ms，约为同口径首建总耗时（首帧 draw 80.2 ms）的 53%——若按净构建口径（首帧 − 稳态 = 65.9 ms）对比则口径不齐，此处统一用毛耗时——与"顶点循环不变、索引量降为 1/4"的结构吻合，而不是曾经 docstring 暗示的零重建。唯一免重建的改动是矩阵/样式 uniform 类属性（`setMeshColor`、`setPlotStyle` 等只触发 `itemChanged`，实测 µs 级）——但注意 `setPlotStyle` 从 FILLED 切到 FILLEDMESH 不需要重建（两套索引一直都在），这是合并 EBO 设计的一个隐性收益。
 
 这套"全量重建"策略的代价在第 5.7 节定量给出：1024² 的一次完整数据刷新（load + rebuild + upload）252 ms。
 
 ### 3.3 GLSL 3.3 Core 着色器阶段
 
-表面着色器内嵌于资源文件（`src/plot3d/shaders/surface.vert` / `surface.frag`，经 `shaders.qrc` 编入库），首次 `draw()` 时惰性编译链接（`qwt3d_surface.cpp:1077-1086`，实测一次性约 6 ms）；line/point/polygon/text 四个共享着色器在 `initializeGL()` 编译（`qwt3d_plot.cpp:351-388`），供坐标系、标签与其余 item 使用。
+表面着色器内嵌于资源文件（`src/plot3d/shaders/surface.vert` / `surface.frag`，经 `shaders.qrc` 编入库），首次 `draw()` 时惰性编译链接（`qwt3d_surface.cpp:1186-1195`，实测一次性约 6 ms）；line/point/polygon/text 四个共享着色器在 `initializeGL()` 编译（`qwt3d_plot.cpp:352-382`），供坐标系、标签与其余 item 使用。
 
 顶点着色器做全部几何变换，逐指令数出来约 80 FLOP（与下方代码块注释的 28 + 24 + 28 一致）：
 
@@ -124,9 +124,9 @@ void main()
 
 光照路径约 85–90 FLOP/片元：四次 `normalize`（norm/lightDir/viewDir/halfwayDir，各含一个 rsqrt）、两次 `dot`、一次 `pow(x, 32)`（驱动通常展开为 log2/exp2 两个 SFU 操作或 5 次乘法）。关键在片元数量：AUTOFILL 归一化把曲面投影面积钉在视口的固定比例，900×600 视口下覆盖约 15–27 万像素，与 $V$ 无关——即使 1024² 网格，光照总 ALU 也只有约 $2 \times 10^5 \times 90 \approx 18$ MFLOP/帧，对 UHD 770（约 1 TFLOPS）不足 0.02 ms。这解释了 5.6 节的实测：光照开关的帧时间差在噪声内。
 
-首发版本的实现现状（v7.5.1 已接线，见段末）：光照 uniform 是**硬编码**的。`Qwt3DSurface::draw()` 每帧写死 `uLightPos = (0, 0, 10)`（视空间）、`uLightColor = 白`、`uShininess = 32`（`qwt3d_surface.cpp:1104-1112`）；而 `Qwt3DPlot` 层的 `setLightComponent` / `setShininess` / `setLightRotation` / `setMaterialComponent` 全是 CPU 侧存值 stub，注释标明参数等待接入 shader uniform 上传（"TODO: Store in ... for shader uniform upload"，`qwt3d_lighting.cpp:71, 96, 108`）。因此 `Qwt3DTheme` 的 5 种光照预设（NoLighting/FlatLight/Studio/Outdoor/Soft）在渲染结果上只有"开/关"两态，`illuminate()`/`blowout()`/`setLightRotation()` 同样改动不了任何着色器 uniform。主题预设间的视觉差异实际来自背景色与 colormap，不来自光照。（v7.5.1 更新：这些 setter 与 `setShininess()` 现在真正存值并上传——`uLightPos` 由 `setLightRotation` 推导、`uLightAmbient`/`uLightDiffuse`/`uLightSpecular` 与 `uMaterialAmbient`/`uMaterialDiffuse`/`uMaterialSpecular` 分别取自灯光与材质分量、`uShininess` 取自 `setShininess`；默认值与原先的硬编码逐像素一致（同一源码基线关/开接线的渲染差异为 0 像素），`illuminate()`/`blowout()` 切换唯一那盏灯，5 种主题光照预设因此产生不同效果。新增 getter：`lightComponent()`/`materialComponent()`/`shininess()`/`isLightIlluminated()`；回归测试 `tests/plot3d_lighting_test`。）
+首发版本的实现现状（v7.5.1 已接线，见段末）：光照 uniform 是**硬编码**的。`Qwt3DSurface::draw()` 每帧写死 `uLightPos = (0, 0, 10)`（视空间）、`uLightColor = 白`、`uShininess = 32`（该实现已被 v7.5.1 的接线取代，现行 uniform 上传见 `qwt3d_surface.cpp:1212-1253`）；而 `Qwt3DPlot` 层的 `setLightComponent` / `setShininess` / `setLightRotation` / `setMaterialComponent` 当时只是 CPU 侧存值 stub、不参与渲染（现行实现见 `qwt3d_lighting.cpp:115-134, 103-108, 224-232, 70-87`）。因此当时 `Qwt3DTheme` 的 5 种光照预设（NoLighting/FlatLight/Studio/Outdoor/Soft）在渲染结果上只有"开/关"两态，`illuminate()`/`blowout()`/`setLightRotation()` 也改不动任何着色器 uniform。主题预设间的视觉差异实际来自背景色与 colormap，不来自光照。（v7.5.1 更新：这些 setter 与 `setShininess()` 现在真正存值并上传——`uLightPos` 由 `setLightRotation` 推导、`uLightAmbient`/`uLightDiffuse`/`uLightSpecular` 与 `uMaterialAmbient`/`uMaterialDiffuse`/`uMaterialSpecular` 分别取自灯光与材质分量、`uShininess` 取自 `setShininess`；默认值与原先的硬编码逐像素一致（同一源码基线关/开接线的渲染差异为 0 像素），`illuminate()`/`blowout()` 切换唯一那盏灯，5 种主题光照预设因此产生不同效果。新增 getter：`lightComponent()`/`materialComponent()`/`shininess()`/`isLightIlluminated()`；回归测试 `tests/plot3d_lighting_test`。）
 
-六种 plot style 到 draw call 的映射（`qwt3d_surface.cpp:1121-1200`）：
+六种 plot style 到 draw call 的映射（`qwt3d_surface.cpp:1263-1342`）：
 
 | PLOTSTYLE | draw call | 说明 |
 |---|---|---|
@@ -139,7 +139,7 @@ void main()
 
 ### 3.4 坐标系与标签：每帧即时重建的固定开销
 
-`paintGL` 在 item 之后绘制坐标系统（`qwt3d_coordsys.cpp:199-224`），这条路径没有表面那样的 VBO 缓存，**每帧即时重建**：`chooseAxes` 把 12 条轴的端点投影到屏幕并跑一次 2D 凸包来决定哪些轴可见；每条可见轴在 `drawTics` 里重新执行自动刻度（`prepTicCalculation` → `Qwt3DAutoScaler`，`qwt3d_axis.cpp:615-665`）、收集刻度线顶点、`QOpenGLBuffer` create/allocate/destroy 走一整套（`qwt3d_coordsys.cpp:157-194` 的 `drawGridLines` 与 `qwt3d_axis.cpp` 的 `drawLines` 同构）；每个刻度数字是一个 `Qwt3DLabel`——文本位图有缓存（`update()` 仅在内容变化时重画 QImage），但 `draw()` 每次都从缓存图像**新建 `QOpenGLTexture` 上传 GPU** 再画纹理四边形（`qwt3d_label.cpp:318-400`），默认场景（自动装饰选出的 3–4 条轴、每轴若干主刻度数字）每帧就是十几到几十次纹理创建 + 上传 + 销毁。
+`paintGL` 在 item 之后绘制坐标系统（`qwt3d_coordsys.cpp:209-232`），这条路径没有表面那样的 VBO 缓存，**每帧即时重建**：`chooseAxes` 把 12 条轴的端点投影到屏幕并跑一次 2D 凸包来决定哪些轴可见；每条可见轴在 `drawTics` 里重新执行自动刻度（`prepTicCalculation` → `Qwt3DAutoScaler`，`qwt3d_axis.cpp:625-653`）、收集刻度线顶点、`QOpenGLBuffer` create/allocate/destroy 走一整套（`qwt3d_coordsys.cpp:158-203` 的 `drawGridLines` 与 `qwt3d_axis.cpp` 的 `drawLines` 同构）；每个刻度数字是一个 `Qwt3DLabel`——文本位图有缓存（`update()` 仅在内容变化时重画 QImage），但 `draw()` 每次都从缓存图像**新建 `QOpenGLTexture` 上传 GPU** 再画纹理四边形（`qwt3d_label.cpp:318-428`），默认场景（自动装饰选出的 3–4 条轴、每轴若干主刻度数字）每帧就是十几到几十次纹理创建 + 上传 + 销毁。
 
 这就是实测中 3.0–3.3 ms（GPU 完成口径）的"固定地板"（NOPLOT 行）的主要成分，也是把 `coordinates()->setStyle(NOCOORD)` 后帧时间骤降的原因（5.6 节）。它与 $V$ 无关，却在小网格场景占整帧的绝对多数——3D 曲面的"空场景开销"问题与 2D GL 画布的合成开销问题（[raster-vs-opengl.md](raster-vs-opengl.md) 第 4.3 节）同构，但成因不同：2D 贵在 FBO resolve/blit/合成，3D 贵在坐标系与标签的每帧 CPU/GL 杂务。
 
@@ -250,7 +250,7 @@ GPU 完成口径下 1024² 的样式排序：FILLED 10.08 < POINTS 11.81 < WIREF
 | resolution 2 | 4.447 | 9.197 | −10.359 |
 | resolution 4 | 2.446 | 6.547 | −13.009 |
 
-其一，**片元光照免费**：Δ 在噪声内（下方全规模明细表中 12 个差值符号随机、幅度 ≤0.55 ms，无一超出轮间噪声带），验证第 4 节的片元常数模型；给曲面上光照不需要犹豫，但要知道 3.3 节的光照参数硬编码现状——开了也只是固定方向的 Blinn-Phong。
+其一，**片元光照免费**：Δ 在噪声内（下方全规模明细表中 12 个差值符号随机、幅度 ≤0.55 ms，无一超出轮间噪声带），验证第 4 节的片元常数模型；给曲面上光照不需要犹豫，但要知道 3.3 节的光照接线现状——v7.5.1 前是写死在着色器里的固定方向 Blinn-Phong（现可由 `setLightRotation` / `setLightComponent` 等调节）。
 
 其二，**MSAA 4× 在 1024² 值 5.6 ms（29%）**：填充率 ×4 对核显是实打实的成本，大网格交互场景可考虑关（示例默认开 4）。
 
@@ -305,7 +305,7 @@ GPU 完成口径下 1024² 的样式排序：FILLED 10.08 < POINTS 11.81 < WIREF
 
 ### 5.8 gl2ps 矢量导出：原理、实测与当前局限
 
-导出注册表（`qwt3d_io.cpp:299-330`）：光栅格式走 `Qwt3DPixmapWriter`（`grabFramebuffer` → `QImageWriter`），矢量格式 EPS/PS/PDF/SVG/PGF 走 `Qwt3DVectorWriter`（gl2ps 1.4.3，`src/plot3d/3rdparty/gl2ps/`，CMake 未找到系统 gl2ps 时内置编译，链接 `OpenGL::GLU`）。矢量路径的机制是 gl2ps 的经典 feedback 捕获：`gl2psBeginPage` 把 GL 切到 `GL_FEEDBACK` 渲染模式，重放一帧（`plot->grabFramebuffer()`，`qwt3d_io_gl2ps.cpp:158-288`），驱动把经过顶点处理的图元连位置带"当前颜色"写进 feedback buffer，gl2ps 排序（SIMPLE/BSP）后输出矢量文件，缓冲溢出则以 2 MB 步长扩容重试。
+导出注册表（`qwt3d_io.cpp:306-337`）：光栅格式走 `Qwt3DPixmapWriter`（`grabFramebuffer` → `QImageWriter`），矢量格式 EPS/PS/PDF/SVG/PGF 走 `Qwt3DVectorWriter`（gl2ps 1.4.3，`src/plot3d/3rdparty/gl2ps/`，CMake 未找到系统 gl2ps 时内置编译，链接 `OpenGL::GLU`）。矢量路径的机制是 gl2ps 的经典 feedback 捕获：`gl2psBeginPage` 把 GL 切到 `GL_FEEDBACK` 渲染模式，重放一帧（`plot->grabFramebuffer()`，`qwt3d_io_gl2ps.cpp:230-250`），驱动把经过顶点处理的图元连位置带"当前颜色"写进 feedback buffer，gl2ps 排序（SIMPLE/BSP）后输出矢量文件，缓冲溢出则以 2 MB 步长扩容重试。
 
 实测（单次导出，ms / 字节 / SVG 图元数）：
 
@@ -329,11 +329,11 @@ GPU 完成口径下 1024² 的样式排序：FILLED 10.08 < POINTS 11.81 < WIREF
 
 ![导出时间与文件大小随三角形数的标度](../../assets/algorithms/fig_3d_export.png)
 
-PDF/SIMPLE 的时间与大小都随源三角形数近线性（时间 $b = 1.05$、大小 $b = 0.98$，$R^2 = 0.87/1.00$），但常数巨大：1024²（2.09M 三角形）要 **145 s 和 82.6 MB**，比同场景 PNG（0.115 s）慢三个数量级。BSP 排序按源码注释预警的方向爆炸（64² 慢 41 倍、128² 慢 159 倍），任何严肃网格都不该用。SVG 的捕获图元数呈现反常的饱和：32² 时是源三角形数的 104 倍、64² 时 54 倍、128² 时只有 14.7 倍，绝对值停在约 47 万——feedback 捕获在大网格下连"完整"都做不到。饱和的具体机制本文未深挖，只能给出一个未经验证的候选假说：导出 options 含 `GL2PS_OCCLUSION_CULL`（`qwt3d_io_gl2ps.cpp:171`），gl2ps 为做遮挡剔除会按像素细分图元，而饱和值约 47 万与视口 900×600 ≈ 54 万像素同量级，指向视口分辨率相关的上限。
+PDF/SIMPLE 的时间与大小都随源三角形数近线性（时间 $b = 1.05$、大小 $b = 0.98$，$R^2 = 0.87/1.00$），但常数巨大：1024²（2.09M 三角形）要 **145 s 和 82.6 MB**，比同场景 PNG（0.115 s）慢三个数量级。BSP 排序按源码注释预警的方向爆炸（64² 慢 41 倍、128² 慢 159 倍），任何严肃网格都不该用。SVG 的捕获图元数呈现反常的饱和：32² 时是源三角形数的 104 倍、64² 时 54 倍、128² 时只有 14.7 倍，绝对值停在约 47 万——feedback 捕获在大网格下连"完整"都做不到。饱和的具体机制本文未深挖，只能给出一个未经验证的候选假说：导出 options 含 `GL2PS_OCCLUSION_CULL`（`qwt3d_io_gl2ps.cpp:174`），gl2ps 为做遮挡剔除会按像素细分图元，而饱和值约 47 万与视口 900×600 ≈ 54 万像素同量级，指向视口分辨率相关的上限。
 
-比时间更根本的是**正确性**。检查输出内容：SVG 的每个多边形形如 `<polygon fill="#6d0000" fill-opacity="0" .../>`，PDF 的 59 个透明度 ExtGState 全部是 `/ca 0`——顶点位置被正确捕获（顶点着色器在 feedback 模式下照常运行），但**颜色与 alpha 取自 feedback 缓冲中从未被着色器写入的固定功能顶点色**——gl2ps 以 `GL_3D_COLOR` feedback 逐顶点捕获固定功能主色（`gl2ps.c:6208`，`gl2psGetVertex` 直接读 p[3..6] 作 RGBA），而 GLSL 330 着色器不写 `gl_FrontColor`、整个 plot3d 模块也没有任何 `glColor*` 调用（仅 `qwt3d_io_gl2ps.cpp:347/388` 为文本颜色保存/恢复），捕获到的因此是未定义值（实测 alpha=0），所有填充完全透明，曲面在矢量输出中不可见。这不是测量误差，是源码自己声明的已知局限（`qwt3d_io_gl2ps.h:14-17`："gl2ps relies on the Compatibility Profile GL state... vector export may not reflect the correct transformation... full modernization requires generating vector output from VBO vertex data directly"，`.cpp` 的 docstring 同义）。旧 `QwtPlot3D` 时代 gl2ps 能工作，是因为当时用立即模式 + `glColor` 绘制，feedback buffer 捕获的就是真实颜色。 **v7.5.1 修复**：`Qwt3DSurface`（以及坐标系网格/轴线/图例）在反馈回放时改用即时模式提交——顶点用与着色器相同的矩阵在 CPU 侧变换成裁剪坐标，颜色经 `glColor4f` 逐顶点给出（`qwt3dEmitVerticesForVectorExport()`，`qwt3d_io_gl2ps.cpp`），因此 feedback 缓冲记录到的就是着色器本该画出的颜色；`Qwt3DPlot::isVectorExportActive()` 由 GL 渲染模式（`GL_FEEDBACK`）判定。定向验证（常量红色 functor，`surface_export_check.cpp`）：修复前 on-page 多边形无一携带数据色（着色率 0.0%），修复后 640/2321 多边形、53.2% 面积占比由数据色覆盖，回归测试固化在 `tests/plot3d_vector_export_test`。
+比时间更根本的是**正确性**。检查输出内容：SVG 的每个多边形形如 `<polygon fill="#6d0000" fill-opacity="0" .../>`，PDF 的 59 个透明度 ExtGState 全部是 `/ca 0`——顶点位置被正确捕获（顶点着色器在 feedback 模式下照常运行），但**颜色与 alpha 取自 feedback 缓冲中从未被着色器写入的固定功能顶点色**——gl2ps 以 `GL_3D_COLOR` feedback 逐顶点捕获固定功能主色（`gl2ps.c:6208`，`gl2psGetVertex` 直接读 p[3..6] 作 RGBA），而 GLSL 330 着色器不写 `gl_FrontColor`、修复前的模块里没有任何 `glColor*` 调用（仅 `qwt3d_io_gl2ps.cpp:435/476` 为文本颜色保存/恢复），捕获到的因此是未定义值（实测 alpha=0），所有填充完全透明，曲面在矢量输出中不可见。这不是测量误差，是源码自己声明的已知局限（`qwt3d_io_gl2ps.h:14-17`："gl2ps relies on the Compatibility Profile GL state... vector export may not reflect the correct transformation... full modernization requires generating vector output from VBO vertex data directly"，`.cpp` 的 docstring 同义）。旧 `QwtPlot3D` 时代 gl2ps 能工作，是因为当时用立即模式 + `glColor` 绘制，feedback buffer 捕获的就是真实颜色。 **v7.5.1 修复**：`Qwt3DSurface`（以及坐标系网格/轴线/图例）在反馈回放时改用即时模式提交——顶点用与着色器相同的矩阵在 CPU 侧变换成裁剪坐标，颜色经 `glColor4f` 逐顶点给出（`qwt3dEmitVerticesForVectorExport()`，`qwt3d_io_gl2ps.cpp`），因此 feedback 缓冲记录到的就是着色器本该画出的颜色；`Qwt3DPlot::isVectorExportActive()` 由 GL 渲染模式（`GL_FEEDBACK`）判定。定向验证（常量红色 functor，`surface_export_check.cpp`）：修复前 on-page 多边形无一携带数据色（着色率 0.0%），修复后 640/2321 多边形、53.2% 面积占比由数据色覆盖，回归测试固化在 `tests/plot3d_vector_export_test`。
 
-因此当前版本的取舍是明确的：**3D 导出用光栅路径**（`savePixmap`/`save`，约 0.1 s 恒定，与网格规模无关——耗时被 readback + 编码主导），矢量路径只对文本/线段类内容（经 `drawDeviceText` 的标签）有意义，曲面矢量化的正解是按源码注释的方向从 VBO 数据直接生成矢量输出。两个使用层面的坑：格式注册表大小写敏感，光栅格式键是小写（`"png"`），`savePixmap(file, "PNG")` 会静默返回 false——示例 `examples/3D/qwtplot3d/MainWindow.cpp:382` 恰好踩中；PNG 文件大小随网格增大反而变小（64² 132 KB → 1024² 8 KB），因为 64² 的粗网格线是高熵边缘而 1024² 的亚像素网格线被 MSAA 平均成平滑渐变；帧缓冲内容另行做过像素级验证（诊断程序在 (30°, 0°) 视角下 1024² 场景含 15.3 万非背景像素、包围盒覆盖视口中心区域），排除了"大网格渲染为空导致文件小"的可能。（v7.5.1 更新：格式查表改为大小写不敏感并对未注册格式给出 qDebug 警告，示例按文件后缀推导格式；"曲面在矢量输出中不可见"也已修复，见上段；时间与体积的取舍仍然成立。）
+因此当前版本的取舍是明确的：**3D 导出用光栅路径**（`savePixmap`/`save`，约 0.1 s 恒定，与网格规模无关——耗时被 readback + 编码主导），矢量路径在 v7.5.1 前只对文本/线段类内容（经 `drawDeviceText` 的标签）有意义，曲面矢量化的正解是按源码注释的方向从 VBO 数据直接生成矢量输出。两个使用层面的坑：v7.5.1 前格式注册表大小写敏感，光栅格式键是小写（`"png"`），`savePixmap(file, "PNG")` 会静默返回 false——官方示例 `examples/3D/qwtplot3d` 恰好踩中；PNG 文件大小随网格增大反而变小（64² 132 KB → 1024² 8 KB），因为 64² 的粗网格线是高熵边缘而 1024² 的亚像素网格线被 MSAA 平均成平滑渐变；帧缓冲内容另行做过像素级验证（诊断程序在 (30°, 0°) 视角下 1024² 场景含 15.3 万非背景像素、包围盒覆盖视口中心区域），排除了"大网格渲染为空导致文件小"的可能。（v7.5.1 更新：格式查表、注册与格式判定改为大小写不敏感（`qwt3d_io.cpp:88, 98, 353-363`）并对未注册格式给出 qWarning 警告，示例按文件后缀推导格式（`examples/3D/qwtplot3d/MainWindow.cpp:386-390`）并在失败时提示；"曲面在矢量输出中不可见"也已修复，见上段；时间与体积的取舍仍然成立。）
 
 ## 6. 讨论：失效模式诚实清单
 
@@ -345,8 +345,8 @@ PDF/SIMPLE 的时间与大小都随源三角形数近线性（时间 $b = 1.05$�
 6. **光照与主题光照预设未接线（v7.5.1 已接线）**：原先 uniform 硬编码（光源 (0,0,10)、shininess 32），`setLightComponent`/`setShininess`/`setLightRotation`/`setMaterialComponent` 只存值不生效、4 种主题光照预设渲染相同。v7.5.1 起灯光/材质分量与 shininess 上传为 uniform（默认值 = 原硬编码值，渲染逐像素不变），光照位置跟随 `setLightRotation`，`illuminate()`/`blowout()` 控制唯一那盏灯，预设因此可区分；`tests/plot3d_lighting_test` 验证参数确实改变渲染像素。
 7. **默认样式最贵**：FILLEDMESH 双 pass 在 1024² 比 FILLED 慢 94%（GPU 完成口径，19.56 vs 10.08 ms）。大网格交互优先考虑 FILLED，或接受 resolution 抽取。
 8. **MSAA 4× 在大网格值 29%**：示例默认开 4；核显上 1024² 交互可关。
-9. **`setResolution` 文档与实现不符**：docstring 声称免重建，实际置 dirty 全量重建（只有索引变稀疏）。逐帧调 resolution 做 LOD 会付出每次 40–80 ms（1024²）的重建代价，只能用于静态设置。（v7.5.1：docstring 已如实说明"索引步进 + 全量重建/重上传"，LOD 用途仍受限。）
-10. **格式注册表曾大小写敏感（v7.5.1 修复）**：`savePixmap(file, "PNG")` 原先静默失败（注册键为小写），官方示例 `examples/3D/qwtplot3d` 踩中此坑。v7.5.1 起查表、注册与 `saveVector`/`savePixmap` 的格式判定全部大小写不敏感，未注册格式给出 qDebug 警告，示例改为按文件后缀推导格式并提示失败。
+9. **`setResolution` 文档曾与实现不符（v7.5.1 已对齐）**：docstring 原先声称免重建，实际置 dirty 全量重建（只有索引变稀疏）。逐帧调 resolution 做 LOD 会付出每次 40–80 ms（1024²）的重建代价，只能用于静态设置。（v7.5.1：docstring 已如实说明"索引步进 + 全量重建/重上传"，LOD 用途仍受限。）
+10. **格式注册表曾大小写敏感（v7.5.1 修复）**：`savePixmap(file, "PNG")` 原先静默失败（注册键为小写），官方示例 `examples/3D/qwtplot3d` 踩中此坑。v7.5.1 起查表、注册与 `saveVector`/`savePixmap` 的格式判定全部大小写不敏感（`qwt3d_io.cpp:88, 98, 353-363`），未注册格式给出 qWarning 警告，示例改为按文件后缀推导格式并提示失败。
 11. **`QOpenGLWidget::repaint()` 是 no-op**：逐帧驱动必须 `update()` + 事件泵（或定时器），直接 `repaint()` 得到 0 帧——bench 开发中实测确认，自定义渲染循环要注意。
 12. **Qt 版本边界**：本文仅测 Qt 5.15 + Windows/DWM。Qt 6 的 `QOpenGLWidget` 经 RHI，feedback 模式（gl2ps 依赖）在 RHI 下是否可用存疑，矢量导出路径可能整体失效；着色器 `#version 330` 与默认兼容 profile 上下文（实测 4.6 兼容）的组合在 Qt6 需要显式 core profile 格式。
 
@@ -398,7 +398,7 @@ int main(int argc, char* argv[])
     plot.applyTheme(Qwt3DTheme::Scientific);             // pushes colors/style to attached items too
     surface->setPlotStyle(FILLEDMESH);                   // optional override; FILLED is ~2x faster at 1024^2
 
-    plot.enableLighting();                               // fixed Blinn-Phong, free on the GPU (5.6)
+    plot.enableLighting();                               // Blinn-Phong, free on the GPU (5.6)
     plot.show();
     return app.exec();
 }
@@ -427,19 +427,19 @@ cmap->setAlpha(0.8);
 surface->invalidateColors();                   // ~76 ms at 1024^2 (5.7)
 ```
 
-注意 6 节第 6 条：主题的光照预设当前只等效于 `enableLighting()`/`disableLighting()` 开关。
+注意 6 节第 6 条：主题的光照预设在 v7.5.1 起真正接入灯光/材质参数，此前只等效于 `enableLighting()`/`disableLighting()` 开关。
 
 ### 7.3 导出
 
 ```cpp
-plot.save("surface.png", "png");               // raster: ~0.1 s, size-independent (lowercase key!)
+plot.save("surface.png", "png");               // raster: ~0.1 s, size-independent
 plot.saveVector("surface.pdf", "PDF",          // gl2ps feedback capture:
-                Qwt3DVectorWriter::PIXEL,      // geometry only, colors currently lost (5.8)
+                Qwt3DVectorWriter::PIXEL,      // data colors included since 7.5.1 (5.8)
                 Qwt3DVectorWriter::SIMPLESORT);
 QPixmap pm = plot.renderPixmap();              // in-memory raster grab
 ```
 
-大网格的矢量导出请按 5.8 节的数字评估：512² 的 PDF 已经要 9 s / 19.5 MB，且曲面填充透明；正式图表建议 2D 投影（等高线/热图走 `qwt::plot` 的矢量导出）或高分辨率 PNG。
+大网格的矢量导出请按 5.8 节的数字评估：512² 的 PDF 已经要 9 s / 19.5 MB；正式图表建议 2D 投影（等高线/热图走 `qwt::plot` 的矢量导出）或高分辨率 PNG。
 
 ### 7.4 性能调参速查
 
@@ -451,7 +451,7 @@ QPixmap pm = plot.renderPixmap();              // in-memory raster grab
 | 高帧率小曲面（动画） | `coordinates()->setStyle(NOCOORD)` 或接受 3 ms 地板 | 5.6 |
 | 流式数据 | 网格 ≤256²（60 Hz 刷新上限）；512² 只有 17 Hz | 5.7 |
 | 换 colormap | 预算一次全量重建（1024² 76 ms），勿逐帧换 | 5.7 |
-| 导出 | PNG 光栅；矢量路径当前曲面不可见 | 5.8 |
+| 导出 | 大网格用 PNG 光栅；矢量路径时间/体积随规模爆炸（曲面着色自 7.5.1 起正确） | 5.8 |
 | 逐帧驱动 | `update()` + 事件泵，勿用 `repaint()` | 5.1/6.11 |
 
 ## 8. 小结
