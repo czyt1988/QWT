@@ -4,7 +4,7 @@
 
 > **摘要 — 核心结论**
 >
-> - 对百万级曲线，`FilterPointsMinMaxLTTB`（MinMax 桶，v7.4.2 及之前的 `FilterPointsLTTB` 默认）在 1,000,000 点上把重绘耗时从 262 ms/帧（3.8 FPS）降到 133 ms/帧（7.5 FPS），且保真度最高（`clean` 列占比 61%–97%，取决于信号）
+> - 对百万级曲线，`FilterPointsMinMaxLTTB`（MinMax 桶，v7.4.2 及之前的 `FilterPointsLTTB` 默认）在 1,000,000 点上把重绘耗时从 262 ms/帧（3.8 FPS）降到 133 ms/帧（7.5 FPS），且在等输出预算的策略中保真度最高（`clean` 列占比 29%–97%，取决于信号）
 > - MinMax 桶保留了经典 LTTB 的"视觉形状保持"优点，但提供了后者没有的**确定性极值保留**保证，并可使用 SIMD 指令加速逐桶 argmin/argmax
 > - 桶数的选择 $N_b = 2W$（每个像素列 2 个桶、4 个输出点）对应可视化的奈奎斯特极限：低于每列 0.5 周期的内容可被无失真复现
 
@@ -63,9 +63,9 @@ $$
 
 界面从左到右分别是：
 
-- **控制面板**：`Points`（1,000 – 10,000,000，默认 1,000,000）、`Frames`（10 – 1000，默认 100）、`Wave`（平滑波 / 白噪声）、`Method`（`None` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB` / `FilterPointsMinMaxLTTB` 六种绘制方式），以及 `Run`（单跑当前方法）与 `Run All (Compare)`（批量对比全部方法）；
+- **控制面板**：`Points`（1,000 – 10,000,000，默认 1,000,000）、`Frames`（10 – 1000，默认 100）、`Wave`（平滑波 / 白噪声）、`Method`（`None` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB` / `FilterPointsMinMaxLTTB` 六种绘制方式），以及 `Run`（单跑当前方法）与 `Run All (Compare)`（批量对比；当前实现只遍历前 5 种方法，`FilterPointsMinMaxLTTB` 需单独运行）；
 - **绘图区**：数据由 `WindowedSeriesData` 在滚动的窗口内按需生成，X 轴跟随窗口，因此每次重绘的工作量与真实的滚动场景一致；
-- **报告对话框**：跑完自动弹出 Markdown 报告，含环境（QWT/Qt 版本、画布尺寸）、参数与全部方法的耗时 / 帧率汇总，可一键复制。
+- **报告对话框**：跑完自动弹出 Markdown 报告，含环境（QWT/Qt 版本、画布尺寸）、参数与所跑各方法的耗时 / 帧率汇总，可一键复制。
 
 除了测速，这个例子的更大价值是**肉眼对比**：把 `Method` 在 `FilterPointsLTTB` 与 `FilterPointsPixel` 之间反复切换，同一批数据下窄峰的保存方式差异（见第 4.4 节与第 6 节表 1）会直接显现在眼前。
 
@@ -163,7 +163,7 @@ $$
 
 1. 保留 P[0]；令 every = (N-2) / (M-2)
 2. 对 i = 0 .. M-3：
-   a. 下一桶范围为 [ floor((i+2)*every)+1, floor((i+3)*every)+1 )，计算质心 c
+   a. 下一桶范围为 [ floor((i+1)*every)+1, floor((i+2)*every)+1 )，计算质心 c
    b. 当前桶范围为 [ floor(i*every)+1, floor((i+1)*every)+1 )
    c. 在 B_i 中选取使 A(p) 最大的点 p*，加入输出，令 a = p*
 3. 保留 P[N-1]
@@ -183,7 +183,7 @@ $$
 
 ![经典 LTTB vs MinMax 桶：尖峰对](../../assets/algorithms/fig_lttb_spikes.png)
 
-当一对尖峰落入同一个桶时，向上尖峰与向下尖峰各自构成面积相近的三角形，但 LTTB 每个桶**只选一个点**——两个方向中必有一个被丢弃：绘制结果要么只剩上冲、要么只剩下冲，尖峰对的包络被拦腰截断。实验测量（第 6 节）：在 100,000 点、含 25 个尖峰对的信号上，经典 LTTB 的列包络误差 p99 达 228 像素行（整根尖峰丢失），只有 59% 的列是干净列。
+当一对尖峰落入同一个桶时，向上尖峰与向下尖峰各自构成面积相近的三角形，但 LTTB 每个桶**只选一个点**——两个方向中必有一个被丢弃：绘制结果要么只剩上冲、要么只剩下冲，尖峰对的包络被拦腰截断。实验测量（第 6 节）：在 100,000 点、含 24 个尖峰对的信号上，经典 LTTB 的列包络误差 p99 达 228 像素行（整根尖峰丢失），只有 59% 的列是干净列。
 
 > 这正是 QWT7 选择 **MinMax 桶变体**的直接动机：把"每桶一个最大面积点"换成"每桶两个极值点"，从机制上消除这类失效。
 
@@ -227,7 +227,8 @@ $$
 输入: 可见序列 [visFrom..visTo]，线性映射 xMap/yMap，画布宽度 W
 输出: 降采样折线
 
-1. 若 n <= 2 * N_b：点数太少，回退到 qwtMapPointsQuad（Quad 归并）
+1. 若 n <= 2 * N_b：点数太少，回退到普通映射（整数对齐时 qwtMapPointsQuad，
+   否则 qwtMapPointsNoRound，保留亚像素精度）
 2. 桶数 N_b = max(2, 2W)；桶大小 s = n / N_b
 3. 对每个桶 b = 0 .. N_b-1：
    a. 区间 [ floor(b*s), floor((b+1)*s) - 1 ]
@@ -320,7 +321,7 @@ flowchart TB
 | `FilterPointsLTTB` | `LTTBReduce` | 恒生效 |
 | `FilterPointsMinMaxLTTB` | `MinMaxReduce` | 恒生效 |
 
-`toPolygonF()` 中的选择优先级（`src/plot/qwt_point_mapper.cpp:1232`）：
+`toPolygonF()` 中的选择优先级（`src/plot/qwt_point_mapper.cpp:1502`）：
 
 > `PixelColumnReduce` > `LTTBReduce` > `MinMaxReduce` > `WeedOutIntermediatePoints` > `WeedOutPoints`
 
@@ -380,10 +381,10 @@ $$
 \mathbf{i}^{(k+1)}_j = \begin{cases} 4k + j & v_{4k+j} < \mathbf{m}^{(k)}_j \\ \mathbf{i}^{(k)}_j & \text{otherwise} \end{cases}
 $$
 
-比较用有序谓词 `_CMP_LT_OQ`（ordered, quiet）：$\mathrm{NaN} < x$ 与 $x < \mathrm{NaN}$ 均为假，NaN 永远不会赢得比较；但值向量走的 `minpd`/`maxpd` 硬件指令在任一操作数为 NaN 时返回第二操作数，NaN 可覆盖累加值、待后续真值将其恢复后便与索引向量脱节——因此 NaN 不会污染**值**结果（输出值仍是某个真实元素，尽管极值可能丢失），**索引**语义在多 lane 归约下却不可靠，存在索引指向 NaN 元素的组合输出（定量矩阵见[SIMD 基准篇](simd-argminmax.md) 2.3 节），这正是渲染管线必须先做 NaN 预扫描的原因。向量循环结束后做水平归约（跨 lane 求最小/最大），尾部不足一个向量宽的元素由标量循环收尾；最后若 min/max 仍为 NaN（全 NaN 输入），返回哨兵值 $\{0, 0, \text{DBL\_MAX}, -\text{DBL\_MAX}\}$。
+比较用有序谓词 `_CMP_LT_OQ`（ordered, quiet）：$\mathrm{NaN} < x$ 与 $x < \mathrm{NaN}$ 均为假，NaN 永远不会赢得比较；但值向量走的 `minpd`/`maxpd` 硬件指令在任一操作数为 NaN 时返回第二操作数，NaN 可覆盖累加值、待后续真值将其恢复后便与索引向量脱节——因此 NaN 不会污染**值**结果（输出值仍是某个真实元素，尽管极值可能丢失），**索引**语义在多 lane 归约下却不可靠，存在索引指向 NaN 元素的组合输出（定量矩阵见[SIMD 基准篇](simd-argminmax.md) 2.3 节），这正是渲染管线必须先做 NaN 预扫描的原因。向量循环结束后做水平归约（跨 lane 求最小/最大），尾部不足一个向量宽的元素由标量循环收尾；最后若公开入口看到的结果仍含 NaN（例如全 NaN 输入），返回哨兵值 $\{0, 0, \text{DBL\_MAX}, -\text{DBL\_MAX}\}$。
 
 ```cpp
-// src/core/qwt_simd_argminmax.cpp —— AVX2 路径的核心循环
+// src/core/qwt_simd_argminmax_avx2.cpp —— AVX2 路径的核心循环
 __m256d minVec    = _mm256_set1_pd(DBL_MAX);
 __m256d maxVec    = _mm256_set1_pd(-DBL_MAX);
 __m256d minIdxVec = _mm256_set_pd(3.0, 2.0, 1.0, 0.0);
@@ -405,7 +406,7 @@ for (; i + 4 <= count; i += 4) {
 
 *为什么需要 NaN 预扫描？* SIMD 路径与标量路径在"存在 NaN"时的**输出语义不同**：标量路径可以跳过 NaN 并把非 NaN 极值作为结果；SIMD 的 min/max 指令对 NaN 的行为是返回另一操作数（$\min(\mathrm{NaN}, x) = x$），但多 lane 之间无法保证"全局第一个非 NaN"的索引语义。预扫描一遍（$O(n)$，与桶循环同阶）换来语义一致与分支消除，是典型的"用一遍顺序扫描避免每桶的分支"。
 
-**加速比**：AVX2 单桶 argmin/argmax 相对标量理论 3–4×；但对桶内样本很少的输入（如 < 16 元素/桶），向量加载与水平归约的固定开销可能抵消并行收益——这也是 4.1 节"$n \le 2N_b$ 时回退 Quad 归并"阈值存在的原因之一。
+**加速比**：AVX2 单桶 argmin/argmax 相对标量理论 3–4×；但对桶内样本很少的输入（AVX2 内核独立编译后的实测判据为 < 8 元素/桶，见[SIMD 基准篇](simd-argminmax.md) 4.5b），向量加载与水平归约的固定开销可能抵消并行收益——这也是 4.1 节"$n \le 2N_b$ 时回退普通映射"阈值存在的原因之一。
 
 ## 6. 实验：像素级保真度
 
@@ -413,9 +414,9 @@ for (; i + 4 <= count; i += 4) {
 
 - **度量**：第 2 节的列包络、覆盖率与干净列比例，包络按 **8×8 超采样光栅化**计算（参考模型 = 抗锯齿线光栅化器）。
 - **信号**（$N = 100{,}000$，画布 900×500 px，与 QWT7 示例同构）：
-  1. **band-limited**：多分量正弦，最高频率 0.45 周期/列（低于奈奎斯特）；
+  1. **band-limited**：多分量正弦（`sin(x/700)`、`sin(x/330)`、`sin(x/250)` 三个分量，周期约 39.6 / 18.7 / 14.1 列），最高约 0.07 周期/列（低于奈奎斯特）；
   2. **peaks + noise**：慢变包络 + 窄峰 + 白噪声（逼近真实频谱）；
-  3. **spike pairs**：25 个 ±3.5 的 2-样本尖峰对（LTTB 的病理信号）；
+  3. **spike pairs**：24 个 ±3.5 的 2-样本尖峰对（LTTB 的病理信号）；
   4. **uneven x**：窄峰 + 采样间距 ±40% 波动的非均匀 x；
   5. **white noise**：纯白噪声（最坏情况）。
 - **输出预算**：统一 ≈ 3600 点（= 4W）；像素列桶按算法定义输出 ≤ 4W。
@@ -453,7 +454,7 @@ for (; i + 4 <= count; i += 4) {
 #### 表 2：桶预算与保真度（peaks + noise，MinMax 桶）
 
 | 桶预算 | 桶数 | 输出点 | 覆盖率 | 干净列 | 平均误差(px) |
-|---|---|---:|---:|---:|---:|---:|
+|---|---|---:|---:|---:|---:|
 | 0.25 × 2W | 450 | 900 | 0.677 | 31.2% | 9.0 |
 | 0.5 × 2W | 900 | 1800 | 0.926 | 63.8% | 3.9 |
 | **1 × 2W（默认）** | 1800 | 3600 | 0.989 | 79.9% | 1.3 |
@@ -465,26 +466,26 @@ for (; i + 4 <= count; i += 4) {
 
 ### 6.3 讨论
 
-**1. 像素级保真度排序：pixel column > MinMax > LTTB 经典 > uniform。** 像素列桶在"像素级精确"指标上几乎总是最优——这是必然的：它直接在像素域优化每列的竖直包络。MinMax 桶以 2× 的点数（3600 vs 1800）取得 75–97% 的干净列，这是"数据域保真"的代价。
+**1. 像素级保真度排序：pixel column > MinMax > LTTB 经典 > uniform。** 像素列桶在"像素级精确"指标上几乎总是最优——这是必然的：它直接在像素域优化每列的竖直包络。MinMax 桶以 2× 的点数（3600 vs 1800）取得 29%–97% 的干净列（取决于信号），这是"数据域保真"的代价。
 
 **2. 像素级 ≠ 视觉级，且指标包含度量伪差。** 表 1 中的非零误差主要来自三类效应：
 
 - **边界归因伪差**：8× 超采样把"恰好擦过次像素网格角点"的像素计为已涂色；降采样折线的长斜线段在极值附近会跨越列边界。此类差异对应 < 2% 覆盖率的次像素着色，人眼不可感知。
-- **弦偏差**：桶内两点之间的连线是直线；对曲率显著的近奈奎斯特内容（band-limited 信号的 0.45 周期/列分量），弦偏离真实曲线的量级约为
+- **弦偏差**：桶内两点之间的连线是直线；对曲率显著的近奈奎斯特内容（周期 1–2 列），弦偏离真实曲线的量级约为
 
 $$
 \varepsilon_{\text{chord}} \approx \frac{A (\pi f \Delta x_b)^2}{8}
 $$
 
-其中 $A$ 为振幅、$f$ 为频率（周期/列）、$\Delta x_b \approx 0.5$ 列——默认桶数下约 $0.06A$，仅像素级可见。
+其中 $A$ 为振幅、$f$ 为频率（周期/列）、$\Delta x_b \approx 0.5$ 列——$f \approx 0.45$ 周期/列时约 $0.06A$，仅像素级可见。
 
-- **极值列偏移**：极值点的 $x$ 经取整后最多移动半列；当极值恰在列边界附近时，其竖直笔画可能出现在相邻列（MinMax 的最大误差全部集中在这几列）。
+- **极值列偏移**：极值点的 $x$ 经取整后最多移动半列；当极值恰在列边界附近时，其竖直笔画可能出现在相邻列（除尖峰对信号外，MinMax 的最大误差大多集中在这几列）。
 
 **3. 为什么 QWT7 默认 `FilterPointsLTTB` 而不是 pixel？** 自 v7.5.0 起默认算法是**真 LTTB**：它在映射后的屏幕坐标上选择，对窄峰形状的保真是所有策略中最好的，永远保留曲线首尾点，并且与 MinMax 一样在**浮点渲染路径**（`QPolygonF`、PDF/SVG 导出、非取整绘制）下输出精确的映射坐标，而像素列桶的固定 +0.25/+0.75 亚像素摆放会引入系统性偏移。MinMax 桶变体（`FilterPointsMinMaxLTTB`，v7.4.2 及之前的默认）在需要确定性极值保证或 SIMD argmin/argmax 速度时仍有价值。此外 LTTB 是社区熟知的名字，便于用户建立心智模型。
 
 **4. 桶预算 2W 恰在性能-质量拐点上**（表 2）：预算减半（0.5×）干净列从 80% 掉到 64%，翻倍（2×）仅提升 9 个百分点却多画 2 倍的点。这与"每列 2 桶 = 4 点/列"的奈奎斯特论证一致：低于显示极限的内容已被完全采样，继续加桶只是为亚像素细节付费。
 
-**5. 失效模式诚实清单**：① 尖峰对中**相邻两列都含极值**时，MinMax 的连线可能在两列间形成 1 列的"斜拉"伪差（最大误差列全部属于此类）；② 白噪声信号上 MinMax 的干净列降到 61%——噪声的包络被完整保留（这是对的！），但桶间连线引入了额外的竖直线段；③ 近奈奎斯特（0.45 周期/列）内容出现可见的包络软化。
+**5. 失效模式诚实清单**：① 尖峰对中**相邻两列都含极值**时，MinMax 的连线可能在两列间形成 1 列的"斜拉"伪差（该信号的最大误差列全部属于此类）；② 白噪声信号上 MinMax 的干净列降到 61%——噪声的包络被完整保留（这是对的！），但桶间连线引入了额外的竖直线段；③ 近奈奎斯特内容（如宽度约 1 列的窄峰）出现可见的包络软化。
 
 ```mermaid
 flowchart LR
@@ -550,7 +551,7 @@ const std::vector<double> v = /* ... */;
 const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 
 // r.minIdx / r.maxIdx：最小值/最大值所在下标（相对指针起始偏移）
-// r.minVal / r.maxVal：对应的值；全 NaN 输入时返回 {0, 0, DBL_MAX, -DBL_MAX}
+// r.minVal / r.maxVal：对应的值；结果仍为 NaN 时（如全 NaN 输入）返回 {0, 0, DBL_MAX, -DBL_MAX}
 ```
 
 ### 7.3 调参建议
@@ -575,7 +576,7 @@ const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 1. Steinarsson, S. *Downsampling Time Series for Visual Representation.* MSc thesis, University of Iceland, 2013.
 2. QWT7 源码：`src/plot/qwt_point_mapper.cpp`（`qwtLttbReduce`、`qwtMinMaxBucketReduce`、`qwtPixelColumnReduce`、`qwtFindVisibleRange`）、`src/core/qwt_simd_argminmax.cpp`。
 3. QWT7 基准示例：`examples/bench/renderbench`（五种降采样方法的实时耗时与批量对比）。
-4. QWT7 NaN 渲染示例：`examples/2D/nanperf`（NaN 比例可调，同样对五种 PointFilter 绘制属性做扫描对比）。
-5. CHANGES.md，v7.2.x："Added `FilterPointsPixel` and `FilterPointsLTTB` paint attributes…"
+4. QWT7 NaN 渲染示例：`examples/2D/nanperf`（NaN 比例可调，对五种绘制属性组合做扫描对比：`ClipPolygons` 基线、`FilterPoints`、`FilterPointsAggressive`、`FilterPointsPixel`、`FilterPointsLTTB`）。
+5. CHANGES.md，v7.3.0："Added `FilterPointsPixel` and `FilterPointsLTTB` paint attributes…"
 
 *配套阅读：* [曲线渲染平滑：高斯卷积、Savitzky-Golay 回归与特征保护](curve-smoothing.md) —— 降采样之后的像素噪声如何被移除。

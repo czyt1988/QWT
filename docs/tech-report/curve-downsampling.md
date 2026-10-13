@@ -4,7 +4,7 @@
 
 > **Abstract — Key results**
 >
-> - On a million-point curve, `FilterPointsMinMaxLTTB` (MinMax buckets, the `FilterPointsLTTB` default up to v7.4.2) cuts the replot time from 262 ms/frame (3.8 FPS) to 133 ms/frame (7.5 FPS), with the best fidelity of all strategies (61%–97% pixel-exact columns depending on the signal)
+> - On a million-point curve, `FilterPointsMinMaxLTTB` (MinMax buckets, the `FilterPointsLTTB` default up to v7.4.2) cuts the replot time from 262 ms/frame (3.8 FPS) to 133 ms/frame (7.5 FPS), with the best fidelity among the equal-budget strategies (29%–97% pixel-exact columns depending on the signal)
 > - The MinMax bucket keeps the "visual shape preservation" of classic LTTB, but adds a **deterministic extreme-preservation guarantee** that LTTB lacks, and reduces the core computation to a SIMD-friendly argmin/argmax
 > - The bucket budget $N_b = 2W$ (two buckets per pixel column, four output points per column) matches the display Nyquist limit: content below 0.5 cycles per column is reproduced without loss
 
@@ -63,7 +63,7 @@ Those numbers were measured with the benchmark example that ships in the reposit
 
 The interface consists of three parts:
 
-- **Control panel**: `Points` (1,000 – 10,000,000, default 1,000,000), `Frames` (10 – 1000, default 100), `Wave` (smooth wave / white noise), `Method` (`None` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB` / `FilterPointsMinMaxLTTB`), plus `Run` (single method) and `Run All (Compare)` (batch comparison of every method);
+- **Control panel**: `Points` (1,000 – 10,000,000, default 1,000,000), `Frames` (10 – 1000, default 100), `Wave` (smooth wave / white noise), `Method` (`None` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB` / `FilterPointsMinMaxLTTB`), plus `Run` (single method) and `Run All (Compare)` (batch comparison; the current implementation loops over the first 5 methods only, so `FilterPointsMinMaxLTTB` has to be run on its own);
 - **Plot area**: the data is generated on demand by `WindowedSeriesData` inside a sliding window that follows the X axis, so every replot does the work of a real scrolling view;
 - **Report dialog**: pops up after a run with a Markdown report (environment, QWT/Qt versions, canvas size, parameters) and per-method timing / FPS summary, copied to the clipboard with one click.
 
@@ -163,7 +163,7 @@ Output: index sequence of the kept points
 
 1. keep P[0];  every = (N-2) / (M-2)
 2. for i = 0 .. M-3:
-   a. next bucket range: [ floor((i+2)*every)+1, floor((i+3)*every)+1 )
+   a. next bucket range: [ floor((i+1)*every)+1, floor((i+2)*every)+1 )
       -> centroid c
    b. current bucket range: [ floor(i*every)+1, floor((i+1)*every)+1 )
    c. pick p* in B_i maximizing A(p), append it, let a = p*
@@ -184,7 +184,7 @@ Consider up/down spike pairs ($\pm 3.5$, 2 samples wide, spaced by 2 samples):
 
 ![Classic LTTB vs the MinMax bucket: spike pairs](../assets/algorithms/fig_lttb_spikes.png)
 
-When a pair falls into one bucket, the up spike and the down spike produce triangles of comparable area, but LTTB emits **only one point per bucket** — one of the two directions is inevitably dropped: the rendering shows either the up stroke or the down stroke, never both; the pair's envelope is cut in half. Measured in the Section 6 experiment (100,000 points, 25 spike pairs): the classic LTTB's p99 column-envelope error is 228 pixel rows (whole spikes vanish), and only 59% of the columns are clean.
+When a pair falls into one bucket, the up spike and the down spike produce triangles of comparable area, but LTTB emits **only one point per bucket** — one of the two directions is inevitably dropped: the rendering shows either the up stroke or the down stroke, never both; the pair's envelope is cut in half. Measured in the Section 6 experiment (100,000 points, 24 spike pairs): the classic LTTB's p99 column-envelope error is 228 pixel rows (whole spikes vanish), and only 59% of the columns are clean.
 
 > This is the direct motivation for the **MinMax bucket variant** in QWT7: replace "one maximum-area point per bucket" with "two extreme points per bucket", which eliminates this failure mode by construction.
 
@@ -228,7 +228,9 @@ If the two points coincide ($y_{\min} = y_{\max}$ and $x_{\min} = x_{\max}$, i.e
 Input:  visible range [visFrom..visTo], linear maps xMap/yMap, canvas width W
 Output: reduced polyline
 
-1. if n <= 2 * N_b: too few points, fall back to qwtMapPointsQuad (quad merge)
+1. if n <= 2 * N_b: too few points, fall back to plain mapping
+   ( qwtMapPointsQuad when rounded, qwtMapPointsNoRound keeping the
+   sub pixel precision otherwise )
 2. buckets N_b = max(2, 2W);  bucket size s = n / N_b
 3. for each bucket b = 0 .. N_b-1:
    a. index range [ floor(b*s), floor((b+1)*s) - 1 ]
@@ -322,7 +324,7 @@ flowchart LR
 | `FilterPointsLTTB` | `LTTBReduce` | always |
 | `FilterPointsMinMaxLTTB` | `MinMaxReduce` | always |
 
-The selection priority in `toPolygonF()` (`src/plot/qwt_point_mapper.cpp:1232`) is
+The selection priority in `toPolygonF()` (`src/plot/qwt_point_mapper.cpp:1502`) is
 
 > `PixelColumnReduce` > `LTTBReduce` > `MinMaxReduce` > `WeedOutIntermediatePoints` > `WeedOutPoints`
 
@@ -382,10 +384,10 @@ $$
 \mathbf{i}^{(k+1)}_j = \begin{cases} 4k + j & v_{4k+j} < \mathbf{m}^{(k)}_j \\ \mathbf{i}^{(k)}_j & \text{otherwise} \end{cases}
 $$
 
-Comparisons use the ordered predicate `_CMP_LT_OQ` (ordered, quiet): both $\mathrm{NaN} < x$ and $x < \mathrm{NaN}$ are false, so NaN can never win a comparison; the value vectors, however, run through the `minpd`/`maxpd` hardware instructions, which return the second operand whenever either operand is NaN, so a NaN can overwrite an accumulator and, once a later true value restores it, fall out of step with the index vectors — NaN therefore never pollutes the **value** results (the reported value is always a real element, although an extreme may be lost), while the **index** semantics are unreliable under multi-lane reduction, with combined outputs possible where the index points at a NaN element (quantitative matrix in Section 2.3 of the [SIMD benchmark report](simd-argminmax.md)). This is exactly why the render pipeline must pre-scan for NaN. After the vector loop, a horizontal reduction combines the lanes; a scalar tail loop handles the remaining elements; if min/max are still NaN (all-NaN input), the sentinel $\{0, 0, \text{DBL\_MAX}, -\text{DBL\_MAX}\}$ is returned.
+Comparisons use the ordered predicate `_CMP_LT_OQ` (ordered, quiet): both $\mathrm{NaN} < x$ and $x < \mathrm{NaN}$ are false, so NaN can never win a comparison; the value vectors, however, run through the `minpd`/`maxpd` hardware instructions, which return the second operand whenever either operand is NaN, so a NaN can overwrite an accumulator and, once a later true value restores it, fall out of step with the index vectors — NaN therefore never pollutes the **value** results (the reported value is always a real element, although an extreme may be lost), while the **index** semantics are unreliable under multi-lane reduction, with combined outputs possible where the index points at a NaN element (quantitative matrix in Section 2.3 of the [SIMD benchmark report](simd-argminmax.md)). This is exactly why the render pipeline must pre-scan for NaN. After the vector loop, a horizontal reduction combines the lanes; a scalar tail loop handles the remaining elements; if the result the public entry sees still contains a NaN (e.g. all-NaN input), the sentinel $\{0, 0, \text{DBL\_MAX}, -\text{DBL\_MAX}\}$ is returned.
 
 ```cpp
-// src/core/qwt_simd_argminmax.cpp — the AVX2 core loop
+// src/core/qwt_simd_argminmax_avx2.cpp — the AVX2 core loop
 __m256d minVec    = _mm256_set1_pd(DBL_MAX);
 __m256d maxVec    = _mm256_set1_pd(-DBL_MAX);
 __m256d minIdxVec = _mm256_set_pd(3.0, 2.0, 1.0, 0.0);
@@ -407,7 +409,7 @@ for (; i + 4 <= count; i += 4) {
 
 *Why the NaN pre-scan?* The SIMD and scalar paths have different output semantics under NaN: the scalar path can skip NaN entries and report the non-NaN extremes; the SSE/AVX min/max instructions return the other operand for NaN ( $\min(\mathrm{NaN}, x) = x$), but across lanes there is no way to guarantee the "first non-NaN index" semantics. A pre-scan ($O(n)$, same order as the bucket loop) buys consistent semantics and branch-free per-bucket code — a classic "one sequential pass instead of a branch per bucket" trade.
 
-**Speedup**: AVX2 argmin/argmax is theoretically 3–4× faster than scalar; for very small buckets (< 16 elements) the vector loads and the horizontal reduction can eat the parallelism gain — another reason for the quad-merge fallback when $n \le 2N_b$.
+**Speedup**: AVX2 argmin/argmax is theoretically 3–4× faster than scalar; for very small buckets (after the v7.5.1 separate AVX2 translation unit the measured criterion is < 8 elements per bucket, see Section 4.5b of the [SIMD benchmark](simd-argminmax.md)) the vector loads and the horizontal reduction can eat the parallelism gain — another reason for the plain-mapping fallback when $n \le 2N_b$.
 
 ## 6. Experiments: pixel-level fidelity
 
@@ -415,9 +417,9 @@ for (; i + 4 <= count; i += 4) {
 
 - **Metrics**: the column envelope, coverage and clean-column fraction of Section 2, computed by **8×8 supersampled rasterization** (the reference model of an antialiased line renderer).
 - **Signals** ($N = 100{,}000$, canvas 900×500 px, shaped like the QWT7 examples):
-  1. **band limited**: multi-sine, max 0.45 cycles/column (below Nyquist);
+  1. **band limited**: multi-sine (`sin(x/700)`, `sin(x/330)`, `sin(x/250)`, periods of about 39.6 / 18.7 / 14.1 columns), max ≈ 0.07 cycles/column (below Nyquist);
   2. **peaks + noise**: slow envelope, narrow peaks, white noise (spectrum-like);
-  3. **spike pairs**: 25 up/down pairs of $\pm 3.5$, 2 samples wide (the LTTB pathology);
+  3. **spike pairs**: 24 up/down pairs of $\pm 3.5$, 2 samples wide (the LTTB pathology);
   4. **uneven x**: narrow peaks on data whose spacing varies by ±40 %;
   5. **white noise**: pure noise (worst case).
 - **Output budget**: ≈ 3600 points (= 4W) for all strategies; pixel column emits ≤ 4W by definition.
@@ -455,7 +457,7 @@ for (; i + 4 <= count; i += 4) {
 #### Table 2: bucket budget vs fidelity (peaks + noise, MinMax buckets)
 
 | budget | buckets | output pts | coverage | clean | err mean(px) |
-|---|---|---:|---:|---:|---:|---:|
+|---|---|---:|---:|---:|---:|
 | 0.25 × 2W | 450 | 900 | 0.677 | 31.2% | 9.0 |
 | 0.5 × 2W | 900 | 1800 | 0.926 | 63.8% | 3.9 |
 | **1 × 2W (default)** | 1800 | 3600 | 0.989 | 79.9% | 1.3 |
@@ -467,26 +469,26 @@ for (; i + 4 <= count; i += 4) {
 
 ### 6.3 Discussion
 
-**1. Pixel fidelity ranking: pixel column > MinMax > LTTB classic > uniform.** The pixel column almost always wins the pixel-exactness contest — necessarily so, since it optimizes the vertical envelope directly in the pixel domain. The MinMax bucket achieves 75–97% clean columns with twice the output points (3600 vs 1800): that is the price of data-domain fidelity.
+**1. Pixel fidelity ranking: pixel column > MinMax > LTTB classic > uniform.** The pixel column almost always wins the pixel-exactness contest — necessarily so, since it optimizes the vertical envelope directly in the pixel domain. The MinMax bucket achieves 29%–97% clean columns (depending on the signal) with twice the output points (3600 vs 1800): that is the price of data-domain fidelity.
 
 **2. Pixel-exactness is not the same as visual fidelity — and the metric has artifacts.** The non-zero errors in Table 1 stem from three effects:
 
 - **Boundary attribution**: 8× supersampling counts pixels that merely kiss a sub-pixel grid corner as painted; the long slanted segments of a reduced polyline cross column borders near extremes. These correspond to < 2% coverage sub-pixel shading, invisible to the eye.
-- **Chord deviation**: within a bucket the two extremes are joined by a straight line; for highly curved near-Nyquist content (the 0.45 cycles/column component of the band-limited signal) the chord deviates from the true curve by roughly
+- **Chord deviation**: within a bucket the two extremes are joined by a straight line; for highly curved near-Nyquist content (periods of 1–2 columns) the chord deviates from the true curve by roughly
 
 $$
 \varepsilon_{\text{chord}} \approx \frac{A (\pi f \Delta x_b)^2}{8}
 $$
 
-with amplitude $A$, frequency $f$ (cycles/column) and $\Delta x_b \approx 0.5$ columns — about $0.06A$ at the default budget, visible only at pixel level.
+with amplitude $A$, frequency $f$ (cycles/column) and $\Delta x_b \approx 0.5$ columns — about $0.06A$ for $f \approx 0.45$ cycles/column, visible only at pixel level.
 
-- **Extreme column shift**: rounding moves an extreme's $x$ by at most half a column; when it sits near a column boundary, its vertical stroke lands in the neighboring column (the max errors of MinMax all concentrate in such columns).
+- **Extreme column shift**: rounding moves an extreme's $x$ by at most half a column; when it sits near a column boundary, its vertical stroke lands in the neighboring column (apart from the spike-pair signal, the max errors of MinMax mostly concentrate in such columns).
 
 **3. Why does QWT7 default to `FilterPointsLTTB` instead of the pixel column?** Since v7.5.0 the default is the **true LTTB**: selected on the mapped screen coordinates it preserves the shape of narrow peaks best of all strategies, always keeps the curve endpoints, and — like MinMax — outputs exact mapped coordinates on the **float path** (`QPolygonF`, PDF/SVG export, non-aligned painting), whereas the pixel column pins extremes to fixed +0.25/+0.75 sub-pixel offsets and thereby biases their positions. The MinMax bucket variant ( `FilterPointsMinMaxLTTB`, the default up to v7.4.2 ) remains attractive when the deterministic extreme-preservation guarantee or the SIMD argmin/argmax speed matters. And "LTTB" is a well-known name in the community, so `FilterPointsLTTB` gives users a mental model for free.
 
 **4. The 2W budget sits exactly on the quality/performance knee** (Table 2): halving the budget drops clean columns from 80% to 64%, while doubling it buys only 9 points of clean-columns at twice the draw cost. This matches the Nyquist argument — content below the display limit is already fully sampled; more buckets only buy sub-pixel detail.
 
-**5. Honest failure-mode list**: ① when a spike pair straddles two adjacent columns, the MinMax connecting lines can paint a one-column "diagonal smear" (all max-error columns are of this kind); ② on white noise, clean columns drop to 61% — the noise envelope is correctly kept (that is the point!), but the connecting chords add vertical strokes; ③ near-Nyquist content (0.45 cycles/column) shows measurable envelope softening.
+**5. Honest failure-mode list**: ① when a spike pair straddles two adjacent columns, the MinMax connecting lines can paint a one-column "diagonal smear" (all max-error columns of that signal are of this kind); ② on white noise, clean columns drop to 61% — the noise envelope is correctly kept (that is the point!), but the connecting chords add vertical strokes; ③ near-Nyquist content (peaks about one column wide) shows measurable envelope softening.
 
 ```mermaid
 flowchart LR
@@ -553,8 +555,8 @@ const std::vector<double> v = /* ... */;
 const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 
 // r.minIdx / r.maxIdx: indices of the minimum / maximum (offsets from the
-// pointer); r.minVal / r.maxVal: the values; all-NaN input returns the
-// sentinel {0, 0, DBL_MAX, -DBL_MAX}
+// pointer); r.minVal / r.maxVal: the values; when the result is still NaN
+// (e.g. all-NaN input) the sentinel {0, 0, DBL_MAX, -DBL_MAX} is returned
 ```
 
 ### 7.3 Recommendations
@@ -579,7 +581,7 @@ const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 1. Steinarsson, S. *Downsampling Time Series for Visual Representation.* MSc thesis, University of Iceland, 2013.
 2. QWT7 sources: `src/plot/qwt_point_mapper.cpp` (`qwtLttbReduce`, `qwtMinMaxBucketReduce`, `qwtPixelColumnReduce`, `qwtFindVisibleRange`), `src/core/qwt_simd_argminmax.cpp`.
 3. QWT7 benchmark example: `examples/bench/renderbench` (live timings and batch comparison of the five reduction methods).
-4. QWT7 NaN rendering example: `examples/2D/nanperf` (adjustable NaN ratio, sweeps the same five point-filter paint attributes).
-5. CHANGES.md, v7.2.x: "Added `FilterPointsPixel` and `FilterPointsLTTB` paint attributes …"
+4. QWT7 NaN rendering example: `examples/2D/nanperf` (adjustable NaN ratio, sweeps five paint attribute combinations: the `ClipPolygons` baseline, `FilterPoints`, `FilterPointsAggressive`, `FilterPointsPixel`, `FilterPointsLTTB`).
+5. CHANGES.md, v7.3.0: "Added `FilterPointsPixel` and `FilterPointsLTTB` paint attributes …"
 
 *Companion article:* [Curve Rendering: Gaussian, Savitzky-Golay and Feature Preservation](curve-smoothing.md) — how the pixel noise that survives downsampling is removed.
