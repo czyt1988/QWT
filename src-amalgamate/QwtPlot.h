@@ -26967,6 +26967,11 @@ struct QWT3D_EXPORT Qwt3DRenderContext
 	// Viewport in pixels (already resolved from widget size fallback)
 	QSize viewport;
 
+	// True while the scene is replayed for the gl2ps vector capture: line and
+	// polygon draws then use qwt3dEmitVerticesForVectorExport() instead of the
+	// shader paths (the feedback buffer needs explicit colors)
+	bool vectorExport = false;
+
 	// Shared shader programs (non-owning pointers, valid during paintGL)
 	QOpenGLShaderProgram* lineShader = nullptr;
 	QOpenGLShaderProgram* polygonShader = nullptr;
@@ -33414,6 +33419,17 @@ public:
 
 	// Returns true, if Lighting is enabled, false else
 	bool lightingEnabled() const;
+	// Returns true, if light idx is illuminated
+	bool isLightIlluminated(unsigned idx = 0) const;
+	// Returns a light component (GL_AMBIENT/GL_DIFFUSE/GL_SPECULAR)
+	RGBA lightComponent(unsigned int property, unsigned light = 0) const;
+	// Returns a material component (GL_AMBIENT/GL_DIFFUSE/GL_SPECULAR)
+	RGBA materialComponent(unsigned int property) const;
+	// Returns the shininess exponent
+	double shininess() const;
+
+	// Returns true while the scene is replayed for the gl2ps vector capture
+	bool isVectorExportActive() const;
 	// Turn light on
 	void illuminate(unsigned light = 0);
 	// Turn light off
@@ -34213,6 +34229,8 @@ enum Rtti3DValues
 
 #include <list>
 
+struct SurfaceVertex;
+
 class Qwt3DGridData;
 class Qwt3DCellData;
 
@@ -34363,6 +34381,14 @@ public:
 	void setResolution(int res);
 
 private:
+	/// Fills the CPU side geometry (positions, normals, colors, indices)
+	bool buildGeometry(QVector< SurfaceVertex >& vertices,
+					   QVector< unsigned int >& triIndices,
+					   QVector< unsigned int >& lineIndices);
+
+	/// Emits the surface geometry for the gl2ps vector capture
+	void drawForVectorExport();
+
 	void buildVBO();
 	/// Pushes the plot's union z-range into the color functor (silent data input, no rebuild trigger)
 	void pushColorRange() const;

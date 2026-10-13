@@ -88776,6 +88776,15 @@ void Qwt3DAxis::drawLines(const Qwt3DRenderContext& ctx, const QVector<float>& v
 	if (vertices.isEmpty())
 		return;
 
+	if (ctx.vectorExport) {
+		// gl2ps captures from the feedback buffer, where the shader colors are
+		// invisible: emit the lines with explicit per vertex colors instead
+		qwt3dEmitVerticesForVectorExport(GL_LINES, vertices.constData(), vertices.size() / 7,
+										 nullptr, 0, nullptr,
+										 ctx.modelView.constData(), ctx.projection.constData());
+		return;
+	}
+
 	auto* shader = ctx.lineShader;
 	if (!shader)
 		return;
@@ -89391,6 +89400,15 @@ void Qwt3DCoordinateSystem::drawGridLines(const Qwt3DRenderContext& ctx, const Q
 {
 	if (vertices.isEmpty())
 		return;
+
+	if (ctx.vectorExport) {
+		// gl2ps captures from the feedback buffer, where the shader colors are
+		// invisible: emit the lines with explicit per vertex colors instead
+		qwt3dEmitVerticesForVectorExport(GL_LINES, vertices.constData(), vertices.size() / 7,
+										 nullptr, 0, nullptr,
+										 ctx.modelView.constData(), ctx.projection.constData());
+		return;
+	}
 
 	auto* shader = ctx.lineShader;
 	if (!shader)
@@ -90343,17 +90361,46 @@ public:
 
 	struct Light
 	{
-		Light() : unlit(true)
+		Light()
+			: unlit(true)
+			, ambient(0.3, 0.3, 0.3, 1.0)
+			, diffuse(1.0, 1.0, 1.0, 1.0)
+			, specular(1.0, 1.0, 1.0, 1.0)
 		{
 		}
+
 		bool unlit;
 		Triple rot;
 		Triple shift;
+
+		// RGBA components (GL_AMBIENT / GL_DIFFUSE / GL_SPECULAR), uploaded to
+		// the surface shader uniforms
+		RGBA ambient;
+		RGBA diffuse;
+		RGBA specular;
+	};
+
+	struct Material
+	{
+		Material()
+			: ambient(1.0, 1.0, 1.0, 1.0)
+			, diffuse(1.0, 1.0, 1.0, 1.0)
+			, specular(0.5, 0.5, 0.5, 1.0)
+			, shininess(32.0)
+		{
+		}
+
+		// the defaults reproduce the hardcoded parameters of the shader
+		RGBA ambient;
+		RGBA diffuse;
+		RGBA specular;
+		double shininess;
 	};
 
 	Qwt3DCoordinateSystem m_coordinates;
 
 	std::vector< Light > m_lights;
+	Material m_material;
 
 	double m_xRot, m_yRot, m_zRot;
 	double m_xShift, m_yShift, m_zShift;
@@ -90400,6 +90447,10 @@ public:
 	double m_kbdRotSpeed, m_kbdScaleSpeed, m_kbdShiftSpeed;
 
 	bool m_lightingEnabled;
+
+	// set in paintGL(): true while the scene is replayed for the gl2ps
+	// vector capture (GL render mode GL_FEEDBACK)
+	bool m_vectorExport;
 	bool m_initializedGL;
 	bool m_renderPixmapRequest;
 
@@ -91094,6 +91145,7 @@ void Qwt3DPlot::illuminate(unsigned light)
 	if (light > 7)
 		return;
 	d->m_lights[ light ].unlit = false;
+	update();
 }
 
 /**
@@ -91106,6 +91158,7 @@ void Qwt3DPlot::blowout(unsigned light)
 	if (light > 7)
 		return;
 	d->m_lights[ light ].unlit = true;
+	update();
 }
 
 /**
@@ -91115,13 +91168,21 @@ void Qwt3DPlot::blowout(unsigned light)
 */
 void Qwt3DPlot::setMaterialComponent(unsigned int property, double r, double g, double b, double a)
 {
-	// Store on CPU — shader uniforms will use these values
-	// TODO: Store in a material parameter struct for shader uniform upload
-	(void)property;
-	(void)r;
-	(void)g;
-	(void)b;
-	(void)a;
+	QWT_D(d);
+
+	RGBA* component = nullptr;
+	if (property == GL_AMBIENT)
+		component = &d->m_material.ambient;
+	else if (property == GL_DIFFUSE)
+		component = &d->m_material.diffuse;
+	else if (property == GL_SPECULAR)
+		component = &d->m_material.specular;
+
+	if (!component)
+		return;
+
+	*component = RGBA(r, g, b, a);
+	update();
 }
 
 /**
@@ -91140,9 +91201,9 @@ void Qwt3DPlot::setMaterialComponent(unsigned int property, double intensity)
 */
 void Qwt3DPlot::setShininess(double exponent)
 {
-	// Store on CPU — shader uniform will use this value
-	// TODO: Store in material parameter struct
-	(void)exponent;
+	QWT_D(d);
+	d->m_material.shininess = exponent;
+	update();
 }
 
 /**
@@ -91152,14 +91213,23 @@ void Qwt3DPlot::setShininess(double exponent)
 */
 void Qwt3DPlot::setLightComponent(unsigned int property, double r, double g, double b, double a, unsigned light)
 {
-	// Store on CPU — shader uniforms will use these values
-	// TODO: Store in light parameter struct for shader uniform upload
-	(void)property;
-	(void)r;
-	(void)g;
-	(void)b;
-	(void)a;
-	(void)light;
+	QWT_D(d);
+	if (light > 7)
+		return;
+
+	RGBA* component = nullptr;
+	if (property == GL_AMBIENT)
+		component = &d->m_lights[ light ].ambient;
+	else if (property == GL_DIFFUSE)
+		component = &d->m_lights[ light ].diffuse;
+	else if (property == GL_SPECULAR)
+		component = &d->m_lights[ light ].specular;
+
+	if (!component)
+		return;
+
+	*component = RGBA(r, g, b, a);
+	update();
 }
 
 /**
@@ -91169,6 +91239,78 @@ void Qwt3DPlot::setLightComponent(unsigned int property, double r, double g, dou
 void Qwt3DPlot::setLightComponent(unsigned int property, double intensity, unsigned light)
 {
 	setLightComponent(property, intensity, intensity, intensity, 1.0, light);
+}
+
+/**
+  @brief Returns, whether light idx is switched on
+  @details The modernized renderer uses a single light; the per light flags of
+		   the classic API are still stored and illuminate()/blowout() switch
+		   light 0 on and off.
+  @param idx light number [0..7]
+  @return true, when light idx is switched on
+*/
+bool Qwt3DPlot::isLightIlluminated(unsigned idx) const
+{
+	QWT_DC(d);
+	return (idx < 8) ? !d->m_lights[ idx ].unlit : false;
+}
+
+/**
+  @brief Returns a stored light component (RGBA)
+  @param property GL_AMBIENT, GL_DIFFUSE or GL_SPECULAR
+  @param light light number [0..7]
+  @return the component; white when the property is unknown
+*/
+RGBA Qwt3DPlot::lightComponent(unsigned int property, unsigned light) const
+{
+	QWT_DC(d);
+	if (light > 7)
+		return RGBA(1.0, 1.0, 1.0, 1.0);
+
+	switch (property) {
+	case GL_AMBIENT:
+		return d->m_lights[ light ].ambient;
+	case GL_DIFFUSE:
+		return d->m_lights[ light ].diffuse;
+	case GL_SPECULAR:
+		return d->m_lights[ light ].specular;
+	default:
+		break;
+	}
+
+	return RGBA(1.0, 1.0, 1.0, 1.0);
+}
+
+/**
+  @brief Returns a stored material component (RGBA)
+  @param property GL_AMBIENT, GL_DIFFUSE or GL_SPECULAR
+  @return the component; white when the property is unknown
+*/
+RGBA Qwt3DPlot::materialComponent(unsigned int property) const
+{
+	QWT_DC(d);
+
+	switch (property) {
+	case GL_AMBIENT:
+		return d->m_material.ambient;
+	case GL_DIFFUSE:
+		return d->m_material.diffuse;
+	case GL_SPECULAR:
+		return d->m_material.specular;
+	default:
+		break;
+	}
+
+	return RGBA(1.0, 1.0, 1.0, 1.0);
+}
+
+/**
+  @brief Returns the shininess exponent of the material
+*/
+double Qwt3DPlot::shininess() const
+{
+	QWT_DC(d);
+	return d->m_material.shininess;
 }
 
 /**
@@ -91703,8 +91845,18 @@ void Qwt3DColorLegend::draw(const Qwt3DRenderContext& ctx)
 
 			// Draw each quad as a triangle strip
 			int vertsPerQuad = 4;
-			for (int i = 0; i < static_cast< int >(colors.size()); ++i) {
-				f->glDrawArrays(GL_TRIANGLE_STRIP, i * vertsPerQuad, vertsPerQuad);
+			if (ctx.vectorExport) {
+				// gl2ps cannot see the shader colors: feed the quads directly
+				for (int i = 0; i < static_cast< int >(colors.size()); ++i) {
+					qwt3dEmitVerticesForVectorExport(GL_TRIANGLE_STRIP,
+													 verts.constData() + static_cast< qsizetype >(i) * vertsPerQuad * 7,
+													 vertsPerQuad, nullptr, 0, nullptr,
+													 ctx.modelView.constData(), ctx.projection.constData());
+				}
+			} else {
+				for (int i = 0; i < static_cast< int >(colors.size()); ++i) {
+					f->glDrawArrays(GL_TRIANGLE_STRIP, i * vertsPerQuad, vertsPerQuad);
+				}
 			}
 
 			polyShader->disableAttributeArray(0);
@@ -91746,8 +91898,14 @@ void Qwt3DColorLegend::draw(const Qwt3DRenderContext& ctx)
 			lineShader->enableAttributeArray(1);
 			lineShader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 4, stride);
 
-			f->glLineWidth(1.0f);
-			f->glDrawArrays(GL_LINES, 0, lineVerts.size() / 7);
+			if (ctx.vectorExport) {
+				qwt3dEmitVerticesForVectorExport(GL_LINES, lineVerts.constData(), lineVerts.size() / 7,
+												 nullptr, 0, nullptr,
+												 ctx.modelView.constData(), ctx.projection.constData());
+			} else {
+				f->glLineWidth(1.0f);
+				f->glDrawArrays(GL_LINES, 0, lineVerts.size() / 7);
+			}
 
 			lineShader->disableAttributeArray(0);
 			lineShader->disableAttributeArray(1);
@@ -91808,6 +91966,7 @@ Qwt3DPlot::PrivateData::PrivateData(Qwt3DPlot* q)
 	, m_kbdScaleSpeed(5.0)
 	, m_kbdShiftSpeed(5.0)
 	, m_lightingEnabled(false)
+	, m_vectorExport(false)
 	, m_initializedGL(false)
 	, m_renderPixmapRequest(false)
 {
@@ -92158,9 +92317,31 @@ void Qwt3DPlot::initializeGL()
  * @details Uses CPU-side QMatrix4x4 for view/projection calculation.
  *          All rendering uses VBO/VAO + GLSL shaders.
  */
+/**
+ * @brief Tells, whether the scene is being replayed for the vector export
+ * @return true while the GL render mode is GL_FEEDBACK
+ * @details The gl2ps vector writer captures the scene from the GL feedback
+ *          buffer, where the per vertex color is the fixed-function current
+ *          color - which the shader based render path never writes. Items
+ *          query this flag and switch to the immediate mode export path
+ *          (qwt3dEmitVerticesForVectorExport()) then.
+ */
+bool Qwt3DPlot::isVectorExportActive() const
+{
+	QWT_DC(d);
+	return d->m_vectorExport;
+}
+
 void Qwt3DPlot::paintGL()
 {
 	QWT_D(d);
+
+	// While gl2ps replays the scene (GL_FEEDBACK) the feedback buffer records
+	// the fixed-function current color per vertex; the shader paths never
+	// publish their colors there, so the items take their export path.
+	GLint renderMode = GL_RENDER;
+	glGetIntegerv(GL_RENDER_MODE, &renderMode);
+	d->m_vectorExport = (renderMode == GL_FEEDBACK);
 
 	glClearColor(d->m_bgColor.r, d->m_bgColor.g, d->m_bgColor.b, d->m_bgColor.a);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -92226,6 +92407,7 @@ void Qwt3DPlot::paintGL()
 	ctx.lineShader = d->m_lineShader.get();
 	ctx.polygonShader = d->m_polygonShader.get();
 	ctx.textShader = d->m_textShader.get();
+	ctx.vectorExport = d->m_vectorExport;
 
 	// Render all attached items (sorted by z-order)
 	for (Qwt3DPlotItem* item : d->m_items) {
@@ -96774,13 +96956,11 @@ ParallelEpiped Qwt3DSurface::hull() const
  *
  * Resolution > 1 skips vertices in index generation (VBO stays full).
  */
-void Qwt3DSurface::buildVBO()
+bool Qwt3DSurface::buildGeometry(QVector< SurfaceVertex >& vertices,
+								QVector< unsigned int >& triIndices,
+								QVector< unsigned int >& lineIndices)
 {
 	QWT_D(d);
-
-	QVector<SurfaceVertex> vertices;
-	QVector<unsigned int> triIndices;
-	QVector<unsigned int> lineIndices;
 
 	// Ensure we have a data color functor
 	if (!d->m_dataColor) {
@@ -96788,7 +96968,7 @@ void Qwt3DSurface::buildVBO()
 			d->m_dataColor = new Qwt3DStandardColor();
 		} else {
 			// No plot attached yet — cannot create default color
-			return;
+			return false;
 		}
 	}
 
@@ -96922,12 +97102,28 @@ void Qwt3DSurface::buildVBO()
 		}
 	}
 
+	return !vertices.isEmpty();
+}
+
+/**
+ * @brief Uploads the CPU side geometry into the VBO/EBO and configures the VAO
+ * @details See buildGeometry() for the arrays; this is the GL part of the
+ *          former buildVBO().
+ */
+void Qwt3DSurface::buildVBO()
+{
+	QWT_D(d);
+
+	QVector<SurfaceVertex> vertices;
+	QVector<unsigned int> triIndices;
+	QVector<unsigned int> lineIndices;
+
+	if (!buildGeometry(vertices, triIndices, lineIndices))
+		return;
+
 	d->m_vertexCount = vertices.size();
 	d->m_triIndexCount = triIndices.size();
 	d->m_lineIndexCount = lineIndices.size();
-
-	if (vertices.isEmpty())
-		return;
 
 	// Get OpenGL functions
 	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
@@ -96978,6 +97174,87 @@ void Qwt3DSurface::buildVBO()
 }
 
 /**
+ * @brief Emits the surface geometry for the gl2ps vector capture
+ * @details Called from draw() while the GL render mode is GL_FEEDBACK.
+ *          The shader based path is not usable there: the feedback buffer
+ *          records the fixed-function current color, which no shader of this
+ *          module writes, so a replayed surface ended up with alpha 0 and was
+ *          invisible in every vector export. This function feeds the same
+ *          geometry (positions from the grid/cell data, colors from
+ *          buildGeometry()) explicitly through the fixed-function pipeline.
+ *
+ *          The plot style handling mirrors draw(): triangles with the baked
+ *          per vertex colors, mesh lines / wireframes with the mesh color,
+ *          HIDDENLINE with the background colored fill and POINTS without
+ *          indices.
+ */
+void Qwt3DSurface::drawForVectorExport()
+{
+	QWT_D(d);
+
+	QVector< SurfaceVertex > vertices;
+	QVector< unsigned int > triIndices;
+	QVector< unsigned int > lineIndices;
+	if (!buildGeometry(vertices, triIndices, lineIndices))
+		return;
+
+	// interleaved layout of the export helper: x y z r g b a
+	QVector< float > buffer;
+	buffer.reserve(7 * vertices.size());
+	for (const SurfaceVertex& v : vertices) {
+		buffer << v.position.x() << v.position.y() << v.position.z()
+			   << v.color.x() << v.color.y() << v.color.z() << v.color.w();
+	}
+
+	const int vertexCount = vertices.size();
+	const QMatrix4x4 mv = plot()->modelViewMatrix();
+	const QMatrix4x4 proj = plot()->projectionMatrix();
+
+	const float meshColor[ 4 ] = { static_cast< float >(d->m_meshColor.r),
+								   static_cast< float >(d->m_meshColor.g),
+								   static_cast< float >(d->m_meshColor.b),
+								   static_cast< float >(d->m_meshColor.a) };
+
+	const RGBA background = plot()->backgroundRGBAColor();
+	const float backgroundColor[ 4 ] = { static_cast< float >(background.r),
+										 static_cast< float >(background.g),
+										 static_cast< float >(background.b),
+										 static_cast< float >(background.a) };
+
+	// ("emit" is a Qt keyword macro, hence the name)
+	auto emitPrimitive = [ & ](unsigned int mode, const QVector< unsigned int >& indices, const float* overrideColor)
+	{
+		qwt3dEmitVerticesForVectorExport(mode,
+										 buffer.constData(), vertexCount,
+										 indices.isEmpty() ? nullptr : indices.constData(), indices.size(),
+										 overrideColor,
+										 mv.constData(), proj.constData());
+	};
+
+	switch (d->m_plotStyle) {
+	case FILLED:
+		emitPrimitive(GL_TRIANGLES, triIndices, nullptr);
+		break;
+	case FILLEDMESH:
+		emitPrimitive(GL_TRIANGLES, triIndices, nullptr);
+		emitPrimitive(GL_LINES, lineIndices, meshColor);
+		break;
+	case WIREFRAME:
+		emitPrimitive(GL_LINES, lineIndices, meshColor);
+		break;
+	case HIDDENLINE:
+		emitPrimitive(GL_TRIANGLES, triIndices, backgroundColor);
+		emitPrimitive(GL_LINES, lineIndices, meshColor);
+		break;
+	case QWT3D_POINTS:
+		emitPrimitive(GL_POINTS, QVector< unsigned int >(), nullptr);
+		break;
+	default:
+		break;
+	}
+}
+
+/**
  * @brief Draws the surface using VBO/VAO and GLSL shaders
  * @details Called by Qwt3DPlot::paintGL() for each visible item.
  *          The GL context is guaranteed to be current.
@@ -96988,6 +97265,9 @@ void Qwt3DSurface::buildVBO()
  * - WIREFRAME: glDrawElements(GL_LINES) with mesh color
  * - HIDDENLINE: triangles with background color + lines
  * - QWT3D_POINTS: glDrawArrays(GL_POINTS)
+ *
+ * While gl2ps captures the scene (GL_FEEDBACK) drawForVectorExport()
+ * replaces the shader paths - the feedback buffer cannot see their colors.
  */
 void Qwt3DSurface::draw()
 {
@@ -96998,6 +97278,11 @@ void Qwt3DSurface::draw()
 
 	if (d->m_plotStyle == NOPLOT)
 		return;
+
+	if (plot()->isVectorExportActive()) {
+		drawForVectorExport();
+		return;
+	}
 
 	// Build VBO if dirty
 	if (d->m_vboDirty) {
@@ -97035,15 +97320,48 @@ void Qwt3DSurface::draw()
 	d->m_shader.setUniformValue("uProjection", proj);
 	d->m_shader.setUniformValue("uNormalMatrix", normalMatrix);
 
-	// Lighting uniforms
-	bool useLighting = plot()->lightingEnabled();
+	// Lighting uniforms: the light/material parameters are the ones stored in
+	// the plot (setLightComponent()/setMaterialComponent()/setShininess(),
+	// applied by the theme presets); their defaults reproduce the values that
+	// used to be hardcoded here.
+	const bool useLighting = plot()->lightingEnabled() && plot()->isLightIlluminated(0);
 	d->m_shader.setUniformValue("uUseLighting", useLighting);
 	if (useLighting) {
-		d->m_shader.setUniformValue("uLightPos",
-									QVector3D(0.0f, 0.0f, 10.0f));
-		d->m_shader.setUniformValue("uLightColor",
-									QVector3D(1.0f, 1.0f, 1.0f));
-		d->m_shader.setUniformValue("uShininess", 32.0f);
+		// the light position follows the stored rotation of light 0, applied
+		// in view space (the default rotation leaves it at (0, 0, 10))
+		QMatrix4x4 lightTransform;
+		lightTransform.rotate(static_cast< float >(plot()->xLightRotation()), 1.0f, 0.0f, 0.0f);
+		lightTransform.rotate(static_cast< float >(plot()->yLightRotation()), 0.0f, 1.0f, 0.0f);
+		lightTransform.rotate(static_cast< float >(plot()->zLightRotation()), 0.0f, 0.0f, 1.0f);
+		const QVector3D lightPos = lightTransform * QVector3D(0.0f, 0.0f, 10.0f);
+		d->m_shader.setUniformValue("uLightPos", lightPos);
+
+		const RGBA lightAmbient = plot()->lightComponent(GL_AMBIENT);
+		const RGBA lightDiffuse = plot()->lightComponent(GL_DIFFUSE);
+		const RGBA lightSpecular = plot()->lightComponent(GL_SPECULAR);
+		const RGBA materialAmbient = plot()->materialComponent(GL_AMBIENT);
+		const RGBA materialDiffuse = plot()->materialComponent(GL_DIFFUSE);
+		const RGBA materialSpecular = plot()->materialComponent(GL_SPECULAR);
+
+		d->m_shader.setUniformValue("uLightAmbient", QVector3D(static_cast< float >(lightAmbient.r),
+															   static_cast< float >(lightAmbient.g),
+															   static_cast< float >(lightAmbient.b)));
+		d->m_shader.setUniformValue("uLightDiffuse", QVector3D(static_cast< float >(lightDiffuse.r),
+															   static_cast< float >(lightDiffuse.g),
+															   static_cast< float >(lightDiffuse.b)));
+		d->m_shader.setUniformValue("uLightSpecular", QVector3D(static_cast< float >(lightSpecular.r),
+																static_cast< float >(lightSpecular.g),
+																static_cast< float >(lightSpecular.b)));
+		d->m_shader.setUniformValue("uMaterialAmbient", QVector3D(static_cast< float >(materialAmbient.r),
+																  static_cast< float >(materialAmbient.g),
+																  static_cast< float >(materialAmbient.b)));
+		d->m_shader.setUniformValue("uMaterialDiffuse", QVector3D(static_cast< float >(materialDiffuse.r),
+																  static_cast< float >(materialDiffuse.g),
+																  static_cast< float >(materialDiffuse.b)));
+		d->m_shader.setUniformValue("uMaterialSpecular", QVector3D(static_cast< float >(materialSpecular.r),
+																   static_cast< float >(materialSpecular.g),
+																   static_cast< float >(materialSpecular.b)));
+		d->m_shader.setUniformValue("uShininess", static_cast< float >(plot()->shininess()));
 	}
 
 	// Bind VAO (binds VBO + EBO + vertex attribute config)
@@ -100855,6 +101173,9 @@ QDataStream& operator>>(QDataStream& in, Qwt3DTheme& theme)
 
 #include <ctime>
 
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
+
 // GL types are provided by gl2ps.h which includes <GL/gl.h>
 
 class Qwt3DVectorWriter::PrivateData
@@ -101131,6 +101452,91 @@ bool Qwt3DVectorWriter::operator()(Qwt3DPlot* plot, QString const& fname)
 	Qwt3DLabel::useDeviceFonts(false);
 
 	return true;
+}
+
+/**
+ * @brief Emits interleaved vertices as an immediate mode primitive for the vector export
+ * @details See the declaration in the header for the motivation. The vertices
+ *          are transformed by the same matrices the shaders use, but on the
+ *          CPU, and submitted through the fixed-function pipeline - whose
+ *          matrices stay at their defaults, so glVertex4f() receives clip
+ *          coordinates and the feedback buffer records exactly the window
+ *          coordinates the shader based pass would have produced.
+ *
+ *          GL_CULL_FACE and GL_LIGHTING are disabled for the capture (the
+ *          feedback replay must see every triangle, and the per vertex color
+ *          is the final one) and restored afterwards.
+ */
+void qwt3dEmitVerticesForVectorExport(unsigned int mode,
+									  const float* vertices,
+									  int vertexCount,
+									  const unsigned int* indices,
+									  int indexCount,
+									  const float* overrideColor,
+									  const float* modelView,
+									  const float* projection)
+{
+	if (!vertices || vertexCount <= 0)
+		return;
+
+	// projection * modelView in column major layout
+	float mvp[ 16 ];
+	for (int col = 0; col < 4; ++col) {
+		for (int row = 0; row < 4; ++row) {
+			float sum = 0.0f;
+			for (int k = 0; k < 4; ++k)
+				sum += projection[ k * 4 + row ] * modelView[ col * 4 + k ];
+			mvp[ col * 4 + row ] = sum;
+		}
+	}
+
+	// the fixed-function pipeline must be active (the shader path never
+	// publishes its colors to the feedback buffer). <GL/gl.h> as pulled in by
+	// gl2ps.h only declares GL 1.1, so the wrapper is used for the two
+	// non-1.1 entry points.
+	if (QOpenGLContext* context = QOpenGLContext::currentContext()) {
+		QOpenGLFunctions* f = context->functions();
+		f->glUseProgram(0);
+		for (unsigned int i = 0; i < 3; ++i)
+			f->glDisableVertexAttribArray(i);
+	}
+
+	const GLboolean cullFace = glIsEnabled(GL_CULL_FACE);
+	const GLboolean lighting = glIsEnabled(GL_LIGHTING);
+	if (cullFace)
+		glDisable(GL_CULL_FACE);
+	if (lighting)
+		glDisable(GL_LIGHTING);
+
+	const int count = (indices && indexCount > 0) ? indexCount : vertexCount;
+
+	glBegin(mode);
+	for (int i = 0; i < count; ++i) {
+		int vi = indices ? static_cast< int >(indices[ i ]) : i;
+		if (vi < 0 || vi >= vertexCount)
+			continue;
+
+		const float* v = vertices + 7 * vi;
+		const float x = v[ 0 ], y = v[ 1 ], z = v[ 2 ];
+
+		const float cx = mvp[ 0 ] * x + mvp[ 4 ] * y + mvp[ 8 ] * z + mvp[ 12 ];
+		const float cy = mvp[ 1 ] * x + mvp[ 5 ] * y + mvp[ 9 ] * z + mvp[ 13 ];
+		const float cz = mvp[ 2 ] * x + mvp[ 6 ] * y + mvp[ 10 ] * z + mvp[ 14 ];
+		const float cw = mvp[ 3 ] * x + mvp[ 7 ] * y + mvp[ 11 ] * z + mvp[ 15 ];
+
+		if (overrideColor)
+			glColor4f(overrideColor[ 0 ], overrideColor[ 1 ], overrideColor[ 2 ], overrideColor[ 3 ]);
+		else
+			glColor4f(v[ 3 ], v[ 4 ], v[ 5 ], v[ 6 ]);
+
+		glVertex4f(cx, cy, cz, cw);
+	}
+	glEnd();
+
+	if (cullFace)
+		glEnable(GL_CULL_FACE);
+	if (lighting)
+		glEnable(GL_LIGHTING);
 }
 
 // Device helper functions for gl2ps vector export.
