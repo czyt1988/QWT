@@ -42,7 +42,8 @@ QwtBoxStatisticsCalculator::WhiskerMethod QwtBoxStatisticsCalculator::whiskerMet
 
 /**
  * @brief Set the whisker coefficient
- * @param[in] coeff Coefficient value (1.5 for Tukey method, percentile value for Percentile method)
+ * @param[in] coeff Coefficient value (1.5 for Tukey method, tail percentage in (0, 50)
+ *                  for the Percentile method, e.g. 5 for the 5th/95th percentiles)
  */
 void QwtBoxStatisticsCalculator::setWhiskerCoefficient(double coeff)
 {
@@ -173,8 +174,8 @@ QwtBoxSample QwtBoxStatisticsCalculator::calculate(double position,
         break;
     }
     case Percentile: {
-        whiskerLower = quantile(sortedData, 1.0 - coefficient / 100.0);
-        whiskerUpper = quantile(sortedData, coefficient / 100.0);
+        whiskerLower = quantile(sortedData, coefficient / 100.0);
+        whiskerUpper = quantile(sortedData, 1.0 - coefficient / 100.0);
         break;
     }
     case MinMax: {

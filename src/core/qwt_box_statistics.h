@@ -34,7 +34,7 @@ public:
         //! Tukey's method: whiskers extend to 1.5×IQR from Q1/Q3 (default)
         Tukey,
 
-        //! Percentile method: whiskers at specified percentile range
+        //! Percentile method: whiskers at the c-th / (100-c)-th percentile (c = tail percentage)
         Percentile,
 
         //! Min/Max method: whiskers at actual data min/max
@@ -56,7 +56,7 @@ public:
     //! Get whisker calculation method
     WhiskerMethod whiskerMethod() const;
 
-    //! Set whisker coefficient (1.5 for Tukey, percentile for Percentile method)
+    //! Set whisker coefficient (1.5 for Tukey, tail percentage in (0, 50) for Percentile)
     void setWhiskerCoefficient(double coeff);
 
     //! Get whisker coefficient
