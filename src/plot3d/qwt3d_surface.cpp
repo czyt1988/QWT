@@ -385,9 +385,14 @@ int Qwt3DSurface::resolution() const
 /**
  * @brief Sets the data resolution
  * @param res Resolution value (1 = full data, higher = coarser)
- * @details Resolution controls index buffer stepping: higher values skip
- *          vertices in the index buffer, reducing rendered detail without
- *          rebuilding the VBO. A value of 1 renders all data.
+ * @details Resolution controls the index buffer stepping: higher values skip
+ *          vertices, reducing the rendered detail. Note that the decimation is
+ *          applied while rebuilding the geometry: the vertex array does not
+ *          depend on the resolution, but the VBO/EBO are re-uploaded on the
+ *          next draw (40-80 ms for a 1024x1024 grid, see
+ *          docs/zh/tech-report/3d-surface-pipeline.md) - it is a setting for
+ *          static views, not a per-frame LOD switch. A value of 1 renders all
+ *          data.
  */
 void Qwt3DSurface::setResolution(int res)
 {

@@ -128,7 +128,7 @@ public:
     /// Convert a preset enum to its string name
     static QString presetName(Preset preset);
 
-    /// Convert a string name to a preset enum (returns -1 if not found)
+    /// Convert a string name to a preset enum (unknown names fall back to Viridis)
     static Preset presetFromName(const QString& name);
 };
 
