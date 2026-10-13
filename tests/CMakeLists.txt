@@ -17,5 +17,11 @@ add_subdirectory(picker_group_click_test)
 add_subdirectory(color_cycle_test)
 add_subdirectory(flat_style_test)
 add_subdirectory(wheel_scrollarea_test)
-add_subdirectory(waterfall_test)
-add_subdirectory(plot3d_rotation_test)
+add_subdirectory(nan_curve_test)
+
+# The 3D tests require the OpenGLWidgets CMake component, that
+# exists as a separate package since Qt 6 only
+if(QT_VERSION_MAJOR EQUAL 6)
+    add_subdirectory(waterfall_test)
+    add_subdirectory(plot3d_rotation_test)
+endif()
