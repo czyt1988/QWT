@@ -79,7 +79,7 @@
 
 ### 8. MinMax 桶 NaN 预扫描只查 y：x-NaN 伪顶点与 Inf 穿透
 
-- [ ] 已修复
+- [x] 已修复（v7.5.0：预扫描与标量桶循环改为对 x、y 双坐标 `!isfinite` 检查，与通用路径语义对齐）
 - **位置**：`src/plot/qwt_point_mapper.cpp`（`qwtMinMaxBucketReduce` 的 NaN 预扫描，约 :597-604，只扫 y 数组）
 - **现象**：x 含 NaN 而 y 正常时走 SIMD 快速路径，NaN 的 x 经 `qRound(NaN)=0` 变成屏幕坐标 0——输出多边形含伪顶点（实测 (0,21)）；±Inf 同样穿透（`qRound(+Inf)=INT_MIN`）。
 - **影响**：x 脏数据（少见但存在：传感器时间戳坏值）时曲线画到画布左缘/溢出坐标。y-only 预扫描是性能与正确性的折中，但未在文档注明。

@@ -594,16 +594,21 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
         // Try raw-pointer fast path for SIMD-accelerated argmin/argmax
         const QwtRawPointData raw = qwtTryGetRawPointData(series);
         if (raw.y != nullptr) {
-            // NaN pre-scan: check if any NaN exists in the visible Y range
-            bool hasNaN = false;
+            // Non-finite pre-scan: samples with NaN/Inf x or y must not enter
+            // the SIMD path, where an x-NaN bucket winner would emit a phantom
+            // vertex at column qRound(NaN) == 0 and Inf extrema would map to
+            // INT_MIN pixels. Index-based series ( raw.x == nullptr ) always
+            // have finite x coordinates, so only y needs to be checked there.
+            const bool hasRawX  = raw.x != nullptr;
+            bool hasNonFinite = false;
             for (int i = visFrom; i <= visTo; ++i) {
-                if (std::isnan(raw.y[ i ])) {
-                    hasNaN = true;
+                if (!std::isfinite(raw.y[ i ]) || (hasRawX && !std::isfinite(raw.x[ i ]))) {
+                    hasNonFinite = true;
                     break;
                 }
             }
 
-            if (!hasNaN) {
+            if (!hasNonFinite) {
                 // ===== SIMD fast path: no NaN, raw pointer access =====
                 for (int b = 0; b < numBuckets; b++) {
                     const int start = visFrom + static_cast< int >(b * bucketSize);
@@ -639,7 +644,7 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
                     }
                 }
             } else {
-                // ===== Scalar path with raw pointers (has NaN) =====
+                // ===== Scalar path with raw pointers (has non-finite samples) =====
                 for (int b = 0; b < numBuckets; b++) {
                     const int start = visFrom + static_cast< int >(b * bucketSize);
                     const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
@@ -651,7 +656,9 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
 
                     for (int i = start; i <= qMin(end, visTo); i++) {
                         const double y = raw.y[ i ];
-                        if (std::isnan(y))
+                        // skip non-finite samples like the generic path does,
+                        // so an x-NaN winner can't produce a phantom vertex
+                        if (!std::isfinite(y) || (hasRawX && !std::isfinite(raw.x[ i ])))
                             continue;
 
                         if (first) {
