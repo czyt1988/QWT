@@ -280,6 +280,25 @@ public:
          * @note Overrides FilterPointsAggressive when both are set
          */
         FilterPointsLTTB = 0x40,
+
+        /**
+         * MinMax bucket downsampling.
+         *
+         * Divides the visible data range into N equal-count buckets
+         * and keeps the min-Y and max-Y point from each bucket.
+         * N is auto-calculated as 2 * canvasWidth.
+         *
+         * Output size: ~2 * N points. O(n) time complexity.
+         * Preserves the extremes of each bucket, but may collapse
+         * narrow peaks into vertical strokes.
+         *
+         * This is the algorithm that was behind FilterPointsLTTB
+         * up to v7.4.2.
+         *
+         * @note Implemented for QwtPlotCurve::Lines only
+         * @note Overrides FilterPointsAggressive when both are set
+         */
+        FilterPointsMinMaxLTTB = 0x80,
     };
 
     Q_DECLARE_FLAGS(PaintAttributes, PaintAttribute)
