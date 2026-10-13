@@ -27,7 +27,7 @@ endif()
 
 ## QwtPlotOpenGLCanvas
 
-`QwtPlotOpenGLCanvas` is a canvas widget derived from `QOpenGLWidget`. It renders plot content directly on the GPU, providing significantly better performance than the default `QwtPlotCanvas` for large datasets and real-time updates.
+`QwtPlotOpenGLCanvas` is a canvas widget derived from `QOpenGLWidget`. It does not build a native shader/VBO pipeline for curves — all plot items are still painted by `QPainter` (Qt's OpenGL2 paint engine) into an offscreen FBO, then reach the screen through MSAA resolve, blit and texture compositing; polyline tessellation happens on the CPU while the GPU only does the filling. Its gains are concentrated in the item-painting segment of heavy multi-curve, large-canvas scenes, at the cost of a fixed per-frame compositing overhead; for single-curve small datasets or incremental-repaint scenarios the default `QwtPlotCanvas` is actually the steadier choice. For quantitative evidence see the technical report [Raster vs. OpenGL Rendering Pipelines](../../tech-report/raster-vs-opengl.md).
 
 ### Basic Usage
 
@@ -77,28 +77,32 @@ plot->setCanvas(canvas);
 | `midLineWidth` | `int` | Width of the middle line for `Panel` shape |
 | `borderRadius` | `double` | Border corner radius for rounded borders |
 
-### Alternative: QwtPlotCanvas with OpenGL Buffer
+### QwtPlotCanvas Has No OpenGL Buffer Attribute
 
-If you prefer the standard `QwtPlotCanvas` but still want hardware acceleration, use the `OpenGLBuffer` paint mode:
+`QwtPlotCanvas` itself offers no OpenGL paint mode — its `PaintAttribute` enum only contains `BackingStore`, `Opaque`, `HackStyledBackground` and `ImmediatePaint` — so the only entry point to hardware acceleration is switching to `QwtPlotOpenGLCanvas` wholesale. What you can tune on the raster canvas are the caching and refresh attributes:
 
 ```cpp
 auto* canvas = new QwtPlotCanvas(plot);
-canvas->setPaintAttribute(QwtPlotCanvas::OpenGLBuffer, true);
+canvas->setPaintAttribute(QwtPlotCanvas::BackingStore, false);   // disable the pixmap cache — actually faster for full-frame replots
+canvas->setPaintAttribute(QwtPlotCanvas::ImmediatePaint, true);  // replot() goes through the synchronous repaint()
 plot->setCanvas(canvas);
 ```
 
-> **Info**
+> **Note**
 >
-> `QwtPlotOpenGLCanvas` renders directly to a `QOpenGLWidget` and generally offers better performance than the `OpenGLBuffer` approach. However, `OpenGLBuffer` integrates more seamlessly into desktop applications with mixed widget layouts.
+> `BackingStore` serves overlays and `QwtPlotDirectPainter` incremental repaints; in full-frame replot benchmarks, disabling it actually saves one pixmap allocation and blit. Also note that `QOpenGLWidget` switches its entire top-level window onto the OpenGL compositing path, so watch the compositing cost when many regular widgets are mixed in. For quantitative evidence see the [technical report](../../tech-report/raster-vs-opengl.md).
 
 ### When to Use OpenGL Canvas
 
 | Scenario | Recommendation |
 |----------|---------------|
 | Static or small datasets (<10k points) | Default `QwtPlotCanvas` is sufficient |
-| Large datasets (>100k points) | `QwtPlotOpenGLCanvas` for smooth interaction |
-| Real-time streaming data | `QwtPlotOpenGLCanvas` for consistent frame rates |
-| Mixed widget UI with complex layouts | `QwtPlotCanvas` with `OpenGLBuffer` for better integration |
+| Single-curve large datasets (e.g. 100k–5M points) | Default `QwtPlotCanvas` is steadier — on integrated GPUs measurements show GL is actually ~1.1–1.7x slower |
+| Heavy multi-curve scenes (≥10 curves and ≥1M total samples) or when antialiasing is needed | `QwtPlotOpenGLCanvas` — wins in the item-painting segment, and AA is nearly free |
+| Real-time streaming data (incremental repaints) | Default `QwtPlotCanvas` + `QwtPlotDirectPainter` — the DirectPainter path on the GL canvas shows bimodal, unstable frame times and cannot be relied on |
+| Mixed widget UI with complex layouts | Default `QwtPlotCanvas`, avoiding the whole top-level window switching to the OpenGL compositing path |
+
+For selection criteria and measured data see the technical report [Raster vs. OpenGL Rendering Pipelines: End-to-End Frame-Time Breakdown and Selection Criteria](../../tech-report/raster-vs-opengl.md).
 
 > **Example — Related examples**
 >

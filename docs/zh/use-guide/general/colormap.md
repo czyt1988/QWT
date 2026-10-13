@@ -263,7 +263,7 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 | `copper` | 顺序·单色相 | 黑-铜褐 | 地质、金属质感 |
 | `rainbow` | 循环·彩虹 | 全色相环 | 周期性物理量（相位、角度） |
 | `hsv` | 循环·HSV | 全 HSV 色相环 | 周期数据的最大值等于最小值 |
-| `turbo` | 顺序·彩虹改进 | Google turbo，比 jet 均匀 | 需要彩虹观感又要可读性 |
+| `turbo` | 顺序·彩虹改进 | Google turbo，与 jet 均匀性相当 | 需要彩虹观感又要可读性 |
 | `coolwarm` | 发散 | 蓝-白-红 | 含正负号的差值场（距平、误差） |
 | `rdylbu` | 发散 | 红-黄-蓝（ColorBrewer） | 距平、海拔填色 |
 | `rdylgn` | 发散 | 红-黄-绿（ColorBrewer） | 增减方向明确的比率场 |
