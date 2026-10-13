@@ -18748,8 +18748,16 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
 			w  = tickLen + pw;
 		}
 
-		const int th  = qwtDevicePenWidth(painter, sy);
-		const int row = qRound(qwtDeviceY(tr, tval));
+		const int th = qwtDevicePenWidth(painter, sy);
+		int row      = qRound(qwtDeviceY(tr, tval));
+
+		// a tick at the scale border sits on the perpendicular backbone
+		const int first = qRound(qwtDeviceY(tr, d->pos.y()));
+		const int last  = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
+		if (row == first && (d->cornerMiter & MiterAtStart))
+			row = qRound(qwtDeviceY(tr, d->pos.y() - 1.0));
+		else if (row == last && (d->cornerMiter & MiterAtEnd))
+			row = qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0));
 
 		qwtFillDeviceRect(painter, QRect(x0, row - (th - 1) / 2, w, th));
 		break;
@@ -18769,8 +18777,16 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
 			h  = tickLen + pw;
 		}
 
-		const int th  = qwtDevicePenWidth(painter, sx);
-		const int col = qRound(qwtDeviceX(tr, tval));
+		const int th = qwtDevicePenWidth(painter, sx);
+		int col      = qRound(qwtDeviceX(tr, tval));
+
+		// a tick at the scale border sits on the perpendicular backbone
+		const int first = qRound(qwtDeviceX(tr, d->pos.x()));
+		const int last  = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
+		if (col == first && (d->cornerMiter & MiterAtStart))
+			col = qRound(qwtDeviceX(tr, d->pos.x() - 1.0));
+		else if (col == last && (d->cornerMiter & MiterAtEnd))
+			col = qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0));
 
 		qwtFillDeviceRect(painter, QRect(col - (th - 1) / 2, y0, th, h));
 		break;
@@ -18803,9 +18819,9 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
 		int y0 = qRound(qwtDeviceY(tr, d->pos.y()));
 		int y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
 		if (d->cornerMiter & MiterAtStart)
-			y0 -= pw;
+			y0 = qRound(qwtDeviceY(tr, d->pos.y() - 1.0));
 		if (d->cornerMiter & MiterAtEnd)
-			y1 += pw;
+			y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0));
 
 		// the length can be negative (QwtPolarGrid)
 		qwtFillDeviceRect(painter, QRect(x0, qMin(y0, y1), pw, qAbs(y1 - y0) + 1));
@@ -18820,9 +18836,9 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
 		int x0 = qRound(qwtDeviceX(tr, d->pos.x()));
 		int x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
 		if (d->cornerMiter & MiterAtStart)
-			x0 -= pw;
+			x0 = qRound(qwtDeviceX(tr, d->pos.x() - 1.0));
 		if (d->cornerMiter & MiterAtEnd)
-			x1 += pw;
+			x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0));
 
 		// the length can be negative (QwtPolarGrid)
 		qwtFillDeviceRect(painter, QRect(qMin(x0, x1), y0, qAbs(x1 - x0) + 1, pw));

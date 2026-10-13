@@ -104,6 +104,12 @@ void TestAxisCorner::testTickDoesNotCrossBackbone()
     // it may darken the backbone row but not the row above it
     QVERIFY(isDark(img, cr.left(), cr.bottom() + 1));
     QVERIFY(!isDark(img, cr.left() + 3, cr.bottom()));
+
+    // the border ticks snap onto the perpendicular backbone:
+    // the x minimum tick hangs at the y backbone column,
+    // the y minimum tick sits on the x backbone row
+    QVERIFY(isDark(img, cr.left() - 1, cr.bottom() + 2));
+    QVERIFY(isDark(img, cr.left() - 3, cr.bottom() + 1));
 }
 
 /*

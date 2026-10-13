@@ -20,7 +20,7 @@
 
 ### Bug 修复
 
-- 修复坐标轴主线在画布四角不相交、以及 HiDPI 缩放下轴线/刻度线宽度不一致的问题：`QwtScaleDraw` 现在把主线与刻度绘制为设备像素对齐的填充矩形（笔宽截断为整数设备像素，`setPenWidthF(1.0)` 在任意设备像素比下都是 1 像素细线），刻度恰好止于主线内缘而不再与主线交叉；新增 `QwtScaleDraw::setCornerMiter()` 标志——由 `QwtScaleWidget` 按垂直轴的可见性设置——把每条主线向共享的画布角延伸一个笔宽，互相垂直的主线因此交成干净的 L 形，而不是对角台阶（分数缩放下甚至是彻底的缺口）。回归测试：`tests/axis_corner_test`
+- 修复坐标轴主线在画布四角不相交、以及 HiDPI 缩放下轴线/刻度线宽度不一致的问题：`QwtScaleDraw` 现在把主线与刻度绘制为设备像素对齐的填充矩形（笔宽截断为整数设备像素，`setPenWidthF(1.0)` 在任意设备像素比下都是 1 像素细线），刻度恰好止于主线内缘而不再与主线交叉；位于刻度范围端点的刻度吸附到垂直轴的主线上，角上不再残留端点刻度与垂直轴线之间 1 像素的台阶；新增 `QwtScaleDraw::setCornerMiter()` 标志——由 `QwtScaleWidget` 按垂直轴的可见性设置——把每条主线向共享的画布角延伸一个笔宽，互相垂直的主线因此交成干净的 L 形，而不是对角台阶（分数缩放下甚至是彻底的缺口）。回归测试：`tests/axis_corner_test`
 - 修复 `Qwt3DPlot::attach()` 不重算场景的问题：若数据在 `attach()` 之前装载、且中间没有调用任何 setter（因此未触发 `itemChanged()`），plot 的 hull 停留在 (0,0,0)-(0,0,0)，画面全白且无任何警告。z 排序 + hull 并集 + 坐标系更新被抽取为私有 `recalculateScene()`，`attach()` 与 `detach()` 现在也会调用，detach 后 hull 同步收缩。已加回归测试（`tests/waterfall_test`）
 - 修复派生 `Qwt3DScale` 在 `Qwt3DAxis::setScale()` 内被切片的问题：`Qwt3DClonePtr` 赋值经 `clone()` 克隆，未 override `clone()` 的派生 scale 的自定义 `ticLabel()` 静默失效（实测逐像素零差异）。`Qwt3DTextScale` 已 override；`Qwt3DLinearScale` 新增 protected `copyLinearScaleState()` 供派生类复制 autoscaler 状态
 - 修复 `Qwt3DWaterfall::pushTrace()` 对短轨迹的越界读取：入帧按已建立的 bin 宽度装填（超长截断、过短零填充）
