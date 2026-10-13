@@ -79,6 +79,10 @@ public:
     double m_kbdRotSpeed, m_kbdScaleSpeed, m_kbdShiftSpeed;
 
     bool m_lightingEnabled;
+
+    // set in paintGL(): true while the scene is replayed for the gl2ps
+    // vector capture (GL render mode GL_FEEDBACK)
+    bool m_vectorExport;
     bool m_initializedGL;
     bool m_renderPixmapRequest;
 

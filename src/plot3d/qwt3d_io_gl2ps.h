@@ -74,6 +74,39 @@ private:
     bool operator()(Qwt3DPlot* plot, QString const& fname) override;
 };
 
+/**
+ * @brief Emits interleaved vertices as an immediate mode primitive for the vector export
+ * @param[in] mode Primitive type (GL_TRIANGLES, GL_LINES, GL_POINTS, ...)
+ * @param[in] vertices Interleaved vertex data: x y z r g b a (7 floats per vertex)
+ * @param[in] vertexCount Number of vertices in @p vertices
+ * @param[in] indices Optional index list; when null the vertices are used in order
+ * @param[in] indexCount Number of indices to emit
+ * @param[in] overrideColor Optional RGBA overriding the per-vertex colors
+ * @param[in] modelView Column major modelview matrix (as uploaded to the shaders)
+ * @param[in] projection Column major projection matrix
+ *
+ * @details gl2ps captures primitives from the GL_FEEDBACK buffer, where the
+ *          color of every vertex is the fixed-function current color - the
+ *          GLSL render path of this module never writes it, so a feedback
+ *          replay of the shader based scene produces fully transparent
+ *          primitives (the surfaces were invisible in PDF/SVG exports). This
+ *          function feeds the captured geometry explicitly: the vertices are
+ *          transformed on the CPU by the same matrices the shaders use and
+ *          submitted with glColor4f()/glVertex4f() (the fixed-function
+ *          matrices stay at their defaults, so the vertex positions are the
+ *          clip coordinates).
+ *
+ *          Only meaningful while the GL render mode is GL_FEEDBACK.
+ */
+void qwt3dEmitVerticesForVectorExport(unsigned int mode,
+                                      const float* vertices,
+                                      int vertexCount,
+                                      const unsigned int* indices,
+                                      int indexCount,
+                                      const float* overrideColor,
+                                      const float* modelView,
+                                      const float* projection);
+
 int setDeviceLineWidth(float val);
 int setDevicePointSize(float val);
 int drawDevicePixels(int width, int height, unsigned int format, unsigned int type, const void* pixels);

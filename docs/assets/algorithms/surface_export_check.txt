@@ -1,0 +1,18 @@
+# Surface vector export check - before/after (item 3 of KNOWN-DEFECTS)
+# host: i7-1260P, Qt 6.7.3 (MSVC 2019 Release), Iris Xe, Windows 11
+# flat: the surface is painted by a constant red data color functor, so
+#       every surface polygon has to be exported in that color
+
+=== PRE-FIX (7.5.0 libraries) ===
+export png=1 (C:/src/Qt/qwt/tmp/export_prefix/surface_export.png) svg=1 pdf=1
+SVG polygons=18885 fill_colors=2976 opacity_min=0.016 opacity_max=1.000 visible=18885 transparent=0
+PDF extgstates=0 ca_min=-1.000 ca_max=-1.000 ca_gt0=0
+RASTER svg_vs_png_blocks=432 deviating=111 (25.7 %) mean_dist=78.0 worst=402.6
+FLATCOLOR on_page=3785 data_color=0 area_share=0.0 % verdict=FAIL
+
+=== FIXED (v7.5.1 worktree) ===
+export png=1 (C:/src/Qt/qwt/tmp/export_fixed/surface_export.png) svg=1 pdf=1
+SVG polygons=9337 fill_colors=2166 opacity_min=0.016 opacity_max=1.000 visible=9337 transparent=0
+PDF extgstates=0 ca_min=-1.000 ca_max=-1.000 ca_gt0=0
+RASTER svg_vs_png_blocks=432 deviating=151 (35.0 %) mean_dist=91.1 worst=375.3
+FLATCOLOR on_page=2321 data_color=640 area_share=53.2 % verdict=PASS

@@ -178,6 +178,9 @@ public:
 
     // Returns true, if Lighting is enabled, false else
     bool lightingEnabled() const;
+
+    // Returns true while the scene is replayed for the gl2ps vector capture
+    bool isVectorExportActive() const;
     // Turn light on
     void illuminate(unsigned light = 0);
     // Turn light off

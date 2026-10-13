@@ -6,6 +6,7 @@
 #include "qwt3d_surface_p.h"
 #include "qwt3d_plot.h"
 #include "qwt3d_color.h"
+#include "qwt3d_io_gl2ps.h"
 
 #include <QOpenGLContext>
 #include <QOpenGLFunctions>
@@ -844,13 +845,11 @@ ParallelEpiped Qwt3DSurface::hull() const
  *
  * Resolution > 1 skips vertices in index generation (VBO stays full).
  */
-void Qwt3DSurface::buildVBO()
+bool Qwt3DSurface::buildGeometry(QVector< SurfaceVertex >& vertices,
+                                QVector< unsigned int >& triIndices,
+                                QVector< unsigned int >& lineIndices)
 {
     QWT_D(d);
-
-    QVector<SurfaceVertex> vertices;
-    QVector<unsigned int> triIndices;
-    QVector<unsigned int> lineIndices;
 
     // Ensure we have a data color functor
     if (!d->m_dataColor) {
@@ -858,7 +857,7 @@ void Qwt3DSurface::buildVBO()
             d->m_dataColor = new Qwt3DStandardColor();
         } else {
             // No plot attached yet — cannot create default color
-            return;
+            return false;
         }
     }
 
@@ -992,12 +991,28 @@ void Qwt3DSurface::buildVBO()
         }
     }
 
+    return !vertices.isEmpty();
+}
+
+/**
+ * @brief Uploads the CPU side geometry into the VBO/EBO and configures the VAO
+ * @details See buildGeometry() for the arrays; this is the GL part of the
+ *          former buildVBO().
+ */
+void Qwt3DSurface::buildVBO()
+{
+    QWT_D(d);
+
+    QVector<SurfaceVertex> vertices;
+    QVector<unsigned int> triIndices;
+    QVector<unsigned int> lineIndices;
+
+    if (!buildGeometry(vertices, triIndices, lineIndices))
+        return;
+
     d->m_vertexCount = vertices.size();
     d->m_triIndexCount = triIndices.size();
     d->m_lineIndexCount = lineIndices.size();
-
-    if (vertices.isEmpty())
-        return;
 
     // Get OpenGL functions
     QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
@@ -1048,6 +1063,87 @@ void Qwt3DSurface::buildVBO()
 }
 
 /**
+ * @brief Emits the surface geometry for the gl2ps vector capture
+ * @details Called from draw() while the GL render mode is GL_FEEDBACK.
+ *          The shader based path is not usable there: the feedback buffer
+ *          records the fixed-function current color, which no shader of this
+ *          module writes, so a replayed surface ended up with alpha 0 and was
+ *          invisible in every vector export. This function feeds the same
+ *          geometry (positions from the grid/cell data, colors from
+ *          buildGeometry()) explicitly through the fixed-function pipeline.
+ *
+ *          The plot style handling mirrors draw(): triangles with the baked
+ *          per vertex colors, mesh lines / wireframes with the mesh color,
+ *          HIDDENLINE with the background colored fill and POINTS without
+ *          indices.
+ */
+void Qwt3DSurface::drawForVectorExport()
+{
+    QWT_D(d);
+
+    QVector< SurfaceVertex > vertices;
+    QVector< unsigned int > triIndices;
+    QVector< unsigned int > lineIndices;
+    if (!buildGeometry(vertices, triIndices, lineIndices))
+        return;
+
+    // interleaved layout of the export helper: x y z r g b a
+    QVector< float > buffer;
+    buffer.reserve(7 * vertices.size());
+    for (const SurfaceVertex& v : vertices) {
+        buffer << v.position.x() << v.position.y() << v.position.z()
+               << v.color.x() << v.color.y() << v.color.z() << v.color.w();
+    }
+
+    const int vertexCount = vertices.size();
+    const QMatrix4x4 mv = plot()->modelViewMatrix();
+    const QMatrix4x4 proj = plot()->projectionMatrix();
+
+    const float meshColor[ 4 ] = { static_cast< float >(d->m_meshColor.r),
+                                   static_cast< float >(d->m_meshColor.g),
+                                   static_cast< float >(d->m_meshColor.b),
+                                   static_cast< float >(d->m_meshColor.a) };
+
+    const RGBA background = plot()->backgroundRGBAColor();
+    const float backgroundColor[ 4 ] = { static_cast< float >(background.r),
+                                         static_cast< float >(background.g),
+                                         static_cast< float >(background.b),
+                                         static_cast< float >(background.a) };
+
+    // ("emit" is a Qt keyword macro, hence the name)
+    auto emitPrimitive = [ & ](unsigned int mode, const QVector< unsigned int >& indices, const float* overrideColor)
+    {
+        qwt3dEmitVerticesForVectorExport(mode,
+                                         buffer.constData(), vertexCount,
+                                         indices.isEmpty() ? nullptr : indices.constData(), indices.size(),
+                                         overrideColor,
+                                         mv.constData(), proj.constData());
+    };
+
+    switch (d->m_plotStyle) {
+    case FILLED:
+        emitPrimitive(GL_TRIANGLES, triIndices, nullptr);
+        break;
+    case FILLEDMESH:
+        emitPrimitive(GL_TRIANGLES, triIndices, nullptr);
+        emitPrimitive(GL_LINES, lineIndices, meshColor);
+        break;
+    case WIREFRAME:
+        emitPrimitive(GL_LINES, lineIndices, meshColor);
+        break;
+    case HIDDENLINE:
+        emitPrimitive(GL_TRIANGLES, triIndices, backgroundColor);
+        emitPrimitive(GL_LINES, lineIndices, meshColor);
+        break;
+    case QWT3D_POINTS:
+        emitPrimitive(GL_POINTS, QVector< unsigned int >(), nullptr);
+        break;
+    default:
+        break;
+    }
+}
+
+/**
  * @brief Draws the surface using VBO/VAO and GLSL shaders
  * @details Called by Qwt3DPlot::paintGL() for each visible item.
  *          The GL context is guaranteed to be current.
@@ -1058,6 +1154,9 @@ void Qwt3DSurface::buildVBO()
  * - WIREFRAME: glDrawElements(GL_LINES) with mesh color
  * - HIDDENLINE: triangles with background color + lines
  * - QWT3D_POINTS: glDrawArrays(GL_POINTS)
+ *
+ * While gl2ps captures the scene (GL_FEEDBACK) drawForVectorExport()
+ * replaces the shader paths - the feedback buffer cannot see their colors.
  */
 void Qwt3DSurface::draw()
 {
@@ -1068,6 +1167,11 @@ void Qwt3DSurface::draw()
 
     if (d->m_plotStyle == NOPLOT)
         return;
+
+    if (plot()->isVectorExportActive()) {
+        drawForVectorExport();
+        return;
+    }
 
     // Build VBO if dirty
     if (d->m_vboDirty) {

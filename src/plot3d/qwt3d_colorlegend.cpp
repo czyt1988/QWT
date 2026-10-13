@@ -3,6 +3,7 @@
 #endif
 
 #include "qwt3d_colorlegend.h"
+#include "qwt3d_io_gl2ps.h"
 
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
@@ -473,8 +474,18 @@ void Qwt3DColorLegend::draw(const Qwt3DRenderContext& ctx)
 
             // Draw each quad as a triangle strip
             int vertsPerQuad = 4;
-            for (int i = 0; i < static_cast< int >(colors.size()); ++i) {
-                f->glDrawArrays(GL_TRIANGLE_STRIP, i * vertsPerQuad, vertsPerQuad);
+            if (ctx.vectorExport) {
+                // gl2ps cannot see the shader colors: feed the quads directly
+                for (int i = 0; i < static_cast< int >(colors.size()); ++i) {
+                    qwt3dEmitVerticesForVectorExport(GL_TRIANGLE_STRIP,
+                                                     verts.constData() + static_cast< qsizetype >(i) * vertsPerQuad * 7,
+                                                     vertsPerQuad, nullptr, 0, nullptr,
+                                                     ctx.modelView.constData(), ctx.projection.constData());
+                }
+            } else {
+                for (int i = 0; i < static_cast< int >(colors.size()); ++i) {
+                    f->glDrawArrays(GL_TRIANGLE_STRIP, i * vertsPerQuad, vertsPerQuad);
+                }
             }
 
             polyShader->disableAttributeArray(0);
@@ -516,8 +527,14 @@ void Qwt3DColorLegend::draw(const Qwt3DRenderContext& ctx)
             lineShader->enableAttributeArray(1);
             lineShader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 4, stride);
 
-            f->glLineWidth(1.0f);
-            f->glDrawArrays(GL_LINES, 0, lineVerts.size() / 7);
+            if (ctx.vectorExport) {
+                qwt3dEmitVerticesForVectorExport(GL_LINES, lineVerts.constData(), lineVerts.size() / 7,
+                                                 nullptr, 0, nullptr,
+                                                 ctx.modelView.constData(), ctx.projection.constData());
+            } else {
+                f->glLineWidth(1.0f);
+                f->glDrawArrays(GL_LINES, 0, lineVerts.size() / 7);
+            }
 
             lineShader->disableAttributeArray(0);
             lineShader->disableAttributeArray(1);

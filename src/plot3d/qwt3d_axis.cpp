@@ -1,4 +1,5 @@
 #include "qwt3d_axis.h"
+#include "qwt3d_io_gl2ps.h"
 
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
@@ -498,6 +499,15 @@ void Qwt3DAxis::drawLines(const Qwt3DRenderContext& ctx, const QVector<float>& v
 {
     if (vertices.isEmpty())
         return;
+
+    if (ctx.vectorExport) {
+        // gl2ps captures from the feedback buffer, where the shader colors are
+        // invisible: emit the lines with explicit per vertex colors instead
+        qwt3dEmitVerticesForVectorExport(GL_LINES, vertices.constData(), vertices.size() / 7,
+                                         nullptr, 0, nullptr,
+                                         ctx.modelView.constData(), ctx.projection.constData());
+        return;
+    }
 
     auto* shader = ctx.lineShader;
     if (!shader)

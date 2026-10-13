@@ -43,6 +43,11 @@ struct QWT3D_EXPORT Qwt3DRenderContext
     // Viewport in pixels (already resolved from widget size fallback)
     QSize viewport;
 
+    // True while the scene is replayed for the gl2ps vector capture: line and
+    // polygon draws then use qwt3dEmitVerticesForVectorExport() instead of the
+    // shader paths (the feedback buffer needs explicit colors)
+    bool vectorExport = false;
+
     // Shared shader programs (non-owning pointers, valid during paintGL)
     QOpenGLShaderProgram* lineShader = nullptr;
     QOpenGLShaderProgram* polygonShader = nullptr;

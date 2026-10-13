@@ -42,6 +42,7 @@ Qwt3DPlot::PrivateData::PrivateData(Qwt3DPlot* q)
     , m_kbdScaleSpeed(5.0)
     , m_kbdShiftSpeed(5.0)
     , m_lightingEnabled(false)
+    , m_vectorExport(false)
     , m_initializedGL(false)
     , m_renderPixmapRequest(false)
 {
@@ -392,9 +393,31 @@ void Qwt3DPlot::initializeGL()
  * @details Uses CPU-side QMatrix4x4 for view/projection calculation.
  *          All rendering uses VBO/VAO + GLSL shaders.
  */
+/**
+ * @brief Tells, whether the scene is being replayed for the vector export
+ * @return true while the GL render mode is GL_FEEDBACK
+ * @details The gl2ps vector writer captures the scene from the GL feedback
+ *          buffer, where the per vertex color is the fixed-function current
+ *          color - which the shader based render path never writes. Items
+ *          query this flag and switch to the immediate mode export path
+ *          (qwt3dEmitVerticesForVectorExport()) then.
+ */
+bool Qwt3DPlot::isVectorExportActive() const
+{
+    QWT_DC(d);
+    return d->m_vectorExport;
+}
+
 void Qwt3DPlot::paintGL()
 {
     QWT_D(d);
+
+    // While gl2ps replays the scene (GL_FEEDBACK) the feedback buffer records
+    // the fixed-function current color per vertex; the shader paths never
+    // publish their colors there, so the items take their export path.
+    GLint renderMode = GL_RENDER;
+    glGetIntegerv(GL_RENDER_MODE, &renderMode);
+    d->m_vectorExport = (renderMode == GL_FEEDBACK);
 
     glClearColor(d->m_bgColor.r, d->m_bgColor.g, d->m_bgColor.b, d->m_bgColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -460,6 +483,7 @@ void Qwt3DPlot::paintGL()
     ctx.lineShader = d->m_lineShader.get();
     ctx.polygonShader = d->m_polygonShader.get();
     ctx.textShader = d->m_textShader.get();
+    ctx.vectorExport = d->m_vectorExport;
 
     // Render all attached items (sorted by z-order)
     for (Qwt3DPlotItem* item : d->m_items) {

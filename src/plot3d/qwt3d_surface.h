@@ -8,6 +8,8 @@
 
 #include <list>
 
+struct SurfaceVertex;
+
 class Qwt3DGridData;
 class Qwt3DCellData;
 
@@ -158,6 +160,14 @@ public:
     void setResolution(int res);
 
 private:
+    /// Fills the CPU side geometry (positions, normals, colors, indices)
+    bool buildGeometry(QVector< SurfaceVertex >& vertices,
+                       QVector< unsigned int >& triIndices,
+                       QVector< unsigned int >& lineIndices);
+
+    /// Emits the surface geometry for the gl2ps vector capture
+    void drawForVectorExport();
+
     void buildVBO();
     /// Pushes the plot's union z-range into the color functor (silent data input, no rebuild trigger)
     void pushColorRange() const;

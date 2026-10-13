@@ -6,6 +6,9 @@
 #include "gl2ps.h"
 #include "qwt3d_io_gl2ps.h"
 #include "qwt3d_plot.h"
+
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
 #include "qwt_version_info.h"
 
 // GL types are provided by gl2ps.h which includes <GL/gl.h>
@@ -285,6 +288,91 @@ bool Qwt3DVectorWriter::operator()(Qwt3DPlot* plot, QString const& fname)
     Qwt3DLabel::useDeviceFonts(false);
 
     return true;
+}
+
+/**
+ * @brief Emits interleaved vertices as an immediate mode primitive for the vector export
+ * @details See the declaration in the header for the motivation. The vertices
+ *          are transformed by the same matrices the shaders use, but on the
+ *          CPU, and submitted through the fixed-function pipeline - whose
+ *          matrices stay at their defaults, so glVertex4f() receives clip
+ *          coordinates and the feedback buffer records exactly the window
+ *          coordinates the shader based pass would have produced.
+ *
+ *          GL_CULL_FACE and GL_LIGHTING are disabled for the capture (the
+ *          feedback replay must see every triangle, and the per vertex color
+ *          is the final one) and restored afterwards.
+ */
+void qwt3dEmitVerticesForVectorExport(unsigned int mode,
+                                      const float* vertices,
+                                      int vertexCount,
+                                      const unsigned int* indices,
+                                      int indexCount,
+                                      const float* overrideColor,
+                                      const float* modelView,
+                                      const float* projection)
+{
+    if (!vertices || vertexCount <= 0)
+        return;
+
+    // projection * modelView in column major layout
+    float mvp[ 16 ];
+    for (int col = 0; col < 4; ++col) {
+        for (int row = 0; row < 4; ++row) {
+            float sum = 0.0f;
+            for (int k = 0; k < 4; ++k)
+                sum += projection[ k * 4 + row ] * modelView[ col * 4 + k ];
+            mvp[ col * 4 + row ] = sum;
+        }
+    }
+
+    // the fixed-function pipeline must be active (the shader path never
+    // publishes its colors to the feedback buffer). <GL/gl.h> as pulled in by
+    // gl2ps.h only declares GL 1.1, so the wrapper is used for the two
+    // non-1.1 entry points.
+    if (QOpenGLContext* context = QOpenGLContext::currentContext()) {
+        QOpenGLFunctions* f = context->functions();
+        f->glUseProgram(0);
+        for (unsigned int i = 0; i < 3; ++i)
+            f->glDisableVertexAttribArray(i);
+    }
+
+    const GLboolean cullFace = glIsEnabled(GL_CULL_FACE);
+    const GLboolean lighting = glIsEnabled(GL_LIGHTING);
+    if (cullFace)
+        glDisable(GL_CULL_FACE);
+    if (lighting)
+        glDisable(GL_LIGHTING);
+
+    const int count = (indices && indexCount > 0) ? indexCount : vertexCount;
+
+    glBegin(mode);
+    for (int i = 0; i < count; ++i) {
+        int vi = indices ? static_cast< int >(indices[ i ]) : i;
+        if (vi < 0 || vi >= vertexCount)
+            continue;
+
+        const float* v = vertices + 7 * vi;
+        const float x = v[ 0 ], y = v[ 1 ], z = v[ 2 ];
+
+        const float cx = mvp[ 0 ] * x + mvp[ 4 ] * y + mvp[ 8 ] * z + mvp[ 12 ];
+        const float cy = mvp[ 1 ] * x + mvp[ 5 ] * y + mvp[ 9 ] * z + mvp[ 13 ];
+        const float cz = mvp[ 2 ] * x + mvp[ 6 ] * y + mvp[ 10 ] * z + mvp[ 14 ];
+        const float cw = mvp[ 3 ] * x + mvp[ 7 ] * y + mvp[ 11 ] * z + mvp[ 15 ];
+
+        if (overrideColor)
+            glColor4f(overrideColor[ 0 ], overrideColor[ 1 ], overrideColor[ 2 ], overrideColor[ 3 ]);
+        else
+            glColor4f(v[ 3 ], v[ 4 ], v[ 5 ], v[ 6 ]);
+
+        glVertex4f(cx, cy, cz, cw);
+    }
+    glEnd();
+
+    if (cullFace)
+        glEnable(GL_CULL_FACE);
+    if (lighting)
+        glEnable(GL_LIGHTING);
 }
 
 // Device helper functions for gl2ps vector export.
