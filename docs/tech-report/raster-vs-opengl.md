@@ -1,6 +1,6 @@
 # Raster vs OpenGL Rendering Pipelines: End-to-End Frame-Time Breakdown and a Selection Criterion
 
-> **Abstract** — QWT ships two canvases: the software-rasterized `QwtPlotCanvas` and the `QOpenGLWidget`-based `QwtPlotOpenGLCanvas`. Intuition says "the GPU must be faster", but the source code shows that the GL canvas implements no native GL pipeline for curves: `initializeGL()` is an empty function, every item is still drawn through `QPainter` onto a `QOpenGLPaintDevice` (Qt's OpenGL2 paint engine), followed by MSAA resolve, FBO blit, `QOpenGLWidget` texture compositing and DWM presentation. This article breaks a frame into four stages — data transform, rasterization, compositing/resolve, and blit/present — and quantifies each with 253 measured cells (1k–5M points × 1–50 curves × 900×500/1920×1080 canvases × three backends × several redraw modes and switches), then derives a quantitative criterion for "when OpenGL is worth it": on an Intel UHD 770 iGPU, the GL canvas's item-drawing stage runs 2.2–4.6× faster than the raster engine in the heavy-load region, but every frame pays an extra fixed compositing overhead (2.4–3.4 ms under concurrent GPU load; on a quiet GPU about 0.2 ms of CPU submission plus 1.2–7.9 ms of GPU completion), and the crossover of the two curves falls inside $N \cdot K \approx 0.3\text{–}7\,\mathrm{M}$ total samples, depending on canvas size and the machine's GPU state.
+> **Abstract** — QWT ships two canvases: the software-rasterized `QwtPlotCanvas` and the `QOpenGLWidget`-based `QwtPlotOpenGLCanvas`. Intuition says "the GPU must be faster", but the source code shows that the GL canvas implements no native GL pipeline for curves: `initializeGL()` is an empty function, every item is still drawn through `QPainter` onto a `QOpenGLPaintDevice` (Qt's OpenGL2 paint engine), followed by MSAA resolve, FBO blit, `QOpenGLWidget` texture compositing and DWM presentation. This article breaks a frame into four stages — data transform, rasterization, compositing/resolve, and blit/present — and quantifies each with 253 measured cells (1k–5M points × 1–50 curves × 900×500/1920×1080 canvases × three backends × several redraw modes and switches), then derives a quantitative criterion for "when OpenGL is worth it": on an Intel UHD 770 iGPU, the GL canvas's item-drawing stage runs 2.2–4.6× faster than the raster engine in the heavy-load region, but every frame pays an extra fixed compositing overhead (2.4–4.5 ms under concurrent GPU load; on a quiet GPU about 0.2 ms of CPU submission plus 1.2–7.9 ms of GPU completion), and the crossover of the two curves falls inside $N \cdot K \approx 0.3\text{–}7\,\mathrm{M}$ total samples, depending on canvas size and the machine's GPU state.
 
 > **Abstract — Core conclusions**
 >
@@ -20,7 +20,7 @@ $$
 T_{\text{frame}} = T_{\text{xform}}(N, K) + T_{\text{rasterize}}(P, A) + T_{\text{compose}}(W \times H, S) + T_{\text{present}}(W \times H)
 $$
 
-where $N$ is the sample count per curve and $K$ the number of curves; $P = K \cdot \min(N,\, 4W)$ is the vertex count of the downsampled polyline ($W$ is the canvas width in pixels; the LTTB bucket budget is $2W$ with 2 points per bucket — see the curve-downsampling article); $A$ denotes antialiasing on/off; $S$ is the MSAA sample count on the GL side. The four stages sit in different physical places on the two backends:
+where $N$ is the sample count per curve and $K$ the number of curves; $P = K \cdot \min(N,\, 4W)$ is the vertex count of the downsampled polyline ($W$ is the canvas width in pixels; the output budget is about $4W$ points. The measurements in this article come from the v7.4.2 MinMax bucket variant — $2W$ buckets, 2 points each — while since v7.5.0 the default `FilterPointsLTTB` is true LTTB ($4W$ buckets, 1 point each) and the MinMax bucket moved to `FilterPointsMinMaxLTTB`, see the curve-downsampling article); $A$ denotes antialiasing on/off; $S$ is the MSAA sample count on the GL side. The four stages sit in different physical places on the two backends:
 
 | stage | raster canvas | GL canvas |
 |---|---|---|
@@ -54,7 +54,7 @@ void QwtPlotCanvas::replot()
 
 In a full-frame replot scenario, therefore, the backing store takes the "full repaint + blit" path on every frame; its benefit appears only under partial invalidation (rubber-band overlays, incremental painting with `QwtPlotDirectPainter`). The header comment states this positioning explicitly: "Disabling the cache might improve the performance for incremental paints (using QwtPlotDirectPainter)" (`qwt_plot_canvas.h:59-67`). `ImmediatePaint` decides whether replot takes the synchronous `repaint()` or the asynchronous `update()`.
 
-Curve rasterization itself lives in `QwtPlotCurve::drawLines()` (`src/plot/qwt_plot_curve.cpp:532-628`): `QwtPointMapper::toPolygonF()` performs the coordinate mapping and the LTTB/MinMax reduction, `QwtClipper::clipPolygonF()` clips, and `QwtPainter::drawPolyline()` finally hands the result to QPainter. `QwtPainter` carries one special optimization for the raster engine: when the pen width exceeds 1, the polyline is split into 6-point segments submitted in batches (`src/plot/qwt_painter.cpp:124-178`, comment "Raster paint engine is much faster when splitting the polygon"); 1 px lines go through a single `drawPolyline`.
+Curve rasterization itself lives in `QwtPlotCurve::drawLines()` (`src/plot/qwt_plot_curve.cpp:583-698`): `QwtPointMapper::toPolygonF()` performs the coordinate mapping and the LTTB/MinMax reduction, `QwtClipper::clipPolygonF()` clips, and `QwtPainter::drawPolyline()` finally hands the result to QPainter. `QwtPainter` carries one special optimization for the raster engine: when the pen width exceeds 1, the polyline is split into 6-point segments submitted in batches (`src/plot/qwt_painter.cpp:124-178`, comment "Raster paint engine is much faster when splitting the polygon"); 1 px lines go through a single `drawPolyline`.
 
 ### 2.2 The GL canvas: QPainter-on-FBO, no native GL pipeline
 
@@ -433,7 +433,7 @@ The `autoReplot` default of true is the most common performance trap in streamin
 
 ### 7.4 Export and offscreen rendering
 
-`QwtPlotRenderer` (the `renderto` mode) re-runs layout and scale rulers every frame; do not substitute it for replot in interactive scenarios. Its value is export: `renderTo()` into PDF/SVG/high-resolution PNG takes the floating-point geometry path, unrelated to the widget-path performance in this article.
+`QwtPlotRenderer` (the `renderto` mode) re-runs layout and scale rulers every frame; do not substitute it for replot in interactive scenarios. Its value is export: `renderDocument()`/`renderTo()` into PDF/SVG/high-resolution PNG takes the floating-point geometry path, unrelated to the widget-path performance in this article.
 
 ### 7.5 Tuning quick reference
 

@@ -1,6 +1,6 @@
 # Raster 与 OpenGL 渲染管线：端到端帧时间分解与选型判据
 
-> **摘要** —— QWT 提供两种画布：软件光栅化的 `QwtPlotCanvas` 与基于 `QOpenGLWidget` 的 `QwtPlotOpenGLCanvas`。直觉上"上 GPU 就快"，但源码显示 GL 画布并没有为曲线实现原生 GL 管线：`initializeGL()` 是空函数，所有 item 仍经 `QPainter` 在 `QOpenGLPaintDevice` 上绘制（Qt 的 OpenGL2 paint engine），再经 MSAA resolve、FBO blit、`QOpenGLWidget` 纹理合成与 DWM 上屏。本文把一帧拆成"数据变换 + 光栅化 + 合成/resolve + blit/present"四段，用 253 组实测单元（点数 1k–5M × 曲线数 1–50 × 画布 900×500/1920×1080 × 三种后端 × 多种重绘模式与开关）量化每一段，并给出"何时值得上 OpenGL"的定量判据：在 Intel UHD 770 核显上，GL 画布的 item 绘制段在重载区比 raster 引擎快 2.2–4.6 倍，但每帧要额外付出合成固定开销（并发 GPU 负载下 2.4–3.4 ms，安静 GPU 下约 0.2 ms CPU 提交 + 1.2–7.9 ms GPU 完成），两条曲线的交叉点落在总采样数 $N \cdot K \approx 0.3\text{–}7\,\mathrm{M}$ 的区间内，取决于画布尺寸与机器 GPU 状态。
+> **摘要** —— QWT 提供两种画布：软件光栅化的 `QwtPlotCanvas` 与基于 `QOpenGLWidget` 的 `QwtPlotOpenGLCanvas`。直觉上"上 GPU 就快"，但源码显示 GL 画布并没有为曲线实现原生 GL 管线：`initializeGL()` 是空函数，所有 item 仍经 `QPainter` 在 `QOpenGLPaintDevice` 上绘制（Qt 的 OpenGL2 paint engine），再经 MSAA resolve、FBO blit、`QOpenGLWidget` 纹理合成与 DWM 上屏。本文把一帧拆成"数据变换 + 光栅化 + 合成/resolve + blit/present"四段，用 253 组实测单元（点数 1k–5M × 曲线数 1–50 × 画布 900×500/1920×1080 × 三种后端 × 多种重绘模式与开关）量化每一段，并给出"何时值得上 OpenGL"的定量判据：在 Intel UHD 770 核显上，GL 画布的 item 绘制段在重载区比 raster 引擎快 2.2–4.6 倍，但每帧要额外付出合成固定开销（并发 GPU 负载下 2.4–4.5 ms，安静 GPU 下约 0.2 ms CPU 提交 + 1.2–7.9 ms GPU 完成），两条曲线的交叉点落在总采样数 $N \cdot K \approx 0.3\text{–}7\,\mathrm{M}$ 的区间内，取决于画布尺寸与机器 GPU 状态。
 
 > **摘要 — 核心结论**
 >
@@ -20,7 +20,7 @@ $$
 T_{\text{frame}} = T_{\text{xform}}(N, K) + T_{\text{rasterize}}(P, A) + T_{\text{compose}}(W \times H, S) + T_{\text{present}}(W \times H)
 $$
 
-其中 $N$ 为每曲线采样数、$K$ 为曲线数；$P = K \cdot \min(N,\, 4W)$ 是降采样后折线的顶点数（$W$ 为画布像素宽，LTTB 桶预算 $2W$、每桶 2 点，见《曲线降采样》篇）；$A$ 表示是否抗锯齿；$S$ 为 GL 的 MSAA 采样数。四段的物理位置在两种后端不同：
+其中 $N$ 为每曲线采样数、$K$ 为曲线数；$P = K \cdot \min(N,\, 4W)$ 是降采样后折线的顶点数（$W$ 为画布像素宽，输出预算约 $4W$ 点；本文实测用的是 v7.4.2 的 MinMax 桶变体——桶预算 $2W$、每桶 2 点，v7.5.0 起默认的 `FilterPointsLTTB` 改为真 LTTB（$4W$ 桶、每桶 1 点），MinMax 桶移至 `FilterPointsMinMaxLTTB`，见《曲线降采样》篇）；$A$ 表示是否抗锯齿；$S$ 为 GL 的 MSAA 采样数。四段的物理位置在两种后端不同：
 
 | 阶段 | raster 画布 | GL 画布 |
 |---|---|---|
@@ -54,7 +54,7 @@ void QwtPlotCanvas::replot()
 
 所以整帧 replot 场景下 backing store 每帧都走"全量重绘 + blit"路径，它的收益只体现在局部失效场景（橡皮筋覆盖层、`QwtPlotDirectPainter` 增量绘制）。头文件注释也明确了这一定位："Disabling the cache might improve the performance for incremental paints (using QwtPlotDirectPainter)"（`qwt_plot_canvas.h:59-67`）。`ImmediatePaint` 决定 replot 走同步 `repaint()` 还是异步 `update()`。
 
-曲线光栅化本身在 `QwtPlotCurve::drawLines()`（`src/plot/qwt_plot_curve.cpp:532-628`）：`QwtPointMapper::toPolygonF()` 完成坐标映射与 LTTB/MinMax 归约，`QwtClipper::clipPolygonF()` 裁剪，最后 `QwtPainter::drawPolyline()` 交给 QPainter。`QwtPainter` 对 raster 引擎有一个特殊优化：笔宽大于 1 时把折线切成 6 点的小段分批提交（`src/plot/qwt_painter.cpp:124-178`，注释 "Raster paint engine is much faster when splitting the polygon"）；1 px 线走单次 `drawPolyline`。
+曲线光栅化本身在 `QwtPlotCurve::drawLines()`（`src/plot/qwt_plot_curve.cpp:583-698`）：`QwtPointMapper::toPolygonF()` 完成坐标映射与 LTTB/MinMax 归约，`QwtClipper::clipPolygonF()` 裁剪，最后 `QwtPainter::drawPolyline()` 交给 QPainter。`QwtPainter` 对 raster 引擎有一个特殊优化：笔宽大于 1 时把折线切成 6 点的小段分批提交（`src/plot/qwt_painter.cpp:124-178`，注释 "Raster paint engine is much faster when splitting the polygon"）；1 px 线走单次 `drawPolyline`。
 
 ### 2.2 GL 画布：QPainter-on-FBO，没有原生 GL 管线
 
@@ -433,7 +433,7 @@ dp->drawSeries(curve, m_paintedPoints - 1, numPoints - 1);
 
 ### 7.4 导出与离屏渲染
 
-`QwtPlotRenderer`（`renderto` 模式）每帧重跑布局与刻度尺，交互场景不要用它代替 replot；它的价值在导出：`renderTo()` 到 PDF/SVG/高分辨率 PNG 时走浮点几何路径，与本文的 widget 路径性能无关。
+`QwtPlotRenderer`（`renderto` 模式）每帧重跑布局与刻度尺，交互场景不要用它代替 replot；它的价值在导出：`renderDocument()`/`renderTo()` 到 PDF/SVG/高分辨率 PNG 时走浮点几何路径，与本文的 widget 路径性能无关。
 
 ### 7.5 调参速查
 
