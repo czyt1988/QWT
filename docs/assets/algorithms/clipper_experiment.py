@@ -217,7 +217,7 @@ def clip_polygon(rect, points, close, mode, trace=None):
 # ------------------------------------------------------------- circle
 
 def rect_contains_point(rect, p):
-    """QRectF::contains(QPointF) for Qt 5.15.16 - empirically inclusive
+    """QRectF::contains(QPointF) for Qt 5 (5.14.2 / 5.15.16) - empirically inclusive
     on all four borders (verified by the harness PROBE lines)."""
     x, y, w, h = rect
     if p[0] != p[0] or p[1] != p[1]:  # NaN
@@ -226,7 +226,7 @@ def rect_contains_point(rect, p):
 
 
 def rect_contains_rect(rect, r):
-    """QRectF::contains(QRectF) - empirical Qt 5.15.16 semantics,
+    """QRectF::contains(QRectF) - empirical Qt 5 semantics (identical probes on 5.14.2 and 5.15.16),
     characterized by 20 harness probes (differs from the textbook
     'inclusive border compare' rule!):
 
@@ -260,11 +260,12 @@ def polar2pos(pos, radius, angle):
 
 
 def to_angle(frm, to):
-    """QwtCircleClipper::toAngle - mirrored verbatim, including the
-    vertical special case (which is inconsistent with polar2pos, see
-    the report's failure-mode section)."""
+    """QwtCircleClipper::toAngle - mirrored verbatim. The vertical special
+    case follows the polar2pos convention (a point above the center has the
+    angle pi/2), like the non vertical branches; before v7.5.1 it returned
+    the opposite half (see the report's failure-mode section)."""
     if frm[0] == to[0]:
-        return math.pi / 2.0 if frm[1] <= to[1] else 3.0 * math.pi / 2.0
+        return math.pi / 2.0 if to[1] <= frm[1] else 3.0 * math.pi / 2.0
     m = abs((to[1] - frm[1]) / (to[0] - frm[0]))
     angle = math.atan(m)
     if to[0] > frm[0]:
@@ -309,7 +310,14 @@ def cutting_points(rect, pos, radius):
 
 
 def clip_circle(rect, pos, radius):
-    """QwtClipper::clipCircle - angle sweep with midpoint in/out pairing."""
+    """QwtClipper::clipCircle - angle sweep with a per segment midpoint test.
+
+    Since v7.5.1 the cutting points are merged within a small angular
+    tolerance (a circle through a corner is reported by both adjacent edges
+    with a few ulp of difference) and every angular segment - including the
+    wrap around one - is classified on its own, so duplicated or missing
+    cutting points cannot flip the result for all other segments.
+    """
     pts = cutting_points(rect, pos, radius)
     if len(pts) <= 0:
         crect = (pos[0] - radius, pos[1] - radius, 2.0 * radius, 2.0 * radius)
@@ -318,17 +326,24 @@ def clip_circle(rect, pos, radius):
         return []
 
     angles = sorted(to_angle(pos, p) for p in pts)
-    mid = angles[0] + (angles[1] - angles[0]) / 2.0
-    is_in = rect_contains_point(rect, polar2pos(pos, radius, mid))
+
+    # merge duplicates (a circle through a corner is reported by both
+    # adjacent edges, with a few ulp of difference)
+    tolerance = 1e-9
+    merged = []
+    for a in angles:
+        if merged and a - merged[-1] <= tolerance:
+            continue
+        merged.append(a)
+    if len(merged) > 1 and merged[0] + TWO_PI - merged[-1] <= tolerance:
+        merged.pop()
 
     intv = []
-    if is_in:
-        for i in range(0, len(angles) - 1, 2):
-            intv.append((angles[i], angles[i + 1]))
-    else:
-        for i in range(1, len(angles) - 1, 2):
-            intv.append((angles[i], angles[i + 1]))
-        intv.append((angles[-1], angles[0]))
+    for i, a0 in enumerate(merged):
+        a1 = merged[i + 1] if i + 1 < len(merged) else merged[0] + TWO_PI
+        mid = a0 + 0.5 * (a1 - a0)
+        if rect_contains_point(rect, polar2pos(pos, radius, mid)):
+            intv.append((a0, a1))
     return intv
 
 
@@ -455,10 +470,15 @@ def circle_truth(rect, pos, radius, k=200000):
 
 def interval_membership(intervals, angles):
     """Membership of angles in a list of QwtInterval-like arcs.
-    min > max is interpreted as wrapping through 2*pi (like the
-    QwtPolarGrid consumer does: span < 0 -> span += 2*pi)."""
+
+    Two equivalent spellings are accepted: min > max wrapping through 2*pi
+    (what the sweep used before v7.5.1, and what the QwtPolarGrid consumer
+    assumes when it computes span < 0 -> span += 2*pi) and an unwrapped
+    upper bound above 2*pi (what QwtCircleClipper emits since v7.5.1)."""
     m = np.zeros(angles.shape, dtype=bool)
     for (lo, hi) in intervals:
+        if hi > TWO_PI:
+            hi -= TWO_PI * math.floor(hi / TWO_PI)
         if lo <= hi:
             m |= (angles >= lo) & (angles <= hi)
         else:
@@ -514,7 +534,7 @@ def sig_zigzag(n=2000):
 
 def self_test():
     """The five smoke cases were run through clipper_check.exe (real
-    QwtClipper, Qt 5.15.16); outputs recorded verbatim below.  The
+    QwtClipper, Qt 5.14.2); outputs recorded verbatim below.  The
     Python re-implementation must reproduce them bit-exactly."""
     print("== [1] re-implementation self-test (recorded C++ outputs) ==")
     cases = [
@@ -530,13 +550,12 @@ def self_test():
           (2.4118649973628266, 2.555907110132642),
           (3.7272781970469442, 3.8713203098167597),
           (5.5534576509526197, 5.6974997637224352)]),
+        # v7.5.1: the vertical tangent keeps its lower half ...
         ("C", ((0.0, 0.0, 10.0, 10.0), (0.0, 8.0), 3.0),
-         [(5.5534576509526197, 4.7123889803846897)]),
+         [(5.5534576509526197, 7.8539816339744828)]),
+        # ... and a circle through all four corners yields no arc at all
         ("C", ((0.0, 0.0, 100.0, 100.0), (50.0, 50.0), math.sqrt(5000.0)),
-         [(0.78539816339744828, 2.3561944901923448),
-          (2.3561944901923448, 3.9269908169872414),
-          (3.9269908169872414, 5.497787143782138),
-          (5.497787143782138, 0.78539816339744828)]),
+         []),
     ]
     ok = True
     for idx, (kind, args, expected) in enumerate(cases):
@@ -773,9 +792,12 @@ def run_cross_check(cases, scratch):
 
     write_case_file(cases, case_file)
     env = dict(os.environ)
-    qt_bin = r"D:\Qt\Qt5.15.16\5.15.16\msvc2019_64\bin"
-    qwt_bin = (r"D:\src-czy\gree-data-workbench\data-workbench\src\3rdparty"
-               r"\qwt\build-release\bin")
+    # both paths can be overridden by the environment; the defaults point at
+    # a local Qt 5 (msvc2017) build and the repo build usable by the harness
+    qt_bin = os.environ.get("QWT_QT5_BIN", r"C:\Qt\Qt5.14.2\5.14.2\msvc2017_64\bin")
+    # the harness links the Qt 5 build of qwtcore (build-qt5), not the main build
+    qwt_bin = os.environ.get("QWT_CORE_BIN", str(HERE.parents[2] / "build-qt5" / "bin" / "Release"))
+
     env["PATH"] = qt_bin + ";" + qwt_bin + ";" + env.get("PATH", "")
     proc = subprocess.run([str(exe), str(case_file)], capture_output=True,
                           text=True, env=env, cwd=str(scratch))

@@ -103,8 +103,9 @@ def qwt_std(v):
 
 def qwt_calculate(s, method=T_TUKEY, coeff=1.5):
     """Port of QwtBoxStatisticsCalculator::calculate() on *sorted, filtered*
-    data.  The Percentile branch reproduces the source verbatim, including
-    the swapped lower/upper quantile levels."""
+    data.  The Percentile branch reproduces the source verbatim (since
+    v7.5.1 the lower whisker is the c-th percentile, the upper one the
+    (100 - c)-th; before, the two levels were exchanged)."""
     n = len(s)
     if n == 0:
         return dict(wl=0.0, q1=0.0, med=0.0, q3=0.0, wu=0.0, count=0, outliers=[])
@@ -118,9 +119,9 @@ def qwt_calculate(s, method=T_TUKEY, coeff=1.5):
         wl = max(minv, q1 - coeff * iqr)
         wu = min(maxv, q3 + coeff * iqr)
     elif method == T_PERCENTILE:
-        # source: whiskerLower = quantile(1 - c/100), whiskerUpper = quantile(c/100)
-        wl = qwt_quantile(s, 1.0 - coeff / 100.0)
-        wu = qwt_quantile(s, coeff / 100.0)
+        # source: whiskerLower = quantile(c/100), whiskerUpper = quantile(1 - c/100)
+        wl = qwt_quantile(s, coeff / 100.0)
+        wu = qwt_quantile(s, 1.0 - coeff / 100.0)
     elif method == T_MINMAX:
         wl, wu = minv, maxv
     elif method == T_SD:
@@ -840,8 +841,10 @@ def check_cpp(cpp_path, cases):
     print(f"\ncross-validation: {len(cases) - nfail}/{len(cases)} cases OK, worst rel diff = {worst:.3e}")
     if "pctl5" in got:
         c = got["pctl5"][0]
-        print(f"Percentile-method evidence (real C++): whiskerLower={c[0]:.6f} > "
-              f"whiskerUpper={c[4]:.6f}, outlierCount={int(c[5])} of 64 values")
+        # since v7.5.1 the levels follow the coefficient: the lower whisker is
+        # the c-th percentile, the upper one the (100 - c)-th
+        print(f"Percentile-method evidence (real C++): whiskerLower={c[0]:.6f} < "
+              f"whiskerUpper={c[4]:.6f} (5th/95th percentiles), outlierCount={int(c[5])} of 64 values")
     return nfail == 0
 
 

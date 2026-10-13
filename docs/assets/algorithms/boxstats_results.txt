@@ -1,0 +1,210 @@
+==============================================================================
+A. Which R type does QwtBoxStatisticsCalculator implement?
+==============================================================================
+probe quantiles compared: 34440
+  R-1: max|diff| = 4.76956, mismatches = 21717
+  R-2: max|diff| = 4.44386, mismatches = 19884
+  R-3: max|diff| = 4.76956, mismatches = 23925
+  R-4: max|diff| = 4.76956, mismatches = 26322
+  R-5: max|diff| = 2.82295, mismatches = 22686
+  R-6: max|diff| = 4.44386, mismatches = 23411
+  R-7: max|diff| = 3.55271e-15, mismatches = 0  <-- EXACT MATCH
+  R-8: max|diff| = 3.07987, mismatches = 23080
+  R-9: max|diff| = 2.99941, mismatches = 23007
+
+sorted data [1, 2, 3, 4, 5, 6, 7, 8] (n=8):
+  type           Q1     median         Q3
+  R-1        2.0000     4.0000     6.0000
+  R-2        2.5000     4.5000     6.5000
+  R-3        2.0000     4.0000     6.0000
+  R-4        2.0000     4.0000     6.0000
+  R-5        2.5000     4.5000     6.5000
+  R-6        2.2500     4.5000     6.7500
+  R-7        2.7500     4.5000     6.2500
+  R-8        2.4167     4.5000     6.5833
+  R-9        2.4375     4.5000     6.5625
+  QWT        2.7500     4.5000     6.2500
+
+sorted data [1, 2, 3, 4, 5, 6, 7, 8, 9] (n=9):
+  type           Q1     median         Q3
+  R-1        3.0000     5.0000     7.0000
+  R-2        3.0000     5.0000     7.0000
+  R-3        2.0000     4.0000     7.0000
+  R-4        2.2500     4.5000     6.7500
+  R-5        2.7500     5.0000     7.2500
+  R-6        2.5000     5.0000     7.5000
+  R-7        3.0000     5.0000     7.0000
+  R-8        2.6667     5.0000     7.3333
+  R-9        2.6875     5.0000     7.3125
+  QWT        3.0000     5.0000     7.0000
+
+sorted data [1, 1, 2, 3, 5, 8, 13] (n=7):
+  type           Q1     median         Q3
+  R-1        1.0000     3.0000     8.0000
+  R-2        1.0000     3.0000     8.0000
+  R-3        1.0000     3.0000     5.0000
+  R-4        1.0000     2.5000     5.7500
+  R-5        1.2500     3.0000     7.2500
+  R-6        1.0000     3.0000     8.0000
+  R-7        1.5000     3.0000     6.5000
+  R-8        1.1667     3.0000     7.5000
+  R-9        1.1875     3.0000     7.4375
+  QWT        1.5000     3.0000     6.5000
+
+==============================================================================
+B. Q1/median/Q3 spread across R-1..R-9 (normalized by the R-7 IQR)
+==============================================================================
+
+distribution: normal  (1000 Monte Carlo trials per cell)
+     n |         Q1 spread mean/p95 |     median spread mean/p95 |         Q3 spread mean/p95
+     8 |              0.2629/0.7833 |              0.1333/0.3204 |              0.2789/0.8393
+    16 |              0.1257/0.3834 |              0.0631/0.1749 |              0.1320/0.3949
+    32 |              0.0583/0.1716 |              0.0319/0.0885 |              0.0604/0.1748
+    64 |              0.0278/0.0825 |              0.0147/0.0430 |              0.0271/0.0796
+   256 |              0.0066/0.0212 |              0.0036/0.0109 |              0.0073/0.0218
+  decay slope ( q1): spread ~ n^(-1.063)
+  decay slope (med): spread ~ n^(-1.046)
+  decay slope ( q3): spread ~ n^(-1.060)
+
+distribution: lognormal  (1000 Monte Carlo trials per cell)
+     n |         Q1 spread mean/p95 |     median spread mean/p95 |         Q3 spread mean/p95
+     8 |              0.1589/0.5236 |              0.1242/0.3271 |              0.5138/1.5684
+    16 |              0.0613/0.1915 |              0.0592/0.1644 |              0.2304/0.6904
+    32 |              0.0281/0.0863 |              0.0280/0.0843 |              0.1057/0.3218
+    64 |              0.0135/0.0390 |              0.0137/0.0382 |              0.0549/0.1652
+   256 |              0.0033/0.0099 |              0.0033/0.0098 |              0.0127/0.0376
+  decay slope ( q1): spread ~ n^(-1.101)
+  decay slope (med): spread ~ n^(-1.050)
+  decay slope ( q3): spread ~ n^(-1.059)
+
+distribution: t3  (1000 Monte Carlo trials per cell)
+     n |         Q1 spread mean/p95 |     median spread mean/p95 |         Q3 spread mean/p95
+     8 |              0.3185/0.9174 |              0.1209/0.2980 |              0.3014/0.8893
+    16 |              0.1377/0.4303 |              0.0588/0.1619 |              0.1401/0.4078
+    32 |              0.0611/0.1804 |              0.0301/0.0897 |              0.0639/0.1909
+    64 |              0.0292/0.0838 |              0.0140/0.0429 |              0.0318/0.0961
+   256 |              0.0077/0.0239 |              0.0034/0.0100 |              0.0071/0.0216
+  decay slope ( q1): spread ~ n^(-1.071)
+  decay slope (med): spread ~ n^(-1.029)
+  decay slope ( q3): spread ~ n^(-1.077)
+
+distribution: bimodal  (1000 Monte Carlo trials per cell)
+     n |         Q1 spread mean/p95 |     median spread mean/p95 |         Q3 spread mean/p95
+     8 |              0.2318/1.4687 |              0.1457/0.4335 |              0.2918/1.7027
+    16 |              0.0554/0.1213 |              0.0817/0.3518 |              0.0541/0.1116
+    32 |              0.0210/0.0493 |              0.0535/0.3005 |              0.0192/0.0482
+    64 |              0.0079/0.0238 |              0.0353/0.2501 |              0.0077/0.0231
+   256 |              0.0018/0.0057 |              0.0146/0.0513 |              0.0018/0.0056
+  decay slope ( q1): spread ~ n^(-1.372)
+  decay slope (med): spread ~ n^(-0.652)
+  decay slope ( q3): spread ~ n^(-1.427)
+
+==============================================================================
+C1. Outlier counts vs quantile type, 1.5*IQR fence, fixed datasets
+==============================================================================
+
+dataset A: normal(64) + {6.5, 7.0, -6.0} (n=67)
+  R-1: Q1=-1.0682 Q3=+0.5265 fence=[-3.4602,+2.9186] outliers=3
+  R-2: Q1=-1.0682 Q3=+0.5265 fence=[-3.4602,+2.9186] outliers=3
+  R-3: Q1=-1.0682 Q3=+0.5172 fence=[-3.4462,+2.8952] outliers=3
+  R-4: Q1=-1.0785 Q3=+0.5195 fence=[-3.4756,+2.9166] outliers=3
+  R-5: Q1=-1.0589 Q3=+0.5242 fence=[-3.4335,+2.8988] outliers=3
+  R-6: Q1=-1.0682 Q3=+0.5265 fence=[-3.4602,+2.9186] outliers=3
+  R-7: Q1=-1.0496 Q3=+0.5219 fence=[-3.4068,+2.8790] outliers=3
+  R-8: Q1=-1.0620 Q3=+0.5250 fence=[-3.4424,+2.9054] outliers=3
+  R-9: Q1=-1.0612 Q3=+0.5248 fence=[-3.4402,+2.9038] outliers=3
+  QWT : Q1=-1.0496 Q3=+0.5219 fence=[-3.4068,+2.8790] outliers=3
+
+dataset B: lognormal(0,1), n=32
+  R-1: Q1=+0.3397 Q3=+1.6021 fence=[-1.5539,+3.4958] outliers=3
+  R-2: Q1=+0.3462 Q3=+1.7927 fence=[-1.8236,+3.9624] outliers=3
+  R-3: Q1=+0.3397 Q3=+1.6021 fence=[-1.5539,+3.4958] outliers=3
+  R-4: Q1=+0.3397 Q3=+1.6021 fence=[-1.5539,+3.4958] outliers=3
+  R-5: Q1=+0.3462 Q3=+1.7927 fence=[-1.8236,+3.9624] outliers=3
+  R-6: Q1=+0.3430 Q3=+1.8879 fence=[-1.9745,+4.2054] outliers=2
+  R-7: Q1=+0.3494 Q3=+1.6974 fence=[-1.6726,+3.7194] outliers=3
+  R-8: Q1=+0.3451 Q3=+1.8244 fence=[-1.8739,+4.0434] outliers=3
+  R-9: Q1=+0.3454 Q3=+1.8165 fence=[-1.8613,+4.0232] outliers=3
+  QWT : Q1=+0.3494 Q3=+1.6974 fence=[+0.0928,+3.7194] outliers=3
+
+==============================================================================
+C2. Minimum sample size for which an outlier is possible (Tukey 1.5)
+==============================================================================
+  R-1: min n =  4 | witness [0. 0. 0. 1.] | upper fence = 0.0000 < x_max = 1.0000 | brute force confirms n: True, n-1 infeasible: True
+  R-2: min n =  5 | witness [0. 0. 0. 0. 1.] | upper fence = 0.0000 < x_max = 1.0000 | brute force confirms n: True, n-1 infeasible: True
+  R-3: min n =  3 | witness [0. 0. 1.] | upper fence = 0.0000 < x_max = 1.0000 | brute force confirms n: True, n-1 infeasible: True
+  R-4: min n =  3 | witness [0. 0. 1.] | upper fence = 0.6250 < x_max = 1.0000 | brute force confirms n: True, n-1 infeasible: True
+  R-5: min n =  5 | witness [0. 0. 0. 0. 1.] | upper fence = 0.6250 < x_max = 1.0000 | brute force confirms n: True, n-1 infeasible: True
+  R-6: min n =  6 | witness [0. 0. 0. 0. 0. 1.] | upper fence = 0.6250 < x_max = 1.0000 | brute force confirms n: True, n-1 infeasible: True
+  R-7: min n =  4 | witness [0. 0. 0. 1.] | upper fence = 0.6250 < x_max = 1.0000 | brute force confirms n: True, n-1 infeasible: True
+  R-8: min n =  5 | witness [0. 0. 0. 0. 1.] | upper fence = 0.8333 < x_max = 1.0000 | brute force confirms n: True, n-1 infeasible: True
+  R-9: min n =  5 | witness [0. 0. 0. 0. 1.] | upper fence = 0.7812 < x_max = 1.0000 | brute force confirms n: True, n-1 infeasible: True
+
+QWT (R-7) boundary cases, computed with the exact source semantics:
+  n=3 [0.0, 1.0, 2.0] -> Q1=0.5000 Q3=1.5000 IQR=1.0000 fence=[0.0000,2.0000] outliers=0 []
+  n=4 [0.0, 1.0, 2.0, 100.0] -> Q1=0.7500 Q3=26.5000 IQR=25.7500 fence=[0.0000,65.1250] outliers=1 [100.0]
+  n=5 [0.0, 1.0, 2.0, 3.0, 100.0] -> Q1=1.0000 Q3=3.0000 IQR=2.0000 fence=[0.0000,6.0000] outliers=1 [100.0]
+  n=3, R-7: fence(x3)-x3 = (x2 + 0.5*x3 - 1.5*x1)/2; with x1<=x2<=x3 this is
+          >= (0.5*x3 - 0.5*x1)/2 >= 0  ->  no upper outlier is possible.
+
+==============================================================================
+C3. Ties and IQR = 0 (QWT semantics)
+==============================================================================
+  [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 12.0] -> Q1=5.000 Q3=5.000 IQR=0.000 whiskers=[5.000,5.000] outliers=1 [12.0]
+  [1.0, 1.0, 1.0, 1.0, 1.0, 5.0, 9.0] -> Q1=1.000 Q3=3.000 IQR=2.000 whiskers=[1.000,6.000] outliers=1 [9.0]
+  [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0] -> Q1=3.000 Q3=3.000 IQR=0.000 whiskers=[3.000,3.000] outliers=0 []
+
+Whisker tip convention: QWT draws the whisker AT the fence, R at the
+most extreme data point inside the fence.  Fixed dataset A (n=67):
+  QWT whiskerUpper = 2.879038 (fence), R convention tip = 2.288083 (gap 0.590955)
+  QWT whiskerLower = -3.406772 (fence), R convention tip = -2.141918 (gap 1.264854)
+
+==============================================================================
+D. P-square streaming quantiles vs exact (sorted) R-7 quantiles
+==============================================================================
+
+stream: normal, 5 independent runs per length (mean |err| / sample IQR)
+  n=  1000: p25: 0.00731 (abs 0.00988) | p50: 0.00643 (abs 0.00858) | p75: 0.00696 (abs 0.00937)
+  n= 10000: p25: 0.00115 (abs 0.00155) | p50: 0.00079 (abs 0.00105) | p75: 0.00177 (abs 0.00237)
+  n=100000: p25: 0.00039 (abs 0.00052) | p50: 0.00021 (abs 0.00029) | p75: 0.00035 (abs 0.00047)
+
+stream: lognormal, 5 independent runs per length (mean |err| / sample IQR)
+  n=  1000: p25: 0.00315 (abs 0.00475) | p50: 0.00961 (abs 0.01423) | p75: 0.01968 (abs 0.02926)
+  n= 10000: p25: 0.00076 (abs 0.00110) | p50: 0.00173 (abs 0.00247) | p75: 0.00651 (abs 0.00938)
+  n=100000: p25: 0.00017 (abs 0.00025) | p50: 0.00055 (abs 0.00080) | p75: 0.00156 (abs 0.00227)
+
+stream of 4 values [ 0.1942  0.7749 -1.281   1.024 ]: P2 has no markers yet;
+  fallback exact median = 0.484581 (numpy median = 0.484581)
+
+fig_box_anatomy.png written (whiskerUpper QWT=2.8790 vs R tip=2.2881, whiskerLower QWT=-3.4068 vs R tip=-2.1419)
+fig_box_spread.png written
+fig_box_outliers.png written (min n per type: [4, 5, 3, 3, 5, 6, 4, 5, 5] )
+fig_box_p2.png written
+harness case file written: C:\src\Qt\qwt\.worktree\known-defects\docs\assets\algorithms\boxstats_cases.txt (20 cases)
+
+==============================================================================
+F. Cross-validation against the real C++ QwtBoxStatisticsCalculator (C:/src/Qt/qwt/tmp/boxstats_cpp_out.txt)
+==============================================================================
+  norm64_a     method=0 coeff=1.5   wl=+22.8317 q1=+43.4967 med=+51.2231 q3=+57.4353 wu=+67.1697 nOut=0 | max rel diff=0.00e+00 outliers match=True -> OK
+  norm64_b     method=0 coeff=1.5   wl=-2.03363 q1=-0.539127 med=-0.0262684 q3=+0.478172 wu=+1.91075 nOut=0 | max rel diff=0.00e+00 outliers match=True -> OK
+  norm5        method=0 coeff=1.5   wl=-1.32367 q1=-0.543728 med=-0.386474 q3=+0.259271 wu=+0.419784 nOut=0 | max rel diff=0.00e+00 outliers match=True -> OK
+  norm8        method=0 coeff=1.5   wl=-0.57807 q1=+0.181583 med=+0.53386 q3=+0.688019 wu=+0.928214 nOut=1 | max rel diff=0.00e+00 outliers match=True -> OK
+  norm256      method=0 coeff=1.5   wl=-2.71778 q1=-0.762587 med=-0.118795 q3=+0.540878 wu=+2.42258 nOut=1 | max rel diff=0.00e+00 outliers match=True -> OK
+  lognorm64    method=0 coeff=1.5   wl=+0.094065 q1=+0.521904 med=+0.989764 q3=+2.29428 wu=+4.95284 nOut=3 | max rel diff=0.00e+00 outliers match=True -> OK
+  witness_n3   method=0 coeff=1.5   wl=+0 q1=+0.5 med=+1 q3=+1.5 wu=+2 nOut=0 | max rel diff=0.00e+00 outliers match=True -> OK
+  witness_n4   method=0 coeff=1.5   wl=+0 q1=+0.75 med=+1.5 q3=+26.5 wu=+65.125 nOut=1 | max rel diff=0.00e+00 outliers match=True -> OK
+  witness_n5   method=0 coeff=1.5   wl=+0 q1=+1 med=+2 q3=+3 wu=+6 nOut=1 | max rel diff=0.00e+00 outliers match=True -> OK
+  ties7        method=0 coeff=1.5   wl=+5 q1=+5 med=+5 q3=+5 wu=+5 nOut=1 | max rel diff=0.00e+00 outliers match=True -> OK
+  const7       method=0 coeff=1.5   wl=+3 q1=+3 med=+3 q3=+3 wu=+3 nOut=0 | max rel diff=0.00e+00 outliers match=True -> OK
+  single       method=0 coeff=1.5   wl=+42 q1=+42 med=+42 q3=+42 wu=+42 nOut=0 | max rel diff=0.00e+00 outliers match=True -> OK
+  pair         method=0 coeff=1.5   wl=+1 q1=+1.25 med=+1.5 q3=+1.75 wu=+2 nOut=0 | max rel diff=0.00e+00 outliers match=True -> OK
+  empty        method=0 coeff=1.5   wl=+0 q1=+0 med=+0 q3=+0 wu=+0 nOut=0 | max rel diff=0.00e+00 outliers match=True -> OK
+  with_nan     method=0 coeff=1.5   wl=+1 q1=+2 med=+3 q3=+4 wu=+5 nOut=0 | max rel diff=0.00e+00 outliers match=True -> OK
+  pctl5        method=1 coeff=5     wl=-1.59965 q1=-0.730148 med=+0.112358 q3=+0.836084 wu=+1.86021 nOut=8 | max rel diff=0.00e+00 outliers match=True -> OK
+  pctl10       method=1 coeff=10    wl=-1.08763 q1=-0.69168 med=+0.0830641 q3=+0.576421 wu=+1.16518 nOut=14 | max rel diff=0.00e+00 outliers match=True -> OK
+  sd1          method=3 coeff=1     wl=+86.111 q1=+87.6066 med=+102.151 q3=+110.864 wu=+116.282 nOut=21 | max rel diff=0.00e+00 outliers match=True -> OK
+  se1          method=4 coeff=1     wl=+96.4006 q1=+88.9781 med=+97.7242 q3=+108.56 wu=+99.9653 nOut=55 | max rel diff=0.00e+00 outliers match=True -> OK
+  minmax       method=2 coeff=1.5   wl=-3.19467 q1=-0.643855 med=+0.0317478 q3=+0.639451 wu=+1.86861 nOut=0 | max rel diff=0.00e+00 outliers match=True -> OK
+
+cross-validation: 20/20 cases OK, worst rel diff = 0.000e+00
+Percentile-method evidence (real C++): whiskerLower=-1.599655 < whiskerUpper=1.860208 (5th/95th percentiles), outlierCount=8 of 64 values
