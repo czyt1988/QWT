@@ -47,21 +47,6 @@ public:
         StandardError
     };
 
-    //! Constructor with default Tukey method
-    QwtBoxStatisticsCalculator();
-
-    //! Set whisker calculation method
-    void setWhiskerMethod(WhiskerMethod method);
-
-    //! Get whisker calculation method
-    WhiskerMethod whiskerMethod() const;
-
-    //! Set whisker coefficient (1.5 for Tukey, tail percentage in (0, 50) for Percentile)
-    void setWhiskerCoefficient(double coeff);
-
-    //! Get whisker coefficient
-    double whiskerCoefficient() const;
-
     //! Compute QwtBoxSample from sorted data
     static QwtBoxSample
     calculate(double position, const QVector< double >& sortedData, WhiskerMethod method = Tukey, double coefficient = 1.5);
@@ -101,9 +86,6 @@ private:
 
     //! Helper: sort data (returns new sorted vector)
     static QVector< double > sortData(const QVector< double >& data);
-
-    WhiskerMethod m_method;
-    double m_coefficient { 1.5 };
 };
 
 #endif  // QWT_BOX_STATISTICS_H

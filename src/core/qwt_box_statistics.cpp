@@ -14,51 +14,6 @@
 
 #include <algorithm>
 
-/**
- * @brief Constructor with default Tukey method
- * @details Initializes the calculator with Tukey whisker method and coefficient 1.5.
- */
-QwtBoxStatisticsCalculator::QwtBoxStatisticsCalculator() : m_method(Tukey), m_coefficient(1.5)
-{
-}
-
-/**
- * @brief Set the whisker calculation method
- * @param[in] method The whisker method to use (Tukey, Percentile, MinMax, StandardDeviation, StandardError)
- */
-void QwtBoxStatisticsCalculator::setWhiskerMethod(WhiskerMethod method)
-{
-    m_method = method;
-}
-
-/**
- * @brief Get the whisker calculation method
- * @return Current whisker method
- */
-QwtBoxStatisticsCalculator::WhiskerMethod QwtBoxStatisticsCalculator::whiskerMethod() const
-{
-    return m_method;
-}
-
-/**
- * @brief Set the whisker coefficient
- * @param[in] coeff Coefficient value (1.5 for Tukey method, tail percentage in (0, 50)
- *                  for the Percentile method, e.g. 5 for the 5th/95th percentiles)
- */
-void QwtBoxStatisticsCalculator::setWhiskerCoefficient(double coeff)
-{
-    m_coefficient = coeff;
-}
-
-/**
- * @brief Get the whisker coefficient
- * @return Current whisker coefficient
- */
-double QwtBoxStatisticsCalculator::whiskerCoefficient() const
-{
-    return m_coefficient;
-}
-
 QVector< double > QwtBoxStatisticsCalculator::sortData(const QVector< double >& data)
 {
     QVector< double > sorted = data;
