@@ -1209,15 +1209,48 @@ void Qwt3DSurface::draw()
     d->m_shader.setUniformValue("uProjection", proj);
     d->m_shader.setUniformValue("uNormalMatrix", normalMatrix);
 
-    // Lighting uniforms
-    bool useLighting = plot()->lightingEnabled();
+    // Lighting uniforms: the light/material parameters are the ones stored in
+    // the plot (setLightComponent()/setMaterialComponent()/setShininess(),
+    // applied by the theme presets); their defaults reproduce the values that
+    // used to be hardcoded here.
+    const bool useLighting = plot()->lightingEnabled() && plot()->isLightIlluminated(0);
     d->m_shader.setUniformValue("uUseLighting", useLighting);
     if (useLighting) {
-        d->m_shader.setUniformValue("uLightPos",
-                                    QVector3D(0.0f, 0.0f, 10.0f));
-        d->m_shader.setUniformValue("uLightColor",
-                                    QVector3D(1.0f, 1.0f, 1.0f));
-        d->m_shader.setUniformValue("uShininess", 32.0f);
+        // the light position follows the stored rotation of light 0, applied
+        // in view space (the default rotation leaves it at (0, 0, 10))
+        QMatrix4x4 lightTransform;
+        lightTransform.rotate(static_cast< float >(plot()->xLightRotation()), 1.0f, 0.0f, 0.0f);
+        lightTransform.rotate(static_cast< float >(plot()->yLightRotation()), 0.0f, 1.0f, 0.0f);
+        lightTransform.rotate(static_cast< float >(plot()->zLightRotation()), 0.0f, 0.0f, 1.0f);
+        const QVector3D lightPos = lightTransform * QVector3D(0.0f, 0.0f, 10.0f);
+        d->m_shader.setUniformValue("uLightPos", lightPos);
+
+        const RGBA lightAmbient = plot()->lightComponent(GL_AMBIENT);
+        const RGBA lightDiffuse = plot()->lightComponent(GL_DIFFUSE);
+        const RGBA lightSpecular = plot()->lightComponent(GL_SPECULAR);
+        const RGBA materialAmbient = plot()->materialComponent(GL_AMBIENT);
+        const RGBA materialDiffuse = plot()->materialComponent(GL_DIFFUSE);
+        const RGBA materialSpecular = plot()->materialComponent(GL_SPECULAR);
+
+        d->m_shader.setUniformValue("uLightAmbient", QVector3D(static_cast< float >(lightAmbient.r),
+                                                               static_cast< float >(lightAmbient.g),
+                                                               static_cast< float >(lightAmbient.b)));
+        d->m_shader.setUniformValue("uLightDiffuse", QVector3D(static_cast< float >(lightDiffuse.r),
+                                                               static_cast< float >(lightDiffuse.g),
+                                                               static_cast< float >(lightDiffuse.b)));
+        d->m_shader.setUniformValue("uLightSpecular", QVector3D(static_cast< float >(lightSpecular.r),
+                                                                static_cast< float >(lightSpecular.g),
+                                                                static_cast< float >(lightSpecular.b)));
+        d->m_shader.setUniformValue("uMaterialAmbient", QVector3D(static_cast< float >(materialAmbient.r),
+                                                                  static_cast< float >(materialAmbient.g),
+                                                                  static_cast< float >(materialAmbient.b)));
+        d->m_shader.setUniformValue("uMaterialDiffuse", QVector3D(static_cast< float >(materialDiffuse.r),
+                                                                  static_cast< float >(materialDiffuse.g),
+                                                                  static_cast< float >(materialDiffuse.b)));
+        d->m_shader.setUniformValue("uMaterialSpecular", QVector3D(static_cast< float >(materialSpecular.r),
+                                                                   static_cast< float >(materialSpecular.g),
+                                                                   static_cast< float >(materialSpecular.b)));
+        d->m_shader.setUniformValue("uShininess", static_cast< float >(plot()->shininess()));
     }
 
     // Bind VAO (binds VBO + EBO + vertex attribute config)

@@ -178,6 +178,14 @@ public:
 
     // Returns true, if Lighting is enabled, false else
     bool lightingEnabled() const;
+    // Returns true, if light idx is illuminated
+    bool isLightIlluminated(unsigned idx = 0) const;
+    // Returns a light component (GL_AMBIENT/GL_DIFFUSE/GL_SPECULAR)
+    RGBA lightComponent(unsigned int property, unsigned light = 0) const;
+    // Returns a material component (GL_AMBIENT/GL_DIFFUSE/GL_SPECULAR)
+    RGBA materialComponent(unsigned int property) const;
+    // Returns the shininess exponent
+    double shininess() const;
 
     // Returns true while the scene is replayed for the gl2ps vector capture
     bool isVectorExportActive() const;

@@ -22,17 +22,46 @@ public:
 
     struct Light
     {
-        Light() : unlit(true)
+        Light()
+            : unlit(true)
+            , ambient(0.3, 0.3, 0.3, 1.0)
+            , diffuse(1.0, 1.0, 1.0, 1.0)
+            , specular(1.0, 1.0, 1.0, 1.0)
         {
         }
+
         bool unlit;
         Triple rot;
         Triple shift;
+
+        // RGBA components (GL_AMBIENT / GL_DIFFUSE / GL_SPECULAR), uploaded to
+        // the surface shader uniforms
+        RGBA ambient;
+        RGBA diffuse;
+        RGBA specular;
+    };
+
+    struct Material
+    {
+        Material()
+            : ambient(1.0, 1.0, 1.0, 1.0)
+            , diffuse(1.0, 1.0, 1.0, 1.0)
+            , specular(0.5, 0.5, 0.5, 1.0)
+            , shininess(32.0)
+        {
+        }
+
+        // the defaults reproduce the hardcoded parameters of the shader
+        RGBA ambient;
+        RGBA diffuse;
+        RGBA specular;
+        double shininess;
     };
 
     Qwt3DCoordinateSystem m_coordinates;
 
     std::vector< Light > m_lights;
+    Material m_material;
 
     double m_xRot, m_yRot, m_zRot;
     double m_xShift, m_yShift, m_zShift;

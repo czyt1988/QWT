@@ -46,6 +46,7 @@ void Qwt3DPlot::illuminate(unsigned light)
     if (light > 7)
         return;
     d->m_lights[ light ].unlit = false;
+    update();
 }
 
 /**
@@ -58,6 +59,7 @@ void Qwt3DPlot::blowout(unsigned light)
     if (light > 7)
         return;
     d->m_lights[ light ].unlit = true;
+    update();
 }
 
 /**
@@ -67,13 +69,21 @@ void Qwt3DPlot::blowout(unsigned light)
 */
 void Qwt3DPlot::setMaterialComponent(unsigned int property, double r, double g, double b, double a)
 {
-    // Store on CPU — shader uniforms will use these values
-    // TODO: Store in a material parameter struct for shader uniform upload
-    (void)property;
-    (void)r;
-    (void)g;
-    (void)b;
-    (void)a;
+    QWT_D(d);
+
+    RGBA* component = nullptr;
+    if (property == GL_AMBIENT)
+        component = &d->m_material.ambient;
+    else if (property == GL_DIFFUSE)
+        component = &d->m_material.diffuse;
+    else if (property == GL_SPECULAR)
+        component = &d->m_material.specular;
+
+    if (!component)
+        return;
+
+    *component = RGBA(r, g, b, a);
+    update();
 }
 
 /**
@@ -92,9 +102,9 @@ void Qwt3DPlot::setMaterialComponent(unsigned int property, double intensity)
 */
 void Qwt3DPlot::setShininess(double exponent)
 {
-    // Store on CPU — shader uniform will use this value
-    // TODO: Store in material parameter struct
-    (void)exponent;
+    QWT_D(d);
+    d->m_material.shininess = exponent;
+    update();
 }
 
 /**
@@ -104,14 +114,23 @@ void Qwt3DPlot::setShininess(double exponent)
 */
 void Qwt3DPlot::setLightComponent(unsigned int property, double r, double g, double b, double a, unsigned light)
 {
-    // Store on CPU — shader uniforms will use these values
-    // TODO: Store in light parameter struct for shader uniform upload
-    (void)property;
-    (void)r;
-    (void)g;
-    (void)b;
-    (void)a;
-    (void)light;
+    QWT_D(d);
+    if (light > 7)
+        return;
+
+    RGBA* component = nullptr;
+    if (property == GL_AMBIENT)
+        component = &d->m_lights[ light ].ambient;
+    else if (property == GL_DIFFUSE)
+        component = &d->m_lights[ light ].diffuse;
+    else if (property == GL_SPECULAR)
+        component = &d->m_lights[ light ].specular;
+
+    if (!component)
+        return;
+
+    *component = RGBA(r, g, b, a);
+    update();
 }
 
 /**
@@ -121,6 +140,78 @@ void Qwt3DPlot::setLightComponent(unsigned int property, double r, double g, dou
 void Qwt3DPlot::setLightComponent(unsigned int property, double intensity, unsigned light)
 {
     setLightComponent(property, intensity, intensity, intensity, 1.0, light);
+}
+
+/**
+  @brief Returns, whether light idx is switched on
+  @details The modernized renderer uses a single light; the per light flags of
+           the classic API are still stored and illuminate()/blowout() switch
+           light 0 on and off.
+  @param idx light number [0..7]
+  @return true, when light idx is switched on
+*/
+bool Qwt3DPlot::isLightIlluminated(unsigned idx) const
+{
+    QWT_DC(d);
+    return (idx < 8) ? !d->m_lights[ idx ].unlit : false;
+}
+
+/**
+  @brief Returns a stored light component (RGBA)
+  @param property GL_AMBIENT, GL_DIFFUSE or GL_SPECULAR
+  @param light light number [0..7]
+  @return the component; white when the property is unknown
+*/
+RGBA Qwt3DPlot::lightComponent(unsigned int property, unsigned light) const
+{
+    QWT_DC(d);
+    if (light > 7)
+        return RGBA(1.0, 1.0, 1.0, 1.0);
+
+    switch (property) {
+    case GL_AMBIENT:
+        return d->m_lights[ light ].ambient;
+    case GL_DIFFUSE:
+        return d->m_lights[ light ].diffuse;
+    case GL_SPECULAR:
+        return d->m_lights[ light ].specular;
+    default:
+        break;
+    }
+
+    return RGBA(1.0, 1.0, 1.0, 1.0);
+}
+
+/**
+  @brief Returns a stored material component (RGBA)
+  @param property GL_AMBIENT, GL_DIFFUSE or GL_SPECULAR
+  @return the component; white when the property is unknown
+*/
+RGBA Qwt3DPlot::materialComponent(unsigned int property) const
+{
+    QWT_DC(d);
+
+    switch (property) {
+    case GL_AMBIENT:
+        return d->m_material.ambient;
+    case GL_DIFFUSE:
+        return d->m_material.diffuse;
+    case GL_SPECULAR:
+        return d->m_material.specular;
+    default:
+        break;
+    }
+
+    return RGBA(1.0, 1.0, 1.0, 1.0);
+}
+
+/**
+  @brief Returns the shininess exponent of the material
+*/
+double Qwt3DPlot::shininess() const
+{
+    QWT_DC(d);
+    return d->m_material.shininess;
 }
 
 /**
