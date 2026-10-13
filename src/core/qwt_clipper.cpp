@@ -255,37 +255,51 @@ QVector< QwtInterval > QwtCircleClipper::clipCircle(const QPointF& pos, double r
 {
     // using QVarLengthArray TODO ...
 
-    QVector< QPointF > points;
-    for (int edge = 0; edge < NEdges; edge++)
-        points += cuttingPoints(static_cast< Edge >(edge), pos, radius);
+    QVector< double > angles;
+    for (int edge = 0; edge < NEdges; edge++) {
+        const QVector< QPointF > points = cuttingPoints(static_cast< Edge >(edge), pos, radius);
+        for (const QPointF& point : points)
+            angles += toAngle(pos, point);
+    }
 
     QVector< QwtInterval > intv;
-    if (points.size() <= 0) {
+    if (angles.isEmpty()) {
         QRectF cRect(0, 0, 2 * radius, 2 * radius);
         cRect.moveCenter(pos);
         if (m_rect.contains(cRect))
             intv += QwtInterval(0.0, 2 * M_PI);
-    } else {
-        QVector< double > angles;
-        angles.reserve(points.size());
 
-        for (const auto& pt : points)
-            angles += toAngle(pos, pt);
+        return intv;
+    }
 
-        std::sort(angles.begin(), angles.end());
+    std::sort(angles.begin(), angles.end());
 
-        const int in = m_rect.contains(qwtPolar2Pos(pos, radius, angles[ 0 ] + (angles[ 1 ] - angles[ 0 ]) / 2));
+    // A circle passing exactly through a corner is reported by both adjacent
+    // edges, with a few ulp of difference. Merging such duplicates keeps the
+    // sequence of crossing points alternating (in/out) - without it a corner
+    // duplicate produces a zero length arc and a 1 ulp dependent pairing.
+    const double angleTolerance = 1e-9;
+    for (int i = angles.size() - 1; i > 0; i--) {
+        if (angles[ i ] - angles[ i - 1 ] <= angleTolerance)
+            angles.remove(i);
+    }
+    // the first and the last angle can be duplicates as well (0 vs 2*pi)
+    if (angles.size() > 1 && angles.first() + 2 * M_PI - angles.last() <= angleTolerance)
+        angles.removeLast();
 
-        intv.reserve(angles.size() / 2);
-        if (in) {
-            for (int i = 0; i < angles.size() - 1; i += 2)
-                intv += QwtInterval(angles[ i ], angles[ i + 1 ]);
-        } else {
-            for (int i = 1; i < angles.size() - 1; i += 2)
-                intv += QwtInterval(angles[ i ], angles[ i + 1 ]);
+    // Classify every angular segment - including the wrap around one - by
+    // testing its midpoint: a segment belongs to the visible arcs, when its
+    // midpoint is inside the clip rectangle. Consecutive segments alternate
+    // for a convex clip rectangle, and unlike testing a single segment the
+    // classification stays local, so duplicated or missing cutting points
+    // (tangent circles) cannot flip the result for all other segments.
+    for (int i = 0; i < angles.size(); i++) {
+        const double from = angles[ i ];
+        const double to   = (i + 1 < angles.size()) ? angles[ i + 1 ] : angles.first() + 2 * M_PI;
 
-            intv += QwtInterval(angles.last(), angles.first());
-        }
+        const double mid = from + 0.5 * (to - from);
+        if (m_rect.contains(qwtPolar2Pos(pos, radius, mid)))
+            intv += QwtInterval(from, to);
     }
 
     return intv;
@@ -293,8 +307,10 @@ QVector< QwtInterval > QwtCircleClipper::clipCircle(const QPointF& pos, double r
 
 double QwtCircleClipper::toAngle(const QPointF& from, const QPointF& to) const
 {
-    if (from.x() == to.x())
-        return from.y() <= to.y() ? M_PI / 2.0 : 3 * M_PI / 2.0;
+    if (from.x() == to.x()) {
+        // qwtPolar2Pos() maps positive angles above the center (y grows down)
+        return (to.y() <= from.y()) ? M_PI / 2.0 : 3 * M_PI / 2.0;
+    }
 
     const double m = qAbs((to.y() - from.y()) / (to.x() - from.x()));
 
