@@ -340,18 +340,18 @@ $$
 flowchart TD
     A["桶循环开始"] --> B{"线性映射且能提取<br/>原始 Y 指针?"}
     B -->|"否"| C["通用路径<br/>虚函数 sample(i) 逐点访问"]
-    B -->|"是"| D["NaN 预扫描<br/>(可见区间一遍)"]
-    D --> E{"区间内存在 NaN?"}
-    E -->|"否"| F["SIMD 快速路径<br/>qwtSimdArgMinMax(raw.y+start, count)"]
-    E -->|"是"| G["标量快速路径<br/>原始指针 + NaN 检查"]
+    B -->|"是"| D["非有限 y 预扫描<br/>(可见区间一遍)"]
+    D --> E{"区间内存在非有限 y?"}
+    E -->|"否"| F["SIMD 快速路径<br/>qwtSimdArgMinMax(raw.y+start, count)<br/>+ 每桶 x 后置校验"]
+    E -->|"是"| G["标量快速路径<br/>原始指针 + isfinite 双坐标检查"]
 
     style F fill:#e8f5e9,stroke:#2ca02c
     style G fill:#fff3e0,stroke:#ff9800
     style C fill:#eceff1,stroke:#607d8b
 ```
 
-- **SIMD 快速路径**：数据源是 `QwtPointArrayData<double>`、`QwtCPointerData<double>`、`QwtValuePointData<double>`、`QwtCPointerValueData<double>` 之一时，通过 `dynamic_cast` 提取连续的 `double*` 数组，每个桶一次 `qwtSimdArgMinMax()` 拿到 argmin/argmax。$y$ 值比较在**数据域**进行，屏幕坐标单独变换。
-- **标量快速路径**：存在 NaN 时，SIMD 语义与"忽略 NaN"不符（见 5.4），退化为逐元素比较 + `std::isnan` 检查。
+- **SIMD 快速路径**：数据源是 `QwtPointArrayData<double>`、`QwtCPointerData<double>`、`QwtValuePointData<double>`、`QwtCPointerValueData<double>` 之一时，通过 `dynamic_cast` 提取连续的 `double*` 数组，每个桶一次 `qwtSimdArgMinMax()` 拿到 argmin/argmax。$y$ 值比较在**数据域**进行，屏幕坐标单独变换。每桶输出前对胜出样本的 $x$ 做 `isfinite` 后置校验（仅当存在原始 $x$ 指针）：x 为 NaN/Inf 的胜出样本会经 `qRound(NaN)=0` 产出伪顶点，命中时该桶改用标量循环重算。
+- **标量快速路径**：存在非有限 $y$ 时，SIMD 语义与"忽略 NaN"不符（见 5.4），退化为逐元素比较 + `!std::isfinite` 双坐标检查（x 或 y 非有限的样本都跳过，与通用路径语义一致）。
 - **通用路径**：无法提取原始指针时，逐点调用虚函数 `sample(i)`，每桶线性扫描维护 min/max。
 
 只有 $y$ 值的数据（`setRawSamples(yData, size)`）没有 $x$ 指针：屏幕 $x$ 直接用样本索引计算 $sx = \text{round}(i \cdot xCnv + xOff)$。

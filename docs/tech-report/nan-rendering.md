@@ -343,6 +343,15 @@ Other benchmark tasks ran in parallel on the machine during timing. The first ro
 
 ## 5. Discussion: an honest failure-mode list
 
+> **Update record (v7.5.0)**
+>
+> This article is a point-in-time snapshot from 2026-10; the conclusions and measured numbers in the body stay as they were. Three items of the list below have since been fixed, and one has gained a library-level outlet:
+>
+> - **#3 (LTTB x-NaN phantom vertex) and #4 (Inf passing the pre-scan) are fixed**: the pre-scan predicate is now `!isfinite(y)` (rejecting Inf); non-finite x values are caught by a per-bucket post-check in the SIMD path, and affected buckets are recomputed with the scalar loop; the scalar bucket loop skips samples with a non-finite x or y — the raw-pointer path now matches the generic path's semantics and no longer emits `(0, y)` phantom vertices or `INT_MIN` garbage coordinates (regression tests: `tests/nan_curve_test`). Note: scanning x in the pre-scan as well was measured to cost +11% frame time on 1M clean lttb points (double array memory traffic), hence the per-bucket post-check design.
+> - **#5 (FilterPoints single vertex on all-NaN) is fixed**: `qwtToPolylineFiltered` gained an all-NaN early exit; all-NaN input returns an empty polygon, restoring the "empty polygon = no data" convention.
+> - **#1/#2 (bridging semantics) gained a library-level outlet**: the `QwtPlotCurve::BreakAtNan` curve attribute (off by default) switches Lines/Steps to split semantics — every finite run is rendered, filled and smoothed independently, gaps stay blank; data-side splitting (Section 6.1) remains available.
+> - **#6/#7/#8 unchanged**: #6 is inherent to bucketed downsampling, #7 has no visual loss, and the use-guide lag of #8 has been synced with the fixes (both EN and ZH).
+
 | # | Failure | Trigger condition | Measured evidence | Impact |
 |---|---|---|---|---|
 | 1 | Bridging chord: a NaN run is spanned by a segment that does not exist in the data | any interior NaN run + any Lines mode/Steps | bridged equals intGaps throughout the semantics matrix; visual difference 0.23%–3.80% | the gap is "welded shut" and misread as a continuous signal |

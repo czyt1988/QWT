@@ -342,18 +342,18 @@ extended by one point on each side for overlap. Monotonicity is verified with at
 flowchart TD
     A["bucket loop"] --> B{"linear maps and<br/>raw Y pointer available?"}
     B -->|"no"| C["generic path<br/>virtual sample(i) per point"]
-    B -->|"yes"| D["NaN pre-scan<br/>(one pass over visible range)"]
-    D --> E{"any NaN?"}
-    E -->|"no"| F["SIMD fast path<br/>qwtSimdArgMinMax(raw.y+start, count)"]
-    E -->|"yes"| G["scalar fast path<br/>raw pointer + NaN check"]
+    B -->|"yes"| D["non-finite y pre-scan<br/>(one pass over visible range)"]
+    D --> E{"any non-finite y?"}
+    E -->|"no"| F["SIMD fast path<br/>qwtSimdArgMinMax(raw.y+start, count)<br/>+ per-bucket x post-check"]
+    E -->|"yes"| G["scalar fast path<br/>raw pointer + isfinite on both coordinates"]
 
     style F fill:#e8f5e9,stroke:#2ca02c
     style G fill:#fff3e0,stroke:#ff9800
     style C fill:#eceff1,stroke:#607d8b
 ```
 
-- **SIMD fast path**: if the data source is one of `QwtPointArrayData<double>`, `QwtCPointerData<double>`, `QwtValuePointData<double>`, `QwtCPointerValueData<double>`, a `dynamic_cast` extracts contiguous `double*` arrays and each bucket performs a single `qwtSimdArgMinMax()`; $y$ comparisons happen in the **data domain**, screen coordinates are transformed separately.
-- **Scalar fast path**: when NaN is present, the SIMD semantics differ from "ignore NaN" (Section 5.4), so the loop falls back to element-wise comparison plus `std::isnan`.
+- **SIMD fast path**: if the data source is one of `QwtPointArrayData<double>`, `QwtCPointerData<double>`, `QwtValuePointData<double>`, `QwtCPointerValueData<double>`, a `dynamic_cast` extracts contiguous `double*` arrays and each bucket performs a single `qwtSimdArgMinMax()`; $y$ comparisons happen in the **data domain**, screen coordinates are transformed separately. Before a bucket is emitted, the winning samples' $x$ values pass an `isfinite` post-check (only when a raw $x$ pointer exists): a winner with NaN/Inf $x$ would produce a phantom vertex through `qRound(NaN) == 0`, so such buckets are recomputed with the scalar loop.
+- **Scalar fast path**: when a non-finite $y$ is present, the SIMD semantics differ from "ignore NaN" (Section 5.4), so the loop falls back to element-wise comparison plus `!std::isfinite` checks on both coordinates (samples with a non-finite $x$ or $y$ are skipped, matching the generic path).
 - **Generic path**: without raw pointers, every point is fetched through the virtual `sample(i)` and a per-bucket linear scan maintains min/max.
 
 For value-only data (`setRawSamples(yData, size)`) there is no $x$ pointer: the screen $x$ is computed from the sample index, $sx = \text{round}(i \cdot xCnv + xOff)$.

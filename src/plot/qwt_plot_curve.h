@@ -143,7 +143,38 @@ public:
          * If painting in QwtPlotCurve::Fitted mode is slow it might be better
          * to fit the points, before they are passed to QwtPlotCurve.
          */
-        Fitted = 0x02
+        Fitted = 0x02,
+
+        /**
+         * For Lines and Steps style only.
+         * Samples with NaN/Inf coordinates mark gaps: instead of
+         * connecting the neighboring finite samples with a bridging
+         * line, every run of consecutive finite samples is rendered
+         * as an independent polyline and gaps stay blank.
+         *
+         * Without this attribute gaps are bridged, what is the
+         * default behavior of all paint attribute filtering modes.
+         *
+         * Each run is smoothed, fitted, clipped and filled on its own,
+         * so neither the smoothing kernel nor the fill area crosses a
+         * gap. Downsampling budgets also apply per run - short runs
+         * fall back to simpler filtering algorithms.
+         *
+         * The Dots and Sticks styles are not affected, as they draw
+         * per sample and skip NaN/Inf samples anyway.
+         *
+         * @note The finite sample runs are cached and recomputed
+         *       whenever the series data is set ( setSamples()/setData() ).
+         *
+         * Example:
+         * @code
+         * QwtPlotCurve* curve = new QwtPlotCurve();
+         * curve->setSamples( x, y );            // y contains qQNaN() gaps
+         * curve->setCurveAttribute( QwtPlotCurve::BreakAtNan, true );
+         * curve->attach( plot );
+         * @endcode
+         */
+        BreakAtNan = 0x04
     };
 
     Q_DECLARE_FLAGS(CurveAttributes, CurveAttribute)
@@ -498,6 +529,9 @@ public:
     virtual QwtGraphic legendIcon(int index, const QSizeF&) const override;
 
 protected:
+    //! Invalidate data dependent caches when the series has been changed
+    virtual void dataChanged() override;
+
     //! Initialize the curve
     void init();
 
