@@ -65,6 +65,7 @@ set(QWTCORE_SOURCE_FILES
     qwt_scale_map.cpp
     qwt_scale_div.cpp
     qwt_simd_argminmax.cpp
+    qwt_simd_argminmax_avx2.cpp
     qwt_box_statistics.cpp
     qwt_scale_engine.cpp
     qwt_series_data.cpp
@@ -73,6 +74,17 @@ set(QWTCORE_SOURCE_FILES
     qwt_matrix_raster_data.cpp
     qwt_grid_raster_data.cpp
 )
+# qwt_simd_argminmax_avx2.cpp holds the AVX2 kernel and is compiled with AVX2
+# code generation; qwt_simd_argminmax.cpp only calls it after its runtime
+# CPUID check. Without the split the kernel is compiled for the x86-64 baseline
+# and the AVX/SSE transition and spill/reload penalties cost ~330 ns per call
+# (docs/zh/tech-report/simd-argminmax.md).
+if(MSVC AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|X86|x86_64|i.86)")
+    set_source_files_properties(qwt_simd_argminmax_avx2.cpp PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i.86)")
+    set_source_files_properties(qwt_simd_argminmax_avx2.cpp PROPERTIES COMPILE_OPTIONS "-mavx2")
+endif()
+
 
 ########################################################
 # library target

@@ -7,16 +7,25 @@
 // the benchmark can compare "callee returns with dirty upper-YMM state" vs
 // "callee compiled as AVX2 (compiler inserts vzeroupper at return)".
 //
-// Build (MSVC x64, from a vcvars64 shell; needs Qt headers only for
-// qwtcore_global.h, no Qt library is linked):
+// Build (MSVC x64, from a vcvars64 shell; needs Qt headers + Qt6Core):
 //
-//   cl /nologo /O2 /EHsc /std:c++17 /MD /c ^
+//   cl /nologo /O2 /EHsc /std:c++17 /Zc:__cplusplus /permissive- /MD /c ^
 //      /I<repo>/src /I<repo>/src/core /I<qt>/include /I<qt>/include/QtCore ^
 //      simd_bench.cpp /Fo:simd_bench.obj
-//   cl /nologo /O2 /EHsc /std:c++17 /MD /arch:AVX2 /DQWT_SIMD_BENCH_AVX2_TU /c ^
+//   cl /nologo /O2 /EHsc /std:c++17 /Zc:__cplusplus /permissive- /MD /arch:AVX2 /DQWT_SIMD_BENCH_AVX2_TU /c ^
 //      /I<repo>/src /I<repo>/src/core /I<qt>/include /I<qt>/include/QtCore ^
 //      simd_bench.cpp /Fo:simd_bench_avx2tu.obj
-//   link /nologo simd_bench.obj simd_bench_avx2tu.obj /OUT:simd_bench.exe
+//   rem the AVX2 kernel of the library lives in its own TU since v7.5.1
+//   cl /nologo /O2 /EHsc /std:c++17 /Zc:__cplusplus /permissive- /MD /arch:AVX2 /c ^
+//      /I<repo>/src /I<repo>/src/core /I<qt>/include /I<qt>/include/QtCore ^
+//      <repo>/src/core/qwt_simd_argminmax_avx2.cpp /Fo:libavx2.obj
+//   link /nologo simd_bench.obj simd_bench_avx2tu.obj libavx2.obj ^
+//      /LIBPATH:<qt>/lib Qt6Core.lib /OUT:simd_bench.exe
+//
+// The bench includes qwt_simd_argminmax.cpp (the dispatcher TU) and therefore
+// needs qwtArgMinMaxAVX2 from the AVX2 translation unit listed above; the
+// main TU deliberately stays at the x86-64 baseline, which is what the
+// "shipped form" probes (call_avx2_direct, call_public) measure.
 //
 // Run (stdout is the results CSV; redirect it to simd_bench_results.csv):
 //

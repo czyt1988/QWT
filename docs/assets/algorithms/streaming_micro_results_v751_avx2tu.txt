@@ -1,0 +1,5 @@
+append only                        append median = 0.142 ms  (p90 0.161, min 0.092)
+append + SIMD reduce               append median = 0.130 ms  (p90 0.159, min 0.083)
+append + generic reduce            append median = 0.130 ms  (p90 0.158, min 0.084)
+append + SIMD reduce + zeroall     append median = 0.133 ms  (p90 0.159, min 0.088)
+append + SIMD reduce (2nd)         append median = 0.160 ms  (p90 0.345, min 0.120)

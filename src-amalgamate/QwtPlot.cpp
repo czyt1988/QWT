@@ -205,9 +205,90 @@ static QwtArgMinMaxResult argMinMaxSSE42(const double* data, int count)
 #endif
 
 // ===== AVX2 implementation =====
-#if defined(__AVX2__) || (defined(_MSC_VER) && _MSC_VER >= 1800)
+// The kernel lives in qwt_simd_argminmax_avx2.cpp, compiled with AVX2 code
+// generation (see the file and the CMake setup for the measurements behind
+// that split). It is only called after the runtime check below.
+#if defined(__AVX2__) || (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86)))
 
-static QwtArgMinMaxResult argMinMaxAVX2(const double* data, int count)
+QwtArgMinMaxResult qwtArgMinMaxAVX2(const double* data, int count);
+
+#define argMinMaxAVX2 qwtArgMinMaxAVX2
+
+#else
+#define argMinMaxAVX2 argMinMaxSSE42
+#endif
+
+// ===== Public API: function-pointer dispatch =====
+QwtArgMinMaxResult qwtSimdArgMinMax(const double* data, int count)
+{
+	using Fn            = QwtArgMinMaxResult (*)(const double*, int);
+	static const Fn kFn = []() -> Fn {
+		switch (kSimdLevel) {
+		case AVX2:
+			return argMinMaxAVX2;
+		case SSE42:
+			return argMinMaxSSE42;
+		default:
+			return argMinMaxScalar;
+		}
+	}();
+
+	QwtArgMinMaxResult result = kFn(data, count);
+
+	if (std::isnan(result.minVal) || std::isnan(result.maxVal))
+		return { 0, 0, DBL_MAX, -DBL_MAX };
+
+	return result;
+}
+
+/*** End of inlined file: qwt_simd_argminmax.cpp ***/
+
+
+/*** Start of inlined file: qwt_simd_argminmax_avx2.cpp ***/
+#if defined(__AVX2__) || (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86)))
+
+#include <cfloat>
+
+#if defined(_MSC_VER)
+#include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
+
+#if defined(_MSC_VER)
+#define QWT_SIMD_AVX2_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__) || defined(__clang__)
+#define QWT_SIMD_AVX2_NOINLINE __attribute__((noinline))
+#else
+#define QWT_SIMD_AVX2_NOINLINE
+#endif
+
+/**
+ * @brief AVX2 implementation of the argmin/argmax scan
+ * @details This translation unit is compiled with AVX2 code generation
+ *          ( /arch:AVX2 for MSVC, -mavx2 for GCC/Clang, see the CMake setup ),
+ *          which is safe because the dispatcher in qwt_simd_argminmax.cpp
+ *          calls the function only after its runtime CPUID check detected
+ *          AVX2 support.
+ *
+ *          The separate translation unit is a performance fix, not a
+ *          stylistic choice: with the default x86-64 code generation the
+ *          function reads its 256-bit accumulators back through the stack
+ *          ( 32 byte spill stores, narrow scalar/legacy SSE reloads ) and
+ *          mixes legacy encoded SSE into the epilogue, and the compiler
+ *          schedules both the spill/reload pattern and the VZEROUPPER it was
+ *          explicitly asked for in ways that keep the AVX-SSE transition
+ *          penalty alive. Compiled as AVX2 the whole epilogue is VEX encoded
+ *          and the compiler inserts a VZEROUPPER at the return, which the
+ *          measurements in docs/zh/tech-report/simd-argminmax.md quantify:
+ *          ~330 ns of fixed per call overhead and a ~10x slowdown of scalar
+ *          code following the call collapse to a few ns.
+ *
+ *          noinline: with link time code generation the function must not be
+ *          inlined into the (default architecture) dispatcher, where its AVX2
+ *          instructions could then be reached without the CPUID check.
+ */
+QWT_SIMD_AVX2_NOINLINE QwtArgMinMaxResult qwtArgMinMaxAVX2(const double* data, int count)
 {
 	__m256d minVec    = _mm256_set1_pd(DBL_MAX);
 	__m256d maxVec    = _mm256_set1_pd(-DBL_MAX);
@@ -267,82 +348,13 @@ static QwtArgMinMaxResult argMinMaxAVX2(const double* data, int count)
 	return { fMinIdx, fMaxIdx, fMinVal, fMaxVal };
 }
 
-#else
-#define argMinMaxAVX2 argMinMaxSSE42
-#endif
+#endif  // AVX2 capable x86
 
-// ===== Public API: function-pointer dispatch =====
-QwtArgMinMaxResult qwtSimdArgMinMax(const double* data, int count)
-{
-	using Fn            = QwtArgMinMaxResult (*)(const double*, int);
-	static const Fn kFn = []() -> Fn {
-		switch (kSimdLevel) {
-		case AVX2:
-			return argMinMaxAVX2;
-		case SSE42:
-			return argMinMaxSSE42;
-		default:
-			return argMinMaxScalar;
-		}
-	}();
-
-	QwtArgMinMaxResult result = kFn(data, count);
-
-	if (std::isnan(result.minVal) || std::isnan(result.maxVal))
-		return { 0, 0, DBL_MAX, -DBL_MAX };
-
-	return result;
-}
-
-/*** End of inlined file: qwt_simd_argminmax.cpp ***/
+/*** End of inlined file: qwt_simd_argminmax_avx2.cpp ***/
 
 
 /*** Start of inlined file: qwt_box_statistics.cpp ***/
 #include <algorithm>
-
-/**
- * @brief Constructor with default Tukey method
- * @details Initializes the calculator with Tukey whisker method and coefficient 1.5.
- */
-QwtBoxStatisticsCalculator::QwtBoxStatisticsCalculator() : m_method(Tukey), m_coefficient(1.5)
-{
-}
-
-/**
- * @brief Set the whisker calculation method
- * @param[in] method The whisker method to use (Tukey, Percentile, MinMax, StandardDeviation, StandardError)
- */
-void QwtBoxStatisticsCalculator::setWhiskerMethod(WhiskerMethod method)
-{
-	m_method = method;
-}
-
-/**
- * @brief Get the whisker calculation method
- * @return Current whisker method
- */
-QwtBoxStatisticsCalculator::WhiskerMethod QwtBoxStatisticsCalculator::whiskerMethod() const
-{
-	return m_method;
-}
-
-/**
- * @brief Set the whisker coefficient
- * @param[in] coeff Coefficient value (1.5 for Tukey method, percentile value for Percentile method)
- */
-void QwtBoxStatisticsCalculator::setWhiskerCoefficient(double coeff)
-{
-	m_coefficient = coeff;
-}
-
-/**
- * @brief Get the whisker coefficient
- * @return Current whisker coefficient
- */
-double QwtBoxStatisticsCalculator::whiskerCoefficient() const
-{
-	return m_coefficient;
-}
 
 QVector< double > QwtBoxStatisticsCalculator::sortData(const QVector< double >& data)
 {
@@ -459,8 +471,8 @@ QwtBoxSample QwtBoxStatisticsCalculator::calculate(double position,
 		break;
 	}
 	case Percentile: {
-		whiskerLower = quantile(sortedData, 1.0 - coefficient / 100.0);
-		whiskerUpper = quantile(sortedData, coefficient / 100.0);
+		whiskerLower = quantile(sortedData, coefficient / 100.0);
+		whiskerUpper = quantile(sortedData, 1.0 - coefficient / 100.0);
 		break;
 	}
 	case MinMax: {
@@ -491,6 +503,7 @@ QwtBoxSample QwtBoxStatisticsCalculator::calculate(double position,
 	}
 
 	QwtBoxSample sample(position, whiskerLower, q1, med, q3, whiskerUpper);
+	sample.mean = mean(sortedData);
 
 	// Count outliers
 	int outlierCount = 0;
@@ -2190,12 +2203,20 @@ QVector< QColor > QwtColorCycle::paletteColors(Palette palette)
 /*** Start of inlined file: qwt_colormap_preset.cpp ***/
 // Color stop data sourced from matplotlib colormaps.
 // Each preset defines key color stops at normalized positions [0.0, 1.0].
+//
+// The stops of viridis/plasma/inferno/magma/cividis/turbo are sampled from the
+// official matplotlib 256 entry tables at exactly these positions - regenerate
+// them with docs/assets/algorithms/colormap_stops_gen.py.
+// The remaining presets are approximations with a few stops (their deviation
+// from the matplotlib tables is documented in
+// docs/zh/tech-report/colormap-color-science.md, section 5.2), and "rainbow"
+// is a QWT specific closed hue ring, not the matplotlib table of that name.
 
 static QVector< QPair< double, QColor > > viridisStops()
 {
-	return { { 0.000, QColor(68, 1, 84) },   { 0.125, QColor(72, 36, 117) },  { 0.250, QColor(64, 67, 135) },
-			 { 0.375, QColor(52, 94, 141) }, { 0.500, QColor(33, 121, 133) }, { 0.625, QColor(33, 148, 116) },
-			 { 0.750, QColor(94, 174, 83) }, { 0.875, QColor(176, 199, 49) }, { 1.000, QColor(253, 231, 37) } };
+	return { { 0.000, QColor(68, 1, 84) },   { 0.125, QColor(71, 45, 123) },  { 0.250, QColor(59, 82, 139) },
+			 { 0.375, QColor(44, 114, 142) }, { 0.500, QColor(33, 145, 140) }, { 0.625, QColor(40, 174, 128) },
+			 { 0.750, QColor(94, 201, 98) },  { 0.875, QColor(173, 220, 48) }, { 1.000, QColor(253, 231, 37) } };
 }
 
 static QVector< QPair< double, QColor > > plasmaStops()
@@ -2207,23 +2228,23 @@ static QVector< QPair< double, QColor > > plasmaStops()
 
 static QVector< QPair< double, QColor > > infernoStops()
 {
-	return { { 0.000, QColor(0, 0, 4) },      { 0.125, QColor(22, 11, 57) },   { 0.250, QColor(66, 10, 104) },
-			 { 0.375, QColor(106, 23, 110) }, { 0.500, QColor(147, 38, 103) }, { 0.625, QColor(188, 55, 84) },
-			 { 0.750, QColor(221, 81, 58) },  { 0.875, QColor(243, 120, 25) }, { 1.000, QColor(252, 255, 164) } };
+	return { { 0.000, QColor(0, 0, 4) },      { 0.125, QColor(33, 12, 74) },   { 0.250, QColor(87, 16, 110) },
+			 { 0.375, QColor(138, 34, 106) }, { 0.500, QColor(188, 55, 84) },  { 0.625, QColor(228, 90, 49) },
+			 { 0.750, QColor(249, 142, 9) },  { 0.875, QColor(249, 203, 53) }, { 1.000, QColor(252, 255, 164) } };
 }
 
 static QVector< QPair< double, QColor > > magmaStops()
 {
-	return { { 0.000, QColor(0, 0, 4) },      { 0.125, QColor(18, 14, 54) },   { 0.250, QColor(60, 19, 99) },
-			 { 0.375, QColor(101, 26, 120) }, { 0.500, QColor(142, 43, 122) }, { 0.625, QColor(183, 60, 111) },
-			 { 0.750, QColor(221, 91, 98) },  { 0.875, QColor(249, 139, 94) }, { 1.000, QColor(252, 253, 191) } };
+	return { { 0.000, QColor(0, 0, 4) },      { 0.125, QColor(29, 17, 71) },   { 0.250, QColor(81, 18, 124) },
+			 { 0.375, QColor(131, 38, 129) }, { 0.500, QColor(183, 55, 121) }, { 0.625, QColor(231, 82, 99) },
+			 { 0.750, QColor(252, 137, 97) }, { 0.875, QColor(254, 196, 136) }, { 1.000, QColor(252, 253, 191) } };
 }
 
 static QVector< QPair< double, QColor > > cividisStops()
 {
-	return { { 0.000, QColor(0, 32, 77) },     { 0.125, QColor(0, 52, 102) },    { 0.250, QColor(37, 70, 110) },
-			 { 0.375, QColor(69, 89, 112) },   { 0.500, QColor(95, 108, 114) },  { 0.625, QColor(120, 129, 117) },
-			 { 0.750, QColor(152, 152, 115) }, { 0.875, QColor(192, 181, 102) }, { 1.000, QColor(253, 231, 37) } };
+	return { { 0.000, QColor(0, 34, 78) },    { 0.125, QColor(26, 56, 111) },  { 0.250, QColor(67, 78, 108) },
+			 { 0.375, QColor(97, 101, 111) }, { 0.500, QColor(125, 124, 120) }, { 0.625, QColor(155, 148, 118) },
+			 { 0.750, QColor(188, 174, 108) }, { 0.875, QColor(222, 201, 88) }, { 1.000, QColor(254, 232, 56) } };
 }
 
 static QVector< QPair< double, QColor > > jetStops()
@@ -2300,9 +2321,9 @@ static QVector< QPair< double, QColor > > hsvStops()
 
 static QVector< QPair< double, QColor > > turboStops()
 {
-	return { { 0.000, QColor(48, 18, 59) },   { 0.125, QColor(68, 79, 193) },  { 0.250, QColor(63, 156, 243) },
-			 { 0.375, QColor(39, 210, 208) }, { 0.500, QColor(69, 236, 127) }, { 0.625, QColor(162, 247, 55) },
-			 { 0.750, QColor(232, 226, 26) }, { 0.875, QColor(251, 150, 13) }, { 1.000, QColor(122, 4, 3) } };
+	return { { 0.000, QColor(48, 18, 59) },   { 0.125, QColor(70, 107, 227) }, { 0.250, QColor(40, 188, 235) },
+			 { 0.375, QColor(50, 242, 152) }, { 0.500, QColor(164, 252, 60) }, { 0.625, QColor(238, 207, 58) },
+			 { 0.750, QColor(251, 126, 33) }, { 0.875, QColor(208, 47, 5) },  { 1.000, QColor(122, 4, 3) } };
 }
 
 static QVector< QPair< double, QColor > > coolWarmStops()
@@ -5323,37 +5344,51 @@ QVector< QwtInterval > QwtCircleClipper::clipCircle(const QPointF& pos, double r
 {
 	// using QVarLengthArray TODO ...
 
-	QVector< QPointF > points;
-	for (int edge = 0; edge < NEdges; edge++)
-		points += cuttingPoints(static_cast< Edge >(edge), pos, radius);
+	QVector< double > angles;
+	for (int edge = 0; edge < NEdges; edge++) {
+		const QVector< QPointF > points = cuttingPoints(static_cast< Edge >(edge), pos, radius);
+		for (const QPointF& point : points)
+			angles += toAngle(pos, point);
+	}
 
 	QVector< QwtInterval > intv;
-	if (points.size() <= 0) {
+	if (angles.isEmpty()) {
 		QRectF cRect(0, 0, 2 * radius, 2 * radius);
 		cRect.moveCenter(pos);
 		if (m_rect.contains(cRect))
 			intv += QwtInterval(0.0, 2 * M_PI);
-	} else {
-		QVector< double > angles;
-		angles.reserve(points.size());
 
-		for (const auto& pt : points)
-			angles += toAngle(pos, pt);
+		return intv;
+	}
 
-		std::sort(angles.begin(), angles.end());
+	std::sort(angles.begin(), angles.end());
 
-		const int in = m_rect.contains(qwtPolar2Pos(pos, radius, angles[ 0 ] + (angles[ 1 ] - angles[ 0 ]) / 2));
+	// A circle passing exactly through a corner is reported by both adjacent
+	// edges, with a few ulp of difference. Merging such duplicates keeps the
+	// sequence of crossing points alternating (in/out) - without it a corner
+	// duplicate produces a zero length arc and a 1 ulp dependent pairing.
+	const double angleTolerance = 1e-9;
+	for (int i = angles.size() - 1; i > 0; i--) {
+		if (angles[ i ] - angles[ i - 1 ] <= angleTolerance)
+			angles.remove(i);
+	}
+	// the first and the last angle can be duplicates as well (0 vs 2*pi)
+	if (angles.size() > 1 && angles.first() + 2 * M_PI - angles.last() <= angleTolerance)
+		angles.removeLast();
 
-		intv.reserve(angles.size() / 2);
-		if (in) {
-			for (int i = 0; i < angles.size() - 1; i += 2)
-				intv += QwtInterval(angles[ i ], angles[ i + 1 ]);
-		} else {
-			for (int i = 1; i < angles.size() - 1; i += 2)
-				intv += QwtInterval(angles[ i ], angles[ i + 1 ]);
+	// Classify every angular segment - including the wrap around one - by
+	// testing its midpoint: a segment belongs to the visible arcs, when its
+	// midpoint is inside the clip rectangle. Consecutive segments alternate
+	// for a convex clip rectangle, and unlike testing a single segment the
+	// classification stays local, so duplicated or missing cutting points
+	// (tangent circles) cannot flip the result for all other segments.
+	for (int i = 0; i < angles.size(); i++) {
+		const double from = angles[ i ];
+		const double to   = (i + 1 < angles.size()) ? angles[ i + 1 ] : angles.first() + 2 * M_PI;
 
-			intv += QwtInterval(angles.last(), angles.first());
-		}
+		const double mid = from + 0.5 * (to - from);
+		if (m_rect.contains(qwtPolar2Pos(pos, radius, mid)))
+			intv += QwtInterval(from, to);
 	}
 
 	return intv;
@@ -5361,8 +5396,10 @@ QVector< QwtInterval > QwtCircleClipper::clipCircle(const QPointF& pos, double r
 
 double QwtCircleClipper::toAngle(const QPointF& from, const QPointF& to) const
 {
-	if (from.x() == to.x())
-		return from.y() <= to.y() ? M_PI / 2.0 : 3 * M_PI / 2.0;
+	if (from.x() == to.x()) {
+		// qwtPolar2Pos() maps positive angles above the center (y grows down)
+		return (to.y() <= from.y()) ? M_PI / 2.0 : 3 * M_PI / 2.0;
+	}
 
 	const double m = qAbs((to.y() - from.y()) / (to.x() - from.x()));
 
@@ -5519,6 +5556,8 @@ QVector< QwtInterval > QwtClipper::clipCircle(const QRectF& clipRect, const QPoi
 
 
 /*** Start of inlined file: qwt_scale_div.cpp ***/
+#include <algorithm>
+
 /**
  * @brief Construct a division without ticks
  *
@@ -5853,8 +5892,17 @@ QwtScaleDiv QwtScaleDiv::bounded(double lowerBound, double upperBound) const
  */
 void QwtScaleDiv::setTicks(int tickType, const QList< double >& ticks)
 {
-	if (tickType >= 0 && tickType < NTickTypes)
-		m_ticks[ tickType ] = ticks;
+	if (tickType >= 0 && tickType < NTickTypes) {
+		// Normalize: the tick lists are sorted and duplicate free. Engines can
+		// produce duplicated values (the date engine collapsing rounded minor
+		// ticks), which would otherwise be painted - and queried by snapping
+		// code - twice.
+		QList< double > normalized = ticks;
+		std::sort(normalized.begin(), normalized.end());
+		normalized.erase(std::unique(normalized.begin(), normalized.end()), normalized.end());
+
+		m_ticks[ tickType ] = normalized;
+	}
 }
 
 /**
@@ -17842,6 +17890,7 @@ void QwtSamplingThread::run()
 #include <qmap.h>
 #include <qlist.h>
 #include <qlocale.h>
+#include <qset.h>
 
 class QwtAbstractScaleDraw::PrivateData
 {
@@ -18086,16 +18135,42 @@ void QwtAbstractScaleDraw::draw(QPainter* painter, const QPalette& palette) cons
 
 		painter->setPen(pen);
 
+		// The tick lists of different types can contain the same value: the
+		// date engine collapses rounded minor ticks onto major ticks, for
+		// example. Paint every position only once - a tick that sits on a
+		// tick of a longer type is skipped, so the position keeps the length
+		// of the longest type.
+		QSet< double > mediumAndMajorValues;
+		QSet< double > majorValues;
+
+		for (int tickType = QwtScaleDiv::MediumTick; tickType <= QwtScaleDiv::MajorTick; tickType++) {
+			const QList< double >& ticks = d->scaleDiv.ticks(tickType);
+			for (int i = 0; i < ticks.count(); i++) {
+				if (d->scaleDiv.contains(ticks[ i ])) {
+					mediumAndMajorValues.insert(ticks[ i ]);
+					if (tickType == QwtScaleDiv::MajorTick)
+						majorValues.insert(ticks[ i ]);
+				}
+			}
+		}
+
 		for (int tickType = QwtScaleDiv::MinorTick; tickType < QwtScaleDiv::NTickTypes; tickType++) {
 			const double tickLen = d->tickLength[ tickType ];
 			if (tickLen <= 0.0)
 				continue;
 
+			const QSet< double >& covered =
+				(tickType == QwtScaleDiv::MinorTick) ? mediumAndMajorValues : majorValues;
+
 			const QList< double >& ticks = d->scaleDiv.ticks(tickType);
 			for (int i = 0; i < ticks.count(); i++) {
 				const double v = ticks[ i ];
-				if (d->scaleDiv.contains(v))
-					drawTick(painter, v, tickLen);
+				if (!d->scaleDiv.contains(v))
+					continue;
+				if (tickType != QwtScaleDiv::MajorTick && covered.contains(v))
+					continue;  // a longer tick is drawn at this position
+
+				drawTick(painter, v, tickLen);
 			}
 		}
 
@@ -60118,6 +60193,10 @@ bool QwtPlotBoxChart::isMedianVisible() const
 /**
  * @brief Set whether the mean marker is visible
  * @param[in] visible True to show, false to hide
+ * @details The marker is drawn at QwtBoxSample::mean. Samples without a mean
+ *          (the field is NaN, e.g. for samples assembled by hand) draw no
+ *          marker; QwtBoxStatisticsCalculator fills the mean for all samples
+ *          it computes.
  *
  */
 void QwtPlotBoxChart::setMeanVisible(bool visible)
@@ -60328,13 +60407,13 @@ void QwtPlotBoxChart::drawSeries(QPainter* painter,
 			drawMedian(painter, sample, orient, boxWidth, posPixel, *valueMap);
 		}
 
-		if (d->meanVisible && d->meanSymbol) {
-			double medianPixel = valueMap->transform(sample.median);
+		if (d->meanVisible && d->meanSymbol && sample.hasMean()) {
+			double meanPixel = valueMap->transform(sample.mean);
 			if (doAlign)
-				medianPixel = qRound(medianPixel);
+				meanPixel = qRound(meanPixel);
 
 			d->meanSymbol->drawSymbol(
-				painter, (orient == Qt::Vertical) ? QPointF(posPixel, medianPixel) : QPointF(medianPixel, posPixel));
+				painter, (orient == Qt::Vertical) ? QPointF(posPixel, meanPixel) : QPointF(meanPixel, posPixel));
 		}
 	}
 
@@ -94176,6 +94255,7 @@ bool Qwt3DNativeReader::operator()(Qwt3DPlot* plot, QString const& fname)
 
 
 /*** Start of inlined file: qwt3d_io.cpp ***/
+#include <QDebug>
 #include <QImageWriter>
 
 #include <ctime>
@@ -94255,7 +94335,7 @@ Qwt3DIO::FormatCompare::FormatCompare(Qwt3DIO::Entry const& e)
 
 bool Qwt3DIO::FormatCompare::operator()(Qwt3DIO::Entry const& e)
 {
-	return (e.fmt == e_.fmt);
+	return (e.fmt.compare(e_.fmt, Qt::CaseInsensitive) == 0);
 }
 
 Qwt3DIO::FormatCompare2::FormatCompare2(QString s)
@@ -94265,7 +94345,7 @@ Qwt3DIO::FormatCompare2::FormatCompare2(QString s)
 
 bool Qwt3DIO::FormatCompare2::operator()(Qwt3DIO::Entry const& e)
 {
-	return (e.fmt == s_);
+	return (e.fmt.compare(s_, Qt::CaseInsensitive) == 0);
 }
 
 bool Qwt3DIO::add_unique(Container& l, Entry const& e)
@@ -94310,7 +94390,7 @@ Qwt3DIO::Container& Qwt3DIO::wlist()
  * @param format Format string identifier
  * @param func Input handler function
  * @return True on successful registration
- * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
+ * @details Every call overwrites a formerly registered handler for the same format string (case insensitive).
  */
 bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Function func)
 {
@@ -94322,7 +94402,7 @@ bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Function func)
  * @param format Format string identifier
  * @param func Input handler functor
  * @return True on successful registration
- * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
+ * @details Every call overwrites a formerly registered handler for the same format string (case insensitive).
  */
 bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Functor const& func)
 {
@@ -94334,7 +94414,7 @@ bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Functor const& 
  * @param format Format string identifier
  * @param func Output handler function
  * @return True on successful registration
- * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
+ * @details Every call overwrites a formerly registered handler for the same format string (case insensitive).
  */
 bool Qwt3DIO::defineOutputHandler(QString const& format, Qwt3DIO::Function func)
 {
@@ -94346,7 +94426,7 @@ bool Qwt3DIO::defineOutputHandler(QString const& format, Qwt3DIO::Function func)
  * @param format Format string identifier
  * @param func Output handler functor
  * @return True on successful registration
- * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
+ * @details Every call overwrites a formerly registered handler for the same format string (case insensitive).
  */
 bool Qwt3DIO::defineOutputHandler(QString const& format, Qwt3DIO::Functor const& func)
 {
@@ -94365,8 +94445,11 @@ bool Qwt3DIO::load(Qwt3DPlot* plot, QString const& fname, QString const& format)
 {
 	IT it = Qwt3DIO::find(rlist(), format);
 
-	if (it == rlist().end())
+	if (it == rlist().end()) {
+		qWarning("Qwt3DIO::load: no handler for format '%s' (registered: %s)",
+				 qPrintable(format), qPrintable(inputFormatList().join(QStringLiteral(", "))));
 		return false;
+	}
 
 	return (*it->iofunc)(plot, fname);
 }
@@ -94383,8 +94466,11 @@ bool Qwt3DIO::save(Qwt3DPlot* plot, QString const& fname, QString const& format)
 {
 	IT it = Qwt3DIO::find(wlist(), format);
 
-	if (it == wlist().end())
+	if (it == wlist().end()) {
+		qWarning("Qwt3DIO::save: no handler for format '%s' (registered: %s)",
+				 qPrintable(format), qPrintable(outputFormatList().join(QStringLiteral(", "))));
 		return false;
+	}
 
 	return (*it->iofunc)(plot, fname);
 }
@@ -94512,10 +94598,24 @@ void Qwt3DIO::setupHandler()
  *          Beware: BSPSORT turns out to behave very slowly and memory consuming, especially in cases
  *          where many polygons appear. It is still more exact than SIMPLESORT.
  */
+namespace
+{
+bool isVectorFormat(const QString& format)
+{
+	static const char* const formats[] = { "EPS", "EPS_GZ", "PS", "PS_GZ", "PDF", "SVG", "PGF" };
+
+	for (const char* candidate : formats) {
+		if (format.compare(QLatin1String(candidate), Qt::CaseInsensitive) == 0)
+			return true;
+	}
+
+	return false;
+}
+}  // namespace
+
 bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, Qwt3DVectorWriter::TEXTMODE text, Qwt3DVectorWriter::SORTMODE sortmode)
 {
-	if (format == "EPS" || format == "EPS_GZ" || format == "PS" || format == "PS_GZ" || format == "PDF"
-		|| format == "SVG" || format == "PGF") {
+	if (isVectorFormat(format)) {
 		Qwt3DVectorWriter* gl2ps = static_cast< Qwt3DVectorWriter* >(Qwt3DIO::outputHandler(format));
 		if (gl2ps) {
 			gl2ps->setSortMode(sortmode);
@@ -94534,9 +94634,10 @@ bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, Qwt3D
  */
 bool Qwt3DPlot::savePixmap(QString const& fileName, QString const& format)
 {
-	if (format == "EPS" || format == "EPS_GZ" || format == "PS" || format == "PS_GZ" || format == "PDF"
-		|| format == "SVG" || format == "PGF")
+	if (isVectorFormat(format)) {
+		qWarning("Qwt3DPlot::savePixmap: '%s' is a vector format - use saveVector()", qPrintable(format));
 		return false;
+	}
 
 	return Qwt3DIO::save(this, fileName, format);
 }
@@ -96214,9 +96315,14 @@ int Qwt3DSurface::resolution() const
 /**
  * @brief Sets the data resolution
  * @param res Resolution value (1 = full data, higher = coarser)
- * @details Resolution controls index buffer stepping: higher values skip
- *          vertices in the index buffer, reducing rendered detail without
- *          rebuilding the VBO. A value of 1 renders all data.
+ * @details Resolution controls the index buffer stepping: higher values skip
+ *          vertices, reducing the rendered detail. Note that the decimation is
+ *          applied while rebuilding the geometry: the vertex array does not
+ *          depend on the resolution, but the VBO/EBO are re-uploaded on the
+ *          next draw (40-80 ms for a 1024x1024 grid, see
+ *          docs/zh/tech-report/3d-surface-pipeline.md) - it is a setting for
+ *          static views, not a per-frame LOD switch. A value of 1 renders all
+ *          data.
  */
 void Qwt3DSurface::setResolution(int res)
 {

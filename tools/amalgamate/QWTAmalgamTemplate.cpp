@@ -14,6 +14,7 @@
 //core
 #include "../../src/core/qwt_math.cpp"
 #include "../../src/core/qwt_simd_argminmax.cpp"
+#include "../../src/core/qwt_simd_argminmax_avx2.cpp"
 #include "../../src/core/qwt_box_statistics.cpp"
 #include "../../src/core/qwt_interval.cpp"
 #include "../../src/core/qwt_colormap.cpp"

@@ -1608,7 +1608,7 @@ public:
 	/// Convert a preset enum to its string name
 	static QString presetName(Preset preset);
 
-	/// Convert a string name to a preset enum (returns -1 if not found)
+	/// Convert a string name to a preset enum (unknown names fall back to Viridis)
 	static Preset presetFromName(const QString& name);
 };
 
@@ -2056,6 +2056,7 @@ inline QTimeZone offsetTimeZone(int seconds)
 
 #include <qvector.h>
 #include <qrect.h>
+#include <qnumeric.h>
 
 /**
  * @brief Base class for statistical samples with position and range
@@ -2379,7 +2380,7 @@ inline bool QwtVectorFieldSample::isNull() const
 /**
  * @brief Sample for box-and-whisker plot (boxplot) visualization
  * @details Contains all statistical values needed to render a boxplot:
- *          whisker endpoints, quartiles, median, and outlier count.
+ *          whisker endpoints, quartiles, median, mean and outlier count.
  *          Actual outlier values are stored separately in QwtBoxOutlierSample.
  *
  */
@@ -2388,7 +2389,7 @@ class QWTCORE_EXPORT QwtBoxSample : public QwtStatisticalSample
 public:
 	/**
 	 * @brief Default constructor
-	 * @details All values set to 0.0
+	 * @details All values set to 0.0, the mean to NaN (unknown)
 	 */
 	QwtBoxSample(double position = 0.0);
 
@@ -2400,6 +2401,9 @@ public:
 	 * @param median Median value (50th percentile)
 	 * @param q3 Third quartile (75th percentile)
 	 * @param whiskerUpper Upper whisker endpoint
+	 * @details The mean is not part of the statistics of this constructor;
+	 *          it stays set to NaN, so hasMean() returns false until a value
+	 *          is assigned to the mean member.
 	 */
 	QwtBoxSample(double position, double whiskerLower, double q1, double median, double q3, double whiskerUpper);
 
@@ -2408,6 +2412,15 @@ public:
 	 * @details Returns true if whiskerLower <= q1 <= median <= q3 <= whiskerUpper
 	 */
 	bool isValid() const;
+
+	/**
+	 * @brief Check if the sample carries a mean value
+	 * @details QwtBoxStatisticsCalculator always fills the mean; samples that
+	 *          were assembled manually (or the default constructed ones) have
+	 *          no mean until it is assigned.
+	 * @return true, when mean has been set to a finite value
+	 */
+	bool hasMean() const;
 
 	/**
 	 * @brief Get bounding interval including whiskers
@@ -2436,17 +2449,22 @@ public:
 	//! Upper whisker endpoint
 	double whiskerUpper;
 
+	//! Arithmetic mean - NaN, when unknown (the default and full constructor)
+	double mean;
+
 	//! Number of outliers (stored separately, this is count only)
 	int outlierCount;
 };
 
 inline QwtBoxSample::QwtBoxSample(double pos)
-	: QwtStatisticalSample(pos), whiskerLower(0.0), q1(0.0), median(0.0), q3(0.0), whiskerUpper(0.0), outlierCount(0)
+	: QwtStatisticalSample(pos), whiskerLower(0.0), q1(0.0), median(0.0), q3(0.0), whiskerUpper(0.0),
+	  mean(qQNaN()), outlierCount(0)
 {
 }
 
 inline QwtBoxSample::QwtBoxSample(double pos, double wl, double q1v, double med, double q3v, double wu)
-	: QwtStatisticalSample(pos), whiskerLower(wl), q1(q1v), median(med), q3(q3v), whiskerUpper(wu), outlierCount(0)
+	: QwtStatisticalSample(pos), whiskerLower(wl), q1(q1v), median(med), q3(q3v), whiskerUpper(wu),
+	  mean(qQNaN()), outlierCount(0)
 {
 	center = median;
 }
@@ -2454,6 +2472,11 @@ inline QwtBoxSample::QwtBoxSample(double pos, double wl, double q1v, double med,
 inline bool QwtBoxSample::isValid() const
 {
 	return (whiskerLower <= q1) && (q1 <= median) && (median <= q3) && (q3 <= whiskerUpper);
+}
+
+inline bool QwtBoxSample::hasMean() const
+{
+	return qIsFinite(mean);
 }
 
 inline QwtInterval QwtBoxSample::boundingInterval() const
@@ -4665,7 +4688,7 @@ public:
 		//! Tukey's method: whiskers extend to 1.5×IQR from Q1/Q3 (default)
 		Tukey,
 
-		//! Percentile method: whiskers at specified percentile range
+		//! Percentile method: whiskers at the c-th / (100-c)-th percentile (c = tail percentage)
 		Percentile,
 
 		//! Min/Max method: whiskers at actual data min/max
@@ -4677,21 +4700,6 @@ public:
 		//! Standard error method: whiskers at mean ± coeff×SE
 		StandardError
 	};
-
-	//! Constructor with default Tukey method
-	QwtBoxStatisticsCalculator();
-
-	//! Set whisker calculation method
-	void setWhiskerMethod(WhiskerMethod method);
-
-	//! Get whisker calculation method
-	WhiskerMethod whiskerMethod() const;
-
-	//! Set whisker coefficient (1.5 for Tukey, percentile for Percentile method)
-	void setWhiskerCoefficient(double coeff);
-
-	//! Get whisker coefficient
-	double whiskerCoefficient() const;
 
 	//! Compute QwtBoxSample from sorted data
 	static QwtBoxSample
@@ -4732,9 +4740,6 @@ private:
 
 	//! Helper: sort data (returns new sorted vector)
 	static QVector< double > sortData(const QVector< double >& data);
-
-	WhiskerMethod m_method;
-	double m_coefficient { 1.5 };
 };
 
 #endif  // QWT_BOX_STATISTICS_H
@@ -20090,7 +20095,7 @@ public:
 	void setOutlierSymbol(const QwtSymbol*);
 	const QwtSymbol* outlierSymbol() const;
 
-	// Set symbol for mean marker
+	// Set symbol for the mean marker (drawn at QwtBoxSample::mean)
 	void setMeanSymbol(const QwtSymbol*);
 	const QwtSymbol* meanSymbol() const;
 
@@ -20098,7 +20103,7 @@ public:
 	void setMedianVisible(bool);
 	bool isMedianVisible() const;
 
-	// Show/hide mean marker
+	// Show/hide mean marker (samples without mean draw nothing)
 	void setMeanVisible(bool);
 	bool isMeanVisible() const;
 
@@ -28445,6 +28450,39 @@ private:
 	Qwt3DIO::Functor* clone() const override;
 	bool operator()(Qwt3DPlot* plot, QString const& fname) override;
 };
+
+/**
+ * @brief Emits interleaved vertices as an immediate mode primitive for the vector export
+ * @param[in] mode Primitive type (GL_TRIANGLES, GL_LINES, GL_POINTS, ...)
+ * @param[in] vertices Interleaved vertex data: x y z r g b a (7 floats per vertex)
+ * @param[in] vertexCount Number of vertices in @p vertices
+ * @param[in] indices Optional index list; when null the vertices are used in order
+ * @param[in] indexCount Number of indices to emit
+ * @param[in] overrideColor Optional RGBA overriding the per-vertex colors
+ * @param[in] modelView Column major modelview matrix (as uploaded to the shaders)
+ * @param[in] projection Column major projection matrix
+ *
+ * @details gl2ps captures primitives from the GL_FEEDBACK buffer, where the
+ *          color of every vertex is the fixed-function current color - the
+ *          GLSL render path of this module never writes it, so a feedback
+ *          replay of the shader based scene produces fully transparent
+ *          primitives (the surfaces were invisible in PDF/SVG exports). This
+ *          function feeds the captured geometry explicitly: the vertices are
+ *          transformed on the CPU by the same matrices the shaders use and
+ *          submitted with glColor4f()/glVertex4f() (the fixed-function
+ *          matrices stay at their defaults, so the vertex positions are the
+ *          clip coordinates).
+ *
+ *          Only meaningful while the GL render mode is GL_FEEDBACK.
+ */
+void qwt3dEmitVerticesForVectorExport(unsigned int mode,
+									  const float* vertices,
+									  int vertexCount,
+									  const unsigned int* indices,
+									  int indexCount,
+									  const float* overrideColor,
+									  const float* modelView,
+									  const float* projection);
 
 int setDeviceLineWidth(float val);
 int setDevicePointSize(float val);

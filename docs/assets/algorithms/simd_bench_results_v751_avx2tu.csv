@@ -1,0 +1,365 @@
+# qwtSimdArgMinMax microbenchmark - measured results
+# cpu: 12thGenIntel(R)Core(TM)i7-1260P
+# logical_processors: 16 (benchmark thread pinned to lp0 = P-core; E-core probes on lp16)
+# cache: L1 48KB x4 (12-way; 2 thr/cache); L1 32KB x4 (8-way; 2 thr/cache); L2 1280KB x4 (10-way; 2 thr/cache); L1 32KB x8 (8-way; 1 thr/cache); L1 64KB x8 (8-way; 1 thr/cache); L2 2048KB x2 (16-way; 4 thr/cache); L3 18432KB x1 (12-way; 16 thr/cache)
+# compiler: MSVC 1929 /O2 /std:c++17 /MD; main TU default x64 flags (SSE2 baseline, same as shipped qwtcore); wrapper TU /arch:AVX2
+# os: Windows (win32 x64)
+# built: Oct 13 2026 22:00:17
+# protocol: min-of-7 timed runs after 3 warmup runs; each run auto-calibrated to ~50 ms;
+#           batch remeasured (max 3) if median/min > 1.30; note=remeasured marks such points
+# schema: mode,path,p1,p2,reps,min_ns,med_ns,max_ns,gbs,note (min/med/max are per work unit)
+mode,path,p1,p2,reps,min_ns,med_ns,max_ns,gbs,note
+env,cpu,12thGenIntel(R)Core(TM)i7-1260P,,,,,,,brand_from_cpuid
+env,logical_processors,16,,,,,,,thread_pinned_to_lp0
+env,cache,L1=48KB assoc=12 line=64B mask=0x3;L1=32KB assoc=8 line=64B mask=0x3;L2=1280KB assoc=10 line=64B mask=0x3;L1=48KB assoc=12 line=64B mask=0xC;L1=32KB assoc=8 line=64B mask=0xC;L2=1280KB assoc=10 line=64B mask=0xC;L1=48KB assoc=12 line=64B mask=0x30;L1=32KB assoc=8 line=64B mask=0x30;L2=1280KB assoc=10 line=64B mask=0x30;L1=48KB assoc=12 line=64B mask=0xC0;L1=32KB assoc=8 line=64B mask=0xC0;L2=1280KB assoc=10 line=64B mask=0xC0;L1=32KB assoc=8 line=64B mask=0x100;L1=64KB assoc=8 line=64B mask=0x100;L1=32KB assoc=8 line=64B mask=0x200;L1=64KB assoc=8 line=64B mask=0x200;L1=32KB assoc=8 line=64B mask=0x400;L1=64KB assoc=8 line=64B mask=0x400;L1=32KB assoc=8 line=64B mask=0x800;L1=64KB assoc=8 line=64B mask=0x800;L2=2048KB assoc=16 line=64B mask=0xF00;L1=32KB assoc=8 line=64B mask=0x1000;L1=64KB assoc=8 line=64B mask=0x1000;L1=32KB assoc=8 line=64B mask=0x2000;L1=64KB assoc=8 line=64B mask=0x2000;L1=32KB assoc=8 line=64B mask=0x4000;L1=64KB assoc=8 line=64B mask=0x4000;L1=32KB assoc=8 line=64B mask=0x8000;L1=64KB assoc=8 line=64B mask=0x8000;L2=2048KB assoc=16 line=64B mask=0xF000;L3=18432KB assoc=12 line=64B mask=0xFFFF,,,,,,,GetLogicalProcessorInformation
+env,clock_ghz_probe,4.057,,,,,,,xorshift64_chain;6x1cyc_latency_assumed
+env,msvc,1929,default_flags_O2,,,,,,main_TU_without_arch_flag;wrapper_TU_with_arch_AVX2
+env,simd_level,2,,,,,,,0=scalar;1=sse42;2=avx2
+env,date,Oct 13 2026,22:00:17,,,,,,build_timestamp
+env,protocol,min-of-7,warmup=3,,,,,,run~50ms;remeasure_if_med_over_min_gt_1.30;max_3_batches
+meta,correctness,PASS,clean_data_n_1_to_100k,,,,,,
+scan,scalar,8,,3860167,12.8592,13.9799,14.9290,4.977,
+scan,sse42,8,,4956962,10.2406,11.1834,16.9613,6.250,
+scan,avx2,8,,4878549,10.7554,11.1088,14.2124,5.950,
+scan,public,8,,4092291,13.0569,13.8279,29.9680,4.902,
+scan,scalar,16,,2166336,22.5670,23.4081,32.6051,5.672,
+scan,sse42,16,,4061729,12.8132,13.5211,19.4868,9.990,
+scan,avx2,16,,3612490,12.8618,13.8310,14.5802,9.952,
+scan,public,16,,3386523,15.6626,15.9154,25.6782,8.172,
+scan,scalar,32,,1153031,42.0312,42.9809,46.4470,6.091,
+scan,sse42,32,,2659956,18.7373,19.2599,25.5740,13.663,
+scan,avx2,32,,2779540,17.6479,18.0547,18.2798,14.506,
+scan,public,32,,2442638,20.1532,20.7268,23.3762,12.703,
+scan,scalar,64,,575644,83.4299,84.2571,85.4174,6.137,
+scan,sse42,64,,1146857,34.8822,36.4460,38.0700,14.678,
+scan,avx2,64,,1506089,32.6173,32.7970,33.7096,15.697,
+scan,public,64,,1544640,33.5352,34.0165,36.1471,15.268,
+scan,scalar,128,,268519,168.6938,170.0539,176.8527,6.070,
+scan,sse42,128,,797740,70.4674,71.1140,83.7457,14.532,
+scan,avx2,128,,783942,61.5506,62.8154,64.1618,16.637,
+scan,public,128,,803846,65.2112,70.8066,77.7972,15.703,
+scan,scalar,256,,131984,344.3773,357.1395,420.9412,5.947,
+scan,sse42,256,,372482,144.4937,150.1716,172.1404,14.174,
+scan,avx2,256,,431089,124.6323,127.4593,132.2117,16.432,
+scan,public,256,,415584,124.2649,130.2245,134.1418,16.481,
+scan,scalar,512,,54362,654.9961,661.1549,677.1237,6.253,
+scan,sse42,512,,191330,289.3096,299.2573,304.4593,14.158,
+scan,avx2,512,,200941,243.9303,257.5920,397.2823,16.792,
+scan,public,512,,201634,244.2584,252.2650,301.4809,16.769,
+scan,scalar,1024,,33177,1298.6768,1363.1341,1482.8013,6.308,
+scan,sse42,1024,,83718,577.8948,603.6062,662.5039,14.176,
+scan,avx2,1024,,108313,493.0941,514.7397,984.0647,16.613,
+scan,public,1024,,103262,494.3484,508.1346,674.2635,16.571,
+scan,scalar,2048,,18974,2708.8490,2857.3680,3660.9624,6.048,
+scan,sse42,2048,,47632,1168.0110,1311.1732,1502.2317,14.027,
+scan,avx2,2048,,53968,967.5030,984.3166,993.4943,16.934,
+scan,public,2048,,55367,1047.9690,1155.5114,1373.6757,15.634,
+scan,scalar,4096,,9655,5133.3920,5211.6002,5508.2548,6.383,
+scan,sse42,4096,,23532,2294.9898,2327.0440,2370.8737,14.278,
+scan,avx2,4096,,27022,1900.2294,1931.0303,2089.5863,17.244,
+scan,public,4096,,26089,1918.1571,1963.4904,2040.0705,17.083,
+scan,scalar,8192,,4823,10299.0048,10402.0112,10510.2426,6.363,
+scan,sse42,8192,,10695,4612.3329,4671.5942,5131.9308,14.209,
+scan,avx2,8192,,12259,3812.3664,3858.3082,3875.2264,17.190,
+scan,public,8192,,13594,3798.5729,3874.3048,4001.1843,17.253,
+scan,scalar,16384,,2457,20415.3439,20903.6630,21347.8225,6.420,
+scan,sse42,16384,,5880,9219.3367,9338.7585,9652.2959,14.217,
+scan,avx2,16384,,6357,7446.4999,7778.0714,10505.3484,17.602,
+scan,public,16384,,5927,7808.9759,8504.7073,11628.5473,16.785,
+scan,scalar,32768,,598,39673.0769,42855.0167,45441.4716,6.608,
+scan,sse42,32768,,3092,18541.0737,19309.5408,22208.2147,14.139,
+scan,avx2,32768,,3442,15121.8768,16078.3266,16599.1865,17.335,
+scan,public,32768,,3480,15035.6897,16036.9828,19446.4080,17.435,
+scan,scalar,65536,,612,83426.1438,87107.6797,130591.1765,6.284,
+scan,sse42,65536,,1279,36686.7084,38502.8147,43710.8679,14.291,
+scan,avx2,65536,,1193,30615.7586,31063.3697,31895.3060,17.125,
+scan,public,65536,,1704,29737.9108,31920.0117,34565.6103,17.630,
+scan,scalar,131072,,287,167163.7631,169798.2578,231267.5958,6.273,
+scan,sse42,131072,,751,76008.2557,80281.3582,90858.3222,13.796,
+scan,avx2,131072,,543,70476.0589,75061.5101,99828.1768,14.878,
+scan,public,131072,,862,61573.3179,63004.5244,77742.3434,17.030,
+scan,scalar,262144,,113,321915.0442,328349.5575,369035.3982,6.515,
+scan,sse42,262144,,376,144178.1915,151659.5745,164533.2447,14.546,
+scan,avx2,262144,,432,120045.8333,122809.2593,140404.8611,17.470,
+scan,public,262144,,393,121596.6921,123625.1908,131642.2392,17.247,
+scan,scalar,524288,,70,636210.0000,643491.4286,667541.4286,6.593,
+scan,sse42,524288,,191,293224.0838,302278.5340,310112.5654,14.304,
+scan,avx2,524288,,204,256119.1176,259046.5686,277939.7059,16.376,
+scan,public,524288,,86,247501.1628,259737.2093,284087.2093,16.947,
+scan,scalar,1048576,,32,1298050.0000,1355959.3750,1466740.6250,6.462,
+scan,sse42,1048576,,92,626354.3478,677039.1304,741767.3913,13.393,
+scan,avx2,1048576,,109,588227.5229,654945.8716,920873.3945,14.261,
+scan,public,1048576,,83,599804.8193,623213.2530,713914.4578,13.986,
+scan,scalar,2097152,,15,3044780.0000,3278093.3333,4138420.0000,5.510,
+scan,sse42,2097152,,32,1485918.7500,1699853.1250,1958962.5000,11.291,
+scan,avx2,2097152,,30,1250343.3333,1486666.6667,2228286.6667,13.418,
+scan,public,2097152,,35,1210014.2857,1366088.5714,1543360.0000,13.865,
+scan,scalar,4194304,,8,5347987.5000,5637187.5000,6284562.5000,6.274,
+scan,sse42,4194304,,14,2854814.2857,3027771.4286,3101535.7143,11.754,
+scan,avx2,4194304,,15,2521660.0000,2654120.0000,2888746.6667,13.306,
+scan,public,4194304,,20,2638545.0000,2674610.0000,2823985.0000,12.717,
+scan,scalar,8388608,,4,10513775.0000,11034100.0000,11483700.0000,6.383,
+scan,sse42,8388608,,8,5924825.0000,6568662.5000,9670825.0000,11.327,
+scan,avx2,8388608,,6,5149533.3333,6854066.6667,7892400.0000,13.032,remeasured
+scan,public,8388608,,7,5805842.8571,7302442.8571,12480671.4286,11.559,
+scan,scalar,16777216,,2,21862150.0000,23393200.0000,31469700.0000,6.139,
+scan,sse42,16777216,,2,12413350.0000,14016900.0000,20990600.0000,10.812,
+scan,avx2,16777216,,4,11547525.0000,13643850.0000,22693600.0000,11.623,
+scan,public,16777216,,4,11552275.0000,12353525.0000,17523125.0000,11.618,
+bucket,scalar,1048576,4,9,20.2232,20.8434,30.5842,1.582,
+bucket,sse42,1048576,4,14,13.9881,14.2616,24.8252,2.288,
+bucket,avx2,1048576,4,9,21.9021,22.5584,25.6657,1.461,
+bucket,public,1048576,4,8,22.7235,23.1081,25.2777,1.408,
+bucket,scalar,1048576,8,10,35.2119,36.5303,48.7973,1.818,
+bucket,sse42,1048576,8,25,17.2169,19.6679,29.3886,3.717,
+bucket,avx2,1048576,8,14,25.9560,30.1004,36.4243,2.466,
+bucket,public,1048576,8,14,27.6107,29.1464,36.9869,2.318,
+bucket,scalar,1048576,16,14,52.0439,55.7552,81.7036,2.459,
+bucket,sse42,1048576,16,39,22.5786,23.7966,33.7983,5.669,
+bucket,avx2,1048576,16,25,29.2108,32.1932,42.3211,4.382,
+bucket,public,1048576,16,24,31.7321,33.6702,37.3627,4.034,
+bucket,scalar,1048576,32,19,85.2091,97.3384,215.0481,3.004,
+bucket,sse42,1048576,32,54,31.5750,34.6850,42.4945,8.108,
+bucket,avx2,1048576,32,42,38.4309,40.1303,42.7564,6.661,
+bucket,public,1048576,32,38,39.8100,40.8876,45.6533,6.431,
+bucket,scalar,1048576,64,24,128.4136,136.8800,209.1179,3.987,
+bucket,sse42,1048576,64,41,51.1942,53.0044,73.5813,10.001,
+bucket,avx2,1048576,64,24,57.8234,65.0698,102.0325,8.855,
+bucket,public,1048576,64,41,58.0370,60.4870,80.5398,8.822,
+bucket,scalar,1048576,128,26,224.8643,248.3812,377.1292,4.554,
+bucket,sse42,1048576,128,66,87.6689,92.7531,96.2408,11.680,
+bucket,avx2,1048576,128,77,85.3292,96.0687,121.0465,12.001,
+bucket,public,1048576,128,43,89.4685,109.5079,137.1943,11.445,
+bucket,scalar,1048576,256,22,389.1080,395.6143,404.4478,5.263,
+bucket,sse42,1048576,256,25,165.8086,178.7197,374.7441,12.352,
+bucket,avx2,1048576,256,86,153.9327,162.1565,179.8669,13.305,
+bucket,public,1048576,256,84,155.4967,168.7172,216.0098,13.171,
+bucket,scalar,1048576,512,35,766.2347,851.7453,1009.5787,5.346,
+bucket,sse42,1048576,512,77,312.0263,333.9343,475.8878,13.127,
+bucket,avx2,1048576,512,101,270.2704,302.1818,347.1525,15.155,
+bucket,public,1048576,512,8,253.5889,274.8169,342.5720,16.152,
+bucket,scalar,1048576,735,34,1010.3684,1074.4142,1764.3367,5.820,
+bucket,sse42,1048576,735,86,492.0994,575.3547,834.8593,11.949,
+bucket,avx2,1048576,735,94,387.6518,501.7502,689.2423,15.168,
+bucket,public,1048576,735,99,403.5014,493.2898,934.8301,14.572,
+bucket,scalar,1048576,1024,26,1324.9587,1493.4120,1826.9419,6.183,
+bucket,sse42,1048576,1024,91,625.1663,667.7595,863.3757,13.104,
+bucket,avx2,1048576,1024,102,555.5291,703.4601,938.5962,14.746,
+bucket,public,1048576,1024,101,539.3052,609.5490,794.3794,15.190,
+bucket,scalar,1048576,4096,35,5148.4375,5523.5045,6339.4643,6.365,
+bucket,sse42,1048576,4096,90,2619.4314,2878.0295,3258.9366,12.510,
+bucket,avx2,1048576,4096,104,1963.4465,2087.4887,2713.2287,16.689,
+bucket,public,1048576,4096,107,1952.8329,2023.3718,2216.1142,16.780,
+bandwidth,sum_scalar,8192,,39445,1072.1942,1251.4489,1810.8024,61.123,
+bandwidth,sum_avx2,8192,,64463,420.4102,442.2723,634.2925,155.886,
+bandwidth,copy,8192,,45018,1093.7447,1105.2734,1178.2976,119.838,
+bandwidth,sum_scalar,16384,,19044,2174.0391,2204.0170,2425.4936,60.290,
+bandwidth,sum_avx2,16384,,69685,788.7738,827.1350,1136.8960,166.172,
+bandwidth,copy,16384,,22228,2206.5458,2265.0081,2325.3959,118.803,
+bandwidth,sum_scalar,32768,,12282,4311.6349,4338.7966,4736.1749,60.799,
+bandwidth,sum_avx2,32768,,35227,1528.5860,1560.5956,1611.2130,171.494,
+bandwidth,copy,32768,,11065,4592.2458,4670.2847,4779.1505,114.168,
+bandwidth,sum_scalar,65536,,5712,8623.0567,9040.1436,9442.9622,60.801,
+bandwidth,sum_avx2,65536,,16963,3149.9617,3292.7371,4555.4206,166.443,
+bandwidth,copy,65536,,5241,9184.4114,9327.0559,13529.2311,114.169,
+bandwidth,sum_scalar,131072,,2505,17459.6008,17729.7405,19503.3932,60.057,
+bandwidth,sum_avx2,131072,,7930,6376.4187,6512.6230,8094.1236,164.446,
+bandwidth,copy,131072,,583,47745.7976,51411.8353,64013.5506,43.923,
+bandwidth,sum_scalar,262144,,1055,43353.2701,44906.9194,49390.9005,48.374,
+bandwidth,sum_avx2,262144,,1711,31005.2016,31634.3659,34561.4845,67.639,
+bandwidth,copy,262144,,851,60584.2538,62363.1022,64323.0317,69.231,
+bandwidth,sum_scalar,524288,,565,88389.2035,90077.3451,91877.6991,47.453,
+bandwidth,sum_avx2,524288,,818,63450.9780,64480.5623,67500.7335,66.103,
+bandwidth,copy,524288,,422,122881.0427,125820.3791,129442.1801,68.266,
+bandwidth,sum_scalar,1048576,,171,197832.1637,217963.7427,239426.9006,42.403,
+bandwidth,sum_avx2,1048576,,220,145920.9091,160560.4545,266625.4545,57.487,
+bandwidth,copy,1048576,,177,295690.9605,302198.8701,377709.0395,56.739,
+bandwidth,sum_scalar,2097152,,44,820575.0000,890806.8182,1381531.8182,20.446,
+bandwidth,sum_avx2,2097152,,106,509083.0189,548389.6226,610048.1132,32.956,
+bandwidth,copy,2097152,,16,951225.0000,1079950.0000,1971575.0000,35.275,
+bandwidth,sum_scalar,4194304,,23,1930530.4348,2161773.9130,3111826.0870,17.381,
+bandwidth,sum_avx2,4194304,,27,1678807.4074,1849037.0370,2889425.9259,19.987,
+bandwidth,copy,4194304,,23,2521834.7826,2738030.4348,3314295.6522,26.611,
+bandwidth,sum_scalar,8388608,,12,4492516.6667,4807641.6667,6092166.6667,14.938,
+bandwidth,sum_avx2,8388608,,15,3200373.3333,3781713.3333,4003653.3333,20.969,
+bandwidth,copy,8388608,,8,5382250.0000,5823800.0000,6424150.0000,24.937,
+bandwidth,sum_scalar,16777216,,1,7657200.0000,10178100.0000,26379500.0000,17.528,remeasured
+bandwidth,sum_avx2,16777216,,2,6580750.0000,7160200.0000,7873550.0000,20.396,
+bandwidth,copy,16777216,,4,10509275.0000,12039000.0000,15808175.0000,25.543,
+probe,chain_after_clean,64,round=setup+chain,1581772,17.8054,20.1783,25.2354,,
+probe,chain_after_dirty,64,round=setup+chain,2768035,19.0633,20.5193,24.3361,,
+probe,chain_after_avx2_call,64,round=setup+chain,1930027,29.3329,37.7392,43.1710,,
+probe,chain_after_sse_call,64,round=setup+chain,1236808,29.4755,31.2568,35.2560,,
+probe,chain_after_public_call,64,round=setup+chain,1632116,31.9964,33.0581,35.5942,,
+probe,chain_after_avx2_vz,64,round=setup+chain,1536600,32.2934,34.1939,53.9026,,
+probe,chain_pre_vz_avx2_call,64,round=setup+chain,1462791,30.7476,31.8996,33.5136,,
+probe,call_avx2_direct,16,,3623075,13.4827,13.7840,16.3506,9.494,
+probe,call_avx2_vz,16,,3556906,13.3993,13.7002,13.8796,9.553,
+probe,call_avx2_wrapped,16,,3731374,13.6598,13.9832,15.0920,9.371,
+probe,call_sse_direct,16,,3894924,13.2684,13.4495,13.9155,9.647,
+probe,call_sse_wrapped,16,,2726576,14.4029,14.5305,17.0419,8.887,
+probe,call_scalar,16,,2458767,20.7265,21.3372,33.7184,6.176,
+probe,call_public,16,,3194696,15.9282,17.3353,21.2121,8.036,
+probe,call_vz_only,16,,2117479,23.2066,23.3840,28.8592,5.516,
+probe,call_avx2_direct,4096,,24870,1898.0539,1963.2006,2531.4797,17.264,
+probe,call_avx2_vz,4096,,28053,1954.6822,1970.0959,1999.9144,16.764,
+probe,call_avx2_wrapped,4096,,27088,1879.5703,1920.8321,2555.8439,17.434,
+probe,call_sse_direct,4096,,23054,2310.0763,2357.0617,2396.2263,14.185,
+probe,call_sse_wrapped,4096,,18408,2805.9050,2888.5159,4719.9696,11.678,
+probe,call_scalar,4096,,8431,5465.4252,6295.1726,11037.2435,5.996,
+probe,call_public,4096,,22039,1907.6274,1972.7619,2517.6868,17.177,
+probe,call_vz_only,4096,,9422,5375.0584,5601.0507,7122.2883,6.096,
+env,tsc_rate_per_ns,2.4960,,,,,,,invariant_tsc
+probe,call_avx2_via_avx2tu_ptr,16,,3141104,14.9563,15.3262,20.7523,8.558,
+probe,call_kernel_incr,16,,166247,300.3645,304.9282,341.2850,0.426,
+probe,call_loop_only,16,,6944579,8.1655,8.3693,9.5866,15.676,
+probe,call_avx2_direct_2x,16,,1857807,24.5298,25.5325,45.3330,5.218,
+probe,call_vz_before_reduce,16,,438520,114.0060,118.7702,129.5029,1.123,
+probe,call_avx2_pre_vz,16,,3741066,13.8528,15.2026,19.1814,9.240,
+probe,call_avx2_via_avx2tu_ptr,4096,,25180,1938.5624,2028.6060,2040.3177,16.903,
+probe,call_kernel_incr,4096,,29922,1553.0613,1607.3291,1776.9835,21.099,
+probe,call_loop_only,4096,,27296,1871.6259,1917.7902,2101.0954,17.508,
+probe,call_avx2_direct_2x,4096,,12425,3676.1046,3743.5815,3884.6841,8.914,
+probe,call_vz_before_reduce,4096,,26869,1963.9920,2023.2498,2305.9437,16.684,
+probe,call_avx2_pre_vz,4096,,27738,1854.6398,1885.9146,1916.1511,17.668,
+probe,instr_default,16,setup,20000,5.6089,52.0829,564.0983,,rdtsc_segments_perturbed
+probe,instr_default,16,loop,20000,7.2115,10.4166,212.3381,,rdtsc_segments_perturbed
+probe,instr_default,16,spill_store,20000,5.2083,7.2115,312.4976,,rdtsc_segments_perturbed
+probe,instr_default,16,reduce,20000,263.2192,278.0428,46537.7076,,rdtsc_segments_perturbed
+probe,instr_default,16,tail,20000,4.4070,5.6089,20757.0540,,rdtsc_segments_perturbed
+probe,instr_avx2tu,16,setup,20000,4.8077,10.8172,127.8035,,rdtsc_segments_perturbed
+probe,instr_avx2tu,16,loop,20000,5.6089,8.0128,194.3094,,rdtsc_segments_perturbed
+probe,instr_avx2tu,16,spill_store,20000,4.4070,7.2115,127.8035,,rdtsc_segments_perturbed
+probe,instr_avx2tu,16,reduce,20000,4.0064,6.0096,130.2073,,rdtsc_segments_perturbed
+probe,instr_avx2tu,16,tail,20000,4.0064,5.6089,130.2073,,rdtsc_segments_perturbed
+probe,instr_default,4096,setup,20000,5.2083,52.0829,1872.9826,,rdtsc_segments_perturbed
+probe,instr_default,4096,loop,20000,1704.7146,1759.2014,930288.2097,,rdtsc_segments_perturbed
+probe,instr_default,4096,spill_store,20000,4.4070,5.6089,1160.2476,,rdtsc_segments_perturbed
+probe,instr_default,4096,reduce,20000,268.4274,278.0428,33341.8943,,rdtsc_segments_perturbed
+probe,instr_default,4096,tail,20000,4.0064,5.6089,68.5091,,rdtsc_segments_perturbed
+probe,instr_avx2tu,4096,setup,20000,5.2083,11.2179,205.9279,,rdtsc_segments_perturbed
+probe,instr_avx2tu,4096,loop,20000,1780.8358,1831.7169,732767.2734,,rdtsc_segments_perturbed
+probe,instr_avx2tu,4096,spill_store,20000,4.8077,6.0096,233.5719,,rdtsc_segments_perturbed
+probe,instr_avx2tu,4096,reduce,20000,4.8077,6.0096,85.3359,,rdtsc_segments_perturbed
+probe,instr_avx2tu,4096,tail,20000,4.8077,6.4102,156.2488,,rdtsc_segments_perturbed
+nan,reference,8,none,,,,,,ref: min=4:-1e+09 max=5:1e+09
+nan,scalar,8,none,,,,,,min=4:-1e+09 max=5:1e+09
+nan,sse42,8,none,,,,,,min=4:-1e+09 max=5:1e+09
+nan,avx2,8,none,,,,,,min=4:-1e+09 max=5:1e+09
+nan,public,8,none,,,,,,min=4:-1e+09 max=5:1e+09
+nan,reference,8,first,,,,,,ref: min=4:-1e+09 max=5:1e+09
+nan,scalar,8,first,,,,,,min=0:NaN max=0:NaN
+nan,sse42,8,first,,,,,,min=4:-1e+09 max=5:1e+09
+nan,avx2,8,first,,,,,,min=0:-1e+09 max=5:1e+09
+nan,public,8,first,,,,,,min=0:-1e+09 max=5:1e+09
+nan,reference,8,last,,,,,,ref: min=4:-1e+09 max=5:1e+09
+nan,scalar,8,last,,,,,,min=4:-1e+09 max=5:1e+09
+nan,sse42,8,last,,,,,,min=4:-1e+09 max=6:162640
+nan,avx2,8,last,,,,,,min=4:-1e+09 max=5:1e+09
+nan,public,8,last,,,,,,min=4:-1e+09 max=5:1e+09
+nan,reference,8,mid,,,,,,ref: min=3:-846858 max=5:1e+09
+nan,scalar,8,mid,,,,,,min=3:-846858 max=5:1e+09
+nan,sse42,8,mid,,,,,,min=3:-846858 max=5:1e+09
+nan,avx2,8,mid,,,,,,min=0:NaN max=0:NaN
+nan,public,8,mid,,,,,,min=0:DBL_MAX max=0:-DBL_MAX
+nan,reference,8,first+last,,,,,,ref: min=4:-1e+09 max=5:1e+09
+nan,scalar,8,first+last,,,,,,min=0:NaN max=0:NaN
+nan,sse42,8,first+last,,,,,,min=4:-1e+09 max=6:162640
+nan,avx2,8,first+last,,,,,,min=0:-1e+09 max=5:1e+09
+nan,public,8,first+last,,,,,,min=0:-1e+09 max=5:1e+09
+nan,reference,8,all,,,,,,ref: min=-1:DBL_MAX max=-1:-DBL_MAX
+nan,scalar,8,all,,,,,,min=0:NaN max=0:NaN
+nan,sse42,8,all,,,,,,min=0:NaN max=0:NaN
+nan,avx2,8,all,,,,,,min=0:NaN max=0:NaN
+nan,public,8,all,,,,,,min=0:DBL_MAX max=0:-DBL_MAX
+nan,reference,8,pair_mid,,,,,,ref: min=3:-846858 max=1:872635
+nan,scalar,8,pair_mid,,,,,,min=3:-846858 max=1:872635
+nan,sse42,8,pair_mid,,,,,,min=2:162640 max=1:856568
+nan,avx2,8,pair_mid,,,,,,min=0:NaN max=0:NaN
+nan,public,8,pair_mid,,,,,,min=0:DBL_MAX max=0:-DBL_MAX
+nan,reference,8,even_idx,,,,,,ref: min=3:-846858 max=5:1e+09
+nan,scalar,8,even_idx,,,,,,min=0:NaN max=0:NaN
+nan,sse42,8,even_idx,,,,,,min=0:NaN max=0:NaN
+nan,avx2,8,even_idx,,,,,,min=0:NaN max=0:NaN
+nan,public,8,even_idx,,,,,,min=0:DBL_MAX max=0:-DBL_MAX
+nan,reference,8,odd_idx,,,,,,ref: min=4:-1e+09 max=6:162640
+nan,scalar,8,odd_idx,,,,,,min=4:-1e+09 max=6:162640
+nan,sse42,8,odd_idx,,,,,,min=4:-1e+09 max=6:162640
+nan,avx2,8,odd_idx,,,,,,min=4:-1e+09 max=6:162640
+nan,public,8,odd_idx,,,,,,min=4:-1e+09 max=6:162640
+nan,reference,8,p1,,,,,,ref: min=4:-1e+09 max=5:1e+09
+nan,scalar,8,p1,,,,,,min=4:-1e+09 max=5:1e+09
+nan,sse42,8,p1,,,,,,min=4:-1e+09 max=5:1e+09
+nan,avx2,8,p1,,,,,,min=4:-1e+09 max=1:1e+09
+nan,public,8,p1,,,,,,min=4:-1e+09 max=1:1e+09
+nan,reference,8,p2,,,,,,ref: min=4:-1e+09 max=5:1e+09
+nan,scalar,8,p2,,,,,,min=4:-1e+09 max=5:1e+09
+nan,sse42,8,p2,,,,,,min=0:-1e+09 max=5:1e+09
+nan,avx2,8,p2,,,,,,min=4:-1e+09 max=5:1e+09
+nan,public,8,p2,,,,,,min=4:-1e+09 max=5:1e+09
+nan,reference,8,p3,,,,,,ref: min=4:-1e+09 max=5:1e+09
+nan,scalar,8,p3,,,,,,min=4:-1e+09 max=5:1e+09
+nan,sse42,8,p3,,,,,,min=4:-1e+09 max=1:1e+09
+nan,avx2,8,p3,,,,,,min=4:-1e+09 max=5:1e+09
+nan,public,8,p3,,,,,,min=4:-1e+09 max=5:1e+09
+nan,reference,16,none,,,,,,ref: min=8:-1e+09 max=9:1e+09
+nan,scalar,16,none,,,,,,min=8:-1e+09 max=9:1e+09
+nan,sse42,16,none,,,,,,min=8:-1e+09 max=9:1e+09
+nan,avx2,16,none,,,,,,min=8:-1e+09 max=9:1e+09
+nan,public,16,none,,,,,,min=8:-1e+09 max=9:1e+09
+nan,reference,16,first,,,,,,ref: min=8:-1e+09 max=9:1e+09
+nan,scalar,16,first,,,,,,min=0:NaN max=0:NaN
+nan,sse42,16,first,,,,,,min=8:-1e+09 max=9:1e+09
+nan,avx2,16,first,,,,,,min=8:-1e+09 max=9:1e+09
+nan,public,16,first,,,,,,min=8:-1e+09 max=9:1e+09
+nan,reference,16,last,,,,,,ref: min=8:-1e+09 max=9:1e+09
+nan,scalar,16,last,,,,,,min=8:-1e+09 max=9:1e+09
+nan,sse42,16,last,,,,,,min=8:-1e+09 max=12:654854
+nan,avx2,16,last,,,,,,min=8:-1e+09 max=9:1e+09
+nan,public,16,last,,,,,,min=8:-1e+09 max=9:1e+09
+nan,reference,16,mid,,,,,,ref: min=3:-846858 max=9:1e+09
+nan,scalar,16,mid,,,,,,min=3:-846858 max=9:1e+09
+nan,sse42,16,mid,,,,,,min=3:-846858 max=9:1e+09
+nan,avx2,16,mid,,,,,,min=3:-846858 max=9:1e+09
+nan,public,16,mid,,,,,,min=3:-846858 max=9:1e+09
+nan,reference,16,first+last,,,,,,ref: min=8:-1e+09 max=9:1e+09
+nan,scalar,16,first+last,,,,,,min=0:NaN max=0:NaN
+nan,sse42,16,first+last,,,,,,min=8:-1e+09 max=12:654854
+nan,avx2,16,first+last,,,,,,min=8:-1e+09 max=9:1e+09
+nan,public,16,first+last,,,,,,min=8:-1e+09 max=9:1e+09
+nan,reference,16,all,,,,,,ref: min=-1:DBL_MAX max=-1:-DBL_MAX
+nan,scalar,16,all,,,,,,min=0:NaN max=0:NaN
+nan,sse42,16,all,,,,,,min=0:NaN max=0:NaN
+nan,avx2,16,all,,,,,,min=0:NaN max=0:NaN
+nan,public,16,all,,,,,,min=0:DBL_MAX max=0:-DBL_MAX
+nan,reference,16,pair_mid,,,,,,ref: min=3:-846858 max=1:872635
+nan,scalar,16,pair_mid,,,,,,min=3:-846858 max=1:872635
+nan,sse42,16,pair_mid,,,,,,min=3:-598535 max=12:654854
+nan,avx2,16,pair_mid,,,,,,min=3:-846858 max=7:856568
+nan,public,16,pair_mid,,,,,,min=3:-846858 max=7:856568
+nan,reference,16,even_idx,,,,,,ref: min=3:-846858 max=9:1e+09
+nan,scalar,16,even_idx,,,,,,min=0:NaN max=0:NaN
+nan,sse42,16,even_idx,,,,,,min=0:NaN max=0:NaN
+nan,avx2,16,even_idx,,,,,,min=0:NaN max=0:NaN
+nan,public,16,even_idx,,,,,,min=0:DBL_MAX max=0:-DBL_MAX
+nan,reference,16,odd_idx,,,,,,ref: min=8:-1e+09 max=12:654854
+nan,scalar,16,odd_idx,,,,,,min=8:-1e+09 max=12:654854
+nan,sse42,16,odd_idx,,,,,,min=8:-1e+09 max=12:654854
+nan,avx2,16,odd_idx,,,,,,min=8:-1e+09 max=12:654854
+nan,public,16,odd_idx,,,,,,min=8:-1e+09 max=12:654854
+nan,reference,16,p1,,,,,,ref: min=8:-1e+09 max=9:1e+09
+nan,scalar,16,p1,,,,,,min=8:-1e+09 max=9:1e+09
+nan,sse42,16,p1,,,,,,min=8:-1e+09 max=9:1e+09
+nan,avx2,16,p1,,,,,,min=8:-1e+09 max=9:1e+09
+nan,public,16,p1,,,,,,min=8:-1e+09 max=9:1e+09
+nan,reference,16,p2,,,,,,ref: min=8:-1e+09 max=9:1e+09
+nan,scalar,16,p2,,,,,,min=8:-1e+09 max=9:1e+09
+nan,sse42,16,p2,,,,,,min=8:-1e+09 max=9:1e+09
+nan,avx2,16,p2,,,,,,min=8:-1e+09 max=9:1e+09
+nan,public,16,p2,,,,,,min=8:-1e+09 max=9:1e+09
+nan,reference,16,p3,,,,,,ref: min=8:-1e+09 max=9:1e+09
+nan,scalar,16,p3,,,,,,min=8:-1e+09 max=9:1e+09
+nan,sse42,16,p3,,,,,,min=8:-1e+09 max=9:1e+09
+nan,avx2,16,p3,,,,,,min=8:-1e+09 max=9:1e+09
+nan,public,16,p3,,,,,,min=8:-1e+09 max=9:1e+09
+# done. sink=105987310932
