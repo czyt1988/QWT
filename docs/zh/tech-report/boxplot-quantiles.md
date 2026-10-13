@@ -90,7 +90,7 @@ $$
 
 ## 3. QwtBoxStatisticsCalculator 实现剖析
 
-类在 `src/core/qwt_box_statistics.h/.cpp`（core 模块，`QWTCORE_EXPORT` 导出；`src/plot/qwt_box_statistics.h` 是转发头文件）。它的计算接口全部为静态方法，输入原始数据、输出 `QwtBoxSample`（五数概括 + 离群点计数）与 `QwtBoxOutlierSample`（离群点值列表）；消费方是 `QwtPlotBoxChart`（`src/plot/qwt_plot_boxchart.h/.cpp`）。类中曾另有构造函数与 `setWhiskerMethod()`/`setWhiskerCoefficient()` 实例方法，但成员 `m_method`/`m_coefficient` 不被任何静态计算路径消费，属遗留死状态（源码异味）；v7.5.1 起这四个实例方法已移除，`WhiskerMethod`/系数一律作为静态方法的显式实参给出。
+类在 `src/core/qwt_box_statistics.h/.cpp`（core 模块，`QWTCORE_EXPORT` 导出；`src/plot/qwt_box_statistics.h` 是转发头文件）。它的计算接口全部为静态方法，输入原始数据、输出 `QwtBoxSample`（五数概括 + 离群点计数）与 `QwtBoxOutlierSample`（离群点值列表）；消费方是 `QwtPlotBoxChart`（`src/plot/qwt_plot_boxchart.h/.cpp`）。类中曾另有构造函数与 `setWhiskerMethod()`/`whiskerMethod()`/`setWhiskerCoefficient()`/`whiskerCoefficient()` 四个实例方法，但成员 `m_method`/`m_coefficient` 不被任何静态计算路径消费，属遗留死状态（源码异味）；v7.5.1 起这些实例接口已移除，`WhiskerMethod`/系数一律作为静态方法的显式实参给出。
 
 ### 3.1 数据流与排序策略
 
@@ -109,13 +109,13 @@ flowchart TD
     style E fill:#e8f5e9,stroke:#2ca02c
 ```
 
-排序策略是**全量 `std::sort`**（`qwt_box_statistics.cpp:61-66`），不是 `std::nth_element`。`calculateFromRaw` 共触碰数据四遍：过滤一遍（`filtered.append`）、`sortData` 里再拷贝一遍、排序 $O(n\log n)$、离群点扫描一遍；`calculateFull` 追加 `extractOutliers` 的第五遍。峰值时三份 double 缓冲（raw + filtered + sorted）同时存活，共 $24n$ 字节，其中 $16n$ 字节是本函数新增的。分位数查询本身是 $O(1)$：排序后直接按索引取值，每个 p 至多两次索引（插值邻居），三个 p 合计不超过 6 次。
+排序策略是**全量 `std::sort`**（`qwt_box_statistics.cpp:17-22`），不是 `std::nth_element`。`calculateFromRaw` 共触碰数据四遍：过滤一遍（`filtered.append`）、`sortData` 里再拷贝一遍、排序 $O(n\log n)$、离群点扫描一遍；`calculateFull` 追加 `extractOutliers` 的第五遍。峰值时三份 double 缓冲（raw + filtered + sorted）同时存活，共 $24n$ 字节，其中 $16n$ 字节是本函数新增的。分位数查询本身是 $O(1)$：排序后直接按索引取值，每个 p 至多两次索引（插值邻居），三个 p 合计不超过 6 次。
 
 `calculate()` 的公开签名接受**已排序**数据（`static QwtBoxSample calculate(double position, const QVector<double>& sortedData, ...)`），这解释了为什么排序与统计分成两个入口：调用方可以对同一份排序数据用不同 `WhiskerMethod`/系数多次调用 `calculate`，只付一次排序代价。代价与替代方案的完整分析见 4.5 节。
 
 ### 3.2 quantile()：R-7 的 0-based 写法
 
-核心片段（`qwt_box_statistics.cpp:68-84`，其中 `// 0-based virtual index` 注释为笔者所加）：
+核心片段（`qwt_box_statistics.cpp:24-40`，其中 `// 0-based virtual index` 注释为笔者所加）：
 
 ```cpp
 double QwtBoxStatisticsCalculator::quantile(const QVector< double >& sorted, double p)
@@ -155,9 +155,9 @@ double QwtBoxStatisticsCalculator::quantile(const QVector< double >& sorted, dou
 
 > **修复说明（v7.5.1）— Percentile 方法的上下分位数水平**
 >
-> 首发版本的源码（`qwt_box_statistics.cpp:175-179`）把 `whiskerLower` 赋为 `quantile(1.0 - coefficient/100.0)`（高分位）、`whiskerUpper` 赋为 `quantile(coefficient/100.0)`（低分位）。c=5 时 whiskerLower=q(0.95) > whiskerUpper=q(0.05)，`QwtBoxSample::isValid()` 必为 false；且离群点判据 `val < whiskerLower || val > whiskerUpper` 对**每个**数据点成立——当时 C++ 实测（4.6 节 `pctl5` 用例，64 点标准正态）：whiskerLower=1.860208、whiskerUpper=−1.599655、outlierCount=64/64。v7.5.1 起两行水平对调（`whiskerLower = quantile(c/100)`、`whiskerUpper = quantile(1−c/100)`），同一用例复测为 whiskerLower=−1.599655 < whiskerUpper=1.860208、outlierCount=8/64；`tests/box_statistics_test` 固化该回归。
+> 首发版本的源码曾把 `whiskerLower` 赋为 `quantile(1.0 - coefficient/100.0)`（高分位）、`whiskerUpper` 赋为 `quantile(coefficient/100.0)`（低分位）；修正后的分支现位于 `qwt_box_statistics.cpp:131-135`。c=5 时 whiskerLower=q(0.95) > whiskerUpper=q(0.05)，`QwtBoxSample::isValid()` 必为 false；且离群点判据 `val < whiskerLower || val > whiskerUpper` 对**每个**数据点成立——当时 C++ 实测（4.6 节 `pctl5` 用例，64 点标准正态）：whiskerLower=1.860208、whiskerUpper=−1.599655、outlierCount=64/64。v7.5.1 起两行水平对调（`whiskerLower = quantile(c/100)`、`whiskerUpper = quantile(1−c/100)`），同一用例复测为 whiskerLower=−1.599655 < whiskerUpper=1.860208、outlierCount=8/64；`tests/box_statistics_test` 固化该回归。
 
-Tukey 分支有一个与教科书惯例的差异值得单独指出：**QWT 的须线端点是栅栏值本身**（再被数据极值夹取），而 R/经典 Tukey 惯例把须线画到"栅栏以内最极端的实际数据点"。两者在数据越过栅栏时不相等：4.4 节实测数据集 A 上，QWT whiskerUpper=2.879038 而 R 惯例端点=2.288083，差 0.591；下侧差 1.265。QWT 的离群点计数（严格不等式 `val < wl || val > wu`，`qwt_box_statistics.cpp:214`）与自己的栅栏口径自洽，但箱子的视觉长度系统性长于 R 风格画法，跨库对图时会发现须线对不齐。
+Tukey 分支有一个与教科书惯例的差异值得单独指出：**QWT 的须线端点是栅栏值本身**（再被数据极值夹取），而 R/经典 Tukey 惯例把须线画到"栅栏以内最极端的实际数据点"。两者在数据越过栅栏时不相等：4.4 节实测数据集 A 上，QWT whiskerUpper=2.879038 而 R 惯例端点=2.288083，差 0.591；下侧差 1.265。QWT 的离群点计数（严格不等式 `val < wl || val > wu`，`qwt_box_statistics.cpp:171`）与自己的栅栏口径自洽，但箱子的视觉长度系统性长于 R 风格画法，跨库对图时会发现须线对不齐。
 
 `StandardDeviation`/`StandardError` 不是经典箱线图口径，而是"均值 ± 区间"的误差棒语义，只是复用了离群点扫描：落在 mean±c·s 之外的点全部计入 outlierCount。c=1、正态数据时约 32% 的点会被计为"离群点"（C++ 实测 `sd1` 用例：21/64）；SE 方法区间更窄，实测 55/64，且出现 whiskerUpper=99.97 < q3=108.56——须线端点伸进箱体内部，`drawWhiskers` 会把上须画成向下穿过箱体的线段。这两个方法适合做误差棒叠加，不适合当离群点探测器用。
 
@@ -165,7 +165,7 @@ Tukey 分支有一个与教科书惯例的差异值得单独指出：**QWT 的�
 
 `calculateFromRaw`/`calculateFull` 在排序前过滤 NaN 与 ±Inf（`qwt_is_nan_or_inf`，`qwt_math.h`），离群点扫描也跳过它们，因此**统计量对 NaN 输入是干净的**。但 `calculate()` 本身不过滤——它假定入参已排序且无 NaN；直接传入含 NaN 的数据会得到 NaN 污染的四分位数（NaN 参与比较与算术的结果），传入未排序数据则语义完全错误（索引即秩的前提被破坏）。
 
-`QwtBoxSample`（`src/core/qwt_samples.h:362-443`）继承 `QwtStatisticalSample`（position/lower/upper/center），自有字段与图形元素的对应关系见下图与表：
+`QwtBoxSample`（`src/core/qwt_samples.h:363-433`）继承 `QwtStatisticalSample`（position/lower/upper/center），自有字段与图形元素的对应关系见下图与表：
 
 ![QwtBoxSample 字段与箱线图元素的一一对应：左为 QWT 栅栏端点约定，右为 R/经典 Tukey 数据点端点约定](../../assets/algorithms/fig_box_anatomy.png)
 
@@ -179,7 +179,7 @@ Tukey 分支有一个与教科书惯例的差异值得单独指出：**QWT 的�
 | `outlierCount` | 无图形，仅统计 | 绘制用的是 `QwtBoxOutlierSample.values` |
 | `QwtBoxOutlierSample.values` | 离群点符号 | 默认 XCross 8×8，可 `setOutlierSymbol` |
 
-箱体宽度由 `boxExtent`（默认 0.6 个分类刻度单位）经 `scaledBoxWidth` 换算成像素并受 `minBoxWidth`(2px)/`maxBoxWidth` 夹取。`Notch` 风格的凹口偏移是 `(q3Pixel − q1Pixel) × 0.1` 的**纯视觉量**（`qwt_plot_boxchart.cpp:777`），不是 McGill et al.（1978）的统计缺口 $\tilde{x} \pm 1.57\,\mathrm{IQR}/\sqrt{n}$（中位数 95% 置信区间）——两种"notch"同名不同物。`setOutlierJitter` 的水平抖动使用 `QRandomGenerator::global()`，每次重绘位置不同（非确定性渲染）。
+箱体宽度由 `boxExtent`（默认 0.6 个分类刻度单位）经 `scaledBoxWidth` 换算成像素并受 `minBoxWidth`(2px)/`maxBoxWidth` 夹取。`Notch` 风格的凹口偏移是 `(q3Pixel − q1Pixel) × 0.1` 的**纯视觉量**（`qwt_plot_boxchart.cpp:781`），不是 McGill et al.（1978）的统计缺口 $\tilde{x} \pm 1.57\,\mathrm{IQR}/\sqrt{n}$（中位数 95% 置信区间）——两种"notch"同名不同物。`setOutlierJitter` 的水平抖动使用 `QRandomGenerator::global()`，每次重绘位置不同（非确定性渲染）。
 
 ## 4. 实验
 
@@ -263,7 +263,7 @@ A 上九种定义全部判出 3 个（注入点距栅栏足够远，定义差异
 
 数据集 B 本身也说明重尾/偏斜的代价：3/32 = 9.4% 的点被标为离群，而 1.5×IQR 规则的设计基准是正态分布（栅栏位于 ±2.698σ，理论误标率 $2\Phi(-2.698)\approx 0.70\%$，解析值）。对数正态的"离群点"多数是右尾的自然样本。
 
-**小样本的组合边界。** 问："多小的 n 上 1.5×IQR 规则不可能判出任何离群点？"这不是概率问题而是组合问题，可以精确回答。栅栏上界是次序统计量的固定线性组合 $\text{fence}(x) = 2.5\,q_3(x) - 1.5\,q_1(x)$（系数只依赖 n 与定义），判据 $x_{(n)} > \text{fence}$ 即 $c\cdot x > 0$ 且 $\sum_i c_i = 0$（平移不变）。以非负间隙 $g_j = x_{(j+1)} - x_{(j)}$ 参数化（$x_{(1)}=0$），得 $c\cdot x = \sum_j d_j g_j$，$d_j = \sum_{i>j} c_i$——**存在离群点构型当且仅当某个 $d_j > 0$**，且见证构型就是"只在第 j 个间隙放 1"。对九种定义解这个 11×9 的小问题（脚本解析计算 + 每格 400–2000 次随机搜索复核，n−1 处不可行性同样双重确认）：
+**小样本的组合边界。** 问："多小的 n 上 1.5×IQR 规则不可能判出任何离群点？"这不是概率问题而是组合问题，可以精确回答。栅栏上界是次序统计量的固定线性组合 $\text{fence}(x) = 2.5\,q_3(x) - 1.5\,q_1(x)$（系数只依赖 n 与定义），判据 $x_{(n)} > \text{fence}$ 即 $c\cdot x > 0$ 且 $\sum_i c_i = 0$（平移不变）。以非负间隙 $g_j = x_{(j+1)} - x_{(j)}$ 参数化（$x_{(1)}=0$），得 $c\cdot x = \sum_j d_j g_j$，$d_j = \sum_{i>j} c_i$——**存在离群点构型当且仅当某个 $d_j > 0$**，且见证构型就是"只在第 j 个间隙放 1"。对九种定义解这个 23×9 的小问题（脚本解析计算 + 每格 400–2000 次随机搜索复核，n−1 处不可行性同样双重确认）：
 
 | 定义 | 最小可判 n | 见证数据（排序后） | 见证栅栏上界 |
 |------|-----------|--------------------|--------------|
@@ -329,13 +329,13 @@ $$
 
 以下每条都有源码行号或 4.6 节的 C++ 实测背书，按影响排序：
 
-1. **Percentile 须线方法上下界互换（v7.5.1 已修复）**（`qwt_box_statistics.cpp:175-179`）：首发版本 whiskerLower 取 1−c/100 高分位、whiskerUpper 取 c/100 低分位，在系数 <50 且数据非常数时 `isValid()` 必为 false、outlierCount 等于样本量（当时实测 c=5：64/64；常数数据 wl=wu、计 0；c≥50 时两水平不互换，c=95 行为反而正确）。v7.5.1 起水平对调，`pctl5` 复测 8/64；注意 c 是尾部百分比，所以 >25 时须线进入箱体（c=49 时 wl=q(0.49) > q1 属定义使然，不是缺陷）。
-2. **"均值标记"画在中位数位置（v7.5.1 已修复）**（`qwt_plot_boxchart.cpp:708-715`）：首发版本 `meanVisible && meanSymbol` 分支用 `valueMap.transform(sample.median)` 定位符号，而 `QwtBoxSample` 根本没有 mean 字段——开启"均值标记"得到的是 medians 的重复绘制。v7.5.1 起 `QwtBoxSample` 携带 `mean`（默认 NaN）与 `hasMean()`，统计器为每个算出的样本填入均值，标记画在 `sample.mean` 上、样本无均值时不画；手工组装的样本需自行赋值。
+1. **Percentile 须线方法上下界互换（v7.5.1 已修复）**（修复后的分支：`qwt_box_statistics.cpp:131-135`）：首发版本 whiskerLower 取 1−c/100 高分位、whiskerUpper 取 c/100 低分位，在系数 <50 且数据非常数时 `isValid()` 必为 false、outlierCount 等于样本量（当时实测 c=5：64/64；常数数据 wl=wu、计 0；c≥50 时两水平不互换，c=95 行为反而正确）。v7.5.1 起水平对调，`pctl5` 复测 8/64；注意 c 是尾部百分比，所以 >25 时须线进入箱体（c=49 时 wl=q(0.49) > q1 属定义使然，不是缺陷）。
+2. **"均值标记"画在中位数位置（v7.5.1 已修复）**（修复后的分支：`qwt_plot_boxchart.cpp:712-719`）：首发版本 `meanVisible && meanSymbol` 分支用 `valueMap.transform(sample.median)` 定位符号，而 `QwtBoxSample` 根本没有 mean 字段——开启"均值标记"得到的是 medians 的重复绘制。v7.5.1 起 `QwtBoxSample` 携带 `mean`（默认 NaN）与 `hasMean()`，统计器为每个算出的样本填入均值，标记画在 `sample.mean` 上、样本无均值时不画；手工组装的样本需自行赋值。
 3. **须线端点是栅栏值而非数据点**：与 R/matplotlib/seaborn 的画法系统性不一致（实测上侧差 0.591、下侧差 1.265），跨工具对图必然对不齐；QWT 内部（计数与须线）自洽。
 4. **小样本组合边界**：R-7 口径 n=4 起即可判离群点、n≤3 恒不可判；n=4 的反例机制是极值以 0.25 权重参与 Q3 插值（[0,1,2,100] → Q3=26.5）。n<8 的箱线图统计意义薄弱，n≤3 的箱子永远不会显示离群点，用户不应把"无离群点"解读为"数据干净"。
 5. **ties / IQR=0**：过半相同值 → IQR=0 → 须线塌缩、所有不等值全部成为离群点（实测 [5×6,12] → {12}）。离散数据上应改用 Percentile 语义的自定义栅栏（手工计算，见第 6 节）或干脆关闭离群点。
 6. **重尾与偏斜**：1.5×IQR 的正态设计误标率 0.70%，对数正态实测 9.4%（3/32）——把偏度当离群。右偏（对数正态）分布上 Q3 的定义分歧又约是正态的 2 倍（4.3 节），双重放大不确定性。
-7. **Notch 风格是装饰性的**：凹口 = 箱高的 10%（`qwt_plot_boxchart.cpp:777`），与 McGill et al.（1978）的 $\pm1.57\,\mathrm{IQR}/\sqrt n$ 置信缺口无关，不能用于"两箱缺口不重叠 → 中位数差异显著"的判读。
+7. **Notch 风格是装饰性的**：凹口 = 箱高的 10%（`qwt_plot_boxchart.cpp:781`），与 McGill et al.（1978）的 $\pm1.57\,\mathrm{IQR}/\sqrt n$ 置信缺口无关，不能用于"两箱缺口不重叠 → 中位数差异显著"的判读。
 8. **`calculate()` 不防御脏输入**：含 NaN 或未排序的入参会静默产出错误结果（NaN 传播 / 秩错乱）；只有 `calculateFromRaw`/`calculateFull` 过滤并排序。空输入返回全零样本而非无效标记，空箱会画在值 0 处并影响 `boundingRect` 自动缩放。
 9. **离群点抖动的非确定性**：`setOutlierJitter > 0` 时每次重绘用 `QRandomGenerator::global()` 重新抖动，导出图与屏幕图、两次截屏的离群点位置都不一致；需要可复现输出时保持 jitter=0。
 10. **SD/SE 方法的语义陷阱**：它们不是箱线图栅栏，c=1 的正态数据上 SD 方法计 21/64、SE 方法计 55/64 个"离群点"，SE 方法还出现 wu < q3（须线穿入箱体）。用作误差棒可以，用作离群探测必错。
