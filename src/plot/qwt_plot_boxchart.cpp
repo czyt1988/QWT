@@ -495,6 +495,10 @@ bool QwtPlotBoxChart::isMedianVisible() const
 /**
  * @brief Set whether the mean marker is visible
  * @param[in] visible True to show, false to hide
+ * @details The marker is drawn at QwtBoxSample::mean. Samples without a mean
+ *          (the field is NaN, e.g. for samples assembled by hand) draw no
+ *          marker; QwtBoxStatisticsCalculator fills the mean for all samples
+ *          it computes.
  *
  */
 void QwtPlotBoxChart::setMeanVisible(bool visible)
@@ -705,13 +709,13 @@ void QwtPlotBoxChart::drawSeries(QPainter* painter,
             drawMedian(painter, sample, orient, boxWidth, posPixel, *valueMap);
         }
 
-        if (d->meanVisible && d->meanSymbol) {
-            double medianPixel = valueMap->transform(sample.median);
+        if (d->meanVisible && d->meanSymbol && sample.hasMean()) {
+            double meanPixel = valueMap->transform(sample.mean);
             if (doAlign)
-                medianPixel = qRound(medianPixel);
+                meanPixel = qRound(meanPixel);
 
             d->meanSymbol->drawSymbol(
-                painter, (orient == Qt::Vertical) ? QPointF(posPixel, medianPixel) : QPointF(medianPixel, posPixel));
+                painter, (orient == Qt::Vertical) ? QPointF(posPixel, meanPixel) : QPointF(meanPixel, posPixel));
         }
     }
 

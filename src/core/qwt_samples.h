@@ -32,6 +32,7 @@
 
 #include <qvector.h>
 #include <qrect.h>
+#include <qnumeric.h>
 
 /**
  * @brief Base class for statistical samples with position and range
@@ -355,7 +356,7 @@ inline bool QwtVectorFieldSample::isNull() const
 /**
  * @brief Sample for box-and-whisker plot (boxplot) visualization
  * @details Contains all statistical values needed to render a boxplot:
- *          whisker endpoints, quartiles, median, and outlier count.
+ *          whisker endpoints, quartiles, median, mean and outlier count.
  *          Actual outlier values are stored separately in QwtBoxOutlierSample.
  *
  */
@@ -364,7 +365,7 @@ class QWTCORE_EXPORT QwtBoxSample : public QwtStatisticalSample
 public:
     /**
      * @brief Default constructor
-     * @details All values set to 0.0
+     * @details All values set to 0.0, the mean to NaN (unknown)
      */
     QwtBoxSample(double position = 0.0);
 
@@ -376,6 +377,9 @@ public:
      * @param median Median value (50th percentile)
      * @param q3 Third quartile (75th percentile)
      * @param whiskerUpper Upper whisker endpoint
+     * @details The mean is not part of the statistics of this constructor;
+     *          it stays set to NaN, so hasMean() returns false until a value
+     *          is assigned to the mean member.
      */
     QwtBoxSample(double position, double whiskerLower, double q1, double median, double q3, double whiskerUpper);
 
@@ -384,6 +388,15 @@ public:
      * @details Returns true if whiskerLower <= q1 <= median <= q3 <= whiskerUpper
      */
     bool isValid() const;
+
+    /**
+     * @brief Check if the sample carries a mean value
+     * @details QwtBoxStatisticsCalculator always fills the mean; samples that
+     *          were assembled manually (or the default constructed ones) have
+     *          no mean until it is assigned.
+     * @return true, when mean has been set to a finite value
+     */
+    bool hasMean() const;
 
     /**
      * @brief Get bounding interval including whiskers
@@ -412,17 +425,22 @@ public:
     //! Upper whisker endpoint
     double whiskerUpper;
 
+    //! Arithmetic mean - NaN, when unknown (the default and full constructor)
+    double mean;
+
     //! Number of outliers (stored separately, this is count only)
     int outlierCount;
 };
 
 inline QwtBoxSample::QwtBoxSample(double pos)
-    : QwtStatisticalSample(pos), whiskerLower(0.0), q1(0.0), median(0.0), q3(0.0), whiskerUpper(0.0), outlierCount(0)
+    : QwtStatisticalSample(pos), whiskerLower(0.0), q1(0.0), median(0.0), q3(0.0), whiskerUpper(0.0),
+      mean(qQNaN()), outlierCount(0)
 {
 }
 
 inline QwtBoxSample::QwtBoxSample(double pos, double wl, double q1v, double med, double q3v, double wu)
-    : QwtStatisticalSample(pos), whiskerLower(wl), q1(q1v), median(med), q3(q3v), whiskerUpper(wu), outlierCount(0)
+    : QwtStatisticalSample(pos), whiskerLower(wl), q1(q1v), median(med), q3(q3v), whiskerUpper(wu),
+      mean(qQNaN()), outlierCount(0)
 {
     center = median;
 }
@@ -430,6 +448,11 @@ inline QwtBoxSample::QwtBoxSample(double pos, double wl, double q1v, double med,
 inline bool QwtBoxSample::isValid() const
 {
     return (whiskerLower <= q1) && (q1 <= median) && (median <= q3) && (q3 <= whiskerUpper);
+}
+
+inline bool QwtBoxSample::hasMean() const
+{
+    return qIsFinite(mean);
 }
 
 inline QwtInterval QwtBoxSample::boundingInterval() const

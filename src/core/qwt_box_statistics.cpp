@@ -206,6 +206,7 @@ QwtBoxSample QwtBoxStatisticsCalculator::calculate(double position,
     }
 
     QwtBoxSample sample(position, whiskerLower, q1, med, q3, whiskerUpper);
+    sample.mean = mean(sortedData);
 
     // Count outliers
     int outlierCount = 0;

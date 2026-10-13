@@ -165,7 +165,7 @@ public:
     void setOutlierSymbol(const QwtSymbol*);
     const QwtSymbol* outlierSymbol() const;
 
-    // Set symbol for mean marker
+    // Set symbol for the mean marker (drawn at QwtBoxSample::mean)
     void setMeanSymbol(const QwtSymbol*);
     const QwtSymbol* meanSymbol() const;
 
@@ -173,7 +173,7 @@ public:
     void setMedianVisible(bool);
     bool isMedianVisible() const;
 
-    // Show/hide mean marker
+    // Show/hide mean marker (samples without mean draw nothing)
     void setMeanVisible(bool);
     bool isMeanVisible() const;
 

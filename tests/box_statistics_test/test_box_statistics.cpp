@@ -268,5 +268,37 @@ void TestBoxStatistics::emptyInputIsZeroed()
     QCOMPARE(sample.outlierCount, 0);
 }
 
+void TestBoxStatistics::calculatorFillsMean()
+{
+    const QVector< double > data = regressionData();
+    const double expected = meanOf(data);
+
+    const Calculator::WhiskerMethod methods[] = {
+        Calculator::Tukey,
+        Calculator::Percentile,
+        Calculator::MinMax,
+        Calculator::StandardDeviation,
+        Calculator::StandardError
+    };
+
+    for (Calculator::WhiskerMethod method : methods) {
+        const QwtBoxSample sample = Calculator::calculateFromRaw(0.0, data, method, 1.5);
+        QVERIFY(sample.hasMean());
+        fuzzyCompare(sample.mean, expected);
+    }
+}
+
+void TestBoxStatistics::manualSampleHasNoMean()
+{
+    QwtBoxSample sample(1.0, -1.0, -0.5, 0.0, 0.5, 1.0);
+
+    QVERIFY(!sample.hasMean());
+    QVERIFY(qIsNaN(sample.mean));
+
+    sample.mean = 0.25;
+    QVERIFY(sample.hasMean());
+    fuzzyCompare(sample.mean, 0.25);
+}
+
 QTEST_APPLESS_MAIN(TestBoxStatistics)
 #include "test_box_statistics.moc"

@@ -45,6 +45,12 @@ private slots:
 
     /// Empty input yields a zeroed sample, not a crash
     void emptyInputIsZeroed();
+
+    /// The calculator fills the mean of every sample it computes
+    void calculatorFillsMean();
+
+    /// Manually assembled samples carry no mean until one is assigned
+    void manualSampleHasNoMean();
 };
 
 #endif  // TEST_BOX_STATISTICS_H
