@@ -266,15 +266,18 @@ public:
         FilterPointsPixel = 0x20,
 
         /**
-         * MinMax bucket downsampling (simplified LTTB variant).
+         * Largest-Triangle-Three-Buckets (LTTB) downsampling.
          *
-         * Divides the visible data range into N equal-count buckets
-         * and keeps the min-Y and max-Y point from each bucket.
-         * N is auto-calculated as 2 * canvasWidth.
+         * Divides the visible data range into N equal-count buckets and keeps
+         * the sample of each bucket, that forms the largest triangle with the
+         * previously selected point and the average of the next bucket.
+         * The first and last sample are always kept.
+         * N is auto-calculated as 4 * canvasWidth.
          *
-         * Output size: ~2 * N points. O(n) time complexity.
-         * Preserves visual shape better than FilterPointsPixel for
-         * data with uneven X distribution.
+         * Output size: ~N points. O(n) time complexity.
+         * Preserves the visual shape of the curve ( f.e. narrow peaks )
+         * much better than the MinMax bucket algorithm, at the cost of
+         * being slightly slower.
          *
          * @note Implemented for QwtPlotCurve::Lines only
          * @note Overrides FilterPointsAggressive when both are set

@@ -832,6 +832,210 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
     return polyline;
 }
 
+// Largest-Triangle-Three-Buckets ( LTTB ) downsampling: divide the data
+// into N equal-count buckets and keep the sample of each bucket, that
+// forms the largest triangle with the previously selected point and the
+// average of the next bucket. The first and last sample are always kept,
+// so that the curve always spans the full data range.
+// O(n) time, O(N) output.
+//
+// When roundPoints is false, the mapped coordinates keep their sub pixel
+// precision - what is the better choice for paint devices, where
+// antialiasing is enabled.
+template< class Polygon, class Point >
+static Polygon
+qwtLttbReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
+              const QwtSeriesData< QPointF >* series, int from, int to, bool roundPoints)
+{
+    Polygon polyline;
+    if (from > to)
+        return polyline;
+
+    int visFrom = from, visTo = to;
+    qwtFindVisibleRange(xMap, series, from, to, visFrom, visTo);
+
+    const int numPoints = visTo - visFrom + 1;
+    if (numPoints <= 0)
+        return polyline;
+
+    const int xPixels    = qAbs(qRound(xMap.p2() - xMap.p1())) + 1;
+    const int numBuckets = qMax(2, 4 * xPixels);  // 1 point per bucket
+
+    if (numPoints <= numBuckets) {
+        // not enough points to benefit from bucketing, fall back to plain mapping
+        if (roundPoints)
+            return qwtMapPointsQuad< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+        return qwtMapPointsNoRound< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+    }
+
+    const double bucketSize = static_cast< double >(numPoints) / numBuckets;
+    const bool linearPath   = xMap.isLinear() && yMap.isLinear();
+
+    // fast path for linear scale maps: avoid virtual transform() calls
+    const double xCnv = linearPath ? xMap.cnv() : 0.0;
+    const double xOff = linearPath ? xMap.p1() - xMap.ts1() * xCnv : 0.0;
+    const double yCnv = linearPath ? yMap.cnv() : 0.0;
+    const double yOff = linearPath ? yMap.p1() - yMap.ts1() * yCnv : 0.0;
+
+    const QwtRawPointData raw = qwtTryGetRawPointData(series);
+    const bool useRaw         = linearPath && (raw.y != nullptr);
+
+    // map sample i to pixel coordinates, returns false for NaN/Inf samples
+    auto mapSample = [ & ](int i, double& px, double& py)->bool {
+        if (useRaw) {
+            const double y = raw.y[ i ];
+            if (std::isnan(y))
+                return false;
+
+            const double x = (raw.x != nullptr) ? raw.x[ i ] : i;
+            px             = x * xCnv + xOff;
+            py             = y * yCnv + yOff;
+        } else {
+            const QPointF sample = series->sample(i);
+            if (qwt_is_nan_or_inf(sample))
+                return false;
+
+            px = linearPath ? sample.x() * xCnv + xOff : xMap.transform(sample.x());
+            py = linearPath ? sample.y() * yCnv + yOff : yMap.transform(sample.y());
+        }
+        return true;
+    };
+
+    // pass 1: average of the mapped coordinates per bucket
+    QVector< double > avgX(numBuckets, 0.0), avgY(numBuckets, 0.0);
+    QVector< int > cnt(numBuckets, 0);
+
+    for (int b = 0; b < numBuckets; b++) {
+        const int start = visFrom + static_cast< int >(b * bucketSize);
+        const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+
+        double sx = 0.0, sy = 0.0;
+        int c     = 0;
+
+        for (int i = start; i <= qMin(end, visTo); i++) {
+            double px, py;
+            if (!mapSample(i, px, py))
+                continue;
+
+            sx += px;
+            sy += py;
+            c++;
+        }
+
+        if (c > 0) {
+            avgX[ b ] = sx / c;
+            avgY[ b ] = sy / c;
+        }
+        cnt[ b ] = c;
+    }
+
+    // index of the next bucket, that holds valid samples
+    QVector< int > nextValidBucket(numBuckets, -1);
+    {
+        int next = -1;
+        for (int b = numBuckets - 1; b >= 0; b--) {
+            nextValidBucket[ b ] = next;
+            if (cnt[ b ] > 0)
+                next = b;
+        }
+    }
+
+    polyline.resize(numBuckets);
+    Point* outPts = polyline.data();
+    int n         = 0;
+
+    double lastX = 0.0, lastY = 0.0;  // coordinates of the last emitted point
+    bool haveLast = false;
+
+    auto appendPoint = [ & ](double px, double py) {
+        if (roundPoints) {
+            px = qwtRoundValueF(px);
+            py = qwtRoundValueF(py);
+        }
+        if (haveLast && px == lastX && py == lastY)
+            return;
+
+        outPts[ n++ ] = qwtMakePointD< Point >(px, py);
+        lastX         = px;
+        lastY         = py;
+        haveLast      = true;
+    };
+
+    // bucket 0: keep the first valid sample of the data
+    double prevX = 0.0, prevY = 0.0;
+    bool havePrev = false;
+
+    for (int i = visFrom; i <= visTo; i++) {
+        double px, py;
+        if (mapSample(i, px, py)) {
+            prevX    = px;
+            prevY    = py;
+            havePrev = true;
+            break;
+        }
+    }
+
+    if (!havePrev) {
+        polyline.clear();
+        return polyline;
+    }
+
+    appendPoint(prevX, prevY);
+
+    // middle buckets: keep the sample forming the largest triangle with
+    // the previous selection and the average of the next valid bucket
+    for (int b = 1; b < numBuckets - 1; b++) {
+        const int start = visFrom + static_cast< int >(b * bucketSize);
+        const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+
+        const int nb = nextValidBucket[ b ];
+
+        double bestX = 0.0, bestY = 0.0;
+        double bestArea = -1.0;
+
+        for (int i = start; i <= qMin(end, visTo); i++) {
+            double px, py;
+            if (!mapSample(i, px, py))
+                continue;
+
+            double area = 0.0;
+            if (nb >= 0) {
+                // twice the area of the triangle ( prev, point, avgNext )
+                area = qAbs( (px - prevX) * (avgY[ nb ] - prevY)
+                             - (py - prevY) * (avgX[ nb ] - prevX) );
+            }
+
+            if (area > bestArea) {
+                bestArea = area;
+                bestX    = px;
+                bestY    = py;
+            }
+        }
+
+        if (bestArea >= 0.0) {
+            prevX = bestX;
+            prevY = bestY;
+            appendPoint(prevX, prevY);
+        }
+    }
+
+    // last bucket: keep the last valid sample, so that the curve
+    // always ends at the end of the data
+    {
+        const int start = visFrom + static_cast< int >((numBuckets - 1) * bucketSize);
+
+        for (int i = visTo; i >= qMax(start, visFrom); i--) {
+            double px, py;
+            if (mapSample(i, px, py)) {
+                appendPoint(px, py);
+                break;
+            }
+        }
+    }
+
+    polyline.resize(n);
+    return polyline;
+}
 // Helper class to work around the 5 parameters
 // limitation of QtConcurrent::run()
 class QwtDotsCommand
@@ -1260,9 +1464,13 @@ QPolygonF QwtPointMapper::toPolygonF(const QwtScaleMap& xMap,
     QWT_DC(d);
     QPolygonF polyline;
 
-    // priority: PixelColumnReduce > MinMaxReduce > WeedOutIntermediatePoints > WeedOutPoints
+    // priority: PixelColumnReduce > LTTBReduce > MinMaxReduce > WeedOutIntermediatePoints > WeedOutPoints
     if (d->flags & PixelColumnReduce) {
         polyline = qwtPixelColumnReduce< QPolygonF, QPointF >(xMap, yMap, series, from, to);
+    } else if (d->flags & LTTBReduce) {
+        // without RoundPoints the output keeps its sub pixel precision
+        polyline = qwtLttbReduce< QPolygonF, QPointF >(
+            xMap, yMap, series, from, to, d->flags & RoundPoints);
     } else if (d->flags & MinMaxReduce) {
         // without RoundPoints the output keeps its sub pixel precision
         polyline = qwtMinMaxBucketReduce< QPolygonF, QPointF >(
@@ -1312,6 +1520,9 @@ QPolygon QwtPointMapper::toPolygon(const QwtScaleMap& xMap,
 
     if (d->flags & PixelColumnReduce) {
         polyline = qwtPixelColumnReduce< QPolygon, QPoint >(xMap, yMap, series, from, to);
+    } else if (d->flags & LTTBReduce) {
+        // integer points are always rounded
+        polyline = qwtLttbReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, true);
     } else if (d->flags & MinMaxReduce) {
         // integer points are always rounded
         polyline = qwtMinMaxBucketReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, true);
