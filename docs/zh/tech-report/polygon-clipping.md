@@ -7,7 +7,7 @@
 > - 交叉验证：Python 重实现与真实 `QwtClipper`（本次复测用 Qt 5.14.2 msvc2017_64 构建的 `qwtcore.dll`，原始测量为 Qt 5.15.16；两次的 20 个语义探针一致）在 1323 组多边形用例与 1014 组圆用例上 **2337/2337 位精确一致**（`%.17g` 全精度比对），重实现可作为后续分析的可信模型
 > - 顶点计数的精确会计恒等式：每一遍半平面扫描满足 $n_{k+1} = V_k + X_k$（保留顶点数 + 交点数），在平移/缩放全部 169 个序列步上 169/169 成立；全局关系 $n_{out} = V_{in} + X_{\partial R} + \Phi$ 中，对 $x$ 单调折线 $\Phi \equiv 0$（73/73 步），稳态放大率 $A = n_{out}/V_{in} \approx 1.029$
 > - $\Phi > 0$ 的"幽灵边界点"只出现在闭合且非单调的流形上：Lissajous 曲线在完全错过视口时仍输出 8 个点（视口矩形边界被正反各走一遍），缩放序列中 $\Phi$ 最大 10、$A$ 最大 8.0；但按奇偶填充与非零环绕填充光栅化后与精确交集的像素差均为 0/160000，即填充语义不受影响，受影响的只有描边
-> - `clipCircle` 在 300 组随机圆上与暴力角度采样的真值完全一致（最差对称差 0.000000 rad）；首发时记录的三个错误弧段反例（圆心恰在矩形左/右边线上，对称差 $\pi$ rad；圆恰过矩形角点，对称差最大 $2\pi$ rad 且取决于 1 ulp 浮点取整）在 v7.5.1 全部修复：复测中定向用例对称差 0.000000 rad、300/300 随机圆一致。半径 0 仍返回空集（QRectF::contains 拒绝零宽矩形的几何事实，注释已在同批澄清）
+> - `clipCircle` 在 300 组随机圆上与暴力角度采样的真值完全一致（最差对称差 0.000000 rad）；首发时记录的三个错误弧段反例（圆心恰在矩形左/右边线上，对称差 $\pi$ rad；圆恰过矩形角点，对称差最大 $2\pi$ rad 且取决于 1 ulp 浮点取整）在 v7.5.1 全部修复：复测中定向用例对称差全部归零（圆心在矩形角上一例表观残余 1.7e-5，为真值采样误差）、300/300 随机圆一致。半径 0 仍返回空集（QRectF::contains 拒绝零宽矩形的几何事实，Doxygen 注释未提及这一例外）
 > - 整数路径的交点坐标用 `static_cast<int>` 向零截断（误差 $<1$ px 且符号相关），`QRectF → QPolygon` 重载用 `qCeil/qFloor` 向内取整（宽度不足 1 且内部没有整数坐标的浮点矩形在整数路径上必然裁剪为空）；单点多边形绕过全部四个 inside 测试被原样保留
 
 ---
@@ -26,18 +26,18 @@
 
 QPainter 自带裁剪，QWT 仍维护一套软件裁剪，原因有三，都能在源码中找到依据：
 
-1. **SVG 引擎忽略裁剪**。`qwt_painter.cpp:108` 的 `qwtIsClippingNeeded()` 只对 `QPaintEngine::SVG` 返回真，注释写明 "The SVG paint engine ignores any clipping"；此时 `QwtPainter::drawPolygon/drawPolyline/drawLine`（`qwt_painter.cpp:534–610`）必须自己裁。
+1. **SVG 引擎忽略裁剪**。`qwt_painter.cpp:108` 的 `qwtIsClippingNeeded()` 只对 `QPaintEngine::SVG` 返回真，注释写明 "The SVG paint engine ignores any clipping"；此时 `QwtPainter::drawPolygon/drawPolyline/drawLine`（`qwt_painter.cpp:511–616`）必须自己裁。
 2. **光栅引擎对远离视口的坐标很慢**。`qwt_polar_grid.cpp:717` 的注释写着 "Qt4 is horrible slow, when painting primitives, with coordinates far outside the visible area."，`:775–777` 在此句之后还加了一句 "We need to clip."。
-3. **深度缩放下的性能**。`QwtPlotCurve::ClipPolygons` 的文档说明："In situations, where points are far outside the visible area (f.e when zooming deep) this might be a substantial improvement for the painting performance"（`qwt_plot_curve.h:193`）。
+3. **深度缩放下的性能**。`QwtPlotCurve::ClipPolygons` 的文档说明："In situations, where points are far outside the visible area (f.e when zooming deep) this might be a substantial improvement for the painting performance"（`qwt_plot_curve.h:224–226`）。
 
 ### 1.3 管线位置
 
-`QwtPlotCurve::drawLines()`（`src/plot/qwt_plot_curve.cpp:532` 起）的顺序是：可见区间二分 → `QwtPointMapper` 降采样 → 渲染平滑 → **裁剪** → 拟合/绘制。裁剪在平滑之后，保证平滑滤波器看到完整邻域：
+`QwtPlotCurve::drawLines()`（`src/plot/qwt_plot_curve.cpp:583` 起）的顺序是：可见区间二分 → `QwtPointMapper` 降采样 → 渲染平滑 → **裁剪** → 拟合/绘制。裁剪在平滑之后，保证平滑滤波器看到完整邻域：
 
 ```mermaid
 flowchart TB
     A["QwtSeriesData 原始采样"] --> B["qwtFindVisibleRange<br/>x 方向二分裁剪可见区间"]
-    B --> C["QwtPointMapper::toPolygonF<br/>MinMax / PixelColumn / Quad 降采样"]
+    B --> C["QwtPointMapper::toPolygonF<br/>LTTB / MinMax / PixelColumn / Quad 降采样"]
     C --> D["qwtSmoothPolyline*<br/>高斯 / Savitzky-Golay 平滑"]
     D --> E{"ClipPolygons 属性?"}
     E -->|"开（默认）"| F["QwtClipper::clipPolygonF<br/>clipRect = canvasRect ∩ painterClip<br/>再外扩一个笔宽, closePolygon=false"]
@@ -58,15 +58,15 @@ flowchart TB
 
 | 调用点 | 文件:行 | 语义 | 裁剪矩形来源 |
 |---|---|---|---|
-| `QwtPlotCurve::drawLines` | `qwt_plot_curve.cpp:604,612` | 开折线 | `canvasRect ∩ painterClip`，外扩 `effectivePenWidth` |
-| `QwtPlotCurve::drawSticks` | `qwt_plot_curve.cpp:844` | 开折线 | 同上 |
-| `QwtPlotCurve::fillCurve` | `qwt_plot_curve.cpp:1103` | 闭合多边形 | `canvasRect ∩ painterClip`（不外扩） |
-| `QwtPlotIntervalCurve::draw` | `qwt_plot_intervalcurve.cpp:526,545,548` | 填充闭合 / 描边开 | 填充用 `canvasRect.adjusted(-1,-1,1,1)`；描边外扩笔宽 |
+| `QwtPlotCurve::drawLines` | `qwt_plot_curve.cpp:656,664` | 开折线 | `canvasRect ∩ painterClip`，外扩 `effectivePenWidth` |
+| `QwtPlotCurve::drawSteps` | `qwt_plot_curve.cpp:936` | 开折线 | 同上 |
+| `QwtPlotCurve::fillCurve` | `qwt_plot_curve.cpp:1213` | 闭合多边形 | `canvasRect ∩ painterClip`（不外扩） |
+| `QwtPlotIntervalCurve::drawTube` | `qwt_plot_intervalcurve.cpp:526,545,548` | 填充闭合 / 描边开 | 填充用 `canvasRect.adjusted(-1,-1,1,1)`；描边外扩笔宽 |
 | `QwtPlotShapeItem::draw` | `qwt_plot_shapeitem.cpp:433` | 每个子路径闭合 | `canvasRect` 外扩笔宽 |
 | `QwtPolarCurve` | `qwt_polar_curve.cpp:441` | 开折线 | painter 窗口逆变换，外扩 `qCeil(max(1, penWidth))` |
 | `QwtPolarGrid` 径向线 | `qwt_polar_grid.cpp:726` | 开折线（2 点） | `canvasRect` |
 | `QwtPolarGrid` 同心圆 | `qwt_polar_grid.cpp:780` | `clipCircle` → 弧 | `canvasRect` |
-| `QwtPainter` 各 wrapper | `qwt_painter.cpp:534–610` | 开/闭 | 仅 SVG 引擎：`painter->clipRegion().boundingRect()` |
+| `QwtPainter` 各 wrapper | `qwt_painter.cpp:511–616` | 开/闭 | 仅 SVG 引擎：`painter->clipRegion().boundingRect()` |
 
 `drawDots`/`drawSymbols` 不使用 `QwtClipper`，它们依赖 `QwtPointMapper::setBoundingRect(clipRect)` 与 `WeedOutPoints` 在映射阶段剔除视口外点。另外要说明：**v7 的 `QwtClipper` 没有 `clipLine`/`clipPolyline`**——公开 API 只有 `clipPolygon`（两个重载）、`clipPolygonF`、三个 `clipped*` 拷贝版本与 `clipCircle`；开折线统一走 `closePolygon = false` 的 Sutherland–Hodgman 路径。
 
@@ -137,7 +137,7 @@ $$
 | `clipPolygon(QRect, QPolygon)` | 整数 | 整数 | $[x, x+w] \times [y, y+h]$，含端点，即 $w+1$ 列 |
 | `clipPolygon(QRectF, QPolygon)` | 浮点→整数 | 整数 | $[\lceil l \rceil, \lfloor r \rfloor] \times [\lceil t \rceil, \lfloor b \rfloor]$，向内取整 |
 
-三条取整事实都有实测或源码依据。其一，整数路径的裁剪区域比 `QRect::right()`（$= x + w - 1$）多一列，因为 `clipEdge` 用的是 `m_clipRect.x() + m_clipRect.width()`（harness 探针：`QRect(0,0,10,10).right() == 9`，而裁剪上界是 10）。其二，浮点矩形到整数多边形的重载先做 `qCeil(left)/qFloor(right)/qCeil(top)/qFloor(bottom)`（`:355–360`），是**保守向内**取整：宽度不足 1 且内部没有整数的浮点矩形，整数路径必然裁为空，而浮点路径仍能交出 2 个交点（第 4.3 节实测：同一矩形 `(100.2, 100.7, 0.5, 90.3)`，F 路径 2 点、R 路径 0 点）。其三，整数交点坐标经 `static_cast<int>` **向零截断**而非四舍五入，误差在 $(-1, 1)$ 内且符号相关（负坐标向零偏、正坐标向下偏）；这是解析结论，浮点路径无此误差。
+三条取整事实都有实测或源码依据。其一，整数路径的裁剪区域比 `QRect::right()`（$= x + w - 1$）多一列，因为 `clipEdge` 用的是 `m_clipRect.x() + m_clipRect.width()`（harness 探针：`QRect(0,0,10,10).right() == 9`，而裁剪上界是 10）。其二，浮点矩形到整数多边形的重载先做 `qCeil(left)/qFloor(right)/qCeil(top)/qFloor(bottom)`（`:371–374`），是**保守向内**取整：宽度不足 1 且内部没有整数的浮点矩形，整数路径必然裁为空，而浮点路径仍能交出 2 个交点（第 4.3 节实测：同一矩形 `(100.2, 100.7, 0.5, 90.3)`，F 路径 2 点、R 路径 0 点）。其三，整数交点坐标经 `static_cast<int>` **向零截断**而非四舍五入，误差在 $(-1, 1)$ 内且符号相关（负坐标向零偏、正坐标向下偏）；这是解析结论，浮点路径无此误差。
 
 除零不可达：左/右遍的 `isInside` 只依赖 $x$，两端点 inside 状态不同蕴含 $p_1.x \ne p_2.x$，故 `intersection` 的分母非零；上/下遍同理。NaN 坐标使所有比较为假（永远"在外"），但会把 NaN 传播进交点（第 4.3 节）。
 
@@ -161,16 +161,16 @@ $$
      水平边 y: 对称处理, 候选 (pos.x ± off, y), 仅保留 x ∈ [left, right]
 2. 若无切割点: cRect = 圆的外接矩形; 若 rect.contains(cRect) 返回 [(0, 2π)], 否则 []
 3. angles = sort(toAngle(pos, p) for p in points)      # [0, 2π)
-4. 合并相邻容差 1e-9 rad 内的重复角度（角点被相邻两边各记一次）
+4. 合并容差 1e-9 rad 内的重复角度（相邻重复：角点被相邻两边各记一次；首尾重复：angles[0]+2π 与 angles[last]）
 5. 对每个区段独立判定（含跨 0° 的回绕段）:
      for i, a0 in angles:# a1 = 下一角度, 最后一个区段的 a1 = angles[0] + 2π
-       mid = a0 + (a1-a0)/2; 若 rect.contains(polar2pos(pos, r, mid)) 则输出 [a0, a1]
+       mid = a0 + 0.5*(a1-a0); 若 rect.contains(polar2pos(pos, r, mid)) 则输出 [a0, a1]
    （v7.5.1 起；首发实现用一次全局中点探针决定 (a0,a1),(a2,a3),... 或 (a1,a2),... 配对）
 ```
 
-角度约定与 `qwtPolar2Pos`（`qwt_point_polar.h:161`，$y = p_y - r\sin a$）及 `QPainter::drawArc`（0° 在 3 点方向、逆时针为正）一致：`toAngle` 的非竖直分支把屏幕"右下"映到 $(3\pi/2, 2\pi)$、"左上"映到 $(\pi/2, \pi)$。**竖直特例**（`from.x == to.x` 时返回 $\pi/2$ 或 $3\pi/2$）v7.5.1 起与非竖直分支同约定；首发版本与此相反（历史缺陷见 5 节失效模式 7）。
+角度约定与 `qwtPolar2Pos`（`qwt_point_polar.h:161`，$y = p_y - r\sin a$）及 `QPainter::drawArc`（0° 在 3 点方向、逆时针为正）一致：`toAngle` 的非竖直分支把屏幕"右下"映到 $(3\pi/2, 2\pi)$、"左上"映到 $(\pi/2, \pi)$。**竖直特例**（`from.x == to.x` 时 `to.y <= from.y` 返回 $\pi/2$，否则 $3\pi/2$）v7.5.1 起与非竖直分支同约定；首发版本与此相反（历史缺陷见 5 节失效模式 7）。
 
-**正确性思路**：圆与矩形边界横截相交时交点数为偶数，沿圆周 in/out 交替，故排序后按相邻对配对即可复原可见弧。v7.5.1 起改为：先按角度容差 $10^{-9}$ rad 合并重复切割点（角点被相邻两边各记一次，坐标可差几个 ulp），再对每个角度区段（含跨 0° 的回绕段）独立用中点探针判定归属——分类局部化后，重复点或缺失点（相切）不会再翻转其余区段的结论，单个切割点也不再触发 `angles[1]` 越界。区间以未回绕形式给出（上界可超过 $2\pi$），消费端 `qwt_polar_grid.cpp:793` 的 `span = max − min`（`span < 0 → += 360`）对两种写法都成立。切割点最多 8 个，复杂度 $O(k \log k)$。相切被严格不等式 `|Δ| < radius` 排除，此时落入步骤 2 的包含性回退：内切圆返回 $[0, 2\pi]$、外切圆返回空——两种情形都正确（第 4.4 节实测对称差 0）。
+**正确性思路**：圆与矩形边界横截相交时交点数为偶数，沿圆周 in/out 交替，故排序后按相邻对配对即可复原可见弧。v7.5.1 起改为：先按角度容差 $10^{-9}$ rad 合并重复切割点（角点被相邻两边各记一次，坐标可差几个 ulp），再对每个角度区段（含跨 0° 的回绕段）独立用中点探针判定归属——分类局部化后，重复点或缺失点（相切）不会再翻转其余区段的结论，单个切割点也不再触发 `angles[1]` 越界。区间以未回绕形式给出（上界可超过 $2\pi$），消费端 `qwt_polar_grid.cpp:788–793` 的 `span = max − min`（`span < 0 → += 360`）对两种写法都成立。切割点最多 8 个，复杂度 $O(k \log k)$。相切被严格不等式 `|Δ| < radius` 排除，此时落入步骤 2 的包含性回退：内切圆返回 $[0, 2\pi]$、外切圆返回空——两种情形都正确（第 4.4 节实测对称差 0）。
 
 配对正确性的前提是"交替"：排序角度把圆周切成 $k$ 段间隙，横截情形下间隙的 in/out 状态严格交替。首发实现依赖一次全局中点探针定出全部配对，两个前提因此有两种被破坏的方式——竖直切割点拿到镜像角度（交替序列被错位）、角点被相邻两边重复登记（间隙长度退化为 0，中点探针落在矩形边界上）——正好对应第 5 节的两个反例家族；v7.5.1 的合并 + 逐段分类消除了对交替序列与全局探针的依赖。
 
@@ -194,7 +194,7 @@ $$
 
 ### 3.2 裁剪矩形的构造
 
-`drawLines` 中裁剪矩形不是画布矩形本身（`qwt_plot_curve.cpp:549–553`）：
+`drawLines` 中裁剪矩形不是画布矩形本身（`qwt_plot_curve.cpp:601–604`）：
 
 ```cpp
 clipRect = qwtIntersectedClipRect(canvasRect, painter);   // canvasRect ∩ painter 裁剪区
@@ -202,19 +202,19 @@ const qreal pw = QwtPainter::effectivePenWidth(painter->pen());
 clipRect = clipRect.adjusted(-pw, -pw, pw, pw);           // 外扩一个笔宽
 ```
 
-外扩笔宽是为了让半宽为 $pw/2$ 的笔画在画布边缘不被软件裁剪切掉一半；`qwtIntersectedClipRect`（`:44`）再与 `painter->clipBoundingRect()` 求交，保证寄生绘图等共享画布的场景不会画到宿主区域外。`fillCurve` 不外扩（填充不需要笔画余量），`QwtPlotIntervalCurve` 的填充路径固定外扩 1.0。这些外扩量都直接进入 2.1 节的 $x_1, x_2, y_1, y_2$，因此"裁剪矩形比画布大几个像素"是设计而非误差。
+外扩笔宽是为了让半宽为 $pw/2$ 的笔画在画布边缘不被软件裁剪切掉一半；`qwtIntersectedClipRect`（`:45`）再与 `painter->clipBoundingRect()` 求交，保证寄生绘图等共享画布的场景不会画到宿主区域外。`fillCurve` 不外扩（填充不需要笔画余量），`QwtPlotIntervalCurve` 的填充路径固定外扩 1.0。这些外扩量都直接进入 2.1 节的 $x_1, x_2, y_1, y_2$，因此"裁剪矩形比画布大几个像素"是设计而非误差。
 
 ### 3.3 属性开关
 
-`ClipPolygons` 是 `QwtPlotCurve` 的默认绘制属性（`qwt_plot_curve.cpp:83`：`ClipPolygons | FilterPointsLTTB`）。关闭它不会改变屏幕上的正确性（光栅引擎自己会裁），但会失去 1.2 节的三项收益：SVG 导出破图、深度缩放变慢、以及极坐标网格的同心圆退化为整圆绘制。
+`ClipPolygons` 是 `QwtPlotCurve` 的默认绘制属性（`qwt_plot_curve.cpp:84`：`ClipPolygons | FilterPointsLTTB`）。关闭它不会改变屏幕上的正确性（光栅引擎自己会裁），但会失去 1.2 节的性能收益（SVG 导出与深度缩放都可能退化）；1.2 节提到的极坐标网格同心圆另由 `QwtPolarGrid::ClipGridLines` 控制，与 `ClipPolygons` 无关。
 
-与裁剪正交但叠加生效的是 `QwtPainter` 的折线分块（`qwt_painter.cpp:125`，`splitSize = 6`）：它针对光栅引擎的短线缺陷与性能特性，把**裁剪之后**的流以步长 6 切成至多 7 点的小块（相邻块共享 1 点，`qwt_painter.cpp:170–171` 的 `i += splitSize` 与 `n = qMin(splitSize + 1, …)`）交给 `drawPolyline`。当分块启用时（光栅引擎且笔宽 > 1，或命中引擎缺陷判定），本文测得的 $n_{out}$ 直接决定绘制调用数 $\lceil n_{out}/6 \rceil$——幽灵点与拼接弦因此还会被切成独立的小绘制单元，进一步放大伪差的可见性。
+与裁剪正交但叠加生效的是 `QwtPainter` 的折线分块（`qwt_painter.cpp:150`，`splitSize = 6`）：它针对光栅引擎的短线缺陷与性能特性，把**裁剪之后**的流以步长 6 切成至多 7 点的小块（相邻块共享 1 点，`qwt_painter.cpp:170–171` 的 `i += splitSize` 与 `n = qMin(splitSize + 1, …)`）交给 `drawPolyline`。当分块启用时（光栅引擎且笔宽 > 1，或命中引擎缺陷判定），本文测得的 $n_{out}$ 直接决定绘制调用数 $\lceil n_{out}/6 \rceil$——幽灵点与拼接弦因此还会被切成独立的小绘制单元，进一步放大伪差的可见性。
 
 ## 4. 实验
 
 ### 4.1 设计
 
-实验脚本 `docs/assets/algorithms/clipper_experiment.py`（Python 3.11 + numpy + matplotlib，Agg 后端，种子 20261012）包含与源码逐操作对齐的重实现：交点公式的乘加顺序、`static_cast<int>` 的向零截断、`qCeil/qFloor`、边处理顺序 Left→Right→Top→Bottom、`toAngle` 的竖直特例、`angles[0] + (angles[1]-angles[0])/2` 的中点写法全部照抄，使 IEEE-754 双精度结果可位级比对。交叉验证 harness `docs/assets/algorithms/clipper_check.cpp` 读取脚本生成的用例文件，调用真实 `qwtcore.dll`，以 `%.17g` 打印全部输出坐标；构建配方见该文件头注释（MSVC 2019 `/O2 /std:c++17`，链接 `build-release/lib` 下的 `qwtcore.lib`）。**harness 不做任何墙钟计时**（机器并行负载不可信），本文也不报告耗时数字。
+实验脚本 `docs/assets/algorithms/clipper_experiment.py`（Python 3.11 + numpy + matplotlib，Agg 后端，种子 20261012）包含与源码逐操作对齐的重实现：交点公式的乘加顺序、`static_cast<int>` 的向零截断、`qCeil/qFloor`、边处理顺序 Left→Right→Top→Bottom、`toAngle` 的竖直特例、1e-9 rad 的切割点合并、`from + 0.5*(to-from)` 的逐段中点判定全部照抄，使 IEEE-754 双精度结果可位级比对。交叉验证 harness `docs/assets/algorithms/clipper_check.cpp` 读取脚本生成的用例文件，调用真实 `qwtcore.dll`，以 `%.17g` 打印全部输出坐标；构建配方见该文件头注释（MSVC 2019 `/O2 /std:c++17`，链接 `build-release/lib` 下的 `qwtcore.lib`）。**harness 不做任何墙钟计时**（机器并行负载不可信），本文也不报告耗时数字。
 
 用例规模：多边形 1323 组（浮点/整数/浮点矩形×整数点三种模式，开闭各半，含边界吸附、重复点、共线、自交、单点、空、负宽矩形、$\pm 10^6$ 大坐标、$10^{-13}$ 亚像素间隔、NaN 顶点与一条 5000 点 Lissajous 幽灵用例），圆 1014 组（1000 随机 + 14 个构造反例）。结果：**多边形 1323/1323、圆 1014/1014，合计 2337/2337 位精确一致**。harness 同时打印 Qt 语义探针，用于对齐重实现：`QRectF::contains(QPointF)` 四边全含（`(10,5)`、`(5,10)` 对 `QRectF(0,0,10,10)` 均返回 true），`QRectF::contains(QRectF)` 的经验规则见 2.4 节。除语义对齐外，交叉验证还修正过一处工具链偏差：MSVC 的 `istringstream >> double` 不可靠地解析用例文件里的 `nan` 记号（运行时探针 `nan_parse_isnan` 实测为 0），harness 改用 `strtod`（C99/C++11 保证可解析）读取坐标，NaN 用例才能进入位精确比对。
 
@@ -331,12 +331,12 @@ Lissajous 中心缩放是幽灵边界的完整标本：$L \le 129.6$ 后曲线�
 | 圆心在左边线（rect 10²，c=(0,8)，r=3） | 2.300518 | 2.300518 | 0.000000 | 正确（v7.5.1 修复前为 5.442120 / 3.141601） |
 | 圆心在右边线（c=(10,3)，r=4） | 2.418861 | 2.418861 | 0.000000 | 正确（修复前为 5.560444 / 3.141584） |
 | 圆恰过四角（r=√5000） | 0.000000 | 0 | 0.000000 | 正确（修复前返回整圆，对称差 $2\pi$） |
-| 圆恰过四角 2（r=√32500） | 0 | 0 | 0.000000 | 正确（4 个零长弧，浮点侥幸） |
+| 圆恰过四角 2（r=√32500） | 0 | 0 | 0.000000 | 正确（修复前为 4 个零长弧，浮点侥幸） |
 | 圆心在矩形角上（c=(0,0)，r=50） | 1.570796 | 1.570796 | 0.000017 | 正确（修复前为 4.712398 / 3.141601；残余 1.7e-5 为真值采样误差） |
-| 半径 0（圆心在内） | 0 | 0 | 0.000000 | 与 QRectF::contains 的几何事实一致（注释已澄清，见 2.4 节） |
+| 半径 0（圆心在内） | 0 | 6.283185 | 6.283185 | 返回空集与 QRectF::contains 的几何事实一致；真值列的 $2\pi$ 是零半径采样伪差（点测度为 0），注释未涵盖此情形（见 2.4 节） |
 | 300 组随机圆 | — | — | 最差 0.000000 | 300/300 一致 |
 
-三个错误家族都有明确机理（第 5 节失效模式 7、8），且都是零测配置：300 组随机圆无一命中；修复后定向用例的对称差全部归零（复测见 `clipper_results.txt`）。修复前"圆恰过四角"的一对同构用例结局相反：第一例返回整圆（对称差 $2\pi$，最大可能错误），第二例返回 4 个零长弧（完全正确），差别仅在于中点探针 $r\cos(\pi/4)$ 的最后一位浮点取整落在矩形边界内侧还是外侧——同一段代码、同一类输入、两种结局，这正是"配对依赖 1 ulp"的含义。v7.5.1 合并角点重复后用逐段分类，复测两例都返回空列表（测度 0，与真值一致），不再存在这一对反例。
+三个错误家族都有明确机理（第 5 节失效模式 7、8），且都是零测配置：300 组随机圆无一命中；修复后三个家族的定向用例对称差全部归零（圆心在矩形角上一例表观残余 1.7e-5，为真值采样误差；复测见 `clipper_results.txt`）。修复前"圆恰过四角"的一对同构用例结局相反：第一例返回整圆（对称差 $2\pi$，最大可能错误），第二例返回 4 个零长弧（完全正确），差别仅在于中点探针 $r\cos(\pi/4)$ 的最后一位浮点取整落在矩形边界内侧还是外侧——同一段代码、同一类输入、两种结局，这正是"配对依赖 1 ulp"的含义。v7.5.1 合并角点重复后用逐段分类，复测两例都返回空列表（测度 0，与真值一致），不再存在这一对反例。
 
 ![clipCircle：一般情形返回弧与真值重合；圆心在边线与圆过角点两类反例中红（返回）与绿（真值）分离，对称差分别为 π 与 2π rad](../../assets/algorithms/fig_clip_circle.png)
 
@@ -369,9 +369,9 @@ python docs\assets\algorithms\clipper_experiment.py
 6. **NaN 传播**。NaN 顶点永远判为"在外"，却会通过交点公式把 NaN 写进输出坐标（实测 `(nan, 100.0)`）。与降采样篇的 NaN 语义（SIMD 比较天然忽略 NaN）不同，裁剪层的 NaN 是**会扩散**的；含 NaN 的数据应在映射阶段处理干净。
 7. **clipCircle 的竖直特例符号反了（v7.5.1 已修复）**。首发版本的 `toAngle` 在 `from.x == to.x` 时把屏幕下方的点映到 $\pi/2$、上方映到 $3\pi/2$，与 `qwtPolar2Pos` 及该函数自身非竖直分支的约定相反。仅当圆心 $x$ 坐标**恰等于**矩形左/右边界时产生竖直切割点，此时排序错乱、配对翻转：左边线用例返回弧测度 5.442120 rad，真值 2.300518 rad，多出的 3.141601 rad 恰为圆在 $x < 0$ 的左半（完全在矩形外的那一半）——极坐标网格中极点被平移到画布边线整数像素上即可命中。v7.5.1 起竖直分支与非竖直分支同约定，左右边线定向用例复测对称差 0.000000 rad，用例固化进 `tests/clipper_test`。
 8. **clipCircle 的角点重复破坏配对（v7.5.1 已修复）**。圆恰过矩形角点时，同一点被相邻两边各记一次，排序后出现重复角度，"中点 in 测试"落在边界上，结果正确与否取决于 1 ulp 浮点取整：实测一对同构用例一个返回整圆（对称差 $2\pi$）、一个返回零长弧（正确）。v7.5.1 起按容差合并重复角度，并对每个角度区段独立做中点探针——分类局部化后重复点只影响自身区段，"整圆 vs 零长弧"的 1 ulp 依赖消失（复测两例均返回空列表）。
-9. **半径 0 与注释不符（v7.5.1 已澄清）**。原 Doxygen 声称"圆完全在裁剪矩形内时返回 $[0, 2\pi]$"，但 Qt 5（5.14.2/5.15.16）的 `QRectF::contains(QRectF)` 对零宽参数矩形返回 false（20 探针经验规则），半径 0 实际返回空集。绘制层面无影响（零半径弧不可见），该行为是几何事实，v7.5.1 起注释如实说明；若需要"零半径在内"的语义请把半径下限设为非零值。
+9. **半径 0 与注释不符（行为属几何事实，注释未更新）**。Doxygen 注释声称"圆完全在裁剪矩形内时返回 $[0, 2\pi]$"，但 Qt 5（5.14.2/5.15.16）的 `QRectF::contains(QRectF)` 对零宽参数矩形返回 false（20 探针经验规则），半径 0 实际返回空集。绘制层面无影响（零半径弧不可见）；该行为是几何事实，源码注释至今未涵盖这一例外（`tests/clipper_test` 有说明）；若需要"零半径在内"的语义请把半径下限设为非零值。
 10. **无早退的四遍扫描**。`#if 0` 的包围盒早退被禁用，完全可见的多边形也要付四遍 $O(n)$ 遍历。本文不报告墙钟数字（harness 按约定禁止计时），结构上的账是：四遍共 $4n$ 次 inside 测试与至多四次缓冲拷贝，与一次包围盒计算（$n$ 次比较加法）同阶；早退的净收益取决于"完全可见"的命中率，源码选择保守地不做。对恒在画布内的仪表盘类数据，关闭 `ClipPolygons` 是更直接的省法（6.4 节）。
-11. **奇数切割点的理论风险（v7.5.1 已修复）**。首发实现假定切割点数为偶数并直接读取 `angles[1]` 推中点：浮点舍入若让角点附近的配对交点一边保留一边丢弃，奇数个切割点就会触发越界读（release 构建的 `QVector::operator[]` 无边界检查）。v7.5.1 的逐段分类对任意 $k \ge 1$ 都安全——单个切割点只产生"整圆减一点"或空集的二选一判定，不再有任何越界路径（`tests/clipper_test` 覆盖单个切割点与相切用例）。
+11. **奇数切割点的理论风险（v7.5.1 已修复）**。首发实现假定切割点数为偶数并直接读取 `angles[1]` 推中点：浮点舍入若让角点附近的配对交点一边保留一边丢弃，奇数个切割点就会触发越界读（release 构建的 `QVector::operator[]` 无边界检查）。v7.5.1 的逐段分类对任意 $k \ge 1$ 都安全——单个切割点只产生"整圆减一点"或空集的二选一判定，不再有任何越界路径（`tests/clipper_test` 覆盖竖直边线、角点重复与相切用例）。
 
 ## 6. 代码实践
 
@@ -423,9 +423,9 @@ for (const QwtInterval& intv : arcs) {
 }
 ```
 
-> **已知问题 — 极点贴边与圆过角点**
+> **历史问题 — 极点贴边与圆过角点（v7.5.1 已修复）**
 >
-> 圆心 $x$ 恰在画布左/右边界像素上、或半径恰使圆过画布角点时，`clipCircle` 可能返回多余弧段（表 7，对称差最大 $2\pi$）。交互平移极点的场景可对极点坐标加 $10^{-6}$ 级扰动规避。
+> v7.5.1 之前，圆心 $x$ 恰在画布左/右边界像素上、或半径恰使圆过画布角点时，`clipCircle` 会返回多余弧段（旧版表 7 对称差最大 $2\pi$）；v7.5.1 起按容差合并重复切割点并逐段判定，定向用例对称差归零（表 7），无需再加扰动规避。
 
 ### 6.3 坐标域选择：F / I / R 三条路径
 
@@ -458,7 +458,7 @@ QwtClipper::clipPolygon(QRect(0, 0, canvasWidth, canvasHeight), widgetPoly, fals
 
 ## 7. 小结
 
-QwtClipper 是教科书算法的工程化落地：四遍 Sutherland–Hodgman 加一个角度扫描圆裁剪器，代码量不足 450 行，却承载了整条 2D 渲染管线的可见性契约。本文的测量把它的行为边界划在三条线上。其一，**计数是可精确会计的**：单遍 $n_{k+1} = V_k + X_k$ 在 169/169 个序列步上无例外成立，全局放大率由边界穿越数决定，$x$ 单调折线的稳态代价仅 2.9% 的额外顶点。其二，**算法的"正确"依赖消费方式**：边流输出在奇偶与非零环绕两种填充规则下与精确交集逐像素一致，但同一边流作为描边会画出拼接弦与幽灵边界——正确性陈述必须绑定语义，不能只说"裁剪正确"。其三，退化配置的失败是结构性的而非偶发的：`toAngle` 的竖直特例符号、角点重复的配对歧义、单点直通、NaN 交点污染，都直接读自源码分支结构，实验只是把它们从"可能"变成"可复现的坐标"。适用边界也因此清楚：时序/频谱类 $x$ 单调数据与填充类形状可以放心依赖默认配置；自交描边、极点贴边的极坐标网格、以及把裁剪输出当作简单多边形使用的下游代码，需要按第 5 节清单逐条设防。
+QwtClipper 是教科书算法的工程化落地：四遍 Sutherland–Hodgman 加一个角度扫描圆裁剪器，代码量不足 500 行，却承载了整条 2D 渲染管线的可见性契约。本文的测量把它的行为边界划在三条线上。其一，**计数是可精确会计的**：单遍 $n_{k+1} = V_k + X_k$ 在 169/169 个序列步上无例外成立，全局放大率由边界穿越数决定，$x$ 单调折线的稳态代价仅 2.9% 的额外顶点。其二，**算法的"正确"依赖消费方式**：边流输出在奇偶与非零环绕两种填充规则下与精确交集逐像素一致，但同一边流作为描边会画出拼接弦与幽灵边界——正确性陈述必须绑定语义，不能只说"裁剪正确"。其三，退化配置的失败是结构性的而非偶发的：`toAngle` 的竖直特例符号、角点重复的配对歧义（这两条已在 v7.5.1 修复）、单点直通、NaN 交点污染，都直接读自源码分支结构，实验只是把它们从"可能"变成"可复现的坐标"。适用边界也因此清楚：时序/频谱类 $x$ 单调数据与填充类形状可以放心依赖默认配置；自交描边、极点贴边的极坐标网格（v7.5.1 之前）以及把裁剪输出当作简单多边形使用的下游代码，需要按第 5 节清单逐条设防。
 
 ## 8. 参考文献
 
@@ -466,7 +466,7 @@ QwtClipper 是教科书算法的工程化落地：四遍 Sutherland–Hodgman �
 2. Liang, Y.-D., Barsky, B. A. *A New Concept and Method for Line Clipping.* ACM Transactions on Graphics, 3(1):1–22, 1984.（参数化线段裁剪的对照路线；QWT 未采用，开折线走 Sutherland–Hodgman 的 `closePolygon = false` 路径。）
 3. Foley, J. D., van Dam, A., Feiner, S. K., Hughes, J. F. *Computer Graphics: Principles and Practice,* 2nd ed., Chapter 3（裁剪）. Addison-Wesley, 1990.
 4. QWT7 源码：`src/core/qwt_clipper.h`、`src/core/qwt_clipper.cpp`（`QwtClip::LeftEdge/RightEdge/TopEdge/BottomEdge`、`QwtPolygonClipper`、`QwtCircleClipper`）。
-5. QWT7 调用点：`src/plot/qwt_plot_curve.cpp`（`drawLines`/`drawSticks`/`fillCurve`）、`src/plot/qwt_plot_intervalcurve.cpp`、`src/plot/qwt_plot_shapeitem.cpp`、`src/plot/qwt_polar_curve.cpp`、`src/plot/qwt_polar_grid.cpp`、`src/plot/qwt_painter.cpp`（`qwtIsClippingNeeded`）。
+5. QWT7 调用点：`src/plot/qwt_plot_curve.cpp`（`drawLines`/`drawSteps`/`fillCurve`）、`src/plot/qwt_plot_intervalcurve.cpp`、`src/plot/qwt_plot_shapeitem.cpp`、`src/plot/qwt_polar_curve.cpp`、`src/plot/qwt_polar_grid.cpp`、`src/plot/qwt_painter.cpp`（`qwtIsClippingNeeded`）。
 6. Qt 5（5.14.2 与 5.15.16 探针一致）：`QRectF::contains` 语义由 `docs/assets/algorithms/clipper_check.cpp` 的 20 个运行时探针经验刻画（含端点、退化宽度拒绝、负宽高归一化）。
 7. 实验与复现：`docs/assets/algorithms/clipper_experiment.py`（重实现 + 全部测量 + 插图）、`docs/assets/algorithms/clipper_check.cpp`（C++ 交叉验证 harness，2337 用例位精确比对；构建配方见文件头注释）。
 
