@@ -32,6 +32,7 @@ Outputs ( written next to this script ):
     fig_cmap_vs_mpl.png      QWT 9-stop presets vs matplotlib tables
 """
 
+import re
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -42,87 +43,54 @@ HERE = Path(__file__).parent
 N = 256  # LUT size, matches QwtColorMap::colorTable256()
 
 # ---------------------------------------------------------------------
-# 1. Preset color stops, transcribed verbatim from
-#    src/core/qwt_colormap_preset.cpp ( v7.3.x ).  Order below is the
-#    QwtColorMapPreset::Preset enum order.  Each entry:
+# 1. Preset color stops, parsed from src/core/qwt_colormap_preset.cpp
+#    The shipping source is the single source of truth - the stops are read
+#    at runtime instead of being transcribed, so the mirror cannot drift.
+#    Order below is the QwtColorMapPreset::Preset enum order.  Each entry:
 #    name -> list of ( position, (r, g, b) ) as in the *Stops() functions.
 # ---------------------------------------------------------------------
-PRESETS = {
-    # viridisStops(), qwt_colormap_preset.cpp:15
-    "viridis": [(0.000, (68, 1, 84)), (0.125, (72, 36, 117)), (0.250, (64, 67, 135)),
-                (0.375, (52, 94, 141)), (0.500, (33, 121, 133)), (0.625, (33, 148, 116)),
-                (0.750, (94, 174, 83)), (0.875, (176, 199, 49)), (1.000, (253, 231, 37))],
-    # plasmaStops(), qwt_colormap_preset.cpp:22
-    "plasma": [(0.000, (13, 8, 135)), (0.125, (75, 3, 161)), (0.250, (125, 3, 168)),
-               (0.375, (168, 34, 150)), (0.500, (203, 70, 121)), (0.625, (229, 107, 93)),
-               (0.750, (248, 148, 65)), (0.875, (253, 195, 40)), (1.000, (240, 249, 33))],
-    # infernoStops(), qwt_colormap_preset.cpp:29
-    "inferno": [(0.000, (0, 0, 4)), (0.125, (22, 11, 57)), (0.250, (66, 10, 104)),
-                (0.375, (106, 23, 110)), (0.500, (147, 38, 103)), (0.625, (188, 55, 84)),
-                (0.750, (221, 81, 58)), (0.875, (243, 120, 25)), (1.000, (252, 255, 164))],
-    # magmaStops(), qwt_colormap_preset.cpp:36
-    "magma": [(0.000, (0, 0, 4)), (0.125, (18, 14, 54)), (0.250, (60, 19, 99)),
-              (0.375, (101, 26, 120)), (0.500, (142, 43, 122)), (0.625, (183, 60, 111)),
-              (0.750, (221, 91, 98)), (0.875, (249, 139, 94)), (1.000, (252, 253, 191))],
-    # cividisStops(), qwt_colormap_preset.cpp:43
-    "cividis": [(0.000, (0, 32, 77)), (0.125, (0, 52, 102)), (0.250, (37, 70, 110)),
-                (0.375, (69, 89, 112)), (0.500, (95, 108, 114)), (0.625, (120, 129, 117)),
-                (0.750, (152, 152, 115)), (0.875, (192, 181, 102)), (1.000, (253, 231, 37))],
-    # jetStops(), qwt_colormap_preset.cpp:50
-    "jet": [(0.000, (0, 0, 128)), (0.125, (0, 0, 255)), (0.250, (0, 128, 255)),
-            (0.375, (0, 255, 255)), (0.500, (128, 255, 128)), (0.625, (255, 255, 0)),
-            (0.750, (255, 128, 0)), (0.875, (255, 0, 0)), (1.000, (128, 0, 0))],
-    # hotStops(), qwt_colormap_preset.cpp:57
-    "hot": [(0.000, (0, 0, 0)), (0.333, (255, 0, 0)), (0.667, (255, 255, 0)),
-            (1.000, (255, 255, 255))],
-    # coolStops(), qwt_colormap_preset.cpp:65
-    "cool": [(0.0, (0, 255, 255)), (1.0, (255, 0, 255))],
-    # springStops(), qwt_colormap_preset.cpp:70
-    "spring": [(0.0, (255, 0, 255)), (1.0, (255, 255, 0))],
-    # summerStops(), qwt_colormap_preset.cpp:75
-    "summer": [(0.0, (0, 128, 102)), (1.0, (255, 255, 102))],
-    # autumnStops(), qwt_colormap_preset.cpp:80
-    "autumn": [(0.0, (255, 0, 0)), (1.0, (255, 255, 0))],
-    # winterStops(), qwt_colormap_preset.cpp:85
-    "winter": [(0.0, (0, 0, 255)), (1.0, (0, 255, 128))],
-    # grayStops(), qwt_colormap_preset.cpp:90
-    "gray": [(0.0, (0, 0, 0)), (1.0, (255, 255, 255))],
-    # boneStops(), qwt_colormap_preset.cpp:95
-    "bone": [(0.000, (0, 0, 0)), (0.333, (54, 54, 82)), (0.667, (128, 155, 155)),
-             (1.000, (255, 255, 255))],
-    # copperStops(), qwt_colormap_preset.cpp:103
-    "copper": [(0.0, (0, 0, 0)), (1.0, (255, 199, 127))],
-    # rainbowStops(), qwt_colormap_preset.cpp:108
-    "rainbow": [(0.000, (255, 0, 0)), (0.167, (255, 255, 0)), (0.333, (0, 255, 0)),
-                (0.500, (0, 255, 255)), (0.667, (0, 0, 255)), (0.833, (255, 0, 255)),
-                (1.000, (255, 0, 0))],
-    # hsvStops(), qwt_colormap_preset.cpp:115 - IDENTICAL to rainbowStops()
-    "hsv": [(0.000, (255, 0, 0)), (0.167, (255, 255, 0)), (0.333, (0, 255, 0)),
-            (0.500, (0, 255, 255)), (0.667, (0, 0, 255)), (0.833, (255, 0, 255)),
-            (1.000, (255, 0, 0))],
-    # turboStops(), qwt_colormap_preset.cpp:122
-    "turbo": [(0.000, (48, 18, 59)), (0.125, (68, 79, 193)), (0.250, (63, 156, 243)),
-              (0.375, (39, 210, 208)), (0.500, (69, 236, 127)), (0.625, (162, 247, 55)),
-              (0.750, (232, 226, 26)), (0.875, (251, 150, 13)), (1.000, (122, 4, 3))],
-    # coolWarmStops(), qwt_colormap_preset.cpp:129
-    "coolwarm": [(0.000, (59, 76, 192)), (0.250, (124, 159, 249)), (0.500, (221, 221, 221)),
-                 (0.750, (237, 133, 104)), (1.000, (180, 4, 38))],
-    # rdYlBuStops(), qwt_colormap_preset.cpp:138
-    "rdylbu": [(0.000, (165, 0, 38)), (0.100, (215, 48, 39)), (0.200, (244, 109, 67)),
-               (0.300, (253, 174, 97)), (0.400, (254, 224, 144)), (0.500, (255, 255, 191)),
-               (0.600, (224, 243, 248)), (0.700, (171, 217, 233)), (0.800, (116, 173, 209)),
-               (0.900, (69, 117, 180)), (1.000, (49, 54, 149))],
-    # rdYlGnStops(), qwt_colormap_preset.cpp:146
-    "rdylgn": [(0.000, (165, 0, 38)), (0.100, (215, 48, 39)), (0.200, (244, 109, 67)),
-               (0.300, (253, 174, 97)), (0.400, (254, 224, 139)), (0.500, (255, 255, 191)),
-               (0.600, (217, 239, 139)), (0.700, (166, 217, 106)), (0.800, (102, 189, 99)),
-               (0.900, (26, 152, 80)), (1.000, (0, 104, 55))],
-    # spectralStops(), qwt_colormap_preset.cpp:154
-    "spectral": [(0.000, (158, 1, 66)), (0.100, (213, 62, 79)), (0.200, (244, 109, 67)),
-                 (0.300, (253, 174, 97)), (0.400, (254, 224, 139)), (0.500, (255, 255, 191)),
-                 (0.600, (230, 245, 152)), (0.700, (171, 221, 164)), (0.800, (102, 194, 165)),
-                 (0.900, (50, 136, 189)), (1.000, (94, 79, 162))],
-}
+SOURCE = HERE.parents[2] / "src" / "core" / "qwt_colormap_preset.cpp"
+
+# preset name -> C++ function name, in QwtColorMapPreset::Preset order
+PRESET_FUNCTIONS = [
+    ("viridis", "viridisStops"), ("plasma", "plasmaStops"), ("inferno", "infernoStops"),
+    ("magma", "magmaStops"), ("cividis", "cividisStops"), ("jet", "jetStops"),
+    ("hot", "hotStops"), ("cool", "coolStops"), ("spring", "springStops"),
+    ("summer", "summerStops"), ("autumn", "autumnStops"), ("winter", "winterStops"),
+    ("gray", "grayStops"), ("bone", "boneStops"), ("copper", "copperStops"),
+    ("rainbow", "rainbowStops"), ("hsv", "hsvStops"), ("turbo", "turboStops"),
+    ("coolwarm", "coolWarmStops"), ("rdylbu", "rdYlBuStops"), ("rdylgn", "rdYlGnStops"),
+    ("spectral", "spectralStops"),
+]
+
+
+def load_presets(path=SOURCE):
+    """Parse the *Stops() functions of the shipping source file."""
+    text = path.read_text(encoding="utf-8")
+
+    presets = {}
+    for name, func in PRESET_FUNCTIONS:
+        body = re.search(
+            r"static QVector< QPair< double, QColor > > %s\(\)\s*\{(.*?)^\}" % func,
+            text, re.S | re.M)
+        if not body:
+            raise RuntimeError("%s() not found in %s" % (func, path))
+
+        stops = [(float(pos), (int(r), int(g), int(b)))
+                 for pos, r, g, b in re.findall(
+                     r"\{\s*([0-9]*\.?[0-9]+)\s*,\s*QColor\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)\s*\}",
+                     body.group(1))]
+        if len(stops) < 2:
+            raise RuntimeError("%s(): only %d stops parsed" % (func, len(stops)))
+        if stops[0][0] != 0.0 or stops[-1][0] != 1.0:
+            raise RuntimeError("%s(): stops do not span [0, 1]" % func)
+
+        presets[name] = stops
+
+    return presets
+
+
+PRESETS = load_presets()
 NAMES = list(PRESETS)
 
 # ---------------------------------------------------------------------
@@ -399,9 +367,14 @@ def classify(name):
     """Objective classification from the stop data:
        cyclic    - first and last stop colors ( nearly ) identical
        diverging - L* maximum at the CENTER ( t in [0.45,0.55] ) with both
-                   ends much darker ( bright neutral midpoint ); jet/turbo
-                   also have bright interiors but OFF-center ( yellow peak
-                   at t ~ 0.63 ), which keeps them sequential
+                   ends much darker AND of similar lightness ( the two arms
+                   of a diverging map are mirror images, so its ends differ
+                   by little; criterion: |L0 - L255| <= 0.15 * center_excess ).
+                   The lightness criterion keeps rainbow-like maps with a
+                   bright interior ( jet, turbo: ends 12.97/26.47 and
+                   11.80/25.19, ratio 0.19-0.20 ) sequential, while coolwarm
+                   and the colorbrewer diverging maps ( ends within 0.01-0.10
+                   of center_excess ) stay diverging
        sequential- everything else
        Sub-flags: achromatic ( max chroma < 2 ), low-chroma ( < 15 ),
        hue-sweeping ( total |dh| over levels with C* >= 15 exceeds 200 deg;
@@ -422,7 +395,8 @@ def classify(name):
 
     if end_de < 1.0:
         cls = "cyclic"
-    elif 0.45 <= t_of_max <= 0.55 and center_excess > 15.0:
+    elif (0.45 <= t_of_max <= 0.55 and center_excess > 15.0
+          and abs(L[0] - L[-1]) <= 0.15 * center_excess):
         cls = "diverging"
     else:
         cls = "sequential"

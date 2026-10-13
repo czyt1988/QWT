@@ -11,12 +11,20 @@
 
 // Color stop data sourced from matplotlib colormaps.
 // Each preset defines key color stops at normalized positions [0.0, 1.0].
+//
+// The stops of viridis/plasma/inferno/magma/cividis/turbo are sampled from the
+// official matplotlib 256 entry tables at exactly these positions - regenerate
+// them with docs/assets/algorithms/colormap_stops_gen.py.
+// The remaining presets are approximations with a few stops (their deviation
+// from the matplotlib tables is documented in
+// docs/zh/tech-report/colormap-color-science.md, section 5.2), and "rainbow"
+// is a QWT specific closed hue ring, not the matplotlib table of that name.
 
 static QVector< QPair< double, QColor > > viridisStops()
 {
-    return { { 0.000, QColor(68, 1, 84) },   { 0.125, QColor(72, 36, 117) },  { 0.250, QColor(64, 67, 135) },
-             { 0.375, QColor(52, 94, 141) }, { 0.500, QColor(33, 121, 133) }, { 0.625, QColor(33, 148, 116) },
-             { 0.750, QColor(94, 174, 83) }, { 0.875, QColor(176, 199, 49) }, { 1.000, QColor(253, 231, 37) } };
+    return { { 0.000, QColor(68, 1, 84) },   { 0.125, QColor(71, 45, 123) },  { 0.250, QColor(59, 82, 139) },
+             { 0.375, QColor(44, 114, 142) }, { 0.500, QColor(33, 145, 140) }, { 0.625, QColor(40, 174, 128) },
+             { 0.750, QColor(94, 201, 98) },  { 0.875, QColor(173, 220, 48) }, { 1.000, QColor(253, 231, 37) } };
 }
 
 static QVector< QPair< double, QColor > > plasmaStops()
@@ -28,23 +36,23 @@ static QVector< QPair< double, QColor > > plasmaStops()
 
 static QVector< QPair< double, QColor > > infernoStops()
 {
-    return { { 0.000, QColor(0, 0, 4) },      { 0.125, QColor(22, 11, 57) },   { 0.250, QColor(66, 10, 104) },
-             { 0.375, QColor(106, 23, 110) }, { 0.500, QColor(147, 38, 103) }, { 0.625, QColor(188, 55, 84) },
-             { 0.750, QColor(221, 81, 58) },  { 0.875, QColor(243, 120, 25) }, { 1.000, QColor(252, 255, 164) } };
+    return { { 0.000, QColor(0, 0, 4) },      { 0.125, QColor(33, 12, 74) },   { 0.250, QColor(87, 16, 110) },
+             { 0.375, QColor(138, 34, 106) }, { 0.500, QColor(188, 55, 84) },  { 0.625, QColor(228, 90, 49) },
+             { 0.750, QColor(249, 142, 9) },  { 0.875, QColor(249, 203, 53) }, { 1.000, QColor(252, 255, 164) } };
 }
 
 static QVector< QPair< double, QColor > > magmaStops()
 {
-    return { { 0.000, QColor(0, 0, 4) },      { 0.125, QColor(18, 14, 54) },   { 0.250, QColor(60, 19, 99) },
-             { 0.375, QColor(101, 26, 120) }, { 0.500, QColor(142, 43, 122) }, { 0.625, QColor(183, 60, 111) },
-             { 0.750, QColor(221, 91, 98) },  { 0.875, QColor(249, 139, 94) }, { 1.000, QColor(252, 253, 191) } };
+    return { { 0.000, QColor(0, 0, 4) },      { 0.125, QColor(29, 17, 71) },   { 0.250, QColor(81, 18, 124) },
+             { 0.375, QColor(131, 38, 129) }, { 0.500, QColor(183, 55, 121) }, { 0.625, QColor(231, 82, 99) },
+             { 0.750, QColor(252, 137, 97) }, { 0.875, QColor(254, 196, 136) }, { 1.000, QColor(252, 253, 191) } };
 }
 
 static QVector< QPair< double, QColor > > cividisStops()
 {
-    return { { 0.000, QColor(0, 32, 77) },     { 0.125, QColor(0, 52, 102) },    { 0.250, QColor(37, 70, 110) },
-             { 0.375, QColor(69, 89, 112) },   { 0.500, QColor(95, 108, 114) },  { 0.625, QColor(120, 129, 117) },
-             { 0.750, QColor(152, 152, 115) }, { 0.875, QColor(192, 181, 102) }, { 1.000, QColor(253, 231, 37) } };
+    return { { 0.000, QColor(0, 34, 78) },    { 0.125, QColor(26, 56, 111) },  { 0.250, QColor(67, 78, 108) },
+             { 0.375, QColor(97, 101, 111) }, { 0.500, QColor(125, 124, 120) }, { 0.625, QColor(155, 148, 118) },
+             { 0.750, QColor(188, 174, 108) }, { 0.875, QColor(222, 201, 88) }, { 1.000, QColor(254, 232, 56) } };
 }
 
 static QVector< QPair< double, QColor > > jetStops()
@@ -121,9 +129,9 @@ static QVector< QPair< double, QColor > > hsvStops()
 
 static QVector< QPair< double, QColor > > turboStops()
 {
-    return { { 0.000, QColor(48, 18, 59) },   { 0.125, QColor(68, 79, 193) },  { 0.250, QColor(63, 156, 243) },
-             { 0.375, QColor(39, 210, 208) }, { 0.500, QColor(69, 236, 127) }, { 0.625, QColor(162, 247, 55) },
-             { 0.750, QColor(232, 226, 26) }, { 0.875, QColor(251, 150, 13) }, { 1.000, QColor(122, 4, 3) } };
+    return { { 0.000, QColor(48, 18, 59) },   { 0.125, QColor(70, 107, 227) }, { 0.250, QColor(40, 188, 235) },
+             { 0.375, QColor(50, 242, 152) }, { 0.500, QColor(164, 252, 60) }, { 0.625, QColor(238, 207, 58) },
+             { 0.750, QColor(251, 126, 33) }, { 0.875, QColor(208, 47, 5) },  { 1.000, QColor(122, 4, 3) } };
 }
 
 static QVector< QPair< double, QColor > > coolWarmStops()
