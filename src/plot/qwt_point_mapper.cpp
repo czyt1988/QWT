@@ -984,6 +984,11 @@ static inline Polygon qwtToPolylineFiltered(const QwtScaleMap& xMap,
         sample0 = series->sample(realFrom);
     }
 
+    // all samples in [from, to] are NaN/Inf: return an empty polyline,
+    // so that "empty polygon == no data" holds for the callers
+    if (realFrom >= to && qwt_is_nan_or_inf(sample0))
+        return Polygon();
+
     points[ 0 ].rx() = round(xMap.transform(sample0.x()));
     points[ 0 ].ry() = round(yMap.transform(sample0.y()));
 
