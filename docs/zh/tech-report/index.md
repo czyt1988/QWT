@@ -80,4 +80,4 @@ python streaming_experiment.py       # 帧预算模型 + 读取 streaming_result
 python surface3d_experiment.py       # 读取 surface3d_results.csv 绘图（标度拟合）
 ```
 
-性能类报告另附 C++ 基准与本机原始数据：`simd_bench.cpp`、`raster_opengl_bench.cpp`、`nan_bench.cpp`、`streaming_bench.cpp`、`surface3d_bench.cpp`（计时）与 `clipper_check.cpp`、`scaleengine_check.cpp`、`boxstats_check.cpp`、`nan_mapper_check.cpp`（正确性交叉验证，不计时）。编译命令写在各 `.cpp` 文件头部注释（MSVC 2019 + Qt 5.15，依赖仓库构建产物）；`*_results.csv` 的 `#` 头注记录了采集机器的硬件、编译配置与计时协议。在另一台机器上复现的路径：重新编译运行 bench 得到新 CSV，再重跑对应 Python 脚本重新生成插图与分析数值；交叉验证 harness 可直接运行比对语义。新增报告的实验脚本也应放入此目录，命名与报告主题对应，并在报告"实验"一节注明脚本名。
+性能类报告另附 C++ 基准与本机原始数据：`simd_bench.cpp`、`raster_opengl_bench.cpp`、`nan_bench.cpp`、`streaming_bench.cpp`、`surface3d_bench.cpp`（计时）与 `clipper_check.cpp`、`scaleengine_check.cpp`、`surface_export_check.cpp`、`lighting_render_check.cpp`、`boxstats_check.cpp`、`nan_mapper_check.cpp`（正确性交叉验证，不计时）。编译命令写在各 `.cpp` 文件头部注释（MSVC 2019 + Qt 5.15，依赖仓库构建产物）；`*_results.csv` 的 `#` 头注记录了采集机器的硬件、编译配置与计时协议。在另一台机器上复现的路径：重新编译运行 bench 得到新 CSV，再重跑对应 Python 脚本重新生成插图与分析数值；交叉验证 harness 可直接运行比对语义。新增报告的实验脚本也应放入此目录，命名与报告主题对应，并在报告"实验"一节注明脚本名。

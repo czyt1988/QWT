@@ -467,7 +467,7 @@ QwtClipper 是教科书算法的工程化落地：四遍 Sutherland–Hodgman �
 3. Foley, J. D., van Dam, A., Feiner, S. K., Hughes, J. F. *Computer Graphics: Principles and Practice,* 2nd ed., Chapter 3（裁剪）. Addison-Wesley, 1990.
 4. QWT7 源码：`src/core/qwt_clipper.h`、`src/core/qwt_clipper.cpp`（`QwtClip::LeftEdge/RightEdge/TopEdge/BottomEdge`、`QwtPolygonClipper`、`QwtCircleClipper`）。
 5. QWT7 调用点：`src/plot/qwt_plot_curve.cpp`（`drawLines`/`drawSticks`/`fillCurve`）、`src/plot/qwt_plot_intervalcurve.cpp`、`src/plot/qwt_plot_shapeitem.cpp`、`src/plot/qwt_polar_curve.cpp`、`src/plot/qwt_polar_grid.cpp`、`src/plot/qwt_painter.cpp`（`qwtIsClippingNeeded`）。
-6. Qt 5.15.16：`QRectF::contains` 语义由 `docs/assets/algorithms/clipper_check.cpp` 的 20 个运行时探针经验刻画（含端点、退化宽度拒绝、负宽高归一化）。
+6. Qt 5（5.14.2 与 5.15.16 探针一致）：`QRectF::contains` 语义由 `docs/assets/algorithms/clipper_check.cpp` 的 20 个运行时探针经验刻画（含端点、退化宽度拒绝、负宽高归一化）。
 7. 实验与复现：`docs/assets/algorithms/clipper_experiment.py`（重实现 + 全部测量 + 插图）、`docs/assets/algorithms/clipper_check.cpp`（C++ 交叉验证 harness，2337 用例位精确比对；构建配方见文件头注释）。
 
 *配套阅读：* [LTTB 降采样算法原理与 QWT7 的 MinMax 桶实现](curve-downsampling.md) —— 裁剪之前的可见区间二分与桶化降采样；[曲线渲染平滑：高斯卷积、Savitzky-Golay 回归与特征保护](curve-smoothing.md) —— 裁剪之前的平滑阶段；[NaN 渲染语义](nan-rendering.md) —— 与本文失效模式 6 对照的映射层 NaN 处理。
