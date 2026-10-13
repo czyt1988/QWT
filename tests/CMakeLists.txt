@@ -27,5 +27,6 @@ add_subdirectory(nan_curve_test)
 # exists as a separate package since Qt 6 only
 if(QT_VERSION_MAJOR EQUAL 6)
     add_subdirectory(waterfall_test)
+    add_subdirectory(plot3d_io_test)
     add_subdirectory(plot3d_rotation_test)
 endif()

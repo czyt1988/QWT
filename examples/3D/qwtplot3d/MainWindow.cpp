@@ -4,9 +4,11 @@
 #include <QActionGroup>
 #include <QComboBox>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMessageBox>
 #include <QStatusBar>
 #include <QTimer>
 #include <QToolBar>
@@ -375,11 +377,18 @@ void MainWindow::onResetView()
 
 void MainWindow::onSavePixmap()
 {
-    QString fileName = QFileDialog::getSaveFileName(
+    const QString fileName = QFileDialog::getSaveFileName(
         this, QStringLiteral("Save Pixmap"), QStringLiteral("qwtplot3d.png"),
         QStringLiteral("PNG Files (*.png);;JPEG Files (*.jpg);;All Files (*)"));
-    if (!fileName.isEmpty())
-        m_plot->savePixmap(fileName, QStringLiteral("PNG"));
+    if (fileName.isEmpty())
+        return;
+
+    // The registered format keys are the ones of QImageWriter::supportedImageFormats()
+    const QString format = QFileInfo(fileName).suffix();
+    if (format.isEmpty() || !m_plot->savePixmap(fileName, format)) {
+        QMessageBox::warning(this, QStringLiteral("Save Pixmap"),
+                             QStringLiteral("Cannot save '%1'.").arg(fileName));
+    }
 }
 
 void MainWindow::onToggleMouse(bool on)

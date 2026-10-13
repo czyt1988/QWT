@@ -1,5 +1,6 @@
 #include "qwt3d_io.h"
 
+#include <QDebug>
 #include <QImageWriter>
 
 #include <ctime>
@@ -84,7 +85,7 @@ Qwt3DIO::FormatCompare::FormatCompare(Qwt3DIO::Entry const& e)
 
 bool Qwt3DIO::FormatCompare::operator()(Qwt3DIO::Entry const& e)
 {
-    return (e.fmt == e_.fmt);
+    return (e.fmt.compare(e_.fmt, Qt::CaseInsensitive) == 0);
 }
 
 Qwt3DIO::FormatCompare2::FormatCompare2(QString s)
@@ -94,7 +95,7 @@ Qwt3DIO::FormatCompare2::FormatCompare2(QString s)
 
 bool Qwt3DIO::FormatCompare2::operator()(Qwt3DIO::Entry const& e)
 {
-    return (e.fmt == s_);
+    return (e.fmt.compare(s_, Qt::CaseInsensitive) == 0);
 }
 
 bool Qwt3DIO::add_unique(Container& l, Entry const& e)
@@ -139,7 +140,7 @@ Qwt3DIO::Container& Qwt3DIO::wlist()
  * @param format Format string identifier
  * @param func Input handler function
  * @return True on successful registration
- * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
+ * @details Every call overwrites a formerly registered handler for the same format string (case insensitive).
  */
 bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Function func)
 {
@@ -151,7 +152,7 @@ bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Function func)
  * @param format Format string identifier
  * @param func Input handler functor
  * @return True on successful registration
- * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
+ * @details Every call overwrites a formerly registered handler for the same format string (case insensitive).
  */
 bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Functor const& func)
 {
@@ -163,7 +164,7 @@ bool Qwt3DIO::defineInputHandler(QString const& format, Qwt3DIO::Functor const& 
  * @param format Format string identifier
  * @param func Output handler function
  * @return True on successful registration
- * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
+ * @details Every call overwrites a formerly registered handler for the same format string (case insensitive).
  */
 bool Qwt3DIO::defineOutputHandler(QString const& format, Qwt3DIO::Function func)
 {
@@ -175,7 +176,7 @@ bool Qwt3DIO::defineOutputHandler(QString const& format, Qwt3DIO::Function func)
  * @param format Format string identifier
  * @param func Output handler functor
  * @return True on successful registration
- * @details Every call overwrites a formerly registered handler for the same format string (case sensitive).
+ * @details Every call overwrites a formerly registered handler for the same format string (case insensitive).
  */
 bool Qwt3DIO::defineOutputHandler(QString const& format, Qwt3DIO::Functor const& func)
 {
@@ -194,8 +195,11 @@ bool Qwt3DIO::load(Qwt3DPlot* plot, QString const& fname, QString const& format)
 {
     IT it = Qwt3DIO::find(rlist(), format);
 
-    if (it == rlist().end())
+    if (it == rlist().end()) {
+        qWarning("Qwt3DIO::load: no handler for format '%s' (registered: %s)",
+                 qPrintable(format), qPrintable(inputFormatList().join(QStringLiteral(", "))));
         return false;
+    }
 
     return (*it->iofunc)(plot, fname);
 }
@@ -212,8 +216,11 @@ bool Qwt3DIO::save(Qwt3DPlot* plot, QString const& fname, QString const& format)
 {
     IT it = Qwt3DIO::find(wlist(), format);
 
-    if (it == wlist().end())
+    if (it == wlist().end()) {
+        qWarning("Qwt3DIO::save: no handler for format '%s' (registered: %s)",
+                 qPrintable(format), qPrintable(outputFormatList().join(QStringLiteral(", "))));
         return false;
+    }
 
     return (*it->iofunc)(plot, fname);
 }
@@ -341,10 +348,24 @@ void Qwt3DIO::setupHandler()
  *          Beware: BSPSORT turns out to behave very slowly and memory consuming, especially in cases
  *          where many polygons appear. It is still more exact than SIMPLESORT.
  */
+namespace
+{
+bool isVectorFormat(const QString& format)
+{
+    static const char* const formats[] = { "EPS", "EPS_GZ", "PS", "PS_GZ", "PDF", "SVG", "PGF" };
+
+    for (const char* candidate : formats) {
+        if (format.compare(QLatin1String(candidate), Qt::CaseInsensitive) == 0)
+            return true;
+    }
+
+    return false;
+}
+}  // namespace
+
 bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, Qwt3DVectorWriter::TEXTMODE text, Qwt3DVectorWriter::SORTMODE sortmode)
 {
-    if (format == "EPS" || format == "EPS_GZ" || format == "PS" || format == "PS_GZ" || format == "PDF"
-        || format == "SVG" || format == "PGF") {
+    if (isVectorFormat(format)) {
         Qwt3DVectorWriter* gl2ps = static_cast< Qwt3DVectorWriter* >(Qwt3DIO::outputHandler(format));
         if (gl2ps) {
             gl2ps->setSortMode(sortmode);
@@ -363,9 +384,10 @@ bool Qwt3DPlot::saveVector(QString const& fileName, QString const& format, Qwt3D
  */
 bool Qwt3DPlot::savePixmap(QString const& fileName, QString const& format)
 {
-    if (format == "EPS" || format == "EPS_GZ" || format == "PS" || format == "PS_GZ" || format == "PDF"
-        || format == "SVG" || format == "PGF")
+    if (isVectorFormat(format)) {
+        qWarning("Qwt3DPlot::savePixmap: '%s' is a vector format - use saveVector()", qPrintable(format));
         return false;
+    }
 
     return Qwt3DIO::save(this, fileName, format);
 }
