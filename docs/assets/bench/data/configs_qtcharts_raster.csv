@@ -1,0 +1,48 @@
+suite,library,variant,backend,curves,points_per_curve,total_points,canvas_w,canvas_h,frames,aborted,setup_ms,create_ms,handover_ms,rebuild_ms,baseline_private_mb,private_mb,peak_private_mb,ws_mb,peak_ws_mb,gpu_sync_ms,note
+points,qtcharts,n1000,raster,1,1000,1000,1000,700,60,0,9.9470,0.9696,1.6839,0.0000,24.04,25.20,26.87,45.44,45.44,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+points,qtcharts,n5000,raster,1,5000,5000,1000,700,60,0,18.3594,2.0938,7.1160,0.0000,24.45,27.10,28.37,46.32,47.90,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+points,qtcharts,n10000,raster,1,10000,10000,1000,700,60,0,23.8053,1.1696,12.2831,0.0000,24.95,27.94,32.41,47.49,51.05,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+points,qtcharts,n50000,raster,1,50000,50000,1000,700,60,0,78.9991,0.8757,56.1655,0.0000,25.60,37.81,54.00,56.33,67.58,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+points,qtcharts,n100000,raster,1,100000,100000,1000,700,60,0,152.0837,1.1778,112.2285,0.0000,26.00,50.89,81.97,68.17,88.84,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+points,qtcharts,n250000,raster,1,250000,250000,1000,700,60,0,374.4517,0.9768,288.6488,0.0000,29.30,109.21,219.02,100.61,176.15,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+points,qtcharts,n500000,raster,1,500000,500000,1000,700,50,1,1262.5210,1.7460,986.6837,0.0000,32.21,192.82,413.00,155.77,306.85,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+points,qtcharts,n1000000,raster,1,1000000,1000000,1000,700,26,1,2673.6526,1.5248,2075.0353,0.0000,39.82,360.41,800.96,266.44,568.29,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+points,qtcharts,n2000000,raster,1,2000000,2000000,1000,700,14,1,5216.8703,1.1344,4092.4091,0.0000,55.04,695.58,1577.01,487.73,1091.38,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+points,qtcharts,n5000000,raster,1,5000000,5000000,1000,700,6,1,12647.9070,1.3841,9900.1480,0.0000,101.22,1460.52,3320.61,1151.47,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+curves,qtcharts,c1,raster,1,2000,2000,1000,700,60,0,21.1838,1.3738,4.8227,0.0000,24.61,25.89,3320.61,45.60,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+curves,qtcharts,c2,raster,2,2000,4000,1000,700,60,0,24.8016,1.4249,8.0425,0.0000,24.62,26.57,3320.61,46.14,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+curves,qtcharts,c5,raster,5,2000,10000,1000,700,60,0,47.3741,1.7572,21.4271,0.0000,24.64,29.25,3320.61,47.55,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+curves,qtcharts,c10,raster,10,2000,20000,1000,700,60,0,82.8460,1.1475,55.6783,0.0000,24.74,32.55,3320.61,51.09,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+curves,qtcharts,c20,raster,20,2000,40000,1000,700,60,0,127.8557,1.4510,86.6787,0.0000,25.48,39.21,3320.61,57.09,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+curves,qtcharts,c50,raster,50,2000,100000,1000,700,60,0,268.6312,1.1910,186.6859,0.0000,26.89,60.16,3320.61,75.54,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+curves,qtcharts,c100,raster,100,2000,200000,1000,700,60,0,559.0273,1.7593,427.8067,0.0000,28.80,94.98,3320.61,103.85,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster
+canvas,qtcharts,single_400x300,raster,1,100000,100000,400,300,60,0,267.3473,1.2977,205.8687,0.0000,27.06,50.16,3320.61,66.40,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 1 curve x 100k
+canvas,qtcharts,many_400x300,raster,20,5000,100000,400,300,60,0,252.3832,0.5312,194.6089,0.0000,22.58,51.15,3320.61,66.95,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 20 curves x 5k
+canvas,qtcharts,single_800x600,raster,1,100000,100000,800,600,60,0,291.7321,1.0173,220.0749,0.0000,23.02,50.14,3320.61,67.39,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 1 curve x 100k
+canvas,qtcharts,many_800x600,raster,20,5000,100000,800,600,60,0,287.1780,0.9811,225.9438,0.0000,25.55,53.82,3320.61,69.69,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 20 curves x 5k
+canvas,qtcharts,single_1200x800,raster,1,100000,100000,1200,800,60,0,292.2985,1.6733,206.5755,0.0000,25.96,55.98,3320.61,72.70,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 1 curve x 100k
+canvas,qtcharts,many_1200x800,raster,20,5000,100000,1200,800,60,0,309.2021,1.7194,225.1707,0.0000,29.32,57.35,3320.61,73.18,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 20 curves x 5k
+canvas,qtcharts,single_1600x1200,raster,1,100000,100000,1600,1200,60,0,319.5338,2.1395,218.4553,0.0000,29.80,62.88,3320.61,79.93,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 1 curve x 100k
+canvas,qtcharts,many_1600x1200,raster,20,5000,100000,1600,1200,60,0,292.9505,2.4853,201.7344,0.0000,37.01,65.34,3320.61,81.01,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 20 curves x 5k
+canvas,qtcharts,single_1920x1080,raster,1,100000,100000,1920,1080,60,0,283.7537,2.3655,186.7754,0.0000,36.84,64.82,3320.61,81.67,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 1 curve x 100k
+canvas,qtcharts,many_1920x1080,raster,20,5000,100000,1920,1080,60,0,309.5086,2.7231,204.3634,0.0000,38.09,65.86,3320.61,81.62,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 20 curves x 5k
+canvas,qtcharts,single_2560x1440,raster,1,100000,100000,2560,1440,60,0,308.9926,3.1568,173.4725,0.0000,38.14,76.52,3320.61,93.48,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 1 curve x 100k
+canvas,qtcharts,many_2560x1440,raster,20,5000,100000,2560,1440,60,0,349.2284,3.8302,210.3405,0.0000,50.37,78.12,3320.61,93.95,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 20 curves x 5k
+update,qtcharts,render-only_w1000,raster,1,1000,1000,1000,700,60,0,28.2884,3.5357,3.5169,0.0000,63.98,41.84,3320.61,62.05,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; window=1000 samples
+update,qtcharts,update-only_w1000,raster,1,1000,1000,1000,700,30,0,12.2324,1.1066,1.3829,2.1130,41.57,42.10,3320.61,62.18,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; window=1000 samples, no repaint"
+update,qtcharts,stream_w1000,raster,1,1000,1000,1000,700,60,0,15.9615,1.3087,2.0632,2.2726,41.18,42.08,3320.61,62.25,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; window=1000 samples, sliding"
+update,qtcharts,render-only_w10000,raster,1,10000,10000,1000,700,60,0,43.3797,1.4043,21.1818,0.0000,41.55,45.60,3320.61,65.34,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; window=10000 samples
+update,qtcharts,update-only_w10000,raster,1,10000,10000,1000,700,30,0,47.5225,1.5388,22.2834,15.0737,41.26,44.04,3320.61,63.67,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; window=10000 samples, no repaint"
+update,qtcharts,stream_w10000,raster,1,10000,10000,1000,700,60,0,40.0553,1.3380,16.7537,14.5863,41.25,44.04,3320.61,63.73,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; window=10000 samples, sliding"
+update,qtcharts,render-only_w100000,raster,1,100000,100000,1000,700,60,0,264.0871,1.5106,195.1683,0.0000,43.34,69.24,3320.61,86.38,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; window=100000 samples
+update,qtcharts,update-only_w100000,raster,1,100000,100000,1000,700,28,1,234.1940,1.1196,195.2115,145.0962,45.90,68.70,3320.61,85.81,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; window=100000 samples, no repaint"
+update,qtcharts,stream_w100000,raster,1,100000,100000,1000,700,26,1,271.5030,1.3758,195.1249,140.6035,42.80,68.92,3320.61,85.93,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; window=100000 samples, sliding"
+downsample,qtcharts,none,raster,1,1000000,1000000,1000,700,25,1,2645.1737,2.0710,2048.0030,0.0000,41.00,363.21,3320.61,269.79,2405.07,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; strategy=none
+jitter,qtcharts,static_n100000,raster,1,100000,100000,1000,700,300,0,246.8760,1.5725,186.4931,0.0000,27.57,53.31,3320.61,70.42,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; static data, 300 frames"
+jitter,qtcharts,stream_w10000,raster,1,10000,10000,1000,700,300,0,31.8086,1.3323,13.3226,14.1788,29.73,32.33,3320.61,52.04,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; sliding window of 10000, 300 frames"
+memory,qtcharts,n1000,raster,1,1000,1000,1000,700,3,0,11.6344,2.5494,1.8766,0.0000,25.74,26.48,3320.61,46.83,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; peak private bytes, 1 curve"
+memory,qtcharts,n10000,raster,1,10000,10000,1000,700,3,0,41.5545,1.6758,20.5970,0.0000,26.09,30.30,3320.61,50.12,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; peak private bytes, 1 curve"
+memory,qtcharts,n100000,raster,1,100000,100000,1000,700,3,0,233.1045,1.5021,170.8814,0.0000,27.29,53.16,3320.61,70.65,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; peak private bytes, 1 curve"
+memory,qtcharts,n1000000,raster,1,1000000,1000000,1000,700,3,0,2534.8769,1.8561,1931.4811,0.0000,41.06,363.17,3320.61,269.84,2405.07,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; peak private bytes, 1 curve"
+memory,qtcharts,n10000000,raster,1,10000000,10000000,1000,700,3,0,25786.9664,1.5022,20037.8049,0.0000,180.87,2898.66,6618.14,2261.14,4766.98,0.0000,"dpr=1.00; QGraphicsScene + QPainter raster; peak private bytes, 1 curve"
+memory,qtcharts,c100n10000,raster,100,10000,1000000,1000,700,3,0,2664.8588,1.4023,1998.0657,0.0000,43.09,316.00,6618.14,289.15,4766.98,0.0000,dpr=1.00; QGraphicsScene + QPainter raster; 100 curves x 10000 points
