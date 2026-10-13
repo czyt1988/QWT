@@ -13,6 +13,7 @@ set(CMAKE_AUTORCC ON)
 
 # Add test subdirectories
 add_subdirectory(axis_corner_test)
+add_subdirectory(downsampling_test)
 add_subdirectory(picker_click_test)
 add_subdirectory(picker_group_click_test)
 add_subdirectory(color_cycle_test)

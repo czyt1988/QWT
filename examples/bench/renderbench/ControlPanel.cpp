@@ -51,6 +51,7 @@ ControlPanel::ControlPanel(QWidget* parent)
     m_method->addItem("FilterPointsAggressive");
     m_method->addItem("FilterPointsPixel");
     m_method->addItem("FilterPointsLTTB");
+    m_method->addItem("FilterPointsMinMaxLTTB");
     m_method->setCurrentIndex(2);
     paramLayout->addWidget(m_method, row++, 1);
 

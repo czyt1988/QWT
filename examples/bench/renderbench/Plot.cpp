@@ -51,6 +51,7 @@ void Plot::setRenderingMethod(int methodIndex)
     m_curve->setPaintAttribute(QwtPlotCurve::FilterPointsAggressive, false);
     m_curve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, false);
     m_curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, false);
+    m_curve->setPaintAttribute(QwtPlotCurve::FilterPointsMinMaxLTTB, false);
 
     switch (methodIndex) {
     case 0:
@@ -67,6 +68,9 @@ void Plot::setRenderingMethod(int methodIndex)
         break;
     case 4:
         m_curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);
+        break;
+    case 5:
+        m_curve->setPaintAttribute(QwtPlotCurve::FilterPointsMinMaxLTTB, true);
         break;
     }
 }

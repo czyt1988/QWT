@@ -22,7 +22,8 @@ static const char* s_methodNames[] = {
     "FilterPoints",
     "FilterPointsAggressive",
     "FilterPointsPixel",
-    "FilterPointsLTTB"};
+    "FilterPointsLTTB",
+    "FilterPointsMinMaxLTTB"};
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)

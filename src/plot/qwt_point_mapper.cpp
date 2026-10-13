@@ -555,11 +555,75 @@ static QwtRawPointData qwtTryGetRawPointData(const QwtSeriesData< QPointF >* ser
     return { nullptr, nullptr };
 }
 
+// Create a point of the output polygon from pixel positions,
+// that may have fractional coordinates
+template< class Point >
+static Point qwtMakePointD(double x, double y);
+
+template<>
+inline QPointF qwtMakePointD< QPointF >(double x, double y)
+{
+    return QPointF(x, y);
+}
+
+template<>
+inline QPoint qwtMakePointD< QPoint >(double x, double y)
+{
+    return QPoint(qRound(x), qRound(y));
+}
+
+// Map all samples to pixel coordinates, keeping their sub pixel precision.
+// NaN/Inf samples are kept, so that gaps of the polyline are painted
+// the same way as without any downsampling.
+template< class Polygon, class Point >
+static Polygon qwtMapPointsNoRound(const QwtScaleMap& xMap,
+                                   const QwtScaleMap& yMap,
+                                   const QwtSeriesData< QPointF >* series,
+                                   int from, int to)
+{
+    Polygon polyline;
+    if (from > to)
+        return polyline;
+
+    polyline.reserve(to - from + 1);
+
+    for (int i = from; i <= to; i++) {
+        const QPointF sample = series->sample(i);
+        polyline += qwtMakePointD< Point >(xMap.transform(sample.x()), yMap.transform(sample.y()));
+    }
+
+    return polyline;
+}
+
+// Append the min/max pair of a bucket to the output polygon, keeping
+// the sample order of both points. Points becoming identical
+// ( f.e. after rounding ) are appended once only.
+template< class Point >
+static inline void qwtAppendMinMaxPair(Point*& outPts, int& n, bool roundPoints,
+                                       double x1, double y1, double x2, double y2)
+{
+    if (roundPoints) {
+        x1 = qwtRoundValueF(x1);
+        y1 = qwtRoundValueF(y1);
+        x2 = qwtRoundValueF(x2);
+        y2 = qwtRoundValueF(y2);
+    }
+
+    outPts[ n++ ] = qwtMakePointD< Point >(x1, y1);
+    if (x1 != x2 || y1 != y2)
+        outPts[ n++ ] = qwtMakePointD< Point >(x2, y2);
+}
+
 // MinMax bucket downsampling: divide data into N equal-count buckets,
 // keep min-Y and max-Y from each bucket. O(n) time, O(N) output.
+//
+// When roundPoints is false, the mapped coordinates keep their sub pixel
+// precision - what is the better choice for paint devices, where
+// antialiasing is enabled.
 template< class Polygon, class Point >
 static Polygon
-qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeriesData< QPointF >* series, int from, int to)
+qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
+                      const QwtSeriesData< QPointF >* series, int from, int to, bool roundPoints)
 {
     Polygon polyline;
     if (from > to)
@@ -576,8 +640,10 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
     const int numBuckets = qMax(2, 2 * xPixels);  // 2 points per bucket (min + max)
 
     if (numPoints <= numBuckets * 2) {
-        // not enough points to benefit from bucketing, fall back to quad
-        return qwtMapPointsQuad< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+        // not enough points to benefit from bucketing, fall back to plain mapping
+        if (roundPoints)
+            return qwtMapPointsQuad< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+        return qwtMapPointsNoRound< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
     }
 
     const double bucketSize = static_cast< double >(numPoints) / numBuckets;
@@ -587,212 +653,177 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
     Point* outPts = polyline.data();
     int n         = 0;
 
-    if (linearPath) {
+    const QwtRawPointData raw = qwtTryGetRawPointData(series);
+
+    if (linearPath && raw.y != nullptr) {
         const double xCnv = xMap.cnv(), xOff = xMap.p1() - xMap.ts1() * xCnv;
         const double yCnv = yMap.cnv(), yOff = yMap.p1() - yMap.ts1() * yCnv;
 
-        // Try raw-pointer fast path for SIMD-accelerated argmin/argmax
-        const QwtRawPointData raw = qwtTryGetRawPointData(series);
-        if (raw.y != nullptr) {
-            // NaN pre-scan: check if any NaN exists in the visible Y range
-            bool hasNaN = false;
-            for (int i = visFrom; i <= visTo; ++i) {
-                if (std::isnan(raw.y[ i ])) {
-                    hasNaN = true;
-                    break;
-                }
+        // NaN pre-scan: the SIMD argmin/argmax does not handle NaN
+        bool hasNaN = false;
+        for (int i = visFrom; i <= visTo; ++i) {
+            if (std::isnan(raw.y[ i ])) {
+                hasNaN = true;
+                break;
             }
+        }
 
-            if (!hasNaN) {
-                // ===== SIMD fast path: no NaN, raw pointer access =====
-                for (int b = 0; b < numBuckets; b++) {
-                    const int start = visFrom + static_cast< int >(b * bucketSize);
-                    const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
-                    const int bEnd  = qMin(end, visTo);
-                    const int count = bEnd - start + 1;
-                    if (count <= 0)
-                        continue;
+        if (!hasNaN) {
+            // ===== SIMD fast path: no NaN, raw pointer access =====
+            for (int b = 0; b < numBuckets; b++) {
+                const int start = visFrom + static_cast< int >(b * bucketSize);
+                const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+                const int bEnd  = qMin(end, visTo);
+                const int count = bEnd - start + 1;
+                if (count <= 0)
+                    continue;
 
-                    const QwtArgMinMaxResult r = qwtSimdArgMinMax(raw.y + start, count);
-                    const int minI             = start + r.minIdx;
-                    const int maxI             = start + r.maxIdx;
+                const QwtArgMinMaxResult r = qwtSimdArgMinMax(raw.y + start, count);
+                const int minI             = start + r.minIdx;
+                const int maxI             = start + r.maxIdx;
 
-                    int minX, maxX;
-                    if (raw.x != nullptr) {
-                        minX = qRound(raw.x[ minI ] * xCnv + xOff);
-                        maxX = qRound(raw.x[ maxI ] * xCnv + xOff);
-                    } else {
-                        minX = qRound(minI * xCnv + xOff);
-                        maxX = qRound(maxI * xCnv + xOff);
-                    }
+                const double xMin = (raw.x != nullptr) ? raw.x[ minI ] * xCnv + xOff : minI * xCnv + xOff;
+                const double xMax = (raw.x != nullptr) ? raw.x[ maxI ] * xCnv + xOff : maxI * xCnv + xOff;
+                const double yMin = r.minVal * yCnv + yOff;
+                const double yMax = r.maxVal * yCnv + yOff;
 
-                    const int syMin = qRound(r.minVal * yCnv + yOff);
-                    const int syMax = qRound(r.maxVal * yCnv + yOff);
-                    if (minI <= maxI) {
-                        outPts[ n++ ] = Point(minX, syMin);
-                        if (syMax != syMin || maxX != minX)
-                            outPts[ n++ ] = Point(maxX, syMax);
-                    } else {
-                        outPts[ n++ ] = Point(maxX, syMax);
-                        if (syMax != syMin || maxX != minX)
-                            outPts[ n++ ] = Point(minX, syMin);
-                    }
-                }
-            } else {
-                // ===== Scalar path with raw pointers (has NaN) =====
-                for (int b = 0; b < numBuckets; b++) {
-                    const int start = visFrom + static_cast< int >(b * bucketSize);
-                    const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
-
-                    int minX = 0, maxX = 0;
-                    double minY = DBL_MAX, maxY = -DBL_MAX;
-                    int minIdx = 0, maxIdx = 0;
-                    bool first = true;
-
-                    for (int i = start; i <= qMin(end, visTo); i++) {
-                        const double y = raw.y[ i ];
-                        if (std::isnan(y))
-                            continue;
-
-                        if (first) {
-                            minIdx = maxIdx = i;
-                            minY = maxY = y;
-                            first       = false;
-                        } else {
-                            if (y < minY) {
-                                minY   = y;
-                                minIdx = i;
-                            }
-                            if (y > maxY) {
-                                maxY   = y;
-                                maxIdx = i;
-                            }
-                        }
-                    }
-
-                    if (!first) {
-                        int sxMin, sxMax;
-                        if (raw.x != nullptr) {
-                            sxMin = qRound(raw.x[ minIdx ] * xCnv + xOff);
-                            sxMax = qRound(raw.x[ maxIdx ] * xCnv + xOff);
-                        } else {
-                            sxMin = qRound(minIdx * xCnv + xOff);
-                            sxMax = qRound(maxIdx * xCnv + xOff);
-                        }
-                        const int syMin = qRound(minY * yCnv + yOff);
-                        const int syMax = qRound(maxY * yCnv + yOff);
-                        if (minIdx <= maxIdx) {
-                            outPts[ n++ ] = Point(sxMin, syMin);
-                            if (syMax != syMin || sxMax != sxMin)
-                                outPts[ n++ ] = Point(sxMax, syMax);
-                        } else {
-                            outPts[ n++ ] = Point(sxMax, syMax);
-                            if (syMax != syMin || sxMax != sxMin)
-                                outPts[ n++ ] = Point(sxMin, syMin);
-                        }
-                    }
-                }
+                if (minI <= maxI)
+                    qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, xMin, yMin, xMax, yMax);
+                else
+                    qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, xMax, yMax, xMin, yMin);
             }
         } else {
-            // ===== Generic path: virtual sample() access =====
+            // ===== Scalar path with raw pointers (has NaN) =====
             for (int b = 0; b < numBuckets; b++) {
                 const int start = visFrom + static_cast< int >(b * bucketSize);
                 const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
 
-                int minX = 0, maxX = 0;
-                double minY = 1e300, maxY = -1e300;
-                int minIdx = 0, maxIdx = 0;
-                bool first = true;
+                double minX = 0.0, maxX = 0.0;
+                double minY = DBL_MAX, maxY = -DBL_MAX;
+                int minIdx = -1, maxIdx = -1;
 
                 for (int i = start; i <= qMin(end, visTo); i++) {
-                    const QPointF sample = series->sample(i);
-                    if (qwt_is_nan_or_inf(sample))
+                    const double y = raw.y[ i ];
+                    if (std::isnan(y))
                         continue;
-                    const double y = sample.y();
-                    const int sx   = qRound(sample.x() * xCnv + xOff);
 
-                    if (first) {
-                        minX = maxX = sx;
-                        minY = maxY = y;
+                    const double x  = (raw.x != nullptr) ? raw.x[ i ] : i;
+                    const double px = x * xCnv + xOff;
+                    const double py = y * yCnv + yOff;
+
+                    if (minIdx < 0) {
                         minIdx = maxIdx = i;
-                        first           = false;
+                        minX = maxX = px;
+                        minY = maxY = py;
                     } else {
-                        if (y < minY) {
-                            minY   = y;
-                            minX   = sx;
+                        if (py < minY) {
+                            minY   = py;
+                            minX   = px;
                             minIdx = i;
                         }
-                        if (y > maxY) {
-                            maxY   = y;
-                            maxX   = sx;
+                        if (py > maxY) {
+                            maxY   = py;
+                            maxX   = px;
                             maxIdx = i;
                         }
                     }
                 }
 
-                if (!first) {
-                    const int syMin = qRound(minY * yCnv + yOff);
-                    const int syMax = qRound(maxY * yCnv + yOff);
-                    if (minIdx <= maxIdx) {
-                        outPts[ n++ ] = Point(minX, syMin);
-                        if (syMax != syMin || maxX != minX)
-                            outPts[ n++ ] = Point(maxX, syMax);
-                    } else {
-                        outPts[ n++ ] = Point(maxX, syMax);
-                        if (syMax != syMin || maxX != minX)
-                            outPts[ n++ ] = Point(minX, syMin);
-                    }
+                if (minIdx >= 0) {
+                    if (minIdx <= maxIdx)
+                        qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, minX, minY, maxX, maxY);
+                    else
+                        qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, maxX, maxY, minX, minY);
                 }
             }
         }
-    } else {
+    } else if (linearPath) {
+        // ===== Scalar path with virtual sample() access =====
+        const double xCnv = xMap.cnv(), xOff = xMap.p1() - xMap.ts1() * xCnv;
+        const double yCnv = yMap.cnv(), yOff = yMap.p1() - yMap.ts1() * yCnv;
+
         for (int b = 0; b < numBuckets; b++) {
             const int start = visFrom + static_cast< int >(b * bucketSize);
             const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
 
-            int minX = 0, maxX = 0;
-            double minY = 1e300, maxY = -1e300;
-            int minIdx = 0, maxIdx = 0;
-            bool first = true;
+            double minX = 0.0, maxX = 0.0;
+            double minY = DBL_MAX, maxY = -DBL_MAX;
+            int minIdx = -1, maxIdx = -1;
 
             for (int i = start; i <= qMin(end, visTo); i++) {
                 const QPointF sample = series->sample(i);
                 if (qwt_is_nan_or_inf(sample))
                     continue;
-                const double y = sample.y();
-                const int sx   = qwtRoundValue(xMap.transform(sample.x()));
 
-                if (first) {
-                    minX = maxX = sx;
-                    minY = maxY = y;
+                const double px = sample.x() * xCnv + xOff;
+                const double py = sample.y() * yCnv + yOff;
+
+                if (minIdx < 0) {
                     minIdx = maxIdx = i;
-                    first           = false;
+                    minX = maxX = px;
+                    minY = maxY = py;
                 } else {
-                    if (y < minY) {
-                        minY   = y;
-                        minX   = sx;
+                    if (py < minY) {
+                        minY   = py;
+                        minX   = px;
                         minIdx = i;
                     }
-                    if (y > maxY) {
-                        maxY   = y;
-                        maxX   = sx;
+                    if (py > maxY) {
+                        maxY   = py;
+                        maxX   = px;
                         maxIdx = i;
                     }
                 }
             }
 
-            if (!first) {
-                const int syMin = qwtRoundValue(yMap.transform(minY));
-                const int syMax = qwtRoundValue(yMap.transform(maxY));
-                if (minIdx <= maxIdx) {
-                    outPts[ n++ ] = Point(minX, syMin);
-                    if (syMax != syMin || maxX != minX)
-                        outPts[ n++ ] = Point(maxX, syMax);
+            if (minIdx >= 0) {
+                if (minIdx <= maxIdx)
+                    qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, minX, minY, maxX, maxY);
+                else
+                    qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, maxX, maxY, minX, minY);
+            }
+        }
+    } else {
+        // ===== Scalar path for non-linear scale maps =====
+        for (int b = 0; b < numBuckets; b++) {
+            const int start = visFrom + static_cast< int >(b * bucketSize);
+            const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+
+            double minX = 0.0, maxX = 0.0;
+            double minY = DBL_MAX, maxY = -DBL_MAX;
+            int minIdx = -1, maxIdx = -1;
+
+            for (int i = start; i <= qMin(end, visTo); i++) {
+                const QPointF sample = series->sample(i);
+                if (qwt_is_nan_or_inf(sample))
+                    continue;
+
+                const double px = xMap.transform(sample.x());
+                const double py = yMap.transform(sample.y());
+
+                if (minIdx < 0) {
+                    minIdx = maxIdx = i;
+                    minX = maxX = px;
+                    minY = maxY = py;
                 } else {
-                    outPts[ n++ ] = Point(maxX, syMax);
-                    if (syMax != syMin || maxX != minX)
-                        outPts[ n++ ] = Point(minX, syMin);
+                    if (py < minY) {
+                        minY   = py;
+                        minX   = px;
+                        minIdx = i;
+                    }
+                    if (py > maxY) {
+                        maxY   = py;
+                        maxX   = px;
+                        maxIdx = i;
+                    }
                 }
+            }
+
+            if (minIdx >= 0) {
+                if (minIdx <= maxIdx)
+                    qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, minX, minY, maxX, maxY);
+                else
+                    qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, maxX, maxY, minX, minY);
             }
         }
     }
@@ -801,6 +832,210 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
     return polyline;
 }
 
+// Largest-Triangle-Three-Buckets ( LTTB ) downsampling: divide the data
+// into N equal-count buckets and keep the sample of each bucket, that
+// forms the largest triangle with the previously selected point and the
+// average of the next bucket. The first and last sample are always kept,
+// so that the curve always spans the full data range.
+// O(n) time, O(N) output.
+//
+// When roundPoints is false, the mapped coordinates keep their sub pixel
+// precision - what is the better choice for paint devices, where
+// antialiasing is enabled.
+template< class Polygon, class Point >
+static Polygon
+qwtLttbReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
+              const QwtSeriesData< QPointF >* series, int from, int to, bool roundPoints)
+{
+    Polygon polyline;
+    if (from > to)
+        return polyline;
+
+    int visFrom = from, visTo = to;
+    qwtFindVisibleRange(xMap, series, from, to, visFrom, visTo);
+
+    const int numPoints = visTo - visFrom + 1;
+    if (numPoints <= 0)
+        return polyline;
+
+    const int xPixels    = qAbs(qRound(xMap.p2() - xMap.p1())) + 1;
+    const int numBuckets = qMax(2, 4 * xPixels);  // 1 point per bucket
+
+    if (numPoints <= numBuckets) {
+        // not enough points to benefit from bucketing, fall back to plain mapping
+        if (roundPoints)
+            return qwtMapPointsQuad< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+        return qwtMapPointsNoRound< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+    }
+
+    const double bucketSize = static_cast< double >(numPoints) / numBuckets;
+    const bool linearPath   = xMap.isLinear() && yMap.isLinear();
+
+    // fast path for linear scale maps: avoid virtual transform() calls
+    const double xCnv = linearPath ? xMap.cnv() : 0.0;
+    const double xOff = linearPath ? xMap.p1() - xMap.ts1() * xCnv : 0.0;
+    const double yCnv = linearPath ? yMap.cnv() : 0.0;
+    const double yOff = linearPath ? yMap.p1() - yMap.ts1() * yCnv : 0.0;
+
+    const QwtRawPointData raw = qwtTryGetRawPointData(series);
+    const bool useRaw         = linearPath && (raw.y != nullptr);
+
+    // map sample i to pixel coordinates, returns false for NaN/Inf samples
+    auto mapSample = [ & ](int i, double& px, double& py)->bool {
+        if (useRaw) {
+            const double y = raw.y[ i ];
+            if (std::isnan(y))
+                return false;
+
+            const double x = (raw.x != nullptr) ? raw.x[ i ] : i;
+            px             = x * xCnv + xOff;
+            py             = y * yCnv + yOff;
+        } else {
+            const QPointF sample = series->sample(i);
+            if (qwt_is_nan_or_inf(sample))
+                return false;
+
+            px = linearPath ? sample.x() * xCnv + xOff : xMap.transform(sample.x());
+            py = linearPath ? sample.y() * yCnv + yOff : yMap.transform(sample.y());
+        }
+        return true;
+    };
+
+    // pass 1: average of the mapped coordinates per bucket
+    QVector< double > avgX(numBuckets, 0.0), avgY(numBuckets, 0.0);
+    QVector< int > cnt(numBuckets, 0);
+
+    for (int b = 0; b < numBuckets; b++) {
+        const int start = visFrom + static_cast< int >(b * bucketSize);
+        const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+
+        double sx = 0.0, sy = 0.0;
+        int c     = 0;
+
+        for (int i = start; i <= qMin(end, visTo); i++) {
+            double px, py;
+            if (!mapSample(i, px, py))
+                continue;
+
+            sx += px;
+            sy += py;
+            c++;
+        }
+
+        if (c > 0) {
+            avgX[ b ] = sx / c;
+            avgY[ b ] = sy / c;
+        }
+        cnt[ b ] = c;
+    }
+
+    // index of the next bucket, that holds valid samples
+    QVector< int > nextValidBucket(numBuckets, -1);
+    {
+        int next = -1;
+        for (int b = numBuckets - 1; b >= 0; b--) {
+            nextValidBucket[ b ] = next;
+            if (cnt[ b ] > 0)
+                next = b;
+        }
+    }
+
+    polyline.resize(numBuckets);
+    Point* outPts = polyline.data();
+    int n         = 0;
+
+    double lastX = 0.0, lastY = 0.0;  // coordinates of the last emitted point
+    bool haveLast = false;
+
+    auto appendPoint = [ & ](double px, double py) {
+        if (roundPoints) {
+            px = qwtRoundValueF(px);
+            py = qwtRoundValueF(py);
+        }
+        if (haveLast && px == lastX && py == lastY)
+            return;
+
+        outPts[ n++ ] = qwtMakePointD< Point >(px, py);
+        lastX         = px;
+        lastY         = py;
+        haveLast      = true;
+    };
+
+    // bucket 0: keep the first valid sample of the data
+    double prevX = 0.0, prevY = 0.0;
+    bool havePrev = false;
+
+    for (int i = visFrom; i <= visTo; i++) {
+        double px, py;
+        if (mapSample(i, px, py)) {
+            prevX    = px;
+            prevY    = py;
+            havePrev = true;
+            break;
+        }
+    }
+
+    if (!havePrev) {
+        polyline.clear();
+        return polyline;
+    }
+
+    appendPoint(prevX, prevY);
+
+    // middle buckets: keep the sample forming the largest triangle with
+    // the previous selection and the average of the next valid bucket
+    for (int b = 1; b < numBuckets - 1; b++) {
+        const int start = visFrom + static_cast< int >(b * bucketSize);
+        const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+
+        const int nb = nextValidBucket[ b ];
+
+        double bestX = 0.0, bestY = 0.0;
+        double bestArea = -1.0;
+
+        for (int i = start; i <= qMin(end, visTo); i++) {
+            double px, py;
+            if (!mapSample(i, px, py))
+                continue;
+
+            double area = 0.0;
+            if (nb >= 0) {
+                // twice the area of the triangle ( prev, point, avgNext )
+                area = qAbs( (px - prevX) * (avgY[ nb ] - prevY)
+                             - (py - prevY) * (avgX[ nb ] - prevX) );
+            }
+
+            if (area > bestArea) {
+                bestArea = area;
+                bestX    = px;
+                bestY    = py;
+            }
+        }
+
+        if (bestArea >= 0.0) {
+            prevX = bestX;
+            prevY = bestY;
+            appendPoint(prevX, prevY);
+        }
+    }
+
+    // last bucket: keep the last valid sample, so that the curve
+    // always ends at the end of the data
+    {
+        const int start = visFrom + static_cast< int >((numBuckets - 1) * bucketSize);
+
+        for (int i = visTo; i >= qMax(start, visFrom); i--) {
+            double px, py;
+            if (mapSample(i, px, py)) {
+                appendPoint(px, py);
+                break;
+            }
+        }
+    }
+
+    polyline.resize(n);
+    return polyline;
+}
 // Helper class to work around the 5 parameters
 // limitation of QtConcurrent::run()
 class QwtDotsCommand
@@ -1229,11 +1464,17 @@ QPolygonF QwtPointMapper::toPolygonF(const QwtScaleMap& xMap,
     QWT_DC(d);
     QPolygonF polyline;
 
-    // priority: PixelColumnReduce > MinMaxReduce > WeedOutIntermediatePoints > WeedOutPoints
+    // priority: PixelColumnReduce > LTTBReduce > MinMaxReduce > WeedOutIntermediatePoints > WeedOutPoints
     if (d->flags & PixelColumnReduce) {
         polyline = qwtPixelColumnReduce< QPolygonF, QPointF >(xMap, yMap, series, from, to);
+    } else if (d->flags & LTTBReduce) {
+        // without RoundPoints the output keeps its sub pixel precision
+        polyline = qwtLttbReduce< QPolygonF, QPointF >(
+            xMap, yMap, series, from, to, d->flags & RoundPoints);
     } else if (d->flags & MinMaxReduce) {
-        polyline = qwtMinMaxBucketReduce< QPolygonF, QPointF >(xMap, yMap, series, from, to);
+        // without RoundPoints the output keeps its sub pixel precision
+        polyline = qwtMinMaxBucketReduce< QPolygonF, QPointF >(
+            xMap, yMap, series, from, to, d->flags & RoundPoints);
     } else if (d->flags & RoundPoints) {
         if (d->flags & WeedOutIntermediatePoints) {
             polyline = qwtMapPointsQuad< QPolygonF, QPointF >(xMap, yMap, series, from, to);
@@ -1279,8 +1520,12 @@ QPolygon QwtPointMapper::toPolygon(const QwtScaleMap& xMap,
 
     if (d->flags & PixelColumnReduce) {
         polyline = qwtPixelColumnReduce< QPolygon, QPoint >(xMap, yMap, series, from, to);
+    } else if (d->flags & LTTBReduce) {
+        // integer points are always rounded
+        polyline = qwtLttbReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, true);
     } else if (d->flags & MinMaxReduce) {
-        polyline = qwtMinMaxBucketReduce< QPolygon, QPoint >(xMap, yMap, series, from, to);
+        // integer points are always rounded
+        polyline = qwtMinMaxBucketReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, true);
     } else if (d->flags & WeedOutIntermediatePoints) {
         polyline = qwtMapPointsQuad< QPolygon, QPoint >(xMap, yMap, series, from, to);
     } else if (d->flags & WeedOutPoints) {

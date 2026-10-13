@@ -301,7 +301,7 @@ curve->setPaintAttribute(QwtPlotCurve::ClipPolygons, true);           // Clip po
 curve->setPaintAttribute(QwtPlotCurve::FilterPoints, true);            // Filter duplicate points
 curve->setPaintAttribute(QwtPlotCurve::FilterPointsAggressive, true);  // Aggressive filtering
 curve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, true);       // Pixel-column downsampling
-curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);        // LTTB MinMax downsampling
+curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);        // true LTTB downsampling
 curve->setPaintAttribute(QwtPlotCurve::ImageBuffer, true);             // Image buffer (for Dots style)
 ```
 
@@ -313,7 +313,8 @@ curve->setPaintAttribute(QwtPlotCurve::ImageBuffer, true);             // Image 
 | `FilterPoints` | Filter duplicate points and points outside the canvas |
 | `FilterPointsAggressive` | More aggressive filtering, removes intermediate points in the same pixel column |
 | `FilterPointsPixel` | Pixel-column downsampling, keeps first/min/max/last (4 points per column) |
-| `FilterPointsLTTB` | MinMax bucket downsampling (default, recommended), preserves waveform shape |
+| `FilterPointsLTTB` | LTTB downsampling (default, recommended), preserves waveform shape |
+| `FilterPointsMinMaxLTTB` | MinMax bucket downsampling, keeps the extremes of every bucket |
 | `MinimizeMemory` | Reduce temporary memory usage (may decrease performance) |
 | `ImageBuffer` | Use image buffer for drawing scatter points (suitable for millions of data points) |
 
@@ -351,13 +352,13 @@ curve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, true);
 >
 > This algorithm overrides `FilterPointsAggressive` when both are set (Pixel takes priority). Since only 4 points per column are retained, high-frequency details may be lost — suitable for trend observation rather than precise analysis.
 
-##### FilterPointsLTTB — MinMax Bucket Downsampling (Default, Recommended)
+##### FilterPointsLTTB — LTTB Downsampling (Default, Recommended)
 
-Divides the visible data range into N equal-count buckets (N = 2 × canvas width), retaining the Y-minimum and Y-maximum point from each bucket. Similar to a simplified LTTB (Largest Triangle Three Buckets) algorithm. Benchmarks show this is the fastest rendering method for million-level data, so it is enabled by default.
+The true Largest-Triangle-Three-Buckets algorithm: the visible data range is divided into N equal-count buckets (N = 4 × canvas width) and each bucket keeps the sample forming the largest triangle with the previously selected point and the average of the next bucket. The first and last sample are always kept, so narrow peaks keep their shape instead of collapsing into vertical strokes.
 
-- **Principle**: Splits data into equal-sized buckets by index, finds extrema in each bucket, preserves original X coordinates
-- **Output size**: Approximately `2 × N = 4 × canvas_width`
-- **Best for**: Data with uneven X distribution, scenarios requiring visual waveform preservation, and best overall performance with large datasets
+- **Principle**: Largest-triangle selection on the mapped screen coordinates
+- **Output size**: Approximately `N = 4 × canvas_width` points
+- **Best for**: Shape fidelity of peaks and shoulders with large datasets
 - **Time complexity**: O(n)
 - **Limitation**: Only applicable to `Lines` style
 
@@ -370,8 +371,18 @@ curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);
 >
 > - LTTB preserves original X coordinates (not pixel-aligned), producing more accurate waveform contours
 > - Pixel forces all points to pixel columns — simpler implementation but not necessarily faster
-> - When data is too small to benefit from downsampling, LTTB automatically falls back to the Quad algorithm
-> - Benchmarks show LTTB outperforms Pixel on million-level data (see benchmark results below)
+> - When data is too small to benefit from downsampling, LTTB automatically falls back to plain mapping
+> - Benchmarks show the MinMax variant outperforms Pixel on million-level data (see benchmark results below)
+
+##### FilterPointsMinMaxLTTB — MinMax Bucket Downsampling
+
+Divides the visible data range into N equal-count buckets (N = 2 × canvas width), retaining the Y-minimum and Y-maximum point from each bucket. This is the algorithm behind `FilterPointsLTTB` up to v7.4.2.
+
+- **Principle**: Splits data into equal-sized buckets by index, finds extrema in each bucket, preserves original X coordinates
+- **Output size**: Approximately `2 × N = 4 × canvas_width`
+- **Best for**: Data with uneven X distribution, deterministic extreme preservation and best overall performance with large datasets ( SIMD accelerated )
+- **Time complexity**: O(n)
+- **Limitation**: Only applicable to `Lines` style; narrow peaks may collapse into vertical strokes
 
 #### How to Choose a Rendering Method
 
@@ -436,11 +447,11 @@ Below is a real-world performance comparison with 1,000,000 data points (canvas 
 | FilterPoints | 44,472 | 444.72 | 2.2 |
 | FilterPointsAggressive | 17,539 | 175.39 | 5.7 |
 | FilterPointsPixel | 23,216 | 232.16 | 4.3 |
-| **FilterPointsLTTB** | **13,349** | **133.49** | **7.5** |
+| **FilterPointsMinMaxLTTB** | **13,349** | **133.49** | **7.5** |
 
 **Conclusions:**
-- `FilterPointsLTTB` delivers the best performance at 7.5 FPS, about 24% faster than `FilterPointsAggressive`
-- `FilterPointsLTTB` is already enabled by default, so no manual adjustment is needed for most scenarios
+- `FilterPointsMinMaxLTTB` ( the algorithm behind `FilterPointsLTTB` up to v7.4.2 ) delivers the best performance at 7.5 FPS, about 24% faster than `FilterPointsAggressive`
+- `FilterPointsLTTB` is already enabled by default ( the true LTTB since v7.5.0 ), so no manual adjustment is needed for most scenarios
 - `FilterPointsAggressive` is the second-best choice, useful when you temporarily need a more precise output
 - `FilterPoints` basic filtering is actually the slowest — overhead exceeds benefit
 - No optimization (None) is faster than `FilterPoints`, confirming basic filtering is counterproductive at this scale

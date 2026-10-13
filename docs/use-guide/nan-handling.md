@@ -377,7 +377,7 @@ The differential (delta) isolates the SIMD cliff effect:
 
 ### Benchmark Results
 
-Below are two sets of typical test results. Test conditions: 100,000 data points, 20 repetitions averaged.
+Below are two sets of typical test results. Test conditions: 100,000 data points, 20 repetitions averaged. The `FilterPointsLTTB` figures were measured with the v7.4.2 implementation ( MinMax buckets, since v7.5.0 the attribute maps to the true LTTB ).
 
 #### Low NaN Ratio (1%)
 

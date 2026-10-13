@@ -301,7 +301,7 @@ curve->setPaintAttribute(QwtPlotCurve::ClipPolygons, true);           // 裁剪�
 curve->setPaintAttribute(QwtPlotCurve::FilterPoints, true);            // 过滤重复点
 curve->setPaintAttribute(QwtPlotCurve::FilterPointsAggressive, true);  // 激进过滤
 curve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, true);       // 像素列降采样
-curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);        // LTTB MinMax降采样
+curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);        // 真 LTTB 降采样
 curve->setPaintAttribute(QwtPlotCurve::ImageBuffer, true);             // 图像缓冲（用于Dots样式）
 ```
 
@@ -313,7 +313,8 @@ curve->setPaintAttribute(QwtPlotCurve::ImageBuffer, true);             // 图像
 | `FilterPoints` | 过滤重复点和画布外的点 |
 | `FilterPointsAggressive` | 更激进的过滤，去除同像素列的中间点，接受轻微视觉差异 |
 | `FilterPointsPixel` | 像素列降采样，每像素列保留首/最小/最大/末共 4 个点 |
-| `FilterPointsLTTB` | MinMax桶降采样（默认，推荐），保留波形特征 |
+| `FilterPointsLTTB` | LTTB 降采样（默认，推荐），保留波形特征 |
+| `FilterPointsMinMaxLTTB` | MinMax桶降采样，保留每桶极值 |
 | `MinimizeMemory` | 减少临时内存使用（可能降低性能） |
 | `ImageBuffer` | 用图像缓冲绘制散点（适用于百万级数据） |
 
@@ -351,13 +352,13 @@ curve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, true);
 >
 > 该算法会覆盖 `FilterPointsAggressive` 的效果（两者同时设置时 Pixel 优先）。由于每列只保留4个点，高频细节可能被丢失，适合趋势观察而非精确分析。
 
-##### FilterPointsLTTB — MinMax桶降采样（默认启用）
+##### FilterPointsLTTB — LTTB 降采样（默认启用）
 
-将可见数据范围分为 N 个等量桶（N = 2 × 画布宽度），每个桶保留 Y 最小和 Y 最大的两个点。类似简化版 LTTB（Largest Triangle Three Buckets）算法。实测表明这是百万级数据下最快的渲染方法，因此作为默认设置启用。
+真正的 Largest-Triangle-Three-Buckets 算法：将可见数据范围分为 N 个等量桶（N = 4 × 画布宽度），每桶保留与「上一个已选点和下一桶均值」构成最大三角形面积的样本点。首尾样本永远保留，因此窄峰保持形状而不会塌缩成竖线。
 
-- **原理**：按数据索引等分为桶，每桶遍历找极值点，保留原始 X 坐标
-- **输出点数**：约 `2 × N = 4 × 画布宽度`
-- **适用场景**：X 分布不均匀的数据、需要保留视觉波形特征的场景，以及追求最佳性能的大数据场景
+- **原理**：在映射后的屏幕坐标上做最大三角形选择
+- **输出点数**：约 `N = 4 × 画布宽度` 个点
+- **适用场景**：大数据量下峰值/峰肩的形状保真
 - **时间复杂度**：O(n)
 - **限制**：仅适用于 `Lines` 样式
 
@@ -370,8 +371,18 @@ curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);
 >
 > - LTTB 保留原始 X 坐标（非像素对齐），波形轮廓更精确
 > - Pixel 将所有点强制对齐到像素列，实现简单但性能不一定更优
-> - 当数据量不足以从降采样中获益时，LTTB 会自动回退到 Quad 算法
-> - 实测表明 LTTB 在百万级数据下性能优于 Pixel（见下方基准测试结果）
+> - 当数据量不足以从降采样中获益时，LTTB 会自动回退到普通映射
+> - 实测表明 MinMax 变体在百万级数据下性能优于 Pixel（见下方基准测试结果）
+
+##### FilterPointsMinMaxLTTB — MinMax桶降采样
+
+将可见数据范围分为 N 个等量桶（N = 2 × 画布宽度），每个桶保留 Y 最小和 Y 最大的两个点。这是 v7.4.2 及之前 `FilterPointsLTTB` 所用的算法。
+
+- **原理**：按数据索引等分为桶，每桶遍历找极值点，保留原始 X 坐标
+- **输出点数**：约 `2 × N = 4 × 画布宽度`
+- **适用场景**：X 分布不均匀的数据、确定性极值保留，以及追求最佳性能的大数据场景（SIMD 加速）
+- **时间复杂度**：O(n)
+- **限制**：仅适用于 `Lines` 样式；窄峰可能塌缩成竖线
 
 #### 如何选择渲染方法
 
@@ -426,11 +437,11 @@ debugCurve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, false);
 | FilterPoints | 44,472 | 444.72 | 2.2 |
 | FilterPointsAggressive | 17,539 | 175.39 | 5.7 |
 | FilterPointsPixel | 23,216 | 232.16 | 4.3 |
-| **FilterPointsLTTB（默认）** | **13,349** | **133.49** | **7.5** |
+| **FilterPointsMinMaxLTTB** | **13,349** | **133.49** | **7.5** |
 
 **结论：**
-- `FilterPointsLTTB` 在百万级数据下性能最优，FPS 达到 7.5，比 `FilterPointsAggressive` 快约 24%
-- `FilterPointsLTTB` 已作为默认设置启用，常规场景无需手动调整
+- `FilterPointsMinMaxLTTB`（v7.4.2 及之前 `FilterPointsLTTB` 所用的算法）在百万级数据下性能最优，FPS 达到 7.5，比 `FilterPointsAggressive` 快约 24%
+- `FilterPointsLTTB` 已作为默认设置启用（自 v7.5.0 起为真 LTTB），常规场景无需手动调整
 - `FilterPointsAggressive` 是次优选择，适用于需要精确截图或临时关闭 LTTB 的场景
 - `FilterPoints` 基础过滤反而最慢，因为过滤开销大于收益
 - 无优化（None）比 `FilterPoints` 快，说明基础过滤在大数据量下不划算
