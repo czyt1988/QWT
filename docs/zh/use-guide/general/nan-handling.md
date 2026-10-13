@@ -260,7 +260,7 @@ QwtArgMinMaxResult qwtSimdArgMinMax(const double* data, int count)
 
 > **警告 — 跳过不等于断开**
 >
-> 早期版本中 `Sticks`、`Steps` 与 `Dots` 的 `MinimizeMemory` 路径不检查 NaN；自提交 `17d0d13` 起这些路径（以及 `closestPoint()`）已补上 `isSampleNanOrInf()` 跳过检查，所有风格均安全。但要注意跳过语义的含义：Lines 类与 Steps 对 NaN 是"跳过并桥接"——缺口会被一条数据中不存在的线段（桥接弦）跨过，折线**不会**在缺口处断开留白；只有 `Dots`/`Sticks` 这类逐样本风格能让缺口天然空白。若需要"缺口即空白"的断线语义，必须在数据端按 NaN 把序列切成多个有限段、每段一条曲线。定量语义矩阵与像素级视觉扫描见[技术报告](../../tech-report/nan-rendering.md)。
+> 早期版本中 `Sticks`、`Steps` 与 `Dots` 的 `MinimizeMemory` 路径不检查 NaN；自提交 `17d0d13` 起这些路径（以及 `closestPoint()`）已补上 `isSampleNanOrInf()` 跳过检查，所有风格均安全。但要注意跳过语义的含义：Lines 类与 Steps 对 NaN 是"跳过并桥接"——缺口会被一条数据中不存在的线段（桥接弦）跨过，折线**不会**在缺口处断开留白；只有 `Dots`/`Sticks` 这类逐样本风格能让缺口天然空白。若需要"缺口即空白"的断线语义，可开启 `QwtPlotCurve::BreakAtNan` 曲线属性（见下文最佳实践），或在数据端按 NaN 把序列切成多个有限段、每段一条曲线。定量语义矩阵与像素级视觉扫描见[技术报告](../../tech-report/nan-rendering.md)。
 
 ## 自动缩放中的 NaN 防护
 
@@ -485,16 +485,36 @@ curve->setSamples(x, y);
 
 ### 选择绘制风格
 
-所有绘制风格现在都会跳过 NaN 样本（见上文覆盖表），处理含 NaN 的数据时可优先选 `QwtPlotCurve::Lines` 风格：它具备完整的 NaN 处理，且默认启用的 `FilterPointsLTTB` 渲染属性同时提供最佳性能。注意 Lines/Steps 的跳过语义是"桥接"——缺口会被一条线段跨过而非断开留白；需要缺口显示为空白时在数据端按有限段切分成多条曲线，或改用逐样本绘制的 `Dots`/`Sticks` 风格：
+所有绘制风格现在都会跳过 NaN 样本（见上文覆盖表），处理含 NaN 的数据时可优先选 `QwtPlotCurve::Lines` 风格：它具备完整的 NaN 处理，且默认启用的 `FilterPointsLTTB` 渲染属性同时提供最佳性能。注意 Lines/Steps 的跳过语义是"桥接"——缺口会被一条线段跨过而非断开留白；需要缺口显示为空白时可开启 `BreakAtNan` 曲线属性（见下一节），或在数据端按有限段切分成多条曲线，或改用逐样本绘制的 `Dots`/`Sticks` 风格：
 
 ```cpp
 // 推荐：Lines 风格 — 完整的 NaN 处理（跳过语义，缺口以弦桥接）
 curve->setStyle(QwtPlotCurve::Lines);
 // 默认启用 FilterPointsLTTB，提供最佳性能和 NaN 兼容性
 
-// 缺口必须显示为空白时：在数据端按有限段切分为多条曲线（每段一条），
+// 缺口必须显示为空白时：开启 BreakAtNan（见下节），
+// 或在数据端按有限段切分为多条曲线（每段一条），
 // 或改用 Dots / Sticks 逐样本风格
 ```
+
+### 缺口语义：BreakAtNan 属性
+
+默认情况下曲线渲染为一条连续折线：NaN/Inf 样本被跳过，缺口两侧的有限样本被一条数据中不存在的桥接弦连起来。`QwtPlotCurve::BreakAtNan` 曲线属性把 Lines 与 Steps 切换为切段语义——每个由连续有限样本构成的段渲染为一条独立折线，缺口保持空白，与 matplotlib 的行为一致：
+
+```cpp
+QwtPlotCurve* curve = new QwtPlotCurve();
+curve->setSamples(x, y);   // y 含 qQNaN() 缺口
+curve->setCurveAttribute(QwtPlotCurve::BreakAtNan, true);
+curve->attach(plot);
+```
+
+行为细节：
+
+- **逐段处理**：每个段独立做平滑、拟合（`Fitted`）、裁剪与填充——平滑核与填充区域都不会跨越缺口，每段的填充独立闭合到基线。
+- **逐段降采样**：渲染属性（`FilterPointsLTTB` 等）的降采样预算按段分配；短段会回退到更简单的过滤算法，这是逐段渲染的定义性代价。
+- **对 Dots/Sticks 无效果**：这两种风格逐样本绘制、本来就跳过 NaN/Inf 样本，缺口天然空白。
+- **段扫描缓存**：有限段的扫描在每次数据变更时只做一次（与序列 boundingRect 同一缓存生命周期），之后每次重绘直接复用，交互式缩放/平移不会重复支付 O(n) 扫描。就地修改内容的自定义 `QwtSeriesData` 实现需要触发 `dataChanged()`（例如重新调用 `setData()`）才能刷新缓存。
+- **默认关闭**：不开启该属性时行为与之前完全一致——缺口仍被桥接。
 
 ### Spectrogram 中的数据缺口
 

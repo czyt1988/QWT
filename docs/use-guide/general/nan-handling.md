@@ -247,73 +247,68 @@ QwtArgMinMaxResult qwtSimdArgMinMax(const double* data, int count)
 
 **Source file**: `src/plot/qwt_plot_curve.cpp`
 
-Different drawing styles have varying degrees of NaN handling coverage:
+Different drawing styles now all cover NaN handling:
 
 | Drawing Style | NaN Handling | Implementation |
 |-------------|-------------|----------------|
 | Lines (all downsampling modes) | ✅ Handled | Delegates to QwtPointMapper |
 | Dots (default path) | ✅ Handled | Delegates to QwtPointMapper |
 | Symbols | ✅ Handled | Delegates to QwtPointMapper |
-| Dots (MinimizeMemory path) | ⚠️ Not handled | Direct iteration |
-| Sticks | ⚠️ Not handled | Direct iteration |
-| Steps | ⚠️ Not handled | Direct iteration |
+| Dots (MinimizeMemory path) | ✅ Handled | Direct iteration, skipped via `isSampleNanOrInf()` |
+| Sticks | ✅ Handled | Direct iteration, skipped via `isSampleNanOrInf()` |
+| Steps | ✅ Handled | Direct iteration, skipped via `isSampleNanOrInf()` |
 
-> **Warning — Note**
+> **Warning — Skipping Is Not Breaking**
 >
-> The `Sticks`, `Steps`, and `Dots` `MinimizeMemory` paths currently **do not check for NaN**, passing NaN values directly to `xMap.transform()` / `yMap.transform()`. In most cases this will not cause a crash (NaN is transformed to some invalid pixel coordinate), but may produce incorrect rendering results. For scenarios requiring NaN handling, prefer the `Lines` style.
+> In earlier versions the `Sticks`, `Steps` and `Dots` `MinimizeMemory` paths did not check for NaN; since commit `17d0d13` these paths (and `closestPoint()`) skip such samples via `isSampleNanOrInf()`, so all styles are safe. But note what skip semantics means: for Lines and Steps, NaN samples are "skipped and bridged" — a gap is crossed by a line segment (a bridging chord) that does not exist in the data, and the polyline is **not** broken at the gap; only per-sample styles like `Dots`/`Sticks` leave gaps naturally blank. For "gap means blank" break semantics, enable the `QwtPlotCurve::BreakAtNan` curve attribute (see Best Practices below), or split the series into finite runs at the data side, one curve per run. Quantitative semantics matrices and pixel-level visual scans are documented in the NaN rendering tech report (`docs/zh/tech-report/nan-rendering.md`, currently Chinese only).
 
 ## NaN Protection in Autoscaling
 
-**Source file**: `src/plot/qwt_plot.cpp`
+**Source files**: `src/plot/qwt_plot.cpp`, `src/plot/qwt_plot_axis.cpp`
 
-Qwt 7 checks whether all edges of the boundingRect are finite when computing axis ranges during autoscaling:
+Autoscaling has two independent paths, each with its own form of NaN protection. `QwtPlot::rescaleAxes()` checks the validity of the item boundingRect and the finiteness of all four edges before merging ranges (the predicate is `qwt_is_nan_or_inf()`, which also rejects Inf):
 
 ```cpp
-// Check if boundingRect is valid (including NaN and infinity checks)
-if (boundingRect.isValid() && !boundingRect.isEmpty()
-    && std::isfinite(boundingRect.left())
-    && std::isfinite(boundingRect.right())
-    && std::isfinite(boundingRect.top())
-    && std::isfinite(boundingRect.bottom())) {
-    // ... use boundingRect to set axis range ...
+// qwt_plot.cpp — rescaleAxes(): check boundingRect validity (incl. NaN and infinity)
+if (boundingRect.isValid() && !boundingRect.isEmpty() && !qwt_is_nan_or_inf(boundingRect.left())
+    && !qwt_is_nan_or_inf(boundingRect.right()) && !qwt_is_nan_or_inf(boundingRect.top())
+    && !qwt_is_nan_or_inf(boundingRect.bottom())) {
+    // ... merge into the autoscale range ...
 }
 ```
 
-This ensures that even if boundingRect is accidentally polluted (e.g., by a future regression bug), autoscaling will not receive invalid range values.
+`QwtPlot::updateAxes()`, used during replot, only tests `width() >= 0` / `height() >= 0`: the boundingRect of an all-NaN series is the invalid rectangle `QRectF(1, 1, -2, -2)` (both width and height are -2), so it is skipped entirely, the intervals of the affected axes stay invalid, and they finally fall back to the default range 0–1000 of `AxisData` — this is where the "all-NaN curve: axes fall back to 0–1000, canvas blank" behavior comes from:
+
+```cpp
+// qwt_plot_axis.cpp — updateAxes(): invalid rectangles are skipped, axis intervals stay clean
+const QRectF rect = item->boundingRect();
+if (rect.width() >= 0.0)
+    boundingIntervals[item->xAxis()] |= QwtInterval(rect.left(), rect.right());
+if (rect.height() >= 0.0)
+    boundingIntervals[item->yAxis()] |= QwtInterval(rect.top(), rect.bottom());
+```
+
+The dual protection of both paths ensures that even if boundingRect is accidentally polluted (e.g., by a future regression bug), autoscaling will not receive invalid range values.
 
 ## NaN Handling in Other Modules
 
 ### Contour Algorithm
 
-The `QwtRasterData` CONREC contour algorithm detects NaN through accumulation sums — because NaN participating in addition makes the result NaN:
+The `QwtRasterData` CONREC contour algorithm detects NaN through accumulation sums — because NaN participating in addition makes the result NaN (the current source uses `qwt_is_nan_or_inf()`, which also rejects Inf):
 
 ```cpp
-if (qIsNaN(zSum)) {
-    // one of the points is NaN
+if (qwt_is_nan_or_inf(zSum)) {
+    // one of the points is NaN or Inf
     continue;
 }
 ```
 
 ### Spectrogram Rendering
 
-Spectrogram treats NaN values as data gaps, rendering them as transparent pixels. Because `qIsNaN()` is not inlined and `qt_is_nan` is in a Qt private header, `QwtPlotSpectrogram` implements a local bit-level NaN detection:
+Spectrogram treats NaN values as data gaps, rendering them as transparent pixels. Earlier versions implemented a local bit-level NaN detection (`qwtIsNaN`), because `qIsNaN()` was not inlined and `qt_is_nan` lives in a Qt private header; the current source has removed it and uses `qwt_is_nan_or_inf()` from the core module everywhere. During rendering, NaN values are rendered as transparent pixels (`0u`):
 
 ```cpp
-static inline bool qwtIsNaN(double d)
-{
-    const uchar* ch = (const uchar*)&d;
-    if (QSysInfo::ByteOrder == QSysInfo::BigEndian) {
-        return (ch[0] & 0x7f) == 0x7f && ch[1] > 0xf0;
-    } else {
-        return (ch[7] & 0x7f) == 0x7f && ch[6] > 0xf0;
-    }
-}
-```
-
-During rendering, NaN values are rendered as transparent pixels (`0u`):
-
-```cpp
-if (hasGaps && qwtIsNaN(value)) {
+if (hasGaps && qwt_is_nan_or_inf(value)) {
     *line++ = 0u;  // transparent pixel
 }
 ```
@@ -471,7 +466,7 @@ flowchart LR
 
 ### Data Preparation
 
-Mark missing samples with a quiet NaN — Qt's `qQNaN()` helper produces one — and append them to the sample vectors like any regular value; `boundingRect()` and the renderers skip them automatically, so the axis scaling stays correct without any extra work:
+Mark missing samples with a quiet NaN — Qt's `qQNaN()` helper produces one — and append them to the sample vectors like any regular value; `boundingRect()` and the renderers skip them automatically, so the axis scaling stays correct without any extra work. Note that "skipping" means the polyline is bridged across the gap instead of being broken: when gaps must render as blank, see the warning in "Curve Drawing NaN Handling Coverage" above, the `BreakAtNan` attribute below, and the NaN rendering tech report (`docs/zh/tech-report/nan-rendering.md`, currently Chinese only):
 
 ```cpp
 // Use qQNaN() to generate NaN values
@@ -490,16 +485,36 @@ curve->setSamples(x, y);
 
 ### Choosing a Drawing Style
 
-For data with NaNs prefer the `QwtPlotCurve::Lines` style: it is the style with complete NaN handling, and the default-enabled `FilterPointsLTTB` paint attribute gives the best performance at the same time. The `Sticks` and `Steps` styles do not check for NaN, so such data must be cleaned during preprocessing:
+All drawing styles now skip NaN samples (see the coverage table above). For data with NaNs prefer the `QwtPlotCurve::Lines` style: it has complete NaN handling, and the default-enabled `FilterPointsLTTB` paint attribute gives the best performance at the same time. Note that the skip semantics of Lines/Steps is "bridging" — a gap is crossed by a line segment instead of staying blank; when gaps must render as blank, enable the `BreakAtNan` curve attribute (next section), split the series into finite runs at the data side, or switch to the per-sample `Dots`/`Sticks` styles:
 
 ```cpp
-// Recommended: Lines style — complete NaN handling
+// Recommended: Lines style — complete NaN handling (skip semantics, gaps bridged)
 curve->setStyle(QwtPlotCurve::Lines);
 // FilterPointsLTTB is enabled by default, providing best performance and NaN compatibility
 
-// Note: Sticks and Steps styles do not check for NaN
-// If needed, clear NaN during data preprocessing
+// When gaps must render as blank: enable BreakAtNan (see below),
+// split the series into finite runs (one curve per run),
+// or use the per-sample Dots / Sticks styles
 ```
+
+### Gap Semantics: the BreakAtNan Attribute
+
+By default a curve renders one continuous polyline: NaN/Inf samples are skipped and the neighboring finite samples are connected by a bridging chord that has no correspondence in the data. The `QwtPlotCurve::BreakAtNan` curve attribute switches Lines and Steps to gap semantics instead — every run of consecutive finite samples is rendered as an independent polyline and gaps stay blank, like in matplotlib:
+
+```cpp
+QwtPlotCurve* curve = new QwtPlotCurve();
+curve->setSamples(x, y);   // y contains qQNaN() gaps
+curve->setCurveAttribute(QwtPlotCurve::BreakAtNan, true);
+curve->attach(plot);
+```
+
+Behavior details:
+
+- **Per-segment processing**: each run is smoothed, fitted (`Fitted`), clipped and filled on its own — neither the smoothing kernel nor the fill area crosses a gap, and the fill of each run closes to the baseline independently.
+- **Per-segment downsampling**: the downsampling budget of the paint attributes (`FilterPointsLTTB` etc.) applies per run; short runs fall back to simpler filtering, which is the defining cost of per-segment rendering.
+- **No effect on Dots/Sticks**: these styles draw per sample and skip NaN/Inf samples anyway, so gaps are naturally blank.
+- **Cached run scan**: the finite-sample runs are scanned once per data change (same cache lifecycle as the series boundingRect) and reused by every repaint, so interactive zoom/pan does not pay the O(n) scan again. Custom `QwtSeriesData` implementations that mutate their content in place must trigger `dataChanged()` (e.g. by calling `setData()` again) for the cache to refresh.
+- **Default off**: without the attribute nothing changes — gaps are bridged exactly as before.
 
 ### Data Gaps in Spectrogram
 
