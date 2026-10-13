@@ -6,7 +6,7 @@
 >
 > - Classified by objective criteria, the 22 presets are 16 sequential, 4 diverging and 2 cyclic; the color stop data of `rainbow` and `hsv` are completely identical in the source (`qwt_colormap_preset.cpp:108-120`)
 > - Lightness monotonicity: 18 of the 22 presets have zero violating steps along the dominant direction (10 of them with a cumulative regression of exactly 0); `jet` has 77 violating steps, a cumulative regression of 71.76 L* and a maximum regression of 70.67 L* (L* climbs to 97.14 at t≈0.625 and then falls back to 26.47 — every lightness value inside (26.47, 97.14) appears once on the ascending branch and once on the descending branch, up to one quantization step of error), and `turbo` registers 65.31/63.47; both are graded non-uniform
-> - Step uniformity (coefficient of variation CV of the adjacent-level ΔE00): `gray` is best at 0.228, followed by `rdylgn` 0.326 and `rdylbu` 0.354; `inferno`/`magma` sit at 0.587/0.582, clearly above matplotlib's own tables at 0.332/0.348 — the gap comes from color stop position compression, not from the design
+> - Step uniformity (coefficient of variation CV of the adjacent-level ΔE00): `gray` is best at 0.228, followed by `rdylgn` 0.326 and `rdylbu` 0.354; `inferno`/`magma` sit at 0.364/0.361 (0.587/0.582 before the v7.5.1 fix, which resampled the stops from the official matplotlib tables over the full [0,1] domain), close to matplotlib's own 0.332/0.348 with the remainder coming from the 9-stop linear interpolation
 > - Color-vision deficiency (Machado severity 1.0; the minimum ΔE00 between levels at least 32 apart serves as the distinguishability lower bound): `coolwarm` 9.96–10.30 and `rdylbu` 8.87–13.24 stay robust under all three deficiencies; `rainbow`/`hsv` fall to only 0.130 under deutan (t=0.620 and t=0.745 the same color), and `rdylgn` to 0.182 — the two sides of the center are entirely indistinguishable to red-green colorblind observers
 > - Grayscale printing: the two ends of `coolwarm` differ by only ΔL* 0.36, so all sign information is lost after conversion to grayscale; the ends of `rdylbu`/`rdylgn`/`spectral` differ by ΔL* 4.62–5.93 and remain distinguishable; the L* of `jet`/`turbo`/`cool` is non-monotonic, so grayscaling them necessarily produces false contours
 
@@ -196,13 +196,13 @@ This table traces the boundary of the artifact. **Stop density and hue span join
 
 ### 3.5 The preset factory, the same-name trap, and the 3D bridge
 
-`QwtColorMapPreset::create()` calls `setColorInterval()` with the first and last stops and `addColorStop()` for each of the rest (`qwt_colormap_preset.cpp:223-235`); `presetFromName()` is case-insensitive and **silently falls back to `Viridis` when the name is not found** (`:366`) — a misspelled preset name raises no error, you simply get a viridis (the comment at `qwt_colormap_preset.h:131` still claims "returns -1 if not found", which does not match the implementation — a stale comment). The source comments claim the stops are "sourced from matplotlib colormaps", yet `rainbowStops()` and `hsvStops()` return exactly the same 7 stops (`:108-120`), and the provenance probe of Section 4.7 shows that several presets' stops do not lie on the matplotlib curves. On the 3D side, `Qwt3DColorMapColor(presetName, size=256)` (`src/plot3d/qwt3d_colormap_color.h`) adapts a core colormap into a `Qwt3DColor`, so 2D and 3D share the same presets and the same evaluation conclusions; the color bar is drawn by `QwtScaleWidget`, which holds a colormap instance (`src/plot/qwt_scale_widget.cpp:571-572`).
+`QwtColorMapPreset::create()` calls `setColorInterval()` with the first and last stops and `addColorStop()` for each of the rest (`qwt_colormap_preset.cpp:223-235`); `presetFromName()` is case-insensitive and **silently falls back to `Viridis` when the name is not found** (`:366`) — a misspelled preset name raises no error, you simply get a viridis (the comment at `qwt_colormap_preset.h:131` claimed "returns -1 if not found", which did not match the implementation; since v7.5.1 it states the fallback to Viridis). The source comments claim the stops are "sourced from matplotlib colormaps", yet `rainbowStops()` and `hsvStops()` return exactly the same 7 stops (`:108-120`), and the provenance probe of Section 4.7 shows that several presets' stops do not lie on the matplotlib curves. On the 3D side, `Qwt3DColorMapColor(presetName, size=256)` (`src/plot3d/qwt3d_colormap_color.h`) adapts a core colormap into a `Qwt3DColor`, so 2D and 3D share the same presets and the same evaluation conclusions; the color bar is drawn by `QwtScaleWidget`, which holds a colormap instance (`src/plot/qwt_scale_widget.cpp:571-572`).
 
 ## 4. Experiments
 
 ### 4.1 Method
 
-All numbers come from a single deterministic run of `docs/assets/algorithms/colormap_experiment.py` (Python 3.11 + numpy + matplotlib, no random numbers; every color transform is self-implemented, and matplotlib is used only to sample its built-in color tables as a reference). The script first runs the two self-test groups (the Lab anchors of Section 2.1, the CIEDE2000 dataset of Section 2.2), then computes, for each of the 22 presets in turn, the classification, lightness profile, step statistics, three CVD simulations, grayscale profile and matplotlib comparison; all raw numbers are printed to stdout, and the six figures are generated by the same script with the Agg backend. Every number below can be found verbatim in the stdout of that run.
+All numbers come from a single deterministic run of `docs/assets/algorithms/colormap_experiment.py` (Python 3.11 + numpy + matplotlib, no random numbers; every color transform is self-implemented, and matplotlib is used only to sample its built-in color tables as a reference); the raw stdout is kept as `colormap_results.txt`. Since v7.5.1 the script **parses the stops directly from `src/core/qwt_colormap_preset.cpp`** instead of transcribing them, so the mirror cannot drift. It first runs the two self-test groups (the Lab anchors of Section 2.1, the CIEDE2000 dataset of Section 2.2), then computes, for each of the 22 presets in turn, the classification, lightness profile, step statistics, three CVD simulations, grayscale profile and matplotlib comparison; all raw numbers are printed to stdout, and the six figures are generated by the same script with the Agg backend. The stops themselves are generated from the official matplotlib tables by `colormap_stops_gen.py`, which can be used to check every line of the source. Every number below can be found verbatim in that run's stdout.
 
 ### 4.2 Objective classification
 
@@ -247,11 +247,11 @@ The hue sweep angle accumulates only over the chromatically valid segments where
 
 | preset | L*₀ | L*₂₅₅ | viol | reg | maxreg | ΔE mean | ΔE max | CV | path | grade |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| viridis | 14.90 | 90.43 | 0 | 0.34 | 0.07 | 0.472 | 1.018 | 0.414 | 120.35 | A |
+| viridis | 14.90 | 90.69 | 0 | 0.02 | 0.02 | 0.482 | 0.948 | 0.294 | 122.98 | A |
 | plasma | 15.53 | 93.95 | 0 | 0.00 | 0.00 | 0.482 | 0.970 | 0.427 | 122.92 | A |
-| inferno | 0.08 | 96.91 | 0 | 0.00 | 0.00 | 0.578 | 1.753 | 0.587 | 147.44 | B |
-| magma | 0.08 | 96.85 | 0 | 0.00 | 0.00 | 0.548 | 1.515 | 0.582 | 139.72 | B |
-| cividis | 13.04 | 90.18 | 0 | 0.00 | 0.00 | 0.447 | 0.886 | 0.386 | 113.90 | A |
+| inferno | 0.08 | 97.44 | 0 | 0.00 | 0.00 | 0.590 | 1.596 | 0.364 | 150.43 | A |
+| magma | 0.08 | 97.38 | 0 | 0.00 | 0.00 | 0.551 | 1.363 | 0.361 | 140.59 | A |
+| cividis | 13.79 | 90.93 | 0 | 0.00 | 0.00 | 0.457 | 1.234 | 0.401 | 116.47 | A |
 | jet | 12.97 | 26.47 | 77 | 71.76 | 70.67 | 0.922 | 1.557 | 0.401 | 235.21 | C |
 | hot | 0.00 | 99.93 | 0 | 0.00 | 0.00 | 0.656 | 1.610 | 0.535 | 167.24 | B |
 | cool | 91.11 | 60.17 | 0 | 6.31 | 6.24 | 0.312 | 0.431 | 0.362 | 79.49 | B |
@@ -262,9 +262,9 @@ The hue sweep angle accumulates only over the chromatically valid segments where
 | gray | 0.00 | 99.65 | 0 | 0.00 | 0.00 | 0.294 | 0.398 | 0.228 | 74.96 | A |
 | bone | 0.00 | 99.65 | 0 | 0.00 | 0.00 | 0.434 | 1.397 | 0.487 | 110.76 | B |
 | copper | 0.00 | 83.44 | 0 | 0.00 | 0.00 | 0.423 | 1.047 | 0.362 | 107.82 | A |
-| rainbow | 53.24 | 53.26 | 39 | 75.03 | 64.75 | 1.087 | 2.335 | 0.594 | 277.06 | B (cyclic) |
-| hsv | 53.24 | 53.26 | 39 | 75.03 | 64.75 | 1.087 | 2.335 | 0.594 | 277.06 | B (cyclic) |
-| turbo | 11.80 | 25.68 | 47 | 65.31 | 63.47 | 0.855 | 1.876 | 0.400 | 218.11 | C |
+| rainbow | 53.24 | 53.26 | 39 | 75.03 | 64.75 | 1.087 | 2.335 | 0.594 | 277.06 | B |
+| hsv | 53.24 | 53.26 | 39 | 75.03 | 64.75 | 1.087 | 2.335 | 0.594 | 277.06 | B |
+| turbo | 11.80 | 25.19 | 74 | 65.52 | 65.52 | 0.868 | 1.833 | 0.359 | 221.24 | C |
 | coolwarm | 37.67 | 38.03 | 0 | 0.40 | 0.40 | 0.503 | 1.536 | 0.380 | 128.17 | A |
 | rdylbu | 34.28 | 28.66 | 0 | 0.29 | 0.29 | 0.660 | 1.954 | 0.354 | 168.33 | A |
 | rdylgn | 34.28 | 38.90 | 0 | 0.29 | 0.29 | 0.539 | 1.112 | 0.326 | 137.41 | A |
@@ -276,7 +276,7 @@ The hue sweep angle accumulates only over the chromatically valid segments where
 
 ![Adjacent-level CIEDE2000 heatmaps with mean/CV bar charts](../assets/algorithms/fig_cmap_deltae.png)
 
-The heatmaps unfold each ramp into the sequence of its 255 adjacent-step ΔE00 values: `rainbow`/`hsv` show bright blocks with ΔE00 > 2 near the pure-hue corner points (perceptual distances between corners of the sRGB cube are far larger than between edge midpoints), and `jet` is likewise bright in the cyan-yellow segment; the perceptually uniform family (viridis/plasma/cividis) and the diverging family are flat overall. The CV ordering gives another view: `gray` is lowest at 0.228, because interpolation in the sRGB-encoded space is naturally close to perceptually uniform. The elevated 0.587/0.582 of `inferno`/`magma` are not a design defect — against the same-convention CV of matplotlib's own 256-level tables (`inferno` 0.332, `magma` 0.348, `viridis` 0.278, `plasma` 0.417), the gap comes mainly from the position compression introduced by QWT's 9-stop approximation (Section 4.7), and the CV increase of `inferno`/`magma` (+0.255/+0.234) is the largest of all presets. `viridis` (QWT CV 0.414 vs mpl 0.278, increase +0.136) is the clearest case where the CV rise is caused by stops deviating from the curve — not by position compression. The presets whose minimum adjacent-step ΔE00 is 0.000 (viridis, cividis, summer, autumn, gray, bone, copper) contain exactly duplicated LUT entries; the duplicates mostly sit in the middle of the ramp or in segments where stops are close together: gray/summer/autumn/copper duplicate at level 128 (L* 44–72) — a rounding pigeonhole artifact of 256 entries covering 255 output levels; the viridis/cividis duplicates scatter over levels 67–156 / 6–144 (L* 32–54 / 15–49, segments with closely spaced stops); only bone (level 39, L* 9.3) falls at the dark end. This is quantization redundancy rather than a defect: it means these ramps lose almost no visible detail when switched to 256-level quantized output. Convention note: the Color Table = 256 in the example UI goes through `colorTable(256)` (sampling grid pos = i/255), which is not the same grid as the `colorTable256()` (pos = i/256) used here, but the conclusions are the same.
+The heatmaps unfold each ramp into the sequence of its 255 adjacent-step ΔE00 values: `rainbow`/`hsv` show bright blocks with ΔE00 > 2 near the pure-hue corner points (perceptual distances between corners of the sRGB cube are far larger than between edge midpoints), and `jet` is likewise bright in the cyan-yellow segment; the perceptually uniform family (viridis/plasma/cividis) and the diverging family are flat overall. The CV ordering gives another view: `gray` is lowest at 0.228, because interpolation in the sRGB-encoded space is naturally close to perceptually uniform. The 0.364/0.361 of `inferno`/`magma` are within +0.032/+0.013 of matplotlib's own same-convention CV (0.332/0.348), and `viridis` 0.294 is +0.016 above mpl 0.278 — the remainder comes from the 9-stop linear interpolation itself. Before the fix these three presets carried CV increases of 0.136–0.255 caused by positionally compressed or deviating stops (Section 4.7); v7.5.1 resampled the stops from the official matplotlib tables.
 
 ### 4.5 Distinguishability under color-vision deficiency
 
@@ -286,11 +286,11 @@ The heatmaps unfold each ramp into the sequence of its 255 adjacent-step ΔE00 v
 
 | preset | original | protan | deutan | tritan |
 |---|---:|---:|---:|---:|
-| viridis | 8.242 | 6.743 | 5.264 | 7.265 |
+| viridis | 10.698 | 4.408 | 6.768 | 6.656 |
 | plasma | 7.373 | 3.641 | 6.828 | 7.728 |
-| inferno | 8.175 | 4.507 | 6.976 | 7.898 |
-| magma | 8.147 | 5.031 | 7.003 | 7.828 |
-| cividis | 5.719 | 5.312 | 5.061 | 4.550 |
+| inferno | 10.640 | 5.672 | 8.743 | 9.889 |
+| magma | 10.043 | 6.077 | 8.744 | 9.337 |
+| cividis | 7.004 | 6.844 | 6.957 | 5.849 |
 | jet | 13.147 | 5.001 | 4.579 | 5.381 |
 | hot | 4.215 | 2.787 | 3.914 | 1.207 |
 | cool | 4.767 | 0.000 | 0.333 | 4.233 |
@@ -303,7 +303,7 @@ The heatmaps unfold each ramp into the sequence of its 255 adjacent-step ΔE00 v
 | copper | 6.731 | 6.496 | 6.620 | 5.416 |
 | rainbow | 6.529 | 0.297 | 0.130 | 1.198 |
 | hsv | 6.529 | 0.297 | 0.130 | 1.198 |
-| turbo | 12.879 | 1.524 | 1.795 | 4.376 |
+| turbo | 14.979 | 3.931 | 2.268 | 6.136 |
 | coolwarm | 10.250 | 10.008 | 9.961 | 10.301 |
 | rdylbu | 12.487 | 9.632 | 8.866 | 13.237 |
 | rdylgn | 8.292 | 1.332 | 0.182 | 10.617 |
@@ -330,14 +330,14 @@ Under normal vision the lowest farMin belongs to `autumn` (1.601): the total col
 
 | preset | min \|ΔL*\| | reg | end ΔL* | grayscale monotonic |
 |---|---:|---:|---:|---|
-| viridis | 0.0000 | 0.34 | 75.53 | yes |
+| viridis | 0.0000 | 0.02 | 75.78 | yes |
 | plasma | 0.0694 | 0.00 | 78.42 | yes |
-| inferno | 0.0591 | 0.00 | 96.83 | yes |
-| magma | 0.0289 | 0.00 | 96.77 | yes |
+| inferno | 0.0979 | 0.00 | 97.36 | yes |
+| magma | 0.0791 | 0.00 | 97.30 | yes |
 | cividis | 0.0000 | 0.00 | 77.14 | yes |
-| jet | 0.0023 | 71.76 | 13.50 | no |
+| jet | 0.0023 | 71.76 | 13.50 | NO |
 | hot | 0.0027 | 0.00 | 99.93 | yes |
-| cool | 0.0008 | 6.31 | 30.94 | no |
+| cool | 0.0008 | 6.31 | 30.94 | NO |
 | spring | 0.0008 | 0.79 | 36.56 | yes |
 | summer | 0.0000 | 0.00 | 49.96 | yes |
 | autumn | 0.0000 | 0.00 | 43.64 | yes |
@@ -347,11 +347,11 @@ Under normal vision the lowest farMin belongs to `autumn` (1.601): the total col
 | copper | 0.0000 | 0.00 | 83.44 | yes |
 | rainbow | 0.0011 | 75.03 | 0.01 | n/a |
 | hsv | 0.0011 | 75.03 | 0.01 | n/a |
-| turbo | 0.0232 | 65.31 | 13.88 | no |
-| coolwarm | 0.0723 | 0.40 | 0.36 | yes (both arms) |
-| rdylbu | 0.0025 | 0.29 | 5.61 | yes (both arms) |
-| rdylgn | 0.0980 | 0.29 | 4.62 | yes (both arms) |
-| spectral | 0.0869 | 0.29 | 5.93 | yes (both arms) |
+| turbo | 0.0047 | 65.52 | 13.39 | NO |
+| coolwarm | 0.0723 | 0.40 | 0.36 | yes |
+| rdylbu | 0.0025 | 0.29 | 5.61 | yes |
+| rdylgn | 0.0980 | 0.29 | 4.62 | yes |
+| spectral | 0.0869 | 0.29 | 5.93 | yes |
 
 Grayscaling preserves only the information in $L^*(t)$. Among the sequential presets, 13 of the 16 are grayscale-monotonic and can go straight to black-and-white printing; `jet`, `turbo` and `cool` are grayscale-non-monotonic — after printing, the bright yellow band and the dark ends create false contours (`jet`/`turbo`, rows 4 and 5 of the figure above; `cool` is not in the figure). The two arms of the diverging presets are each monotone, but whether the sign information survives depends on the end-to-end ΔL*: `coolwarm`'s ends differ by only 0.36 L*, so in a grayscale image the positive and negative arms are exactly the same gray and the sign can only be rescued by legend text; the ends of `rdylbu`/`rdylgn`/`spectral` differ by 4.6–5.9 L* and the direction remains distinguishable in grayscale. Cyclic presets degrade in grayscale to gray levels oscillating back and forth (end ΔL* = 0.01), with all period information lost — cyclic data should never be carried by lightness in the first place.
 
@@ -363,11 +363,11 @@ Grayscaling preserves only the information in $L^*(t)$. Among the sequential pre
 
 | preset | mean ΔE00 | max ΔE00 | stop mean | stop max |
 |---|---:|---:|---:|---:|
-| viridis | 6.630 | 12.115 | 5.875 | 11.362 |
+| viridis | 0.445 | 1.171 | 0.000 | 0.000 |
 | plasma | 0.537 | 1.242 | 0.383 | 0.747 |
-| inferno | 13.520 | 28.305 | 11.879 | 28.305 |
-| magma | 9.688 | 17.270 | 8.557 | 17.239 |
-| cividis | 7.447 | 12.078 | 6.762 | 11.978 |
+| inferno | 1.003 | 3.875 | 0.000 | 0.000 |
+| magma | 0.738 | 2.446 | 0.000 | 0.000 |
+| cividis | 0.611 | 2.234 | 0.000 | 0.000 |
 | jet | 2.634 | 8.978 | 2.613 | 8.978 |
 | hot | 5.146 | 16.270 | 6.118 | 15.916 |
 | cool | 0.106 | 0.388 | 0.000 | 0.000 |
@@ -380,17 +380,17 @@ Grayscaling preserves only the information in $L^*(t)$. Among the sequential pre
 | copper | 7.918 | 12.509 | 0.000 | 0.000 |
 | rainbow | 48.443 | 90.742 | 45.512 | 89.898 |
 | hsv | 1.630 | 4.393 | 1.683 | 3.097 |
-| turbo | 19.170 | 39.277 | 16.892 | 39.176 |
+| turbo | 1.380 | 3.838 | 0.000 | 0.000 |
 | coolwarm | 4.537 | 8.239 | 1.981 | 4.724 |
 | rdylbu | 0.403 | 1.471 | 0.169 | 0.460 |
 | rdylgn | 0.292 | 0.749 | 0.147 | 0.369 |
 | spectral | 0.402 | 1.322 | 0.146 | 0.395 |
 
-"Same name" does not mean "same colors". The provenance probe (script section 7; for every stop, a 4096-point nearest match on the matplotlib curve) yields three cases. Case one, stops lying exactly on the reference curve: all 9 stops of `plasma` have dE = 0.000 with nearest positions ≈ nominal positions; `cool`/`spring`/`summer`/`autumn`/`winter`/`gray` have exact first and last stops with no (or only linear) intermediate segments, whole-band deviation ≤ 0.83 (`copper`'s first and last stops are exact too, but the mpl version is a nonlinear ramp — the whole-band mean deviation reaches 7.92, filed under item 8 of Section 5.2). Case two, **stop colors taken from the reference curve but positions compressed**: the 9 stops of `inferno` have nearest positions on the mpl curve at t = 0, 0.0977, 0.1993, 0.2969, 0.3985, 0.5001, 0.5978, 0.6994, 0.9963 (each dE = 0.000) — the colors of the mpl curve over t∈[0,0.7] placed at positions [0,0.875], the last segment then jumping straight from t=0.7 to t=1.0; the whole band therefore has a mean deviation of 13.52 and a maximum of 28.31. `turbo` is approximately the same type (nearest stop-to-curve distances 0.70–2.27 ΔE00, nearest positions 0, 0.086, 0.203, 0.289, 0.391, 0.500, 0.598, 0.711, 0.996). Case three, stops deviating from the reference curve (all dE below are nearest distances to the mpl curve; same-position differences are in the "stop max" column of Table 5): the first three stops of `viridis` are on the curve, then drift gradually (the t=0.5 stop's nearest match is at 0.422, dE 2.62; the t=0.75 stop dE 6.52), `cividis` deviates by 0.77–5.82 across the band, `magma` deviates by ≤ 2.31 with position compression. `rainbow` is a different map altogether: QWT's rainbow is a closed hue loop with identical red at both ends (OpenCV style), matplotlib's rainbow is a non-closed ramp from purple to red — the mean deviation of 48.44 is a difference of definition, not of approximation error.
+"Same name" does not mean "same colors". The provenance probe (script section 7; for every stop, a 4096-point nearest match on the matplotlib curve) yields three cases. Case one, stops lying exactly on the reference curve: all 9 stops of `plasma` have dE = 0.000 with nearest positions ≈ nominal positions; `cool`/`spring`/`summer`/`autumn`/`winter`/`gray` have exact first and last stops with no (or only linear) intermediate segments, whole-band deviation ≤ 0.83 (`copper`'s first and last stops are exact too, but the mpl version is a nonlinear ramp — the whole-band mean deviation reaches 7.92, filed under item 8 of Section 5.2). Case two (removed in v7.5.1), **stop colors taken from the reference curve but positions compressed**: the 9 stops of `inferno` have nearest positions on the mpl curve at t = 0, 0.0977, 0.1993, 0.2969, 0.3985, 0.5001, 0.5978, 0.6994, 0.9963 (each dE = 0.000) — the colors of the mpl curve over t∈[0,0.7] placed at positions [0,0.875], the last segment then jumping straight from t=0.7 to t=1.0; the whole band therefore has a mean deviation of 13.52 and a maximum of 28.31. `turbo` is approximately the same type (nearest stop-to-curve distances 0.70–2.27 ΔE00, nearest positions 0, 0.086, 0.203, 0.289, 0.391, 0.500, 0.598, 0.711, 0.996). Case three, stops deviating from the reference curve (all dE below are nearest distances to the mpl curve; same-position differences are in the "stop max" column of Table 5): the first three stops of `viridis` are on the curve, then drift gradually (the t=0.5 stop's nearest match is at 0.422, dE 2.62; the t=0.75 stop dE 6.52), `cividis` deviates by 0.77–5.82 across the band, `magma` deviates by ≤ 2.31 with position compression. `rainbow` is a different map altogether: QWT's rainbow is a closed hue loop with identical red at both ends (OpenCV style), matplotlib's rainbow is a non-closed ramp from purple to red — the mean deviation of 48.44 is a difference of definition, not of approximation error. Since v7.5.1 the five presets listed above are resampled from the official matplotlib tables: their stops sit exactly on the reference (0.000 deviation at the same position) and the whole-band mean deviation drops to viridis 0.445 / inferno 1.003 / magma 0.738 / cividis 0.611 / turbo 1.380 ΔE00, the remainder being the 9-stop linear interpolation.
 
-> **Bug — Some preset stops do not match the matplotlib reference**
+> **Fix note (v7.5.1) — stops resampled from the official matplotlib tables**
 >
-> The source comments claim the stops are "sourced from matplotlib colormaps", but measurements show a systematic t∈[0,0.7]→position [0,0.875] compression in `inferno`/`turbo`, and maximum deviations of 11.4–17.2 ΔE00 between the intermediate stops of `viridis`/`magma`/`cividis` and the matplotlib colors at the same positions (≤ 6.6 if measured as the nearest distance to the reference curve). What this article evaluates is the stop data QWT actually ships; if a future version corrects the stops, the CV of `inferno`/`magma` (0.587/0.582) is expected to fall back to matplotlib's own level (0.332/0.348) and the grades to rise accordingly. When comparing figures across tools, remember: same-name presets do not produce the same pixels in the two libraries.
+> In the first release some stops were hand approximations: the 9 stops of `inferno`/`magma`/`turbo` were taken exactly (or nearly) from the mpl curve but placed over the whole 0-1 range (position compression), and the intermediate stops of `viridis`/`cividis` deviated from the mpl table by up to 11.4-17.2 ΔE00 at the same position. Since v7.5.1 the stops of these five presets are sampled directly from the official matplotlib 256-entry tables at the same positions (generator: `colormap_stops_gen.py`, rerunnable for verification): the same-position stop deviation is exactly zero and the whole-band mean deviation drops to 0.445-1.380 ΔE00 (the remainder is the 9-stop linear interpolation), and `inferno`/`magma` move from grade B to A. The other presets are unchanged: `jet`/`hot`/`bone`/`copper`/`coolwarm` remain few-stop approximations (the negative results of Section 5.2) and `rainbow` remains QWT's own closed hue ring, which never was matplotlib's same-name table.
 
 ## 5. Discussion
 
@@ -425,8 +425,8 @@ The limits of the evaluation method itself, and the negative results of this exp
 4. **The grading thresholds are conventions, not physics**. The CV 0.45/0.75 and reg 2/8 boundaries put `spring` and `spectral` (CV 0.449) almost exactly on the A/B boundary; `cool`'s grade B comes from the distance between reg 6.31 and the threshold 8 — set the threshold at 5 and it drops to C. The raw numbers in the tables are more reliable than the letters.
 5. **Grayscale printing is only approximated by L\***. Real printing is subtractive (CMYK, paper whiteness, dot gain); the "grayscale" here is on-screen L*, an upper-bound estimate for inkjet/laser printing; presets with `min |ΔL*| = 0` also accumulate halftone-dot quantization on paper.
 6. **The evaluation is decoupled from the data distribution**. All metrics assume the data occupies the ramp uniformly over [vMin, vMax]; with skewed data or outliers, the segment of the ramp actually in play may be only a small slice of the LUT (e.g. when `jet`'s bright band happens to cover 90% of the data, the false boundary becomes invisible instead), and the choice of vMin/vMax often matters more than the choice of ramp.
-7. **Deviations of the preset data from the reference implementations are counted as they are**. QWT's `viridis` is not matplotlib's `viridis` (mean difference 6.63), so the literature's conclusion that "viridis is perceptually uniform" cannot be transferred unconditionally to the stops QWT ships; the A/B/C grades here describe only the actual QWT data.
-8. **Negative results**: `autumn`'s original farMin is only 1.601 (color path too short), `cool`'s farMin under protan is 0.000, and `copper`/`bone` deviate from mpl's same-name tables by 7.9/4.9 (both are nonlinear ramps in mpl, and a 2/4-stop linear approximation must distort) — the "simple and intuitive" character of these presets is paid for in information capacity.
+7. **Deviations of the preset data from the reference implementations are counted as they are (the five mpl-sourced presets fixed in v7.5.1)**. In the first release QWT's `viridis` was not matplotlib's `viridis` (mean difference 6.63), so the literature's conclusion that "viridis is perceptually uniform" could not be transferred unconditionally to the stops QWT ships; since v7.5.1 viridis/plasma/inferno/magma/cividis/turbo are resampled from the official mpl tables (stop deviation 0.000, whole-band mean 0.445-1.380 ΔE00), while `jet`/`hot`/`bone`/`copper`/`coolwarm` remain few-stop approximations and `rainbow` remains QWT's own closed hue ring. Those remaining deviations are still counted honestly, and the A/B/C grades describe the shipped QWT data only.
+8. **Negative results**: `autumn`'s original farMin is only 1.601 (color path too short), `cool`'s farMin under protan is 0.000, and `copper`/`bone` deviate from mpl's same-name tables by 7.9/4.9 (both are nonlinear ramps in mpl, and a 2/4-stop linear approximation must distort; untouched by this batch) — the "simple and intuitive" character of these presets is paid for in information capacity.
 
 ## 6. Code practice
 
