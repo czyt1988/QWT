@@ -28,6 +28,8 @@
 #include "qwt_interval.h"
 #include "qwt_math.h"
 
+#include <algorithm>
+
 /**
  * @brief Construct a division without ticks
  *
@@ -362,8 +364,17 @@ QwtScaleDiv QwtScaleDiv::bounded(double lowerBound, double upperBound) const
  */
 void QwtScaleDiv::setTicks(int tickType, const QList< double >& ticks)
 {
-    if (tickType >= 0 && tickType < NTickTypes)
-        m_ticks[ tickType ] = ticks;
+    if (tickType >= 0 && tickType < NTickTypes) {
+        // Normalize: the tick lists are sorted and duplicate free. Engines can
+        // produce duplicated values (the date engine collapsing rounded minor
+        // ticks), which would otherwise be painted - and queried by snapping
+        // code - twice.
+        QList< double > normalized = ticks;
+        std::sort(normalized.begin(), normalized.end());
+        normalized.erase(std::unique(normalized.begin(), normalized.end()), normalized.end());
+
+        m_ticks[ tickType ] = normalized;
+    }
 }
 
 /**

@@ -35,6 +35,7 @@
 #include <qmap.h>
 #include <qlist.h>
 #include <qlocale.h>
+#include <qset.h>
 
 class QwtAbstractScaleDraw::PrivateData
 {
@@ -279,16 +280,42 @@ void QwtAbstractScaleDraw::draw(QPainter* painter, const QPalette& palette) cons
 
         painter->setPen(pen);
 
+        // The tick lists of different types can contain the same value: the
+        // date engine collapses rounded minor ticks onto major ticks, for
+        // example. Paint every position only once - a tick that sits on a
+        // tick of a longer type is skipped, so the position keeps the length
+        // of the longest type.
+        QSet< double > mediumAndMajorValues;
+        QSet< double > majorValues;
+
+        for (int tickType = QwtScaleDiv::MediumTick; tickType <= QwtScaleDiv::MajorTick; tickType++) {
+            const QList< double >& ticks = d->scaleDiv.ticks(tickType);
+            for (int i = 0; i < ticks.count(); i++) {
+                if (d->scaleDiv.contains(ticks[ i ])) {
+                    mediumAndMajorValues.insert(ticks[ i ]);
+                    if (tickType == QwtScaleDiv::MajorTick)
+                        majorValues.insert(ticks[ i ]);
+                }
+            }
+        }
+
         for (int tickType = QwtScaleDiv::MinorTick; tickType < QwtScaleDiv::NTickTypes; tickType++) {
             const double tickLen = d->tickLength[ tickType ];
             if (tickLen <= 0.0)
                 continue;
 
+            const QSet< double >& covered =
+                (tickType == QwtScaleDiv::MinorTick) ? mediumAndMajorValues : majorValues;
+
             const QList< double >& ticks = d->scaleDiv.ticks(tickType);
             for (int i = 0; i < ticks.count(); i++) {
                 const double v = ticks[ i ];
-                if (d->scaleDiv.contains(v))
-                    drawTick(painter, v, tickLen);
+                if (!d->scaleDiv.contains(v))
+                    continue;
+                if (tickType != QwtScaleDiv::MajorTick && covered.contains(v))
+                    continue;  // a longer tick is drawn at this position
+
+                drawTick(painter, v, tickLen);
             }
         }
 
