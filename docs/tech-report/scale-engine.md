@@ -55,7 +55,7 @@ flowchart LR
     F --> G["QwtScaleWidget::setScaleDiv<br/>major/medium/minor ticks 8/6/4 px"]
 ```
 
-Two default parameters are worth remembering: `maxMajor = 8` and `maxMinor = 5` (`src/plot/qwt_plot_axis.cpp:46-47`); tick lengths are 8/6/4 pixels for major/medium/minor (`src/plot/qwt_abstract_scale_draw.cpp:47-49`). Note that the `stepSize` computed by `autoScale` is passed back to `divideScale` as a **hint** — in the date engine this pass-back triggers a second classification (Section 5.6); it is the most important hidden coupling in this article.
+Two default parameters are worth remembering: `maxMajor = 8` and `maxMinor = 5` (`src/plot/qwt_plot_axis.cpp:46-47`); tick lengths are 8/6/4 pixels for major/medium/minor (`src/plot/qwt_abstract_scale_draw.cpp:48-50`). Note that the `stepSize` computed by `autoScale` is passed back to `divideScale` as a **hint** — in the date engine this pass-back triggers a second classification (Section 5.6); it is the most important hidden coupling in this article.
 
 ## 2. The linear engine: one round-up and two alignments
 
@@ -91,7 +91,7 @@ The signature of `QwtLinearScaleEngine::divideScale` (`src/core/qwt_scale_engine
 3. `align()` (`:679`) expands the bounds outward to integer multiples of the step: `floorEps`/`ceilEps` carry a $10^{-6}$ relative tolerance, plus a $10^{-12}$ absolute tolerance protecting endpoints "already on the grid" from being pushed off by floating-point error;
 4. `buildMajorTicks` (`:611`) lays $n = \mathrm{round}(w'/s)+1$ major ticks over the **aligned** interval, hard-capped at 10000 (`:614`, preventing memory blowup when the user supplies too small a step);
 5. `buildMinorTicks` (`:636`), see Section 2.3;
-6. `strip()` uses fuzzy comparison (tolerance $10^{-6} w$, `qwt_math.h:190`) to delete ticks outside the original interval, then pins ticks fuzzily equal to 0 to exactly 0.0;
+6. `strip()` uses fuzzy comparison (tolerance $10^{-6} w$, `qwt_math.h:190`) to delete ticks outside the original interval; `buildTicks` then pins ticks fuzzily equal to 0 (tolerance $10^{-6} s$) to exactly 0.0;
 7. If $x_1 > x_2$, reverse the whole division.
 
 > **Note — The order of alignment and clipping**
@@ -182,7 +182,7 @@ The full scan of the single-decade mechanism (experiment C2; major step 1 decade
 |---|---|---|---|---|---|---|
 | 0 | — | — | — | no minor ticks | — | — |
 | 1–3 | 0.5 | 2 | 5 | geometric | 5 | — |
-| 5, 7 | 0.2 | 5 | 2 | geometric | 2, 4, 6, 8 | — |
+| 4–8 | 0.2 | 5 | 2 | geometric | 2, 4, 6, 8 | — |
 | 9–18 | 0.1 | 10 | 1 | geometric | 2, 3, …, 9 | — |
 | 19–30 | 0.05 | 20 | 0.5 | **equidistant** | 1.45, 1.9, …, 9.55 (18 of them) | 5.5 |
 
@@ -276,7 +276,7 @@ Once the classification and step are fixed, `buildScaleDiv` (`:917`) floors/ceil
 
 ### 5.6 The hint pass-back triggers a second classification
 
-When `divideScale` (`:869`) receives a non-zero `stepSize` hint, it **re-estimates the budget**: `maxMajorSteps = ceil((max-min)/stepSize)`. Because Month/Year hints use the 30/365-day approximations, the re-estimated budget can exceed the user's budget and thereby change the classification. Measured case (the fifth example of experiment D1): span 2024-01-15 → 2024-09-15 (8.5 months); `autoScale` classifies it as Month with a 1-month step, expands the bounds to [01-01, 10-01], and the hint = 30 days = 2.592e9 ms; `divideScale` re-estimates maxMajor = ceil(274/30) = 10 from the hint, the Month threshold becomes $28 \times 10 = 280 > 274$ days, which fails, the classification is **re-judged as Week**, and the final rendering shows 10 major ticks spaced 28 days apart (01-01, 01-29, 02-26, …, 09-09) instead of month ticks. Had the hint been computed with the true mean month length of 30.44 days, the re-estimated budget would be 9, the threshold 252 < 274, and the Month classification would survive — the 30-day approximation flips the output type outright.
+When `divideScale` (`:869`) receives a non-zero `stepSize` hint, it **re-estimates the budget**: `maxMajorSteps = ceil((max-min)/stepSize)`. Because Month/Year hints use the 30/365-day approximations, the re-estimated budget can exceed the user's budget and thereby change the classification. Measured case (the fifth example of experiment D1): span 2024-01-15 → 2024-09-15 (8.5 months); `autoScale` classifies it as Month with a 1-month step, expands the bounds to [01-01, 10-01], and the hint = 30 days = 2.592e9 ms; `divideScale` re-estimates maxMajor = ceil(274/30) = 10 from the hint, the Month threshold becomes $28 \times 10 = 280 > 274$ days, which fails, the classification is **re-judged as Week**, and the final rendering shows 10 major ticks spaced 28 days apart (01-01, 01-29, 02-26, …, 09-09) instead of month ticks. Had the hint been derived from a 31-day calendar month, the re-estimated budget would be ceil(274/31) = 9, the threshold 252 < 274, and the Month classification would survive - the rounding of the month-length approximation flips the output type outright.
 
 ### 5.7 The week start is a function of the runtime locale
 
@@ -322,7 +322,7 @@ The exhaustive-search and sawtooth numbers are in Sections 3.2–3.4: integer-tr
 
 ### 6.4 Log engine cases
 
-The numbers are in the Section 4.3 table; the supplementary minor-tick mechanism scan (experiment C2, major step 1 decade): maxMinor 1–3 → 1 minor tick per decade (at the 5 multiple); 5–7 → 2, 4, 6, 8; 9–18 → full 2–9 graduation; 19–30 → 18 value-equidistant minor ticks + a medium tick at the 5.5 multiple (visually uneven on a log axis).
+The numbers are in the Section 4.3 table; the supplementary minor-tick mechanism scan (experiment C2, major step 1 decade): maxMinor 1–3 → 1 minor tick per decade (at the 5 multiple); 4–8 → 2, 4, 6, 8; 9–18 → full 2–9 graduation; 19–30 → 18 value-equidistant minor ticks + a medium tick at the 5.5 multiple (visually uneven on a log axis).
 
 ### 6.5 Date engine scenarios (UTC, maxMajor = 8, maxMinor = 5, full pipeline)
 
@@ -334,7 +334,7 @@ The numbers are in the Section 4.3 table; the supplementary minor-tick mechanism
 | 10 years | Year | 2014-01-01 → 2026-01-01 | Year / 2 years | 7 (even years 2014…2026) | 12 / 6 |
 | 8.5 months | Month | 01-01 → 10-01 | **Week / 4 weeks** | 10 (28 days apart) | 20 / 10 |
 
-The minor tick structure of the 10-year scenario deserves to be called out separately (experiments D3/D7): `qwtDivideMajorStep(2, 5, Year)` takes the "fractional year" branch and gets minStep = 0.5 years, while `qwtDivideToYears` converts to month offsets with `qRound(i·0.5)`, yielding [12, 12, 24] — i=1 and i=2 both round to 1 year, i=3 rounds to 2 years (exactly the next major tick). Measured: all 6 medium ticks sit at the same position as some minor tick, and all 12 minor ticks sit at the same position as a major/medium tick — **the entire minor tick layer provides no new positions**. With maxMinor=8 it is worse: the month offsets are [0, 12, 12, 12, 12, 24, 24], and the first minor tick lands directly on a major tick.
+The minor tick structure of the 10-year scenario deserves to be called out separately (experiments D3/D7): `qwtDivideMajorStep(2, 5, Year)` takes the "fractional year" branch and gets minStep = 0.5 years, while `qwtDivideToYears` converts to month offsets with `qRound(i·0.5)`, yielding [12, 12, 24] — i=1 and i=2 both round to 1 year, i=3 rounds to 2 years (exactly the next major tick). Measured: all 6 medium ticks sit at the same position as some minor tick, and all 12 minor ticks sit at the same position as a major/medium tick — **the entire minor tick layer provides no new positions**. With maxMinor=8 it is worse: the month offsets are [0, 12, 12, 12, 12, 24, 24], and the first minor tick lands directly on a major tick. Since v7.5.1 `QwtScaleDiv::setTicks()` removes those duplicate values ([12, 12, 24] normalizes to [12, 24]) and the drawing layer skips minor ticks equal to a major/medium tick, so nothing is overprinted visually; the engine behavior itself — the minor tick layer providing no new positions — is unchanged, and the budget should be set as this section advises when month ticks are needed.
 
 ### 6.6 Cross-validation
 
@@ -353,16 +353,16 @@ The comparison covers the aligned bounds and step hint of autoScale, and the thr
 3. **The log major-step clamp eats the budget**: $[3,300]$ under maxMajor=8 has only 2 major ticks (Section 4.3). Intervals 2–4 decades wide in log with unaligned endpoints are the worst-hit zone.
 4. **The $10^{-150}$ clamp for non-positive lower bounds**: $[0, 1000]$ produces 9 major ticks starting from $10^{-160}$; strip's fuzzy tolerance scales with the interval width and cannot weed out these tiny values. Data containing zero or negative values should not be handed to the log engine directly.
 5. **The date Month level is nearly closed + hint-driven reclassification**: with the default maxWeeks=4, Month opens only for spans > 224 days (maxSteps=8); a 3-month span gets week ticks. An 8.5-month span is reclassified as Week in the second classification because of the 30-day approximation (Section 5.6). To obtain month ticks, the conditions are maxWeeks **less than** the span in weeks (the default 4 usually satisfies this) and days > 28·maxSteps — enlarging the week ceiling with `setMaxWeeks` only makes `weeks > maxWeeks` harder to satisfy; the effect is to suppress Month and keep long spans in the Week classification. In the 8.5-month reclassification case, the failing gate is days > 28·10 = 280, and adjusting maxWeeks in either direction cannot save it; the correct fixes are to bypass the hint pass-back (call `divideScale` directly with `stepSize = 0`), raise the `maxMajor` budget, or derive `intervalType` yourself.
-6. **Year-type minor tick collapse (deduplicated at the data and draw level since v7.5.1)**: `qRound(i·minStep)` makes fractional-year offsets repeat or land on major ticks ([12, 12, 24], [0, 12, …]); the minor tick layer carries zero information (Section 6.5). Since v7.5.1 the duplicate values are removed in `setTicks()` and minor ticks coinciding with a longer type are skipped in `draw()` (no visual overprinting; `tests/scale_draw_test`), but the engine still produces those positions - for the Year type, maxMinor ≤ 3 is recommended (offsets [12], normal behavior).
+6. **Year-type minor tick collapse (deduplicated at the data and draw level since v7.5.1)**: `qRound(i·minStep)` makes fractional-year offsets repeat or land on major ticks ([12, 12, 24], [0, 12, …]); the minor tick layer carries zero information (Section 6.5). Since v7.5.1 duplicate values within a list are removed in `setTicks()` and minor ticks coinciding with a longer type are skipped in `draw()` (no visual overprinting; `tests/scale_draw_test`), but the engine's tick generation still produces those positions (the normalization only happens in `QwtScaleDiv::setTicks()`) - for the Year type, maxMinor ≤ 3 is recommended (offsets [12], normal behavior).
 7. **Week alignment depends on the runtime locale**: under zh-CN, Monday becomes Sunday (Section 5.7). Cross-region deployments need `QLocale::setDefault` or deriving `alignDate` yourself.
 8. **Degenerate intervals expand by 100%**: a single-point date series (width 0) triggers `buildInterval`; the single point 2024-03-10 is expanded to 1990-01-01 → 2060-01-01 (a 70-year span, Year type). A linear axis likewise gets $[0.5v, 1.5v]$.
 9. **The 10000 major-tick cap truncates silently**: when the user supplies an extremely narrow step via `setAxisScale`, `buildMajorTicks` truncates to 10000 ticks without warning (`:614`), leaving the second half of the axis unticked.
 10. **strip's tolerance scales with the interval width**: the first major tick of $[1, 10^7]$ is 0 (1 unit outside the interval, tolerance 10). Under wide-interval + small-step combinations, endpoint labels may fall outside the data range.
 11. **Leap seconds are not in the model**: Qt's time model is POSIX milliseconds and `qwtDstTicks` handles DST jumps only; leap seconds are neither represented nor produce duplicate ticks — for long series at sub-second precision, axis time and true UTC elapsed time accumulate a deviation (this is already the case at the Qt level, not introduced by QWT).
 
-> **Bug — Minor ticks coinciding with major ticks**
+> **Fix note (v7.5.1) — tick deduplication (data and draw side)**
 >
-> Item 6 (the Year-type qRound collapse) and the $0.5s$ fallback of Section 2.3 both produce divisions where "minor ticks sit on top of major/medium ticks". The drawing layer does not deduplicate (`QwtAbstractScaleDraw::draw` paints the list entry by entry); coinciding positions render as a thick line over a thin one — visually harmless, but the `scaleDiv` data is unclean. Code that relies on the tick list for interaction (such as snapping) must deduplicate on its own.
+> Divisions of the first release could contain duplicated tick values (item 6 above: the Year-type `qRound(i·minStep)` yields [12, 12, 24], [0, 12, …]), and the drawing layer painted the list entry by entry without deduplication, so coinciding positions showed up as a thick line over a thin one; code relying on the tick list for interaction (such as snapping) had to deduplicate on its own. Since v7.5.1: `QwtScaleDiv::setTicks()` sorts and removes duplicate values (no duplicates remain within one list), and `QwtAbstractScaleDraw::draw()` skips ticks equal to a longer tick type (medium/major) — every position is painted once with the length of the longest type. The regression test `tests/scale_draw_test` verifies this by counting drawTick() calls (the device-pixel-aligned filled rectangles render idempotently, so a pixel comparison cannot see the difference); the contamination of interaction code by duplicate values also disappears with the data-side normalization.
 
 ## 8. Code practice
 
@@ -379,7 +379,7 @@ QwtPlot* plot = new QwtPlot;
 
 // data is stored as epoch milliseconds; UTC semantics avoid local time zone / DST interference
 QwtDateScaleEngine* engine = new QwtDateScaleEngine(Qt::UTC);
-engine->setMaxWeeks(8);                      // raise the week ceiling = spans of ≤8 weeks stay in the Week classification (upstream business-chart usage; default 4); does not open up the Month level
+engine->setMaxWeeks(52);                     // raise the week ceiling = suppress the Month level: a span whose week count does not exceed it never enters the Month gate, so a yearly view (52 weeks) stays in the Week classification (upstream business-chart usage; default 4); does not open up the Month level
 plot->setAxisScaleEngine(QwtAxis::XBottom, engine);
 
 QwtDateScaleDraw* draw = new QwtDateScaleDraw(Qt::UTC);
