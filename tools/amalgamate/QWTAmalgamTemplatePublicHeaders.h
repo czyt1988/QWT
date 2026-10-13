@@ -198,6 +198,7 @@
 #include "../../src/plot3d/qwt3d_plotitem.h"
 #include "../../src/plot3d/qwt3d_plot.h"
 #include "../../src/plot3d/qwt3d_surface.h"
+#include "../../src/plot3d/qwt3d_waterfall.h"
 #include "../../src/plot3d/qwt3d_bar.h"
 #include "../../src/plot3d/qwt3d_line3d.h"
 #include "../../src/plot3d/qwt3d_serialize.h"
