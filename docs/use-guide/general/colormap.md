@@ -12,7 +12,7 @@
 
 - ✅ **22 presets**: matplotlib / MATLAB compatible names, created by name without any stop definitions
 
-- ✅ **Perceptually uniform**: viridis, plasma, inferno, magma, cividis vary monotonically in lightness — colorblind friendly and print safe
+- ✅ **Perceptually uniform**: viridis, plasma, cividis vary monotonically in lightness with uniform color-step sizes — colorblind friendly and print safe; inferno and magma are monotonic in lightness but slightly less uniform in step size
 
 - ✅ **Diverging ramps**: coolwarm, rdylbu, rdylgn, spectral for signed data around a center value
 
@@ -259,7 +259,7 @@ Below are the gradients of all 22 presets (sampled from `create("name")`, ordere
 | `copper` | Sequential · single hue | black-copper | geology, metallic look |
 | `rainbow` | Cyclic | full hue circle | periodic quantities (phase, angle) |
 | `hsv` | Cyclic | full HSV hue circle | data whose min equals its max |
-| `turbo` | Sequential · rainbow, improved | Google turbo, more uniform than jet | rainbow look without the artifacts |
+| `turbo` | Sequential · rainbow, improved | Google turbo, uniformity on par with jet | rainbow look with better readability than jet |
 | `coolwarm` | Diverging | blue-white-red | signed difference fields (anomalies, errors) |
 | `rdylbu` | Diverging | red-yellow-blue (ColorBrewer) | anomalies, elevation fills |
 | `rdylgn` | Diverging | red-yellow-green (ColorBrewer) | signed ratios |
@@ -327,7 +327,7 @@ The comparison renders below were exported with `--screenshot`. Every image show
 
 
 
-`rainbow` and `hsv` wrap around to their first color, which makes them suitable for periodic data. `turbo` is Google's balanced rainbow: far more perceptually linear than `jet` while keeping the rainbow look.
+`rainbow` and `hsv` wrap around to their first color, which makes them suitable for periodic data. `turbo` is Google's balanced rainbow: compared with `jet` its lightness dip is slightly smaller, but its distinguishability under color-vision deficiency is worse than `jet`, and the quantitative metrics are a mixed bag (see the [color-science technical report](../../tech-report/colormap-color-science.md) for the evaluation) — suitable for scenes where the rainbow look is a must.
 
 
 
