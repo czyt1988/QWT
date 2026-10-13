@@ -8,7 +8,7 @@
 > - **60 FPS 可行域**：`DirectPainter` 增量在全部测试单元内都满足 16.67 ms 预算；整帧 replot + LTTB 在 $W \le 1\mathrm{M}$ 也达标（window 9.6 ms、ring_replot 8.7 ms），唯一例外是 `setdata` 在 $R=1\mathrm{M}, W=1\mathrm{M}$ 因每帧 $O(W)$ 拷贝提交（10.1 ms）叠加而破预算（18.5 ms）；一旦关闭 LTTB，整帧策略的失效边界由有效窗口 $W_{\text{eff}}=\min(R\cdot t, W)$ 决定：实测仅 $(R=1\mathrm{M}, W=1\mathrm{M})$ 跌破 60 FPS（42–50 ms，19–25 FPS）；$R=100\mathrm{k}$ 各单元仍在 72–100 FPS——其中 $W=1\mathrm{M}$ 单元因窗口在 3.3 s 内未充满（$W_{\text{eff}}\approx180\mathrm{k}$），按拟合斜率 40–48 ms/百万点外推，$W_{\text{eff}}$ 达 0.3–0.4 M 即破预算。
 > - **`DirectPainter` 净收益 1.4–55 倍**：与整帧 replot 对照（ring_replot/ring_dp，LTTB 开），收益从 $R=1\mathrm{M}, W=10\mathrm{k}$ 的 1.4 倍（页每 tick 翻转、增量退化为整帧）到 $R=1\mathrm{k}, W=1\mathrm{M}$ 的 54.6 倍（新增段极小而整帧要画满百万点）；`BackingStore` 开启会触发 item 双绘，实测惩罚 1.1–2.9 倍。
 > - **延迟由重绘节奏而非渲染成本主导**：端到端延迟中位数全矩阵为 5–116 ms，LTTB 开的非过载单元（$T_{\text{frame}} < 5$ ms）为 5.1–9.2 ms、深度过载单元由模型下界刻画；模型 $L_{\text{med}} \approx \Delta t_{\text{eff}}/2 + T_{\text{frame}}$ 在全部 144 单元的中位绝对误差仅 0.086 ms。想把延迟压到 5 ms 以下必须缩短 tick 间隔或改为样本到达即绘。
-> - **SIMD 优化在单线程流式下反噬**：`setRawSamples` 命中 SIMD 变换路径本应更快，实测 ring_raw 反而比通用路径的 ring_dp 慢（$R=1\mathrm{M}, W=1\mathrm{M}$ 时 3.16 ms vs 0.82 ms）；根因是 `argMinMaxAVX2`（`src/core/qwt_simd_argminmax.cpp:141-203`）返回前未清 AVX 上半状态，隔离微基准（原始输出 `streaming_micro_results.txt`）显示后续标量 append 从 0.18 ms 涨到 1.91 ms、补 `_mm256_zeroall()` 后回到 0.15 ms。
+> - **SIMD 优化在单线程流式下反噬**：`setRawSamples` 命中 SIMD 变换路径本应更快，实测 ring_raw 反而比通用路径的 ring_dp 慢（$R=1\mathrm{M}, W=1\mathrm{M}$ 时 3.16 ms vs 0.82 ms）；根因是 v7.5.0 发行形态的 `argMinMaxAVX2` 返回前未清 AVX 上半状态（该内核已随 v7.5.1 的修复移入独立编译的 `src/core/qwt_simd_argminmax_avx2.cpp:57-115`），隔离微基准（原始输出 `streaming_micro_results.txt`）显示后续标量 append 从 0.18 ms 涨到 1.91 ms、补 `_mm256_zeroall()` 后回到 0.15 ms。
 
 ---
 
@@ -80,9 +80,9 @@ flowchart LR
 
 ### 2.3 全量 setData：COW 的真相与拷贝的位置
 
-`QwtPlotCurve::setSamples(const QVector<QPointF>&)`（`qwt_plot_curve.cpp:1347-1350`）的实现是 `setData(new QwtPointSeriesData(samples))`。`QwtPointSeriesData` 继承 `QwtArraySeriesData<QPointF>`，其成员 `QVector<QPointF> m_samples` 按值保存——但 `QVector` 是隐式共享（COW）的：**构造时只增引用计数，不发生深拷贝**。真正的拷贝发生在应用侧：流式应用每帧都要把最新 $W$ 个样本装进一个 `QVector<QPointF>`（无论是从自有环形缓冲复制还是直接生成），这份 $O(W)$ 的填充才是"全量提交"的主体成本。`setData` 本身另有两笔小账：`delete` 上一帧的数据对象 + `new` 一个新的（每帧一次堆往返），以及 `dataChanged() → itemChanged() → autoRefresh()` 链（`qwt_series_store.h:157-164`、`qwt_plot_seriesitem.cpp:131-133`、`qwt_plot_item.cpp:495-501`）——`autoReplot` 默认为 **true**（`qwt_plot.cpp:135, 198`；触发点 `autoRefresh()` 在 :395-400）时这条链直接触发整帧 replot，若应用随后自己再 replot 一次，就是每帧双份重绘。流式应用必须 `setAutoReplot(false)`。
+`QwtPlotCurve::setSamples(const QVector<QPointF>&)`（`qwt_plot_curve.cpp:1457-1460`）的实现是 `setData(new QwtPointSeriesData(samples))`。`QwtPointSeriesData` 继承 `QwtArraySeriesData<QPointF>`，其成员 `QVector<QPointF> m_samples` 按值保存——但 `QVector` 是隐式共享（COW）的：**构造时只增引用计数，不发生深拷贝**。真正的拷贝发生在应用侧：流式应用每帧都要把最新 $W$ 个样本装进一个 `QVector<QPointF>`（无论是从自有环形缓冲复制还是直接生成），这份 $O(W)$ 的填充才是"全量提交"的主体成本。`setData` 本身另有两笔小账：`delete` 上一帧的数据对象 + `new` 一个新的（每帧一次堆往返），以及 `dataChanged() → itemChanged() → autoRefresh()` 链（`qwt_series_store.h:157-164`、`qwt_plot_seriesitem.cpp:131-133`、`qwt_plot_item.cpp:495-501`）——`autoReplot` 默认为 **true**（`qwt_plot.cpp:135, 198`；触发点 `autoRefresh()` 在 :395-400）时这条链直接触发整帧 replot，若应用随后自己再 replot 一次，就是每帧双份重绘。流式应用必须 `setAutoReplot(false)`。
 
-三个变体的语义差异（`qwt_plot_curve.cpp:1331-1530`）：
+三个变体的语义差异（`qwt_plot_curve.cpp:1439-1643`）：
 
 | API | 数据对象 | 拷贝语义 | mapper 路径资格 |
 |---|---|---|---|
@@ -91,7 +91,7 @@ flowchart LR
 | `setSamples(const double* x, const double* y, int)` | `QwtPointArrayData<double>` | `memcpy` 深拷贝（`qwt_point_data.h:250-257`） | **SIMD 快速路径** |
 | `setRawSamples(const double* x, const double* y, int)` | `QwtCPointerData<double>` | **零拷贝**，仅存指针；调用方保证生命周期与内容稳定 | **SIMD 快速路径** |
 
-`setRawSamples` 的文档注释写明"setRawSamples is provided for efficiency. It is important to keep the pointers during the lifetime of the underlying QwtCPointerData class"（`qwt_plot_curve.cpp:1365-1366`）——引用语义把内存管理责任完全推给应用：绘制期间（含 GUI 线程外的任何 paint 事件）数组不得被重分配或改写，多线程下需要与 2.1 节相同的读写锁协议。`examples/2D/cpuplot` 是它的教科书用法：固定长度的历史数组每秒整体右移一格，`setRawSamples(m_timeData, data, count)` 零拷贝提交 + 整帧 `replot()`（`CpuPlot.cpp:160-187`）——低速率（1 Hz）、小窗口（60 点，`CpuPlot.h:11` 的 `HISTORY 60`）场景下全量重绘完全够用，不需要增量机制。
+`setRawSamples` 的文档注释写明"setRawSamples is provided for efficiency. It is important to keep the pointers during the lifetime of the underlying QwtCPointerData class"（`qwt_plot_curve.cpp:1475-1476`）——引用语义把内存管理责任完全推给应用：绘制期间（含 GUI 线程外的任何 paint 事件）数组不得被重分配或改写，多线程下需要与 2.1 节相同的读写锁协议。`examples/2D/cpuplot` 是它的教科书用法：固定长度的历史数组每秒整体右移一格，`setRawSamples(m_timeData, data, count)` 零拷贝提交 + 整帧 `replot()`（`CpuPlot.cpp:160-187`）——低速率（1 Hz）、小窗口（60 点，`CpuPlot.h:11` 的 `HISTORY 60`）场景下全量重绘完全够用，不需要增量机制。
 
 ### 2.4 WindowedSeriesData：按需窗口与 SIMD 资格的丢失
 
@@ -105,7 +105,7 @@ if (auto* val = dynamic_cast< const QwtValuePointData< double >* >(series)) ...
 if (auto* cval = dynamic_cast< const QwtCPointerValueData< double >* >(series)) ...
 ```
 
-自定义子类一律落入逐点虚函数 `sample(i)` 的通用路径——LTTB 的每桶 argmin/argmax 失去 AVX2/SSE4.2 加速（《LTTB 降采样》篇 5.3 节）。双写镜像环形缓冲 + `setRawSamples` 指针重绑定（本文的 `ring_raw` 通路）正是为了在流式场景下同时拿到"零拷贝提交"与"SIMD 变换资格"。另一个隐藏成本：`WindowedSeriesData::boundingRect()` 在每次 `setWindow` 后作废缓存，重算是对整个窗口的 $O(W)$ 扫描（`WindowedSeriesData.h:75-96`）；只有开启轴自动缩放时 `QwtPlot::updateAxes()` 才会查询它（`qwt_plot_axis.cpp:862-864`），固定轴下这笔成本不存在——但一旦应用打开 `setAxisAutoScale`，每帧 replot 都会触发这次扫描。
+自定义子类一律落入逐点虚函数 `sample(i)` 的通用路径——MinMax 桶归约的每桶 argmin/argmax 失去 AVX2/SSE4.2 加速（v7.4.2 及之前的 `FilterPointsLTTB` 即该算法，v7.5.0 起为 `FilterPointsMinMaxLTTB`；《LTTB 降采样》篇 5.3 节）。双写镜像环形缓冲 + `setRawSamples` 指针重绑定（本文的 `ring_raw` 通路）正是为了在流式场景下同时拿到"零拷贝提交"与"SIMD 变换资格"。另一个隐藏成本：`WindowedSeriesData::boundingRect()` 在每次 `setWindow` 后作废缓存，重算是对整个窗口的 $O(W)$ 扫描（`WindowedSeriesData.h:75-96`）；只有开启轴自动缩放时 `QwtPlot::updateAxes()` 才会查询它（`qwt_plot_axis.cpp:862-864`），固定轴下这笔成本不存在——但一旦应用打开 `setAxisAutoScale`，每帧 replot 都会触发这次扫描。
 
 ## 3. QwtPlotDirectPainter 的真实行为
 
@@ -293,7 +293,7 @@ LTTB 开启时，`ring_dp`/`ring_raw`/`ring_dp_bs`/`ring_replot`/`window` 五种
 
 **LTTB 对整帧策略的收益随 $W$ 放大。** $R=1\mathrm{M}$ 下关/开 LTTB 的帧时间比：window 在 $W=100\mathrm{k}$ 为 3.4 倍、$W=1\mathrm{M}$ 为 5.0 倍；ring_replot 在 $W=1\mathrm{M}$ 为 4.8 倍；setdata 因拷贝成本不随 LTTB 变化，比值被摊薄到 2.7 倍。$W=10\mathrm{k}$ 处三者都只有 1.1–1.3 倍——点数太少，降不降采样都快。这与《LTTB 降采样》篇的结论一致：降采样的价值只在 $N \gg 4W_c$ 时兑现。
 
-**SIMD 变换资格在单线程流式下反噬。** 这是本文最反直觉的发现。按《LTTB 降采样》篇 5.3 节，只有 `QwtPointArrayData<double>`/`QwtCPointerData<double>` 等四个 SoA 类型能命中 `qwtSimdArgMinMax` 的 AVX2 快速路径（`qwt_point_mapper.cpp:547-553`），自定义 `QwtSeriesData` 子类落入逐点虚函数通用路径。直觉上 `ring_raw`（每 tick `setRawSamples` 指针重绑定 → `QwtCPointerData<double>` → SIMD）应当快过 `ring_dp`（自定义 `RingSeriesData` → 通用路径）。实测却相反（LTTB 开，帧时间比 ring_dp/ring_raw）：
+**SIMD 变换资格在单线程流式下反噬。** 这是本文最反直觉的发现。按《LTTB 降采样》篇 5.3 节，只有 `QwtPointArrayData<double>`/`QwtCPointerData<double>` 等四个 SoA 类型能命中 `qwtSimdArgMinMax` 的 AVX2 快速路径（`qwt_point_mapper.cpp:547-553`），自定义 `QwtSeriesData` 子类落入逐点虚函数通用路径。需注意该 SIMD 路径属于 MinMax 桶归约：本文矩阵采集时 `FilterPointsLTTB` 即该实现（QWT 7.4.2），v7.5.0 起它改名为 `FilterPointsMinMaxLTTB`，默认的 `FilterPointsLTTB` 换成真 LTTB（`qwtLttbReduce`，两趟标量、无 SIMD 变体）——本文的"LTTB 开/关"均指采集时的该实现。直觉上 `ring_raw`（每 tick `setRawSamples` 指针重绑定 → `QwtCPointerData<double>` → SIMD）应当快过 `ring_dp`（自定义 `RingSeriesData` → 通用路径）。实测却相反（LTTB 开，帧时间比 ring_dp/ring_raw）：
 
 | R | W=10k | W=100k | W=1M |
 |---:|---:|---:|---:|
@@ -304,7 +304,7 @@ LTTB 开启时，`ring_dp`/`ring_raw`/`ring_dp_bs`/`ring_replot`/`window` 五种
 
 比值处处 <1，即 ring_raw 一律更慢，$R=1\mathrm{M}, W=1\mathrm{M}$ 处慢到 0.26 倍（3.16 ms vs 0.82 ms）。拆开相位看根因：ring_raw 在 $R=1\mathrm{M}$、$W\ge100\mathrm{k}$ 的单元 **gen 段涨到 1.93–1.98 ms，而做同样 appendBatch 的 ring_dp 只有 0.19–0.30 ms**——生产循环被拖慢了约 7 倍（$W=10\mathrm{k}$ 页退化单元例外：两者 gen 段相当，0.21–0.23 ms）。gen 段在两策略里是逐字节相同的代码（同样的 `splitmix64` + 两次 `std::sin` + 镜像写入），唯一差别是上一 tick 的 draw 段：ring_raw 走了 AVX2 的 `qwtSimdArgMinMax`，ring_dp 走标量通用路径。
 
-根因指向 **AVX→SSE 转换惩罚**：当时的 `argMinMaxAVX2`（`src/core/qwt_simd_argminmax.cpp:141-203`；v7.5.1 起该内核移入独立编译的 `qwt_simd_argminmax_avx2.cpp`，见段末）全程使用 256-bit `_mm256_*` 指令，却在返回前没有执行 VZEROUPPER。函数返回后 YMM 寄存器高 128 位处于"脏"状态，其后写入这些上半被弄脏寄存器的 legacy 编码 128-bit SSE 指令（这里是 MSVC `std::sin` 重度使用的 SSE 循环）会遭遇合并/虚假依赖停顿，直到上半状态被清零；惩罚大小依赖后续代码的寄存器使用形态——sin 重 SSE 生产循环命中，而姊妹篇[《SIMD argmin/argmax 向量化基准》](simd-argminmax.md) 4.5 节的短通用依赖链探针（64 条 legacy `ADDPD`）测不出可观测惩罚。由于生产者与消费者在本文基准里同处 GUI 线程、同处一个核，draw 段的 AVX2 直接污染了紧随其后的 gen 段。
+根因指向 **AVX→SSE 转换惩罚**：当时的 `argMinMaxAVX2`（v7.5.0 发行形态；现名 `qwtArgMinMaxAVX2`，位于独立编译的 `src/core/qwt_simd_argminmax_avx2.cpp:57-115`；v7.5.1 起从 `qwt_simd_argminmax.cpp` 移入，见段末）全程使用 256-bit `_mm256_*` 指令，却在返回前没有执行 VZEROUPPER。函数返回后 YMM 寄存器高 128 位处于"脏"状态，其后写入这些上半被弄脏寄存器的 legacy 编码 128-bit SSE 指令（这里是 MSVC `std::sin` 重度使用的 SSE 循环）会遭遇合并/虚假依赖停顿，直到上半状态被清零；惩罚大小依赖后续代码的寄存器使用形态——sin 重 SSE 生产循环命中，而姊妹篇[《SIMD argmin/argmax 向量化基准》](simd-argminmax.md) 4.5 节的短通用依赖链探针（64 条 legacy `ADDPD`）测不出可观测惩罚。由于生产者与消费者在本文基准里同处 GUI 线程、同处一个核，draw 段的 AVX2 直接污染了紧随其后的 gen 段。
 
 隔离微基准（`streaming_micro_simd.cpp`，脱离 GUI，交替执行 append 与 reduce；单次运行的完整 stdout 已存 `streaming_micro_results.txt`）支持这条因果链：
 
@@ -548,7 +548,7 @@ int main(int argc, char* argv[])
 
 ## 9. 参考文献
 
-1. QWT 源码：`src/plot/qwt_plot_directpainter.h/.cpp`（三条绘制路径、事件过滤器、属性语义）、`src/plot/qwt_plot_canvas.h/.cpp`（BackingStore、paintEvent 两分支、replot/invalidateBackingStore）、`src/plot/qwt_plot_curve.cpp:1331-1530`（setSamples/setRawSamples 全家族）、`src/plot/qwt_plot.cpp:690-712`（replot 链）、`src/plot/qwt_plot_axis.cpp:843-918`（updateAxes 与包围盒查询门控）、`src/plot/qwt_plot_item.cpp:495-501`（itemChanged → autoRefresh）、`src/plot/qwt_point_mapper.cpp:547-553, 1223-1250`（SIMD 资格 dynamic_cast 与归约优先级）、`src/core/qwt_series_data.h`、`src/core/qwt_point_data.h`、`src/core/qwt_series_store.h`（数据存储模板与 COW 行为）、`src/plot/qwt_sampling_thread.cpp:120-144`（采样线程节奏）。
+1. QWT 源码：`src/plot/qwt_plot_directpainter.h/.cpp`（三条绘制路径、事件过滤器、属性语义）、`src/plot/qwt_plot_canvas.h/.cpp`（BackingStore、paintEvent 两分支、replot/invalidateBackingStore）、`src/plot/qwt_plot_curve.cpp:1439-1643`（setSamples/setRawSamples 全家族）、`src/plot/qwt_plot.cpp:690-712`（replot 链）、`src/plot/qwt_plot_axis.cpp:843-915`（updateAxes 与包围盒查询门控）、`src/plot/qwt_plot_item.cpp:495-501`（itemChanged → autoRefresh）、`src/plot/qwt_point_mapper.cpp:547-553, 1493-1530`（SIMD 资格 dynamic_cast 与归约优先级）、`src/core/qwt_series_data.h`、`src/core/qwt_point_data.h`、`src/core/qwt_series_store.h`（数据存储模板与 COW 行为）、`src/plot/qwt_sampling_thread.cpp:120-144`（采样线程节奏）。
 2. QWT 示例：`examples/2D/oscilloscope`（SignalData 双缓冲提交协议、页式 DirectPainter 增量的标准范本）、`examples/2D/realtime`（IncrementalPlot 单点增量生长曲线）、`examples/2D/cpuplot`（setRawSamples + 定时全量 replot 的节流模式）、`examples/bench/renderbench`（WindowedSeriesData 滚动窗口与降采样对比基准）。
 3. 本文配套基准：`docs/assets/algorithms/streaming_bench.cpp`（六通路 × 4 速率 × 3 窗口 × LTTB 开关的自动化矩阵）、`streaming_results.csv`（每轮一行原始数据）、`streaming_experiment.py`（聚合、模型拟合与出图，全部数字可复算）。
 4. 《Raster 与 OpenGL 渲染管线：端到端帧时间分解与选型判据》（raster-vs-opengl.md）：帧成本四段分解方法学、空场景固定开销与 mapper 系数的独立测量、DirectPainter 在 GL 画布上的双峰失效、BackingStore 双绘的首次实测（其 4.8 节）。
