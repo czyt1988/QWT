@@ -28,11 +28,9 @@
 #include "qwt_scale_div.h"
 #include "qwt_scale_map.h"
 #include "qwt_math.h"
-#include "qwt_painter.h"
 #include "qwt_text.h"
 
 #include <qpainter.h>
-#include <qpaintengine.h>
 #include <qmath.h>
 
 static inline double qwtEffectivePenWidth(const QwtAbstractScaleDraw* scaleDraw)
@@ -40,215 +38,44 @@ static inline double qwtEffectivePenWidth(const QwtAbstractScaleDraw* scaleDraw)
     return qwtMaxF(scaleDraw->penWidthF(), 1.0);
 }
 
-namespace QwtScaleRendererReal
+namespace
 {
-inline qreal penWidth(const QPainter* painter, const QwtScaleDraw* scaleDraw)
+/*
+    Backbone and ticks are filled as device pixel aligned rectangles instead of
+    being stroked with a pen: every edge lands on an integer device coordinate,
+    so the scale renders as crisp hairlines at any device pixel ratio and the
+    pen width truncates to whole device pixels (a width of 1.0 always paints
+    a single device pixel wide line).
+ */
+inline int qwtDevicePenWidth(const QPainter* painter, qreal deviceStep)
 {
-    qreal width = scaleDraw->penWidthF();
-#if 1
-    if (width <= 0.0)
-        width = 1.0;
-#endif
-
-    if (painter->pen().isCosmetic()) {
-        const QTransform& transform = painter->transform();
-
-        switch (scaleDraw->alignment()) {
-        case QwtScaleDraw::LeftScale:
-        case QwtScaleDraw::RightScale: {
-            width /= transform.m11();
-            break;
-        }
-        case QwtScaleDraw::TopScale:
-        case QwtScaleDraw::BottomScale: {
-            width /= transform.m22();
-            break;
-        }
-        }
-    }
-
-    return width;
+    return qMax(1, static_cast<int>(painter->pen().widthF() * deviceStep + 1e-6));
 }
 
-inline void drawBackbone(QPainter* painter, const QwtScaleDraw* scaleDraw)
+inline int qwtDeviceTickLength(qreal length, qreal deviceStep)
 {
-    const qreal pw2 = 0.5 * penWidth(painter, scaleDraw);
-
-    const QPointF pos  = scaleDraw->pos();
-    const qreal length = scaleDraw->length();
-
-    switch (scaleDraw->alignment()) {
-    case QwtScaleDraw::LeftScale: {
-        const qreal x = pos.x() + 1.0 - pw2;
-        QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-        break;
-    }
-    case QwtScaleDraw::RightScale: {
-        const qreal x = pos.x() - 1.0 + pw2;
-        QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-        break;
-    }
-    case QwtScaleDraw::TopScale: {
-        const qreal y = pos.y() + 1.0 - pw2;
-        QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-        break;
-    }
-    case QwtScaleDraw::BottomScale: {
-        const qreal y = pos.y() - 1.0 + pw2;
-        QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-        break;
-    }
-    }
+    return qMax(1, qRound(length * deviceStep));
 }
 
-inline void drawTick(QPainter* painter, const QwtScaleDraw* scaleDraw, qreal tickPos, qreal tickLength)
+inline void qwtFillDeviceRect(QPainter* painter, const QRect& deviceRect)
 {
-    const QPointF pos = scaleDraw->pos();
-
-    qreal pw = 0.0;
-
-    if (scaleDraw->hasComponent(QwtScaleDraw::Backbone))
-        pw = penWidth(painter, scaleDraw);
-
-    const qreal length = tickLength + pw;
-
     /*
-        Those correction offsets have been found by try and error.
-        They need to be understood and replaced by a calculation,
-        that makes sense. TODO ...
+        Map the device pixel aligned rectangle back into paint coordinates:
+        the edges land on integer device pixels after the paint engine has
+        applied the device pixel ratio, so backbone and ticks stay crisp
+        hairlines at any scaling.
      */
-    const qreal off1 = 1.0;
-    const qreal off2 = (scaleDraw->penWidthF() <= 0.0) ? 0.5 : 0.0;
-
-    switch (scaleDraw->alignment()) {
-    case QwtScaleDraw::LeftScale: {
-        const qreal x = pos.x() + off1 - off2;
-        QwtPainter::drawLine(painter, x, tickPos, x - length, tickPos);
-
-        break;
-    }
-    case QwtScaleDraw::RightScale: {
-        const qreal x = pos.x() - off1 + off2;
-        QwtPainter::drawLine(painter, x, tickPos, x + length, tickPos);
-        break;
-    }
-    case QwtScaleDraw::TopScale: {
-        const qreal y = pos.y() + off1 - 2 * off2;
-        QwtPainter::drawLine(painter, tickPos, y, tickPos, y - length);
-
-        break;
-    }
-    case QwtScaleDraw::BottomScale: {
-        const qreal y = pos.y() - off1 + off2;
-        QwtPainter::drawLine(painter, tickPos, y, tickPos, y + length);
-
-        break;
-    }
-    }
-}
+    painter->fillRect(painter->deviceTransform().inverted().mapRect(QRectF(deviceRect)), painter->pen().color());
 }
 
-namespace QwtScaleRendererInt
+inline qreal qwtDeviceX(const QTransform& tr, qreal x)
 {
-inline void drawBackbone(QPainter* painter, const QwtScaleDraw* scaleDraw)
-{
-    const int pw = qMax(qRound(scaleDraw->penWidthF()), 1);
-
-    const qreal length = scaleDraw->length();
-    const QPointF pos  = scaleDraw->pos();
-
-    switch (scaleDraw->alignment()) {
-    case QwtScaleDraw::LeftScale: {
-        const qreal x = qRound(pos.x() - (pw - 1) / 2);
-        QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-        break;
-    }
-    case QwtScaleDraw::RightScale: {
-        const qreal x = qRound(pos.x() + pw / 2);
-        QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-        break;
-    }
-    case QwtScaleDraw::TopScale: {
-        const qreal y = qRound(pos.y() - (pw - 1) / 2);
-        QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-        break;
-    }
-    case QwtScaleDraw::BottomScale: {
-        const qreal y = qRound(pos.y() + pw / 2);
-        QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-        break;
-    }
-    }
+    return tr.map(QPointF(x, 0.0)).x();
 }
 
-inline void drawTick(QPainter* painter, const QwtScaleDraw* scaleDraw, qreal tickPos, qreal tickLength)
+inline qreal qwtDeviceY(const QTransform& tr, qreal y)
 {
-    const QPointF pos = scaleDraw->pos();
-    tickPos           = qRound(tickPos);
-
-    int pw = 0;
-    if (scaleDraw->hasComponent(QwtScaleDraw::Backbone))
-        pw = qMax(qRound(scaleDraw->penWidthF()), 1);
-
-    int len = qMax(qRound(tickLength), 1);
-
-    // the width of ticks at the borders might extent the backbone
-    len += pw;
-
-    if (painter->pen().capStyle() == Qt::FlatCap)
-        len++;  // the end point is not rendered
-
-    qreal off = 0.0;
-
-    if (painter->paintEngine()->type() == QPaintEngine::X11) {
-        if (pw == 1) {
-            // In opposite to raster, X11 paints the end point
-            off = 1.0;
-        }
-    }
-
-    switch (scaleDraw->alignment()) {
-    case QwtScaleDraw::LeftScale: {
-        const qreal x1 = qRound(pos.x()) + 1;
-        const qreal x2 = x1 - len + 1;
-
-        QwtPainter::drawLine(painter, x2, tickPos, x1 - off, tickPos);
-
-        break;
-    }
-    case QwtScaleDraw::RightScale: {
-        const qreal x1 = qRound(pos.x());
-        const qreal x2 = x1 + len - 1;
-
-        QwtPainter::drawLine(painter, x1, tickPos, x2 - off, tickPos);
-
-        break;
-    }
-    case QwtScaleDraw::BottomScale: {
-        const qreal y1 = qRound(pos.y());
-        const qreal y2 = y1 + len - 1;
-
-        QwtPainter::drawLine(painter, tickPos, y1, tickPos, y2 - off);
-
-        break;
-    }
-    case QwtScaleDraw::TopScale: {
-        const qreal y1 = qRound(pos.y());
-        const qreal y2 = y1 - len + 1;
-
-        QwtPainter::drawLine(painter, tickPos, y2 + 1, tickPos, y1 + 1 - off);
-
-        break;
-    }
-    }
+    return tr.map(QPointF(0.0, y)).y();
 }
 }
 
@@ -267,6 +94,8 @@ public:
 
     Qt::Alignment labelAlignment;
     double labelRotation;
+
+    QwtScaleDraw::CornerMiter cornerMiter { QwtScaleDraw::NoMiter };
 };
 
 /**
@@ -282,6 +111,31 @@ QwtScaleDraw::QwtScaleDraw() : QWT_PIMPL_CONSTRUCT
 //! Destructor
 QwtScaleDraw::~QwtScaleDraw()
 {
+}
+
+/**
+ * @brief Set the corner miter flags
+ * @param miter Flags specifying which ends of the backbone are extended
+ *              into a corner shared with a perpendicular scale
+ * @details QwtScaleWidget sets the flags from the visibility of the
+ *          perpendicular axes of the plot; standalone use keeps NoMiter.
+ * @sa cornerMiter()
+ */
+void QwtScaleDraw::setCornerMiter(CornerMiter miter)
+{
+    QWT_D(d);
+    d->cornerMiter = miter;
+}
+
+/**
+ * @brief Get the corner miter flags
+ * @return Flags specifying which ends of the backbone are extended
+ * @sa setCornerMiter()
+ */
+QwtScaleDraw::CornerMiter QwtScaleDraw::cornerMiter() const
+{
+    QWT_DC(d);
+    return d->cornerMiter;
 }
 
 /**
@@ -613,15 +467,79 @@ QPointF QwtScaleDraw::labelPosition(double value) const
  */
 void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
 {
-    if (len <= 0)
+    if (len <= 0.0)
         return;
 
+    QWT_DC(d);
     const double tval = scaleMap().transform(value);
 
-    if (QwtPainter::roundingAlignment(painter))
-        QwtScaleRendererInt::drawTick(painter, this, tval, len);
-    else
-        QwtScaleRendererReal::drawTick(painter, this, tval, len);
+    const QTransform tr = painter->deviceTransform();
+    const qreal sx      = qAbs(tr.m11());
+    const qreal sy      = qAbs(tr.m22());
+
+    const bool hasBackbone = hasComponent(QwtAbstractScaleDraw::Backbone);
+
+    switch (d->alignment) {
+    case LeftScale:
+    case RightScale: {
+        const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sx) : 0;
+        const int inner   = qRound(qwtDeviceX(tr, d->pos.x()));
+        const int tickLen = qwtDeviceTickLength(len, sx);
+
+        // the tick ends at the inner edge of the backbone band, never crossing it
+        int x0, w;
+        if (d->alignment == LeftScale) {
+            x0 = hasBackbone ? inner - pw + 1 - tickLen : inner - tickLen + 1;
+            w  = tickLen + pw;
+        } else {
+            x0 = inner;
+            w  = tickLen + pw;
+        }
+
+        const int th = qwtDevicePenWidth(painter, sy);
+        int row      = qRound(qwtDeviceY(tr, tval));
+
+        // a tick at the scale border sits on the perpendicular backbone
+        const int first = qRound(qwtDeviceY(tr, d->pos.y()));
+        const int last  = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
+        if (row == first && (d->cornerMiter & MiterAtStart))
+            row = qRound(qwtDeviceY(tr, d->pos.y() - 1.0));
+        else if (row == last && (d->cornerMiter & MiterAtEnd))
+            row = qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0));
+
+        qwtFillDeviceRect(painter, QRect(x0, row - (th - 1) / 2, w, th));
+        break;
+    }
+    case TopScale:
+    case BottomScale: {
+        const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sy) : 0;
+        const int inner   = qRound(qwtDeviceY(tr, d->pos.y()));
+        const int tickLen = qwtDeviceTickLength(len, sy);
+
+        int y0, h;
+        if (d->alignment == TopScale) {
+            y0 = hasBackbone ? inner - pw + 1 - tickLen : inner - tickLen + 1;
+            h  = tickLen + pw;
+        } else {
+            y0 = inner;
+            h  = tickLen + pw;
+        }
+
+        const int th = qwtDevicePenWidth(painter, sx);
+        int col      = qRound(qwtDeviceX(tr, tval));
+
+        // a tick at the scale border sits on the perpendicular backbone
+        const int first = qRound(qwtDeviceX(tr, d->pos.x()));
+        const int last  = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
+        if (col == first && (d->cornerMiter & MiterAtStart))
+            col = qRound(qwtDeviceX(tr, d->pos.x() - 1.0));
+        else if (col == last && (d->cornerMiter & MiterAtEnd))
+            col = qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0));
+
+        qwtFillDeviceRect(painter, QRect(col - (th - 1) / 2, y0, th, h));
+        break;
+    }
+    }
 }
 
 /**
@@ -634,10 +552,47 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
  */
 void QwtScaleDraw::drawBackbone(QPainter* painter) const
 {
-    if (QwtPainter::roundingAlignment(painter))
-        QwtScaleRendererInt::drawBackbone(painter, this);
-    else
-        QwtScaleRendererReal::drawBackbone(painter, this);
+    QWT_DC(d);
+    const QTransform tr = painter->deviceTransform();
+    const qreal sx      = qAbs(tr.m11());
+    const qreal sy      = qAbs(tr.m22());
+
+    switch (d->alignment) {
+    case LeftScale:
+    case RightScale: {
+        const int pw    = qwtDevicePenWidth(painter, sx);
+        const int inner = qRound(qwtDeviceX(tr, d->pos.x()));
+        const int x0    = (d->alignment == LeftScale) ? inner - pw + 1 : inner;
+
+        int y0 = qRound(qwtDeviceY(tr, d->pos.y()));
+        int y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
+        if (d->cornerMiter & MiterAtStart)
+            y0 = qRound(qwtDeviceY(tr, d->pos.y() - 1.0));
+        if (d->cornerMiter & MiterAtEnd)
+            y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0));
+
+        // the length can be negative (QwtPolarGrid)
+        qwtFillDeviceRect(painter, QRect(x0, qMin(y0, y1), pw, qAbs(y1 - y0) + 1));
+        break;
+    }
+    case TopScale:
+    case BottomScale: {
+        const int pw    = qwtDevicePenWidth(painter, sy);
+        const int inner = qRound(qwtDeviceY(tr, d->pos.y()));
+        const int y0    = (d->alignment == TopScale) ? inner - pw + 1 : inner;
+
+        int x0 = qRound(qwtDeviceX(tr, d->pos.x()));
+        int x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
+        if (d->cornerMiter & MiterAtStart)
+            x0 = qRound(qwtDeviceX(tr, d->pos.x() - 1.0));
+        if (d->cornerMiter & MiterAtEnd)
+            x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0));
+
+        // the length can be negative (QwtPolarGrid)
+        qwtFillDeviceRect(painter, QRect(qMin(x0, x1), y0, qAbs(x1 - x0) + 1, pw));
+        break;
+    }
+    }
 }
 
 /**

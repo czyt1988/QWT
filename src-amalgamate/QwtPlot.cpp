@@ -18283,7 +18283,6 @@ void QwtAbstractScaleDraw::invalidateCache()
 
 /*** Start of inlined file: qwt_scale_draw.cpp ***/
 #include <qpainter.h>
-#include <qpaintengine.h>
 #include <qmath.h>
 
 static inline double qwtEffectivePenWidth(const QwtAbstractScaleDraw* scaleDraw)
@@ -18291,215 +18290,44 @@ static inline double qwtEffectivePenWidth(const QwtAbstractScaleDraw* scaleDraw)
 	return qwtMaxF(scaleDraw->penWidthF(), 1.0);
 }
 
-namespace QwtScaleRendererReal
+namespace
 {
-inline qreal penWidth(const QPainter* painter, const QwtScaleDraw* scaleDraw)
+/*
+	Backbone and ticks are filled as device pixel aligned rectangles instead of
+	being stroked with a pen: every edge lands on an integer device coordinate,
+	so the scale renders as crisp hairlines at any device pixel ratio and the
+	pen width truncates to whole device pixels (a width of 1.0 always paints
+	a single device pixel wide line).
+ */
+inline int qwtDevicePenWidth(const QPainter* painter, qreal deviceStep)
 {
-	qreal width = scaleDraw->penWidthF();
-#if 1
-	if (width <= 0.0)
-		width = 1.0;
-#endif
-
-	if (painter->pen().isCosmetic()) {
-		const QTransform& transform = painter->transform();
-
-		switch (scaleDraw->alignment()) {
-		case QwtScaleDraw::LeftScale:
-		case QwtScaleDraw::RightScale: {
-			width /= transform.m11();
-			break;
-		}
-		case QwtScaleDraw::TopScale:
-		case QwtScaleDraw::BottomScale: {
-			width /= transform.m22();
-			break;
-		}
-		}
-	}
-
-	return width;
+	return qMax(1, static_cast<int>(painter->pen().widthF() * deviceStep + 1e-6));
 }
 
-inline void drawBackbone(QPainter* painter, const QwtScaleDraw* scaleDraw)
+inline int qwtDeviceTickLength(qreal length, qreal deviceStep)
 {
-	const qreal pw2 = 0.5 * penWidth(painter, scaleDraw);
-
-	const QPointF pos  = scaleDraw->pos();
-	const qreal length = scaleDraw->length();
-
-	switch (scaleDraw->alignment()) {
-	case QwtScaleDraw::LeftScale: {
-		const qreal x = pos.x() + 1.0 - pw2;
-		QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-		break;
-	}
-	case QwtScaleDraw::RightScale: {
-		const qreal x = pos.x() - 1.0 + pw2;
-		QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-		break;
-	}
-	case QwtScaleDraw::TopScale: {
-		const qreal y = pos.y() + 1.0 - pw2;
-		QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-		break;
-	}
-	case QwtScaleDraw::BottomScale: {
-		const qreal y = pos.y() - 1.0 + pw2;
-		QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-		break;
-	}
-	}
+	return qMax(1, qRound(length * deviceStep));
 }
 
-inline void drawTick(QPainter* painter, const QwtScaleDraw* scaleDraw, qreal tickPos, qreal tickLength)
+inline void qwtFillDeviceRect(QPainter* painter, const QRect& deviceRect)
 {
-	const QPointF pos = scaleDraw->pos();
-
-	qreal pw = 0.0;
-
-	if (scaleDraw->hasComponent(QwtScaleDraw::Backbone))
-		pw = penWidth(painter, scaleDraw);
-
-	const qreal length = tickLength + pw;
-
 	/*
-		Those correction offsets have been found by try and error.
-		They need to be understood and replaced by a calculation,
-		that makes sense. TODO ...
+		Map the device pixel aligned rectangle back into paint coordinates:
+		the edges land on integer device pixels after the paint engine has
+		applied the device pixel ratio, so backbone and ticks stay crisp
+		hairlines at any scaling.
 	 */
-	const qreal off1 = 1.0;
-	const qreal off2 = (scaleDraw->penWidthF() <= 0.0) ? 0.5 : 0.0;
-
-	switch (scaleDraw->alignment()) {
-	case QwtScaleDraw::LeftScale: {
-		const qreal x = pos.x() + off1 - off2;
-		QwtPainter::drawLine(painter, x, tickPos, x - length, tickPos);
-
-		break;
-	}
-	case QwtScaleDraw::RightScale: {
-		const qreal x = pos.x() - off1 + off2;
-		QwtPainter::drawLine(painter, x, tickPos, x + length, tickPos);
-		break;
-	}
-	case QwtScaleDraw::TopScale: {
-		const qreal y = pos.y() + off1 - 2 * off2;
-		QwtPainter::drawLine(painter, tickPos, y, tickPos, y - length);
-
-		break;
-	}
-	case QwtScaleDraw::BottomScale: {
-		const qreal y = pos.y() - off1 + off2;
-		QwtPainter::drawLine(painter, tickPos, y, tickPos, y + length);
-
-		break;
-	}
-	}
-}
+	painter->fillRect(painter->deviceTransform().inverted().mapRect(QRectF(deviceRect)), painter->pen().color());
 }
 
-namespace QwtScaleRendererInt
+inline qreal qwtDeviceX(const QTransform& tr, qreal x)
 {
-inline void drawBackbone(QPainter* painter, const QwtScaleDraw* scaleDraw)
-{
-	const int pw = qMax(qRound(scaleDraw->penWidthF()), 1);
-
-	const qreal length = scaleDraw->length();
-	const QPointF pos  = scaleDraw->pos();
-
-	switch (scaleDraw->alignment()) {
-	case QwtScaleDraw::LeftScale: {
-		const qreal x = qRound(pos.x() - (pw - 1) / 2);
-		QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-		break;
-	}
-	case QwtScaleDraw::RightScale: {
-		const qreal x = qRound(pos.x() + pw / 2);
-		QwtPainter::drawLine(painter, x, pos.y(), x, pos.y() + length);
-
-		break;
-	}
-	case QwtScaleDraw::TopScale: {
-		const qreal y = qRound(pos.y() - (pw - 1) / 2);
-		QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-		break;
-	}
-	case QwtScaleDraw::BottomScale: {
-		const qreal y = qRound(pos.y() + pw / 2);
-		QwtPainter::drawLine(painter, pos.x(), y, pos.x() + length, y);
-
-		break;
-	}
-	}
+	return tr.map(QPointF(x, 0.0)).x();
 }
 
-inline void drawTick(QPainter* painter, const QwtScaleDraw* scaleDraw, qreal tickPos, qreal tickLength)
+inline qreal qwtDeviceY(const QTransform& tr, qreal y)
 {
-	const QPointF pos = scaleDraw->pos();
-	tickPos           = qRound(tickPos);
-
-	int pw = 0;
-	if (scaleDraw->hasComponent(QwtScaleDraw::Backbone))
-		pw = qMax(qRound(scaleDraw->penWidthF()), 1);
-
-	int len = qMax(qRound(tickLength), 1);
-
-	// the width of ticks at the borders might extent the backbone
-	len += pw;
-
-	if (painter->pen().capStyle() == Qt::FlatCap)
-		len++;  // the end point is not rendered
-
-	qreal off = 0.0;
-
-	if (painter->paintEngine()->type() == QPaintEngine::X11) {
-		if (pw == 1) {
-			// In opposite to raster, X11 paints the end point
-			off = 1.0;
-		}
-	}
-
-	switch (scaleDraw->alignment()) {
-	case QwtScaleDraw::LeftScale: {
-		const qreal x1 = qRound(pos.x()) + 1;
-		const qreal x2 = x1 - len + 1;
-
-		QwtPainter::drawLine(painter, x2, tickPos, x1 - off, tickPos);
-
-		break;
-	}
-	case QwtScaleDraw::RightScale: {
-		const qreal x1 = qRound(pos.x());
-		const qreal x2 = x1 + len - 1;
-
-		QwtPainter::drawLine(painter, x1, tickPos, x2 - off, tickPos);
-
-		break;
-	}
-	case QwtScaleDraw::BottomScale: {
-		const qreal y1 = qRound(pos.y());
-		const qreal y2 = y1 + len - 1;
-
-		QwtPainter::drawLine(painter, tickPos, y1, tickPos, y2 - off);
-
-		break;
-	}
-	case QwtScaleDraw::TopScale: {
-		const qreal y1 = qRound(pos.y());
-		const qreal y2 = y1 - len + 1;
-
-		QwtPainter::drawLine(painter, tickPos, y2 + 1, tickPos, y1 + 1 - off);
-
-		break;
-	}
-	}
+	return tr.map(QPointF(0.0, y)).y();
 }
 }
 
@@ -18518,6 +18346,8 @@ public:
 
 	Qt::Alignment labelAlignment;
 	double labelRotation;
+
+	QwtScaleDraw::CornerMiter cornerMiter { QwtScaleDraw::NoMiter };
 };
 
 /**
@@ -18533,6 +18363,31 @@ QwtScaleDraw::QwtScaleDraw() : QWT_PIMPL_CONSTRUCT
 //! Destructor
 QwtScaleDraw::~QwtScaleDraw()
 {
+}
+
+/**
+ * @brief Set the corner miter flags
+ * @param miter Flags specifying which ends of the backbone are extended
+ *              into a corner shared with a perpendicular scale
+ * @details QwtScaleWidget sets the flags from the visibility of the
+ *          perpendicular axes of the plot; standalone use keeps NoMiter.
+ * @sa cornerMiter()
+ */
+void QwtScaleDraw::setCornerMiter(CornerMiter miter)
+{
+	QWT_D(d);
+	d->cornerMiter = miter;
+}
+
+/**
+ * @brief Get the corner miter flags
+ * @return Flags specifying which ends of the backbone are extended
+ * @sa setCornerMiter()
+ */
+QwtScaleDraw::CornerMiter QwtScaleDraw::cornerMiter() const
+{
+	QWT_DC(d);
+	return d->cornerMiter;
 }
 
 /**
@@ -18864,15 +18719,79 @@ QPointF QwtScaleDraw::labelPosition(double value) const
  */
 void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
 {
-	if (len <= 0)
+	if (len <= 0.0)
 		return;
 
+	QWT_DC(d);
 	const double tval = scaleMap().transform(value);
 
-	if (QwtPainter::roundingAlignment(painter))
-		QwtScaleRendererInt::drawTick(painter, this, tval, len);
-	else
-		QwtScaleRendererReal::drawTick(painter, this, tval, len);
+	const QTransform tr = painter->deviceTransform();
+	const qreal sx      = qAbs(tr.m11());
+	const qreal sy      = qAbs(tr.m22());
+
+	const bool hasBackbone = hasComponent(QwtAbstractScaleDraw::Backbone);
+
+	switch (d->alignment) {
+	case LeftScale:
+	case RightScale: {
+		const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sx) : 0;
+		const int inner   = qRound(qwtDeviceX(tr, d->pos.x()));
+		const int tickLen = qwtDeviceTickLength(len, sx);
+
+		// the tick ends at the inner edge of the backbone band, never crossing it
+		int x0, w;
+		if (d->alignment == LeftScale) {
+			x0 = hasBackbone ? inner - pw + 1 - tickLen : inner - tickLen + 1;
+			w  = tickLen + pw;
+		} else {
+			x0 = inner;
+			w  = tickLen + pw;
+		}
+
+		const int th = qwtDevicePenWidth(painter, sy);
+		int row      = qRound(qwtDeviceY(tr, tval));
+
+		// a tick at the scale border sits on the perpendicular backbone
+		const int first = qRound(qwtDeviceY(tr, d->pos.y()));
+		const int last  = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
+		if (row == first && (d->cornerMiter & MiterAtStart))
+			row = qRound(qwtDeviceY(tr, d->pos.y() - 1.0));
+		else if (row == last && (d->cornerMiter & MiterAtEnd))
+			row = qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0));
+
+		qwtFillDeviceRect(painter, QRect(x0, row - (th - 1) / 2, w, th));
+		break;
+	}
+	case TopScale:
+	case BottomScale: {
+		const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sy) : 0;
+		const int inner   = qRound(qwtDeviceY(tr, d->pos.y()));
+		const int tickLen = qwtDeviceTickLength(len, sy);
+
+		int y0, h;
+		if (d->alignment == TopScale) {
+			y0 = hasBackbone ? inner - pw + 1 - tickLen : inner - tickLen + 1;
+			h  = tickLen + pw;
+		} else {
+			y0 = inner;
+			h  = tickLen + pw;
+		}
+
+		const int th = qwtDevicePenWidth(painter, sx);
+		int col      = qRound(qwtDeviceX(tr, tval));
+
+		// a tick at the scale border sits on the perpendicular backbone
+		const int first = qRound(qwtDeviceX(tr, d->pos.x()));
+		const int last  = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
+		if (col == first && (d->cornerMiter & MiterAtStart))
+			col = qRound(qwtDeviceX(tr, d->pos.x() - 1.0));
+		else if (col == last && (d->cornerMiter & MiterAtEnd))
+			col = qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0));
+
+		qwtFillDeviceRect(painter, QRect(col - (th - 1) / 2, y0, th, h));
+		break;
+	}
+	}
 }
 
 /**
@@ -18885,10 +18804,47 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
  */
 void QwtScaleDraw::drawBackbone(QPainter* painter) const
 {
-	if (QwtPainter::roundingAlignment(painter))
-		QwtScaleRendererInt::drawBackbone(painter, this);
-	else
-		QwtScaleRendererReal::drawBackbone(painter, this);
+	QWT_DC(d);
+	const QTransform tr = painter->deviceTransform();
+	const qreal sx      = qAbs(tr.m11());
+	const qreal sy      = qAbs(tr.m22());
+
+	switch (d->alignment) {
+	case LeftScale:
+	case RightScale: {
+		const int pw    = qwtDevicePenWidth(painter, sx);
+		const int inner = qRound(qwtDeviceX(tr, d->pos.x()));
+		const int x0    = (d->alignment == LeftScale) ? inner - pw + 1 : inner;
+
+		int y0 = qRound(qwtDeviceY(tr, d->pos.y()));
+		int y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
+		if (d->cornerMiter & MiterAtStart)
+			y0 = qRound(qwtDeviceY(tr, d->pos.y() - 1.0));
+		if (d->cornerMiter & MiterAtEnd)
+			y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0));
+
+		// the length can be negative (QwtPolarGrid)
+		qwtFillDeviceRect(painter, QRect(x0, qMin(y0, y1), pw, qAbs(y1 - y0) + 1));
+		break;
+	}
+	case TopScale:
+	case BottomScale: {
+		const int pw    = qwtDevicePenWidth(painter, sy);
+		const int inner = qRound(qwtDeviceY(tr, d->pos.y()));
+		const int y0    = (d->alignment == TopScale) ? inner - pw + 1 : inner;
+
+		int x0 = qRound(qwtDeviceX(tr, d->pos.x()));
+		int x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
+		if (d->cornerMiter & MiterAtStart)
+			x0 = qRound(qwtDeviceX(tr, d->pos.x() - 1.0));
+		if (d->cornerMiter & MiterAtEnd)
+			x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0));
+
+		// the length can be negative (QwtPolarGrid)
+		qwtFillDeviceRect(painter, QRect(qMin(x0, x1), y0, qAbs(x1 - x0) + 1, pw));
+		break;
+	}
+	}
 }
 
 /**
@@ -19809,6 +19765,38 @@ void QwtScaleWidget::paintEvent(QPaintEvent* event)
  */
 void QwtScaleWidget::draw(QPainter* painter) const
 {
+	/*
+		Extend the backbone into the canvas corners that are shared with
+		a visible perpendicular axis, so that both backbones intersect
+		instead of ending in a diagonal step.
+	 */
+	if (const QwtPlot* plot = qobject_cast<const QwtPlot*>(parentWidget())) {
+		QwtAxisId startAxis, endAxis;
+		if (m_data->scaleDraw->orientation() == Qt::Vertical) {
+			startAxis = QwtAxis::XTop;
+			endAxis   = QwtAxis::XBottom;
+		} else {
+			startAxis = QwtAxis::YLeft;
+			endAxis   = QwtAxis::YRight;
+		}
+
+		const auto meetsBackbone = [plot](QwtAxisId axisId) {
+			if (!plot->isAxisVisible(axisId))
+				return false;
+
+			const QwtScaleDraw* sd = plot->axisScaleDraw(axisId);
+			return sd && sd->hasComponent(QwtAbstractScaleDraw::Backbone);
+		};
+
+		QwtScaleDraw::CornerMiter miter = QwtScaleDraw::NoMiter;
+		if (meetsBackbone(startAxis))
+			miter |= QwtScaleDraw::MiterAtStart;
+		if (meetsBackbone(endAxis))
+			miter |= QwtScaleDraw::MiterAtEnd;
+
+		// the miter is a pure paint-time flag of our own scale draw
+		const_cast<QwtScaleDraw*>(m_data->scaleDraw.get())->setCornerMiter(miter);
+	}
 
 	m_data->scaleDraw->draw(painter, palette());
 
@@ -33550,11 +33538,75 @@ static QwtRawPointData qwtTryGetRawPointData(const QwtSeriesData< QPointF >* ser
 	return { nullptr, nullptr };
 }
 
+// Create a point of the output polygon from pixel positions,
+// that may have fractional coordinates
+template< class Point >
+static Point qwtMakePointD(double x, double y);
+
+template<>
+inline QPointF qwtMakePointD< QPointF >(double x, double y)
+{
+	return QPointF(x, y);
+}
+
+template<>
+inline QPoint qwtMakePointD< QPoint >(double x, double y)
+{
+	return QPoint(qRound(x), qRound(y));
+}
+
+// Map all samples to pixel coordinates, keeping their sub pixel precision.
+// NaN/Inf samples are kept, so that gaps of the polyline are painted
+// the same way as without any downsampling.
+template< class Polygon, class Point >
+static Polygon qwtMapPointsNoRound(const QwtScaleMap& xMap,
+								   const QwtScaleMap& yMap,
+								   const QwtSeriesData< QPointF >* series,
+								   int from, int to)
+{
+	Polygon polyline;
+	if (from > to)
+		return polyline;
+
+	polyline.reserve(to - from + 1);
+
+	for (int i = from; i <= to; i++) {
+		const QPointF sample = series->sample(i);
+		polyline += qwtMakePointD< Point >(xMap.transform(sample.x()), yMap.transform(sample.y()));
+	}
+
+	return polyline;
+}
+
+// Append the min/max pair of a bucket to the output polygon, keeping
+// the sample order of both points. Points becoming identical
+// ( f.e. after rounding ) are appended once only.
+template< class Point >
+static inline void qwtAppendMinMaxPair(Point*& outPts, int& n, bool roundPoints,
+									   double x1, double y1, double x2, double y2)
+{
+	if (roundPoints) {
+		x1 = qwtRoundValueF(x1);
+		y1 = qwtRoundValueF(y1);
+		x2 = qwtRoundValueF(x2);
+		y2 = qwtRoundValueF(y2);
+	}
+
+	outPts[ n++ ] = qwtMakePointD< Point >(x1, y1);
+	if (x1 != x2 || y1 != y2)
+		outPts[ n++ ] = qwtMakePointD< Point >(x2, y2);
+}
+
 // MinMax bucket downsampling: divide data into N equal-count buckets,
 // keep min-Y and max-Y from each bucket. O(n) time, O(N) output.
+//
+// When roundPoints is false, the mapped coordinates keep their sub pixel
+// precision - what is the better choice for paint devices, where
+// antialiasing is enabled.
 template< class Polygon, class Point >
 static Polygon
-qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeriesData< QPointF >* series, int from, int to)
+qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
+					  const QwtSeriesData< QPointF >* series, int from, int to, bool roundPoints)
 {
 	Polygon polyline;
 	if (from > to)
@@ -33571,8 +33623,10 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
 	const int numBuckets = qMax(2, 2 * xPixels);  // 2 points per bucket (min + max)
 
 	if (numPoints <= numBuckets * 2) {
-		// not enough points to benefit from bucketing, fall back to quad
-		return qwtMapPointsQuad< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+		// not enough points to benefit from bucketing, fall back to plain mapping
+		if (roundPoints)
+			return qwtMapPointsQuad< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+		return qwtMapPointsNoRound< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
 	}
 
 	const double bucketSize = static_cast< double >(numPoints) / numBuckets;
@@ -33582,212 +33636,207 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
 	Point* outPts = polyline.data();
 	int n         = 0;
 
-	if (linearPath) {
+	const QwtRawPointData raw = qwtTryGetRawPointData(series);
+
+	if (linearPath && raw.y != nullptr) {
 		const double xCnv = xMap.cnv(), xOff = xMap.p1() - xMap.ts1() * xCnv;
 		const double yCnv = yMap.cnv(), yOff = yMap.p1() - yMap.ts1() * yCnv;
 
-		// Try raw-pointer fast path for SIMD-accelerated argmin/argmax
-		const QwtRawPointData raw = qwtTryGetRawPointData(series);
-		if (raw.y != nullptr) {
-			// NaN pre-scan: check if any NaN exists in the visible Y range
-			bool hasNaN = false;
-			for (int i = visFrom; i <= visTo; ++i) {
-				if (std::isnan(raw.y[ i ])) {
-					hasNaN = true;
-					break;
-				}
-			}
+		const bool hasRawX = raw.x != nullptr;
 
-			if (!hasNaN) {
-				// ===== SIMD fast path: no NaN, raw pointer access =====
-				for (int b = 0; b < numBuckets; b++) {
-					const int start = visFrom + static_cast< int >(b * bucketSize);
-					const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
-					const int bEnd  = qMin(end, visTo);
-					const int count = bEnd - start + 1;
-					if (count <= 0)
-						continue;
-
-					const QwtArgMinMaxResult r = qwtSimdArgMinMax(raw.y + start, count);
-					const int minI             = start + r.minIdx;
-					const int maxI             = start + r.maxIdx;
-
-					int minX, maxX;
-					if (raw.x != nullptr) {
-						minX = qRound(raw.x[ minI ] * xCnv + xOff);
-						maxX = qRound(raw.x[ maxI ] * xCnv + xOff);
-					} else {
-						minX = qRound(minI * xCnv + xOff);
-						maxX = qRound(maxI * xCnv + xOff);
-					}
-
-					const int syMin = qRound(r.minVal * yCnv + yOff);
-					const int syMax = qRound(r.maxVal * yCnv + yOff);
-					if (minI <= maxI) {
-						outPts[ n++ ] = Point(minX, syMin);
-						if (syMax != syMin || maxX != minX)
-							outPts[ n++ ] = Point(maxX, syMax);
-					} else {
-						outPts[ n++ ] = Point(maxX, syMax);
-						if (syMax != syMin || maxX != minX)
-							outPts[ n++ ] = Point(minX, syMin);
-					}
-				}
-			} else {
-				// ===== Scalar path with raw pointers (has NaN) =====
-				for (int b = 0; b < numBuckets; b++) {
-					const int start = visFrom + static_cast< int >(b * bucketSize);
-					const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
-
-					int minX = 0, maxX = 0;
-					double minY = DBL_MAX, maxY = -DBL_MAX;
-					int minIdx = 0, maxIdx = 0;
-					bool first = true;
-
-					for (int i = start; i <= qMin(end, visTo); i++) {
-						const double y = raw.y[ i ];
-						if (std::isnan(y))
-							continue;
-
-						if (first) {
-							minIdx = maxIdx = i;
-							minY = maxY = y;
-							first       = false;
-						} else {
-							if (y < minY) {
-								minY   = y;
-								minIdx = i;
-							}
-							if (y > maxY) {
-								maxY   = y;
-								maxIdx = i;
-							}
-						}
-					}
-
-					if (!first) {
-						int sxMin, sxMax;
-						if (raw.x != nullptr) {
-							sxMin = qRound(raw.x[ minIdx ] * xCnv + xOff);
-							sxMax = qRound(raw.x[ maxIdx ] * xCnv + xOff);
-						} else {
-							sxMin = qRound(minIdx * xCnv + xOff);
-							sxMax = qRound(maxIdx * xCnv + xOff);
-						}
-						const int syMin = qRound(minY * yCnv + yOff);
-						const int syMax = qRound(maxY * yCnv + yOff);
-						if (minIdx <= maxIdx) {
-							outPts[ n++ ] = Point(sxMin, syMin);
-							if (syMax != syMin || sxMax != sxMin)
-								outPts[ n++ ] = Point(sxMax, syMax);
-						} else {
-							outPts[ n++ ] = Point(sxMax, syMax);
-							if (syMax != syMin || sxMax != sxMin)
-								outPts[ n++ ] = Point(sxMin, syMin);
-						}
-					}
-				}
-			}
-		} else {
-			// ===== Generic path: virtual sample() access =====
-			for (int b = 0; b < numBuckets; b++) {
-				const int start = visFrom + static_cast< int >(b * bucketSize);
-				const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
-
-				int minX = 0, maxX = 0;
-				double minY = 1e300, maxY = -1e300;
-				int minIdx = 0, maxIdx = 0;
-				bool first = true;
-
-				for (int i = start; i <= qMin(end, visTo); i++) {
-					const QPointF sample = series->sample(i);
-					if (qwt_is_nan_or_inf(sample))
-						continue;
-					const double y = sample.y();
-					const int sx   = qRound(sample.x() * xCnv + xOff);
-
-					if (first) {
-						minX = maxX = sx;
-						minY = maxY = y;
-						minIdx = maxIdx = i;
-						first           = false;
-					} else {
-						if (y < minY) {
-							minY   = y;
-							minX   = sx;
-							minIdx = i;
-						}
-						if (y > maxY) {
-							maxY   = y;
-							maxX   = sx;
-							maxIdx = i;
-						}
-					}
-				}
-
-				if (!first) {
-					const int syMin = qRound(minY * yCnv + yOff);
-					const int syMax = qRound(maxY * yCnv + yOff);
-					if (minIdx <= maxIdx) {
-						outPts[ n++ ] = Point(minX, syMin);
-						if (syMax != syMin || maxX != minX)
-							outPts[ n++ ] = Point(maxX, syMax);
-					} else {
-						outPts[ n++ ] = Point(maxX, syMax);
-						if (syMax != syMin || maxX != minX)
-							outPts[ n++ ] = Point(minX, syMin);
-					}
-				}
-			}
-		}
-	} else {
-		for (int b = 0; b < numBuckets; b++) {
+		/*
+			Scalar reduction of one bucket, skipping samples with a
+			non-finite x or y like the generic path does. Used for the
+			whole range, when the pre-scan found non-finite y values,
+			and per bucket, when a SIMD bucket extremum sits on a
+			sample with a non-finite x.
+		 */
+		auto reduceBucketScalar = [ & ](int b)
+		{
 			const int start = visFrom + static_cast< int >(b * bucketSize);
 			const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
 
-			int minX = 0, maxX = 0;
-			double minY = 1e300, maxY = -1e300;
-			int minIdx = 0, maxIdx = 0;
-			bool first = true;
+			double minX = 0.0, maxX = 0.0;
+			double minY = DBL_MAX, maxY = -DBL_MAX;
+			int minIdx = -1, maxIdx = -1;
 
 			for (int i = start; i <= qMin(end, visTo); i++) {
-				const QPointF sample = series->sample(i);
-				if (qwt_is_nan_or_inf(sample))
+				const double y = raw.y[ i ];
+				if (!std::isfinite(y))
 					continue;
-				const double y = sample.y();
-				const int sx   = qwtRoundValue(xMap.transform(sample.x()));
 
-				if (first) {
-					minX = maxX = sx;
-					minY = maxY = y;
+				const double x = hasRawX ? raw.x[ i ] : i;
+				if (!std::isfinite(x))
+					continue;
+
+				const double px = x * xCnv + xOff;
+				const double py = y * yCnv + yOff;
+
+				if (minIdx < 0) {
 					minIdx = maxIdx = i;
-					first           = false;
+					minX = maxX = px;
+					minY = maxY = py;
 				} else {
-					if (y < minY) {
-						minY   = y;
-						minX   = sx;
+					if (py < minY) {
+						minY   = py;
+						minX   = px;
 						minIdx = i;
 					}
-					if (y > maxY) {
-						maxY   = y;
-						maxX   = sx;
+					if (py > maxY) {
+						maxY   = py;
+						maxX   = px;
 						maxIdx = i;
 					}
 				}
 			}
 
-			if (!first) {
-				const int syMin = qwtRoundValue(yMap.transform(minY));
-				const int syMax = qwtRoundValue(yMap.transform(maxY));
-				if (minIdx <= maxIdx) {
-					outPts[ n++ ] = Point(minX, syMin);
-					if (syMax != syMin || maxX != minX)
-						outPts[ n++ ] = Point(maxX, syMax);
-				} else {
-					outPts[ n++ ] = Point(maxX, syMax);
-					if (syMax != syMin || maxX != minX)
-						outPts[ n++ ] = Point(minX, syMin);
+			if (minIdx >= 0) {
+				if (minIdx <= maxIdx)
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, minX, minY, maxX, maxY);
+				else
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, maxX, maxY, minX, minY);
+			}
+		};
+
+		/*
+			Non-finite pre-scan of the y values only: scanning the x
+			array as well would double the memory traffic of the scan
+			( ~10% frame time on 1M clean points, measured ). Samples
+			with a non-finite x are caught per bucket in the SIMD path
+			below instead.
+		 */
+		bool hasNonFinite = false;
+		for (int i = visFrom; i <= visTo; ++i) {
+			if (!std::isfinite(raw.y[ i ])) {
+				hasNonFinite = true;
+				break;
+			}
+		}
+
+		if (!hasNonFinite) {
+			// ===== SIMD fast path: all y values are finite =====
+			for (int b = 0; b < numBuckets; b++) {
+				const int start = visFrom + static_cast< int >(b * bucketSize);
+				const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+				const int bEnd  = qMin(end, visTo);
+				const int count = bEnd - start + 1;
+				if (count <= 0)
+					continue;
+
+				const QwtArgMinMaxResult r = qwtSimdArgMinMax(raw.y + start, count);
+				const int minI             = start + r.minIdx;
+				const int maxI             = start + r.maxIdx;
+
+				if (hasRawX && (!std::isfinite(raw.x[ minI ]) || !std::isfinite(raw.x[ maxI ]))) {
+					// a bucket extremum sits on a sample with NaN/Inf x:
+					// qRound(NaN) == 0 would emit a phantom vertex at
+					// column 0 - redo the bucket without those samples
+					reduceBucketScalar(b);
+					continue;
 				}
+
+				const double xMin = hasRawX ? raw.x[ minI ] * xCnv + xOff : minI * xCnv + xOff;
+				const double xMax = hasRawX ? raw.x[ maxI ] * xCnv + xOff : maxI * xCnv + xOff;
+				const double yMin = r.minVal * yCnv + yOff;
+				const double yMax = r.maxVal * yCnv + yOff;
+
+				if (minI <= maxI)
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, xMin, yMin, xMax, yMax);
+				else
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, xMax, yMax, xMin, yMin);
+			}
+		} else {
+			// ===== Scalar path with raw pointers (has non-finite y) =====
+			for (int b = 0; b < numBuckets; b++)
+				reduceBucketScalar(b);
+		}
+	} else if (linearPath) {
+		// ===== Scalar path with virtual sample() access =====
+		const double xCnv = xMap.cnv(), xOff = xMap.p1() - xMap.ts1() * xCnv;
+		const double yCnv = yMap.cnv(), yOff = yMap.p1() - yMap.ts1() * yCnv;
+
+		for (int b = 0; b < numBuckets; b++) {
+			const int start = visFrom + static_cast< int >(b * bucketSize);
+			const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+
+			double minX = 0.0, maxX = 0.0;
+			double minY = DBL_MAX, maxY = -DBL_MAX;
+			int minIdx = -1, maxIdx = -1;
+
+			for (int i = start; i <= qMin(end, visTo); i++) {
+				const QPointF sample = series->sample(i);
+				if (qwt_is_nan_or_inf(sample))
+					continue;
+
+				const double px = sample.x() * xCnv + xOff;
+				const double py = sample.y() * yCnv + yOff;
+
+				if (minIdx < 0) {
+					minIdx = maxIdx = i;
+					minX = maxX = px;
+					minY = maxY = py;
+				} else {
+					if (py < minY) {
+						minY   = py;
+						minX   = px;
+						minIdx = i;
+					}
+					if (py > maxY) {
+						maxY   = py;
+						maxX   = px;
+						maxIdx = i;
+					}
+				}
+			}
+
+			if (minIdx >= 0) {
+				if (minIdx <= maxIdx)
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, minX, minY, maxX, maxY);
+				else
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, maxX, maxY, minX, minY);
+			}
+		}
+	} else {
+		// ===== Scalar path for non-linear scale maps =====
+		for (int b = 0; b < numBuckets; b++) {
+			const int start = visFrom + static_cast< int >(b * bucketSize);
+			const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+
+			double minX = 0.0, maxX = 0.0;
+			double minY = DBL_MAX, maxY = -DBL_MAX;
+			int minIdx = -1, maxIdx = -1;
+
+			for (int i = start; i <= qMin(end, visTo); i++) {
+				const QPointF sample = series->sample(i);
+				if (qwt_is_nan_or_inf(sample))
+					continue;
+
+				const double px = xMap.transform(sample.x());
+				const double py = yMap.transform(sample.y());
+
+				if (minIdx < 0) {
+					minIdx = maxIdx = i;
+					minX = maxX = px;
+					minY = maxY = py;
+				} else {
+					if (py < minY) {
+						minY   = py;
+						minX   = px;
+						minIdx = i;
+					}
+					if (py > maxY) {
+						maxY   = py;
+						maxX   = px;
+						maxIdx = i;
+					}
+				}
+			}
+
+			if (minIdx >= 0) {
+				if (minIdx <= maxIdx)
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, minX, minY, maxX, maxY);
+				else
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, maxX, maxY, minX, minY);
 			}
 		}
 	}
@@ -33796,6 +33845,210 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qw
 	return polyline;
 }
 
+// Largest-Triangle-Three-Buckets ( LTTB ) downsampling: divide the data
+// into N equal-count buckets and keep the sample of each bucket, that
+// forms the largest triangle with the previously selected point and the
+// average of the next bucket. The first and last sample are always kept,
+// so that the curve always spans the full data range.
+// O(n) time, O(N) output.
+//
+// When roundPoints is false, the mapped coordinates keep their sub pixel
+// precision - what is the better choice for paint devices, where
+// antialiasing is enabled.
+template< class Polygon, class Point >
+static Polygon
+qwtLttbReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
+			  const QwtSeriesData< QPointF >* series, int from, int to, bool roundPoints)
+{
+	Polygon polyline;
+	if (from > to)
+		return polyline;
+
+	int visFrom = from, visTo = to;
+	qwtFindVisibleRange(xMap, series, from, to, visFrom, visTo);
+
+	const int numPoints = visTo - visFrom + 1;
+	if (numPoints <= 0)
+		return polyline;
+
+	const int xPixels    = qAbs(qRound(xMap.p2() - xMap.p1())) + 1;
+	const int numBuckets = qMax(2, 4 * xPixels);  // 1 point per bucket
+
+	if (numPoints <= numBuckets) {
+		// not enough points to benefit from bucketing, fall back to plain mapping
+		if (roundPoints)
+			return qwtMapPointsQuad< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+		return qwtMapPointsNoRound< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+	}
+
+	const double bucketSize = static_cast< double >(numPoints) / numBuckets;
+	const bool linearPath   = xMap.isLinear() && yMap.isLinear();
+
+	// fast path for linear scale maps: avoid virtual transform() calls
+	const double xCnv = linearPath ? xMap.cnv() : 0.0;
+	const double xOff = linearPath ? xMap.p1() - xMap.ts1() * xCnv : 0.0;
+	const double yCnv = linearPath ? yMap.cnv() : 0.0;
+	const double yOff = linearPath ? yMap.p1() - yMap.ts1() * yCnv : 0.0;
+
+	const QwtRawPointData raw = qwtTryGetRawPointData(series);
+	const bool useRaw         = linearPath && (raw.y != nullptr);
+
+	// map sample i to pixel coordinates, returns false for NaN/Inf samples
+	auto mapSample = [ & ](int i, double& px, double& py)->bool {
+		if (useRaw) {
+			const double y = raw.y[ i ];
+			if (std::isnan(y))
+				return false;
+
+			const double x = (raw.x != nullptr) ? raw.x[ i ] : i;
+			px             = x * xCnv + xOff;
+			py             = y * yCnv + yOff;
+		} else {
+			const QPointF sample = series->sample(i);
+			if (qwt_is_nan_or_inf(sample))
+				return false;
+
+			px = linearPath ? sample.x() * xCnv + xOff : xMap.transform(sample.x());
+			py = linearPath ? sample.y() * yCnv + yOff : yMap.transform(sample.y());
+		}
+		return true;
+	};
+
+	// pass 1: average of the mapped coordinates per bucket
+	QVector< double > avgX(numBuckets, 0.0), avgY(numBuckets, 0.0);
+	QVector< int > cnt(numBuckets, 0);
+
+	for (int b = 0; b < numBuckets; b++) {
+		const int start = visFrom + static_cast< int >(b * bucketSize);
+		const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+
+		double sx = 0.0, sy = 0.0;
+		int c     = 0;
+
+		for (int i = start; i <= qMin(end, visTo); i++) {
+			double px, py;
+			if (!mapSample(i, px, py))
+				continue;
+
+			sx += px;
+			sy += py;
+			c++;
+		}
+
+		if (c > 0) {
+			avgX[ b ] = sx / c;
+			avgY[ b ] = sy / c;
+		}
+		cnt[ b ] = c;
+	}
+
+	// index of the next bucket, that holds valid samples
+	QVector< int > nextValidBucket(numBuckets, -1);
+	{
+		int next = -1;
+		for (int b = numBuckets - 1; b >= 0; b--) {
+			nextValidBucket[ b ] = next;
+			if (cnt[ b ] > 0)
+				next = b;
+		}
+	}
+
+	polyline.resize(numBuckets);
+	Point* outPts = polyline.data();
+	int n         = 0;
+
+	double lastX = 0.0, lastY = 0.0;  // coordinates of the last emitted point
+	bool haveLast = false;
+
+	auto appendPoint = [ & ](double px, double py) {
+		if (roundPoints) {
+			px = qwtRoundValueF(px);
+			py = qwtRoundValueF(py);
+		}
+		if (haveLast && px == lastX && py == lastY)
+			return;
+
+		outPts[ n++ ] = qwtMakePointD< Point >(px, py);
+		lastX         = px;
+		lastY         = py;
+		haveLast      = true;
+	};
+
+	// bucket 0: keep the first valid sample of the data
+	double prevX = 0.0, prevY = 0.0;
+	bool havePrev = false;
+
+	for (int i = visFrom; i <= visTo; i++) {
+		double px, py;
+		if (mapSample(i, px, py)) {
+			prevX    = px;
+			prevY    = py;
+			havePrev = true;
+			break;
+		}
+	}
+
+	if (!havePrev) {
+		polyline.clear();
+		return polyline;
+	}
+
+	appendPoint(prevX, prevY);
+
+	// middle buckets: keep the sample forming the largest triangle with
+	// the previous selection and the average of the next valid bucket
+	for (int b = 1; b < numBuckets - 1; b++) {
+		const int start = visFrom + static_cast< int >(b * bucketSize);
+		const int end   = visFrom + static_cast< int >((b + 1) * bucketSize) - 1;
+
+		const int nb = nextValidBucket[ b ];
+
+		double bestX = 0.0, bestY = 0.0;
+		double bestArea = -1.0;
+
+		for (int i = start; i <= qMin(end, visTo); i++) {
+			double px, py;
+			if (!mapSample(i, px, py))
+				continue;
+
+			double area = 0.0;
+			if (nb >= 0) {
+				// twice the area of the triangle ( prev, point, avgNext )
+				area = qAbs( (px - prevX) * (avgY[ nb ] - prevY)
+							 - (py - prevY) * (avgX[ nb ] - prevX) );
+			}
+
+			if (area > bestArea) {
+				bestArea = area;
+				bestX    = px;
+				bestY    = py;
+			}
+		}
+
+		if (bestArea >= 0.0) {
+			prevX = bestX;
+			prevY = bestY;
+			appendPoint(prevX, prevY);
+		}
+	}
+
+	// last bucket: keep the last valid sample, so that the curve
+	// always ends at the end of the data
+	{
+		const int start = visFrom + static_cast< int >((numBuckets - 1) * bucketSize);
+
+		for (int i = visTo; i >= qMax(start, visFrom); i--) {
+			double px, py;
+			if (mapSample(i, px, py)) {
+				appendPoint(px, py);
+				break;
+			}
+		}
+	}
+
+	polyline.resize(n);
+	return polyline;
+}
 // Helper class to work around the 5 parameters
 // limitation of QtConcurrent::run()
 class QwtDotsCommand
@@ -33971,6 +34224,11 @@ static inline Polygon qwtToPolylineFiltered(const QwtScaleMap& xMap,
 		realFrom++;
 		sample0 = series->sample(realFrom);
 	}
+
+	// all samples in [from, to] are NaN/Inf: return an empty polyline,
+	// so that "empty polygon == no data" holds for the callers
+	if (realFrom >= to && qwt_is_nan_or_inf(sample0))
+		return Polygon();
 
 	points[ 0 ].rx() = round(xMap.transform(sample0.x()));
 	points[ 0 ].ry() = round(yMap.transform(sample0.y()));
@@ -34224,11 +34482,17 @@ QPolygonF QwtPointMapper::toPolygonF(const QwtScaleMap& xMap,
 	QWT_DC(d);
 	QPolygonF polyline;
 
-	// priority: PixelColumnReduce > MinMaxReduce > WeedOutIntermediatePoints > WeedOutPoints
+	// priority: PixelColumnReduce > LTTBReduce > MinMaxReduce > WeedOutIntermediatePoints > WeedOutPoints
 	if (d->flags & PixelColumnReduce) {
 		polyline = qwtPixelColumnReduce< QPolygonF, QPointF >(xMap, yMap, series, from, to);
+	} else if (d->flags & LTTBReduce) {
+		// without RoundPoints the output keeps its sub pixel precision
+		polyline = qwtLttbReduce< QPolygonF, QPointF >(
+			xMap, yMap, series, from, to, d->flags & RoundPoints);
 	} else if (d->flags & MinMaxReduce) {
-		polyline = qwtMinMaxBucketReduce< QPolygonF, QPointF >(xMap, yMap, series, from, to);
+		// without RoundPoints the output keeps its sub pixel precision
+		polyline = qwtMinMaxBucketReduce< QPolygonF, QPointF >(
+			xMap, yMap, series, from, to, d->flags & RoundPoints);
 	} else if (d->flags & RoundPoints) {
 		if (d->flags & WeedOutIntermediatePoints) {
 			polyline = qwtMapPointsQuad< QPolygonF, QPointF >(xMap, yMap, series, from, to);
@@ -34274,8 +34538,12 @@ QPolygon QwtPointMapper::toPolygon(const QwtScaleMap& xMap,
 
 	if (d->flags & PixelColumnReduce) {
 		polyline = qwtPixelColumnReduce< QPolygon, QPoint >(xMap, yMap, series, from, to);
+	} else if (d->flags & LTTBReduce) {
+		// integer points are always rounded
+		polyline = qwtLttbReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, true);
 	} else if (d->flags & MinMaxReduce) {
-		polyline = qwtMinMaxBucketReduce< QPolygon, QPoint >(xMap, yMap, series, from, to);
+		// integer points are always rounded
+		polyline = qwtMinMaxBucketReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, true);
 	} else if (d->flags & WeedOutIntermediatePoints) {
 		polyline = qwtMapPointsQuad< QPolygon, QPoint >(xMap, yMap, series, from, to);
 	} else if (d->flags & WeedOutPoints) {
@@ -44435,6 +44703,7 @@ QwtGraphic QwtPlotBarChart::legendIcon(int index, const QSizeF& size) const
 /*** Start of inlined file: qwt_plot_curve.cpp ***/
 #include <qpainter.h>
 #include <qpainterpath.h>
+#include <QPair>
 
 static inline QRectF qwtIntersectedClipRect(const QRectF& rect, QPainter* painter)
 {
@@ -44509,6 +44778,47 @@ public:
 	double smoothPreserveThreshold;
 
 	QwtPlotCurve::LegendAttributes legendAttributes;
+
+	// Cache for the BreakAtNan attribute: inclusive index ranges of the
+	// maximal runs of consecutive samples with finite x/y coordinates.
+	// Recomputed lazily by finiteSampleRuns(), invalidated by dataChanged().
+	mutable QVector< QPair< int, int > > m_finiteRuns;
+	mutable bool m_finiteRunsValid = false;
+
+	/*!
+	   Index ranges of the maximal runs of consecutive samples with
+	   finite x/y coordinates, as rendered by the BreakAtNan attribute.
+
+	   The O( n ) scan over the whole series is cached, so that
+	   interactive repaints ( zoom, pan ) don't have to repeat it.
+	 */
+	const QVector< QPair< int, int > >& finiteSampleRuns(const QwtSeriesData< QPointF >* series) const
+	{
+		if (!m_finiteRunsValid)
+		{
+			QVector< QPair< int, int > >& runs = m_finiteRuns;
+			runs.clear();
+
+			const int size = static_cast< int >(series->size());
+			int start      = -1;
+			for (int i = 0; i < size; ++i)
+			{
+				const bool finite = !qwt_is_nan_or_inf(series->sample(i));
+				if (finite && start < 0) {
+					start = i;
+				} else if (!finite && start >= 0) {
+					runs.append(qMakePair(start, i - 1));
+					start = -1;
+				}
+			}
+			if (start >= 0)
+				runs.append(qMakePair(start, size - 1));
+
+			m_finiteRunsValid = true;
+		}
+
+		return m_finiteRuns;
+	}
 };
 
 /**
@@ -44548,6 +44858,15 @@ void QwtPlotCurve::init()
 	setData(new QwtPointSeriesData());
 
 	setZ(20.0);
+}
+
+void QwtPlotCurve::dataChanged()
+{
+	QWT_D(d);
+
+	d->m_finiteRunsValid = false;
+
+	QwtPlotSeriesItem::dataChanged();
 }
 
 /**
@@ -44956,14 +45275,13 @@ void QwtPlotCurve::drawLines(QPainter* painter,
 	}
 
 	mapper.setFlag(QwtPointMapper::PixelColumnReduce, testPaintAttribute(FilterPointsPixel));
-	mapper.setFlag(QwtPointMapper::MinMaxReduce, testPaintAttribute(FilterPointsLTTB));
+	mapper.setFlag(QwtPointMapper::LTTBReduce, testPaintAttribute(FilterPointsLTTB));
+	mapper.setFlag(QwtPointMapper::MinMaxReduce, testPaintAttribute(FilterPointsMinMaxLTTB));
 
 	mapper.setFlag(QwtPointMapper::WeedOutPoints,
 				   testPaintAttribute(FilterPoints) || testPaintAttribute(FilterPointsAggressive));
 
 	mapper.setBoundingRect(canvasRect);
-
-	QPolygonF polyline = mapper.toPolygonF(xMap, yMap, data(), from, to);
 
 	/*
 		The smoothing is done before clipping and fitting, so that the
@@ -44971,54 +45289,74 @@ void QwtPlotCurve::drawLines(QPainter* painter,
 		and the input of a curve fitter ( Fitted attribute ) is already
 		free of pixel noise.
 	 */
-	if (d->smoothAlgorithm == GaussianSmoothing) {
-		polyline = qwtSmoothPolylineGaussian(polyline, d->smoothWindow, d->smoothPreserveThreshold);
-	} else if (d->smoothAlgorithm == SavitzkyGolaySmoothing) {
-		polyline = qwtSmoothPolylineSavitzkyGolay(
-			polyline, d->smoothWindow, d->smoothPolynomialOrder, d->smoothPreserveThreshold);
-	}
-
-	if (doFill) {
-		if (doFit) {
-			// it might be better to extend and draw the curvePath, but for
-			// the moment we keep an implementation, where we translate the
-			// path back to a polyline.
-
-			polyline = d->curveFitter->fitCurve(polyline);
+	const auto drawPolylineSegment = [&](QPolygonF polyline)
+	{
+		if (d->smoothAlgorithm == GaussianSmoothing) {
+			polyline = qwtSmoothPolylineGaussian(polyline, d->smoothWindow, d->smoothPreserveThreshold);
+		} else if (d->smoothAlgorithm == SavitzkyGolaySmoothing) {
+			polyline = qwtSmoothPolylineSavitzkyGolay(
+				polyline, d->smoothWindow, d->smoothPolynomialOrder, d->smoothPreserveThreshold);
 		}
 
-		if (painter->pen().style() != Qt::NoPen) {
-			// here we are wasting memory for the filled copy,
-			// do polygon clipping twice etc .. TODO
+		if (doFill) {
+			if (doFit) {
+				// it might be better to extend and draw the curvePath, but for
+				// the moment we keep an implementation, where we translate the
+				// path back to a polyline.
 
-			QPolygonF filled = polyline;
-			fillCurve(painter, xMap, yMap, canvasRect, filled);
-			filled.clear();
-
-			if (d->paintAttributes & ClipPolygons)
-				QwtClipper::clipPolygonF(clipRect, polyline, false);
-
-			QwtPainter::drawPolyline(painter, polyline);
-		} else {
-			fillCurve(painter, xMap, yMap, canvasRect, polyline);
-		}
-	} else {
-		if (testPaintAttribute(ClipPolygons)) {
-			QwtClipper::clipPolygonF(clipRect, polyline, false);
-		}
-
-		if (doFit) {
-			if (d->curveFitter->mode() == QwtCurveFitter::Path) {
-				const QPainterPath curvePath = d->curveFitter->fitCurvePath(polyline);
-
-				painter->drawPath(curvePath);
-			} else {
 				polyline = d->curveFitter->fitCurve(polyline);
+			}
+
+			if (painter->pen().style() != Qt::NoPen) {
+				// here we are wasting memory for the filled copy,
+				// do polygon clipping twice etc .. TODO
+
+				QPolygonF filled = polyline;
+				fillCurve(painter, xMap, yMap, canvasRect, filled);
+				filled.clear();
+
+				if (d->paintAttributes & ClipPolygons)
+					QwtClipper::clipPolygonF(clipRect, polyline, false);
+
 				QwtPainter::drawPolyline(painter, polyline);
+			} else {
+				fillCurve(painter, xMap, yMap, canvasRect, polyline);
 			}
 		} else {
-			QwtPainter::drawPolyline(painter, polyline);
+			if (testPaintAttribute(ClipPolygons)) {
+				QwtClipper::clipPolygonF(clipRect, polyline, false);
+			}
+
+			if (doFit) {
+				if (d->curveFitter->mode() == QwtCurveFitter::Path) {
+					const QPainterPath curvePath = d->curveFitter->fitCurvePath(polyline);
+
+					painter->drawPath(curvePath);
+				} else {
+					polyline = d->curveFitter->fitCurve(polyline);
+					QwtPainter::drawPolyline(painter, polyline);
+				}
+			} else {
+				QwtPainter::drawPolyline(painter, polyline);
+			}
 		}
+	};
+
+	if (d->attributes & BreakAtNan) {
+		// render every run of consecutive finite samples as an
+		// independent polyline, leaving the gaps blank
+		const QVector< QPair< int, int > >& runs = d->finiteSampleRuns(data());
+
+		for (const QPair< int, int >& run : runs) {
+			const int rFrom = qMax(run.first, from);
+			const int rTo   = qMin(run.second, to);
+			if (rFrom > rTo)
+				continue;
+
+			drawPolylineSegment(mapper.toPolygonF(xMap, yMap, data(), rFrom, rTo));
+		}
+	} else {
+		drawPolylineSegment(mapper.toPolygonF(xMap, yMap, data(), from, to));
 	}
 }
 
@@ -45121,10 +45459,30 @@ void QwtPlotCurve::drawDots(QPainter* painter,
 	if (doFill) {
 		mapper.setFlag(QwtPointMapper::WeedOutPoints, false);
 
-		QPolygonF points = mapper.toPolygonF(xMap, yMap, data(), from, to);
+		const auto drawDotSegment = [&](int rFrom, int rTo)
+		{
+			QPolygonF points = mapper.toPolygonF(xMap, yMap, data(), rFrom, rTo);
 
-		QwtPainter::drawPoints(painter, points);
-		fillCurve(painter, xMap, yMap, canvasRect, points);
+			QwtPainter::drawPoints(painter, points);
+			fillCurve(painter, xMap, yMap, canvasRect, points);
+		};
+
+		if (d->attributes & BreakAtNan) {
+			// fill below every run of consecutive finite samples on
+			// its own, leaving the gaps blank
+			const QVector< QPair< int, int > >& runs = d->finiteSampleRuns(data());
+
+			for (const QPair< int, int >& run : runs) {
+				const int rFrom = qMax(run.first, from);
+				const int rTo   = qMin(run.second, to);
+				if (rFrom > rTo)
+					continue;
+
+				drawDotSegment(rFrom, rTo);
+			}
+		} else {
+			drawDotSegment(from, to);
+		}
 	} else if (d->paintAttributes & ImageBuffer) {
 		const QImage image = mapper.toImage(
 			xMap, yMap, data(), from, to, d->pen, painter->testRenderHint(QPainter::Antialiasing), renderThreadCount());
@@ -45184,67 +45542,87 @@ void QwtPlotCurve::drawSteps(QPainter* painter,
 
 	const bool doAlign = QwtPainter::roundingAlignment(painter);
 
-	QPolygonF polygon(2 * (to - from) + 1);
-	QPointF* points = polygon.data();
-
 	bool inverted = orientation() == Qt::Vertical;
 	if (d->attributes & Inverted)
 		inverted = !inverted;
 
 	const QwtSeriesData< QPointF >* series = data();
 
-	int i, ip;
-	for (i = from, ip = 0; i <= to; i++) {
-		const QPointF sample = series->sample(i);
+	const auto drawStepSegment = [&](int rFrom, int rTo)
+	{
+		QPolygonF polygon(2 * (rTo - rFrom) + 1);
+		QPointF* points = polygon.data();
 
-		if (isSampleNanOrInf(sample))
-			continue;
+		int ip = 0;
+		for (int i = rFrom; i <= rTo; i++) {
+			const QPointF sample = series->sample(i);
 
-		double xi            = xMap.transform(sample.x());
-		double yi            = yMap.transform(sample.y());
-		if (doAlign) {
-			xi = qRound(xi);
-			yi = qRound(yi);
-		}
+			if (isSampleNanOrInf(sample))
+				continue;
 
-		if (ip > 0) {
-			const QPointF& p0 = points[ ip - 2 ];
-			QPointF& p        = points[ ip - 1 ];
-
-			if (inverted) {
-				p.rx() = p0.x();
-				p.ry() = yi;
-			} else {
-				p.rx() = xi;
-				p.ry() = p0.y();
+			double xi            = xMap.transform(sample.x());
+			double yi            = yMap.transform(sample.y());
+			if (doAlign) {
+				xi = qRound(xi);
+				yi = qRound(yi);
 			}
+
+			if (ip > 0) {
+				const QPointF& p0 = points[ ip - 2 ];
+				QPointF& p        = points[ ip - 1 ];
+
+				if (inverted) {
+					p.rx() = p0.x();
+					p.ry() = yi;
+				} else {
+					p.rx() = xi;
+					p.ry() = p0.y();
+				}
+			}
+
+			points[ ip ].rx() = xi;
+			points[ ip ].ry() = yi;
+			ip += 2;
 		}
 
-		points[ ip ].rx() = xi;
-		points[ ip ].ry() = yi;
-		ip += 2;
-	}
+		if (ip == 0)
+			return;
 
-	if (ip == 0)
-		return;
+		polygon.resize(ip - 1);
 
-	polygon.resize(ip - 1);
+		if (d->paintAttributes & ClipPolygons) {
+			QRectF clipRect = qwtIntersectedClipRect(canvasRect, painter);
 
-	if (d->paintAttributes & ClipPolygons) {
-		QRectF clipRect = qwtIntersectedClipRect(canvasRect, painter);
+			const qreal pw = QwtPainter::effectivePenWidth(painter->pen());
+			clipRect       = clipRect.adjusted(-pw, -pw, pw, pw);
 
-		const qreal pw = QwtPainter::effectivePenWidth(painter->pen());
-		clipRect       = clipRect.adjusted(-pw, -pw, pw, pw);
+			const QPolygonF clipped = QwtClipper::clippedPolygonF(clipRect, polygon, false);
 
-		const QPolygonF clipped = QwtClipper::clippedPolygonF(clipRect, polygon, false);
+			QwtPainter::drawPolyline(painter, clipped);
+		} else {
+			QwtPainter::drawPolyline(painter, polygon);
+		}
 
-		QwtPainter::drawPolyline(painter, clipped);
+		if (d->brush.style() != Qt::NoBrush)
+			fillCurve(painter, xMap, yMap, canvasRect, polygon);
+	};
+
+	if (d->attributes & BreakAtNan) {
+		// render every run of consecutive finite samples as an
+		// independent step polygon, leaving the gaps blank
+		const QVector< QPair< int, int > >& runs = d->finiteSampleRuns(series);
+
+		for (const QPair< int, int >& run : runs) {
+			const int rFrom = qMax(run.first, from);
+			const int rTo   = qMin(run.second, to);
+			if (rFrom > rTo)
+				continue;
+
+			drawStepSegment(rFrom, rTo);
+		}
 	} else {
-		QwtPainter::drawPolyline(painter, polygon);
+		drawStepSegment(from, to);
 	}
-
-	if (d->brush.style() != Qt::NoBrush)
-		fillCurve(painter, xMap, yMap, canvasRect, polygon);
 }
 
 /**
@@ -88223,6 +88601,20 @@ void Qwt3DAxis::setLabelString(QString const& name)
 {
 	QWT_D(d);
 	d->m_label.setString(name);
+	// Setting a title implies the intent to show it; label drawing is
+	// off by default and was easy to leave off silently.
+	if (!name.isEmpty())
+		d->m_drawLabel = true;
+}
+
+/**
+ * @brief Returns whether the axis title is drawn
+ * @return True after setLabel(true) or after setting a non-empty label string
+ */
+bool Qwt3DAxis::label() const
+{
+	QWT_DC(d);
+	return d->m_drawLabel;
 }
 
 /**
@@ -88267,6 +88659,16 @@ void Qwt3DAxis::setScale(Qwt3DScale* val)
 {
 	QWT_D(d);
 	d->m_scale = Qwt3DClonePtr< Qwt3DScale >(val);
+}
+
+/**
+ * @brief Returns the active scale object
+ * @return Const pointer to the scale clone stored by setScale()
+ */
+const Qwt3DScale* Qwt3DAxis::scale() const
+{
+	QWT_DC(d);
+	return &*d->m_scale;
 }
 
 void Qwt3DAxis::setScale(SCALETYPE val)
@@ -88828,9 +89230,10 @@ Qwt3DCoordinateSystem::~Qwt3DCoordinateSystem()
 
 void Qwt3DCoordinateSystem::destroy()
 {
-	for (unsigned i = 0; i != axes.size(); ++i)
-		axes[ i ].setLabelString("");
-
+	// NOTE: axis titles are user configuration. init() calls destroy() on
+	// every coordinate system recreation (for items with a drifting hull:
+	// every data update), so clearing the label strings here silently
+	// removed the X/Y/Z axis titles from live plots.
 	detachAll();
 }
 
@@ -88840,8 +89243,11 @@ void Qwt3DCoordinateSystem::init(Triple first, Triple second)
 
 	destroy();
 
-	for (unsigned i = 0; i != axes.size(); ++i)
-		axes[ i ].setScale(LINEARSCALE);
+	// NOTE: the per-axis scale objects are user configuration (scale type,
+	// Qwt3DTextScale labels, ...) and are created by the Qwt3DAxis ctor.
+	// init() rebuilds geometry only; resetting the scales here would silently
+	// discard user settings on every coordinate system recreation (which for
+	// items with a drifting hull happens on every data update).
 
 	Triple dv = second - first;
 
@@ -89897,6 +90303,11 @@ public:
 	Qwt3DMouseState m_xscaleMState, m_yscaleMState, m_zscaleMState;
 	Qwt3DMouseState m_zoomMState;
 	Qwt3DMouseState m_xshiftMState, m_yshiftMState;
+	Qwt3DMouseState m_rollMState;
+
+	// Mouse drag speeds: turns per widget dimension (rotation), exponential gain
+	// (scaling) and world units per widget dimension (shifting)
+	double m_mouseRotSpeed, m_mouseScaleSpeed, m_mouseShiftSpeed;
 
 	bool m_mouseInputEnabled;
 
@@ -89942,6 +90353,23 @@ public:
 
 using std::max;
 
+namespace
+{
+
+/**
+		Wraps an angle into [0, 360) without quantizing it. Quantizing the stored
+		angle to whole degrees would discard the sub degree motion of a slow
+		drag, which makes the scene stick on wide widgets or high resolution
+		mice.
+*/
+double wrapAngle(double degrees)
+{
+	degrees = std::fmod(degrees, 360.0);
+	return (degrees < 0.0) ? degrees + 360.0 : degrees;
+}
+
+} // namespace
+
 /**
 		Standard mouse button Function. Prepares the call to mouseMoveEvent
 		@see mouseMoveEvent()
@@ -89979,9 +90407,9 @@ void Qwt3DPlot::mouseMoveEvent(QMouseEvent* e)
 
 	QPoint diff = qwt::compat::eventPos(e) - d->m_lastMouseMovePosition;
 
-	setRotationMouse(bstate, 3, diff);
-	setScaleMouse(bstate, 5, diff);
-	setShiftMouse(bstate, 2, diff);
+	setRotationMouse(bstate, d->m_mouseRotSpeed, diff);
+	setScaleMouse(bstate, d->m_mouseScaleSpeed, diff);
+	setShiftMouse(bstate, d->m_mouseShiftSpeed, diff);
 
 	d->m_lastMouseMovePosition = qwt::compat::eventPos(e);
 }
@@ -90001,11 +90429,11 @@ void Qwt3DPlot::setRotationMouse(Qwt3DMouseState bstate, double accel, QPoint di
 	double new_zrot = zRotation();
 
 	if (bstate == d->m_xrotMState)
-		new_xrot = static_cast< int >(std::round(xRotation() + relyz)) % 360;
-	if (bstate == d->m_yrotMState)
-		new_yrot = static_cast< int >(std::round(yRotation() + relx)) % 360;
+		new_xrot = wrapAngle(new_xrot + relyz);
+	if (bstate == d->m_yrotMState || bstate == d->m_rollMState)
+		new_yrot = wrapAngle(new_yrot + relx);
 	if (bstate == d->m_zrotMState)
-		new_zrot = static_cast< int >(std::round(zRotation() + relx)) % 360;
+		new_zrot = wrapAngle(new_zrot + relx);
 
 	setRotation(new_xrot, new_yrot, new_zrot);
 }
@@ -90087,6 +90515,7 @@ void Qwt3DPlot::wheelEvent(QWheelEvent* e)
 		rotate around x axis: Qt::LeftButton
 		rotate around y axis: Qt::LeftButton | Qt::ShiftButton
 		rotate around z axis: Qt::LeftButton
+		roll (y axis) extra:  Qt::MiddleButton (setRollMouse())
 		scale x:              Qt::LeftButton | Qt::AltButton
 		scale y:              Qt::LeftButton | Qt::AltButton
 		scale z:              Qt::LeftButton | Qt::AltButton | Qt::ShiftButton
@@ -90177,17 +90606,17 @@ void Qwt3DPlot::setRotationKeyboard(Qwt3DKeyboardState kseq, double speed)
 	double new_zrot = zRotation();
 
 	if (kseq == d->m_xrotKState[ 0 ])
-		new_xrot = static_cast< int >(std::round(xRotation() + relyz)) % 360;
+		new_xrot = wrapAngle(xRotation() + relyz);
 	if (kseq == d->m_xrotKState[ 1 ])
-		new_xrot = static_cast< int >(std::round(xRotation() - relyz)) % 360;
+		new_xrot = wrapAngle(xRotation() - relyz);
 	if (kseq == d->m_yrotKState[ 0 ])
-		new_yrot = static_cast< int >(std::round(yRotation() + relx)) % 360;
+		new_yrot = wrapAngle(yRotation() + relx);
 	if (kseq == d->m_yrotKState[ 1 ])
-		new_yrot = static_cast< int >(std::round(yRotation() - relx)) % 360;
+		new_yrot = wrapAngle(yRotation() - relx);
 	if (kseq == d->m_zrotKState[ 0 ])
-		new_zrot = static_cast< int >(std::round(zRotation() + relx)) % 360;
+		new_zrot = wrapAngle(zRotation() + relx);
 	if (kseq == d->m_zrotKState[ 1 ])
-		new_zrot = static_cast< int >(std::round(zRotation() - relx)) % 360;
+		new_zrot = wrapAngle(zRotation() - relx);
 
 	setRotation(new_xrot, new_yrot, new_zrot);
 }
@@ -90358,6 +90787,71 @@ void Qwt3DPlot::keySpeed(double& rot, double& scale, double& shift) const
 	rot   = d->m_kbdRotSpeed;
 	scale = d->m_kbdScaleSpeed;
 	shift = d->m_kbdShiftSpeed;
+}
+
+/**
+  @brief Sets the mouse drag speeds
+  @param rot Full turns a drag across the whole widget rotates the scene around an axis
+  @param scale Exponential gain of the drag driven scaling
+  @param shift World units of the drag driven shifting per widget dimension
+  @details Values <= 0 are ignored, so the current setting is kept. The defaults are
+  (0.5, 5, 2): a rotation drag covers half a turn per widget dimension, i.e. the
+  same sensitivity as the 3D rotation of matplotlib, and a drag of one widget
+  dimension scales by exp(5) - 1.
+  @see mouseSpeed(), setKeySpeed()
+*/
+void Qwt3DPlot::setMouseSpeed(double rot, double scale, double shift)
+{
+	QWT_D(d);
+	if (rot > 0)
+		d->m_mouseRotSpeed = rot;
+	if (scale > 0)
+		d->m_mouseScaleSpeed = scale;
+	if (shift > 0)
+		d->m_mouseShiftSpeed = shift;
+}
+
+/**
+  @brief Returns the mouse drag speeds
+  @param[out] rot Turns per widget dimension
+  @param[out] scale Exponential gain of the drag driven scaling
+  @param[out] shift World units of the drag driven shifting per widget dimension
+  @see setMouseSpeed()
+*/
+void Qwt3DPlot::mouseSpeed(double& rot, double& scale, double& shift) const
+{
+	QWT_DC(d);
+	rot   = d->m_mouseRotSpeed;
+	scale = d->m_mouseScaleSpeed;
+	shift = d->m_mouseShiftSpeed;
+}
+
+/**
+  @brief Sets an additional mouse gesture for the y axis rotation
+  @param state Mouse state that rolls the scene (rotation around the y axis)
+  @details The y rotation is the one rotation a plain left drag cannot reach: the
+  horizontal drag component drives the z rotation and the vertical one the x
+  rotation. assignMouse() holds a single state for the y rotation
+  (@c Qt::LeftButton @c | @c Qt::ShiftModifier by default), so the constructor binds
+  the middle button here as an extra roll gesture. Pass Qwt3DMouseState() to turn
+  the extra gesture off again.
+  @see rollMouse(), assignMouse()
+*/
+void Qwt3DPlot::setRollMouse(Qwt3DMouseState state)
+{
+	QWT_D(d);
+	d->m_rollMState = state;
+}
+
+/**
+  @brief Returns the additional roll gesture
+  @return Mouse state set with setRollMouse()
+  @see setRollMouse()
+*/
+Qwt3DMouseState Qwt3DPlot::rollMouse() const
+{
+	QWT_DC(d);
+	return d->m_rollMState;
 }
 
 /*** End of inlined file: qwt3d_mousekeyboard.cpp ***/
@@ -91225,6 +91719,9 @@ Qwt3DPlot::PrivateData::PrivateData(Qwt3DPlot* q)
 	, m_titleAnchor(TopCenter)
 	, m_lastMouseMovePosition(0, 0)
 	, m_pressed(false)
+	, m_mouseRotSpeed(0.5)
+	, m_mouseScaleSpeed(5.0)
+	, m_mouseShiftSpeed(2.0)
 	, m_mouseInputEnabled(true)
 	, m_kPressed(false)
 	, m_kbdInputEnabled(true)
@@ -91261,6 +91758,9 @@ Qwt3DPlot::Qwt3DPlot(QWidget* parent) : QOpenGLWidget(parent), QWT_PIMPL_CONSTRU
 				Qwt3DMouseState(Qt::LeftButton, Qt::AltModifier | Qt::ControlModifier),
 				Qwt3DMouseState(Qt::LeftButton, Qt::ControlModifier),
 				Qwt3DMouseState(Qt::LeftButton, Qt::ControlModifier));
+	// The roll is the one rotation a plain left drag cannot reach: the middle
+	// button is bound to it in addition to the Shift+left assignment above.
+	setRollMouse(Qwt3DMouseState(Qt::MiddleButton));
 
 	assignKeyboard(Qt::Key_Down,
 				   Qt::Key_Up,
@@ -91946,59 +92446,15 @@ QOpenGLShaderProgram* Qwt3DPlot::textShader() const
 // --- Item list management ---
 
 /**
- * @brief Attach a plot item to this plot
- * @param item Pointer to the item to attach
- * @details Inserts the item into the internal list and sorts by z-order.
- *          If the item is already attached, it is not duplicated.
+ * @brief Recalculates the scene from the attached items
+ * @details Sorts the item list by z-order, recomputes the plot hull as the
+ *          union of all item hulls and recreates the coordinate system.
+ *          Shared by attach(), detach() and itemChanged() so that the scene
+ *          reflects the items even when no itemChanged() follows the list
+ *          mutation (e.g. data was loaded before attach()).
+ *          With an empty item list the hull resets to (0,0,0)-(0,0,0).
  */
-void Qwt3DPlot::attach(Qwt3DPlotItem* item)
-{
-	QWT_D(d);
-	if (!item || d->m_items.contains(item))
-		return;
-
-	d->m_items.append(item);
-	// Sort by z-order (ascending)
-	std::sort(d->m_items.begin(), d->m_items.end(),
-		[](const Qwt3DPlotItem* a, const Qwt3DPlotItem* b) {
-			return a->z() < b->z();
-		});
-
-	update();
-}
-
-/**
- * @brief Detach a plot item from this plot
- * @param item Pointer to the item to detach
- * @details Removes the item from the internal list. Does not delete the item.
- */
-void Qwt3DPlot::detach(Qwt3DPlotItem* item)
-{
-	QWT_D(d);
-	if (!item)
-		return;
-
-	d->m_items.removeAll(item);
-	update();
-}
-
-/**
- * @brief Returns the list of attached items (sorted by z-order)
- */
-const QList< Qwt3DPlotItem* >& Qwt3DPlot::itemList() const
-{
-	QWT_DC(d);
-	return d->m_items;
-}
-
-/**
- * @brief Called by Qwt3DPlotItem when its data or properties change
- * @param item The item that changed
- * @details Re-sorts the item list by z-order, recalculates the plot hull
- *          as the union of all items' hulls, updates the coordinate system,
- *          and triggers a repaint.
- */
-void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
+void Qwt3DPlot::recalculateScene()
 {
 	QWT_D(d);
 	// Re-sort by z-order
@@ -92022,7 +92478,70 @@ void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
 		}
 		d->m_hull = ParallelEpiped(minV, maxV);
 		createCoordinateSystem(minV, maxV);
+	} else {
+		d->m_hull = ParallelEpiped(Triple(0, 0, 0), Triple(0, 0, 0));
 	}
+}
+
+/**
+ * @brief Attach a plot item to this plot
+ * @param item Pointer to the item to attach
+ * @details Inserts the item into the internal list, recalculates the scene
+ *          (z-order sort, hull union, coordinate system) and triggers a repaint.
+ *          If the item is already attached, nothing happens.
+ *          The scene recalculation makes the plot show items whose data was
+ *          loaded before attach() even when no further itemChanged() follows.
+ */
+void Qwt3DPlot::attach(Qwt3DPlotItem* item)
+{
+	QWT_D(d);
+	if (!item || d->m_items.contains(item))
+		return;
+
+	d->m_items.append(item);
+	recalculateScene();
+
+	update();
+}
+
+/**
+ * @brief Detach a plot item from this plot
+ * @param item Pointer to the item to detach
+ * @details Removes the item from the internal list, recalculates the scene
+ *          (the hull shrinks to the union of the remaining items) and
+ *          triggers a repaint. Does not delete the item.
+ */
+void Qwt3DPlot::detach(Qwt3DPlotItem* item)
+{
+	QWT_D(d);
+	if (!item)
+		return;
+
+	d->m_items.removeAll(item);
+	recalculateScene();
+
+	update();
+}
+
+/**
+ * @brief Returns the list of attached items (sorted by z-order)
+ */
+const QList< Qwt3DPlotItem* >& Qwt3DPlot::itemList() const
+{
+	QWT_DC(d);
+	return d->m_items;
+}
+
+/**
+ * @brief Called by Qwt3DPlotItem when its data or properties change
+ * @param item The item that changed
+ * @details Re-sorts the item list by z-order, recalculates the plot hull
+ *          as the union of all items' hulls, updates the coordinate system,
+ *          and triggers a repaint.
+ */
+void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
+{
+	recalculateScene();
 
 	update();
 }
@@ -94289,6 +94808,20 @@ Qwt3DScale* Qwt3DLinearScale::clone() const
 }
 
 /**
+ * @brief Copies the linear autoscaler state from another Qwt3DLinearScale
+ * @param other Source scale to copy from
+ * @details Qwt3DLinearScale is a friend of Qwt3DLinearAutoScaler, so this
+ *          protected member gives derived scales (e.g. Qwt3DTextScale) access
+ *          to the autoscaler state copy inside their clone() overrides.
+ */
+void Qwt3DLinearScale::copyLinearScaleState(const Qwt3DLinearScale& other)
+{
+	QWT_D(d);
+	const auto* od = other.d_func();
+	d->m_autoscaler.copyStateFrom(od->m_autoscaler);
+}
+
+/**
  * @brief Creates the major and minor vector for the scale
  */
 void Qwt3DLinearScale::calculate()
@@ -94526,6 +95059,70 @@ QString Qwt3DLogScale::ticLabel(unsigned int idx) const
 		return QString::number(pow(double(10), val));
 	}
 	return QString("");
+}
+
+/****************************
+ *
+ * Qwt3DTextScale
+ *
+ ****************************/
+
+Qwt3DTextScale::Qwt3DTextScale()
+	: Qwt3DLinearScale()
+{
+}
+
+/**
+ * @brief Sets the label list used for the major tics
+ * @param labels Labels indexed by major tic index
+ * @details Indices beyond the list size fall back to the numeric label.
+ */
+void Qwt3DTextScale::setLabels(const QVector<QString>& labels)
+{
+	m_labels = labels;
+}
+
+/**
+ * @brief Returns the label list
+ * @return The labels set with setLabels()
+ */
+QVector<QString> Qwt3DTextScale::labels() const
+{
+	return m_labels;
+}
+
+/**
+ * @brief Returns the custom label of the major tic at index idx
+ * @param idx The current major tic index
+ * @return The user supplied string for a valid index, the numeric label else
+ * @details Falls back to Qwt3DLinearScale::ticLabel() (the plain tic value)
+ *          when idx is out of range, so a short label list never produces
+ *          empty axis annotations.
+ */
+QString Qwt3DTextScale::ticLabel(unsigned int idx) const
+{
+	if (idx < static_cast< unsigned int >(m_labels.size()))
+		return m_labels[ static_cast< int >(idx) ];
+
+	return Qwt3DLinearScale::ticLabel(idx);
+}
+
+/**
+ * @brief Returns a new heap based object utilized from Qwt3DClonePtr
+ * @return A new Qwt3DTextScale copy
+ * @details Qwt3DAxis::setScale() stores the object in a Qwt3DClonePtr whose
+ *          assignment calls clone(). A derived scale without a clone()
+ *          override would be sliced to the base class right there, silently
+ *          dropping the custom ticLabel(). This override copies the base
+ *          state (copyFrom) plus the label list.
+ */
+Qwt3DScale* Qwt3DTextScale::clone() const
+{
+	auto* copy = new Qwt3DTextScale();
+	copy->copyFrom(*this);
+	copy->copyLinearScaleState(*this);
+	copy->m_labels = m_labels;
+	return copy;
 }
 
 /*** End of inlined file: qwt3d_scale.cpp ***/
@@ -98388,6 +98985,1350 @@ int Qwt3DLine::rtti() const
 /*** End of inlined file: qwt3d_line3d.cpp ***/
 
 
+/*** Start of inlined file: qwt3d_waterfall.cpp ***/
+
+/*** Start of inlined file: qwt3d_waterfall_p.h ***/
+#ifndef QWT3D_WATERFALL_P_H
+#define QWT3D_WATERFALL_P_H
+
+#include <QOpenGLBuffer>
+#include <QOpenGLVertexArrayObject>
+#include <QOpenGLShaderProgram>
+#include <QVector3D>
+#include <QVector4D>
+
+#include <vector>
+
+#include <cfloat>
+
+/**
+ * @brief Vertex for the Ribbon/RibbonMesh/Wireframe styles (position + color, 28 bytes)
+ * @details Matches the polygon/line shader attribute layout: location 0 =
+ *          position, location 1 = color.
+ */
+struct WaterfallVertex
+{
+	QVector3D position;
+	QVector4D color;
+};
+
+/**
+ * @brief Vertex for the Tube style (position + normal + color, 40 bytes)
+ * @details Matches the surface shader attribute layout: location 0 = position,
+ *          location 1 = normal, location 2 = color.
+ */
+struct WaterfallTubeVertex
+{
+	QVector3D position;
+	QVector3D normal;
+	QVector4D color;
+};
+
+class Qwt3DWaterfall::PrivateData
+{
+	QWT_DECLARE_PUBLIC(Qwt3DWaterfall)
+
+public:
+	explicit PrivateData(Qwt3DWaterfall* q);
+	~PrivateData();
+
+	// Data / sliding window
+	//
+	// Traces are stored at the front indices [0, m_count), ordered oldest to
+	// newest. When the window is full a push rotates all slots down by one
+	// (O(capacity) cheap QVector moves, no deep copy) and writes the new trace
+	// into the last slot. The depth y of a trace is its slot index (possibly
+	// mirrored by the depth order), so the hull y-range only grows; the
+	// amplitude lives on z (3D module convention: value axis up).
+	std::vector< QVector<double> > m_traces;
+	int m_capacity;
+	int m_count;
+	int m_samplesPerTrace;
+	QVector<double> m_bins;
+
+	// Cached amplitude range over the stored traces
+	double m_dataMin;
+	double m_dataMax;
+
+	Qwt3DWaterfall::DepthOrder m_depthOrder;
+
+	// Style
+	Qwt3DWaterfall::PlotStyle m_style;
+	Qwt3DWaterfall::ColorMode m_colorMode;
+	double m_opacity;
+	bool m_fixedBaseline;
+	double m_baseline;
+	RGBA m_solidColor;
+	RGBA m_outlineColor;
+	double m_outlineWidth;
+
+	// Fixed color range (ByAmplitude mode)
+	bool m_fixedColorRange;
+	double m_colorRangeMin;
+	double m_colorRangeMax;
+
+	// Color functor (owned)
+	Qwt3DColor* m_dataColor;
+
+	// GL resources (created lazily in draw())
+	bool m_ribbonDirty;
+	bool m_outlineDirty;
+	bool m_tubeDirty;
+	bool m_tubeShaderInitialized;
+	QOpenGLBuffer m_ribbonBuffer;
+	QOpenGLVertexArrayObject m_ribbonVAO;
+	int m_ribbonVertexCount;   // total vertices, 2 * bins per slot
+	QOpenGLBuffer m_outlineBuffer;
+	QOpenGLVertexArrayObject m_outlineVAO;
+	int m_outlineVertexCount;  // total vertices, bins per slot
+	QOpenGLBuffer m_tubeVertexBuffer;
+	QOpenGLBuffer m_tubeIndexBuffer;
+	QOpenGLVertexArrayObject m_tubeVAO;
+	QOpenGLShaderProgram m_tubeShader;  // Tube style reuses the surface shader
+	int m_tubeIndexCount;
+
+	// Cached hull
+	ParallelEpiped m_hull;
+
+	// Recomputes m_dataMin/m_dataMax and m_hull from the stored traces
+	void recalculateRanges();
+};
+
+inline Qwt3DWaterfall::PrivateData::PrivateData(Qwt3DWaterfall* q)
+	: q_ptr(q)
+	, m_capacity(64)
+	, m_count(0)
+	, m_samplesPerTrace(0)
+	, m_dataMin(0.0)
+	, m_dataMax(0.0)
+	, m_depthOrder(Qwt3DWaterfall::NewestInFront)
+	, m_style(Qwt3DWaterfall::Ribbon)
+	, m_colorMode(Qwt3DWaterfall::ByDepth)
+	, m_opacity(1.0)
+	, m_fixedBaseline(false)
+	, m_baseline(0.0)
+	, m_solidColor(RGBA(0.65, 0.65, 0.75, 1.0))
+	, m_outlineColor(RGBA(0.15, 0.15, 0.15, 1.0))
+	, m_outlineWidth(1.0)
+	, m_fixedColorRange(false)
+	, m_colorRangeMin(0.0)
+	, m_colorRangeMax(1.0)
+	, m_dataColor(nullptr)
+	, m_ribbonDirty(true)
+	, m_outlineDirty(true)
+	, m_tubeDirty(true)
+	, m_tubeShaderInitialized(false)
+	, m_ribbonVertexCount(0)
+	, m_outlineVertexCount(0)
+	, m_tubeIndexCount(0)
+	, m_hull(Triple(0, 0, 0), Triple(0, 0, 0))
+{
+	m_traces.resize(m_capacity);
+	m_tubeIndexBuffer = QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
+}
+
+inline Qwt3DWaterfall::PrivateData::~PrivateData()
+{
+	m_ribbonBuffer.destroy();
+	m_ribbonVAO.destroy();
+	m_outlineBuffer.destroy();
+	m_outlineVAO.destroy();
+	m_tubeVertexBuffer.destroy();
+	m_tubeIndexBuffer.destroy();
+	m_tubeVAO.destroy();
+
+	if (m_dataColor)
+		m_dataColor->destroy();
+}
+
+#endif // QWT3D_WATERFALL_P_H
+
+/*** End of inlined file: qwt3d_waterfall_p.h ***/
+
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
+
+#include <cfloat>
+#include <cmath>
+#include <algorithm>
+
+// ---------------------------------------------------------------------------
+// Anonymous namespace: tube geometry helper
+// ---------------------------------------------------------------------------
+
+namespace
+{
+
+/// Clamps a float to [lo, hi]
+float clampFloat(float v, float lo, float hi)
+{
+	return v < lo ? lo : (v > hi ? hi : v);
+}
+
+/**
+ * Builds tube (swept circle) geometry from one polyline using parallel-transport
+ * framing (same algorithm as Qwt3DLine). Appends ring vertices and side indices
+ * to the given containers so several traces can share one VBO/EBO.
+ */
+void appendTubeGeometry(const QVector<QVector3D>& pts,
+						const QVector<QVector4D>& colors,
+						const QVector3D& radius, int segments,
+						QVector<WaterfallTubeVertex>& vertices,
+						QVector<unsigned int>& indices)
+{
+	const int N = pts.size();
+	if (N < 2 || segments < 3 || radius.x() <= 0.0f || radius.y() <= 0.0f || radius.z() <= 0.0f)
+		return;
+
+	// 1. Tangents (central differences, single-sided at the ends)
+	QVector<QVector3D> T(N);
+	for (int i = 0; i < N; ++i) {
+		QVector3D t;
+		if (i == 0)
+			t = pts[1] - pts[0];
+		else if (i == N - 1)
+			t = pts[N - 1] - pts[N - 2];
+		else
+			t = pts[i + 1] - pts[i - 1];
+		const float len = t.length();
+		if (len < 1e-6f) {
+			// Duplicate point: carry a neighbor tangent to keep a frame
+			t = (i > 0) ? T[i - 1] : QVector3D(1.0f, 0.0f, 0.0f);
+		} else {
+			t /= len;
+		}
+		T[i] = t;
+	}
+
+	// 2. Frames via parallel transport (robust on straight segments, unlike Frenet)
+	QVector<QVector3D> Nrm(N), Bnm(N);
+	{
+		const QVector3D up = (std::abs(T[0].x()) < 0.9f)
+			? QVector3D(1.0f, 0.0f, 0.0f)
+			: QVector3D(0.0f, 1.0f, 0.0f);
+		QVector3D n0 = up - T[0] * QVector3D::dotProduct(up, T[0]);
+		const float nl = n0.length();
+		Nrm[0] = (nl > 1e-6f) ? n0 / nl : QVector3D(0.0f, 1.0f, 0.0f);
+		Bnm[0] = QVector3D::crossProduct(T[0], Nrm[0]).normalized();
+	}
+	for (int i = 1; i < N; ++i) {
+		QVector3D axis = QVector3D::crossProduct(T[i - 1], T[i]);
+		const float cosA = clampFloat(QVector3D::dotProduct(T[i - 1], T[i]), -1.0f, 1.0f);
+		QVector3D n;
+		if (axis.lengthSquared() < 1e-12f) {
+			// Parallel tangents: no rotation needed
+			n = Nrm[i - 1];
+		} else {
+			axis.normalize();
+			const float sinA = std::sqrt(std::max(0.0f, 1.0f - cosA * cosA));
+			const QVector3D v = Nrm[i - 1];
+			// Rodrigues rotation around axis by angle = acos(cosA)
+			n = v * cosA
+				+ QVector3D::crossProduct(axis, v) * sinA
+				+ axis * (QVector3D::dotProduct(axis, v) * (1.0f - cosA));
+		}
+		// Re-orthogonalize against the new tangent, then compute binormal
+		n = n - T[i] * QVector3D::dotProduct(n, T[i]);
+		const float nl = n.length();
+		Nrm[i] = (nl > 1e-6f) ? n / nl : Nrm[i - 1];
+		Bnm[i] = QVector3D::crossProduct(T[i], Nrm[i]).normalized();
+	}
+
+	// 3. Ring vertices (one ring per polyline point)
+	const unsigned int base = static_cast< unsigned int >(vertices.size());
+	for (int i = 0; i < N; ++i) {
+		const QVector4D& col = colors.value(i, QVector4D(1.0f, 1.0f, 1.0f, 1.0f));
+		for (int k = 0; k < segments; ++k) {
+			const float ang = float(2.0 * Qwt3D_PI * k / segments);
+			const float ca = std::cos(ang);
+			const float sa = std::sin(ang);
+			const QVector3D radial = Nrm[i] * ca + Bnm[i] * sa;  // outward normal
+			WaterfallTubeVertex v;
+			// Component-wise radius: the cross section is an ellipse in data
+			// space that projects to a circle under the plot's per-axis
+			// normalization (an isotropic data-space radius would fuse
+			// neighboring traces and stretch into slabs under anisotropic
+			// view scales).
+			v.position = pts[i] + QVector3D(radial.x() * radius.x(),
+											radial.y() * radius.y(),
+											radial.z() * radius.z());
+			// Inverse-scale rule for normals under non-uniform scaling
+			v.normal = QVector3D(radial.x() / radius.x(),
+								 radial.y() / radius.y(),
+								 radial.z() / radius.z()).normalized();
+			v.color = col;
+			vertices.append(v);
+		}
+	}
+
+	// 4. Side indices: each ring pair -> a quad strip of 'segments' quads
+	for (int i = 0; i < N - 1; ++i) {
+		for (int k = 0; k < segments; ++k) {
+			const int k1 = (k + 1) % segments;
+			const unsigned int a = base + static_cast< unsigned int >(i * segments + k);
+			const unsigned int b = base + static_cast< unsigned int >(i * segments + k1);
+			const unsigned int c = base + static_cast< unsigned int >((i + 1) * segments + k);
+			const unsigned int dd = base + static_cast< unsigned int >((i + 1) * segments + k1);
+			indices.append(a);
+			indices.append(b);
+			indices.append(c);
+			indices.append(b);
+			indices.append(dd);
+			indices.append(c);
+		}
+	}
+}
+
+} // namespace
+
+// ---------------------------------------------------------------------------
+// PrivateData helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Recomputes the amplitude range and the hull from the stored traces
+ * @details Pure CPU, no GL dependency - safe for Qwt3DPlot::itemChanged()
+ *          hull unions and for unit tests.
+ *          Hull: x from the bin values (or 0..M-1), y = [0, count-1] (depth),
+ *          z = [min(dataMin, baseline), dataMax] (amplitude).
+ */
+void Qwt3DWaterfall::PrivateData::recalculateRanges()
+{
+	m_dataMin = 0.0;
+	m_dataMax = 0.0;
+
+	const int M = m_samplesPerTrace;
+	if (m_count > 0 && M > 0) {
+		double minV = DBL_MAX;
+		double maxV = -DBL_MAX;
+		for (int i = 0; i < m_count; ++i) {
+			const QVector<double>& trace = m_traces[ i ];
+			for (int j = 0; j < M; ++j) {
+				minV = std::min(minV, trace[ j ]);
+				maxV = std::max(maxV, trace[ j ]);
+			}
+		}
+		m_dataMin = minV;
+		m_dataMax = maxV;
+	}
+
+	// x range from the bin values (empty bins mean 0..M-1)
+	double minX = 0.0, maxX = (M > 0) ? M - 1.0 : 0.0;
+	if (!m_bins.isEmpty() && M > 0) {
+		minX = DBL_MAX;
+		maxX = -DBL_MAX;
+		for (int j = 0; j < M; ++j) {
+			const double x = m_bins.value(j, double(j));
+			minX = std::min(minX, x);
+			maxX = std::max(maxX, x);
+		}
+	}
+
+	// y range: the depth axis, slot indices grow monotonically until the
+	// window is full
+	const double maxY = (m_count > 0) ? m_count - 1.0 : 0.0;
+
+	// z range: the amplitude axis; the ribbon may extend down to a fixed
+	// baseline (3D module convention: the value axis is z, like
+	// Qwt3DSurface's z = f(x, y))
+	const double effBaseline = m_fixedBaseline ? m_baseline : m_dataMin;
+	const double minZ = std::min(m_dataMin, effBaseline);
+	const double maxZ = m_dataMax;
+
+	m_hull = ParallelEpiped(Triple(minX, 0.0, minZ), Triple(maxX, maxY, maxZ));
+}
+
+// ---------------------------------------------------------------------------
+// Constructor / Destructor
+// ---------------------------------------------------------------------------
+
+Qwt3DWaterfall::Qwt3DWaterfall()
+	: Qwt3DPlotItem()
+	, QWT_PIMPL_CONSTRUCT
+{
+}
+
+Qwt3DWaterfall::~Qwt3DWaterfall() = default;
+
+// ---------------------------------------------------------------------------
+// Data / sliding window
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Returns the sliding window size
+ * @return Number of trace slots (>= 1)
+ */
+int Qwt3DWaterfall::traceCapacity() const
+{
+	QWT_DC(d);
+	return d->m_capacity;
+}
+
+/**
+ * @brief Sets the sliding window size
+ * @param count New window size (clamped to >= 1)
+ * @details When shrinking, the oldest traces are dropped so the newest
+ *          min(traceCount, count) traces survive. The stored traces keep
+ *          their relative order.
+ */
+void Qwt3DWaterfall::setTraceCapacity(int count)
+{
+	QWT_D(d);
+	if (count < 1)
+		count = 1;
+	if (count == d->m_capacity)
+		return;
+
+	const int keep = std::min(d->m_count, count);
+	std::vector< QVector<double> > traces(static_cast< size_t >(count));
+	for (int i = 0; i < keep; ++i)
+		traces[ static_cast< size_t >(i) ] = std::move(d->m_traces[ static_cast< size_t >(d->m_count - keep + i) ]);
+
+	d->m_traces = std::move(traces);
+	d->m_capacity = count;
+	d->m_count = keep;
+
+	d->recalculateRanges();
+	d->m_ribbonDirty = true;
+	d->m_outlineDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns how many traces are currently stored
+ * @return Trace count, <= traceCapacity()
+ */
+int Qwt3DWaterfall::traceCount() const
+{
+	QWT_DC(d);
+	return d->m_count;
+}
+
+/**
+ * @brief Returns the bin count of the stored traces
+ * @return Number of samples per trace, 0 before the first pushTrace()
+ */
+int Qwt3DWaterfall::samplesPerTrace() const
+{
+	QWT_DC(d);
+	return d->m_samplesPerTrace;
+}
+
+/**
+ * @brief Appends one trace as the newest window entry
+ * @param values Sample values of the trace
+ * @param count Number of samples in values
+ * @details The first push fixes samplesPerTrace(); later traces are fitted
+ *          into the established bin count (longer ones truncated, shorter
+ *          ones zero-padded) so the window width (and the hull x-range)
+ *          never jitters. When the window is full the oldest trace is
+ *          dropped; the surviving slots are rotated by cheap QVector moves,
+ *          never deep copies.
+ */
+void Qwt3DWaterfall::pushTrace(const double* values, int count)
+{
+	QWT_D(d);
+	if (!values || count <= 0)
+		return;
+
+	if (d->m_count == 0)
+		d->m_samplesPerTrace = count;
+
+	// Fit the incoming frame into the established bin count: truncate longer
+	// frames, zero-pad shorter ones, so every slot has the full bin width.
+	const int M = d->m_samplesPerTrace;
+	const int n = std::min(count, M);
+	QVector<double> trace(M, 0.0);
+	std::copy(values, values + n, trace.begin());
+
+	if (d->m_count == d->m_capacity) {
+		// Window full: drop the oldest slot by rotating the QVector handles
+		std::rotate(d->m_traces.begin(), d->m_traces.begin() + 1, d->m_traces.begin() + d->m_count);
+		d->m_traces[ static_cast< size_t >(d->m_capacity - 1) ] = std::move(trace);
+	} else {
+		d->m_traces[ static_cast< size_t >(d->m_count) ] = std::move(trace);
+		++d->m_count;
+	}
+
+	d->recalculateRanges();
+	d->m_ribbonDirty = true;
+	d->m_outlineDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Appends one trace as the newest window entry
+ * @param values Sample values of the trace
+ * @sa pushTrace(const double*, int)
+ */
+void Qwt3DWaterfall::pushTrace(const QVector<double>& values)
+{
+	pushTrace(values.constData(), values.size());
+}
+
+/**
+ * @brief Clears all traces
+ * @details The capacity, bin values, styles and colors are kept. The bin
+ *          count is re-established by the next pushTrace().
+ */
+void Qwt3DWaterfall::clear()
+{
+	QWT_D(d);
+	d->m_count = 0;
+	d->m_samplesPerTrace = 0;
+	d->recalculateRanges();
+	d->m_ribbonDirty = true;
+	d->m_outlineDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Sets the x value of every bin
+ * @param x Bin positions; an empty vector means 0..samplesPerTrace-1
+ */
+void Qwt3DWaterfall::setBinValues(const QVector<double>& x)
+{
+	QWT_D(d);
+	d->m_bins = x;
+	d->recalculateRanges();
+	d->m_ribbonDirty = true;
+	d->m_outlineDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the current bin values
+ * @return Bin positions, empty when the bins default to 0..M-1
+ */
+QVector<double> Qwt3DWaterfall::binValues() const
+{
+	QWT_DC(d);
+	return d->m_bins;
+}
+
+/**
+ * @brief Returns the depth direction of the sliding window
+ * @return NewestInFront (newest trace at the largest z) or NewestBehind
+ */
+Qwt3DWaterfall::DepthOrder Qwt3DWaterfall::depthOrder() const
+{
+	QWT_DC(d);
+	return d->m_depthOrder;
+}
+
+/**
+ * @brief Sets the depth direction of the sliding window
+ * @param order NewestInFront or NewestBehind
+ * @details The newest trace either sits at the largest z (the window moves
+ *          away from the viewer) or at z == 0 (the window moves towards the
+ *          viewer). Either way the hull z-range stays [0, count-1].
+ */
+void Qwt3DWaterfall::setDepthOrder(DepthOrder order)
+{
+	QWT_D(d);
+	if (d->m_depthOrder == order)
+		return;
+	d->m_depthOrder = order;
+	d->m_ribbonDirty = true;
+	d->m_outlineDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+// ---------------------------------------------------------------------------
+// Style
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Returns the geometry style
+ * @return Ribbon, RibbonMesh, Wireframe or Tube
+ */
+Qwt3DWaterfall::PlotStyle Qwt3DWaterfall::plotStyle() const
+{
+	QWT_DC(d);
+	return d->m_style;
+}
+
+/**
+ * @brief Sets the geometry style
+ * @param style The new geometry style
+ * @details RibbonMesh draws its outline after the fill, regardless of the
+ *          item's z value, so the outline is never hidden by its own curtain.
+ */
+void Qwt3DWaterfall::setPlotStyle(PlotStyle style)
+{
+	QWT_D(d);
+	if (d->m_style == style)
+		return;
+	d->m_style = style;
+	d->m_ribbonDirty = true;
+	d->m_outlineDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the color mode
+ * @return ByDepth, ByAmplitude or Solid
+ */
+Qwt3DWaterfall::ColorMode Qwt3DWaterfall::colorMode() const
+{
+	QWT_DC(d);
+	return d->m_colorMode;
+}
+
+/**
+ * @brief Sets the color mode
+ * @param mode The new color mode
+ * @details ByAmplitude retargets a Qwt3DColorMapColor data functor to the z
+ *          coordinate (via setSourceAxis(ColorFromZ)), ByDepth retargets it
+ *          to y (the depth axis). A functor of a different type is left
+ *          untouched; its owner decides how to interpret the (x, y, z)
+ *          argument.
+ */
+void Qwt3DWaterfall::setColorMode(ColorMode mode)
+{
+	QWT_D(d);
+	if (d->m_colorMode == mode)
+		return;
+	d->m_colorMode = mode;
+
+	if (auto* cmap = dynamic_cast< Qwt3DColorMapColor* >(d->m_dataColor))
+		cmap->setSourceAxis(mode == ByAmplitude ? ColorFromZ : ColorFromY);
+
+	d->m_ribbonDirty = true;
+	d->m_outlineDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Sets the solid color
+ * @param color Color used by the Solid mode
+ */
+void Qwt3DWaterfall::setColor(RGBA color)
+{
+	QWT_D(d);
+	d->m_solidColor = color;
+	d->m_ribbonDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the solid color
+ * @return Color used by the Solid mode
+ */
+RGBA Qwt3DWaterfall::color() const
+{
+	QWT_DC(d);
+	return d->m_solidColor;
+}
+
+/**
+ * @brief Sets the data color functor
+ * @param color The new functor (the item takes ownership)
+ * @details A Qwt3DColorMapColor functor is retargeted to the source axis
+ *          matching the current color mode (y for ByAmplitude, z otherwise).
+ */
+void Qwt3DWaterfall::setDataColor(Qwt3DColor* color)
+{
+	QWT_D(d);
+	if (d->m_dataColor)
+		d->m_dataColor->destroy();
+	d->m_dataColor = color;
+
+	if (auto* cmap = dynamic_cast< Qwt3DColorMapColor* >(d->m_dataColor))
+		cmap->setSourceAxis(d->m_colorMode == ByAmplitude ? ColorFromZ : ColorFromY);
+
+	d->m_ribbonDirty = true;
+	d->m_outlineDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the data color functor
+ * @return The functor set with setDataColor(), nullptr if none was set
+ */
+const Qwt3DColor* Qwt3DWaterfall::dataColor() const
+{
+	QWT_DC(d);
+	return d->m_dataColor;
+}
+
+/**
+ * @brief Marks the baked per-vertex colors as stale
+ * @details Colors are baked into the VBO at build time, so an in-place
+ *          mutation of the data color functor needs this call (or any other
+ *          setter) to take effect on the next draw.
+ */
+void Qwt3DWaterfall::invalidateColors()
+{
+	QWT_D(d);
+	d->m_ribbonDirty = true;
+	d->m_outlineDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Fixes the color range
+ * @param min Lower bound of the colormap input range
+ * @param max Upper bound of the colormap input range
+ * @details A fixed range disables the automatic (per-frame) range derivation,
+ *          which is essential for stable amplitude colors in a live waterfall.
+ */
+void Qwt3DWaterfall::setColorRange(double min, double max)
+{
+	QWT_D(d);
+	d->m_fixedColorRange = true;
+	d->m_colorRangeMin = std::min(min, max);
+	d->m_colorRangeMax = std::max(min, max);
+	d->m_ribbonDirty = true;
+	d->m_outlineDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns to the automatic color range
+ */
+void Qwt3DWaterfall::resetColorRange()
+{
+	QWT_D(d);
+	if (!d->m_fixedColorRange)
+		return;
+	d->m_fixedColorRange = false;
+	d->m_ribbonDirty = true;
+	d->m_outlineDirty = true;
+	d->m_tubeDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns true when a fixed color range is active
+ * @return true after setColorRange(), false after resetColorRange()
+ */
+bool Qwt3DWaterfall::hasFixedColorRange() const
+{
+	QWT_DC(d);
+	return d->m_fixedColorRange;
+}
+
+/**
+ * @brief Returns the ribbon baseline
+ * @return The fixed baseline, or the current amplitude minimum when unset
+ */
+double Qwt3DWaterfall::baseline() const
+{
+	QWT_DC(d);
+	return d->m_fixedBaseline ? d->m_baseline : d->m_dataMin;
+}
+
+/**
+ * @brief Sets the ribbon baseline
+ * @param value The baseline y value
+ */
+void Qwt3DWaterfall::setBaseline(double value)
+{
+	QWT_D(d);
+	if (d->m_fixedBaseline && d->m_baseline == value)
+		return;
+	d->m_fixedBaseline = true;
+	d->m_baseline = value;
+	d->recalculateRanges();
+	d->m_ribbonDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Lets the baseline follow the amplitude minimum again
+ */
+void Qwt3DWaterfall::resetBaseline()
+{
+	QWT_D(d);
+	if (!d->m_fixedBaseline)
+		return;
+	d->m_fixedBaseline = false;
+	d->recalculateRanges();
+	d->m_ribbonDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the ribbon alpha
+ * @return Alpha in [0, 1] (default 1)
+ */
+double Qwt3DWaterfall::opacity() const
+{
+	QWT_DC(d);
+	return d->m_opacity;
+}
+
+/**
+ * @brief Sets the ribbon alpha
+ * @param alpha Alpha in [0, 1]; values outside are clamped
+ * @details Alpha < 1 enables blended drawing. The slots are drawn from the
+ *          oldest to the newest trace, which is the recommended front-to-back
+ *          order for the default camera; view nearly parallel to the curtains
+ *          can still produce interpenetration artifacts (see the docs).
+ */
+void Qwt3DWaterfall::setOpacity(double alpha)
+{
+	QWT_D(d);
+	alpha = std::min(1.0, std::max(0.0, alpha));
+	if (d->m_opacity == alpha)
+		return;
+	d->m_opacity = alpha;
+	d->m_ribbonDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the outline color
+ * @return Color of the RibbonMesh / Wireframe outline
+ */
+RGBA Qwt3DWaterfall::outlineColor() const
+{
+	QWT_DC(d);
+	return d->m_outlineColor;
+}
+
+/**
+ * @brief Sets the outline color
+ * @param color Color of the RibbonMesh / Wireframe outline
+ */
+void Qwt3DWaterfall::setOutlineColor(RGBA color)
+{
+	QWT_D(d);
+	d->m_outlineColor = color;
+	d->m_outlineDirty = true;
+	itemChanged();
+}
+
+/**
+ * @brief Returns the outline line width
+ * @return Line width in pixels (Lines-based styles only)
+ */
+double Qwt3DWaterfall::outlineWidth() const
+{
+	QWT_DC(d);
+	return d->m_outlineWidth;
+}
+
+/**
+ * @brief Sets the outline line width
+ * @param width Line width in pixels (> 1 is not guaranteed in Core profile)
+ */
+void Qwt3DWaterfall::setOutlineWidth(double width)
+{
+	QWT_D(d);
+	d->m_outlineWidth = width;
+	itemChanged();
+}
+
+// ---------------------------------------------------------------------------
+// Color range push / functor handling
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Pushes the active color range into the data color functor
+ * @details ByDepth pushes [0, traceCapacity()-1] so the colormap spans the
+ *          whole window. ByAmplitude pushes the fixed range when active, the
+ *          current amplitude range else. The functor stays a silent value
+ *          object; the item drives it (same pattern as Qwt3DLine).
+ */
+void Qwt3DWaterfall::pushColorRange() const
+{
+	QWT_DC(d);
+	if (!d->m_dataColor)
+		return;
+
+	double lo = 0.0, hi = 1.0;
+	switch (d->m_colorMode) {
+	case ByDepth:
+		lo = 0.0;
+		hi = (d->m_capacity > 1) ? d->m_capacity - 1.0 : 1.0;
+		break;
+	case ByAmplitude:
+	case Solid:
+		if (d->m_fixedColorRange) {
+			lo = d->m_colorRangeMin;
+			hi = d->m_colorRangeMax;
+		} else {
+			lo = d->m_dataMin;
+			hi = d->m_dataMax;
+		}
+		break;
+	}
+
+	if (hi <= lo)
+		hi = lo + 1.0;  // degenerate range guard for flat/empty data
+
+	d->m_dataColor->setActiveRange(lo, hi);
+}
+
+/**
+ * @brief Creates the default data color functor when none was set
+ * @details ByAmplitude defaults to a Qwt3DColorMapColor reading the z
+ *          coordinate (the amplitude axis), ByDepth to one reading y (the
+ *          depth axis), so setColorMode(ByAmplitude) colors by amplitude with
+ *          zero custom code. Solid needs no functor.
+ */
+void Qwt3DWaterfall::ensureDataColor()
+{
+	QWT_D(d);
+	if (d->m_dataColor || d->m_colorMode == Solid)
+		return;
+
+	auto* cmap = new Qwt3DColorMapColor(QString("viridis"));
+	// Amplitude lives on z (module convention), depth on y
+	cmap->setSourceAxis(d->m_colorMode == ByAmplitude ? ColorFromZ : ColorFromY);
+	d->m_dataColor = cmap;
+}
+
+// ---------------------------------------------------------------------------
+// Qwt3DPlotItem interface
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Returns the bounding hull of the waterfall
+ * @return x from the bin values, y = [0, traceCount()-1] (depth),
+ *         z = [min(amplitude, baseline), amplitude max]; degenerate to
+ *         (0,0,0)-(0,0,0) when empty
+ */
+ParallelEpiped Qwt3DWaterfall::hull() const
+{
+	QWT_DC(d);
+	return d->m_hull;
+}
+
+/**
+ * @brief Populates the legend colors
+ * @param[out] colors Legend color vector to fill
+ * @details One waterfall is one item and contributes one legend gradient:
+ *          the data color functor vector (with the active range pushed), or
+ *          the solid color in Solid mode / before a functor exists.
+ */
+void Qwt3DWaterfall::populateLegendColors(ColorVector& colors) const
+{
+	QWT_DC(d);
+	if (d->m_colorMode != Solid && d->m_dataColor) {
+		pushColorRange();
+		d->m_dataColor->createVector(colors);
+	} else {
+		colors.push_back(d->m_solidColor);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// GL rendering
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Builds the ribbon fill VBO
+ * @details One GL_TRIANGLE_STRIP per trace slot: for every bin a baseline and
+ *          a curve vertex, both colored with the curve value's color so each
+ *          curtain column reads as one amplitude band. Slots are stored
+ *          oldest first and drawn in that order (stable painter's order for
+ *          the blending case).
+ *
+ * Upload budget: capacity * bins * 28 bytes per rebuild (every pushTrace
+ * rebuilds the whole window because all slots shift). At the target workload
+ * (<= 128 traces * 512 bins) this stays well below the measured budget.
+ * Optimization channel (NOT implemented, measure first): when
+ * capacity > 128 and bins > 1024 become a bottleneck, switch to one draw call
+ * per slot with the row z provided by a private shader uniform, then only
+ * glBufferSubData the newest row each frame.
+ */
+void Qwt3DWaterfall::buildVBO()
+{
+	QWT_D(d);
+	d->m_ribbonVertexCount = 0;
+
+	if (d->m_style != Ribbon && d->m_style != RibbonMesh)
+		return;
+
+	const int M = d->m_samplesPerTrace;
+	if (d->m_count <= 0 || M <= 0)
+		return;
+
+	ensureDataColor();
+	if (d->m_colorMode != Solid)
+		pushColorRange();
+
+	const double baseZ = d->m_fixedBaseline ? d->m_baseline : d->m_dataMin;
+	const bool useFunctor = (d->m_colorMode != Solid) && d->m_dataColor;
+
+	QVector<WaterfallVertex> vertices;
+	vertices.reserve(d->m_count * 2 * M);
+	for (int i = 0; i < d->m_count; ++i) {
+		const float z = static_cast< float >(
+			d->m_depthOrder == NewestInFront ? i : d->m_count - 1 - i);
+		const QVector<double>& trace = d->m_traces[ i ];
+		for (int j = 0; j < M; ++j) {
+			const double x = d->m_bins.value(j, double(j));
+			const double v = trace[ j ];
+
+			QVector4D col(1.0f, 1.0f, 1.0f, 1.0f);
+			if (useFunctor) {
+				const RGBA c = (*d->m_dataColor)(x, z, v);
+				col = QVector4D(static_cast< float >(c.r),
+								static_cast< float >(c.g),
+								static_cast< float >(c.b),
+								static_cast< float >(c.a * d->m_opacity));
+			} else {
+				col = QVector4D(static_cast< float >(d->m_solidColor.r),
+								static_cast< float >(d->m_solidColor.g),
+								static_cast< float >(d->m_solidColor.b),
+								static_cast< float >(d->m_solidColor.a * d->m_opacity));
+			}
+
+			WaterfallVertex bv;
+			bv.position = QVector3D(static_cast< float >(x), z, static_cast< float >(baseZ));
+			bv.color = col;
+			vertices.append(bv);
+
+			WaterfallVertex tv;
+			tv.position = QVector3D(static_cast< float >(x), z, static_cast< float >(v));
+			tv.color = col;
+			vertices.append(tv);
+		}
+	}
+
+	d->m_ribbonVertexCount = static_cast< int >(vertices.size());
+	if (vertices.isEmpty())
+		return;
+
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	if (!d->m_ribbonVAO.isCreated())
+		d->m_ribbonVAO.create();
+	d->m_ribbonVAO.bind();
+
+	// VBO (position + color, 28-byte stride matching the polygon shader)
+	if (!d->m_ribbonBuffer.isCreated())
+		d->m_ribbonBuffer.create();
+	d->m_ribbonBuffer.bind();
+	d->m_ribbonBuffer.allocate(vertices.constData(),
+							   static_cast< int >(vertices.size() * sizeof(WaterfallVertex)));
+
+	const int stride = sizeof(WaterfallVertex);
+	f->glEnableVertexAttribArray(0);
+	f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+	f->glEnableVertexAttribArray(1);
+	f->glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(sizeof(QVector3D)));
+
+	d->m_ribbonVAO.release();
+}
+
+/**
+ * @brief Builds the outline VBO
+ * @details One GL_LINE_STRIP per trace slot along the curve. Used by the
+ *          RibbonMesh (fill + outline) and Wireframe (outline only) styles.
+ */
+void Qwt3DWaterfall::buildOutlineVBO()
+{
+	QWT_D(d);
+	d->m_outlineVertexCount = 0;
+
+	if (d->m_style != RibbonMesh && d->m_style != Wireframe)
+		return;
+
+	const int M = d->m_samplesPerTrace;
+	if (d->m_count <= 0 || M <= 0)
+		return;
+
+	const QVector4D col(static_cast< float >(d->m_outlineColor.r),
+						static_cast< float >(d->m_outlineColor.g),
+						static_cast< float >(d->m_outlineColor.b),
+						static_cast< float >(d->m_outlineColor.a));
+
+	QVector<WaterfallVertex> vertices;
+	vertices.reserve(d->m_count * M);
+	for (int i = 0; i < d->m_count; ++i) {
+		const float z = static_cast< float >(
+			d->m_depthOrder == NewestInFront ? i : d->m_count - 1 - i);
+		const QVector<double>& trace = d->m_traces[ i ];
+		for (int j = 0; j < M; ++j) {
+			const double x = d->m_bins.value(j, double(j));
+			WaterfallVertex v;
+			v.position = QVector3D(static_cast< float >(x), z,
+								   static_cast< float >(trace[ j ]));
+			v.color = col;
+			vertices.append(v);
+		}
+	}
+
+	d->m_outlineVertexCount = static_cast< int >(vertices.size());
+	if (vertices.isEmpty())
+		return;
+
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	if (!d->m_outlineVAO.isCreated())
+		d->m_outlineVAO.create();
+	d->m_outlineVAO.bind();
+
+	// VBO (position + color, 28-byte stride matching the line shader)
+	if (!d->m_outlineBuffer.isCreated())
+		d->m_outlineBuffer.create();
+	d->m_outlineBuffer.bind();
+	d->m_outlineBuffer.allocate(vertices.constData(),
+								static_cast< int >(vertices.size() * sizeof(WaterfallVertex)));
+
+	const int stride = sizeof(WaterfallVertex);
+	f->glEnableVertexAttribArray(0);
+	f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+	f->glEnableVertexAttribArray(1);
+	f->glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(sizeof(QVector3D)));
+
+	d->m_outlineVAO.release();
+}
+
+/**
+ * @brief Builds the tube VBO/EBO
+ * @details Each trace is swept with a view-circular cross-section
+ *          (parallel-transport framing, per-axis radius = 0.5% of the hull
+ *          extents, 6 ring segments), rendered with the surface shader (lit).
+ *          Dense traces are decimated to at most 129 ring stations to bound
+ *          the vertex/index count. Colors follow the color mode at the curve
+ *          sample points.
+ */
+void Qwt3DWaterfall::buildTubeVBO()
+{
+	QWT_D(d);
+	d->m_tubeIndexCount = 0;
+
+	if (d->m_style != Tube)
+		return;
+
+	const int M = d->m_samplesPerTrace;
+	if (d->m_count <= 0 || M < 2)
+		return;
+
+	ensureDataColor();
+	if (d->m_colorMode != Solid)
+		pushColorRange();
+
+	// Per-axis radius: a common fraction c of each hull extent, so the cross
+	// section reads as a circle under the plot's per-axis normalization. c is
+	// capped so the depth radius stays below half a slot (the trace spacing
+	// is one slot): without the cap, dense windows fuse into a single blob.
+	const Triple dt = d->m_hull.maxVertex - d->m_hull.minVertex;
+	const double c = qMin(0.005, 0.4 / qMax(1.0, double(d->m_count - 1)));
+	const QVector3D radius(static_cast< float >(c * (dt.x > 1e-9 ? dt.x : 1.0)),
+						   static_cast< float >(c * (dt.y > 1e-9 ? dt.y : 1.0)),
+						   static_cast< float >(c * (dt.z > 1e-9 ? dt.z : 1.0)));
+	const int segments = 6;
+
+	// Ring stations per trace: decimate dense traces (tubes smooth out the
+	// difference) so the vertex/index count - the Tube style's real cost -
+	// stays bounded. The last bin is always kept.
+	const int binStride = qMax(1, M / 128);
+
+	const bool useFunctor = (d->m_colorMode != Solid) && d->m_dataColor;
+	QVector<WaterfallTubeVertex> vertices;
+	QVector<unsigned int> indices;
+	for (int i = 0; i < d->m_count; ++i) {
+		const float z = static_cast< float >(
+			d->m_depthOrder == NewestInFront ? i : d->m_count - 1 - i);
+		const QVector<double>& trace = d->m_traces[ i ];
+
+		QVector<QVector3D> pts;
+		QVector<QVector4D> cols;
+		for (int j = 0; j < M; j += binStride) {
+			const double x = d->m_bins.value(j, double(j));
+			const double v = trace[ j ];
+			pts.append(QVector3D(static_cast< float >(x), z, static_cast< float >(v)));
+			RGBA c = d->m_solidColor;
+			if (useFunctor)
+				c = (*d->m_dataColor)(x, z, v);
+			cols.append(QVector4D(static_cast< float >(c.r),
+								  static_cast< float >(c.g),
+								  static_cast< float >(c.b),
+								  static_cast< float >(c.a)));
+		}
+		if ((M - 1) % binStride != 0) {
+			const double x = d->m_bins.value(M - 1, double(M - 1));
+			const double v = trace[ M - 1 ];
+			pts.append(QVector3D(static_cast< float >(x), z, static_cast< float >(v)));
+			RGBA c = d->m_solidColor;
+			if (useFunctor)
+				c = (*d->m_dataColor)(x, z, v);
+			cols.append(QVector4D(static_cast< float >(c.r),
+								  static_cast< float >(c.g),
+								  static_cast< float >(c.b),
+								  static_cast< float >(c.a)));
+		}
+		appendTubeGeometry(pts, cols, radius, segments, vertices, indices);
+	}
+
+	d->m_tubeIndexCount = static_cast< int >(indices.size());
+	if (vertices.isEmpty() || indices.isEmpty())
+		return;
+
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	if (!d->m_tubeVAO.isCreated())
+		d->m_tubeVAO.create();
+	d->m_tubeVAO.bind();
+
+	// VBO (position + normal + color, 40-byte stride matching the surface shader)
+	if (!d->m_tubeVertexBuffer.isCreated())
+		d->m_tubeVertexBuffer.create();
+	d->m_tubeVertexBuffer.bind();
+	d->m_tubeVertexBuffer.allocate(vertices.constData(),
+								   static_cast< int >(vertices.size() * sizeof(WaterfallTubeVertex)));
+
+	const int stride = sizeof(WaterfallTubeVertex);
+	f->glEnableVertexAttribArray(0);
+	f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+	f->glEnableVertexAttribArray(1);
+	f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(sizeof(QVector3D)));
+	f->glEnableVertexAttribArray(2);
+	f->glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride,
+							 reinterpret_cast<void*>(2 * sizeof(QVector3D)));
+
+	// EBO (side indices)
+	if (!d->m_tubeIndexBuffer.isCreated())
+		d->m_tubeIndexBuffer.create();
+	d->m_tubeIndexBuffer.bind();
+	d->m_tubeIndexBuffer.allocate(indices.constData(),
+								  static_cast< int >(indices.size() * sizeof(unsigned int)));
+
+	d->m_tubeVAO.release();
+}
+
+void Qwt3DWaterfall::draw()
+{
+	QWT_D(d);
+
+	if (!plot() || !plot()->initializedGL())
+		return;
+
+	const int M = d->m_samplesPerTrace;
+	if (d->m_count <= 0 || M <= 0)
+		return;
+
+	if (d->m_ribbonDirty) {
+		buildVBO();
+		d->m_ribbonDirty = false;
+	}
+	if (d->m_outlineDirty) {
+		buildOutlineVBO();
+		d->m_outlineDirty = false;
+	}
+	if (d->m_tubeDirty) {
+		buildTubeVBO();
+		d->m_tubeDirty = false;
+	}
+
+	QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+	if (!f)
+		return;
+
+	const QMatrix4x4 mv = plot()->modelViewMatrix();
+	const QMatrix4x4 proj = plot()->projectionMatrix();
+
+	const bool hasFill = (d->m_style == Ribbon || d->m_style == RibbonMesh);
+	const bool hasOutline = (d->m_style == RibbonMesh || d->m_style == Wireframe);
+	const bool blending = hasFill && d->m_opacity < 1.0;
+
+	// 1. Ribbon fill (oldest slot first: stable painter's order when blending)
+	if (hasFill && d->m_ribbonVertexCount > 0) {
+		QOpenGLShaderProgram* sh = plot()->polygonShader();
+		if (sh) {
+			if (blending) {
+				f->glEnable(GL_BLEND);
+				f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			}
+			sh->bind();
+			sh->setUniformValue("uModelView", mv);
+			sh->setUniformValue("uProjection", proj);
+			d->m_ribbonVAO.bind();
+			const int perSlot = 2 * M;
+			for (int i = 0; i < d->m_count; ++i)
+				f->glDrawArrays(GL_TRIANGLE_STRIP, i * perSlot, perSlot);
+			d->m_ribbonVAO.release();
+			sh->release();
+			if (blending)
+				f->glDisable(GL_BLEND);
+		}
+	}
+
+	// 2. Tube (lit, opaque)
+	if (d->m_style == Tube && d->m_tubeIndexCount > 0) {
+		if (!d->m_tubeShaderInitialized) {
+			d->m_tubeShader.addShaderFromSourceFile(
+				QOpenGLShader::Vertex, ":/shaders/surface.vert");
+			d->m_tubeShader.addShaderFromSourceFile(
+				QOpenGLShader::Fragment, ":/shaders/surface.frag");
+			if (!d->m_tubeShader.link())
+				return;
+			d->m_tubeShaderInitialized = true;
+		}
+		d->m_tubeShader.bind();
+		d->m_tubeShader.setUniformValue("uModelView", mv);
+		d->m_tubeShader.setUniformValue("uProjection", proj);
+		d->m_tubeShader.setUniformValue("uNormalMatrix", mv.normalMatrix());
+		const bool useLighting = plot()->lightingEnabled();
+		d->m_tubeShader.setUniformValue("uUseLighting", useLighting);
+		if (useLighting) {
+			d->m_tubeShader.setUniformValue("uLightPos", QVector3D(0.0f, 0.0f, 10.0f));
+			d->m_tubeShader.setUniformValue("uLightColor", QVector3D(1.0f, 1.0f, 1.0f));
+			d->m_tubeShader.setUniformValue("uShininess", 32.0f);
+		}
+		d->m_tubeShader.setUniformValue("uUseOverrideColor", false);
+		d->m_tubeVAO.bind();
+		f->glDrawElements(GL_TRIANGLES, d->m_tubeIndexCount, GL_UNSIGNED_INT, nullptr);
+		d->m_tubeVAO.release();
+		d->m_tubeShader.release();
+	}
+
+	// 3. Outline on top (fixed order, independent of the item z value)
+	if (hasOutline && d->m_outlineVertexCount > 0) {
+		QOpenGLShaderProgram* sh = plot()->lineShader();
+		if (sh) {
+			sh->bind();
+			sh->setUniformValue("uModelView", mv);
+			sh->setUniformValue("uProjection", proj);
+			f->glLineWidth(static_cast< float >(d->m_outlineWidth));
+			d->m_outlineVAO.bind();
+			for (int i = 0; i < d->m_count; ++i)
+				f->glDrawArrays(GL_LINE_STRIP, i * M, M);
+			d->m_outlineVAO.release();
+			sh->release();
+		}
+	}
+}
+
+/**
+ * @brief Runtime type information
+ * @return Rtti_Plot3DWaterfall (= 1004)
+ */
+int Qwt3DWaterfall::rtti() const
+{
+	return Rtti_Plot3DWaterfall;
+}
+
+/*** End of inlined file: qwt3d_waterfall.cpp ***/
+
+
 /*** Start of inlined file: qwt3d_serialize.cpp ***/
 #include <QDataStream>
 #include <vector>
@@ -99208,12 +101149,14 @@ Qwt3DColorMapColor::Qwt3DColorMapColor(const QString& presetName, unsigned size)
 	, m_useManualInterval(false)
 	, m_alpha(1.0)
 	, m_presetName(presetName)
+	, m_source(ColorFromZ)
 {
 	rebuildColorVector(size);
 }
 
 Qwt3DColorMapColor::Qwt3DColorMapColor(::QwtColorMap* colorMap, unsigned size)
 	: m_colorMap(colorMap), m_manualMin(0.0), m_manualMax(1.0), m_useManualInterval(false), m_alpha(1.0)
+	, m_source(ColorFromZ)
 {
 	rebuildColorVector(size);
 }
@@ -99223,7 +101166,7 @@ Qwt3DColorMapColor::~Qwt3DColorMapColor()
 	delete m_colorMap;
 }
 
-RGBA Qwt3DColorMapColor::operator()(double, double, double z) const
+RGBA Qwt3DColorMapColor::operator()(double x, double y, double z) const
 {
 	double zMin, zMax;
 	if (m_useManualInterval) {
@@ -99234,7 +101177,11 @@ RGBA Qwt3DColorMapColor::operator()(double, double, double z) const
 		zMax = activeZMax();
 	}
 
-	const QRgb rgb = m_colorMap->rgb(zMin, zMax, z);
+	// The selected source coordinate feeds the colormap; the active range
+	// always applies to that same coordinate.
+	const double v = (m_source == ColorFromX) ? x : (m_source == ColorFromY) ? y : z;
+
+	const QRgb rgb = m_colorMap->rgb(zMin, zMax, v);
 	RGBA rgba;
 	rgba.r = qRed(rgb) / 255.0;
 	rgba.g = qGreen(rgb) / 255.0;
@@ -99284,6 +101231,28 @@ void Qwt3DColorMapColor::setAlpha(double a)
 		return;
 	m_alpha = a;
 	rebuildColorVector(static_cast< unsigned >(m_colors.size()));
+}
+
+/**
+ * @brief Selects which coordinate of the (x, y, z) functor argument feeds the colormap
+ * @param source The source coordinate (ColorFromX, ColorFromY or ColorFromZ)
+ * @details The default ColorFromZ preserves the historical behavior. The active
+ *          range pushed by the owning item via setActiveRange() applies to the
+ *          selected coordinate. The legend color vector is unaffected: it always
+ *          shows the colormap over the active range.
+ */
+void Qwt3DColorMapColor::setSourceAxis(Qwt3DColorSource source)
+{
+	m_source = source;
+}
+
+/**
+ * @brief Returns the source coordinate selection
+ * @return The current Qwt3DColorSource (default ColorFromZ)
+ */
+Qwt3DColorSource Qwt3DColorMapColor::sourceAxis() const
+{
+	return m_source;
 }
 
 void Qwt3DColorMapColor::rebuildColorVector(unsigned size)
@@ -99868,7 +101837,8 @@ void Qwt3DTheme::apply(Qwt3DPlot* plot) const
  *          line width, smooth mesh, data color (from preset), plot style, and
  *          shading. Qwt3DBar receives mesh color/line width, bar style (mapped
  *          from the theme's plot style), and the data color functor. Qwt3DLine
- *          receives the solid color and the data color functor.
+ *          receives the solid color and the data color functor. Qwt3DWaterfall
+ *          receives the outline color/width and the data color functor.
  */
 void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item) const
 {
@@ -99908,6 +101878,14 @@ void Qwt3DTheme::applyToItem(Qwt3DPlotItem* item) const
 		line->setColor(m_meshColor);
 		auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
 		line->setDataColor(colorMap);
+		return;
+	}
+
+	if (auto* waterfall = dynamic_cast<Qwt3DWaterfall*>(item)) {
+		waterfall->setOutlineColor(m_meshColor);
+		waterfall->setOutlineWidth(m_meshLineWidth);
+		auto* colorMap = new Qwt3DColorMapColor(m_dataColorPreset);
+		waterfall->setDataColor(colorMap);
 		return;
 	}
 }

@@ -4,11 +4,13 @@
 
 > **Abstract — Key results**
 >
-> - On a million-point curve, `FilterPointsLTTB` (MinMax buckets) cuts the replot time from 262 ms/frame (3.8 FPS) to 133 ms/frame (7.5 FPS), with the best fidelity of all strategies (61%–97% pixel-exact columns depending on the signal)
+> - On a million-point curve, `FilterPointsMinMaxLTTB` (MinMax buckets, the `FilterPointsLTTB` default up to v7.4.2) cuts the replot time from 262 ms/frame (3.8 FPS) to 133 ms/frame (7.5 FPS), with the best fidelity of all strategies (61%–97% pixel-exact columns depending on the signal)
 > - The MinMax bucket keeps the "visual shape preservation" of classic LTTB, but adds a **deterministic extreme-preservation guarantee** that LTTB lacks, and reduces the core computation to a SIMD-friendly argmin/argmax
 > - The bucket budget $N_b = 2W$ (two buckets per pixel column, four output points per column) matches the display Nyquist limit: content below 0.5 cycles per column is reproduced without loss
 
 ---
+
+> **Update (v7.5.0)** — `FilterPointsLTTB` now maps to a **true LTTB** implementation (`QwtPointMapper::LTTBReduce`, `qwtLttbReduce()`, Section 3): the largest-triangle selection runs on the mapped screen coordinates, always keeps the first and last sample, and preserves the shape of narrow peaks that the MinMax bucket rule tends to collapse into vertical strokes. The MinMax bucket variant analyzed in this article moved to the new **`FilterPointsMinMaxLTTB`** attribute (`MinMaxReduce`); the benchmark numbers below were measured with it. Both algorithms now keep **sub pixel precision** whenever the painter does not align to integer coordinates ( f.e. antialiasing enabled ) instead of snapping the downsampled polyline to integer pixels.
 
 ## 1. Introduction: the bottleneck of visual bandwidth
 
@@ -51,7 +53,7 @@ When $N \gg W$, on average $N/W$ samples land in every pixel column. Their spati
 | `FilterPoints` (dedupe) | 44,472 | 444.7 | 2.2 |
 | `FilterPointsAggressive` (quad merge) | 17,539 | 175.4 | 5.7 |
 | `FilterPointsPixel` (pixel column bins) | 23,216 | 232.2 | 4.3 |
-| **`FilterPointsLTTB` (MinMax buckets)** | **13,349** | **133.5** | **7.5** |
+| **`FilterPointsMinMaxLTTB` (MinMax buckets)** | **13,349** | **133.5** | **7.5** |
 
 (Absolute numbers depend on hardware; the ordering is stable. QWT7.2.1 + Qt 5.15.16, renderbench example.)
 
@@ -61,7 +63,7 @@ Those numbers were measured with the benchmark example that ships in the reposit
 
 The interface consists of three parts:
 
-- **Control panel**: `Points` (1,000 – 10,000,000, default 1,000,000), `Frames` (10 – 1000, default 100), `Wave` (smooth wave / white noise), `Method` (`None` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB`), plus `Run` (single method) and `Run All (Compare)` (batch comparison of every method);
+- **Control panel**: `Points` (1,000 – 10,000,000, default 1,000,000), `Frames` (10 – 1000, default 100), `Wave` (smooth wave / white noise), `Method` (`None` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB` / `FilterPointsMinMaxLTTB`), plus `Run` (single method) and `Run All (Compare)` (batch comparison of every method);
 - **Plot area**: the data is generated on demand by `WindowedSeriesData` inside a sliding window that follows the X axis, so every replot does the work of a real scrolling view;
 - **Report dialog**: pops up after a run with a Markdown report (environment, QWT/Qt versions, canvas size, parameters) and per-method timing / FPS summary, copied to the clipboard with one click.
 
@@ -79,7 +81,7 @@ Downsampling inside the paint pipeline consists of two stages:
 Two mainstream strategies:
 
 - **Pixel-domain buckets** (`FilterPointsPixel`): the bucket is a pixel column (spatially uniform); per column the points first / min / max / last are emitted.
-- **Index-domain buckets** (`FilterPointsLTTB`): the bucket is a run of equal sample count (index-uniform); per bucket the extreme points are emitted.
+- **Index-domain buckets** (`FilterPointsLTTB` / `FilterPointsMinMaxLTTB`): the bucket is a run of equal sample count (index-uniform); LTTB emits the largest-triangle point per bucket, MinMax the extreme points.
 
 Sections 3 and 4 develop these two ideas. Both share the same output budget of $4W$ points per canvas — the difference is the shape of the buckets and how representatives are chosen.
 
@@ -190,7 +192,7 @@ When a pair falls into one bucket, the up spike and the down spike produce trian
 
 ### 4.1 Definition
 
-`QwtPlotCurve::FilterPointsLTTB` maps internally to `QwtPointMapper::MinMaxReduce`, which invokes `qwtMinMaxBucketReduce()`. It shares the index-domain bucketing skeleton with classic LTTB, but replaces the representative ("max area point") with **the minimum and maximum $y$ of the bucket**:
+`QwtPlotCurve::FilterPointsMinMaxLTTB` maps internally to `QwtPointMapper::MinMaxReduce`, which invokes `qwtMinMaxBucketReduce()`. ( The `FilterPointsLTTB` default up to v7.4.2 used this same flag; since v7.5.0 it maps to `LTTBReduce` / `qwtLttbReduce()` instead. ) It shares the index-domain bucketing skeleton with classic LTTB, but replaces the representative ("max area point") with **the minimum and maximum $y$ of the bucket**:
 
 Let $n = \text{visTo} - \text{visFrom} + 1$ be the number of visible samples and $W$ the canvas width. Define
 
@@ -293,11 +295,13 @@ flowchart LR
     B --> C{"QwtPointMapper flag priority"}
     C -->|"PixelColumnReduce"| D["qwtPixelColumnReduce<br/>&#8804; 4W pts"]
     C -->|"MinMaxReduce"| E["qwtMinMaxBucketReduce<br/>&#8776; 4W pts"]
+    C -->|"LTTBReduce"| E2["qwtLttbReduce<br/>&#8776; 4W pts"]
     C -->|"WeedOutIntermediatePoints"| F["qwtMapPointsQuad<br/>two-pass quad merge"]
     C -->|"WeedOutPoints"| G["qwtToPolylineFiltered<br/>dedupe"]
     C -->|"default (no flags)"| H["qwtToPoints<br/>full transform"]
     D --> I["QPolygonF polyline"]
     E --> I
+    E2 --> I
     F --> I
     G --> I
     H --> I
@@ -315,13 +319,14 @@ flowchart LR
 | `FilterPoints` | `WeedOutPoints` | always |
 | `FilterPointsAggressive` | `WeedOutIntermediatePoints` + `WeedOutPoints` | only with integer-align rounding (`doAlign`) |
 | `FilterPointsPixel` | `PixelColumnReduce` | always |
-| `FilterPointsLTTB` | `MinMaxReduce` | always |
+| `FilterPointsLTTB` | `LTTBReduce` | always |
+| `FilterPointsMinMaxLTTB` | `MinMaxReduce` | always |
 
 The selection priority in `toPolygonF()` (`src/plot/qwt_point_mapper.cpp:1232`) is
 
-> `PixelColumnReduce` > `MinMaxReduce` > `WeedOutIntermediatePoints` > `WeedOutPoints`
+> `PixelColumnReduce` > `LTTBReduce` > `MinMaxReduce` > `WeedOutIntermediatePoints` > `WeedOutPoints`
 
-so enabling several attributes at once lets the pixel column win over MinMax buckets, MinMax over quad merge, and so on. The **default** is `ClipPolygons | FilterPointsLTTB`.
+so enabling several attributes at once lets the pixel column win over LTTB, LTTB over MinMax buckets, MinMax over quad merge, and so on. The **default** is `ClipPolygons | FilterPointsLTTB`.
 
 ### 5.2 Visible range culling: binary search
 
@@ -357,6 +362,8 @@ flowchart TD
 - **Generic path**: without raw pointers, every point is fetched through the virtual `sample(i)` and a per-bucket linear scan maintains min/max.
 
 For value-only data (`setRawSamples(yData, size)`) there is no $x$ pointer: the screen $x$ is computed from the sample index, $sx = \text{round}(i \cdot xCnv + xOff)$.
+
+`qwtLttbReduce()` ( v7.5.0, behind `FilterPointsLTTB` ) sits at the same pipeline position with a simpler structure: two passes ( bucket averages, then triangle selection ), using the raw pointer fast path when available and the generic `sample()` path otherwise — no SIMD variant, as the area criterion does not vectorize as cleanly as argmin/argmax. Its bucket budget is $N_b = 4W$ with one output point per bucket, matching the MinMax output budget of $2 \times 2W$.
 
 ### 5.4 SIMD acceleration: vectorized argmin/argmax
 
@@ -475,7 +482,7 @@ with amplitude $A$, frequency $f$ (cycles/column) and $\Delta x_b \approx 0.5$ c
 
 - **Extreme column shift**: rounding moves an extreme's $x$ by at most half a column; when it sits near a column boundary, its vertical stroke lands in the neighboring column (the max errors of MinMax all concentrate in such columns).
 
-**3. Why does QWT7 default to `FilterPointsLTTB` instead of the pixel column?** Three reasons: ① MinMax compares $y$ in the data domain and keeps the true $x$ — the output is geometrically exact on the **float path** (`QPolygonF`, PDF/SVG export, non-aligned painting), whereas the pixel column pins extremes to fixed +0.25/+0.75 sub-pixel offsets and thereby biases their positions; ② it is more robust for genuinely uneven $x$ (equal-count buckets do not create "phantom columns" in sparse regions); ③ "LTTB" is a well-known name in the community, so `FilterPointsLTTB` gives users a mental model for free.
+**3. Why does QWT7 default to `FilterPointsLTTB` instead of the pixel column?** Since v7.5.0 the default is the **true LTTB**: selected on the mapped screen coordinates it preserves the shape of narrow peaks best of all strategies, always keeps the curve endpoints, and — like MinMax — outputs exact mapped coordinates on the **float path** (`QPolygonF`, PDF/SVG export, non-aligned painting), whereas the pixel column pins extremes to fixed +0.25/+0.75 sub-pixel offsets and thereby biases their positions. The MinMax bucket variant ( `FilterPointsMinMaxLTTB`, the default up to v7.4.2 ) remains attractive when the deterministic extreme-preservation guarantee or the SIMD argmin/argmax speed matters. And "LTTB" is a well-known name in the community, so `FilterPointsLTTB` gives users a mental model for free.
 
 **4. The 2W budget sits exactly on the quality/performance knee** (Table 2): halving the budget drops clean columns from 80% to 64%, while doubling it buys only 9 points of clean-columns at twice the draw cost. This matches the Nyquist argument — content below the display limit is already fully sampled; more buckets only buy sub-pixel detail.
 
@@ -518,6 +525,10 @@ curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);
 // curve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, true);
 // curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, false);
 
+// opt into the MinMax bucket rule used by FilterPointsLTTB up to v7.4.2:
+// curve->setPaintAttribute(QwtPlotCurve::FilterPointsMinMaxLTTB, true);
+// curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, false);
+
 // combine with render smoothing (see the smoothing article)
 curve->setSmoothAlgorithm(QwtPlotCurve::GaussianSmoothing);
 curve->setSmoothWindow(15);
@@ -525,7 +536,7 @@ curve->setSmoothWindow(15);
 
 > **Warning — Mutual exclusion**
 >
-> When several of `FilterPointsPixel`, `FilterPointsLTTB` and `FilterPointsAggressive` are enabled at once, the internal priority in `QwtPointMapper` decides: `Pixel > MinMax > Aggressive`. Do not enable several of them; the effect is the one on top.
+> When several of `FilterPointsPixel`, `FilterPointsLTTB`, `FilterPointsMinMaxLTTB` and `FilterPointsAggressive` are enabled at once, the internal priority in `QwtPointMapper` decides: `Pixel > LTTB > MinMax > Aggressive`. Do not enable several of them; the effect is the one on top.
 
 ### 7.2 Using the SIMD utility directly
 
@@ -551,9 +562,9 @@ const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 | scenario | recommendation |
 |---|---|
 | regular waveforms, spectra (default) | `FilterPointsLTTB`, nothing to configure |
-| PDF / SVG export (float path) | `FilterPointsLTTB` (data-domain exact) |
+| PDF / SVG export (float path) | `FilterPointsLTTB` (sub pixel exact mapping) |
 | most stable pixel envelope, integer widgets | `FilterPointsPixel` |
-| fewer points than 4 × canvas width | no downsampling needed (MinMax falls back to quad merge) |
+| fewer points than 4 × canvas width | no downsampling needed (the reduce algorithms fall back to plain mapping) |
 | benchmarking | `examples/bench/renderbench`: configurable data size, waveform, frames, batch comparison |
 
 ## 8. Summary
@@ -561,12 +572,12 @@ const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 - Visualization is a **bandwidth-limited sampling problem**: the Nyquist limit of a $W$-column canvas makes every sample rate above $2W$ redundant.
 - Classic LTTB selects points by a "largest triangle area" heuristic: simple, $O(N)$, good visual quality — but **no extreme guarantee** and a systematic loss for spike pairs.
 - The QWT7 MinMax bucket replaces the criterion with "keep every bucket extreme": it gains the provable properties of global extreme preservation, no self-intersection, and a resolution matched to the pixel limit, while keeping the visual shape fidelity of index-domain bucketing; the core computation simplifies to a SIMD-friendly argmin/argmax (AVX2/SSE4.2/scalar, runtime dispatch, NaN semantics guaranteed by the pre-scan plus the scalar branch).
-- Experiments show the default budget $N_b = 2W$ sits on the fidelity/performance knee; `FilterPointsLTTB` reduces a million-point replot from 262 ms to 133 ms per frame while preserving about 99% of the column envelope.
+- Experiments show the MinMax budget $N_b = 2W$ sits on the fidelity/performance knee; `FilterPointsMinMaxLTTB` reduces a million-point replot from 262 ms to 133 ms per frame while preserving about 99% of the column envelope. Since v7.5.0 the default `FilterPointsLTTB` is the true LTTB at the classic $N_b = 4W$ budget ( one point per bucket ), prioritizing peak shape over the extreme guarantee.
 
 ## 9. References
 
 1. Steinarsson, S. *Downsampling Time Series for Visual Representation.* MSc thesis, University of Iceland, 2013.
-2. QWT7 sources: `src/plot/qwt_point_mapper.cpp` (`qwtMinMaxBucketReduce`, `qwtPixelColumnReduce`, `qwtFindVisibleRange`), `src/core/qwt_simd_argminmax.cpp`.
+2. QWT7 sources: `src/plot/qwt_point_mapper.cpp` (`qwtLttbReduce`, `qwtMinMaxBucketReduce`, `qwtPixelColumnReduce`, `qwtFindVisibleRange`), `src/core/qwt_simd_argminmax.cpp`.
 3. QWT7 benchmark example: `examples/bench/renderbench` (live timings and batch comparison of the five reduction methods).
 4. QWT7 NaN rendering example: `examples/2D/nanperf` (adjustable NaN ratio, sweeps the same five point-filter paint attributes).
 5. CHANGES.md, v7.2.x: "Added `FilterPointsPixel` and `FilterPointsLTTB` paint attributes …"

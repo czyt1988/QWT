@@ -18,7 +18,7 @@ namespace
 {
 
 /// Clamps a float to [lo, hi]
-float clampf(float v, float lo, float hi)
+float clampFloat(float v, float lo, float hi)
 {
     return v < lo ? lo : (v > hi ? hi : v);
 }
@@ -71,7 +71,7 @@ void appendTubeGeometry(const QVector<QVector3D>& pts,
     }
     for (int i = 1; i < N; ++i) {
         QVector3D axis = QVector3D::crossProduct(T[i - 1], T[i]);
-        const float cosA = clampf(QVector3D::dotProduct(T[i - 1], T[i]), -1.0f, 1.0f);
+        const float cosA = clampFloat(QVector3D::dotProduct(T[i - 1], T[i]), -1.0f, 1.0f);
         QVector3D n;
         if (axis.lengthSquared() < 1e-12f) {
             // Parallel tangents: no rotation needed

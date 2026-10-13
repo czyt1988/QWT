@@ -2,6 +2,12 @@
 
 ### 新功能
 
+- **曲线真 LTTB 降采样（FilterPointsLTTB 重做）**
+    - `FilterPointsLTTB` 现在实现真正的 Largest-Triangle-Three-Buckets 算法（新增 `QwtPointMapper::LTTBReduce` 标志、`qwtLttbReduce()`）：可见数据被分成 4 × 画布宽度个等量桶，每桶保留与「上一个已选点和下一桶均值」构成最大三角形面积的样本；首尾样本永远保留
+    - 窄高斯峰保持形状、不再塌缩成竖线；激活阈值（可见采样 > 4 × 画布宽度）与输出预算（约每像素列 4 个点）与原 MinMax 桶算法一致
+    - MinMax 桶算法移至新增的 `FilterPointsMinMaxLTTB` 绘制属性 —— 它就是 v7.3.2 - v7.4.2 中 `FilterPointsLTTB` 的原有行为
+    - 分发优先级：`PixelColumnReduce` > `LTTBReduce` > `MinMaxReduce` > `WeedOutIntermediatePoints` > `WeedOutPoints`；默认值仍为 `ClipPolygons | FilterPointsLTTB`（现在是保形的真 LTTB）
+    - 回归测试：`tests/downsampling_test`；`examples/bench/renderbench` 新增 `FilterPointsMinMaxLTTB` 基准模式
 - **3D 瀑布图 item（Qwt3DWaterfall）**
     - 新增 `Qwt3DPlotItem`：把一维轨迹序列（频谱、色谱……）沿深度轴堆叠绘制，内置滑动窗口——`pushTrace()` 追加最新轨迹并丢弃最旧轨迹，用户无需自己管理窗口或深度编号
     - 坐标轴遵循模块约定（数值轴朝上，与 `Qwt3DSurface` 一致）：x = bin 值、y = 轨迹在窗口中的位置（深度）、z = 幅度；`Qwt3DTextScale` 放在深度轴上
@@ -25,6 +31,9 @@
 
 ### Bug 修复
 
+- 修复降采样破坏窄峰视觉形状且无视抗锯齿的问题：默认的 `FilterPointsLTTB`（MinMax 桶，v7.3.2 - v7.4.2）每桶只保留 y 最小/最大的样本，采样点数超过桶容量的峰塌缩成平顶竖线、峰肩全部丢失；且所有降采样路径无视 `RoundPoints` 标志、把映射坐标强制取整到整数像素 —— 开不开抗锯齿画面毫无差别。现在两个降采样算法都遵循 `RoundPoints`（画布不按整数对齐时保留亚像素精度，含低于阈值的回退路径），默认降采样改为保峰形的真 LTTB。回归测试：`tests/downsampling_test`
+- 修复单文件合成构建（`src-amalgamate`，`examples/staticExample` 使用）自 3D 瀑布图合入后无法链接的问题：amalgamate 模板从未列入 `qwt3d_waterfall.h/.cpp`，导致 `Qwt3DTheme::applyToItem()` 引用的 `Qwt3DWaterfall` setter 在合成文件内没有定义。已更新模板并重新生成 `src-amalgamate`；同时把 `qwt3d_waterfall.cpp` 中重复的文件级 `clampf()` 辅助函数改名为 `clampFloat()`，使单一翻译单元可以通过编译。另移除 `tests/flat_style_test` 中仅 Qt5 可用的 `QwtPlotGLCanvas` 包含——它在 Qt6 下因不存在 `<qgl.h>` 而编译失败
+- 修复坐标轴主线在画布四角不相交、以及 HiDPI 缩放下轴线/刻度线宽度不一致的问题：`QwtScaleDraw` 现在把主线与刻度绘制为设备像素对齐的填充矩形（笔宽截断为整数设备像素，`setPenWidthF(1.0)` 在任意设备像素比下都是 1 像素细线），刻度恰好止于主线内缘而不再与主线交叉；位于刻度范围端点的刻度吸附到垂直轴的主线上，角上不再残留端点刻度与垂直轴线之间 1 像素的台阶；新增 `QwtScaleDraw::setCornerMiter()` 标志——由 `QwtScaleWidget` 按垂直轴的可见性设置——把每条主线向共享的画布角延伸一个笔宽，互相垂直的主线因此交成干净的 L 形，而不是对角台阶（分数缩放下甚至是彻底的缺口）。回归测试：`tests/axis_corner_test`
 - 修复 `Qwt3DPlot::attach()` 不重算场景的问题：若数据在 `attach()` 之前装载、且中间没有调用任何 setter（因此未触发 `itemChanged()`），plot 的 hull 停留在 (0,0,0)-(0,0,0)，画面全白且无任何警告。z 排序 + hull 并集 + 坐标系更新被抽取为私有 `recalculateScene()`，`attach()` 与 `detach()` 现在也会调用，detach 后 hull 同步收缩。已加回归测试（`tests/waterfall_test`）
 - 修复派生 `Qwt3DScale` 在 `Qwt3DAxis::setScale()` 内被切片的问题：`Qwt3DClonePtr` 赋值经 `clone()` 克隆，未 override `clone()` 的派生 scale 的自定义 `ticLabel()` 静默失效（实测逐像素零差异）。`Qwt3DTextScale` 已 override；`Qwt3DLinearScale` 新增 protected `copyLinearScaleState()` 供派生类复制 autoscaler 状态
 - 修复 `Qwt3DWaterfall::pushTrace()` 对短轨迹的越界读取：入帧按已建立的 bin 宽度装填（超长截断、过短零填充）
@@ -32,7 +41,7 @@
 - 修复 `Qwt3DCoordinateSystem::init()` 每次重建时把所有轴的 scale 重置为 `LINEARSCALE`：对 hull 逐帧变化的 item（实时瀑布），用户设置的 `Qwt3DTextScale` 会被静默丢弃、深度轴回退为数字标签。现在 `init()` 只重建几何，并新增 `Qwt3DAxis::scale()` 暴露当前 scale
 - 修复 `Qwt3DWaterfall::Tube` 融合成一整块并拖垮帧率的问题：扫掠半径原先在数据空间各向同性，在各向异性视图缩放下相邻轨迹互相重叠、截面被拉成板状，且每帧重建每条轨迹的全部环站。现在半径按各轴 hull 范围取比例（视图空间正圆、上限为半个槽位间距），密集轨迹降采样到 ≤129 个环站（128 条 × 256 bin 实测 17 → 62 fps）
 - 修复 3D 视图旋转过快且被取整成整度的问题：鼠标/键盘处理函数保存的是 `int(round(angle)) % 360`，慢速拖动的小数角度被永久丢弃（2000 px 宽的控件上 1 px 只有 0.09°，画面完全不动），角度还会跑出规范区间；拖满整个控件的增益高达 3 整圈（实测 200 px → 220°）。现在角度以 double 保存并折入 [0, 360)，默认增益改为每屏半圈（同一拖动实测 36°）。回归测试：`tests/plot3d_rotation_test`
-- 修复 MinMax 桶降采样（`FilterPointsLTTB`）对含非有限坐标的数据产出伪顶点的问题：原始指针快速路径的预扫描只用 `isnan` 检查 y 值，x 为 NaN 的样本可能胜出桶极值并经 `qRound(NaN) == 0` 映射为伪顶点（钉在画布左缘的伪尖峰）；±Inf 的 y 值也能穿过预扫描进入 SIMD 路径，产出 `INT_MIN` 像素坐标。现在预扫描以 `!isfinite` 拦截非有限 y 值；SIMD 路径对每桶胜出样本的 x 做后置校验，命中桶改用标量循环重算；标量循环跳过 x/y 非有限的样本——原始指针路径与通用 `sample()` 路径语义对齐。仅 y 数据的索引系列（无原始 x 指针）不受影响。预扫描刻意保持只查 y：实测同时扫描 x 会使 1M 干净点的帧时间回归 +11%（额外内存流量），最终方案实测回归 +1.7%（噪声带内）。回归测试：`tests/nan_curve_test`
+- 修复 MinMax 桶降采样（`FilterPointsMinMaxLTTB`，即 v7.5.0 重做前的 `FilterPointsLTTB`）对含非有限坐标的数据产出伪顶点的问题：原始指针快速路径的预扫描只用 `isnan` 检查 y 值，x 为 NaN 的样本可能胜出桶极值并经 `qRound(NaN) == 0` 映射为伪顶点（钉在画布左缘的伪尖峰）；±Inf 的 y 值也能穿过预扫描进入 SIMD 路径，产出 `INT_MIN` 像素坐标。现在预扫描以 `!isfinite` 拦截非有限 y 值；SIMD 路径对每桶胜出样本的 x 做后置校验，命中桶改用标量循环重算；标量循环跳过 x/y 非有限的样本——原始指针路径与通用 `sample()` 路径语义对齐。仅 y 数据的索引系列（无原始 x 指针）不受影响。预扫描刻意保持只查 y：实测同时扫描 x 会使 1M 干净点的帧时间回归 +11%（额外内存流量），最终方案实测回归 +1.7%（噪声带内）。回归测试：`tests/nan_curve_test`
 - 修复 `qwtToPolylineFiltered`（`FilterPoints`/`WeedOutPoints` 映射路径）对全 NaN 输入返回含 NaN 坐标的单顶点多边形的问题：首非 NaN 扫描停在最后一个样本并无条件将其写入。现在全 NaN 区间返回空多边形（与 Quad 路径的早退一致），调用方"空多边形 = 无数据"的约定恢复。回归测试：`tests/nan_curve_test`
 
 ## tag:v7.4.2 (2026-10-10)

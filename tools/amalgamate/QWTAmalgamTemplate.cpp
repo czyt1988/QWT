@@ -201,6 +201,7 @@
 #include "../../src/plot3d/qwt3d_surface.cpp"
 #include "../../src/plot3d/qwt3d_bar.cpp"
 #include "../../src/plot3d/qwt3d_line3d.cpp"
+#include "../../src/plot3d/qwt3d_waterfall.cpp"
 #include "../../src/plot3d/qwt3d_serialize.cpp"
 #include "../../src/plot3d/qwt3d_io_gl2ps.cpp"
 #include "../../src/plot3d/qwt3d_colormap_color.cpp"

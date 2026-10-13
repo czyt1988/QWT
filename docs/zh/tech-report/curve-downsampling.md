@@ -4,11 +4,13 @@
 
 > **摘要 — 核心结论**
 >
-> - 对百万级曲线，`FilterPointsLTTB`（MinMax 桶）在 1,000,000 点上把重绘耗时从 262 ms/帧（3.8 FPS）降到 133 ms/帧（7.5 FPS），且保真度最高（`clean` 列占比 61%–97%，取决于信号）
+> - 对百万级曲线，`FilterPointsMinMaxLTTB`（MinMax 桶，v7.4.2 及之前的 `FilterPointsLTTB` 默认）在 1,000,000 点上把重绘耗时从 262 ms/帧（3.8 FPS）降到 133 ms/帧（7.5 FPS），且保真度最高（`clean` 列占比 61%–97%，取决于信号）
 > - MinMax 桶保留了经典 LTTB 的"视觉形状保持"优点，但提供了后者没有的**确定性极值保留**保证，并可使用 SIMD 指令加速逐桶 argmin/argmax
 > - 桶数的选择 $N_b = 2W$（每个像素列 2 个桶、4 个输出点）对应可视化的奈奎斯特极限：低于每列 0.5 周期的内容可被无失真复现
 
 ---
+
+> **更新（v7.5.0）** —— `FilterPointsLTTB` 现在映射到**真 LTTB** 实现（`QwtPointMapper::LTTBReduce`，`qwtLttbReduce()`，见第 3 节）：最大三角形选择在映射后的屏幕坐标上进行，永远保留首尾样本，并能保住 MinMax 桶规则容易塌缩成竖线的窄峰形状。本文分析的 MinMax 桶变体移到新增的 **`FilterPointsMinMaxLTTB`** 属性（`MinMaxReduce`）；下文的基准数据均由它测得。此外，当绘制不按整数像素对齐（例如开启抗锯齿）时，两个算法现在都保留**亚像素精度**，不再把降采样后的折线吸附到整数像素。
 
 ## 1. 引言：可视化带宽的瓶颈
 
@@ -51,7 +53,7 @@ $$
 | `FilterPoints`（去重复） | 44,472 | 444.7 | 2.2 |
 | `FilterPointsAggressive`（Quad 归并） | 17,539 | 175.4 | 5.7 |
 | `FilterPointsPixel`（像素列归并） | 23,216 | 232.2 | 4.3 |
-| **`FilterPointsLTTB`（MinMax 桶）** | **13,349** | **133.5** | **7.5** |
+| **`FilterPointsMinMaxLTTB`（MinMax 桶）** | **13,349** | **133.5** | **7.5** |
 
 （数据来自 QWT7.2.1 + Qt 5.15.16 的 renderbench 示例；不同硬件上绝对数值有差异，相对关系一致。）
 
@@ -61,7 +63,7 @@ $$
 
 界面从左到右分别是：
 
-- **控制面板**：`Points`（1,000 – 10,000,000，默认 1,000,000）、`Frames`（10 – 1000，默认 100）、`Wave`（平滑波 / 白噪声）、`Method`（`None` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB` 五种绘制方式），以及 `Run`（单跑当前方法）与 `Run All (Compare)`（批量对比全部方法）；
+- **控制面板**：`Points`（1,000 – 10,000,000，默认 1,000,000）、`Frames`（10 – 1000，默认 100）、`Wave`（平滑波 / 白噪声）、`Method`（`None` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB` / `FilterPointsMinMaxLTTB` 六种绘制方式），以及 `Run`（单跑当前方法）与 `Run All (Compare)`（批量对比全部方法）；
 - **绘图区**：数据由 `WindowedSeriesData` 在滚动的窗口内按需生成，X 轴跟随窗口，因此每次重绘的工作量与真实的滚动场景一致；
 - **报告对话框**：跑完自动弹出 Markdown 报告，含环境（QWT/Qt 版本、画布尺寸）、参数与全部方法的耗时 / 帧率汇总，可一键复制。
 
@@ -79,7 +81,7 @@ $$
 两种主流思路：
 
 - **像素域分桶**（`FilterPointsPixel`）：桶 = 像素列（空间均匀），输出每列首/最小/最大/末 4 点；
-- **索引域分桶**（`FilterPointsLTTB`）：桶 = 等样本数段（索引均匀），输出每桶极值点。
+- **索引域分桶**（`FilterPointsLTTB` / `FilterPointsMinMaxLTTB`）：桶 = 等样本数段（索引均匀）；LTTB 每桶输出最大三角形面积点，MinMax 每桶输出极值点。
 
 第 3、4 节分别展开这两种思路；二者在"给每个像素列多少输出点"上共享同一个预算 $4W$（每列 4 点），区别在于桶的形状与代表点的选取。
 
@@ -189,7 +191,7 @@ $$
 
 ### 4.1 定义
 
-`QwtPlotCurve::FilterPointsLTTB` 在内部映射为 `QwtPointMapper::MinMaxReduce`，调用 `qwtMinMaxBucketReduce()`。它与经典 LTTB 共享"索引域等样本数分桶"的骨架，但代表点从"最大三角形面积点"改为**桶内 $y$ 的最小值与最大值**：
+`QwtPlotCurve::FilterPointsMinMaxLTTB` 在内部映射为 `QwtPointMapper::MinMaxReduce`，调用 `qwtMinMaxBucketReduce()`。（v7.4.2 及之前的 `FilterPointsLTTB` 默认也走该标志；自 v7.5.0 起它改映射到 `LTTBReduce` / `qwtLttbReduce()`。）它与经典 LTTB 共享"索引域等样本数分桶"的骨架，但代表点从"最大三角形面积点"改为**桶内 $y$ 的最小值与最大值**：
 
 设可见样本数为 $n = \text{visTo} - \text{visFrom} + 1$，画布宽度为 $W$，定义
 
@@ -291,11 +293,13 @@ flowchart TB
     B --> C{"QwtPointMapper 标志优先级"}
     C -->|"PixelColumnReduce"| D["qwtPixelColumnReduce<br/>≤ 4W 点"]
     C -->|"MinMaxReduce"| E["qwtMinMaxBucketReduce<br/>≈ 4W 点"]
+    C -->|"LTTBReduce"| E2["qwtLttbReduce<br/>≈ 4W 点"]
     C -->|"WeedOutIntermediatePoints"| F["qwtMapPointsQuad<br/>两遍 Quad 归并"]
     C -->|"WeedOutPoints"| G["qwtToPolylineFiltered<br/>去重复"]
     C -->|"默认(无标志)"| H["qwtToPoints<br/>全量变换"]
     D --> I["QPolygonF 折线"]
     E --> I
+    E2 --> I
     F --> I
     G --> I
     H --> I
@@ -313,13 +317,14 @@ flowchart TB
 | `FilterPoints` | `WeedOutPoints` | 恒生效 |
 | `FilterPointsAggressive` | `WeedOutIntermediatePoints` + `WeedOutPoints` | 仅当整数对齐取整（`doAlign`） |
 | `FilterPointsPixel` | `PixelColumnReduce` | 恒生效 |
-| `FilterPointsLTTB` | `MinMaxReduce` | 恒生效 |
+| `FilterPointsLTTB` | `LTTBReduce` | 恒生效 |
+| `FilterPointsMinMaxLTTB` | `MinMaxReduce` | 恒生效 |
 
 `toPolygonF()` 中的选择优先级（`src/plot/qwt_point_mapper.cpp:1232`）：
 
-> `PixelColumnReduce` > `MinMaxReduce` > `WeedOutIntermediatePoints` > `WeedOutPoints`
+> `PixelColumnReduce` > `LTTBReduce` > `MinMaxReduce` > `WeedOutIntermediatePoints` > `WeedOutPoints`
 
-即同时开启多个属性时，像素列桶覆盖 MinMax 桶，MinMax 桶覆盖 Quad 归并，依此类推。**默认**开启 `ClipPolygons | FilterPointsLTTB`。
+即同时开启多个属性时，像素列桶覆盖 LTTB，LTTB 覆盖 MinMax 桶，MinMax 桶覆盖 Quad 归并，依此类推。**默认**开启 `ClipPolygons | FilterPointsLTTB`。
 
 ### 5.2 可见区间裁剪：二分搜索
 
@@ -355,6 +360,8 @@ flowchart TD
 - **通用路径**：无法提取原始指针时，逐点调用虚函数 `sample(i)`，每桶线性扫描维护 min/max。
 
 只有 $y$ 值的数据（`setRawSamples(yData, size)`）没有 $x$ 指针：屏幕 $x$ 直接用样本索引计算 $sx = \text{round}(i \cdot xCnv + xOff)$。
+
+`qwtLttbReduce()`（v7.5.0，`FilterPointsLTTB` 的实现）在流水线中的位置相同，但结构更简单：两趟扫描（先桶均值、后三角形选择），数据源支持原始指针快路径，否则走通用 `sample()` 路径 —— 没有 SIMD 变体，因为面积判据不像 argmin/argmax 那样易于向量化。它的桶预算为 $N_b = 4W$、每桶输出一点，与 MinMax 的 $2 \times 2W$ 输出预算相当。
 
 ### 5.4 SIMD 加速：向量化 argmin/argmax
 
@@ -473,7 +480,7 @@ $$
 
 - **极值列偏移**：极值点的 $x$ 经取整后最多移动半列；当极值恰在列边界附近时，其竖直笔画可能出现在相邻列（MinMax 的最大误差全部集中在这几列）。
 
-**3. 为什么 QWT7 默认 `FilterPointsLTTB` 而不是 pixel？** 三个理由：① MinMax 在数据域比较 $y$、保留真实 $x$，输出折线在**浮点渲染路径**（`QPolygonF`、PDF/SVG 导出、非取整绘制）下几何精确，而像素列桶的固定 +0.25/+0.75 亚像素摆放会引入系统性偏移；② 它对非均匀 $x$ 的真实分布更稳健（等样本数桶在稀疏区域不产生"伪列"）；③ LTTB 是社区熟知的名字，便于用户建立心智模型。
+**3. 为什么 QWT7 默认 `FilterPointsLTTB` 而不是 pixel？** 自 v7.5.0 起默认算法是**真 LTTB**：它在映射后的屏幕坐标上选择，对窄峰形状的保真是所有策略中最好的，永远保留曲线首尾点，并且与 MinMax 一样在**浮点渲染路径**（`QPolygonF`、PDF/SVG 导出、非取整绘制）下输出精确的映射坐标，而像素列桶的固定 +0.25/+0.75 亚像素摆放会引入系统性偏移。MinMax 桶变体（`FilterPointsMinMaxLTTB`，v7.4.2 及之前的默认）在需要确定性极值保证或 SIMD argmin/argmax 速度时仍有价值。此外 LTTB 是社区熟知的名字，便于用户建立心智模型。
 
 **4. 桶预算 2W 恰在性能-质量拐点上**（表 2）：预算减半（0.5×）干净列从 80% 掉到 64%，翻倍（2×）仅提升 9 个百分点却多画 2 倍的点。这与"每列 2 桶 = 4 点/列"的奈奎斯特论证一致：低于显示极限的内容已被完全采样，继续加桶只是为亚像素细节付费。
 
@@ -516,6 +523,10 @@ curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);
 // curve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, true);
 // curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, false);
 
+// 改用 v7.4.2 及之前 FilterPointsLTTB 所用的 MinMax 桶规则：
+// curve->setPaintAttribute(QwtPlotCurve::FilterPointsMinMaxLTTB, true);
+// curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, false);
+
 // 平滑渲染（与降采样组合，见《曲线渲染平滑》）
 curve->setSmoothAlgorithm(QwtPlotCurve::GaussianSmoothing);
 curve->setSmoothWindow(15);
@@ -523,7 +534,7 @@ curve->setSmoothWindow(15);
 
 > **警告 — 属性互斥**
 >
-> `FilterPointsPixel`、`FilterPointsLTTB`、`FilterPointsAggressive` 三者同时开启时由 `QwtPointMapper` 内部优先级裁决：`Pixel > MinMax > Aggressive`。不要同时开，生效语义即优先级最高者。
+> `FilterPointsPixel`、`FilterPointsLTTB`、`FilterPointsMinMaxLTTB`、`FilterPointsAggressive` 同时开启时由 `QwtPointMapper` 内部优先级裁决：`Pixel > LTTB > MinMax > Aggressive`。不要同时开，生效语义即优先级最高者。
 
 ### 7.2 直接使用 SIMD 工具
 
@@ -547,9 +558,9 @@ const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 | 场景 | 推荐 |
 |---|---|
 | 一般波形、频谱（默认） | `FilterPointsLTTB`，无需额外设置 |
-| 需要导出 PDF/SVG（浮点路径） | `FilterPointsLTTB`（数据域几何精确） |
+| 需要导出 PDF/SVG（浮点路径） | `FilterPointsLTTB`（亚像素精确映射） |
 | 像素级包络最稳、widget 整数渲染 | `FilterPointsPixel` |
-| 数据点数 < 4 × 画布宽度 | 无需降采样（MinMax 会自行回退 Quad 归并） |
+| 数据点数 < 4 × 画布宽度 | 无需降采样（降采样算法会自行回退普通映射） |
 | 性能基准 | `examples/bench/renderbench`：可调数据量/波形/帧数，批量对比 |
 
 ## 8. 小结
@@ -557,12 +568,12 @@ const QwtArgMinMaxResult r = qwtSimdArgMinMax(v.data(), int(v.size()));
 - 可视化是一个**带宽受限的采样问题**：画布 $W$ 列像素的奈奎斯特极限决定了高于 $2W$ 的采样率全部冗余。
 - 经典 LTTB 用"最大三角形面积"启发式选点，简单、$O(N)$、视觉质量好，但**不保证保留极值**，对尖峰对有系统性丢失。
 - QWT7 的 MinMax 桶把准则替换为"每桶保极值"：获得可证明的全局极值保留、无自交、分辨率与像素极限匹配三条性质，同时保留了索引域分桶的视觉形状保真，并把核心计算化简为 SIMD 友好的 argmin/argmax（AVX2/SSE4.2/标量运行时派发，NaN 语义靠预扫描 + 标量分支保证）。
-- 实验表明：默认的 $N_b = 2W$ 桶预算位于保真度-性能拐点；`FilterPointsLTTB` 在 100 万点上把重绘从 262 ms/帧降至 133 ms/帧，同时保住约 99% 的列包络。
+- 实验表明：MinMax 的 $N_b = 2W$ 桶预算位于保真度-性能拐点；`FilterPointsMinMaxLTTB` 在 100 万点上把重绘从 262 ms/帧降至 133 ms/帧，同时保住约 99% 的列包络。自 v7.5.0 起，默认的 `FilterPointsLTTB` 是经典 $N_b = 4W$ 预算下的真 LTTB（每桶一点），以峰值形状保真优先于极值保证。
 
 ## 9. 参考文献
 
 1. Steinarsson, S. *Downsampling Time Series for Visual Representation.* MSc thesis, University of Iceland, 2013.
-2. QWT7 源码：`src/plot/qwt_point_mapper.cpp`（`qwtMinMaxBucketReduce`、`qwtPixelColumnReduce`、`qwtFindVisibleRange`）、`src/core/qwt_simd_argminmax.cpp`。
+2. QWT7 源码：`src/plot/qwt_point_mapper.cpp`（`qwtLttbReduce`、`qwtMinMaxBucketReduce`、`qwtPixelColumnReduce`、`qwtFindVisibleRange`）、`src/core/qwt_simd_argminmax.cpp`。
 3. QWT7 基准示例：`examples/bench/renderbench`（五种降采样方法的实时耗时与批量对比）。
 4. QWT7 NaN 渲染示例：`examples/2D/nanperf`（NaN 比例可调，同样对五种 PointFilter 绘制属性做扫描对比）。
 5. CHANGES.md，v7.2.x："Added `FilterPointsPixel` and `FilterPointsLTTB` paint attributes…"

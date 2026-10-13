@@ -73,6 +73,34 @@ public:
     QwtScaleDraw();
     ~QwtScaleDraw() override;
 
+    /**
+     * @brief Corner miter flags
+     * @details When a miter flag is set, the backbone is extended by its pen width
+     *          beyond the corresponding end of the scale, so that it intersects with
+     *          the backbone of a perpendicular scale ending at the same canvas corner.
+     *          For vertical scales AtStart/AtEnd refer to the top/bottom end,
+     *          for horizontal scales to the left/right end.
+     * @sa setCornerMiter(), cornerMiter()
+     */
+    enum CornerMiterFlag
+    {
+        /// Do not extend the backbone
+        NoMiter = 0x0,
+
+        /// Extend the backbone beyond the start of the scale
+        MiterAtStart = 0x1,
+
+        /// Extend the backbone beyond the end of the scale
+        MiterAtEnd = 0x2
+    };
+
+    Q_DECLARE_FLAGS(CornerMiter, CornerMiterFlag)
+
+    /// Set the corner miter flags
+    void setCornerMiter(CornerMiter miter);
+    /// @return the corner miter flags
+    CornerMiter cornerMiter() const;
+
     /// Get the border distance hint
     void getBorderDistHint(const QFont&, int& start, int& end) const;
     /// Get the minimum label distance
@@ -138,6 +166,8 @@ private:
 
     QWT_DECLARE_PRIVATE(QwtScaleDraw)
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(QwtScaleDraw::CornerMiter)
 
 /**
  * @brief Move the position of the scale

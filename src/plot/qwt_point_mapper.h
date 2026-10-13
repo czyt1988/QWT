@@ -92,6 +92,19 @@ public:
         PixelColumnReduce = 0x08,
 
         /**
+         * @brief Largest-Triangle-Three-Buckets (LTTB) downsampling
+         *
+         * @details Divides the visible data into equal-count buckets and keeps
+         *          the sample of each bucket, that forms the largest triangle
+         *          with the previously selected point and the average of the
+         *          next bucket. The first and last sample are always kept.
+         *          Target bucket count is 4 * boundingRect() width, the output
+         *          is at most one point per bucket.
+         *          Overrides WeedOutIntermediatePoints when both are set.
+         */
+        LTTBReduce = 0x20,
+
+        /**
          * @brief MinMax bucket downsampling
          *
          * @details Divides the visible data into equal-count buckets and keeps

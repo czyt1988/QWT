@@ -26,6 +26,7 @@
 
 #include "qwt_scale_widget.h"
 #include "qwt_painter.h"
+#include "qwt_plot.h"
 #include "qwt_color_map.h"
 #include "qwt_scale_map.h"
 #include "qwt_math.h"
@@ -565,6 +566,38 @@ void QwtScaleWidget::paintEvent(QPaintEvent* event)
  */
 void QwtScaleWidget::draw(QPainter* painter) const
 {
+    /*
+        Extend the backbone into the canvas corners that are shared with
+        a visible perpendicular axis, so that both backbones intersect
+        instead of ending in a diagonal step.
+     */
+    if (const QwtPlot* plot = qobject_cast<const QwtPlot*>(parentWidget())) {
+        QwtAxisId startAxis, endAxis;
+        if (m_data->scaleDraw->orientation() == Qt::Vertical) {
+            startAxis = QwtAxis::XTop;
+            endAxis   = QwtAxis::XBottom;
+        } else {
+            startAxis = QwtAxis::YLeft;
+            endAxis   = QwtAxis::YRight;
+        }
+
+        const auto meetsBackbone = [plot](QwtAxisId axisId) {
+            if (!plot->isAxisVisible(axisId))
+                return false;
+
+            const QwtScaleDraw* sd = plot->axisScaleDraw(axisId);
+            return sd && sd->hasComponent(QwtAbstractScaleDraw::Backbone);
+        };
+
+        QwtScaleDraw::CornerMiter miter = QwtScaleDraw::NoMiter;
+        if (meetsBackbone(startAxis))
+            miter |= QwtScaleDraw::MiterAtStart;
+        if (meetsBackbone(endAxis))
+            miter |= QwtScaleDraw::MiterAtEnd;
+
+        // the miter is a pure paint-time flag of our own scale draw
+        const_cast<QwtScaleDraw*>(m_data->scaleDraw.get())->setCornerMiter(miter);
+    }
 
     m_data->scaleDraw->draw(painter, palette());
 
