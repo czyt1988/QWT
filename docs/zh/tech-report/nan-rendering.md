@@ -8,7 +8,7 @@
 > - 语义重实现交叉验证：Python 逐行重实现与 `qwtplot.dll` 真实输出在 15 个定向案例 + 250 个随机案例 × 2 种画布 × 6 条路径上共 **3090/3090（100%）** 多边形哈希一致，90 组定向案例逐顶点比特一致。
 > - 视觉伪差（与"NaN 处断开、其余不变"的理想渲染逐像素比对，960×560）：内部缺口模式下 `FilterPointsAggressive` 最接近理想（0.23%–1.05% 差异像素），`FilterPointsLTTB` 偏离最大（2.50%–3.80%），其中约 2.7 个百分点来自桶边界重排而非桥接。
 > - 性能：1M 点 Middle 案例，帧时间（min-of-7）随 NaN 比例从 0% 到 50% 总体下降（个别 1%/5% 格点在测量噪声内回升）——无过滤 173.7→86.5 ms、`FilterPointsLTTB` 26.3→13.1 ms；boundingRect 冷扫描 21.7→11.5 ms；全 NaN 数据帧时间仅 0.6–1.7 ms，画布空白、坐标轴回落到 0–1000。
-> - 失效清单首条之外还有两个实测陷阱：`FilterPointsLTTB` 的原始指针路径预扫描只查 y，x 为 NaN 而 y 有限的样本若恰好是桶极值，会以 `qRound(NaN)==0`（实测，MSVC x64 + Qt 5.15）落到画布第 0 列形成伪尖峰；`+Inf` 能穿过只查 `isnan` 的预扫描进入 SIMD 路径，产出 `INT_MIN` 像素坐标。
+> - 失效清单首条之外还有两个实测陷阱，都落在 LTTB 的 MinMax 桶原始指针路径上（写作时它就是 `FilterPointsLTTB` 的实现，v7.5.0 起移到 `FilterPointsMinMaxLTTB`）：预扫描只查 y，x 为 NaN 而 y 有限的样本若恰好是桶极值，会以 `qRound(NaN)==0`（实测，MSVC x64 + Qt 5.15）落到画布第 0 列形成伪尖峰；`+Inf` 能穿过只查 `isnan` 的预扫描进入 SIMD 路径，产出 `INT_MIN` 像素坐标。两条均已在 v7.5.0 修复（见第 5 节更新记录）；注意 v7.5.0 引入的真 LTTB（默认 `FilterPointsLTTB`）原始指针分支仍是 y-only `isnan` 判定，进入前同样要清洗 x 与 Inf。
 
 ---
 
@@ -50,24 +50,25 @@ QWT7 的选择是跳过语义。这不是文档里的声明，而是 `src/plot/q
 
 IEEE-754 规定除 `!=` 外的比较对 NaN 一律返回假：$\mathrm{NaN} < x$、$\mathrm{NaN} > x$、$\mathrm{NaN} \le x$ 均为 `false`。这条规则在渲染管线里逐层传播，效果各不相同：
 
-- **boundingRect 层**（`src/core/qwt_series_data.cpp` 的 `qwtBoundingRectT`，约 217–262 行）：Qwt 6 时代依赖 `qMin/qMax` 扩展边界，NaN 使比较全假、边界停止扩展或污染为无效值；QWT7 改为显式 `isSampleNanOrInf(sample)` 跳过（两个循环各一处 `continue`），包围矩形只由有限样本决定。全 NaN 序列返回无效矩形 `QRectF(1,1,-2,-2)`（实测 `boundingRect_allNan_valid=0`、`x=1`、`width=-2`）。
-- **自动缩放层**（两处机理不同）：`QwtPlot::rescaleAxes()`（`src/plot/qwt_plot.cpp` 1908–1911 行）在合并包围矩形前用 `qwt_is_nan_or_inf` 检查四边有限性；replot 时的自动缩放走 `QwtPlot::updateAxes()`（`src/plot/qwt_plot_axis.cpp` 862–869 行），只按 `width()/height() >= 0` 合并区间——全 NaN 序列的无效矩形 `(1,1,-2,-2)` 宽高均为负被整体跳过，轴区间保持无效，回落到 `AxisData` 的默认范围 0–1000（同文件 43–44 行，实测 `autoscale_allNan_x_upper=1000`），画布上什么都不画。
-- **SIMD argmin/argmax 层**（`src/core/qwt_simd_argminmax.cpp`，AVX2 主循环 150–164 行）：比较用有序谓词 `_CMP_LT_OQ` / `_CMP_GT_OQ`，NaN 永远赢不了比较、进不了索引向量；水平归约与标量收尾同样用有序比较。因此"NaN 被天然忽略"在**值语义**上成立。
+- **boundingRect 层**（`src/core/qwt_series_data.cpp` 的 `qwtBoundingRectT`，217–261 行）：Qwt 6 时代依赖 `qMin/qMax` 扩展边界，NaN 使比较全假、边界停止扩展或污染为无效值；QWT7 改为显式 `isSampleNanOrInf(sample)` 跳过（两个循环各一处 `continue`，236–237 与 248–249 行），包围矩形只由有限样本决定。全 NaN 序列返回无效矩形 `QRectF(1,1,-2,-2)`（实测 `boundingRect_allNan_valid=0`、`x=1`、`width=-2`）。
+- **自动缩放层**（两处机理不同）：`QwtPlot::rescaleAxes()`（`src/plot/qwt_plot.cpp` 1908–1911 行）在合并包围矩形前用 `qwt_is_nan_or_inf` 检查四边有限性；replot 时的自动缩放走 `QwtPlot::updateAxes()`（`src/plot/qwt_plot_axis.cpp` 865–869 行），只按 `width()/height() >= 0` 合并区间——全 NaN 序列的无效矩形 `(1,1,-2,-2)` 宽高均为负被整体跳过，轴区间保持无效，回落到 `AxisData` 的默认范围 0–1000（同文件 43–44 行，实测 `autoscale_allNan_x_upper=1000`），画布上什么都不画。
+- **SIMD argmin/argmax 层**（AVX2 内核自 v7.5.1 起独立在 `src/core/qwt_simd_argminmax_avx2.cpp`，主循环 64–79 行；调度与 NaN 兜底在 `src/core/qwt_simd_argminmax.cpp`）：比较用有序谓词 `_CMP_LT_OQ` / `_CMP_GT_OQ`（72/76 行），NaN 永远赢不了比较、进不了索引向量；水平归约与标量收尾同样用有序比较。因此"NaN 被天然忽略"在**值语义**上成立。
 
 各层使用的 NaN 判定谓词并不统一，这张表是后文失效清单的索引：
 
 | 层 | 谓词 | 检查对象 | Inf 是否拦截 |
 |---|---|---|---|
 | `qwtBoundingRectT` / 曲线风格 / Quad / Pixel / 通用桶路径 | `qwt_is_nan_or_inf` = `!isfinite` | x 与 y 双坐标 | 是 |
-| MinMax 预扫描（597–604 行） | `std::isnan` | 仅 y | 否 |
-| MinMax 标量桶循环（652–655 行） | `std::isnan` | 仅 y | 否 |
-| `qwtSimdArgMinMax` 兜底（223–224 行） | `std::isnan(result.minVal/maxVal)` | 归约结果 | 部分（结果仍为 NaN 时返回哨兵 `{0,0,DBL_MAX,-DBL_MAX}`） |
+| MinMax 预扫描（725–731 行，v7.5.0 起） | `!std::isfinite` | 仅 y | 是（仅对 y；x 不查） |
+| MinMax 标量桶循环（680–687 行，v7.5.0 起） | `!std::isfinite` | x 与 y 双坐标 | 是 |
+| 真 LTTB 原始指针分支（`qwtLttbReduce` 的 `mapSample`，915–922 行） | `std::isnan` | 仅 y（x 不查） | 否（±Inf 与 x 的非有限值均可进入） |
+| `qwtSimdArgMinMax` 兜底（170–172 行） | `std::isnan(result.minVal/maxVal)` | 归约结果 | 部分（结果仍为 NaN 时返回哨兵 `{0,0,DBL_MAX,-DBL_MAX}`） |
 
-谓词强度从左到右递减：双坐标 isfinite 是最强形式，单坐标 isnan 是最弱形式。第 5 节清单第 3、4 条正是最弱两行的直接后果。
+谓词强度从左到右递减：双坐标 isfinite 是最强形式，单坐标 isnan 是最弱形式。第 5 节清单第 3、4 条曾是最初两行的直接后果（v7.5.0 已把 MinMax 侧补齐）；真 LTTB 原始指针分支留下的同款单坐标 isnan 是这段历史的延续，使用前仍需按 6.4 节清洗。
 
 ### 2.2 索引语义不可靠：为什么还需要预扫描
 
-值语义正确不等于 (值, 索引) 对正确。AVX2 主循环里维护跑者值的指令是 `_mm256_min_pd(minVec, vals)`，而 `MINPD` 在任一操作数为 NaN 时返回**第二操作数**：若某 lane 读到 NaN，该 lane 的跑者值变成 NaN；下一轮 `vals < NaN` 为假，索引向量不更新，但跑者值又被 `_mm256_min_pd(NaN, vals)` 恢复成新值——于是出现"值是新的、索引是旧的"的错配，最终输出的极值点会把一个样本的 $y$ 与另一个样本的 $x$ 焊在一起。这正是 `qwtMinMaxBucketReduce` 在原始指针快速路径前先做 NaN 预扫描（`qwt_point_mapper.cpp` 597–604 行）的原因：预扫描发现任何 NaN 就整段切换到标量桶循环（641–695 行），用一次 $O(n)$ 顺序读换掉每桶的分支与错配风险。预扫描带 `break` 短路：无 NaN 数据付全量 $O(n)$ 代价，NaN 数据只付到第一个 NaN 为止的代价——这个不对称在第 4.4 节的帧时间曲线里看得见。
+值语义正确不等于 (值, 索引) 对正确。AVX2 主循环里维护跑者值的指令是 `_mm256_min_pd(minVec, vals)`，而 `MINPD` 在任一操作数为 NaN 时返回**第二操作数**：若某 lane 读到 NaN，该 lane 的跑者值变成 NaN；下一轮 `vals < NaN` 为假，索引向量不更新，但跑者值又被 `_mm256_min_pd(NaN, vals)` 恢复成新值——于是出现"值是新的、索引是旧的"的错配，最终输出的极值点会把一个样本的 $y$ 与另一个样本的 $x$ 焊在一起。这正是 `qwtMinMaxBucketReduce` 在原始指针快速路径前先做非有限 y 预扫描（`qwt_point_mapper.cpp` 725–731 行）的原因：预扫描发现任何非有限 y 就整段切换到标量桶循环（`reduceBucketScalar`，671–716 行；整段调用在 765–769 行），用一次 $O(n)$ 顺序读换掉每桶的分支与错配风险；x 的非有限值不在预扫描内，改由 SIMD 路径每桶的后置校验拦截（747–753 行）。预扫描带 `break` 短路：无非有限 y 的数据付全量 $O(n)$ 代价，命中的数据只付到第一个命中为止的代价——这个不对称在第 4.4 节的帧时间曲线里看得见。
 
 用一个 8 样本桶把错配过程走一遍（单 lane 视角，min 侧）：
 
@@ -84,10 +85,10 @@ IEEE-754 规定除 `!=` 外的比较对 NaN 一律返回假：$\mathrm{NaN} < x$
 flowchart TD
     A["桶循环开始<br/>numBuckets = max(2, 2W)"] --> B{"线性映射且<br/>可提取原始 Y 指针?"}
     B -->|"否"| C["通用路径<br/>sample(i) 逐点<br/>isfinite 双坐标检查"]
-    B -->|"是"| D["NaN 预扫描<br/>i in visFrom..visTo<br/>isnan(raw.y[i]) 短路 break"]
-    D --> E{"区间内存在 NaN?"}
-    E -->|"否"| F["SIMD 快速路径<br/>qwtSimdArgMinMax 每桶一次<br/>有序谓词, 首现索引"]
-    E -->|"是"| G["标量快速路径<br/>原始指针 + 仅 isnan(y) 检查<br/>x-NaN 样本仍可胜出极值"]
+    B -->|"是"| D["非有限 y 预扫描<br/>i in visFrom..visTo<br/>!isfinite(raw.y[i]) 短路 break"]
+    D --> E{"区间内存在非有限 y?"}
+    E -->|"否"| F["SIMD 快速路径<br/>qwtSimdArgMinMax 每桶一次<br/>+ 每桶 x 后置校验兜底"]
+    E -->|"是"| G["标量快速路径<br/>原始指针 + !isfinite 双坐标检查<br/>x 与 y 非有限样本都跳过"]
     F --> H["每桶输出 1-2 个极值点<br/>全 NaN 桶不输出"]
     G --> H
     C --> H
@@ -111,9 +112,9 @@ flowchart TD
     B --> C{"序列含有限样本?"}
     C -->|"否"| D["轴回落 0..1000<br/>画布空白"]
     C -->|"是"| E["drawLines / drawSteps / drawDots / drawSticks<br/>各自跳过 NaN"]
-    E --> F{"QwtPointMapper 标志优先级<br/>Pixel &gt; MinMax &gt; Quad &gt; WeedOut"}
+    E --> F{"QwtPointMapper 标志优先级<br/>Pixel &gt; LTTB &gt; MinMax &gt; Quad &gt; WeedOut"}
     F --> G["qwtPixelColumnReduce<br/>continue 跳过，空列不输出"]
-    F --> H["qwtMinMaxBucketReduce<br/>y-only 预扫描 -&gt; SIMD / 标量 / 通用"]
+    F --> H["qwtMinMaxBucketReduce<br/>非有限 y 预扫描 -&gt; SIMD(+x 后置校验) / 标量 / 通用"]
     F --> I["qwtMapPointsQuad<br/>首非 NaN 扫描 + continue"]
     F --> J["qwtToPolylineFiltered / qwtToPoints<br/>continue 跳过"]
     G --> K["单条 QPolygonF<br/>NaN 段被桥接弦跨越"]
@@ -126,27 +127,28 @@ flowchart TD
 
 ### 3.0 用户属性到映射器标志
 
-`QwtPlotCurve::drawLines`（`qwt_plot_curve.cpp` 532–628 行）把用户级属性翻译为映射器标志：`FilterPoints` → `WeedOutPoints`；`FilterPointsAggressive` → `WeedOutIntermediatePoints`（仅当整数对齐 `doAlign` 为真，558–561 行）+ `WeedOutPoints`；`FilterPointsPixel` → `PixelColumnReduce`；`FilterPointsLTTB` → `MinMaxReduce`。`toPolygonF` 的优先级为 `PixelColumnReduce > MinMaxReduce > WeedOutIntermediatePoints > WeedOutPoints`（`qwt_point_mapper.cpp` 1232 行）。下文按此顺序剖析，模式名沿用 nanperf 示例的 `FilterModes.h`。
+`QwtPlotCurve::drawLines`（`qwt_plot_curve.cpp` 583–698 行）把用户级属性翻译为映射器标志：`FilterPoints` → `WeedOutPoints`；`FilterPointsAggressive` → `WeedOutIntermediatePoints`（仅当整数对齐 `doAlign` 为真，609–612 行）+ `WeedOutPoints`；`FilterPointsPixel` → `PixelColumnReduce`；`FilterPointsLTTB` → `LTTBReduce`（v7.5.0 起为真 LTTB；v7.4.2 及之前它映射到 `MinMaxReduce`）；`FilterPointsMinMaxLTTB` → `MinMaxReduce`（614–619 行）。`toPolygonF` 的优先级为 `PixelColumnReduce > LTTBReduce > MinMaxReduce > WeedOutIntermediatePoints > WeedOutPoints`（`qwt_point_mapper.cpp` 1502–1503 行）。下文按此顺序剖析；3.5 节与 3.8 节语义矩阵中的 `lttb`/`lttbgen` 指 MinMax 桶路径（本文全部 NaN 测量都由它测得，harness 的模式名沿用至今），模式名沿用 nanperf 示例的 `FilterModes.h`。
 
 ### 3.1 无过滤（ClipPolygons only）：`qwtToPoints`
 
-`qwtToPoints`（869–929 行）是最朴素的路径：遍历 `[from,to]`，`qwt_is_nan_or_inf(sample)` 为真则 `continue`，否则变换并按 `RoundPoints` 取整追加。无效包围矩形分支在追加后统一 `resize(numPoints)`（925 行，其上一行 924 行的注释明确写着"加入 NaN 检查后这里也必须 resize"）。语义：删除 NaN、保留顺序、一条折线——桥接弦等于内部 NaN 段数。全 NaN 输入得到空多边形。
+`qwtToPoints`（1135–1194 行）是最朴素的路径：遍历 `[from,to]`，`qwt_is_nan_or_inf(sample)` 为真则 `continue`，否则变换并按 `RoundPoints` 取整追加。无效包围矩形分支在追加后统一 `resize(numPoints)`（1190 行，其上一行 1189 行的注释明确写着"加入 NaN 检查后这里也必须 resize"）。语义：删除 NaN、保留顺序、一条折线——桥接弦等于内部 NaN 段数。全 NaN 输入得到空多边形。
 
 ### 3.2 FilterPoints：`qwtToPolylineFiltered`
 
-`qwtToPolylineFiltered`（956–998 行）先做首非 NaN 扫描：
+`qwtToPolylineFiltered`（1222–1268 行）先做首非 NaN 扫描：
 
 ```text
 realFrom = from; sample0 = series->sample(from)
 while (realFrom < to && qwt_is_nan_or_inf(sample0)): realFrom++, sample0 = series->sample(realFrom)
-points[0] = round(transform(sample0))          # 注意：此处不再检查 sample0
+if realFrom >= to && qwt_is_nan_or_inf(sample0): return 空多边形   # 全 NaN 早退（v7.5.0 起）
+points[0] = round(transform(sample0))          # 有限样本，无需再检查 sample0
 for i = realFrom+1 .. to:
     if qwt_is_nan_or_inf(sample(i)): continue  # 跳过，不切段
     p = round(transform(sample(i)))
     if points[pos] != p: points[++pos] = p     # 去连续像素重复
 ```
 
-与 Quad 路径不同，这里**没有**全 NaN 早退：若整个序列都是 NaN，循环停在 `realFrom == to`，`points[0]` 由最后一个样本构造——x 有限、y 为 NaN 时得到 `(899, NaN)` 这样的单顶点多边形（语义矩阵 `all` 行：`points` 模式 1 顶点、1 个垃圾坐标）。单顶点折线在光栅器下不画图，视觉扫描 `all` 行差异为 0，但这个多边形非空，是第 5 节清单里的一条边角料。
+写作时这里与 Quad 路径不同、**没有**全 NaN 早退：若整个序列都是 NaN，循环停在 `realFrom == to`，`points[0]` 由最后一个样本构造——x 有限、y 为 NaN 时得到 `(899, NaN)` 这样的单顶点多边形（语义矩阵 `all` 行：`points` 模式 1 顶点、1 个垃圾坐标）。单顶点折线在光栅器下不画图，视觉扫描 `all` 行差异为 0，但这个多边形非空，是第 5 节清单里的第 5 条边角料。v7.5.0 起已补上与 Quad 路径相同的全 NaN 早退（1245–1248 行）：全 NaN 输入返回空多边形，"空多边形 = 无数据"的约定恢复；矩阵 `all` 行的 1 顶点是修复前的快照值（回归测试 `tests/nan_curve_test/filterPoints_allNan_emptyPolygon`）。
 
 ### 3.3 FilterPointsAggressive：`qwtMapPointsQuad`
 
@@ -173,34 +175,35 @@ for col in 0..W-1:
 
 空列不输出这一设计在"无 NaN 的稀疏采样"场景下是优点（列间不插伪点），但在 NaN 场景下它把缺口变成了**不可见的**缺口：折线拓扑上仍然连通，只是少了几列顶点。视觉扫描里 pixel 模式在 run 模式的 0.785% 差异像素，主体就是这几条跨空列的弦。
 
-### 3.5 FilterPointsLTTB：`qwtMinMaxBucketReduce` 的三重路径
+### 3.5 FilterPointsLTTB / FilterPointsMinMaxLTTB：`qwtMinMaxBucketReduce` 的三重路径
 
-桶化骨架见 [曲线降采样](curve-downsampling.md) 第 4、5.3 节；此处只补 NaN 视角的三处细节。先看标量桶循环的骨架（641–695 行），三个失效点都藏在它的谓词里：
+桶化骨架见 [曲线降采样](curve-downsampling.md) 第 4、5.3 节。**命名说明**：v7.4.2 及之前 `FilterPointsLTTB` 映射到 MinMax 桶算法；v7.5.0 起 `FilterPointsLTTB` 改为真 LTTB（`QwtPointMapper::LTTBReduce`、`qwtLttbReduce()`），MinMax 桶算法移到新属性 `FilterPointsMinMaxLTTB`（`MinMaxReduce`）。本节、3.8 节矩阵与第 4 节性能数据中的 `lttb`/`lttbgen` 都是 MinMax 桶路径（本文全部 NaN 测量由它测得，harness 的模式名保留至今）。此处只补 NaN 视角的三处细节，先看当前标量桶循环的骨架（`reduceBucketScalar`，671–716 行），三个要点都藏在它的谓词里：
 
 ```text
-# qwtMinMaxBucketReduce 标量快速路径（hasNaN == true）
+# qwtMinMaxBucketReduce 原始指针标量循环 reduceBucketScalar（v7.5.0 起）
 for b in 0 .. numBuckets-1:
     [start, end] = 桶 b 的样本索引区间（int(b*s) 截断）
-    first = true
+    minIdx = maxIdx = -1
     for i in start .. min(end, visTo):
         y = raw.y[i]
-        if isnan(y): continue            # 只查 y：x-NaN 样本照常竞争极值  <-- 清单 #3
-        if first: (minIdx, maxIdx, minY, maxY) = (i, i, y, y); first = false
-        else:     有序比较更新 min/max（首现索引语义）
-    if not first:
-        sxMin = qRound(raw.x[minIdx]*xCnv + xOff)   # minIdx 指向 x-NaN 时 = qRound(NaN) = 0
-        按 minIdx/maxIdx 顺序输出 1-2 个顶点
-# SIMD 路径（hasNaN == false）同构，但预扫描谓词同样是 isnan(y)：Inf 可穿过  <-- 清单 #4
+        if !isfinite(y): continue        # 只查 y 的有限性；Inf 也被拦截  <-- 清单 #4 修复
+        x = raw.x[i]（无 x 指针时用索引 i）
+        if !isfinite(x): continue        # x、y 双坐标跳过，与通用路径对齐  <-- 清单 #3 修复
+        有序比较更新 min/max（首现索引语义）
+    if minIdx >= 0: 按 minIdx/maxIdx 顺序输出 1-2 个顶点（屏幕坐标由已校验的 x/y 计算）
+# SIMD 路径（预扫描未命中）同构：每桶一次 qwtSimdArgMinMax，输出前对胜出样本的
+# x 做后置校验（hasRawX 时），命中非有限 x 则整桶改走 reduceBucketScalar  <-- 清单 #3 修复
+# 预扫描（725–731 行）只查 y：!std::isfinite(raw.y[i])，命中即整段切换标量循环
 ```
 
-在此骨架上：其一，**预扫描只查 y**（597–604 行 `std::isnan(raw.y[i])`）：x 为 NaN 而 y 有限的样本不会触发标量回退。其二，**标量快速路径只查 y**（652–655 行）：x-NaN 样本照常参与桶内极值竞争，一旦胜出，其屏幕 x 由 `qRound(raw.x[minIdx]*xCnv+xOff)` 计算，即 `qRound(NaN)=0`——伪顶点钉在第 0 列。探针实验（y 在 x-NaN 处人为置为全局最大）实测 `xnan_lttb_fakeLeft=1`，多边形证据为顶点 `(0,21)`；同数据的通用路径（`lttbgen`，696–747 行，用 `qwt_is_nan_or_inf` 双坐标检查）为 0。语义矩阵里 `xyinter` 案例的 lttb 顶点数 3567 对 lttbgen 的 3215，多出的 352 个顶点正是这类伪点。其三，全 NaN 桶不输出（`first` 标志保持为真时跳过 emit），但桶号不重排：NaN 样本仍占据桶预算，缺口两侧的有限样本可能被划进同一个桶，极值选择因此与切段渲染不同——这是第 4.3 节 LTTB 视觉差异偏大的第二个来源。`+Inf` 的处理更微妙：预扫描的 `isnan` 放过它，SIMD 路径里 `Inf` 正常赢得 `_CMP_GT_OQ` 比较，屏幕 y 变成 `qRound(±Inf)=0` 或 `INT_MIN`（`inf` 案例 lttb 垃圾坐标数 1）。桶数回退阈值 `numPoints <= 2*numBuckets`（578 行）按含 NaN 的总可见样本数计（`numPoints = visTo - visFrom + 1`，571 行，NaN 样本同样计入），NaN 比例不改变 numPoints，因此不影响桶化/Quad 的路径选择。
+在此骨架上：其一，**预扫描只查 y**（725–731 行 `!std::isfinite(raw.y[i])`）：x 为 NaN 而 y 有限的样本不会触发整段标量回退，改由 SIMD 路径的每桶 x 后置校验（747–753 行）在它胜出时整桶重算——预扫描保持单数组内存流量的取舍见第 5 节更新记录。其二，**标量循环对 x、y 双坐标跳过**（680–687 行）：写作时 x-NaN 样本照常参与桶内极值竞争，一旦胜出，其屏幕 x 由 `qRound(raw.x[minIdx]*xCnv+xOff)` 计算，即 `qRound(NaN)=0`——伪顶点钉在第 0 列；探针实验（y 在 x-NaN 处人为置为全局最大）实测 `xnan_lttb_fakeLeft=1`，多边形证据为顶点 `(0,21)`（修复前快照）；同数据的通用路径（`lttbgen`，770–815 行，用 `qwt_is_nan_or_inf` 双坐标检查）为 0。语义矩阵里 `xyinter` 案例的 lttb 顶点数 3567 对 lttbgen 的 3215、多出的 352 个顶点正是这类伪点（同为快照值）。其三，全 NaN 桶不输出（`minIdx < 0` 时跳过 emit），但桶号不重排：NaN 样本仍占据桶预算，缺口两侧的有限样本可能被划进同一个桶，极值选择因此与切段渲染不同——这是第 4.3 节 LTTB 视觉差异偏大的第二个来源。`+Inf` 写作时能穿过只查 `isnan` 的预扫描，在 SIMD 路径里赢得 `_CMP_GT_OQ` 比较，屏幕 y 变成 `qRound(±Inf)=0` 或 `INT_MIN`（`inf` 案例 lttb 垃圾坐标数 1，修复前快照）；v7.5.0 起预扫描拦 Inf，x 的非有限值由后置校验兜底。最后要注意 **v7.5.0 引入的真 LTTB 原始指针分支仍只用 `std::isnan(y)` 判定样本有效性**（`qwtLttbReduce` 的 `mapSample`，915–922 行；通用分支用 `qwt_is_nan_or_inf`）：±Inf y 与 x 的非有限值仍会进入选择，首/末有效样本若 x 非有限还会带着 NaN/Inf 坐标落到输出——清单 #3/#4 的同类谓词在新默认路径上延续，6.2/6.4 节的数据卫生建议对默认模式依旧成立。桶数回退阈值 `numPoints <= 2*numBuckets`（642 行）按含 NaN 的总可见样本数计（`numPoints = visTo - visFrom + 1`，635 行，NaN 样本同样计入），NaN 比例不改变 numPoints，因此不影响桶化/Quad 的路径选择。
 
 ### 3.6 曲线风格层：Steps / Dots / Sticks
 
-`drawSteps`（`qwt_plot_curve.cpp` 781–853 行）跳过 NaN 后按"角点 + 样本点"交替构造阶梯多边形。默认竖直 orientation 下角点取 $(x_{j-1}, y_j)$（819–821 行），于是缺口处的阶梯表现为：在**缺口前**最后一个有限样本的 x 上先做竖直跳变，再以**缺口后**的 y 水平铺过整个缺口。像素探针证实：`steps_bridge_tread_upper=1`、`steps_bridge_riser=1`、`steps_gap_at_pre_level=0`——阶梯在缺口上方水平跨越、竖直边提前到缺口左缘，与理想切段（两者都不画）相反。
+`drawSteps`（`qwt_plot_curve.cpp` 871–963 行）跳过 NaN 后按"角点 + 样本点"交替构造阶梯多边形。默认竖直 orientation 下角点取 $(x_{j-1}, y_j)$（907–918 行），于是缺口处的阶梯表现为：在**缺口前**最后一个有限样本的 x 上先做竖直跳变，再以**缺口后**的 y 水平铺过整个缺口。像素探针证实：`steps_bridge_tread_upper=1`、`steps_bridge_riser=1`、`steps_gap_at_pre_level=0`——阶梯在缺口上方水平跨越、竖直边提前到缺口左缘，与理想切段（两者都不画）相反。（v7.5.0 起 `BreakAtNan` 属性可把 Lines/Steps 切成逐段渲染，默认关闭，见第 5 节更新记录。）
 
 ```text
-# drawSteps 的缺口几何（801-836 行，inverted = 默认竖直 orientation）
+# drawSteps 的缺口几何（888-945 行，inverted = 默认竖直 orientation）
 retained = [i for i in from..to if isfinite(x[i]) and isfinite(y[i])]   # NaN 跳过
 pts = []
 for k, i in enumerate(retained):
@@ -212,7 +215,7 @@ for k, i in enumerate(retained):
 # 缺口 [a,b) 的净效果：在 x_{a-1} 处竖直跳到 y_b，再以 y_b 水平铺满 [x_{a-1}, x_b]
 ```
 
-`drawSticks`（640–686 行）与 `drawDots` 的 `MinimizeMemory` 分支（741–756 行）逐样本独立画图元，跳过 NaN 即正确语义，探针 `sticks_at_nan=0 / sticks_at_valid=1`、`dots_minmem_at_nan=0 / dots_minmem_at_valid=1` 证实。使用指南中"Sticks/Steps/MinimizeMemory 不检查 NaN"的表格写于更早版本；当前源码自提交 `17d0d13`（fix(nan): add NaN skip to 4 missing paths in QwtPlotCurve）起已在这四处补上跳过检查，但跳过语义本身未变。
+`drawSticks`（710–756 行）与 `drawDots` 的 `MinimizeMemory` 分支（828–846 行）逐样本独立画图元，跳过 NaN 即正确语义，探针 `sticks_at_nan=0 / sticks_at_valid=1`、`dots_minmem_at_nan=0 / dots_minmem_at_valid=1` 证实。使用指南中"Sticks/Steps/MinimizeMemory 不检查 NaN"的表格写于更早版本；当前源码自提交 `17d0d13`（fix(nan): add NaN skip to 4 missing paths in QwtPlotCurve）起已在这四处补上跳过检查（`drawSticks` 739 行、`drawDots` 834 行、`drawSteps` 897 行、`drawLines` 走映射器），但跳过语义本身未变。
 
 ### 3.7 可见区间二分：x-NaN 的保守行为
 
@@ -237,7 +240,7 @@ for k, i in enumerate(retained):
 | steps（风格） | 8/8 | 3/3 | 159/159 | 4/4 | 0/0 |
 | dots / sticks（风格） | 0/8 | 0/3 | 0/159 | 0/4 | 0/0 |
 
-表中 `bridged/intGaps` 的分子分母在所有 Lines 类路径与 Steps 上恒等：每个内部缺口恰好被一条弦跨越，没有模式切段，也没有模式漏段（首尾缺口不产生桥接，只裁短折线，故 leading/trailing 为 0）。12 点工作示例（y = 1,2,NaN,0,NaN,NaN,3,NaN,2,1,NaN,0，12×8 画布）把这一点压缩到一行：五种 Lines 模式输出完全相同的 7 顶点折线 `(0,5)(1,2)(3,7)(6,0)(8,2)(9,5)(11,7)`——索引 1 与 3 之间的 NaN 被一条从行 2 到行 7 的弦跨越；Steps 输出 13 顶点，在 x=1 处先竖直跳到行 7 再水平铺过缺口。
+表中 `bridged/intGaps` 的分子分母在所有 Lines 类路径与 Steps 上恒等：每个内部缺口恰好被一条弦跨越，没有模式切段，也没有模式漏段（首尾缺口不产生桥接，只裁短折线，故 leading/trailing 为 0）。顶点数表中的 `lttb` 为 MinMax 桶原始指针路径、`lttbgen` 为同算法的通用 `sample()` 路径（命名见 3.5 节）；`xyinter` 的 3567 对 3215 即清单第 3 条，v7.5.0 已修复，表中为修复前快照。12 点工作示例（y = 1,2,NaN,0,NaN,NaN,3,NaN,2,1,NaN,0，12×8 画布）把这一点压缩到一行：五种 Lines 模式输出完全相同的 7 顶点折线 `(0,5)(1,2)(3,7)(6,0)(8,2)(9,5)(11,7)`——索引 1 与 3 之间的 NaN 被一条从行 2 到行 7 的弦跨越；Steps 输出 13 顶点，在 x=1 处先竖直跳到行 7 再水平铺过缺口。
 
 ![切段行为示意：理想切段参照与五种模式的实际输出，灰色带为 NaN 段，红色为桥接弦](../../assets/algorithms/fig_nan_segments.png)
 
@@ -245,13 +248,13 @@ for k, i in enumerate(retained):
 
 ### 4.1 方法与可复现性
 
-三组实验的脚本与原始数据全部入库：`docs/assets/algorithms/nan_experiment.py`（Python 逐行重实现 + 语义矩阵 + 出图）、`nan_mapper_check.cpp`（真实库语义 harness：定向矩阵、随机战役、离屏视觉扫描、行为探针）、`nan_bench.cpp`（性能扫描，镜像 nanperf 的 `NanDataGenerator` 与 `BenchmarkRunner` 分解）、`nan_results.csv`（原始测量）、`nan_mapper_hashes.csv`（交叉验证哈希）。Python 重实现与 C++ 的对应是**逐行**的：两种取整函数量化方式（`qwtToPoints` 系用 `transform()` 的 $p_1+(v-t_1)c$ 形式，Quad/Pixel/MinMax 线性快速路径用 $vc + (p_1 - t_1 c)$ 形式）、`qwtFindVisibleRange` 的探针与两次二分、Quad 两遍归并的 flush 顺序、MinMax 的桶边界 `int(b*s)` 截断与 (值,索引) 首次出现语义、Qt 5.15 `qRound` 的 int32 回绕，全部按源码复刻；唯一例外是 Quad 的首顶点——C++ 用 `qwtRoundValue(xMap.transform(...))`（`qwt_point_mapper.cpp` 242 行），Python 端统一走线性快速路径的 `fast()` 形式（`nan_experiment.py` 273 行），两者在测试信号上数值等价，由哈希 100% 一致佐证；跨语言数据一律使用只含加减乘除的有理信号（超越函数在不同 libm 间不保证比特一致），随机战役共享 xorshift64\* 流。交叉验证规模：15 个定向案例 × 6 条路径 + 250 个随机案例 × 2 种画布（40×30 与 900×500）× 6 条路径 = **3090 组多边形哈希，一致率 100.00%**；另有 90 组定向案例做逐顶点比特比对（含 `(899,NaN)` 退化顶点）全部一致——该比对为一次性人工核验过程：入库的 `nan_mapper_hashes.csv` 只存顶点数与量化哈希，C++ harness 端 `%.17g` 精度的 `V` 顶点记录未入库，需重编译重跑 harness 才能再生。视觉扫描用 `QwtPlotRenderer` 离屏渲染 960×560 图像：实际渲染为单条含 NaN 曲线，理想参照为按有限段拆分后的多条曲线（同模式属性、同笔宽、同抗锯齿），逐像素比较 ARGB。
+三组实验的脚本与原始数据全部入库：`docs/assets/algorithms/nan_experiment.py`（Python 逐行重实现 + 语义矩阵 + 出图）、`nan_mapper_check.cpp`（真实库语义 harness：定向矩阵、随机战役、离屏视觉扫描、行为探针）、`nan_bench.cpp`（性能扫描，镜像 nanperf 的 `NanDataGenerator` 与 `BenchmarkRunner` 分解）、`nan_results.csv`（原始测量）、`nan_mapper_hashes.csv`（交叉验证哈希）。Python 重实现与 C++ 的对应是**逐行**的：两种取整函数量化方式（`qwtToPoints` 系用 `transform()` 的 $p_1+(v-t_1)c$ 形式，Quad/Pixel/MinMax 线性快速路径用 $vc + (p_1 - t_1 c)$ 形式）、`qwtFindVisibleRange` 的探针与两次二分、Quad 两遍归并的 flush 顺序、MinMax 的桶边界 `int(b*s)` 截断与 (值,索引) 首次出现语义、Qt 5.15 `qRound` 的 int32 回绕，全部按源码复刻；唯一例外是 Quad 的首顶点——C++ 用 `qwtRoundValue(xMap.transform(...))`（`qwt_point_mapper.cpp` 242 行），Python 端统一走线性快速路径的 `fast()` 形式（`nan_experiment.py` 273 行），两者在测试信号上数值等价，由哈希 100% 一致佐证；跨语言数据一律使用只含加减乘除的有理信号（超越函数在不同 libm 间不保证比特一致），随机战役共享 xorshift64\* 流。交叉验证规模：15 个定向案例 × 6 条路径 + 250 个随机案例 × 2 种画布（40×30 与 900×500）× 6 条路径 = **3090 组多边形哈希，一致率 100.00%**；另有 90 组定向案例做逐顶点比特比对（含 `(899,NaN)` 退化顶点）全部一致——该比对为一次性人工核验过程：入库的 `nan_mapper_hashes.csv` 只存顶点数与量化哈希，C++ harness 端 `%.17g` 精度的 `V` 顶点记录未入库，需重编译重跑 harness 才能再生。注意入库哈希是 v7.5.0 修复前的运行记录：按当前库重跑，矩阵 `all` 行的 points、`xyinter` 的 lttb 等案例会因清单 #3/#5 的修复而改变。视觉扫描用 `QwtPlotRenderer` 离屏渲染 960×560 图像：实际渲染为单条含 NaN 曲线，理想参照为按有限段拆分后的多条曲线（同模式属性、同笔宽、同抗锯齿），逐像素比较 ARGB。
 
 语义 harness 提供四个子命令：`nan_mapper_check matrix` 输出定向案例的完整顶点序列与多边形哈希；`random <count> <seed>` 跑随机战役（数据与哈希同流输出，Python 端用同种子再生数据后比对）；`visual <outdir>` 做离屏视觉扫描并把 `run`、`xyinter` 两个模式的渲染 PNG 落盘供人工复核；`probes` 跑行为探针（Steps/Sticks/Dots 像素探针、boundingRect 与自动缩放边界、x-NaN/Inf 伪顶点、可见区间截断）。`QwtPointMapper` 在 `qwt_point_mapper.h` 中以 `QWT_EXPORT` 导出，因此 Lines 类路径的语义验证直接驱动映射器、不经过像素猜测；Steps/Sticks/Dots 位于 `QwtPlotCurve` 私有绘制函数内，改由"渲染后探针像素"做行为级验证（在 1:1 画布抓取图上检查特定数据坐标邻域是否被涂色）。`nan_bench` 分 sweep A（NaN 比例 × 点数 × 模式主扫描）、B（nanperf 八案例 × 模式）、C（全 NaN/空数据退化）与 `single`（单配置加严复测）四个入口。
 
 ### 4.2 语义验证结果
 
-语义矩阵（3.8 节两表）给出正确性核心结论：**跳过语义在五条路径上无一例外**，桥接弦数恒等于内部缺口数；`Dots`/`Sticks` 因逐样本独立而天然正确；全 NaN 输入下除 `points` 留下一个 NaN 单顶点外全部输出空多边形。随机战役（NaN 比例 0–60%、x-NaN 比例 0–10%、含 4% 全 NaN 案例）把边界情况（空段、单点段、x/y 交替 NaN、桶回退阈值两侧）都压进了 100% 一致率里。
+语义矩阵（3.8 节两表）给出正确性核心结论：**跳过语义在五条路径上无一例外**，桥接弦数恒等于内部缺口数；`Dots`/`Sticks` 因逐样本独立而天然正确；全 NaN 输入下除 `points` 留下一个 NaN 单顶点外全部输出空多边形（该单顶点是 v7.5.0 修复前的快照，见 3.2 节）。随机战役（NaN 比例 0–60%、x-NaN 比例 0–10%、含 4% 全 NaN 案例）把边界情况（空段、单点段、x/y 交替 NaN、桶回退阈值两侧）都压进了 100% 一致率里。
 
 随机战役的构造刻意覆盖路径分支的边界：样本数 3–502，使 40×30 画布的桶回退阈值 $2N_b=160$ 落在取值区间内部（桶化与 Quad 回退两侧都被压到），而 900×500 画布的阈值 3600 恒高于样本数（MinMax 内部的 Quad 回退分支每例必走）；定向案例的 N=8000 则覆盖真正的桶化路径。y-NaN 比例 0–60% 均匀取样、x-NaN 比例 0–10%、每 25 例插入一个全 NaN 案例。每例在两种画布下各跑 6 条路径（5 种用户模式 + 强制通用路径的 `lttbgen`），哈希对 (顶点数, 量化顶点序列模 $2^{32}-5$) 做双重比较——顶点数单独比较是为了让"空多边形 vs 单 NaN 顶点"这类退化差异无法被哈希巧合掩盖。250 例 × 2 画布 × 6 路径 = 3000 组随机比较加 90 组定向比较，全部一致；定向案例另做逐顶点 `%.17g` 级比对，含 `(899, NaN)` 退化顶点在内 90/90 比特一致（一次性人工比对：入库哈希产物不含原始顶点序列，该项无法直接复核，见 4.1）。
 
@@ -283,7 +286,7 @@ for k, i in enumerate(retained):
 
 差异像素的空间分布（`nan_results.csv` 的 vis 行带差异包围盒）支持上述归因：run 模式下 none 的差异包围盒为列 269–959、行 247–522，横跨三个缺口及其右侧信号区，最大通道偏差 224/255——桥接弦整条画满；aggressive 的包围盒在 run 模式收窄到列 270–768（第三条弦被列归并吸收进相邻列的竖直笔画），偏差仍为满幅。periodic 模式（视觉扫描的 N=20000，约 400 个宽 5 样本的周期缺口，CSV 中理想参照 idealSegs=400、内部缺口 399 个）下 pixel 升到 3.00%，超过 none 的 2.37%：空列密度高时，+0.25/+0.75 亚像素摆位让每列的竖直笔画与理想参照逐列错开半个子像素，抗锯齿混合后整条曲线的像素都参与差异——这是度量与摆位规则的叠加，不是新的语义错误。
 
-结论按问题"哪个模式在 NaN 数据上画错了"表述：**所有 Lines 模式都画了数据不存在的弦；LTTB 除此之外还因桶重排改变有限区域的形状**。若业务要求"缺口即空白"，唯一正确做法是在数据端切段（第 6 节）；若只要求"缺口不刺眼"，aggressive 的列归并把弦压进竖直笔画、视觉差异最小，但代价是 [曲线降采样](curve-downsampling.md) 第 6.3 节讨论过的列归并保真度损失。两个目标不可兼得，选择权在数据语义一侧而不在渲染器一侧。
+结论按问题"哪个模式在 NaN 数据上画错了"表述：**所有 Lines 模式都画了数据不存在的弦；LTTB 除此之外还因桶重排改变有限区域的形状**。若业务要求"缺口即空白"，做法是在数据端切段（第 6 节）或开启 `BreakAtNan`（v7.5.0 起，Lines/Steps）；若只要求"缺口不刺眼"，aggressive 的列归并把弦压进竖直笔画、视觉差异最小，但代价是 [曲线降采样](curve-downsampling.md) 第 6.3 节讨论过的列归并保真度损失。两个目标不可兼得，选择权在数据语义一侧而不在渲染器一侧。
 
 ### 4.4 性能扫描
 
@@ -339,7 +342,7 @@ boundingRect 的测量口径需要单独说明：它测的是**冷缓存**扫描
 
 ### 4.5 测量完整性说明
 
-计时期间机器上另有并行基准任务。首轮 sweep A 有 2 个配置批内 spread 超 30%（1M pixel 0%、1M none 10%），按协议追加批次重测；随后一次完整复跑（本文采用为主数据）全部 110 行 spread < 25%，且与单配置加严复测（sweep=S 行）相互印证：pixel 1M 0% 共 3 组 min-of 测量 76.3/81.7/85.2 ms（两次复测加主数据，区间 76.3–85.2），none 1M 10% 的复测只有 1 组、连同主数据共 2 组测量 138.9/147.9 ms。唯一未收敛的是 lttb 1M 0%：主会话 min-of 26.3 ms，两次独立复测 min-of 31.8/34.9 ms、对应中位数 35.4/37.3 ms（min 与中位数两种口径一并列出，不与全文 min-of 主口径混用）；批次级原始数据未入库，批内 spread 无法复核，仅能给出两复测行的 (中位数−最小值)/最小值 = 6.8% 与 11.5%，两个会话簇各自内部相对稳定、簇间明显分离，归因于并发负载下的时钟状态；min-of 协议保留安静会话值，`nan_results.csv` 以 sweep=S 行保留复测记录，读者可自行取保守值。相对关系（模式间排序、帧时间随 NaN 比例下降的总体趋势）在所有会话中一致。
+计时期间机器上另有并行基准任务。首轮 sweep A 有 2 个配置批内 spread 超 30%（1M pixel 0%、1M none 10%），按协议追加批次重测；随后一次完整复跑（本文采用为主数据）全部 110 行 spread < 25%，且与单配置加严复测（sweep=S 行）相互印证：pixel 1M 0% 共 3 组 min-of 测量 76.3/81.7/85.2 ms（两次复测加主数据，区间 76.3–85.2），none 1M 10% 的复测只有 1 组、连同主数据共 2 组测量 138.9/147.9 ms。唯一未收敛的是 lttb 1M 0%：主会话 min-of 26.3 ms，两次独立复测的 sweep=S 行留下 31.8/34.9 ms 与 35.4/37.3 ms 两组读数（两列口径并列，不复用全文的 min-of 主口径）；批次级原始数据未入库，批内 spread 无法复核，仅能给出两复测行的 (中位数−最小值)/最小值 = 6.8% 与 11.5%，两个会话簇各自内部相对稳定、簇间明显分离，归因于并发负载下的时钟状态；min-of 协议保留安静会话值，`nan_results.csv` 以 sweep=S 行保留复测记录，读者可自行取保守值。相对关系（模式间排序、帧时间随 NaN 比例下降的总体趋势）在所有会话中一致。
 
 ## 5. 讨论：失效模式诚实清单
 
@@ -347,45 +350,46 @@ boundingRect 的测量口径需要单独说明：它测的是**冷缓存**扫描
 >
 > 本文是 2026-10 的时点快照，正文结论与测量数字保持原样；下列清单中三项已在其后修复、一项已有库级出口：
 >
-> - **#3（LTTB x-NaN 伪顶点）、#4（Inf 穿透预扫描）已修复**：预扫描谓词改为 `!isfinite(y)`（拦截 Inf）；x 的非有限值由 SIMD 路径的每桶后置校验拦截，命中桶用标量循环重算；标量桶循环对 x、y 双坐标 `!isfinite` 跳过——原始指针路径与通用路径语义对齐，不再产出 `(0, y)` 伪顶点与 `INT_MIN` 垃圾坐标（回归测试 `tests/nan_curve_test`）。注：曾实测"预扫描同时查 x"方案使 1M 干净点 lttb 帧时间回归 +11%（双数组内存流量），故采用桶级后置校验方案。
-> - **#5（FilterPoints 全 NaN 单顶点）已修复**：`qwtToPolylineFiltered` 增加全 NaN 早退，全 NaN 输入返回空多边形，"空多边形 = 无数据"约定恢复。
-> - **#1/#2（桥接语义）新增库级出口**：`QwtPlotCurve::BreakAtNan` 曲线属性（默认关闭）把 Lines/Steps 切换为切段语义——每个有限段独立渲染/填充/平滑，缺口即空白；数据端切段（第 6.1 节）仍然可用。
+> - **命名变更先行**：`FilterPointsLTTB` 自 v7.5.0 起映射到**真 LTTB**（`QwtPointMapper::LTTBReduce`、`qwtLttbReduce()`），本文分析的 MinMax 桶算法移到新属性 `FilterPointsMinMaxLTTB`（`MinMaxReduce`）。下文第 3 条所称"LTTB 原始指针路径"指 MinMax 桶路径（v7.4.2 及之前 `FilterPointsLTTB` 即该实现），3.5/3.8 节的 `lttb` 模式与第 4 节性能数据同理。真 LTTB 的原始指针分支（`qwtLttbReduce` 的 `mapSample`，915–922 行）仍只用 `std::isnan(y)` 判定样本，x 非有限或 ±Inf y 会进入选择——MinMax 侧已修的 #3/#4 同类谓词在新默认路径上延续，6.2/6.4 节的清洗建议对默认模式依旧成立。
+> - **#3（LTTB x-NaN 伪顶点）、#4（Inf 穿透预扫描）已修复**：预扫描谓词改为 `!isfinite(y)`（拦截 Inf）；x 的非有限值由 SIMD 路径的每桶后置校验拦截（仅当存在原始 x 指针 `hasRawX`），命中桶用标量循环重算（`reduceBucketScalar(b)`）；标量桶循环对 x、y 双坐标 `!isfinite` 跳过——原始指针路径与通用路径语义对齐，不再产出 `(0, y)` 伪顶点与 `INT_MIN` 垃圾坐标（回归测试 `tests/nan_curve_test` 的 `lttb_xNan_noPhantomVertex`/`lttb_inf_noGarbageCoordinates`）。注：曾实测"预扫描同时查 x"方案使 1M 干净点 lttb 帧时间回归 +11%（双数组内存流量），故采用桶级后置校验方案。
+> - **#5（FilterPoints 全 NaN 单顶点）已修复**：`qwtToPolylineFiltered` 增加全 NaN 早退（1245–1248 行），全 NaN 输入返回空多边形，"空多边形 = 无数据"约定恢复（回归测试 `filterPoints_allNan_emptyPolygon`）。
+> - **#1/#2（桥接语义）新增库级出口**：`QwtPlotCurve::BreakAtNan` 曲线属性（`qwt_plot_curve.h` 177 行，默认关闭）把 Lines/Steps 切换为切段语义——每个有限段独立渲染/填充/平滑（`drawLines` 682–697 行、`drawSteps` 947–962 行、`drawDots` 填充分支 807–822 行），缺口即空白；数据端切段（第 6.1 节）仍然可用。有限段索引缓存在 `finiteSampleRuns()`（`qwt_plot_curve.cpp` 119–158 行），随数据变更失效。
 > - **#6/#7/#8 维持原状**：#6 为桶化降采样数学固有，#7 无视觉损失，#8 的使用指南滞后内容已随修复同步（中英两版）。
 
 | # | 失效 | 触发条件 | 实测证据 | 影响 |
 |---|---|---|---|---|
 | 1 | 桥接弦：NaN 段被一条数据不存在的线段跨越 | 任何内部 NaN 段 + 任何 Lines 模式/Steps | 语义矩阵中 bridged 恒等于 intGaps；视觉差异 0.23%–3.80% | 缺口被"焊死"，误读为连续信号 |
 | 2 | Steps 的桥接几何更糟：竖直跳变提前到缺口左缘 | Steps + 内部缺口 | 探针 tread=1, riser=1, pre_level=0 | 阶梯在缺口前就换层 |
-| 3 | LTTB 原始指针路径的 x-NaN 伪顶点：预扫描与标量桶循环只查 y，x-NaN 样本胜出桶极值时屏幕 x = `qRound(NaN)` = 0 | x 含 NaN 且该样本为桶极值 | `xnan_lttb_fakeLeft=1`，多边形含 (0,21)；xyinter 顶点 3567 vs 通用路径 3215 | 画布左缘出现伪尖峰 |
-| 4 | Inf 穿过只查 `isnan` 的预扫描进入 SIMD 路径 | y 含 ±Inf | `inf` 案例 lttb 垃圾坐标 1；`qRound(+Inf)=INT_MIN`、`qRound(-Inf)=0` | 顶/底边缘伪线或飞点 |
-| 5 | FilterPoints 全 NaN 输出单顶点 (x, NaN) 多边形 | 全 NaN + FilterPoints | 矩阵 all 行 points：1 顶点、1 垃圾 | 多边形非空，下游若假设"空=无数据"会误判 |
+| 3 | LTTB 原始指针路径的 x-NaN 伪顶点：预扫描与标量桶循环只查 y，x-NaN 样本胜出桶极值时屏幕 x = `qRound(NaN)` = 0（v7.5.0 已修复） | x 含 NaN 且该样本为桶极值 | `xnan_lttb_fakeLeft=1`，多边形含 (0,21)；xyinter 顶点 3567 vs 通用路径 3215（均为修复前快照） | 画布左缘出现伪尖峰 |
+| 4 | Inf 穿过只查 `isnan` 的预扫描进入 SIMD 路径（v7.5.0 已修复） | y 含 ±Inf | `inf` 案例 lttb 垃圾坐标 1；`qRound(+Inf)=INT_MIN`、`qRound(-Inf)=0` | 顶/底边缘伪线或飞点 |
+| 5 | FilterPoints 全 NaN 输出单顶点 (x, NaN) 多边形（v7.5.0 已修复） | 全 NaN + FilterPoints | 矩阵 all 行 points：1 顶点、1 垃圾 | 多边形非空，下游若假设"空=无数据"会误判 |
 | 6 | LTTB 桶重排：NaN 占桶预算，有限区域形状随缺口位置变化 | 任何 NaN + LTTB | leading/trailing 视觉差异 2.7%（无桥接仍非零） | 与"逐段渲染"不等价，导出/比对场景需注意 |
 | 7 | 可见区间二分对躲过探针的孤立 x-NaN 过扫 | 稀疏 x-NaN + 缩放轴 | 探针：覆盖仍为画布全宽，无截断 | 仅多余计算，无视觉损失 |
 | 8 | 文档滞后：使用指南称 Sticks/Steps/MinimizeMemory 不查 NaN | — | 当前源码四处均有 `isSampleNanOrInf` 检查（提交 17d0d13） | 仅文档问题，语义仍为跳过 |
 
-清单第 1、2 条是语义选择而非缺陷：跳过语义是 QWT7 相对 Qwt 6 的**改进方向**（6 时代 NaN 会产出野像素坐标），切段语义从未被承诺。真正值得上报维护者的是第 3、4 条：它们让"检查了 NaN"的路径仍然产出几何上不存在的顶点。第 3 条的修复成本很低——预扫描与标量桶循环各加一次 x 的 isfinite 检查（或改用 `qwt_is_nan_or_inf` 对 (x,y) 对判断）即可与通用路径对齐；在修复前，x 含 NaN 的数据应被视为 LTTB 原始指针路径的禁区。第 4 条同理：预扫描谓词从 `isnan` 换成 `!isfinite` 即可挡住 Inf。第 5 条无害但破坏"空多边形 = 无数据"的下游约定，值得在 API 文档里写明。第 6 条是桶化降采样的固有性质（桶边界依赖样本计数），切段渲染与整段渲染在数学上就不等价，只能靠文档告知。第 7 条经探针确认无视觉损失，记录在案即可。第 8 条提醒读者：本文与使用指南之间的滞后结论不止一处——风格覆盖相关内容在指南中出现两处（绘制风格覆盖表及其警告、"最佳实践"的选择绘制风格段），自动缩放代码片段也与当前源码不符，均以当前源码为准（本次修订已同步更正指南）。
+清单第 1、2 条是语义选择而非缺陷：跳过语义是 QWT7 相对 Qwt 6 的**改进方向**（6 时代 NaN 会产出野像素坐标），切段语义从未被承诺。第 3、4 条曾真正值得上报维护者：它们让"检查了 NaN"的路径仍然产出几何上不存在的顶点；两者的修复成本都很低（第 3 条：预扫描与标量桶循环各加一次 x 的 isfinite 检查，或改用 `qwt_is_nan_or_inf` 对 (x,y) 对判断；第 4 条：预扫描谓词从 `isnan` 换成 `!isfinite`），已在 v7.5.0 按此落地——第 4 条直接换谓词，第 3 条因性能取舍改用每桶 x 后置校验。**遗留**：v7.5.0 引入的真 LTTB（现默认 `FilterPointsLTTB`）原始指针分支仍只查 `isnan(y)`，#3/#4 同类样本仍会进入它的选择（见更新记录首条），在这一路径修复前，x 含 NaN 或 ±Inf 的数据进入任何 LTTB 桶算法前都应先清洗。第 5 条无害但破坏"空多边形 = 无数据"的下游约定，值得在 API 文档里写明（v7.5.0 已用空多边形早退修复）。第 6 条是桶化降采样的固有性质（桶边界依赖样本计数），切段渲染与整段渲染在数学上就不等价，只能靠文档告知。第 7 条经探针确认无视觉损失，记录在案即可。第 8 条提醒读者：本文与使用指南之间的滞后结论不止一处——风格覆盖相关内容在指南中出现两处（绘制风格覆盖表及其警告、"最佳实践"的选择绘制风格段），自动缩放代码片段也与当前源码不符，均以当前源码为准（本次修订已同步更正指南）。
 
-与 nanperf 示例的对照：nanperf 的 8 案例矩阵（Baseline/Leading/LeadingTrailing/Middle/Trailing/XyNan/XyInterleavedNan/AllNan）被 sweep B 原样镜像，其 `BenchmarkRunner` 的 boundingRect/replot/fps 三段分解与 SIMD 悬崖 delta 口径被 `nan_bench.cpp` 继承；本文在其上扩展了 isolated/periodic/extremum/xonly/inf/spikenan 六种语义模式、视觉逐像素扫描与 1M 点规模。nanperf 文档记录的 delta（1% 时 −0.19、99% 时 +0.03）与本文（100k 时 −0.29、1M 时 +0.03）同号同量级，"SIMD 悬崖可忽略、数据缩减主导"的结论在两套独立实现上互证。差异点在于本文把"可忽略"的机理说得更细：悬崖被掩盖不是因为标量回退便宜，而是因为帧时间的光栅化主导项与预扫描短路效应同向抵消了它。
+与 nanperf 示例的对照：nanperf 的 8 案例矩阵（Baseline/Leading/LeadingTrailing/Middle/Trailing/XyNan/XyInterleavedNan/AllNan）被 sweep B 原样镜像，其 `BenchmarkRunner` 的 boundingRect/replot/fps 三段分解被 `nan_bench.cpp` 继承；SIMD 悬崖 delta 口径由本文按同一公式在 `nan_results.csv` 上复算（4.4 节其三，`nan_bench.cpp` 本身不含 analyze 代码）。本文在其上扩展了 isolated/periodic/extremum/xonly/inf/spikenan 六种语义模式、视觉逐像素扫描与 1M 点规模。nanperf 文档记录的 delta（1% 时 −0.19、99% 时 +0.03）与本文（100k 时 −0.29、1M 时 +0.03）同号同量级，"SIMD 悬崖可忽略、数据缩减主导"的结论在两套独立实现上互证。差异点在于本文把"可忽略"的机理说得更细：悬崖被掩盖不是因为标量回退便宜，而是因为帧时间的光栅化主导项与预扫描短路效应同向抵消了它。
 
 跳过语义也有它买到的东西，讨论应当对称。单条 `QPolygonF` 让后续管线保持简单：`ClipPolygons` 的一次裁剪、渲染平滑（高斯/Savitzky-Golay，见[曲线平滑篇](curve-smoothing.md)）的连续邻域窗口、`Fitted` 属性的曲线拟合，都假设输入是一条连通折线；切段语义要求这些环节全部改成"逐段处理 + 段间不滤波"，否则平滑核会跨越缺口把两侧信号互相污染——桥接弦至少让平滑窗口的行为与无 NaN 时一致（代价是缺口两侧各损失半个窗口的保真）。性能上，跳过语义的映射成本与 NaN 位置无关（sweep B 的 ±10%），实现上五条路径只需一个 `continue`，不需要维护段表与段间状态。换言之：QWT7 用"缺口可见性"换了管线统一性，这个交换对监控大屏类场景划算、对科学出版类场景不划算——判断标准是读者会不会把桥接弦读成数据。
 
 > **警告 — 缺口不等于空白**
 >
-> 在 QWT7 中，含 NaN 的折线**不会**在缺口处留白。任何把 NaN 当"断开"解读的下游（报表、告警截图、论文图）都需要在数据端显式切段，或接受桥接弦并在图注中说明。
+> 在 QWT7 中，含 NaN 的折线**不会**在缺口处留白（除非开启 `BreakAtNan`，它只覆盖 Lines/Steps）。任何把 NaN 当"断开"解读的下游（报表、告警截图、论文图）都需要在数据端显式切段、开启 `BreakAtNan`，或接受桥接弦并在图注中说明。
 
 ## 6. 代码实践
 
-### 6.1 数据端：让缺口成为缺口的唯一办法
+### 6.1 数据端：让缺口成为缺口的显式办法
 
-要理想切段语义，就在喂给曲线之前按 NaN 把序列切成多段、每段一条曲线——这正是视觉扫描的理想参照的构造方式：
+v7.5.0 起也可以开启曲线属性 `BreakAtNan` 让 Lines/Steps 在渲染端逐段切分（见第 5 节更新记录）；本节给出数据端的做法，它不依赖属性、对所有绘制模式与所有管线阶段生效。要理想切段语义，就在喂给曲线之前按 NaN 把序列切成多段、每段一条曲线——这正是视觉扫描的理想参照的构造方式：
 
 ```cpp
 #include <qwt_plot.h>
 #include <qwt_plot_curve.h>
 #include <cmath>
 
-// Split a NaN-marked series into one curve per finite run: the only way
-// to obtain gap semantics with the current (skip-based) mapper.
+// Split a NaN-marked series into one curve per finite run: gap semantics
+// independent of the BreakAtNan attribute and of the paint mode.
 void attachSplit(QwtPlot* plot, const QVector<double>& x, const QVector<double>& y)
 {
     int start = -1;
@@ -409,11 +413,11 @@ void attachSplit(QwtPlot* plot, const QVector<double>& x, const QVector<double>&
 
 | 场景 | 建议 |
 |---|---|
-| 缺口必须显示为空白 | 数据端切段（6.1），模式任选 |
+| 缺口必须显示为空白 | 数据端切段（6.1）或开启 `BreakAtNan` 曲线属性（Lines/Steps，v7.5.0 起）；模式任选 |
 | 接受桥接、追求帧率 | 默认 `FilterPointsLTTB`；NaN 比例高时收益更大（50% 时 1M 点 13.1 ms） |
 | 缺口两侧电平接近、弦不刺眼 | `FilterPointsAggressive`（视觉差异最低 0.23%–1.05%） |
-| x 坐标可能含 NaN | 先清洗 x：LTTB 原始指针路径对 x-NaN 有伪顶点陷阱（清单 #3）；其余路径安全 |
-| 数据可能含 ±Inf | 用 `qwtRemoveNanOrInf` 清洗：预扫描只查 `isnan`，Inf 会进入 SIMD 路径（清单 #4） |
+| x 坐标可能含 NaN | 先清洗 x：MinMax 桶的原始指针路径曾对 x-NaN 产伪顶点（清单 #3，v7.5.0 已修复）；真 LTTB（默认 `FilterPointsLTTB`）的原始指针分支仍只查 `isnan(y)`，x 非有限样本会进入选择；清洗后最稳妥 |
+| 数据可能含 ±Inf | 用 `qwtRemoveNanOrInf` 清洗：MinMax 预扫描自 v7.5.0 起拦 ±Inf（清单 #4 已修复），真 LTTB 原始指针分支仍不拦 ±Inf；清洗是最省事的防御 |
 | 全 NaN / 空序列 | 无需特殊处理：包围矩形无效、轴回落 0–1000、画布空白、不崩溃；但自动轴无意义，建议显式 `setAxisScale` |
 | Sticks / Dots | 跳过即正确语义，可直接使用；Steps 有桥接（清单 #2） |
 
@@ -452,19 +456,19 @@ curve->setSamples(xs, ys);
 
 ## 7. 小结
 
-QWT7 把 NaN 从"崩溃源"（Qwt 6 的污染包围矩形与野像素）治理成了"被跳过的样本"：五条映射路径、四种曲线风格、包围矩形与自动缩放全链路都有显式的 isfinite 检查，这套治理的代价是语义选择——跳过而非切段。本文的语义矩阵、3090 组交叉验证与逐像素视觉扫描把这一选择的后果量化到像素：每个内部缺口在所有 Lines 模式上恰好产生一条桥接弦，与理想切段渲染的差异在 0.23%–3.80% 像素之间，LTTB 还叠加桶重排项。性能侧的结论则温和得多：NaN 的净效应是数据缩减，帧时间与预扫描成本都随 NaN 比例下降，SIMD 悬崖在帧级被掩盖（delta −0.29 / +0.03）。边界仍然清晰：需要"缺口即空白"的读者必须自己在数据端切段；x 含 NaN 或 Inf 的数据在进入 LTTB 原始指针路径前必须清洗。跳过语义是否是 QWT 的长期答案（例如在映射器层引入切段标志）是设计问题，本文只负责把现状与代价测量清楚。
+QWT7 把 NaN 从"崩溃源"（Qwt 6 的污染包围矩形与野像素）治理成了"被跳过的样本"：五条映射路径、四种曲线风格、包围矩形与自动缩放全链路都有显式的 isfinite 检查，这套治理的代价是语义选择——跳过而非切段。本文的语义矩阵、3090 组交叉验证与逐像素视觉扫描把这一选择的后果量化到像素：每个内部缺口在所有 Lines 模式上恰好产生一条桥接弦，与理想切段渲染的差异在 0.23%–3.80% 像素之间，LTTB 还叠加桶重排项。性能侧的结论则温和得多：NaN 的净效应是数据缩减，帧时间与预扫描成本都随 NaN 比例下降，SIMD 悬崖在帧级被掩盖（delta −0.29 / +0.03）。边界仍然清晰：需要"缺口即空白"的读者可以开启 `BreakAtNan`（Lines/Steps，v7.5.0 起）或在数据端切段；x 含 NaN 或 Inf 的数据在进入任何桶算法（含真 LTTB）的原始指针路径前必须清洗。跳过语义是否是 QWT 的长期答案（v7.5.0 已在曲线属性层给出切段开关 `BreakAtNan`，映射器层仍无切段标志）是设计问题，本文只负责把现状与代价测量清楚。
 
 - **语义判断**：QWT7 的 NaN 处理是"防崩溃治理"而非"缺口语义设计"；把它当 matplotlib 式切段使用会产生系统性误读，桥接弦在宽缺口、大电平差的场景下不可接受。
 - **正确性边界**：跳过语义在 `Dots`/`Sticks` 上恰好正确、在 Lines/Steps 上恰好错误、在 LTTB 上还多一层桶重排偏差；同一份数据换风格即换语义，接口层没有统一承诺。
 - **性能边界**：NaN 不引入任何超线性代价，预扫描与桶循环都是 $O(n)$ 且常数小；帧时间收益来自数据缩减，1M 点 50% NaN 时各模式加速 1.6–2.0 倍（aggressive 1.64、points 1.91、pixel 1.92、lttb 2.01、none 2.01）。
-- **测量边界**：帧级测量无法分离 SIMD 与标量桶归约的纯差值（光栅化主导），本文只报告帧级事实与机理假设；lttb 1M/0% 存在 26 vs 32–37 ms 的会话级双簇（复测 min-of 31.8/34.9、中位数 35.4/37.3），已按 min-of 协议取值并保留复测行。
-- **维护边界**：清单第 3、4 条（x-NaN 伪顶点、Inf 穿透预扫描）是低成本可修复的不一致，第 6 条（桶重排）是桶化降采样的数学必然；前者值得 issue，后者值得文档。
+- **测量边界**：帧级测量无法分离 SIMD 与标量桶归约的纯差值（光栅化主导），本文只报告帧级事实与机理假设；lttb 1M/0% 存在 26 vs 32–37 ms 的会话级双簇（复测读数 31.8/34.9、35.4/37.3），已按 min-of 协议取值并保留复测行。
+- **维护边界**：清单第 3、4 条（x-NaN 伪顶点、Inf 穿透预扫描）已在 v7.5.0 修复；但真 LTTB（现默认 `FilterPointsLTTB`）的原始指针分支仍保留同款 y-only `isnan` 判定（见第 5 节更新记录），进入前必须清洗 x 与 ±Inf；第 6 条（桶重排）是桶化降采样的数学必然，值得文档。
 
 ## 8. 参考文献
 
 1. IEEE Computer Society. *IEEE Standard for Floating-Point Arithmetic (IEEE 754-2019)*：有序/无序比较谓词与 NaN 传播规则。
-2. QWT7 源码：`src/plot/qwt_point_mapper.cpp`（`qwtToPolylineFiltered` 956–998、`qwtMapPointsQuad` 218–345、`qwtFindVisibleRange` 349–418、`qwtPixelColumnReduce` 422–535、`qwtMinMaxBucketReduce` 560–802、`qwtToPoints` 869–929、`toPolygonF` 1223–1254）。
-3. QWT7 源码：`src/plot/qwt_plot_curve.cpp`（`drawLines` 532–628、`drawSticks` 640–686、`drawDots` 698–768、`drawSteps` 781–853）、`src/core/qwt_series_data.cpp`（`qwtBoundingRectT`）、`src/core/qwt_simd_argminmax.cpp`（AVX2/SSE4.2/标量三路与 `_CMP_LT_OQ` 有序谓词）。
+2. QWT7 源码：`src/plot/qwt_point_mapper.cpp`（`qwtToPolylineFiltered` 1222–1268、`qwtMapPointsQuad` 218–345、`qwtFindVisibleRange` 349–418、`qwtPixelColumnReduce` 422–535、`qwtMinMaxBucketReduce` 625–863、`qwtLttbReduce` 877–1068、`qwtToPoints` 1135–1194、`toPolygonF` 1493–1530）。
+3. QWT7 源码：`src/plot/qwt_plot_curve.cpp`（`drawLines` 583–698、`drawSticks` 710–756、`drawDots` 768–858、`drawSteps` 871–963）、`src/core/qwt_series_data.cpp`（`qwtBoundingRectT` 217–261）、`src/core/qwt_simd_argminmax_avx2.cpp`（AVX2 内核与 `_CMP_LT_OQ` 有序谓词）、`src/core/qwt_simd_argminmax.cpp`（SSE4.2/标量路径与运行时派发）。
 4. QWT7 示例：`examples/2D/nanperf`（`NanDataGenerator` 八案例矩阵、`FilterModes.h` 五模式、`BenchmarkRunner` 的 boundingRect/replot/fps 分解与 SIMD 悬崖 delta 分析）。
 5. 本文配套实验：`docs/assets/algorithms/nan_experiment.py`、`nan_mapper_check.cpp`、`nan_bench.cpp`、`nan_results.csv`、`nan_mapper_hashes.csv`。
 6. 提交 `17d0d13` "fix(nan): add NaN skip to 4 missing paths in QwtPlotCurve"：Sticks/Steps/Dots-MinimizeMemory 四处跳过检查的引入点。
