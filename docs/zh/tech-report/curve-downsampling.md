@@ -365,7 +365,7 @@ flowchart TD
 
 ### 5.4 SIMD 加速：向量化 argmin/argmax
 
-`qwt_simd_argminmax.h/.cpp`（位于 `src/core/`）提供通用的 SIMD argmin/argmax，运行时 CPUID 检测一次，函数指针静态派发：
+`qwt_simd_argminmax.h/.cpp`（位于 `src/core/`；v7.5.1 起 AVX2 内核独立在 `qwt_simd_argminmax_avx2.cpp` 并以 `/arch:AVX2` 编译，见[SIMD 基准篇](simd-argminmax.md) 4.5b）提供通用的 SIMD argmin/argmax，运行时 CPUID 检测一次，函数指针静态派发：
 
 | CPU 特性 | 向量宽 | 每轮元素 | 核心指令 |
 |---|---|---|---|

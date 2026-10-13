@@ -367,7 +367,7 @@ For value-only data (`setRawSamples(yData, size)`) there is no $x$ pointer: the 
 
 ### 5.4 SIMD acceleration: vectorized argmin/argmax
 
-`qwt_simd_argminmax.h/.cpp` (in `src/core/`) provides a general SIMD argmin/argmax with a one-time CPUID detection and static function-pointer dispatch:
+`qwt_simd_argminmax.h/.cpp` (in `src/core/`; since v7.5.1 the AVX2 kernel lives separately in `qwt_simd_argminmax_avx2.cpp`, compiled as AVX2 - see Section 4.5b of the [SIMD benchmark](simd-argminmax.md)) provides a general SIMD argmin/argmax with a one-time CPUID detection and static function-pointer dispatch:
 
 | CPU feature | vector width | elements/iter | core instructions |
 |---|---|---|---|

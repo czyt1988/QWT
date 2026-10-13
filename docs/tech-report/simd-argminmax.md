@@ -281,6 +281,8 @@ What the three rows mean: **an ordinary desktop canvas plus million-point data s
 
 ### 4.5 Fixed-overhead localization: anatomy of a 325 ns
 
+(This section and its data are a point-in-time snapshot of the **7.5.0 shipped form**; the v7.5.1 fix and the same-machine re-measurement are in Section 4.5b.)
+
 Over n=8..256 the AVX2 path's time curve is nearly flat (327→417 ns), dominated entirely by F ≈ 325 ns; SSE4.2 shows no such step (F = 2.86 ns). To localize it, the benchmark constructs a series of controlled variants of the same kernel in two translation units (the `qb_*` function family in `simd_bench.cpp`); per-call cost at n=16:
 
 | Variant | min (ns) | med (ns) | Description |
@@ -375,7 +377,7 @@ The 3–4× given in the downsampling article is an analytical estimate based on
 
 ### 5.3 Points not fully localized
 
-Besides Section 4.5's explicitly stated \"transition-penalty trigger mechanism not fully closed\", the v7.5.1 work gained its key piece: the disassembly shows the inlined VZEROUPPER being scheduled between the 256-bit spill stores and their narrow reloads, with 256-bit reloads still following it, so the function returned with a dirty upper state - which explains why the inline spelling was ineffective while the separate TU works (Section 4.5b). The exact instruction-level cost (why that small spill round-trip is worth about 800 cycles on Golden Cove) still rests on disassembly-level correlation only. Two more points remain unresolved: `call_sse_wrapped` in Section 4.5 measured 24% slower than `call_sse_direct` at n=4096 (2226.1 vs. 1801.2 ns) and the 7% bucket-mode inversion at chunk=1024 (public 715.0 ns faster than the avx2 direct call 770.6 ns) still lack a decomposed explanation; both are reported as measured.
+Besides Section 4.5's explicitly stated "transition-penalty trigger mechanism not fully closed", the v7.5.1 work gained its key piece: the disassembly shows the inlined VZEROUPPER being scheduled between the 256-bit spill stores and their narrow reloads, with 256-bit reloads still following it, so the function returned with a dirty upper state - which explains why the inline spelling was ineffective while the separate TU works (Section 4.5b). The exact instruction-level cost (why that small spill round-trip is worth about 800 cycles on Golden Cove) still rests on disassembly-level correlation only. Two more points remain unresolved: `call_sse_wrapped` in Section 4.5 measured 24% slower than `call_sse_direct` at n=4096 (2226.1 vs. 1801.2 ns) and the 7% bucket-mode inversion at chunk=1024 (public 715.0 ns faster than the avx2 direct call 770.6 ns) still lack a decomposed explanation; both are reported as measured.
 
 ### 5.4 Improvement directions the data supports
 

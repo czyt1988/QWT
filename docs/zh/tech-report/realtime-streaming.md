@@ -304,14 +304,14 @@ LTTB 开启时，`ring_dp`/`ring_raw`/`ring_dp_bs`/`ring_replot`/`window` 五种
 
 比值处处 <1，即 ring_raw 一律更慢，$R=1\mathrm{M}, W=1\mathrm{M}$ 处慢到 0.26 倍（3.16 ms vs 0.82 ms）。拆开相位看根因：ring_raw 在 $R=1\mathrm{M}$、$W\ge100\mathrm{k}$ 的单元 **gen 段涨到 1.93–1.98 ms，而做同样 appendBatch 的 ring_dp 只有 0.19–0.30 ms**——生产循环被拖慢了约 7 倍（$W=10\mathrm{k}$ 页退化单元例外：两者 gen 段相当，0.21–0.23 ms）。gen 段在两策略里是逐字节相同的代码（同样的 `splitmix64` + 两次 `std::sin` + 镜像写入），唯一差别是上一 tick 的 draw 段：ring_raw 走了 AVX2 的 `qwtSimdArgMinMax`，ring_dp 走标量通用路径。
 
-根因指向 **AVX→SSE 转换惩罚**：`argMinMaxAVX2`（`src/core/qwt_simd_argminmax.cpp:141-203`）全程使用 256-bit `_mm256_*` 指令，却在返回前没有执行 VZEROUPPER。函数返回后 YMM 寄存器高 128 位处于"脏"状态，其后写入这些上半被弄脏寄存器的 legacy 编码 128-bit SSE 指令（这里是 MSVC `std::sin` 重度使用的 SSE 循环）会遭遇合并/虚假依赖停顿，直到上半状态被清零；惩罚大小依赖后续代码的寄存器使用形态——sin 重 SSE 生产循环命中，而姊妹篇[《SIMD argmin/argmax 向量化基准》](simd-argminmax.md) 4.5 节的短通用依赖链探针（64 条 legacy `ADDPD`）测不出可观测惩罚。由于生产者与消费者在本文基准里同处 GUI 线程、同处一个核，draw 段的 AVX2 直接污染了紧随其后的 gen 段。
+根因指向 **AVX→SSE 转换惩罚**：当时的 `argMinMaxAVX2`（`src/core/qwt_simd_argminmax.cpp:141-203`；v7.5.1 起该内核移入独立编译的 `qwt_simd_argminmax_avx2.cpp`，见段末）全程使用 256-bit `_mm256_*` 指令，却在返回前没有执行 VZEROUPPER。函数返回后 YMM 寄存器高 128 位处于"脏"状态，其后写入这些上半被弄脏寄存器的 legacy 编码 128-bit SSE 指令（这里是 MSVC `std::sin` 重度使用的 SSE 循环）会遭遇合并/虚假依赖停顿，直到上半状态被清零；惩罚大小依赖后续代码的寄存器使用形态——sin 重 SSE 生产循环命中，而姊妹篇[《SIMD argmin/argmax 向量化基准》](simd-argminmax.md) 4.5 节的短通用依赖链探针（64 条 legacy `ADDPD`）测不出可观测惩罚。由于生产者与消费者在本文基准里同处 GUI 线程、同处一个核，draw 段的 AVX2 直接污染了紧随其后的 gen 段。
 
 隔离微基准（`streaming_micro_simd.cpp`，脱离 GUI，交替执行 append 与 reduce；单次运行的完整 stdout 已存 `streaming_micro_results.txt`）支持这条因果链：
 
 | 场景 | append 中位耗时 |
 |---|---:|
 | append only | 0.181 ms |
-| append + SIMD reduce（AVX2，缺 VZEROUPPER） | 1.913 ms |
+| append + SIMD reduce（AVX2，发行形态缺 VZEROUPPER；v7.5.1 修复后为 0.13 ms） | 1.913 ms |
 | append + generic reduce（标量） | 0.151 ms |
 | append + SIMD reduce + `_mm256_zeroall()` | 0.149 ms |
 | append + SIMD reduce（复跑对照） | 1.886 ms |
@@ -544,7 +544,7 @@ int main(int argc, char* argv[])
 
 端到端延迟由重绘节奏主导：非过载区 $L_{\text{med}} \approx \Delta t/2 + T_{\text{frame}}$（实测 5–9 ms，半个 tick 的等待是大头），优化帧时间在欠载区对延迟无感，降延迟只能缩短 tick 或样本到达即绘；两个解析模型的拟合可信度见 5.6 节，可直接用于选型前估算。
 
-两条边界必须诚实标注。其一，"用 `setRawSamples` 换 SIMD 变换资格"这条通用建议在**单线程流式增量**场景下反噬（5.4 节）：AVX2 路径缺 VZEROUPPER，污染同核紧随的标量生产循环，叠加增量段每桶仅约 5.6 样本使 SIMD 水平归约得不偿失；惩罚大小依赖后续代码形态，指令级机理尚未闭环（交叉证据见[《SIMD 篇》](simd-argminmax.md) 4.5 节），修复应采用该篇的 `/arch:AVX2` 编译方案。其二，全部数值来自核显 + Qt5 + Windows/DWM 的单机实测，相对关系（增量 ≪ 整帧、拷贝提交的 $O(W)$ 代价、LTTB 在大窗口的必要性）稳定，独显、Qt6/RHI、Linux 合成器下的绝对数值需按同一方法重测。基准程序、144 组原始数据、分析脚本与隔离微基准（原始输出 `streaming_micro_results.txt`）随仓库提供，每个数字都可复算。
+两条边界必须诚实标注。其一，"用 `setRawSamples` 换 SIMD 变换资格"这条通用建议在**单线程流式增量**场景下反噬（5.4 节）：当时的 AVX2 路径缺 VZEROUPPER，污染同核紧随的标量生产循环，叠加增量段每桶仅约 5.6 样本使 SIMD 水平归约得不偿失；惩罚大小依赖后续代码形态，指令级机理尚未闭环（交叉证据见[《SIMD 篇》](simd-argminmax.md) 4.5/4.5b 节）。**该缺陷已在 v7.5.1 修复**——按《SIMD 篇》的方案把 AVX2 内核移入独立 `/arch:AVX2` 编译单元后，同机复测 append 段从 2.12 ms 回到 0.13 ms（与 append-only 持平），因此现在 SoA/`setRawSamples` 在流式场景里不再有这项惩罚，"小桶不划算"仍是独立于该缺陷的成本项。其二，全部数值来自核显 + Qt5 + Windows/DWM 的单机实测，相对关系（增量 ≪ 整帧、拷贝提交的 $O(W)$ 代价、LTTB 在大窗口的必要性）稳定，独显、Qt6/RHI、Linux 合成器下的绝对数值需按同一方法重测。基准程序、144 组原始数据、分析脚本与隔离微基准（原始输出 `streaming_micro_results.txt`）随仓库提供，每个数字都可复算。
 
 ## 9. 参考文献
 
