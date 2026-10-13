@@ -2,6 +2,12 @@
 
 ### 新功能
 
+- **曲线真 LTTB 降采样（FilterPointsLTTB 重做）**
+    - `FilterPointsLTTB` 现在实现真正的 Largest-Triangle-Three-Buckets 算法（新增 `QwtPointMapper::LTTBReduce` 标志、`qwtLttbReduce()`）：可见数据被分成 4 × 画布宽度个等量桶，每桶保留与「上一个已选点和下一桶均值」构成最大三角形面积的样本；首尾样本永远保留
+    - 窄高斯峰保持形状、不再塌缩成竖线；激活阈值（可见采样 > 4 × 画布宽度）与输出预算（约每像素列 4 个点）与原 MinMax 桶算法一致
+    - MinMax 桶算法移至新增的 `FilterPointsMinMaxLTTB` 绘制属性 —— 它就是 v7.3.2 - v7.4.2 中 `FilterPointsLTTB` 的原有行为
+    - 分发优先级：`PixelColumnReduce` > `LTTBReduce` > `MinMaxReduce` > `WeedOutIntermediatePoints` > `WeedOutPoints`；默认值仍为 `ClipPolygons | FilterPointsLTTB`（现在是保形的真 LTTB）
+    - 回归测试：`tests/downsampling_test`；`examples/bench/renderbench` 新增 `FilterPointsMinMaxLTTB` 基准模式
 - **3D 瀑布图 item（Qwt3DWaterfall）**
     - 新增 `Qwt3DPlotItem`：把一维轨迹序列（频谱、色谱……）沿深度轴堆叠绘制，内置滑动窗口——`pushTrace()` 追加最新轨迹并丢弃最旧轨迹，用户无需自己管理窗口或深度编号
     - 坐标轴遵循模块约定（数值轴朝上，与 `Qwt3DSurface` 一致）：x = bin 值、y = 轨迹在窗口中的位置（深度）、z = 幅度；`Qwt3DTextScale` 放在深度轴上
@@ -20,6 +26,7 @@
 
 ### Bug 修复
 
+- 修复降采样破坏窄峰视觉形状且无视抗锯齿的问题：默认的 `FilterPointsLTTB`（MinMax 桶，v7.3.2 - v7.4.2）每桶只保留 y 最小/最大的样本，采样点数超过桶容量的峰塌缩成平顶竖线、峰肩全部丢失；且所有降采样路径无视 `RoundPoints` 标志、把映射坐标强制取整到整数像素 —— 开不开抗锯齿画面毫无差别。现在两个降采样算法都遵循 `RoundPoints`（画布不按整数对齐时保留亚像素精度，含低于阈值的回退路径），默认降采样改为保峰形的真 LTTB。回归测试：`tests/downsampling_test`
 - 修复坐标轴主线在画布四角不相交、以及 HiDPI 缩放下轴线/刻度线宽度不一致的问题：`QwtScaleDraw` 现在把主线与刻度绘制为设备像素对齐的填充矩形（笔宽截断为整数设备像素，`setPenWidthF(1.0)` 在任意设备像素比下都是 1 像素细线），刻度恰好止于主线内缘而不再与主线交叉；新增 `QwtScaleDraw::setCornerMiter()` 标志——由 `QwtScaleWidget` 按垂直轴的可见性设置——把每条主线向共享的画布角延伸一个笔宽，互相垂直的主线因此交成干净的 L 形，而不是对角台阶（分数缩放下甚至是彻底的缺口）。回归测试：`tests/axis_corner_test`
 - 修复 `Qwt3DPlot::attach()` 不重算场景的问题：若数据在 `attach()` 之前装载、且中间没有调用任何 setter（因此未触发 `itemChanged()`），plot 的 hull 停留在 (0,0,0)-(0,0,0)，画面全白且无任何警告。z 排序 + hull 并集 + 坐标系更新被抽取为私有 `recalculateScene()`，`attach()` 与 `detach()` 现在也会调用，detach 后 hull 同步收缩。已加回归测试（`tests/waterfall_test`）
 - 修复派生 `Qwt3DScale` 在 `Qwt3DAxis::setScale()` 内被切片的问题：`Qwt3DClonePtr` 赋值经 `clone()` 克隆，未 override `clone()` 的派生 scale 的自定义 `ticLabel()` 静默失效（实测逐像素零差异）。`Qwt3DTextScale` 已 override；`Qwt3DLinearScale` 新增 protected `copyLinearScaleState()` 供派生类复制 autoscaler 状态
