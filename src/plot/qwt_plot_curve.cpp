@@ -40,6 +40,7 @@
 
 #include <qpainter.h>
 #include <qpainterpath.h>
+#include <QPair>
 
 static inline QRectF qwtIntersectedClipRect(const QRectF& rect, QPainter* painter)
 {
@@ -114,6 +115,47 @@ public:
     double smoothPreserveThreshold;
 
     QwtPlotCurve::LegendAttributes legendAttributes;
+
+    // Cache for the BreakAtNan attribute: inclusive index ranges of the
+    // maximal runs of consecutive samples with finite x/y coordinates.
+    // Recomputed lazily by finiteSampleRuns(), invalidated by dataChanged().
+    mutable QVector< QPair< int, int > > m_finiteRuns;
+    mutable bool m_finiteRunsValid = false;
+
+    /*!
+       Index ranges of the maximal runs of consecutive samples with
+       finite x/y coordinates, as rendered by the BreakAtNan attribute.
+
+       The O( n ) scan over the whole series is cached, so that
+       interactive repaints ( zoom, pan ) don't have to repeat it.
+     */
+    const QVector< QPair< int, int > >& finiteSampleRuns(const QwtSeriesData< QPointF >* series) const
+    {
+        if (!m_finiteRunsValid)
+        {
+            QVector< QPair< int, int > >& runs = m_finiteRuns;
+            runs.clear();
+
+            const int size = static_cast< int >(series->size());
+            int start      = -1;
+            for (int i = 0; i < size; ++i)
+            {
+                const bool finite = !qwt_is_nan_or_inf(series->sample(i));
+                if (finite && start < 0) {
+                    start = i;
+                } else if (!finite && start >= 0) {
+                    runs.append(qMakePair(start, i - 1));
+                    start = -1;
+                }
+            }
+            if (start >= 0)
+                runs.append(qMakePair(start, size - 1));
+
+            m_finiteRunsValid = true;
+        }
+
+        return m_finiteRuns;
+    }
 };
 
 /**
@@ -153,6 +195,15 @@ void QwtPlotCurve::init()
     setData(new QwtPointSeriesData());
 
     setZ(20.0);
+}
+
+void QwtPlotCurve::dataChanged()
+{
+    QWT_D(d);
+
+    d->m_finiteRunsValid = false;
+
+    QwtPlotSeriesItem::dataChanged();
 }
 
 /**
@@ -568,62 +619,80 @@ void QwtPlotCurve::drawLines(QPainter* painter,
 
     mapper.setBoundingRect(canvasRect);
 
-    QPolygonF polyline = mapper.toPolygonF(xMap, yMap, data(), from, to);
-
     /*
         The smoothing is done before clipping and fitting, so that the
         filters see the complete neighborhood of the polyline points
         and the input of a curve fitter ( Fitted attribute ) is already
         free of pixel noise.
      */
-    if (d->smoothAlgorithm == GaussianSmoothing) {
-        polyline = qwtSmoothPolylineGaussian(polyline, d->smoothWindow, d->smoothPreserveThreshold);
-    } else if (d->smoothAlgorithm == SavitzkyGolaySmoothing) {
-        polyline = qwtSmoothPolylineSavitzkyGolay(
-            polyline, d->smoothWindow, d->smoothPolynomialOrder, d->smoothPreserveThreshold);
-    }
-
-    if (doFill) {
-        if (doFit) {
-            // it might be better to extend and draw the curvePath, but for
-            // the moment we keep an implementation, where we translate the
-            // path back to a polyline.
-
-            polyline = d->curveFitter->fitCurve(polyline);
+    const auto drawPolylineSegment = [&](QPolygonF polyline)
+    {
+        if (d->smoothAlgorithm == GaussianSmoothing) {
+            polyline = qwtSmoothPolylineGaussian(polyline, d->smoothWindow, d->smoothPreserveThreshold);
+        } else if (d->smoothAlgorithm == SavitzkyGolaySmoothing) {
+            polyline = qwtSmoothPolylineSavitzkyGolay(
+                polyline, d->smoothWindow, d->smoothPolynomialOrder, d->smoothPreserveThreshold);
         }
 
-        if (painter->pen().style() != Qt::NoPen) {
-            // here we are wasting memory for the filled copy,
-            // do polygon clipping twice etc .. TODO
+        if (doFill) {
+            if (doFit) {
+                // it might be better to extend and draw the curvePath, but for
+                // the moment we keep an implementation, where we translate the
+                // path back to a polyline.
 
-            QPolygonF filled = polyline;
-            fillCurve(painter, xMap, yMap, canvasRect, filled);
-            filled.clear();
-
-            if (d->paintAttributes & ClipPolygons)
-                QwtClipper::clipPolygonF(clipRect, polyline, false);
-
-            QwtPainter::drawPolyline(painter, polyline);
-        } else {
-            fillCurve(painter, xMap, yMap, canvasRect, polyline);
-        }
-    } else {
-        if (testPaintAttribute(ClipPolygons)) {
-            QwtClipper::clipPolygonF(clipRect, polyline, false);
-        }
-
-        if (doFit) {
-            if (d->curveFitter->mode() == QwtCurveFitter::Path) {
-                const QPainterPath curvePath = d->curveFitter->fitCurvePath(polyline);
-
-                painter->drawPath(curvePath);
-            } else {
                 polyline = d->curveFitter->fitCurve(polyline);
+            }
+
+            if (painter->pen().style() != Qt::NoPen) {
+                // here we are wasting memory for the filled copy,
+                // do polygon clipping twice etc .. TODO
+
+                QPolygonF filled = polyline;
+                fillCurve(painter, xMap, yMap, canvasRect, filled);
+                filled.clear();
+
+                if (d->paintAttributes & ClipPolygons)
+                    QwtClipper::clipPolygonF(clipRect, polyline, false);
+
                 QwtPainter::drawPolyline(painter, polyline);
+            } else {
+                fillCurve(painter, xMap, yMap, canvasRect, polyline);
             }
         } else {
-            QwtPainter::drawPolyline(painter, polyline);
+            if (testPaintAttribute(ClipPolygons)) {
+                QwtClipper::clipPolygonF(clipRect, polyline, false);
+            }
+
+            if (doFit) {
+                if (d->curveFitter->mode() == QwtCurveFitter::Path) {
+                    const QPainterPath curvePath = d->curveFitter->fitCurvePath(polyline);
+
+                    painter->drawPath(curvePath);
+                } else {
+                    polyline = d->curveFitter->fitCurve(polyline);
+                    QwtPainter::drawPolyline(painter, polyline);
+                }
+            } else {
+                QwtPainter::drawPolyline(painter, polyline);
+            }
         }
+    };
+
+    if (d->attributes & BreakAtNan) {
+        // render every run of consecutive finite samples as an
+        // independent polyline, leaving the gaps blank
+        const QVector< QPair< int, int > >& runs = d->finiteSampleRuns(data());
+
+        for (const QPair< int, int >& run : runs) {
+            const int rFrom = qMax(run.first, from);
+            const int rTo   = qMin(run.second, to);
+            if (rFrom > rTo)
+                continue;
+
+            drawPolylineSegment(mapper.toPolygonF(xMap, yMap, data(), rFrom, rTo));
+        }
+    } else {
+        drawPolylineSegment(mapper.toPolygonF(xMap, yMap, data(), from, to));
     }
 }
 
@@ -726,10 +795,30 @@ void QwtPlotCurve::drawDots(QPainter* painter,
     if (doFill) {
         mapper.setFlag(QwtPointMapper::WeedOutPoints, false);
 
-        QPolygonF points = mapper.toPolygonF(xMap, yMap, data(), from, to);
+        const auto drawDotSegment = [&](int rFrom, int rTo)
+        {
+            QPolygonF points = mapper.toPolygonF(xMap, yMap, data(), rFrom, rTo);
 
-        QwtPainter::drawPoints(painter, points);
-        fillCurve(painter, xMap, yMap, canvasRect, points);
+            QwtPainter::drawPoints(painter, points);
+            fillCurve(painter, xMap, yMap, canvasRect, points);
+        };
+
+        if (d->attributes & BreakAtNan) {
+            // fill below every run of consecutive finite samples on
+            // its own, leaving the gaps blank
+            const QVector< QPair< int, int > >& runs = d->finiteSampleRuns(data());
+
+            for (const QPair< int, int >& run : runs) {
+                const int rFrom = qMax(run.first, from);
+                const int rTo   = qMin(run.second, to);
+                if (rFrom > rTo)
+                    continue;
+
+                drawDotSegment(rFrom, rTo);
+            }
+        } else {
+            drawDotSegment(from, to);
+        }
     } else if (d->paintAttributes & ImageBuffer) {
         const QImage image = mapper.toImage(
             xMap, yMap, data(), from, to, d->pen, painter->testRenderHint(QPainter::Antialiasing), renderThreadCount());
@@ -789,67 +878,87 @@ void QwtPlotCurve::drawSteps(QPainter* painter,
 
     const bool doAlign = QwtPainter::roundingAlignment(painter);
 
-    QPolygonF polygon(2 * (to - from) + 1);
-    QPointF* points = polygon.data();
-
     bool inverted = orientation() == Qt::Vertical;
     if (d->attributes & Inverted)
         inverted = !inverted;
 
     const QwtSeriesData< QPointF >* series = data();
 
-    int i, ip;
-    for (i = from, ip = 0; i <= to; i++) {
-        const QPointF sample = series->sample(i);
+    const auto drawStepSegment = [&](int rFrom, int rTo)
+    {
+        QPolygonF polygon(2 * (rTo - rFrom) + 1);
+        QPointF* points = polygon.data();
 
-        if (isSampleNanOrInf(sample))
-            continue;
+        int ip = 0;
+        for (int i = rFrom; i <= rTo; i++) {
+            const QPointF sample = series->sample(i);
 
-        double xi            = xMap.transform(sample.x());
-        double yi            = yMap.transform(sample.y());
-        if (doAlign) {
-            xi = qRound(xi);
-            yi = qRound(yi);
-        }
+            if (isSampleNanOrInf(sample))
+                continue;
 
-        if (ip > 0) {
-            const QPointF& p0 = points[ ip - 2 ];
-            QPointF& p        = points[ ip - 1 ];
-
-            if (inverted) {
-                p.rx() = p0.x();
-                p.ry() = yi;
-            } else {
-                p.rx() = xi;
-                p.ry() = p0.y();
+            double xi            = xMap.transform(sample.x());
+            double yi            = yMap.transform(sample.y());
+            if (doAlign) {
+                xi = qRound(xi);
+                yi = qRound(yi);
             }
+
+            if (ip > 0) {
+                const QPointF& p0 = points[ ip - 2 ];
+                QPointF& p        = points[ ip - 1 ];
+
+                if (inverted) {
+                    p.rx() = p0.x();
+                    p.ry() = yi;
+                } else {
+                    p.rx() = xi;
+                    p.ry() = p0.y();
+                }
+            }
+
+            points[ ip ].rx() = xi;
+            points[ ip ].ry() = yi;
+            ip += 2;
         }
 
-        points[ ip ].rx() = xi;
-        points[ ip ].ry() = yi;
-        ip += 2;
-    }
+        if (ip == 0)
+            return;
 
-    if (ip == 0)
-        return;
+        polygon.resize(ip - 1);
 
-    polygon.resize(ip - 1);
+        if (d->paintAttributes & ClipPolygons) {
+            QRectF clipRect = qwtIntersectedClipRect(canvasRect, painter);
 
-    if (d->paintAttributes & ClipPolygons) {
-        QRectF clipRect = qwtIntersectedClipRect(canvasRect, painter);
+            const qreal pw = QwtPainter::effectivePenWidth(painter->pen());
+            clipRect       = clipRect.adjusted(-pw, -pw, pw, pw);
 
-        const qreal pw = QwtPainter::effectivePenWidth(painter->pen());
-        clipRect       = clipRect.adjusted(-pw, -pw, pw, pw);
+            const QPolygonF clipped = QwtClipper::clippedPolygonF(clipRect, polygon, false);
 
-        const QPolygonF clipped = QwtClipper::clippedPolygonF(clipRect, polygon, false);
+            QwtPainter::drawPolyline(painter, clipped);
+        } else {
+            QwtPainter::drawPolyline(painter, polygon);
+        }
 
-        QwtPainter::drawPolyline(painter, clipped);
+        if (d->brush.style() != Qt::NoBrush)
+            fillCurve(painter, xMap, yMap, canvasRect, polygon);
+    };
+
+    if (d->attributes & BreakAtNan) {
+        // render every run of consecutive finite samples as an
+        // independent step polygon, leaving the gaps blank
+        const QVector< QPair< int, int > >& runs = d->finiteSampleRuns(series);
+
+        for (const QPair< int, int >& run : runs) {
+            const int rFrom = qMax(run.first, from);
+            const int rTo   = qMin(run.second, to);
+            if (rFrom > rTo)
+                continue;
+
+            drawStepSegment(rFrom, rTo);
+        }
     } else {
-        QwtPainter::drawPolyline(painter, polygon);
+        drawStepSegment(from, to);
     }
-
-    if (d->brush.style() != Qt::NoBrush)
-        fillCurve(painter, xMap, yMap, canvasRect, polygon);
 }
 
 /**
