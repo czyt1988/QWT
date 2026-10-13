@@ -1,6 +1,6 @@
 # SIMD argmin/argmax 向量化基准：qwtSimdArgMinMax 的三路运行时派发
 
-> **摘要** —— QWT7 的 MinMax 桶降采样每个桶都要做一次 argmin/argmax，`qwtSimdArgMinMax`（`src/core/qwt_simd_argminmax.cpp`）以 AVX2 / SSE4.2 / 标量三路运行时派发承担这个内核。本文基于 i7-14700 + MSVC 发行版编译配置下的微基准（`docs/assets/algorithms/simd_bench.cpp`，原始数据 `simd_bench_results.csv`，min-of-7 协议、0 个重测点）实测三路的速度随数组长度（8 到 16M 元素）的变化、缓存层级与 roofline 位置，并按 MinMax 桶的真实调用方式（连续小分块）扫描每桶成本，给出"桶多小 SIMD 才划算"的定量判据。一组对照探针——vzeroupper 变体、/arch:AVX2 重编译 TU、rdtsc 五段计时、E-core 对照——把发行构建中 AVX2 路径每次调用约 325 ns 的固定开销定位到默认编译 TU 的水平归约尾声与 P-core 的组合效应。NaN 语义矩阵实测表明"NaN 被天然忽略"的说法在 NaN 污染 lane 的场景不成立，这解释了 `qwtMinMaxBucketReduce` 的 NaN 预扫描为什么是正确性防线而非可选优化。
+> **摘要** —— QWT7 的 MinMax 桶降采样每个桶都要做一次 argmin/argmax，`qwtSimdArgMinMax`（派发方 `src/core/qwt_simd_argminmax.cpp`，AVX2 内核自 v7.5.1 起在 `src/core/qwt_simd_argminmax_avx2.cpp`）以 AVX2 / SSE4.2 / 标量三路运行时派发承担这个内核。本文基于 i7-14700 + MSVC 发行版编译配置下的微基准（`docs/assets/algorithms/simd_bench.cpp`，原始数据 `simd_bench_results.csv`，min-of-7 协议、0 个重测点）实测三路的速度随数组长度（8 到 16M 元素）的变化、缓存层级与 roofline 位置，并按 MinMax 桶的真实调用方式（连续小分块）扫描每桶成本，给出"桶多小 SIMD 才划算"的定量判据。一组对照探针——vzeroupper 变体、/arch:AVX2 重编译 TU、rdtsc 五段计时、E-core 对照——把发行构建中 AVX2 路径每次调用约 325 ns 的固定开销定位到默认编译 TU 的水平归约尾声与 P-core 的组合效应。NaN 语义矩阵实测表明"NaN 被天然忽略"的说法在 NaN 污染 lane 的场景不成立，这解释了 `qwtMinMaxBucketReduce` 的 NaN 预扫描为什么是正确性防线而非可选优化。
 
 > **摘要 — 核心结论**
 >
@@ -16,9 +16,9 @@
 
 ## 1. 引言：每帧一千八百次调用
 
-MinMax 桶降采样（`FilterPointsLTTB`，见[降采样篇](curve-downsampling.md)第 4 节）把可见样本按索引切成 $N_b = \max(2, 2W)$ 个桶，对每个桶求 $y$ 的 argmin 与 argmax 并输出两个极值点。当 x、y 轴均为线性映射（`linearPath`，`src/plot/qwt_point_mapper.cpp:584,590`）、数据源能提供连续的 `double*` 且可见区间内没有 NaN 时，`qwtMinMaxBucketReduce` 对每个桶调用一次 `qwtSimdArgMinMax(raw.y + start, count)`（`qwt_point_mapper.cpp:616`）。这意味着内核的**每调用成本**要乘上每帧 $2W$ 次：900 px 宽的画布一帧调用 1800 次，1920 px 宽调用 3840 次。桶大小 $s = n/N_b$ 由可见点数与画布宽度共同决定——1M 个可见点落在 900 px 画布上，$s \approx 556$；这个量级恰好处于"向量化的并行收益"与"每次调用的固定开销"的拉锯地带，是本文定量回答的核心问题。
+MinMax 桶降采样（`FilterPointsLTTB`，见[降采样篇](curve-downsampling.md)第 4 节）把可见样本按索引切成 $N_b = \max(2, 2W)$ 个桶，对每个桶求 $y$ 的 argmin 与 argmax 并输出两个极值点。当 x、y 轴均为线性映射（`linearPath`，`src/plot/qwt_point_mapper.cpp:650,658`）、数据源能提供连续的 `double*` 且可见区间内的 y 值全部有限时，`qwtMinMaxBucketReduce` 对每个桶调用一次 `qwtSimdArgMinMax(raw.y + start, count)`（`qwt_point_mapper.cpp:743`）。这意味着内核的**每调用成本**要乘上每帧 $2W$ 次：900 px 宽的画布一帧调用 1800 次，1920 px 宽调用 3840 次。桶大小 $s = n/N_b$ 由可见点数与画布宽度共同决定——1M 个可见点落在 900 px 画布上，$s \approx 556$；这个量级恰好处于"向量化的并行收益"与"每次调用的固定开销"的拉锯地带，是本文定量回答的核心问题。
 
-降采样篇 §5.4 对该内核只有一段概述和一句"AVX2 单桶相对标量理论 3–4×"的估计。本文是它的展开：用与发行库完全一致的编译配置实测三路实现，回答四个问题——加速比随数组长度如何变化；桶小到多少 SIMD 不再划算；内核在 roofline 图上处于什么位置；NaN 输入下三路各自的真实语义是什么。基准程序 `simd_bench.cpp`（1078 行）直接 `#include "qwt_simd_argminmax.cpp"`，主编译单元使用与 qwtcore.dll 相同的默认 MSVC x64 标志（SSE2 基线，无 `/arch` 开关），因此测到的是"用户拿到的二进制"的行为，而不是理想化构建的行为；这一点在 4.5 节会被证明至关重要。
+降采样篇 §5.4 对该内核只有一段概述和一句"AVX2 单桶相对标量理论 3–4×"的估计。本文是它的展开：用与发行库完全一致的编译配置实测三路实现，回答四个问题——加速比随数组长度如何变化；桶小到多少 SIMD 不再划算；内核在 roofline 图上处于什么位置；NaN 输入下三路各自的真实语义是什么。基准程序 `simd_bench.cpp`（1087 行）把同一份 `#include "qwt_simd_argminmax.cpp"` 编成两个编译单元（主 TU 与 `/arch:AVX2` 包装 TU），并链接库自身的 AVX2 编译单元（`src/core/qwt_simd_argminmax_avx2.cpp`）；主编译单元使用与 qwtcore.dll 相同的默认 MSVC x64 标志（SSE2 基线，无 `/arch` 开关），因此测到的是"用户拿到的二进制"的行为，而不是理想化构建的行为；这一点在 4.5 节会被证明至关重要。
 
 实验矩阵分五组：整数组扫描（n = 8 到 16M，scalar/SSE4.2/AVX2/public 四路）、桶模式扫描（1M 数组按 4–4096 元素的 chunk 连续消费，复刻 mapper 的调用形态）、内存带宽参考（标量求和、AVX2 求和、memcpy 三个天花板内核）、固定开销定位探针（双编译单元对照、vzeroupper 变体、rdtsc 五段计时、通用过渡惩罚链探针）与 NaN 语义矩阵（12 种 NaN 分布模式 × 4 路，不计时）；另有 E-core 对照段在 lp16 上重跑关键变体。全部数据一次性采集于 `simd_bench_results.csv`，本文不补充新计时。
 
@@ -30,9 +30,9 @@ MinMax 桶降采样（`FilterPointsLTTB`，见[降采样篇](curve-downsampling.
 
 ### 2.1 CPUID 派发与编译期守卫
 
-派发分两层。第一层在编译期：SSE4.2 实现体仅在 `defined(__SSE4_2__) || (_MSC_VER >= 1700)` 时编译，否则 `#define argMinMaxSSE42 argMinMaxScalar`；AVX2 实现体仅在 `defined(__AVX2__) || (_MSC_VER >= 1800)` 时编译，否则 `#define argMinMaxAVX2 argMinMaxSSE42`（`qwt_simd_argminmax.cpp:78,135-137,140,202-204`）。MSVC 自 VS2013 起允许在不加 `/arch` 开关的编译单元里直接书写 AVX2 intrinsics（按指令逐条发射 VEX 编码），所以 **Windows 发行构建三路俱全**；而 GCC/Clang 在默认 x86-64 基线下（不带 `-msse4.2`/`-mavx2`）两个宏都会塌缩，整个库只剩标量路径——同一份源码在不同工具链下的"三路"含金量并不相同。
+派发分两层。第一层在编译期：SSE4.2 实现体仅在 `defined(__SSE4_2__) || (_MSC_VER >= 1700)` 时编译，否则 `#define argMinMaxSSE42 argMinMaxScalar`（`qwt_simd_argminmax.cpp:78,135-137`）；AVX2 则拆成"声明 + 独立实现文件"两部分——派发方的守卫是 `defined(__AVX2__) || (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86)))`，满足时声明 `qwtArgMinMaxAVX2` 并把 `argMinMaxAVX2` 指向它，否则该宏塌缩为 `argMinMaxSSE42`（`qwt_simd_argminmax.cpp:143,149-150`），实现体本身只在 `qwt_simd_argminmax_avx2.cpp` 中编译（同一守卫的等价形式，`qwt_simd_argminmax_avx2.cpp:14`）。MSVC 允许在不加 `/arch` 开关的编译单元里直接书写 x86 intrinsics（按指令逐条发射 VEX 编码），且 x64 分支不受 `__AVX2__` 限制，所以 **Windows 发行构建三路俱全**（AVX2 内核由 CMake 单独加 `/arch:AVX2`，见 4.5b）；而 GCC/Clang 在默认 x86-64 基线下（不带 `-msse4.2`/`-mavx2`）两个宏都会塌缩，整个库只剩标量路径——内核即便编译成 AVX2 也无人引用。同一份源码在不同工具链下的"三路"含金量并不相同。
 
-第二层在运行期。`detectSimdLevel()` 在 MSVC 下依次查 CPUID leaf 7 的 EBX bit 5（AVX2）与 leaf 1 的 ECX bit 20（SSE4.2）；GCC/Clang 下用 `__builtin_cpu_supports("avx2"/"sse4.2")`，且被 `__x86_64__ || __i386__` 守卫，非 x86 直接返回 Scalar。结果存入命名空间级 `static const SimdLevel kSimdLevel`（动态初始化，进程内只执行一次）；公开入口 `qwtSimdArgMinMax` 内再用一个函数级 static 函数指针 `kFn` 完成间接调用，并对结果做哨兵替换：`isnan(minVal) || isnan(maxVal)` 时返回 $\{0, 0, \text{DBL\_MAX}, -\text{DBL\_MAX}\}$（`qwt_simd_argminmax.cpp:207-227`）。
+第二层在运行期。`detectSimdLevel()` 在 MSVC 下依次查 CPUID leaf 7 的 EBX bit 5（AVX2）与 leaf 1 的 ECX bit 20（SSE4.2）；GCC/Clang 下用 `__builtin_cpu_supports("avx2"/"sse4.2")`，且被 `__x86_64__ || __i386__` 守卫，非 x86 直接返回 Scalar。结果存入命名空间级 `static const SimdLevel kSimdLevel`（动态初始化，进程内只执行一次）；公开入口 `qwtSimdArgMinMax` 内再用一个函数级 static 函数指针 `kFn` 完成间接调用，并对结果做哨兵替换：`isnan(minVal) || isnan(maxVal)` 时返回 $\{0, 0, \text{DBL\_MAX}, -\text{DBL\_MAX}\}$（`qwt_simd_argminmax.cpp:154-171`）。
 
 ```mermaid
 flowchart TD
@@ -74,7 +74,7 @@ minIdx:  各 lane 历史 argmin（double 存储）
 
 `curIdx` 每轮用 `_mm256_set_pd(i+3.0, ...)` 重建，对应 4 次 int→double 转换加插入/拼接；增量方案（每轮一条 `vaddpd` 加常数 4.0）在基准里作为对照内核 `qb_kernel_incr` 实测，边际速率从 0.3644 降到 0.2600 ns/元素（4.5 节）。按 `simd_experiment.py` 从 MSVC /O2 反汇编清点的指令数：标量 6 条/元素，SSE4.2 8 条/元素（16 条/2 元素），AVX2 默认 6 条/元素（24 条/4 元素），增量索引变体 3.25 条/元素（13 条/4 元素）。
 
-循环结束后的尾声分三步：四个累加向量 `_mm256_storeu_pd` 溢出到栈上数组；水平归约从 lane 0 出发、以**严格不等式**逐 lane 改进（平局时低 lane 优先）；不足一个向量宽的尾巴用标量循环收尾。SSE4.2 版的归约按 2 lane 手工展开（`qwt_simd_argminmax.cpp:101-119`，尾巴 `:121-130`），AVX2 版对 4 lane 用循环（`:166-186`，尾巴 `:188-197`）。返回值是 24 字节的 `QwtArgMinMaxResult` 结构体（两个 int 加两个 double，对齐 8、无填充；x64 调用约定下经隐藏指针 sret 传回）。索引以 double 存储在 $2^{53}$ 以内精确，`count` 是 int，容量上没有问题。
+循环结束后的尾声分三步：四个累加向量 `_mm256_storeu_pd` 溢出到栈上数组；水平归约从 lane 0 出发、以**严格不等式**逐 lane 改进（平局时低 lane 优先）；不足一个向量宽的尾巴用标量循环收尾。SSE4.2 版的归约按 2 lane 手工展开（`qwt_simd_argminmax.cpp:101-119`，尾巴 `:121-130`），AVX2 版对 4 lane 用循环（`qwt_simd_argminmax_avx2.cpp:92-101`，尾巴 `:103-112`）。返回值是 24 字节的 `QwtArgMinMaxResult` 结构体（两个 int 加两个 double，对齐 8、无填充；x64 调用约定下经隐藏指针 sret 传回）。索引以 double 存储在 $2^{53}$ 以内精确，`count` 是 int，容量上没有问题。
 
 ### 2.3 NaN 语义：机制推导与实测矩阵
 
@@ -105,7 +105,7 @@ minIdx:  各 lane 历史 argmin（double 存储）
 
 11 个含 NaN 模式 × 3 条原始路径共 33 个单元，12 个与参考不一致（scalar 4、SSE4.2 5、AVX2 3）。n=8 的矩阵（CSV 行 254–313）额外暴露了 `avx2,p1 → max=1:1e+09`、`sse42,p2 → min=0:-1e+09`、`sse42,p3 → max=1:1e+09` 等索引错乱。规律与机制推导完全吻合：**NaN 落在哪个 lane、与该 lane 里的极值谁先谁后，决定错误形态**；`mid` 在 n=16 时三路全对，仅因植入极值恰好避开了被污染 lane 的组合。
 
-这正是 `qwtMinMaxBucketReduce` 的用法边界：SIMD 快速路径的先决条件是可见区间**无 NaN**，由一遍 O(n) 的 `std::isnan` 预扫描把守（`qwt_point_mapper.cpp:598-604`）；一旦发现 NaN，整个归约切换到 NaN-aware 的标量桶路径（`:641-695`，逐元素 `continue` 跳过 NaN）。预扫描是正确性防线，不是优化——代价是每帧多一遍顺序扫描（本基准未单独计时预扫描）。NaN 在曲线渲染层面的后续语义（断线处理等）见 [NaN 渲染篇](nan-rendering.md)。
+这正是 `qwtMinMaxBucketReduce` 的用法边界：SIMD 快速路径的先决条件是可见区间的 y 值**全部有限**，由一遍 O(n) 的 `std::isfinite` 预扫描把守（`qwt_point_mapper.cpp:725-731`）；一旦发现非有限值，整个归约切换到逐元素 `continue` 跳过非有限 x/y 的标量桶路径（`:671-716`）；SIMD 桶的极值若落在非有限 x 的样本上，则由每桶后置校验改用同一标量例程重算（`:747-753`）。预扫描是正确性防线，不是优化——代价是每帧多一遍顺序扫描（本基准未单独计时预扫描）。NaN 在曲线渲染层面的后续语义（断线处理等）见 [NaN 渲染篇](nan-rendering.md)。
 
 ### 2.4 平局索引语义（解析，未实测）
 
@@ -141,7 +141,7 @@ $$
 
 ### 3.3 AVX-SSE 过渡惩罚与 vzeroupper 背景
 
-256-bit VEX 指令把 YMM 寄存器高 128 位置为非零后，处理器进入"upper 状态脏"的标记；此后执行传统（legacy）编码的 SSE 指令时，硬件需要处理两种编码的状态混合。Intel 优化手册（3.6.4 节 "AVX-SSE Transition Penalties"）与 Agner Fog 的微架构手册都记录了这一惩罚，量级随世代变化，缓解手段是在 VEX 段结束后插入 `vzeroupper` 清零上半部。MSVC 只在以 `/arch:AVX`（或 `/arch:AVX2`）编译的 TU 里自动于函数边界插入 `vzeroupper`；默认标志的 TU 即使源码里写了 256-bit intrinsics，编译器也不插（`simd_bench.cpp:7-8` 的构建说明即为此设计）。`qwt_simd_argminmax.cpp` 全文没有显式 `_mm256_zeroupper`，而它恰恰是在默认标志 TU 里编译进 qwtcore.dll 的——这个组合的实测代价见 4.5 节。频率方面：本实验未测 AVX 负载下的降频（时钟探针 5.212 GHz 在 AVX 段之外测得）；文献口径是客户端 Raptor Lake 上 256-bit AVX2 无明显许可证降频，此条按文献值处理、不作实测声明。
+256-bit VEX 指令把 YMM 寄存器高 128 位置为非零后，处理器进入"upper 状态脏"的标记；此后执行传统（legacy）编码的 SSE 指令时，硬件需要处理两种编码的状态混合。Intel 优化手册（3.6.4 节 "AVX-SSE Transition Penalties"）与 Agner Fog 的微架构手册都记录了这一惩罚，量级随世代变化，缓解手段是在 VEX 段结束后插入 `vzeroupper` 清零上半部。MSVC 只在以 `/arch:AVX`（或 `/arch:AVX2`）编译的 TU 里自动于函数边界插入 `vzeroupper`；默认标志的 TU 即使源码里写了 256-bit intrinsics，编译器也不插（`simd_bench.cpp:7-8` 的构建说明即为此设计）。`qwt_simd_argminmax.cpp` 全文没有显式 `_mm256_zeroupper`；7.5.0 发行形态里 AVX2 内核正是在这个默认标志 TU 中编译进 qwtcore.dll 的（v7.5.1 起内核移入单独的 `/arch:AVX2` 编译单元，见 4.5b），这个组合的实测代价见 4.5 节。频率方面：本实验未测 AVX 负载下的降频（时钟探针 5.212 GHz 在 AVX 段之外测得）；文献口径是客户端 Raptor Lake 上 256-bit AVX2 无明显许可证降频，此条按文献值处理、不作实测声明。
 
 ## 4. 实验
 
@@ -161,7 +161,7 @@ $$
 | 计时协议 | 每点自动校准到约 50 ms/轮，3 轮预热 + 7 轮计时取最小；med/min > 1.30 整批重测（至多 3 批）。本次数据 **0 个重测点**，全部 scan 点最差 med/min = 1.267 |
 | 正确性 | 三路 static 实现在干净数据 n = 1..100000 上逐位一致（`meta,correctness` PASS） |
 
-数据生成用 mt19937_64 均匀分布 ±1e6，并在 `n/2`、`n/2+1` 植入 -1e9/+1e9 两个极值，避免极值靠近数组头尾带来的索引邻近伪差（`simd_bench.cpp:167-179`）。
+数据生成用 mt19937_64 均匀分布 ±1e6，并在 `n/2`、`n/2+1` 植入 -1e9/+1e9 两个极值，避免极值靠近数组头尾带来的索引邻近伪差（`simd_bench.cpp:176-188`）。
 
 ### 4.2 尺寸扫描：加速比 vs 数组长度
 
@@ -277,7 +277,7 @@ $$
 | 10M 可见点，W=900 | 5556 | 5738 | 2393 | 2458 | 10.3 / 4.3 / 4.4 ms |
 | 1M 可见点，W=1920 | 260 | 318 | 442 | 124 | 1.22 / 1.70 / 0.48 ms（3840 桶） |
 
-三行的含义：**普通桌面画布加百万点数据恰好踩在 AVX2 派发路径的盈亏线上**（s = 556 略高于 481，每帧只省 0.13 ms）；画布更宽或可见点更少时（s = 260）派发路径反而比标量慢 39%；只有数据量把桶撑大（s = 5556，10M 点）时 AVX2 才拿回 2.4× 的典型收益，而这时 SSE4.2 与它打平（2458 对 2393 ns）。注意 s = 5556 行是 L3 常驻假设下的外推——10M doubles 共 80 MB，超过 33 MB L3，真实场景会向 DRAM 区的较低速率滑落。另外 mapper 自身的回退（n ≤ 2N_b 时改走 Quad 归并，`qwt_point_mapper.cpp:578-581`）保证 s ≤ 2 的桶根本到不了内核，但 s 在 3 到约 480 之间的整个区段，当前派发到 AVX2 的选择都在做负功。
+三行的含义：**普通桌面画布加百万点数据恰好踩在 AVX2 派发路径的盈亏线上**（s = 556 略高于 481，每帧只省 0.13 ms）；画布更宽或可见点更少时（s = 260）派发路径反而比标量慢 39%；只有数据量把桶撑大（s = 5556，10M 点）时 AVX2 才拿回 2.4× 的典型收益，而这时 SSE4.2 与它打平（2458 对 2393 ns）。注意 s = 5556 行是 L3 常驻假设下的外推——10M doubles 共 80 MB，超过 33 MB L3，真实场景会向 DRAM 区的较低速率滑落。另外 mapper 自身的回退（n ≤ 2N_b 时放弃桶化：roundPoints 时走 Quad 归并，否则直接映射，`qwt_point_mapper.cpp:642-647`）保证 s ≤ 2 的桶根本到不了内核，但 s 在 3 到约 480 之间的整个区段，7.5.0 形态派发到 AVX2 的选择都在做负功（v7.5.1 修复后判据降到 4–8 个元素，见 4.5b）。
 
 ### 4.5 固定开销定位：一次 325 ns 的解剖
 
@@ -338,12 +338,12 @@ rdtsc 五段计时（同一内核的逐字拷贝插 6 个检查点，中位值�
 | 探针 / 场景 | 7.5.0 | v7.5.1 | 说明 |
 |---|---:|---:|---|
 | `call_avx2_direct` n=16 | 446.2 ns | **13.5 ns** | 发行形态的单次调用 |
-| `call_avx2_direct` n=256 | 549.2 ns | **124.6 ns** | 固定开销消失后与 SSE4.2 拉开 |
+| `scan`（AVX2 直调）n=256 | 549.2 ns | **124.6 ns** | 固定开销消失后与 SSE4.2 拉开 |
 | `call_public` n=16 | 478.0 ns | **15.9 ns** | 公开入口（函数指针派发） |
 | `scan` 桶模式判据 | 约 481 元素 | **约 4–8 元素** | chunk=4：标量 20.2 / AVX2 21.9；chunk=8 起 AVX2 领先 |
 | 流式 append（1800 次调用后） | 2.12 ms | **0.13 ms** | 与 append-only（0.13–0.14 ms）持平 |
 
-机理核验（与 4.5 节的结论一致、并补上了当时的空白）：把内联 `_mm256_zeroupper()` 放进内核（本报告 5.4 节原先的建议 ②）在本机**没有效果**——同一构建 n=16 为 412 ns（相对 446 ns 仅 −8%）。反汇编（`dumpbin /disasm`，Release）显示编译器把 VZEROUPPER 排布在四条 32 字节溢出存储与其后的窄重载之间，并在其后仍发出 256-bit 重载，函数返回时上半状态依然是脏的；rdtsc 分段探针把残余开销定位在"溢出存储 + 窄重载"段（本机约 800 周期，探针自带扰动）。独立 AVX2 TU 让整个尾声都由 VEX 编码、编译器自动在返回前插 VZEROUPPER，两段异常同时消失。原始数据：本机 7.5.0 与 v7.5.1 两轮 CSV 与流式 stdout 随仓库提供。
+机理核验（与 4.5 节的结论一致、并补上了当时的空白）：把内联 `_mm256_zeroupper()` 放进内核（本报告 5.4 节原先的建议 ②）在本机**没有效果**——同一构建 n=16 为 412 ns（相对 446 ns 仅 −8%）。反汇编（`dumpbin /disasm`，Release）显示编译器把 VZEROUPPER 排布在四条 32 字节溢出存储与其后的窄重载之间，并在其后仍发出 256-bit 重载，函数返回时上半状态依然是脏的；rdtsc 分段探针把残余开销定位在"溢出存储 + 窄重载"段（本机约 800 周期，探针自带扰动）。独立 AVX2 TU 让整个尾声都由 VEX 编码、编译器自动在返回前插 VZEROUPPER，两段异常同时消失。原始数据：`simd_bench_results_v750_prefix.csv` / `simd_bench_results_v751_avx2tu.csv` 与 `streaming_micro_results_v750_prefix.txt` / `streaming_micro_results_v751_avx2tu.txt` 随仓库提供。
 
 ### 4.6 E-core 对照：开销是 Golden Cove 特异的
 
@@ -368,12 +368,12 @@ i7-14700 是混合架构。把线程绑到 lp16（E-core，Gracemont，实测 4.
 
 ### 5.2 失效模式诚实清单
 
-- **小桶固定开销（v7.5.1 已修复）**：首发构建里桶宽 < 约 481 元素时派发路径慢于纯标量（模型 449/插值 481），1920 px 画布 + 1M 可见点（s = 260）下每桶反而慢 39%（442 对 318 ns，模型值）——1080p 以上画布配百万点级数据的常见工况下 AVX2 派发在做负功。v7.5.1 的独立 AVX2 TU 把固定开销从约 325 ns 降到约 2 ns，判据随之塌缩到 4–8 个元素（4.5b 节同机 A/B），该区段的负功消失。
-- **NaN 必须预扫描**：原始三路在部分 NaN 输入下 12/33 单元出错，含索引指向 NaN 元素的输出；库级用法靠 mapper 的 O(n) 预扫描加 NaN-aware 标量分支兜底，预扫描本身的成本未在本 CSV 中单独计时；直接使用 `qwtSimdArgMinMax` 的第三方调用方必须自己保证无 NaN——头文件"naturally ignored"的表述强于实测行为。
+- **小桶固定开销（v7.5.1 已修复）**：首发构建里桶宽 < 约 481 元素时派发路径慢于纯标量（模型 449/插值 481），1920 px 画布 + 1M 可见点（s = 260）下每桶反而慢 39%（442 对 318 ns，模型值）——1080p 以上画布配百万点级数据的常见工况下 AVX2 派发在做负功。v7.5.1 的独立 AVX2 TU 把尾声惩罚从约 325 ns 降到约 2 ns，判据随之塌缩到 4–8 个元素（4.5b 节同机 A/B），该区段的负功消失。
+- **NaN 必须预扫描**：原始三路在部分 NaN 输入下 12/33 单元出错，含索引指向 NaN 元素的输出；库级用法靠 mapper 的 O(n) `isfinite` 预扫描加逐元素跳过非有限值的标量分支兜底，预扫描本身的成本未在本 CSV 中单独计时；直接使用 `qwtSimdArgMinMax` 的第三方调用方必须自己保证无 NaN——头文件"naturally ignored"的表述强于实测行为。
 - **NEON/ARM 未实测**：源码无 NEON 分支，非 x86 平台一律标量路径；AGENTS.md 的"SSE2/AVX2/NEON"描述与源码不符（实为 SSE4.2/AVX2/无 NEON）。E-core 数据（4.6 节）已经说明"非 P-core 上 AVX2 未必占优"，ARM 上的行为只能存疑待测。同样，GCC/Clang 默认基线构建只剩标量路径（2.1 节编译期守卫），Linux 发行包的实际性能取决于打包方的 `-march` 选择，本文未测。
 - **测量局限**：单台机器（i7-14700）、单一编译器（MSVC 1926）、Windows；数据是均匀随机数加两个植入极值，真实信号（平滑波、量化值）下标量路径的分支预测命中率会不同，加速比是信号依赖的，本 CSV 未做信号形态扫描；计时循环反复复用同一数组，预测器与缓存处于"热"态，冷启动成本未覆盖；时钟 5.212/4.099 GHz 是依赖链估算而非 MSR 实测；rdtsc 分段探针自带调度扰动（CSV note 列自标 `rdtsc_segments_perturbed`）；E-core 只有 n=16/4096 两个尺寸。
 - **平局索引跨路径不一致**（2.4 节，解析）：等值极值下 SIMD 返回 lane 号最小者、标量返回首现者；随机测试数据不覆盖平局。
-- **CPUID 检测不查 OS 支持**（2.1 节）：缺 OSXSAVE/XGETBV 步骤，现代 OS 下无实际影响，但序列不完整。
+- **CPUID 检测不查 OS 支持**（2.1 节）：MSVC 分支缺 OSXSAVE/XGETBV 步骤，现代 OS 下无实际影响，但序列不完整。
 
 ### 5.3 未能完全定位的点
 
@@ -381,7 +381,7 @@ i7-14700 是混合架构。把线程绑到 lp16（E-core，Gracemont，实测 4.
 
 ### 5.4 数据支持的改进方向
 
-基准把改进空间量化好后，v7.5.1 已按第一条实施：AVX2 内核移入独立 TU 并以 `/arch:AVX2` 编译，消去了尾声与 setup 异常（4.5b 节同机 A/B：446 → 13.5 ns @ n=16；流式 append 2.12 → 0.13 ms）。注意只加内联 `_mm256_zeroupper()` 不解决问题（同一构建 412 ns，反汇编证据见 4.5b）——本文原先的建议 ② 在 MSVC 上不成立。其余方向仍未实施：索引向量改增量式再省 0.10 ns/元素（0.3644 → 0.2600）；两项正交，合计把桶判据从约 481 压到约 24 个元素（模型：19 + 0.26s = 0.91 + 1.0242s 的解）。更激进的选项——int64 索引 lane 消除 double 转换、4 路展开多累加器改善 DRAM 流（16M 处 15.4 对 28.0 GB/s 的余量）、按核类型（P/E）二级派发——各自对应本文一处实测短板，留待后续。
+基准把改进空间量化好后，v7.5.1 已按第一条实施：AVX2 内核移入独立 TU 并以 `/arch:AVX2` 编译，消去了尾声与 setup 异常（4.5b 节同机 A/B：446 → 13.5 ns @ n=16；流式 append 2.12 → 0.13 ms）。注意只加内联 `_mm256_zeroupper()` 不解决问题（同一构建 412 ns，反汇编证据见 4.5b）——本文原先的建议 ② 在 MSVC 上不成立。其余方向仍未实施：索引向量改增量式再省 0.10 ns/元素（0.3644 → 0.2600）；两项正交，合计把桶判据从约 481 压到约 24 个元素（模型：19 + 0.26s = 0.91 + 1.0242s 的解）——v7.5.1 的尾声惩罚已降到约 2 ns，实测判据已到 4–8 个元素，索引增量式因此是下一个杠杆。更激进的选项——int64 索引 lane 消除 double 转换、4 路展开多累加器改善 DRAM 流（16M 处 15.4 对 28.0 GB/s 的余量）、按核类型（P/E）二级派发——各自对应本文一处实测短板，留待后续。
 
 ## 6. 代码实践
 
@@ -405,14 +405,14 @@ if (r.minVal == DBL_MAX && r.maxVal == -DBL_MAX) {
 }
 ```
 
-模仿 `qwtMinMaxBucketReduce` 的安全用法——先预扫描，再决定走 SIMD 还是 NaN-aware 标量：
+模仿 `qwtMinMaxBucketReduce` 的安全用法——先预扫描，再决定走 SIMD 还是跳过非有限值的标量：
 
 ```cpp
-bool hasNaN = false;
+bool hasNonFinite = false;
 for (int i = from; i <= to; ++i)
-    if (std::isnan(y[i])) { hasNaN = true; break; }
+    if (!std::isfinite(y[i])) { hasNonFinite = true; break; }
 
-if (!hasNaN) {
+if (!hasNonFinite) {
     for (int b = 0; b < numBuckets; ++b) {
         const int start = from + int(b * bucketSize);
         const int count = qMin(from + int((b + 1) * bucketSize) - 1, to) - start + 1;
@@ -423,13 +423,13 @@ if (!hasNaN) {
         // ... 消费 (minI, r.minVal) / (maxI, r.maxVal)
     }
 } else {
-    // NaN-aware 标量桶循环：逐元素 std::isnan 跳过，参考 qwt_point_mapper.cpp:641-695
+    // 非有限值感知的标量桶循环：逐元素 !std::isfinite 跳过，参考 qwt_point_mapper.cpp:671-716
 }
 ```
 
 > **提示 — 前置条件与空桶**
 >
-> `data != nullptr && count >= 1` 是头文件写死的契约（`qwt_simd_argminmax.h:31`），内核不做防御性检查；空桶防护是调用方的责任——mapper 的桶循环对 `count <= 0` 直接 `continue`（`qwt_point_mapper.cpp:613-614`），自建循环应保留同样的判断，否则 `count = 0` 时标量路径会越界读 `data[0]`（`qwt_simd_argminmax.cpp:59-60` 无条件以首元素初始化）；两条 SIMD 路径的主循环与尾循环都不执行、不读内存，但会返回与全 NaN 哨兵无法区分的初值 `{0, 0, DBL_MAX, -DBL_MAX}`，同样是无意义结果。
+> `data != nullptr && count >= 1` 是头文件写死的契约（`qwt_simd_argminmax.h:31`），内核不做防御性检查；空桶防护是调用方的责任——mapper 的桶循环对 `count <= 0` 直接 `continue`（`qwt_point_mapper.cpp:740-741`），自建循环应保留同样的判断，否则 `count = 0` 时标量路径会越界读 `data[0]`（`qwt_simd_argminmax.cpp:59-60` 无条件以首元素初始化）；两条 SIMD 路径的主循环与尾循环都不执行、不读内存，但会返回与全 NaN 哨兵无法区分的初值 `{0, 0, DBL_MAX, -DBL_MAX}`，同样是无意义结果。
 
 ### 6.2 在自己的热循环里使用运行时派发 SIMD 的注意事项
 
@@ -437,9 +437,9 @@ if (!hasNaN) {
 
 | 事项 | 依据（本文实测） |
 |---|---|
-| 小调用别用当前发行的 AVX2 路径：n < 约 480 时标量更快；SSE4.2 路径 n ≥ 3 即占优 | 4.2/4.4 节盈亏平衡 491/449–481；SSE4.2 对 scalar n*=3 |
+| 小调用别用 7.5.0 形态的 AVX2 路径：n < 约 480 时标量更快（v7.5.1 修复后判据降到 4–8，见 4.5b）；SSE4.2 路径 n ≥ 3 即占优 | 4.2/4.4 节盈亏平衡 491/449–481；SSE4.2 对 scalar n*=3 |
 | 含 256-bit intrinsics 的运行时派发代码，编译单元要开 `/arch:AVX2`（或 GCC 目标属性），否则在默认标志 TU 里 MSVC 不插 vzeroupper，混合状态尾声可付出百倍于算法本体的代价 | 4.5 节：332.3 对 18.9 ns（n=16）；reduce 段 252 对 5 ns |
-| 若不能控制编译标志，在向量循环与标量尾声之间显式 `_mm256_zeroupper()`，可拿回大部分开销 | vz_before_reduce 94.5 对 direct 332.3 ns |
+| 若不能控制编译标志，在向量循环与标量尾声之间清一次上半状态，可拿回大部分开销（基准里经 /arch:AVX2 TU 的外部调用实现）；v7.5.1 复核显示内联 `_mm256_zeroupper()` 会被编译器排在溢出存储与窄重载之间，不生效 | vz_before_reduce 94.5 对 direct 332.3 ns；内联写法 412 ns（4.5b） |
 | 索引向量用增量式（每轮一条向量加法），不要每轮从 int 重建 | kernel_incr r = 0.2600 对 0.3644 ns/元素 |
 | 不要假设 NaN 会被"天然忽略"：值轨道（minpd/maxpd 的 src2 规则）与索引轨道（有序比较）在 NaN 下脱节 | 2.3 节矩阵 12/33 不一致 |
 | 平局语义：SIMD 归约低 lane 优先，与标量"首现优先"不同，跨路径对比输出时要容忍索引差异 | 2.4 节解析 |
@@ -448,11 +448,11 @@ if (!hasNaN) {
 
 > **警告 — 桶式调用的隐性乘法**
 >
-> 每调用固定开销 F 会被调用次数放大：桶降采样一帧调用 $2W$ 次，F = 325 ns 在 1920 px 画布上一帧就是 3840 × 325 ns ≈ 1.25 ms 的纯税。把内核塞进任何"高频小调用"的循环前，先按 $t(n) = F + n \cdot r$ 算一遍盈亏平衡点。
+> 每调用固定开销 F 会被调用次数放大：桶降采样一帧调用 $2W$ 次，7.5.0 形态的 F = 325 ns 在 1920 px 画布上一帧就是 3840 × 325 ns ≈ 1.25 ms 的纯税（v7.5.1 修复后尾声惩罚 ≈ 2 ns，见 4.5b）。把内核塞进任何"高频小调用"的循环前，先按 $t(n) = F + n \cdot r$ 算一遍盈亏平衡点。
 
 ## 7. 小结
 
-三路运行时派发的工程骨架（CPUID 一次检测、静态函数指针、编译期守卫级联塌缩）是教科书式的，实测派发开销约 3 ns 也确实可忽略；但"检测到 AVX2 就走 AVX2"这个前提在两个实测场景下不成立——默认标志编译单元让 P-core 上的每次调用背了约 325 ns 的混合状态尾声（同代码 /arch:AVX2 TU 只要 18.9 ns，E-core 上 18.5 ns），而混合架构的 E-core 上 SSE4.2 本来就比 AVX2 快（2787.5 对 3502.2 ns，n=4096）。在 MinMax 桶的真实工况（每桶数百元素、每帧数千次调用）下，这两个问题叠加成"派发路径只在桶宽超过约 481 元素时才赢标量"的判据，典型桌面场景只勉强踩线。
+三路运行时派发的工程骨架（CPUID 一次检测、静态函数指针、编译期守卫级联塌缩）是教科书式的，实测派发开销约 3 ns 也确实可忽略；但"检测到 AVX2 就走 AVX2"这个前提在两个实测场景下不成立——默认标志编译单元让 P-core 上的每次调用背了约 325 ns 的混合状态尾声（同代码 /arch:AVX2 TU 只要 18.9 ns，E-core 上 18.5 ns），而混合架构的 E-core 上 SSE4.2 本来就比 AVX2 快（2787.5 对 3502.2 ns，n=4096）。在 MinMax 桶的真实工况（每桶数百元素、每帧数千次调用）下，这两个问题叠加成"派发路径只在桶宽超过约 481 元素时才赢标量"的判据，典型桌面场景只勉强踩线（以上为 7.5.0 发行形态；v7.5.1 的独立 AVX2 编译单元把固定开销从 446 ns 降到 13.5 ns @ n=16，判据随之塌缩到 4–8 个元素，见 4.5b）。
 
 内核本体在 L1 到 DRAM 的所有尺寸上都是指令发射受限（平台 7.8/18.3/21.0 GB/s，对 L2 天花板 213 GB/s），优化轴是每元素指令数而非向量宽度——增量索引变体 3.25 条/元素、r = 0.26 ns 已经把上限指了出来。NaN 语义的实测矩阵（12/33 不一致）说明"有序谓词天然忽略 NaN"只对索引轨道成立，值轨道的 `minpd` src2 规则会让两轨脱节；库用 O(n) 预扫描换语义安全的做法是当前实现下的正确选择，代价是含 NaN 数据完全失去 SIMD 加速。
 
@@ -460,8 +460,8 @@ if (!hasNaN) {
 
 ## 8. 参考文献
 
-1. QWT7 源码：`src/core/qwt_simd_argminmax.h` / `.cpp`（三路实现与派发）、`src/plot/qwt_point_mapper.cpp`（`qwtTryGetRawPointData`:545、NaN 预扫描:598、SIMD 桶循环:606、NaN-aware 标量桶:641、Quad 回退:578）。
-2. 基准与分析资产：`docs/assets/algorithms/simd_bench.cpp`（双 TU 构建、9 个 `qb_*` 探针函数；CSV `probe` 段共 28 个测点名）、`simd_bench_results.csv`（本文全部实测数据）、`simd_experiment.py`（拟合、判据与 5 张图；运行 stdout 为数字的权威出处）。
+1. QWT7 源码：`src/core/qwt_simd_argminmax.h` / `.cpp`（派发与 Scalar/SSE4.2 实现）、`src/core/qwt_simd_argminmax_avx2.cpp`（AVX2 内核，单独以 `/arch:AVX2` 编译）、`src/plot/qwt_point_mapper.cpp`（`qwtTryGetRawPointData`:545、非有限值预扫描:725、SIMD 桶循环:735-743、跳过非有限值的标量桶:671、Quad 回退:642）。
+2. 基准与分析资产：`docs/assets/algorithms/simd_bench.cpp`（同一源文件编成主 TU + `/arch:AVX2` 包装 TU，另链接库的 AVX2 编译单元；9 个 `qb_*` 探针函数；CSV `probe` 段共 28 个测点名）、`simd_bench_results.csv`（本文全部实测数据）、`simd_bench_results_v75{0,1}_*.csv` 与 `streaming_micro_results_v75{0,1}_*.txt`（4.5b 节同机 A/B）、`simd_experiment.py`（拟合、判据与 5 张图；运行 stdout 为数字的权威出处）。
 3. Intel. *Intel 64 and IA-32 Architectures Optimization Reference Manual*——3.6.4 节 AVX-SSE Transition Penalties（vzeroupper 建议）；*Intel Intrinsics Guide*：MINPD/MAXPD 的 NaN 行为（任一操作数为 NaN 返回 src2）。
 4. Agner Fog. *Optimizing software in C++* 及微架构手册（VEX/legacy 混用、脏 upper 状态、Gracemont 256-bit 双拍执行的文献机理）。
 5. Williams, S., Waterman, A., Patterson, D. *Roofline: An Insightful Visual Performance Model for Multicore Architectures.* CACM 52(4), 2009.
