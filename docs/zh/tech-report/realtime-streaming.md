@@ -320,7 +320,7 @@ LTTB 开启时，`ring_dp`/`ring_raw`/`ring_dp_bs`/`ring_replot`/`window` 五种
 
 > **提示 — 两条实践结论**
 >
-> 其一，这是 QWT 库的一个可修复缺陷，修法见[《SIMD argmin/argmax 向量化基准》](simd-argminmax.md) 4.5 节：把 `qwt_simd_argminmax.cpp` 所在编译单元改用 `/arch:AVX2` 编译，MSVC 会在函数边界自动插入 `vzeroupper`，既消除对调用方标量代码的污染，也一并消除 AVX2 内核内部约 325 ns 的尾声固定开销——比手工在 `return` 前插 `_mm256_zeroupper()` 更优（后者实测仍余约 76 ns）。`argMinMaxSSE42` 路径只用 128-bit intrinsics，不弄脏上半状态，无需改动（本文遵循"不改 src/"约束未修改，仅报告）。其二，在典型的"独立采样线程 + GUI 消费线程"部署下（如 `QwtSamplingThread`），生产者跑在另一个核上，draw 段的 AVX2 不会污染它，gen 惩罚消失——但 draw 段自身"小桶上 SIMD 不划算"的开销仍在。因此对增量流式绘制，通用路径的自定义 `QwtSeriesData`（ring_dp）反而是更稳的默认选择；SIMD 资格的价值要在整帧重绘大窗口（每桶样本数足够多）时才兑现。
+> 其一，这是 QWT 库的一个缺陷，**v7.5.1 已修复**（修法见[《SIMD argmin/argmax 向量化基准》](simd-argminmax.md) 4.5b 节）：AVX2 内核移入独立编译单元并以 `/arch:AVX2` 编译，MSVC 在函数边界自动插入 `vzeroupper`，既消除对调用方标量代码的污染，也消除 AVX2 内核内部的固定开销。同机 A/B：本节的"append + SIMD reduce"段从 2.12 ms 回到 0.13 ms（与 append-only 持平），单次调用 446 → 13.5 ns。注意只加内联 `_mm256_zeroupper()` 无效（反汇编显示它被排到溢出存储与窄重载之间）。`argMinMaxSSE42` 路径只用 128-bit intrinsics，不弄脏上半状态，无需改动。其二，在典型的"独立采样线程 + GUI 消费线程"部署下（如 `QwtSamplingThread`），生产者跑在另一个核上，draw 段的 AVX2 不会污染它，gen 惩罚消失——但 draw 段自身"小桶上 SIMD 不划算"的开销仍在。因此对增量流式绘制，通用路径的自定义 `QwtSeriesData`（ring_dp）反而是更稳的默认选择；SIMD 资格的价值要在整帧重绘大窗口（每桶样本数足够多）时才兑现。
 
 ### 5.5 端到端延迟分布
 
@@ -373,7 +373,7 @@ LTTB 开启时，`ring_dp`/`ring_raw`/`ring_dp_bs`/`ring_replot`/`window` 五种
 7. **自动缩放的隐性扫描**。开启 `setAxisAutoScale` 后每次 `replot` 都查询 item 包围盒（`qwt_plot_axis.cpp:862-864`）：`WindowedSeriesData` 的包围盒缓存在每次 `setWindow` 后作废，等于每帧追加一次 $O(W)$ 通用路径扫描；追加式数据源若像 SignalData 一样增量维护包围盒则无此成本，但窗口回卷后"只增不减"的包围盒会失真（SignalData 在页边界重置）。
 8. **autoReplot 默认开启**。每次 `setSamples`/`setRawSamples` 都经 `dataChanged → itemChanged → autoRefresh` 触发整帧 replot（`qwt_plot_item.cpp:495-501`）；应用再手动 replot 就是每帧双份。`setAutoReplot(false)` 是所有流式通路的第一行设置。
 9. **drop 指标在亚毫秒帧时的语义**。帧时间 > 2× median 的判据在 median 仅 0.1–0.2 ms（定时器限速的轻载帧）时把操作系统调度抖动也计为 drop——此时 fps_eff 仍为 100，drop 计数应读作"调度噪声"而非真实丢帧；只有当 fps_eff 明显低于 $1/\Delta t$ 时 drop 才代表过载。
-10. **AoS 容器的 SIMD 资格损失**。`QVector<QPointF>` 提交（最常见的 setSamples 用法）使 LTTB 变换落入逐点虚函数路径，同样数据量比 SoA + 原始指针慢（5.4 节量化）；应用侧改用 `setRawSamples(xPtr, yPtr, n)` 或 `setSamples(QVector<double>&&, QVector<double>&&)` 即可恢复 SIMD 资格——单线程流式增量场景除外，那里 SIMD 资格反而反噬（见 5.4 节）。
+10. **AoS 容器的 SIMD 资格损失**。`QVector<QPointF>` 提交（最常见的 setSamples 用法）使 LTTB 变换落入逐点虚函数路径，同样数据量比 SoA + 原始指针慢（5.4 节量化）；应用侧改用 `setRawSamples(xPtr, yPtr, n)` 或 `setSamples(QVector<double>&&, QVector<double>&&)` 即可恢复 SIMD 资格。v7.5.1 之前单线程流式增量场景里 SIMD 资格会反噬（AVX2 内核带脏状态返回污染紧随其后的生产循环，5.4 节），该缺陷已随独立 AVX2 TU 修复——现在 SoA 路径在流式场景里不再有这一项惩罚。
 11. **虚拟到达时间戳的口径**。延迟数字假设样本在 tick 间隔内均匀到达且消费端一次批处理——真实驱动若样本本身按块到达（如 USB 批量端点 1 ms 块），实际延迟分布是本文模型与到达抖动的卷积，中位数量级不变、尾部更宽。
 
 ## 7. 代码实践
