@@ -7,7 +7,6 @@
 #include "qwt_dial_needle.h"
 #include "qwt_compass_rose.h"
 #include "qwt_plot_opengl_canvas.h"
-#include "qwt_plot_glcanvas.h"
 
 #include <QTest>
 #include <QFrame>
