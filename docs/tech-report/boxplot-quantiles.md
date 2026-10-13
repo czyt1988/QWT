@@ -1,6 +1,6 @@
 # Box-Plot Quantile Algorithms: The QwtBoxStatisticsCalculator Estimator vs the R-Type Quantiles
 
-> **Abstract** — A box plot compresses a data set into a five-number summary (lower whisker, Q1, median, Q3, upper whisker) plus a list of outliers, but the "sample quantile" itself has no unique definition: on the same sorted data, the nine R-type definitions collected by Hyatt & Sackrow can produce nine different Q1/Q3 pairs, and the IQR outlier fence is built directly on these two numbers, so the choice of estimator propagates all the way to "which points get drawn as outliers". This article dissects the QWT7 core module's `QwtBoxStatisticsCalculator` (`src/core/qwt_box_statistics.h/.cpp`) line by line and compares 34,440 probe quantiles numerically against the nine R-type definitions one by one, proving that its `quantile()` implementation (`index = p·(n−1)` linear interpolation) is **exactly the R-7 type** — the default convention of R, Excel `PERCENTILE.INC` and NumPy. Experiments on four distributions (normal, lognormal, t(3), bimodal) then quantify the quantile disagreement among the nine definitions (at n=8 the Q3 disagreement reaches 0.51×IQR and decays as ≈n⁻¹ with n), the sensitivity of outlier counts (on a lognormal sample R-6 flags one fewer outlier than the other eight), the combinatorial boundary of the 1.5×IQR rule at small samples (under R-7, n=4 can already produce outliers while n≤3 never can, with a proof), and the cost and benefit of sort-based exact computation relative to the P² streaming approximation. All conclusions are grounded in the source code and real run outputs, including two source-level defects: the **swap** of the upper and lower quantile levels in the Percentile whisker method (measured in C++: whiskerLower > whiskerUpper, all 64 points counted as outliers), and the "mean marker" of `QwtPlotBoxChart` actually drawn at the median position.
+> **Abstract** — A box plot compresses a data set into a five-number summary (lower whisker, Q1, median, Q3, upper whisker) plus a list of outliers, but the "sample quantile" itself has no unique definition: on the same sorted data, the nine R-type definitions collected by Hyatt & Sackrow can produce nine different Q1/Q3 pairs, and the IQR outlier fence is built directly on these two numbers, so the choice of estimator propagates all the way to "which points get drawn as outliers". This article dissects the QWT7 core module's `QwtBoxStatisticsCalculator` (`src/core/qwt_box_statistics.h/.cpp`) line by line and compares 34,440 probe quantiles numerically against the nine R-type definitions one by one, proving that its `quantile()` implementation (`index = p·(n−1)` linear interpolation) is **exactly the R-7 type** — the default convention of R, Excel `PERCENTILE.INC` and NumPy. Experiments on four distributions (normal, lognormal, t(3), bimodal) then quantify the quantile disagreement among the nine definitions (at n=8 the Q3 disagreement reaches 0.51×IQR and decays as ≈n⁻¹ with n), the sensitivity of outlier counts (on a lognormal sample R-6 flags one fewer outlier than the other eight), the combinatorial boundary of the 1.5×IQR rule at small samples (under R-7, n=4 can already produce outliers while n≤3 never can, with a proof), and the cost and benefit of sort-based exact computation relative to the P² streaming approximation. All conclusions are grounded in the source code and real run outputs. The two source-level defects found when this report was first published - the **swap** of the upper and lower quantile levels in the Percentile whisker method (measured in C++ back then: whiskerLower > whiskerUpper, all 64 points counted as outliers) and the "mean marker" of `QwtPlotBoxChart` drawn at the median position - were fixed in v7.5.1; Section 4.6 carries the re-measured data, and the same batch removed the instance configuration interface of `QwtBoxStatisticsCalculator` that no calculation path consumed.
 
 > **Abstract — Core conclusions**
 >
@@ -8,7 +8,7 @@
 > - Q1/Q3 disagreement among the nine definitions, normalized by the sample IQR, decays at least as fast as n⁻¹ (log-log fitted exponents 1.03–1.43; the only one slower than n⁻¹ is the bimodal median at 0.65): for normal samples at n=8 the mean Q1 disagreement is 0.263×IQR with a p95 of 0.783×IQR; by n=256 it drops to 0.0066×IQR — the "quartiles" of a small-sample box plot inherently carry definition noise on the order of 0.3 IQR
 > - Whether the 1.5×IQR rule can fire at all has an exact combinatorial lower bound: under R-7, **n=4 is the smallest detectable sample** (counterexample [0,0,0,1], fence 0.625), and n≤3 never produces outliers (algebraic proof given in the article); the folklore claim that "n=5 cannot produce outliers" does not hold for R-7 ([0,1,2,3,100] flags 100)
 > - Outlier counts are insensitive to the estimator but not immune: on the 67-point data set (64 normal + 3 injected) all nine definitions agree on 3; on 32 lognormal points R-6 says 2 while the other eight say 3 — about 9.4% of the points in a right-skewed distribution get flagged "outliers" by the 1.5×IQR rule, which is skewness, not contamination
-> - The C++ cross-validation matches the Python replica **bit-for-bit** on 20/20 cases (maximum relative difference 0.000e+00); the same batch of cases confirms the Percentile whisker upper/lower swap defect and the SE method's whisker reaching into the box interior (whiskerUpper=99.97 < q3=108.56)
+> - The C++ cross-validation matches the Python replica **bit-for-bit** on 20/20 cases (maximum relative difference 0.000e+00); the same batch of cases re-measures the fixed Percentile whiskers (`pctl5`: wl=-1.599655 < wu=1.860208, 8/64 outliers) and confirms the SE method's whisker reaching into the box interior (whiskerUpper=99.97 < q3=108.56)
 
 ---
 
@@ -35,7 +35,7 @@ $$
 
 For sorted data $x_{(1)} \le \cdots \le x_{(n)}$, the most naive conventions already give different answers: with $n=8$ and data $1,\dots,8$, "Q1 = the median of the lower half" gives 2.5, "Q1 = the $\lceil n/4 \rceil$-th order statistic" gives 2, and "Q1 = linear interpolation at the virtual rank $(n-1)\cdot 0.25 + 1 = 2.75$" gives 2.75 — the Q1 of the same data swings between 2 and 2.75, a span of 0.75, which in units of the R-7 IQR of 3.5 is 0.21×IQR. The fence formula then amplifies this difference: $w_{\text{lo}} = 2.5Q_1 - 1.5Q_3$, $w_{\text{hi}} = 2.5Q_3 - 1.5Q_1$; a 0.75 shift in Q1 pushes the lower fence away by 1.9 — directly deciding whether an edge point is drawn as an outlier.
 
-Section 2 tabulates the nine standard definitions (R-1…R-9) together with their statistical properties; Section 3 dissects the QWT implementation stage by stage and proves it belongs to R-7; Section 4 quantifies the practical consequences of the definition choice with reproducible experiments; Section 5 gives the honest failure-mode list (including two source-level defects); Section 6 shows code practice for `QwtPlotBoxChart` and custom statistical conventions.
+Section 2 tabulates the nine standard definitions (R-1…R-9) together with their statistical properties; Section 3 dissects the QWT implementation stage by stage and proves it belongs to R-7; Section 4 quantifies the practical consequences of the definition choice with reproducible experiments; Section 5 gives an honest failure-mode list (including two source-level defects, both fixed in v7.5.1); Section 6 shows code practice for `QwtPlotBoxChart` and custom statistical conventions.
 
 All experimental numbers in this article come from the run outputs of `docs/assets/algorithms/boxstats_experiment.py` (Python 3.11 + numpy + matplotlib, fixed seeds, no wall-clock timing of any kind) and `docs/assets/algorithms/boxstats_check.cpp` (a C++ harness linking the real `qwtcore.lib`); the two corroborate each other, see Section 4.6.
 
@@ -90,7 +90,7 @@ $$
 
 ## 3. Anatomy of the QwtBoxStatisticsCalculator implementation
 
-The class lives in `src/core/qwt_box_statistics.h/.cpp` (core module, exported with `QWTCORE_EXPORT`; `src/plot/qwt_box_statistics.h` is a forwarding header). Its entire computation interface consists of static methods that take raw data and produce a `QwtBoxSample` (five-number summary + outlier count) and a `QwtBoxOutlierSample` (list of outlier values); the consumer is `QwtPlotBoxChart` (`src/plot/qwt_plot_boxchart.h/.cpp`). The class also carries a constructor and the instance methods `setWhiskerMethod()`/`setWhiskerCoefficient()`, but the members `m_method`/`m_coefficient` are consumed by no static computation path — legacy dead state (a code smell).
+The class lives in `src/core/qwt_box_statistics.h/.cpp` (core module, exported with `QWTCORE_EXPORT`; `src/plot/qwt_box_statistics.h` is a forwarding header). Its entire computation interface consists of static methods that take raw data and produce a `QwtBoxSample` (five-number summary + outlier count) and a `QwtBoxOutlierSample` (list of outlier values); the consumer is `QwtPlotBoxChart` (`src/plot/qwt_plot_boxchart.h/.cpp`). The class also used to carry a constructor and the instance methods `setWhiskerMethod()`/`setWhiskerCoefficient()`, but the members `m_method`/`m_coefficient` were consumed by no static computation path — legacy dead state (a code smell); since v7.5.1 those four instance methods are gone and the `WhiskerMethod`/coefficient are always explicit arguments of the static methods.
 
 ### 3.1 Data flow and sorting strategy
 
@@ -148,14 +148,14 @@ The `WhiskerMethod` enum (`qwt_box_statistics.h:32-48`) decides where $[w_{\text
 | Method | whiskerLower | whiskerUpper | Semantics |
 |------|--------------|--------------|------|
 | `Tukey` | $\max(x_{(1)},\; Q_1 - c\cdot\mathrm{IQR})$ | $\min(x_{(n)},\; Q_3 + c\cdot\mathrm{IQR})$ | fence clamped against the data extremes |
-| `Percentile` | `quantile(1 − c/100)` | `quantile(c/100)` | **upper/lower levels swapped — defect** (see below) |
+| `Percentile` | `quantile(c/100)` | `quantile(1 − c/100)` | c is the tail percentage (5 → the 5th/95th percentile); the level order is correct since v7.5.1 |
 | `MinMax` | $x_{(1)}$ | $x_{(n)}$ | no outlier concept |
 | `StandardDeviation` | $\max(x_{(1)}, \bar{x} - c\,s)$ | $\min(x_{(n)}, \bar{x} + c\,s)$ | mean ± c×standard deviation (s with ddof=1) |
 | `StandardError` | $\max(x_{(1)}, \bar{x} - c\,s/\sqrt{n})$ | $\min(x_{(n)}, \bar{x} + c\,s/\sqrt{n})$ | mean ± c×standard error |
 
-> **Bug — The Percentile method swaps the upper and lower quantile levels**
+> **Fix note (v7.5.1) — Percentile whisker levels**
 >
-> The source (`qwt_box_statistics.cpp:175-179`) assigns `whiskerLower` = `quantile(1.0 - coefficient/100.0)` (the high quantile) and `whiskerUpper` = `quantile(coefficient/100.0)` (the low quantile). At c=5, whiskerLower=q(0.95) > whiskerUpper=q(0.05), so `QwtBoxSample::isValid()` is necessarily false; and the outlier criterion `val < whiskerLower || val > whiskerUpper` holds for **every** data point — measured in C++ (Section 4.6, case `pctl5`, 64 standard-normal points): whiskerLower=1.860208, whiskerUpper=−1.599655, outlierCount=64/64. Do not use the `Percentile` method until this is fixed; when percentile whiskers are needed, compute them yourself following Section 6 and fill the `QwtBoxSample` by hand.
+> In the first release the source (`qwt_box_statistics.cpp:175-179`) assigned `whiskerLower = quantile(1.0 - coefficient/100.0)` (the high quantile) and `whiskerUpper = quantile(coefficient/100.0)` (the low one). With c=5, whiskerLower=q(0.95) > whiskerUpper=q(0.05), so `QwtBoxSample::isValid()` was necessarily false and the outlier rule `val < whiskerLower || val > whiskerUpper` held for **every** sample — the C++ measurement of the day (Section 4.6, `pctl5` case, 64 standard normal values) gave whiskerLower=1.860208, whiskerUpper=-1.599655, outlierCount=64/64. Since v7.5.1 the two lines are exchanged (`whiskerLower = quantile(c/100)`, `whiskerUpper = quantile(1-c/100)`), the same case re-measures as whiskerLower=-1.599655 < whiskerUpper=1.860208 with outlierCount=8/64, and `tests/box_statistics_test` pins the regression down.
 
 One deviation of the Tukey branch from textbook convention deserves to be called out separately: **QWT's whisker endpoints are the fence values themselves** (then clamped against the data extremes), whereas the R/classic Tukey convention draws the whiskers to "the most extreme actual data points inside the fence". The two differ whenever data crosses the fence: on dataset A of Section 4.4, QWT gives whiskerUpper=2.879038 while the R-convention endpoint is 2.288083, a difference of 0.591; on the lower side the difference is 1.265. QWT's outlier count (strict inequality `val < wl || val > wu`, `qwt_box_statistics.cpp:214`) is self-consistent with its own fence convention, but the visual extent of the box is systematically longer than the R-style rendering — whiskers will not line up when plots are compared across libraries.
 
@@ -174,6 +174,7 @@ One deviation of the Tukey branch from textbook convention deserves to be called
 | `position` | categorical-axis coordinate of the box center | mapped to x in vertical orientation |
 | `q1` / `q3` | lower/upper box edges (`boxInterval()`) | opposite sides of the rectangle for the `Rect` style |
 | `median` | horizontal line inside the box (`medianPen`, default width 2) | also written into the inherited `center` field |
+| `mean` | the mean marker (`setMeanVisible(true)` + `setMeanSymbol`); drawn at `mean` since v7.5.1 | NaN by default, filled by `QwtBoxStatisticsCalculator` for every computed sample; `hasMean()` reports availability |
 | `whiskerLower` / `whiskerUpper` | whisker endpoints + caps | cap width = 0.3 × box width (`drawWhiskers`) |
 | `outlierCount` | no graphics; statistics only | drawing uses `QwtBoxOutlierSample.values` |
 | `QwtBoxOutlierSample.values` | outlier symbols | default XCross 8×8; changeable via `setOutlierSymbol` |
@@ -184,7 +185,7 @@ The box width comes from `boxExtent` (default 0.6 categorical tick units), conve
 
 ### 4.1 Design and reproduction
 
-Script `docs/assets/algorithms/boxstats_experiment.py` (fixed seeds 20251012/424242/777/9999/31337, Agg backend, all raw numbers printed to stdout, two runs line-identical). The Python side replicates `qwt_box_statistics.cpp` **expression by expression** (including the operand order of `frac * (upper − lower)` and preserving the Percentile branch's swap verbatim); Section 4.6 validates the replica against the real C++ compiled artifact. Per the task constraints, no experiment involves wall-clock timing; the computational-cost section does analytic counting only.
+Script `docs/assets/algorithms/boxstats_experiment.py` (fixed seeds 20251012/424242/777/9999/31337, Agg backend, all raw numbers printed to stdout, two runs line-identical). The Python side replicates `qwt_box_statistics.cpp` **expression by expression** (including the operand order of `frac * (upper − lower)` and the Percentile branch in the fixed level order of v7.5.1); Section 4.6 validates the replica against the real C++ compiled artifact. Per the task constraints, no experiment involves wall-clock timing; the computational-cost section does analytic counting only.
 
 ### 4.2 (a) Numerical evidence for the definition lineage
 
@@ -318,7 +319,7 @@ The error decays with n — a 10× larger n brings a several-fold accuracy gain 
 - `witness_n3`: [0,1,2] → fences [0,2], outlierCount=0 (proof instance for the n≤3 impossibility);
 - `witness_n4` / `witness_n5`: outlierCount=1 (R-7's minimal detectable n is 4);
 - `with_nan`: [1,2,nan,3,inf,4,5] → equivalent to [1..5] after filtering, wl=1/q1=2/med=3/q3=4/wu=5 (NaN filtering correct);
-- `pctl5`: whiskerLower=1.860208 > whiskerUpper=−1.599655, outlierCount=64/64 (the Percentile swap defect confirmed);
+- `pctl5`: whiskerLower=-1.599655 < whiskerUpper=1.860208, outlierCount=8/64 (after the Percentile fix; before it was 1.860208 > -1.599655 with 64/64);
 - `se1`: whiskerUpper=99.9653 < q3=108.5597, outlierCount=55/64 (the SE whisker reaches into the box);
 - `empty`: all-zero QwtBoxSample (empty data drawn at value 0).
 
@@ -328,8 +329,8 @@ Compile recipe (MSVC 2019 x64, no timing logic): `cl /O2 /EHsc /std:c++17 /MD`, 
 
 Every item below is backed by a source line number or by the C++ measurements of Section 4.6, ordered by impact:
 
-1. **The Percentile whisker method swaps the upper and lower bounds** (`qwt_box_statistics.cpp:175-179`): whiskerLower takes the 1−c/100 high quantile and whiskerUpper the c/100 low quantile; for any coefficient <50 and non-constant data, `isValid()` is necessarily false and outlierCount equals the sample size (measured c=5: 64/64; constant data gives wl=wu and counts 0; at c≥50 the two levels are no longer swapped — c=95 actually behaves correctly). The fix is to exchange the two values; for the user-side workaround see Section 6.
-2. **The "mean marker" is drawn at the median position** (`qwt_plot_boxchart.cpp:708-715`): the `meanVisible && meanSymbol` branch positions the symbol with `valueMap.transform(sample.median)`, while `QwtBoxSample` has no mean field at all. Drawing a true mean requires overlaying a custom item or hiding the mean in the outlier data. The API name does not match the behavior.
+1. **The Percentile whisker method swapped the upper and lower bounds (fixed in v7.5.1)** (`qwt_box_statistics.cpp:175-179`): whiskerLower took the 1-c/100 high quantile and whiskerUpper the c/100 low quantile, so for any coefficient <50 and non-constant data `isValid()` was necessarily false and outlierCount equalled the sample size (measured then: c=5 → 64/64; constant data gave wl=wu and counted 0; at c≥50 the levels were no longer swapped - c=95 behaved correctly by accident). Since v7.5.1 the levels are exchanged and the `pctl5` case re-measures as 8/64. Note that c is the tail percentage, so above 25 the whiskers enter the box (c=49 giving wl=q(0.49) > q1 is the definition, not a defect).
+2. **The "mean marker" was drawn at the median position (fixed in v7.5.1)** (`qwt_plot_boxchart.cpp:708-715`): the `meanVisible && meanSymbol` branch positioned the symbol with `valueMap.transform(sample.median)` while `QwtBoxSample` had no mean field - enabling the "mean marker" merely re-drew the median. Since v7.5.1 `QwtBoxSample` carries a `mean` (NaN by default) plus `hasMean()`, the calculator fills it for every computed sample, and the marker is drawn at `sample.mean`, skipping samples without one; hand-assembled samples need the value assigned explicitly.
 3. **Whisker endpoints are fence values, not data points**: systematically inconsistent with the R/matplotlib/seaborn rendering (measured differences of 0.591 on the upper side and 1.265 on the lower); cross-tool plot comparison will inevitably misalign. Inside QWT (counts vs whiskers) everything is self-consistent.
 4. **Small-sample combinatorial boundary**: under R-7, outliers are detectable from n=4 up and never at n≤3; the mechanism of the n=4 counterexample is the extreme participating in the Q3 interpolation with weight 0.25 ([0,1,2,100] → Q3=26.5). Box statistics for n<8 are statistically weak; boxes with n≤3 will never show outliers, and users should not read "no outliers" as "clean data".
 5. **Ties / IQR=0**: a majority of identical values → IQR=0 → collapsed whiskers, and every unequal value becomes an outlier (measured [5×6,12] → {12}). On discrete data, switch to a custom Percentile-style fence (computed by hand, see Section 6) or turn outliers off entirely.
@@ -423,7 +424,7 @@ for (double v : sorted)
 QwtBoxOutlierSample outlierSample(1.0, std::move(outlierValues));
 ```
 
-The same pattern covers: percentile whiskers (bypassing defect 1), a true mean marker (the mean as a single-value `QwtBoxOutlierSample`, or an overlaid `QwtPlotMarker`), and the McGill statistical notch (judge significance yourself from $\tilde{x}\pm1.57\,\mathrm{IQR}/\sqrt n$; the `Notch` style serves visual presentation only).
+The same pattern covers: percentile fences at custom levels, a true mean marker (since v7.5.1 simply assign `sample.mean`; an overlaid `QwtPlotMarker` still works), and the McGill statistical notch (judge significance yourself from $\tilde{x}\pm1.57\,\mathrm{IQR}/\sqrt n$; the `Notch` style serves visual presentation only).
 
 ### 6.3 Selection quick reference
 
@@ -435,7 +436,7 @@ The same pattern covers: percentile whiskers (bypassing defect 1), a true mean m
 | small groups, n<8 | statistically weak; "no outliers" at n≤3 is a mathematical necessity, not a finding about the data |
 | right-skewed / heavy-tailed data | 1.5×IQR mistakes skew for outliers; consider a log axis or SD/SE error-bar semantics |
 | million-point streaming monitoring | P² is fine for coarse monitoring (error ≈0.007×IQR @1000 points); exact boxes still require sorting |
-| Percentile whiskers | **do not use the built-in method for now** (defect 1); compute by hand per 6.2 |
+| Percentile whiskers | use the built-in method (correct since v7.5.1); c is the tail percentage, above 25 the whiskers enter the box |
 
 ## 7. Summary
 
@@ -443,7 +444,7 @@ QWT's box-plot statistical convention is explicit and mainstream (R-7 quantiles 
 
 The practical impact of the estimator choice must be judged per scenario: at n≥64 the mean disagreement among the nine definitions has fallen to 0.008–0.055×IQR (normal 0.027; lognormal Q3 up to 0.055) and at n=256 all are ≤0.015×IQR — the convention debate is largely moot; at n≤16 the definition noise (mean Q3 disagreement at n=8 of 0.28–0.51×IQR, p95 up to 1.70×IQR) is of the same order as the sampling noise, and the differences when comparing plots across software are mostly definitions rather than bugs. Outlier counts are robust while injected points stay far from the fence, but edge-point attribution flips (on dataset B, R-6 differs from the other eight by one point), and small samples carry a hard combinatorial boundary (R-7's minimal detectable n is 4). Applicability: with group n≥8, continuous data and approximately symmetric distributions, the default configuration's conclusions are trustworthy; when these do not hold, state the convention explicitly or take over the statistics by hand per Section 6.
 
-The two source-level defects (the Percentile swap; the mean marker drawn at the median) and several semantic traps are listed in Section 5, each with a workaround.
+Two source-level defects (the Percentile swap and the mean marker drawn at the median) were fixed in v7.5.1 and are covered by `tests/box_statistics_test` plus the re-measured cross-validation data of Section 4.6; the remaining semantic traps (fence-value whisker ends, SD/SE semantics, the decorative notch, ...) are listed with workarounds in Section 5.
 
 ## 8. References
 
