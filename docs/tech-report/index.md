@@ -44,6 +44,17 @@ Along the thread "data volume → visual quality → backend choice → streamin
 | [Real-Time Streaming Rendering Strategies](realtime-streaming.md) | Cost analysis of the three data paths (ring buffer / WindowedSeriesData / full setData), the real boundaries of DirectPainter incremental repaints, frame-budget and end-to-end latency models (144 measured configurations) | `src/plot/qwt_plot_directpainter.*`, `src/core/qwt_series_data.h` | `examples/2D/oscilloscope`, `examples/2D/realtime`, `examples/2D/cpuplot` |
 | [The 3D Surface VBO/VAO Pipeline](3d-surface-pipeline.md) | Qwt3DSurface data upload strategy, per-stage cost of the GLSL 3.3 Core shaders, frame-rate vs mesh-size scaling fit, gl2ps vector export trade-offs | `src/plot3d/` | `examples/3D/qwtplot3d`, `examples/3D/waterfall3D` |
 
+### Comparisons with other libraries
+
+The reports above measure QWT against itself: one implementation, different
+configurations. The report below measures it against the alternatives, driven by
+a harness in `examples/bench/chartbench` that runs four libraries through an
+identical protocol.
+
+| Report | Topic | Key sources | Companion examples |
+|--------|-------|-------------|--------------------|
+| [The Rendering Performance of Qt Plotting Libraries](plot-library-benchmark.md) | Qwt vs. QCustomPlot 2.1 vs. Qt Charts 6.7 vs. QIm (ImPlot) across eight dimensions — sample count, series count, canvas size, data handover vs. repaint, point reduction cost *and* pixel fidelity, frame-time distribution, memory per sample, startup cost — plus raster vs. OpenGL backends and a measured negative result for the Qt Charts OpenGL series path | `src/plot/qwt_point_mapper.cpp`, `src/plot/qwt_plot_curve.cpp`, `examples/bench/chartbench/`, QCustomPlot `QCPGraph::getOptimizedLineData`, ImPlot `RendererLineStrip` | `examples/bench/chartbench` |
+
 ### Algorithms and data semantics
 
 Deep dives into the mathematical foundations and implementation details of five components: spline convergence, clipping correctness, the number theory of ticks, the quantile estimator behind box plots, and quantitative color perception.
@@ -78,6 +89,19 @@ python simd_experiment.py            # plots from simd_bench_results.csv (roofli
 python raster_opengl_experiment.py   # plots from raster_opengl_results.csv (frame-time models)
 python streaming_experiment.py       # frame-budget model + plots from streaming_results.csv
 python surface3d_experiment.py       # plots from surface3d_results.csv (scaling fits)
+```
+
+The library-comparison report does not read a CSV that was collected once; it
+runs several programs itself, so its pipeline is:
+
+```bash
+pip install matplotlib numpy pandas pillow
+git submodule update --init examples/bench/chartbench/qim
+cmake -S . -B build -DCMAKE_PREFIX_PATH=<Qt>            # then:
+cmake --build build --config Release --target chartbench chartbench_qcpgl
+examples/bench/chartbench/run-bench.sh build docs/assets/bench/data
+python docs/assets/bench/chartbench_fidelity.py          # pixel metrics from the exported renders
+python docs/assets/bench/chartbench_experiment.py        # all figures + the values quoted in the text
 ```
 
 The performance-oriented reports additionally ship C++ benchmarks and the raw data measured on the reference machine: `simd_bench.cpp`, `raster_opengl_bench.cpp`, `nan_bench.cpp`, `streaming_bench.cpp`, `surface3d_bench.cpp` (timed) and `clipper_check.cpp`, `scaleengine_check.cpp`, `surface_export_check.cpp`, `lighting_render_check.cpp`, `boxstats_check.cpp`, `nan_mapper_check.cpp` (correctness cross-validation, untimed). Compile commands are in the header comment of each `.cpp` (MSVC 2019 + Qt 5.15, depending on the repository build products); the `#` headers of the `*_results.csv` files record the hardware, build configuration and timing protocol of the collecting machine. To reproduce on another machine: rebuild and rerun the benchmark to obtain a fresh CSV, then rerun the corresponding Python script to regenerate figures and analysis values; the cross-validation harnesses run standalone for semantic comparisons. Experiment scripts for new reports belong in the same directory, named after the report topic, and referenced by name in the report's experiment section.

@@ -53,6 +53,10 @@
 - 修复 `QwtScaleDiv::setTicks()` 存入重复刻度值（日期引擎 `qRound(i*minStep)` 塌缩）与 `QwtAbstractScaleDraw::draw()` 重复绘制重合刻度：刻度列表排序去重，与更长刻度类型同值的刻度被跳过，每个位置只画一次且保留最长长度。新增 `tests/scale_draw_test`
 - 修复两处与实现不符的注释：`QwtColorMapPreset::presetFromName()` 如实说明未知名回退 Viridis（实现从未返回 −1），`Qwt3DSurface::setResolution()` 如实说明索引步进加全量重建/重上传
 - 性能：AVX2 argmin/argmax 内核移入独立编译单元并由 CMake 以 `/arch:AVX2`（MSVC）/ `-mavx2`（GCC/Clang）编译（`qwt_simd_argminmax_avx2.cpp`）。按 x86-64 基线编译时其 256-bit 尾声混入 legacy SSE 且返回时上半 YMM 状态为脏——实测单次调用固定开销 446 ns（n=16），且同线程紧随其后的标量代码慢 16 倍；拆分后单次调用降到 13.5 ns、流式惩罚消失、MinMax 桶判据从约 481 个元素塌缩到 4–8 个。派发方仍在 CPUID 判定后才调用；amalgamate 构建照旧内联该文件
+### 文档
+
+- **新增基准示例 `examples/bench/chartbench` 与四库绘图性能对比报告**：该示例用同一套协议驱动 Qwt、仓库内的 QCustomPlot 2.1.0 与 Qt Charts，并以 git submodule 方式引入 QIm；八个测量维度（点数、曲线数、画布尺寸、数据交接 vs 重绘、降采样、帧时间分布、进程内存、启动开销）加图像导出，每个库与后端一对 CSV，另有驱动脚本跑完整个矩阵。协议本身即是结论的一部分——`QOpenGLWidget` 会把普通 `repaint()` 推迟到 Qt 的合成阶段，因此报告记录了改走 `makeCurrent()`/`paintGL()`/`glFinish()` 的做法（朴素协议会把 10 万点曲线测成 0.004 ms），QCustomPlot 副本带有上游 2.1.1 同样采用的 Qt 6 `Q_MOC_RUN`/`Q_NAMESPACE` 最小修复。17 张图与 14 张表由 `docs/assets/bench/chartbench_experiment.py` 从原始 CSV 重新生成；Qt Charts 的 OpenGL 序列路径作为实测阴性结果报告（帧缓冲中无曲线像素）
+
 ## tag:v7.4.2 (2026-10-10)
 
 ### 新功能

@@ -143,6 +143,7 @@ plugins:
                     - "Scale Engine Nice Numbers": tech-report/scale-engine.md
                     - "Box-Plot Quantiles": tech-report/boxplot-quantiles.md
                     - "Colormap Color Science": tech-report/colormap-color-science.md
+                    - "Plotting Library Benchmark": tech-report/plot-library-benchmark.md
             - API:
                 - API Docs:
                     - API Home: doxygen_en/index.html
@@ -237,6 +238,7 @@ plugins:
                     - "刻度引擎：漂亮数字": tech-report/scale-engine.md
                     - "箱线图分位数算法": tech-report/boxplot-quantiles.md
                     - "Colormap 色彩科学": tech-report/colormap-color-science.md
+                    - "绘图库性能对比": tech-report/plot-library-benchmark.md
             - API:
                 - API文档:
                     - API文档首页: doxygen_cn/index.html
