@@ -50,7 +50,7 @@
 
 | 报告 | 主题 | 关键源码 | 配套示例 |
 |------|------|----------|----------|
-| [Qt 主流绘图控件的渲染性能实测](plot-library-benchmark.md) | Qwt 与 QCustomPlot 2.1、Qt Charts 6.7、QIm（ImPlot）的八维对比——点数、曲线数、画布尺寸、数据交接与重绘、降采样的代价*与*逐像素保真度、帧时间分布、每采样内存、启动开销——外加栅格与 OpenGL 后端对比，以及 Qt Charts OpenGL 序列路径的实测阴性结果 | `src/plot/qwt_point_mapper.cpp`、`src/plot/qwt_plot_curve.cpp`、`examples/bench/chartbench/`、QCustomPlot `QCPGraph::getOptimizedLineData`、ImPlot `RendererLineStrip` | `examples/bench/chartbench` |
+| [Qt 绘图库渲染性能对比](plot-library-benchmark.md) | Qwt 与 QCustomPlot 2.1、Qt Charts 6.7、QIm（ImPlot）的八维对比（点数、曲线数、画布尺寸、数据交接与重绘、降采样的代价*与*逐像素保真度、帧时间分布、每采样内存、启动开销），外加栅格与 OpenGL 后端对比，以及 Qt Charts OpenGL 序列路径的实测阴性结果 | `src/plot/qwt_point_mapper.cpp`、`src/plot/qwt_plot_curve.cpp`、`examples/bench/chartbench/`、QCustomPlot `QCPGraph::getOptimizedLineData`、ImPlot `RendererLineStrip` | `examples/bench/chartbench` |
 
 ### 算法与数据语义
 
