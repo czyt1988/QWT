@@ -1,4 +1,4 @@
-## tag:v7.5.0 (unreleased)
+## tag:v7.5.0 (2026-10-14)
 
 ### New Features
 
