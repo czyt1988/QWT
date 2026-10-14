@@ -44,6 +44,14 @@
 | [实时流式数据渲染策略](realtime-streaming.md) | 环形缓冲 / WindowedSeriesData / 全量 setData 三种数据通路的成本剖析、DirectPainter 增量重绘的真实边界、帧预算与端到端延迟模型（144 个配置实测） | `src/plot/qwt_plot_directpainter.*`、`src/core/qwt_series_data.h` | `examples/2D/oscilloscope`、`examples/2D/realtime`、`examples/2D/cpuplot` |
 | [3D 表面渲染的 VBO/VAO 管线](3d-surface-pipeline.md) | Qwt3DSurface 数据上传策略、GLSL 3.3 Core 着色器逐阶段成本、帧率-网格规模标度拟合、gl2ps 矢量导出的取舍 | `src/plot3d/` | `examples/3D/qwtplot3d`、`examples/3D/waterfall3D` |
 
+### 与其他库的横向对比
+
+上面各篇都是在 QWT 内部做自我测量：同一套实现、不同配置。下面这篇把 QWT 与备选方案放在一起测，由 `examples/bench/chartbench` 中的基准程序以完全相同的协议驱动四个库。
+
+| 报告 | 主题 | 关键源码 | 配套示例 |
+|------|------|----------|----------|
+| [Qt 主流绘图控件的渲染性能实测](plot-library-benchmark.md) | Qwt 与 QCustomPlot 2.1、Qt Charts 6.7、QIm（ImPlot）的八维对比——点数、曲线数、画布尺寸、数据交接与重绘、降采样的代价*与*逐像素保真度、帧时间分布、每采样内存、启动开销——外加栅格与 OpenGL 后端对比，以及 Qt Charts OpenGL 序列路径的实测阴性结果 | `src/plot/qwt_point_mapper.cpp`、`src/plot/qwt_plot_curve.cpp`、`examples/bench/chartbench/`、QCustomPlot `QCPGraph::getOptimizedLineData`、ImPlot `RendererLineStrip` | `examples/bench/chartbench` |
+
 ### 算法与数据语义
 
 深挖五个独立组件的数学基础与实现细节：样条的收敛阶、裁剪的正确性、刻度的数论、统计量的估计器选择、色彩感知的定量评测。
@@ -78,6 +86,18 @@ python simd_experiment.py            # 读取 simd_bench_results.csv 绘图（ro
 python raster_opengl_experiment.py   # 读取 raster_opengl_results.csv 绘图（帧时间模型）
 python streaming_experiment.py       # 帧预算模型 + 读取 streaming_results.csv 绘图
 python surface3d_experiment.py       # 读取 surface3d_results.csv 绘图（标度拟合）
+```
+
+横向对比那篇读的不是一次性采集的 CSV，它自己会运行程序，因此复现路径是：
+
+```bash
+pip install matplotlib numpy pandas pillow
+git submodule update --init examples/bench/chartbench/qim
+cmake -S . -B build -DCMAKE_PREFIX_PATH=<Qt>            # 然后:
+cmake --build build --config Release --target chartbench chartbench_qcpgl
+examples/bench/chartbench/run-bench.sh build docs/assets/bench/data
+python docs/assets/bench/chartbench_fidelity.py          # 由导出的渲染图算像素指标
+python docs/assets/bench/chartbench_experiment.py        # 全部插图 + 文中引用的数值
 ```
 
 性能类报告另附 C++ 基准与本机原始数据：`simd_bench.cpp`、`raster_opengl_bench.cpp`、`nan_bench.cpp`、`streaming_bench.cpp`、`surface3d_bench.cpp`（计时）与 `clipper_check.cpp`、`scaleengine_check.cpp`、`surface_export_check.cpp`、`lighting_render_check.cpp`、`boxstats_check.cpp`、`nan_mapper_check.cpp`（正确性交叉验证，不计时）。编译命令写在各 `.cpp` 文件头部注释（MSVC 2019 + Qt 5.15，依赖仓库构建产物）；`*_results.csv` 的 `#` 头注记录了采集机器的硬件、编译配置与计时协议。在另一台机器上复现的路径：重新编译运行 bench 得到新 CSV，再重跑对应 Python 脚本重新生成插图与分析数值；交叉验证 harness 可直接运行比对语义。新增报告的实验脚本也应放入此目录，命名与报告主题对应，并在报告"实验"一节注明脚本名。
