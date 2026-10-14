@@ -36,19 +36,6 @@ if(EXISTS "${CHARTBENCH_QIM_DIR}/CMakeLists.txt")
     set(QIM_BUILD_TESTS OFF CACHE BOOL "chartbench: QIm tests off" FORCE)
     add_subdirectory("${CHARTBENCH_QIM_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/qim")
     set(CHARTBENCH_WITH_QIM ON)
-
-    # QIm 0.0.3 uses QPointF without including <QPointF>, which breaks on
-    # Qt 6.7 / MSVC. Force-include the missing geometry headers instead of
-    # patching the submodule. See QImCompat.h.
-    if(TARGET Core)
-        if(MSVC)
-            target_compile_options(Core PRIVATE
-                "/FI${CMAKE_CURRENT_SOURCE_DIR}/QImCompat.h")
-        else()
-            target_compile_options(Core PRIVATE
-                "-include" "${CMAKE_CURRENT_SOURCE_DIR}/QImCompat.h")
-        endif()
-    endif()
 else()
     message(STATUS "chartbench: QIm submodule missing (${CHARTBENCH_QIM_DIR}) - QIm adapter disabled")
     set(CHARTBENCH_WITH_QIM OFF)

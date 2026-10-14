@@ -131,10 +131,11 @@ directory carries the minimal fix (namespace + `Q_NAMESPACE`), which is what
 upstream QCustomPlot 2.1.1 does as well; the patch is marked with a comment in
 `qcustomplot.h` and changes no rendering code.
 
-**QIm needs a forced include.** QIm 0.0.3 uses `QPointF` in
+**QIm was patched, not worked around.** QIm 0.0.3 used `QPointF` in
 `src/core/plot/QImPlotValueTrackerNode.h` without including `<QPointF>`, which
-Qt 6.7 no longer pulls in transitively. `QImCompat.h` is force-included into
-the QIm targets (`/FI` on MSVC) instead of patching the submodule.
+Qt 6.7 no longer pulls in transitively. The fix went upstream (gitee.com/czyt1988/qim,
+`fix(qt6)` commit) and the submodule pin carries it, so the adapter no longer
+force-includes a compatibility header.
 
 **Qt Charts OpenGL series are not measured.** With `QXYSeries::setUseOpenGL(true)`
 Qt Charts renders the series into a framebuffer that Qt composites during the

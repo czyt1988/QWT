@@ -702,7 +702,7 @@ The harness first tried the same trick as for the other GL libraries: a `QOpenGL
 
 **QCustomPlot 2.1.0 does not compile with Qt 6.7 unmodified.** It declares its `QCP` namespace as a class under `Q_MOC_RUN` to obtain enum reflection; Qt 6's moc emits `QtPrivate::TypeAndForceComplete<QCP, ...>` for that construct, which fails because `QCP` is a namespace in the real compilation. The copy in the example carries the minimal fix (a real namespace plus `Q_NAMESPACE`), which is what upstream QCustomPlot 2.1.1 does. The patch touches no rendering code — it changes how the enum *meta objects* are declared — so the measured frame times are unaffected. A reader compiling 2.1.0 against Qt 6 will hit the same error.
 
-**QIm 0.0.3 needs a forced include.** `src/core/plot/QImPlotValueTrackerNode.h` uses `QPointF` without including `<QPointF>`, which Qt 6.7 no longer provides transitively. The example force-includes a small compatibility header into the QIm targets instead of patching the submodule, so the pinned revision stays reproducible.
+**QIm 0.0.3 needed a forced include.** `src/core/plot/QImPlotValueTrackerNode.h` uses `QPointF` without including `<QPointF>`, which Qt 6.7 no longer provides transitively. At measurement time the example compensated with a force-included compatibility header rather than patching the submodule; the fix has since gone upstream and the pinned revision carries it, so the workaround is gone.
 
 ### 6.4 The Qt Charts frame operation differs slightly
 

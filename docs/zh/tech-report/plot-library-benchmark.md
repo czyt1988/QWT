@@ -702,7 +702,7 @@ Qt Charts 提供 `QXYSeries::setUseOpenGL(true)`，本应将它的帧时间与�
 
 **QCustomPlot 2.1.0 在 Qt 6.7 下无法直接编译。**它在 `Q_MOC_RUN` 下把 `QCP` 命名空间声明为一个类以获得枚举反射；Qt 6 的 moc 会为该构造生成 `QtPrivate::TypeAndForceComplete<QCP, ...>`，而 `QCP` 在真实编译中是命名空间，于是编译失败。示例中的这份拷贝带有最小修复（真正的命名空间加 `Q_NAMESPACE`），这也是上游 QCustomPlot 2.1.1 的做法。该补丁不涉及渲染代码，只改变枚举*元对象*的声明方式，因此不影响实测帧时间。在 Qt 6 上编译 2.1.0 的读者会遇到同一个错误。
 
-**QIm 0.0.3 需要一次强制包含。**`src/core/plot/QImPlotValueTrackerNode.h` 使用了 `QPointF` 却没有包含 `<QPointF>`，Qt 6.7 不再传递提供它。示例改为向 QIm 目标强制包含一个小的兼容头，不去修改 submodule，这样锁定的版本号仍然可复现。
+**QIm 0.0.3 曾需要一次强制包含。**`src/core/plot/QImPlotValueTrackerNode.h` 使用了 `QPointF` 却没有包含 `<QPointF>`，Qt 6.7 不再传递提供它。测量时示例以强制包含一个小的兼容头作为绕行，不去修改 submodule；该修复此后已进入上游，锁定的修订版本已携带它，绕行随之移除。
 
 ### 6.4 Qt Charts 的帧操作略有偏差
 
