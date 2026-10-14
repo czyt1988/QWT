@@ -3,6 +3,11 @@ name: Sync-Release-To-Gitee
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to sync (e.g. v7.5.0)
+        required: true
 
 permissions:
   contents: read
@@ -24,15 +29,29 @@ jobs:
         git config --global credential.helper store
         echo "https://${GITEE_USER}:${GITEE_TOKEN}@gitee.com" > ~/.git-credentials
         chmod 600 ~/.git-credentials
+        # a release event checks out the tag in detached HEAD, so the branch refs have to be
+        # materialized before they can be pushed
+        git fetch origin '+refs/heads/master:refs/heads/master' '+refs/heads/dev:refs/heads/dev' '+refs/tags/*:refs/tags/*'
         git remote add gitee https://gitee.com/czyt1988/QWT.git
         git push gitee master dev --tags
 
     - name: Create Gitee release
       env:
         GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-        TAG: ${{ github.event.release.tag_name }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG: ${{ github.event.release.tag_name || inputs.tag }}
         RELEASE_BODY: ${{ github.event.release.body }}
       run: |
+        EXISTING_ID=$(curl -sS "https://gitee.com/api/v5/repos/czyt1988/QWT/releases/tags/${TAG}?access_token=${GITEE_TOKEN}" | jq -r '.id // empty')
+        if [ -n "${EXISTING_ID}" ]; then
+          echo "gitee release ${TAG} already exists (id=${EXISTING_ID})"
+          echo "RELEASE_ID=${EXISTING_ID}" >> "$GITHUB_ENV"
+          exit 0
+        fi
+        # a workflow_dispatch run carries no event payload, so read the body back from GitHub
+        if [ -z "${RELEASE_BODY}" ]; then
+          RELEASE_BODY=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.body')
+        fi
         printf '%s' "$RELEASE_BODY" > /tmp/gitee-body.txt
         RESP=$(curl -sS -X POST "https://gitee.com/api/v5/repos/czyt1988/QWT/releases" \
           --data-urlencode "access_token=${GITEE_TOKEN}" \
