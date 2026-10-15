@@ -6,7 +6,9 @@
 #if defined(_MSC_VER)
 #include <intrin.h>
 #elif defined(__GNUC__) || defined(__clang__)
+#if defined(__x86_64__) || defined(__i386__)
 #include <x86intrin.h>
+#endif//__x86_64__ || __i386__
 #endif
 
 namespace
