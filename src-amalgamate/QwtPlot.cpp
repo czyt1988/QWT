@@ -33120,21 +33120,21 @@ static inline double qwtRoundValueF(double value)
 #endif
 }
 
-// Create a point of the output polygon from a pixel position, that may
-// have a fractional x coordinate ( sub pixel placement of cluster points )
+// Create a point of the output polygon from pixel positions,
+// that may have fractional coordinates
 template< class Point >
-static Point qwtMakePoint(double x, int y);
+static Point qwtMakePointD(double x, double y);
 
 template<>
-inline QPointF qwtMakePoint< QPointF >(double x, int y)
+inline QPointF qwtMakePointD< QPointF >(double x, double y)
 {
 	return QPointF(x, y);
 }
 
 template<>
-inline QPoint qwtMakePoint< QPoint >(double x, int y)
+inline QPoint qwtMakePointD< QPoint >(double x, double y)
 {
-	return QPoint(qRound(x), y);
+	return QPoint(qRound(x), qRound(y));
 }
 
 static Qt::Orientation qwtProbeOrientation(const QwtSeriesData< QPointF >* series, int from, int to)
@@ -33211,14 +33211,21 @@ public:
 			appendTo(y2, polyline);
 	}
 
+	// emit the collected device pixel coordinates scaled back to paint coordinates
+	inline void setScale(qreal dpr)
+	{
+		m_inv = 1.0 / dpr;
+	}
+
 private:
 	inline void appendTo(int y, Polygon& polyline)
 	{
-		polyline += Point(x0, y);
+		polyline += qwtMakePointD< Point >(x0 * m_inv, y * m_inv);
 	}
 
 private:
 	int x0, y1, yMin, yMax, y2;
+	double m_inv = 1.0;
 };
 
 template< class Polygon, class Point >
@@ -33263,13 +33270,20 @@ public:
 			appendTo(x2, polyline);
 	}
 
+	// emit the collected device pixel coordinates scaled back to paint coordinates
+	inline void setScale(qreal dpr)
+	{
+		m_inv = 1.0 / dpr;
+	}
+
 private:
 	inline void appendTo(int x, Polygon& polyline)
 	{
-		polyline += Point(x, y0);
+		polyline += qwtMakePointD< Point >(x * m_inv, y0 * m_inv);
 	}
 
 	int y0, x1, xMin, xMax, x2;
+	double m_inv = 1.0;
 };
 }
 
@@ -33279,7 +33293,8 @@ static Polygon qwtMapPointsQuad(const QwtScaleMap& xMap,
 								const QwtSeriesData< QPointF >* series,
 								int from,
 								int to,
-								int reserveSize = 0)
+								int reserveSize = 0,
+								qreal dpr       = 1.0)
 {
 	Polygon polyline;
 
@@ -33297,7 +33312,7 @@ static Polygon qwtMapPointsQuad(const QwtScaleMap& xMap,
 		polyline.reserve(reserveSize);
 
 	PolygonQuadrupel q;
-	q.start(qwtRoundValue(xMap.transform(sample0.x())), qwtRoundValue(yMap.transform(sample0.y())));
+	q.start(qwtRoundValue(xMap.transform(sample0.x()) * dpr), qwtRoundValue(yMap.transform(sample0.y()) * dpr));
 
 	// linear scale fast path: avoid virtual transform() call per point
 	const bool linearPath = xMap.isLinear() && yMap.isLinear();
@@ -33309,8 +33324,8 @@ static Polygon qwtMapPointsQuad(const QwtScaleMap& xMap,
 			const QPointF sample = series->sample(i);
 			if (qwt_is_nan_or_inf(sample))
 				continue;
-			const int x = qRound(sample.x() * xCnv + xOff);
-			const int y = qRound(sample.y() * yCnv + yOff);
+			const int x = qRound((sample.x() * xCnv + xOff) * dpr);
+			const int y = qRound((sample.y() * yCnv + yOff) * dpr);
 
 			if (!q.append(x, y)) {
 				q.flush(polyline);
@@ -33322,8 +33337,8 @@ static Polygon qwtMapPointsQuad(const QwtScaleMap& xMap,
 			const QPointF sample = series->sample(i);
 			if (qwt_is_nan_or_inf(sample))
 				continue;
-			const int x = qwtRoundValue(xMap.transform(sample.x()));
-			const int y = qwtRoundValue(yMap.transform(sample.y()));
+			const int x = qwtRoundValue(xMap.transform(sample.x()) * dpr);
+			const int y = qwtRoundValue(yMap.transform(sample.y()) * dpr);
 
 			if (!q.append(x, y)) {
 				q.flush(polyline);
@@ -33337,7 +33352,7 @@ static Polygon qwtMapPointsQuad(const QwtScaleMap& xMap,
 }
 
 template< class Polygon, class Point, class PolygonQuadrupel >
-static Polygon qwtMapPointsQuad(const Polygon& polyline, int reserveSize = 0)
+static Polygon qwtMapPointsQuad(const Polygon& polyline, int reserveSize = 0, qreal dpr = 1.0)
 {
 	const int numPoints = polyline.size();
 
@@ -33351,6 +33366,7 @@ static Polygon qwtMapPointsQuad(const Polygon& polyline, int reserveSize = 0)
 		polylineXY.reserve(reserveSize);
 
 	PolygonQuadrupel q;
+	q.setScale(dpr);
 	q.start(points[ 0 ].x(), points[ 0 ].y());
 
 	for (int i = 0; i < numPoints; i++) {
@@ -33369,15 +33385,15 @@ static Polygon qwtMapPointsQuad(const Polygon& polyline, int reserveSize = 0)
 
 template< class Polygon, class Point >
 static Polygon
-qwtMapPointsQuad(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeriesData< QPointF >* series, int from, int to)
+qwtMapPointsQuad(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeriesData< QPointF >* series, int from, int to, qreal dpr)
 {
 	Polygon polyline;
 	if (from > to)
 		return polyline;
 
 	// estimate reserve sizes: 4 points per pixel dimension
-	const int xPixels  = qAbs(qRound(xMap.p2() - xMap.p1())) + 1;
-	const int yPixels  = qAbs(qRound(yMap.p2() - yMap.p1())) + 1;
+	const int xPixels  = qAbs(qRound((xMap.p2() - xMap.p1()) * dpr)) + 1;
+	const int yPixels  = qAbs(qRound((yMap.p2() - yMap.p1()) * dpr)) + 1;
 	const int reserve1 = 4 * qMax(xPixels, yPixels) + 16;
 	const int reserve2 = 4 * qMin(xPixels, yPixels) + 16;
 
@@ -33389,14 +33405,14 @@ qwtMapPointsQuad(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeri
 
 	if (orientation == Qt::Horizontal) {
 		polyline = qwtMapPointsQuad< Polygon, Point, QwtPolygonQuadrupelY< Polygon, Point > >(
-			xMap, yMap, series, from, to, reserve1);
+			xMap, yMap, series, from, to, reserve1, dpr);
 
-		polyline = qwtMapPointsQuad< Polygon, Point, QwtPolygonQuadrupelX< Polygon, Point > >(polyline, reserve2);
+		polyline = qwtMapPointsQuad< Polygon, Point, QwtPolygonQuadrupelX< Polygon, Point > >(polyline, reserve2, dpr);
 	} else {
 		polyline = qwtMapPointsQuad< Polygon, Point, QwtPolygonQuadrupelX< Polygon, Point > >(
-			xMap, yMap, series, from, to, reserve1);
+			xMap, yMap, series, from, to, reserve1, dpr);
 
-		polyline = qwtMapPointsQuad< Polygon, Point, QwtPolygonQuadrupelY< Polygon, Point > >(polyline, reserve2);
+		polyline = qwtMapPointsQuad< Polygon, Point, QwtPolygonQuadrupelY< Polygon, Point > >(polyline, reserve2, dpr);
 	}
 
 	return polyline;
@@ -33479,7 +33495,7 @@ qwtFindVisibleRange(const QwtScaleMap& xMap, const QwtSeriesData< QPointF >* ser
 // Output: at most 4 points per pixel column.
 template< class Polygon, class Point >
 static Polygon
-qwtPixelColumnReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeriesData< QPointF >* series, int from, int to)
+qwtPixelColumnReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QwtSeriesData< QPointF >* series, int from, int to, qreal dpr)
 {
 	Polygon polyline;
 	if (from > to)
@@ -33488,7 +33504,8 @@ qwtPixelColumnReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qwt
 	int visFrom = from, visTo = to;
 	qwtFindVisibleRange(xMap, series, from, to, visFrom, visTo);
 
-	const int xPixels = qAbs(qRound(xMap.p2() - xMap.p1())) + 1;
+	// bins are indexed by device pixel columns/rows
+	const int xPixels = qAbs(qRound((xMap.p2() - xMap.p1()) * dpr)) + 1;
 	if (xPixels <= 0)
 		return polyline;
 
@@ -33500,7 +33517,7 @@ qwtPixelColumnReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qwt
 
 	QVector< Bin > bins(xPixels, Bin { 0, 0, 0, 0, 0 });
 
-	const int xMin        = qRound(xMap.p1());
+	const int xMin        = qRound(xMap.p1() * dpr);
 	const bool linearPath = xMap.isLinear() && yMap.isLinear();
 	if (linearPath) {
 		const double xCnv = xMap.cnv(), xOff = xMap.p1() - xMap.ts1() * xCnv;
@@ -33510,8 +33527,8 @@ qwtPixelColumnReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qwt
 			const QPointF sample = series->sample(i);
 			if (qwt_is_nan_or_inf(sample))
 				continue;
-			const int x   = qRound(sample.x() * xCnv + xOff);
-			const int y   = qRound(sample.y() * yCnv + yOff);
+			const int x   = qRound((sample.x() * xCnv + xOff) * dpr);
+			const int y   = qRound((sample.y() * yCnv + yOff) * dpr);
 			const int col = x - xMin;
 			if (col < 0 || col >= xPixels)
 				continue;
@@ -33532,8 +33549,8 @@ qwtPixelColumnReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qwt
 			const QPointF sample = series->sample(i);
 			if (qwt_is_nan_or_inf(sample))
 				continue;
-			const int x   = qwtRoundValue(xMap.transform(sample.x()));
-			const int y   = qwtRoundValue(yMap.transform(sample.y()));
+			const int x   = qwtRoundValue(xMap.transform(sample.x()) * dpr);
+			const int y   = qwtRoundValue(yMap.transform(sample.y()) * dpr);
 			const int col = x - xMin;
 			if (col < 0 || col >= xPixels)
 				continue;
@@ -33563,15 +33580,18 @@ qwtPixelColumnReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qwt
 		Real data points are only added at the borders of a cluster, when
 		the neighbor column is empty or holds a single point.
 	 */
+	// device pixel coordinates back to paint coordinates
+	const double invDpr = 1.0 / dpr;
+
 	for (int col = 0; col < xPixels; col++) {
 		const Bin& bin = bins[ col ];
 		if (bin.count == 0)
 			continue;
 
-		const double x = xMin + col;
+		const double x = (xMin + col) * invDpr;
 
 		if (bin.count == 1) {
-			outPts[ n++ ] = qwtMakePoint< Point >(x, bin.firstY);
+			outPts[ n++ ] = qwtMakePointD< Point >(x, bin.firstY * invDpr);
 			continue;
 		}
 
@@ -33579,13 +33599,13 @@ qwtPixelColumnReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap, const Qwt
 		const bool gapAfter  = (col < xPixels - 1) && (bins[ col + 1 ].count <= 1);
 
 		if (gapBefore)
-			outPts[ n++ ] = qwtMakePoint< Point >(x + 0.2, bin.firstY);
+			outPts[ n++ ] = qwtMakePointD< Point >(x + 0.2 * invDpr, bin.firstY * invDpr);
 
-		outPts[ n++ ] = qwtMakePoint< Point >(x + 0.25, bin.minY);
-		outPts[ n++ ] = qwtMakePoint< Point >(x + 0.75, bin.maxY);
+		outPts[ n++ ] = qwtMakePointD< Point >(x + 0.25 * invDpr, bin.minY * invDpr);
+		outPts[ n++ ] = qwtMakePointD< Point >(x + 0.75 * invDpr, bin.maxY * invDpr);
 
 		if (gapAfter)
-			outPts[ n++ ] = qwtMakePoint< Point >(x + 0.8, bin.lastY);
+			outPts[ n++ ] = qwtMakePointD< Point >(x + 0.8 * invDpr, bin.lastY * invDpr);
 	}
 	polyline.resize(n);
 
@@ -33611,23 +33631,6 @@ static QwtRawPointData qwtTryGetRawPointData(const QwtSeriesData< QPointF >* ser
 	if (auto* cval = dynamic_cast< const QwtCPointerValueData< double >* >(series))
 		return { nullptr, cval->yData() };
 	return { nullptr, nullptr };
-}
-
-// Create a point of the output polygon from pixel positions,
-// that may have fractional coordinates
-template< class Point >
-static Point qwtMakePointD(double x, double y);
-
-template<>
-inline QPointF qwtMakePointD< QPointF >(double x, double y)
-{
-	return QPointF(x, y);
-}
-
-template<>
-inline QPoint qwtMakePointD< QPoint >(double x, double y)
-{
-	return QPoint(qRound(x), qRound(y));
 }
 
 // Map all samples to pixel coordinates, keeping their sub pixel precision.
@@ -33657,14 +33660,15 @@ static Polygon qwtMapPointsNoRound(const QwtScaleMap& xMap,
 // the sample order of both points. Points becoming identical
 // ( f.e. after rounding ) are appended once only.
 template< class Point >
-static inline void qwtAppendMinMaxPair(Point*& outPts, int& n, bool roundPoints,
+static inline void qwtAppendMinMaxPair(Point*& outPts, int& n, bool roundPoints, qreal dpr,
 									   double x1, double y1, double x2, double y2)
 {
 	if (roundPoints) {
-		x1 = qwtRoundValueF(x1);
-		y1 = qwtRoundValueF(y1);
-		x2 = qwtRoundValueF(x2);
-		y2 = qwtRoundValueF(y2);
+		// round to the device pixel grid
+		x1 = qwtRoundValueF(x1 * dpr) / dpr;
+		y1 = qwtRoundValueF(y1 * dpr) / dpr;
+		x2 = qwtRoundValueF(x2 * dpr) / dpr;
+		y2 = qwtRoundValueF(y2 * dpr) / dpr;
 	}
 
 	outPts[ n++ ] = qwtMakePointD< Point >(x1, y1);
@@ -33681,7 +33685,7 @@ static inline void qwtAppendMinMaxPair(Point*& outPts, int& n, bool roundPoints,
 template< class Polygon, class Point >
 static Polygon
 qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-					  const QwtSeriesData< QPointF >* series, int from, int to, bool roundPoints)
+					  const QwtSeriesData< QPointF >* series, int from, int to, bool roundPoints, qreal dpr)
 {
 	Polygon polyline;
 	if (from > to)
@@ -33694,13 +33698,14 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
 	if (numPoints <= 0)
 		return polyline;
 
-	const int xPixels    = qAbs(qRound(xMap.p2() - xMap.p1())) + 1;
+	// buckets are sized in device pixels
+	const int xPixels    = qAbs(qRound((xMap.p2() - xMap.p1()) * dpr)) + 1;
 	const int numBuckets = qMax(2, 2 * xPixels);  // 2 points per bucket (min + max)
 
 	if (numPoints <= numBuckets * 2) {
 		// not enough points to benefit from bucketing, fall back to plain mapping
 		if (roundPoints)
-			return qwtMapPointsQuad< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+			return qwtMapPointsQuad< Polygon, Point >(xMap, yMap, series, visFrom, visTo, dpr);
 		return qwtMapPointsNoRound< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
 	}
 
@@ -33767,9 +33772,9 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
 
 			if (minIdx >= 0) {
 				if (minIdx <= maxIdx)
-					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, minX, minY, maxX, maxY);
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, dpr, minX, minY, maxX, maxY);
 				else
-					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, maxX, maxY, minX, minY);
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, dpr, maxX, maxY, minX, minY);
 			}
 		};
 
@@ -33816,9 +33821,9 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
 				const double yMax = r.maxVal * yCnv + yOff;
 
 				if (minI <= maxI)
-					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, xMin, yMin, xMax, yMax);
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, dpr, xMin, yMin, xMax, yMax);
 				else
-					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, xMax, yMax, xMin, yMin);
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, dpr, xMax, yMax, xMin, yMin);
 			}
 		} else {
 			// ===== Scalar path with raw pointers (has non-finite y) =====
@@ -33866,9 +33871,9 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
 
 			if (minIdx >= 0) {
 				if (minIdx <= maxIdx)
-					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, minX, minY, maxX, maxY);
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, dpr, minX, minY, maxX, maxY);
 				else
-					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, maxX, maxY, minX, minY);
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, dpr, maxX, maxY, minX, minY);
 			}
 		}
 	} else {
@@ -33909,9 +33914,9 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
 
 			if (minIdx >= 0) {
 				if (minIdx <= maxIdx)
-					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, minX, minY, maxX, maxY);
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, dpr, minX, minY, maxX, maxY);
 				else
-					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, maxX, maxY, minX, minY);
+					qwtAppendMinMaxPair< Point >(outPts, n, roundPoints, dpr, maxX, maxY, minX, minY);
 			}
 		}
 	}
@@ -33933,7 +33938,7 @@ qwtMinMaxBucketReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
 template< class Polygon, class Point >
 static Polygon
 qwtLttbReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
-			  const QwtSeriesData< QPointF >* series, int from, int to, bool roundPoints)
+			  const QwtSeriesData< QPointF >* series, int from, int to, bool roundPoints, qreal dpr)
 {
 	Polygon polyline;
 	if (from > to)
@@ -33946,13 +33951,14 @@ qwtLttbReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
 	if (numPoints <= 0)
 		return polyline;
 
-	const int xPixels    = qAbs(qRound(xMap.p2() - xMap.p1())) + 1;
+	// buckets are sized in device pixels
+	const int xPixels    = qAbs(qRound((xMap.p2() - xMap.p1()) * dpr)) + 1;
 	const int numBuckets = qMax(2, 4 * xPixels);  // 1 point per bucket
 
 	if (numPoints <= numBuckets) {
 		// not enough points to benefit from bucketing, fall back to plain mapping
 		if (roundPoints)
-			return qwtMapPointsQuad< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
+			return qwtMapPointsQuad< Polygon, Point >(xMap, yMap, series, visFrom, visTo, dpr);
 		return qwtMapPointsNoRound< Polygon, Point >(xMap, yMap, series, visFrom, visTo);
 	}
 
@@ -34037,8 +34043,9 @@ qwtLttbReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
 
 	auto appendPoint = [ & ](double px, double py) {
 		if (roundPoints) {
-			px = qwtRoundValueF(px);
-			py = qwtRoundValueF(py);
+			// round to the device pixel grid
+			px = qwtRoundValueF(px * dpr) / dpr;
+			py = qwtRoundValueF(py * dpr) / dpr;
 		}
 		if (haveLast && px == lastX && py == lastY)
 			return;
@@ -34170,11 +34177,14 @@ struct QwtRoundI
 	}
 };
 
+// rounding to the device pixel grid: integers for a ratio of 1.0
 struct QwtRoundF
 {
+	qreal ratio = 1.0;
+
 	inline double operator()(double value) const
 	{
-		return qwtRoundValueF(value);
+		return qwtRoundValueF(value * ratio) / ratio;
 	}
 };
 
@@ -34414,6 +34424,7 @@ public:
 
 	QRectF boundingRect;
 	QwtPointMapper::TransformationFlags flags;
+	qreal devicePixelRatio = 1.0;
 };
 
 /**
@@ -34529,13 +34540,49 @@ QRectF QwtPointMapper::boundingRect() const
 }
 
 /**
+ * @brief Set the device pixel ratio of the target paint device
+ *
+ * @details All pixel based reductions ( bucket counts, pixel columns ) and
+ *          the rounding of RoundPoints are calculated in device pixels of
+ *          the target paint device. On high DPI screens ( ratio > 1 ) this
+ *          keeps the resolution of the reduction and the granularity of the
+ *          rounding aligned with what the device can actually display.
+ *          The mapped coordinates themselves remain in paint coordinates.
+ *
+ * @param[in] ratio Device pixel ratio - values <= 0 are reset to 1.0
+ *
+ * @sa devicePixelRatio(), QwtPainter::devicePixelRatio()
+ *
+ */
+void QwtPointMapper::setDevicePixelRatio(qreal ratio)
+{
+	QWT_D(d);
+	d->devicePixelRatio = (ratio > 0.0) ? ratio : 1.0;
+}
+
+/**
+ * @brief Get the device pixel ratio of the target paint device
+ *
+ * @return Device pixel ratio
+ *
+ * @sa setDevicePixelRatio()
+ *
+ */
+qreal QwtPointMapper::devicePixelRatio() const
+{
+	QWT_DC(d);
+	return d->devicePixelRatio;
+}
+
+/**
  * @brief Translate a series of points into a QPolygonF
  *
  * @details When the WeedOutPoints flag is enabled, consecutive points
  *          that are mapped to the same position will be one point.
- *          When RoundPoints is set, all points are rounded to integers
- *          but returned as PolygonF - what only makes sense
- *          when the further processing of the values need a QPolygonF.
+ *          When RoundPoints is set, all points are rounded to the device
+ *          pixel grid ( see devicePixelRatio() ) but returned as PolygonF -
+ *          what only makes sense when the further processing of the values
+ *          need a QPolygonF.
  *          When RoundPoints & WeedOutIntermediatePoints is enabled, an even more
  *          aggressive weeding algorithm is enabled.
  *
@@ -34557,24 +34604,27 @@ QPolygonF QwtPointMapper::toPolygonF(const QwtScaleMap& xMap,
 	QWT_DC(d);
 	QPolygonF polyline;
 
+	const qreal dpr   = d->devicePixelRatio;
+	const QwtRoundF roundF { dpr };
+
 	// priority: PixelColumnReduce > LTTBReduce > MinMaxReduce > WeedOutIntermediatePoints > WeedOutPoints
 	if (d->flags & PixelColumnReduce) {
-		polyline = qwtPixelColumnReduce< QPolygonF, QPointF >(xMap, yMap, series, from, to);
+		polyline = qwtPixelColumnReduce< QPolygonF, QPointF >(xMap, yMap, series, from, to, dpr);
 	} else if (d->flags & LTTBReduce) {
 		// without RoundPoints the output keeps its sub pixel precision
 		polyline = qwtLttbReduce< QPolygonF, QPointF >(
-			xMap, yMap, series, from, to, d->flags & RoundPoints);
+			xMap, yMap, series, from, to, d->flags & RoundPoints, dpr);
 	} else if (d->flags & MinMaxReduce) {
 		// without RoundPoints the output keeps its sub pixel precision
 		polyline = qwtMinMaxBucketReduce< QPolygonF, QPointF >(
-			xMap, yMap, series, from, to, d->flags & RoundPoints);
+			xMap, yMap, series, from, to, d->flags & RoundPoints, dpr);
 	} else if (d->flags & RoundPoints) {
 		if (d->flags & WeedOutIntermediatePoints) {
-			polyline = qwtMapPointsQuad< QPolygonF, QPointF >(xMap, yMap, series, from, to);
+			polyline = qwtMapPointsQuad< QPolygonF, QPointF >(xMap, yMap, series, from, to, dpr);
 		} else if (d->flags & WeedOutPoints) {
-			polyline = qwtToPolylineFilteredF(xMap, yMap, series, from, to, QwtRoundF());
+			polyline = qwtToPolylineFilteredF(xMap, yMap, series, from, to, roundF);
 		} else {
-			polyline = qwtToPointsF(qwtInvalidRect, xMap, yMap, series, from, to, QwtRoundF());
+			polyline = qwtToPointsF(qwtInvalidRect, xMap, yMap, series, from, to, roundF);
 		}
 	} else {
 		if (d->flags & WeedOutPoints) {
@@ -34611,16 +34661,18 @@ QPolygon QwtPointMapper::toPolygon(const QwtScaleMap& xMap,
 	QWT_DC(d);
 	QPolygon polyline;
 
+	const qreal dpr = d->devicePixelRatio;
+
 	if (d->flags & PixelColumnReduce) {
-		polyline = qwtPixelColumnReduce< QPolygon, QPoint >(xMap, yMap, series, from, to);
+		polyline = qwtPixelColumnReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, dpr);
 	} else if (d->flags & LTTBReduce) {
 		// integer points are always rounded
-		polyline = qwtLttbReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, true);
+		polyline = qwtLttbReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, true, dpr);
 	} else if (d->flags & MinMaxReduce) {
 		// integer points are always rounded
-		polyline = qwtMinMaxBucketReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, true);
+		polyline = qwtMinMaxBucketReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, true, dpr);
 	} else if (d->flags & WeedOutIntermediatePoints) {
-		polyline = qwtMapPointsQuad< QPolygon, QPoint >(xMap, yMap, series, from, to);
+		polyline = qwtMapPointsQuad< QPolygon, QPoint >(xMap, yMap, series, from, to, dpr);
 	} else if (d->flags & WeedOutPoints) {
 		polyline = qwtToPolylineFilteredI(xMap, yMap, series, from, to);
 	} else {
@@ -34644,9 +34696,9 @@ QPolygon QwtPointMapper::toPolygon(const QwtScaleMap& xMap,
  * - !WeedOutPoints & boundingRect().isValid():
  *   Points outside of the bounding rectangle are ignored.
  *
- *   When RoundPoints is set, all points are rounded to integers
- *   but returned as PolygonF - what only makes sense
- *   when the further processing of the values need a QPolygonF.
+ *   When RoundPoints is set, all points are rounded to the device pixel
+ *   grid ( see devicePixelRatio() ) but returned as PolygonF - what only
+ *   makes sense when the further processing of the values need a QPolygonF.
  *
  * @param[in] xMap x map
  * @param[in] yMap y map
@@ -34666,6 +34718,8 @@ QPolygonF QwtPointMapper::toPointsF(const QwtScaleMap& xMap,
 	QWT_DC(d);
 	QPolygonF points;
 
+	const QwtRoundF roundF { d->devicePixelRatio };
+
 	if (d->flags & WeedOutPoints) {
 		if (d->flags & RoundPoints) {
 			if (d->boundingRect.isValid()) {
@@ -34675,7 +34729,7 @@ QPolygonF QwtPointMapper::toPointsF(const QwtScaleMap& xMap,
 				// do is to filter out duplicates of
 				// consecutive points
 
-				points = qwtToPolylineFilteredF(xMap, yMap, series, from, to, QwtRoundF());
+				points = qwtToPolylineFilteredF(xMap, yMap, series, from, to, roundF);
 			}
 		} else {
 			// when rounding is not allowed we can't use
@@ -34685,7 +34739,7 @@ QPolygonF QwtPointMapper::toPointsF(const QwtScaleMap& xMap,
 		}
 	} else {
 		if (d->flags & RoundPoints) {
-			points = qwtToPointsF(d->boundingRect, xMap, yMap, series, from, to, QwtRoundF());
+			points = qwtToPointsF(d->boundingRect, xMap, yMap, series, from, to, roundF);
 		} else {
 			points = qwtToPointsF(d->boundingRect, xMap, yMap, series, from, to, QwtNoRoundF());
 		}
@@ -45343,6 +45397,7 @@ void QwtPlotCurve::drawLines(QPainter* painter,
 	}
 
 	QwtPointMapper mapper;
+	mapper.setDevicePixelRatio(QwtPainter::devicePixelRatio(painter->device()));
 
 	if (doAlign) {
 		mapper.setFlag(QwtPointMapper::RoundPoints, true);
@@ -45522,6 +45577,7 @@ void QwtPlotCurve::drawDots(QPainter* painter,
 	const bool doAlign = QwtPainter::roundingAlignment(painter);
 
 	QwtPointMapper mapper;
+	mapper.setDevicePixelRatio(QwtPainter::devicePixelRatio(painter->device()));
 	mapper.setBoundingRect(canvasRect);
 	mapper.setFlag(QwtPointMapper::RoundPoints, doAlign);
 
@@ -46022,6 +46078,7 @@ void QwtPlotCurve::drawSymbols(QPainter* painter,
 							   int to) const
 {
 	QwtPointMapper mapper;
+	mapper.setDevicePixelRatio(QwtPainter::devicePixelRatio(painter->device()));
 	mapper.setFlag(QwtPointMapper::RoundPoints, QwtPainter::roundingAlignment(painter));
 	mapper.setFlag(QwtPointMapper::WeedOutPoints, testPaintAttribute(QwtPlotCurve::FilterPoints));
 
