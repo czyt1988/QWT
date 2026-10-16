@@ -1073,6 +1073,258 @@ qwtLttbReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
     polyline.resize(n);
     return polyline;
 }
+
+// Adaptive column reduce: single pass O(n), device pixel ratio aware.
+//
+// Density gate: when the visible samples are not denser than 2 points per
+// device pixel column the data is mapped 1:1 ( no reduction ) - zooming in
+// always restores full fidelity.
+//
+// Otherwise the visible samples are clustered by device pixel column and,
+// inside a cluster, the first sample, every sample whose mapped y differs by
+// at least 1 device pixel from the last kept sample and the last sample are
+// kept. The samples keep their original order and their real ( sub pixel )
+// coordinates, so ramps stay ramps instead of degenerating into the 1px
+// staircase of vertical strokes and horizontal steps, that the min/max
+// envelope per column ( qwtPixelColumnReduce ) produces for oversampled
+// smooth curves. As every emitted point is a real sample the polyline
+// across empty columns is exactly the chord of the unreduced rendering.
+//
+// When the tolerance selection of a cluster would emit more than
+// K = 4 + ( cluster y span in device pixels ) points - what only happens for
+// high frequency noise inside one column - the cluster falls back to an
+// ordered first/min/max/last quadruple, so the output per column is bounded.
+//
+// When roundPoints is false, the mapped coordinates keep their sub pixel
+// precision - what is the better choice for paint devices, where
+// antialiasing is enabled.
+template< class Polygon, class Point >
+static Polygon
+qwtAdaptiveColumnReduce(const QwtScaleMap& xMap, const QwtScaleMap& yMap,
+                        const QwtSeriesData< QPointF >* series, int from, int to, bool roundPoints, qreal dpr)
+{
+    Polygon polyline;
+    if (from > to)
+        return polyline;
+
+    int visFrom = from, visTo = to;
+    qwtFindVisibleRange(xMap, series, from, to, visFrom, visTo);
+
+    const int numPoints = visTo - visFrom + 1;
+    if (numPoints <= 0)
+        return polyline;
+
+    // columns are device pixel columns
+    const int xPixels = qAbs(qRound((xMap.p2() - xMap.p1()) * dpr)) + 1;
+    if (xPixels <= 0)
+        return polyline;
+
+    const bool linearPath = xMap.isLinear() && yMap.isLinear();
+
+    // fast path for linear scale maps: avoid virtual transform() calls
+    const double xCnv = linearPath ? xMap.cnv() : 0.0;
+    const double xOff = linearPath ? xMap.p1() - xMap.ts1() * xCnv : 0.0;
+    const double yCnv = linearPath ? yMap.cnv() : 0.0;
+    const double yOff = linearPath ? yMap.p1() - yMap.ts1() * yCnv : 0.0;
+
+    const QwtRawPointData raw = qwtTryGetRawPointData(series);
+    const bool useRaw         = linearPath && (raw.y != nullptr);
+    const bool hasRawX        = raw.x != nullptr;
+
+    // map sample i to paint coordinates, returns false for NaN/Inf samples
+    auto mapSample = [ & ](int i, double& px, double& py)->bool {
+        if (useRaw) {
+            const double y = raw.y[ i ];
+            if (!std::isfinite(y))
+                return false;
+
+            const double x = hasRawX ? raw.x[ i ] : i;
+            if (hasRawX && !std::isfinite(x))
+                return false;
+
+            px = x * xCnv + xOff;
+            py = y * yCnv + yOff;
+        } else {
+            const QPointF sample = series->sample(i);
+            if (qwt_is_nan_or_inf(sample))
+                return false;
+
+            px = linearPath ? sample.x() * xCnv + xOff : xMap.transform(sample.x());
+            py = linearPath ? sample.y() * yCnv + yOff : yMap.transform(sample.y());
+        }
+        return true;
+    };
+
+    double lastOutX = 0.0, lastOutY = 0.0;
+    bool haveLast = false;
+
+    auto appendPoint = [ & ](double px, double py) {
+        if (roundPoints) {
+            // round to the device pixel grid
+            px = qwtRoundValueF(px * dpr) / dpr;
+            py = qwtRoundValueF(py * dpr) / dpr;
+        }
+        if (haveLast && px == lastOutX && py == lastOutY)
+            return;
+
+        polyline += qwtMakePointD< Point >(px, py);
+        lastOutX   = px;
+        lastOutY   = py;
+        haveLast   = true;
+    };
+
+    if (numPoints <= 2 * xPixels) {
+        /*
+            Density gate: at most ~2 samples per device pixel column.
+            Mapping 1:1 - any reduction would only lose fidelity, f.e.
+            the shape of curves being zoomed in.
+         */
+        polyline.reserve(numPoints);
+
+        for (int i = visFrom; i <= visTo; i++) {
+            double px, py;
+            if (!mapSample(i, px, py))
+                continue;
+
+            appendPoint(px, py);
+        }
+
+        return polyline;
+    }
+
+    // vertical tolerance for the ordered selection, in device pixels
+    const double tol = 1.0;
+
+    polyline.reserve(qMin(numPoints, 8 * xPixels) + 16);
+
+    // buffer for the selected points of the cluster being processed
+    QVector< QPointF > kept;
+    kept.reserve(64);
+
+    int i = visFrom;
+    while (i <= visTo) {
+        double headX, headY;
+        if (!mapSample(i, headX, headY)) {
+            i++;
+            continue;
+        }
+
+        const int col = qRound(headX * dpr);
+
+        /*
+            Pass 1: find the extent of the cluster of samples mapped into
+            the same device pixel column and collect the statistics for
+            the quadruple fallback: first/last and the extremes with their
+            real coordinates.
+         */
+        int clusterEnd = i;
+        double tailX = headX, tailY = headY;
+        double minDevY = headY * dpr, maxDevY = minDevY;
+        double minPx = headX, minPy = headY;
+        double maxPx = headX, maxPy = headY;
+        int count    = 1;
+
+        int j = i + 1;
+        for (; j <= visTo; j++) {
+            double px, py;
+            if (!mapSample(j, px, py))
+                continue;
+
+            if (qRound(px * dpr) != col)
+                break;
+
+            clusterEnd = j;
+            tailX      = px;
+            tailY      = py;
+
+            const double devY = py * dpr;
+            if (devY < minDevY) {
+                minDevY = devY;
+                minPx   = px;
+                minPy   = py;
+            } else if (devY > maxDevY) {
+                maxDevY = devY;
+                maxPx   = px;
+                maxPy   = py;
+            }
+
+            count++;
+        }
+
+        const double span = maxDevY - minDevY;
+
+        if (count == 1 || span <= tol) {
+            // a single sample or a cluster that is flat inside the
+            // tolerance is represented by its first sample
+            appendPoint(headX, headY);
+        } else {
+            // upper bound for the number of emitted points of the cluster
+            const int cap = 4 + qRound(span);
+
+            /*
+                Pass 2: ordered selection - keep the first sample and every
+                sample, whose mapped y differs by at least tol device pixels
+                from the last kept sample. The greedy selection is aborted as
+                soon as the cap is exceeded: the cluster holds high frequency
+                noise then, that can't be shown inside one column anyway.
+             */
+            kept.clear();
+            kept.append(QPointF(headX, headY));
+
+            double lastDevY = headY * dpr;
+            bool overflow   = false;
+
+            for (int k = i + 1; k <= clusterEnd; k++) {
+                double px, py;
+                if (!mapSample(k, px, py))
+                    continue;
+
+                const double devY = py * dpr;
+                if (qAbs(devY - lastDevY) >= tol) {
+                    kept.append(QPointF(px, py));
+                    lastDevY = devY;
+
+                    if (kept.size() > cap) {
+                        overflow = true;
+                        break;
+                    }
+                }
+            }
+
+            if (overflow) {
+                // noise fallback: an ordered first/min/max/last quadruple
+                // covering the full span of the column, so that the vertical
+                // extent of the cluster is not lost
+                appendPoint(headX, headY);
+
+                if (tailY > headY) {
+                    appendPoint(minPx, minPy);
+                    appendPoint(maxPx, maxPy);
+                } else {
+                    appendPoint(maxPx, maxPy);
+                    appendPoint(minPx, minPy);
+                }
+
+                appendPoint(tailX, tailY);
+            } else {
+                // the last sample of the cluster is always kept, so that
+                // the connection to the next cluster is the real chord
+                if (kept.constLast() != QPointF(tailX, tailY))
+                    kept.append(QPointF(tailX, tailY));
+
+                for (const QPointF& p : qwt_as_const(kept))
+                    appendPoint(p.x(), p.y());
+            }
+        }
+
+        // j is either behind the end or the index of the first sample
+        // of the next cluster
+        i = j;
+    }
+
+    return polyline;
+}
+
 // Helper class to work around the 5 parameters
 // limitation of QtConcurrent::run()
 class QwtDotsCommand
@@ -1549,8 +1801,12 @@ QPolygonF QwtPointMapper::toPolygonF(const QwtScaleMap& xMap,
     const qreal dpr   = d->devicePixelRatio;
     const QwtRoundF roundF { dpr };
 
-    // priority: PixelColumnReduce > LTTBReduce > MinMaxReduce > WeedOutIntermediatePoints > WeedOutPoints
-    if (d->flags & PixelColumnReduce) {
+    // priority: AdaptiveColumnReduce > PixelColumnReduce > LTTBReduce > MinMaxReduce > WeedOutIntermediatePoints > WeedOutPoints
+    if (d->flags & AdaptiveColumnReduce) {
+        // without RoundPoints the output keeps its sub pixel precision
+        polyline = qwtAdaptiveColumnReduce< QPolygonF, QPointF >(
+            xMap, yMap, series, from, to, d->flags & RoundPoints, dpr);
+    } else if (d->flags & PixelColumnReduce) {
         polyline = qwtPixelColumnReduce< QPolygonF, QPointF >(xMap, yMap, series, from, to, dpr);
     } else if (d->flags & LTTBReduce) {
         // without RoundPoints the output keeps its sub pixel precision
@@ -1605,7 +1861,10 @@ QPolygon QwtPointMapper::toPolygon(const QwtScaleMap& xMap,
 
     const qreal dpr = d->devicePixelRatio;
 
-    if (d->flags & PixelColumnReduce) {
+    if (d->flags & AdaptiveColumnReduce) {
+        // integer points are always rounded
+        polyline = qwtAdaptiveColumnReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, true, dpr);
+    } else if (d->flags & PixelColumnReduce) {
         polyline = qwtPixelColumnReduce< QPolygon, QPoint >(xMap, yMap, series, from, to, dpr);
     } else if (d->flags & LTTBReduce) {
         // integer points are always rounded
