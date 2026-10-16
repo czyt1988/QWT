@@ -13526,7 +13526,7 @@ public:
 	 */
 	enum TransformationFlag
 	{
-		//! Round points to integer values
+		//! Round points to the device pixel grid ( see devicePixelRatio() )
 		RoundPoints = 0x01,
 
 		//! Try to remove points, that are translated to the same position
@@ -13552,8 +13552,9 @@ public:
 		/**
 		 * @brief Pixel-column based downsampling
 		 *
-		 * @details Allocates a bin array indexed by pixel column and stores
-		 *          first/min/max/last Y per column. Output is at most 4 points per column.
+		 * @details Allocates a bin array indexed by device pixel column
+		 *          ( see devicePixelRatio() ) and stores first/min/max/last Y
+		 *          per column. Output is at most 4 points per column.
 		 *          Requires a valid boundingRect() to determine the canvas width.
 		 *          Overrides WeedOutIntermediatePoints when both are set.
 		 */
@@ -13566,8 +13567,9 @@ public:
 		 *          the sample of each bucket, that forms the largest triangle
 		 *          with the previously selected point and the average of the
 		 *          next bucket. The first and last sample are always kept.
-		 *          Target bucket count is 4 * boundingRect() width, the output
-		 *          is at most one point per bucket.
+		 *          Target bucket count is 4 * boundingRect() width in device
+		 *          pixels ( see devicePixelRatio() ), the output is at most
+		 *          one point per bucket.
 		 *          Overrides WeedOutIntermediatePoints when both are set.
 		 */
 		LTTBReduce = 0x20,
@@ -13577,7 +13579,8 @@ public:
 		 *
 		 * @details Divides the visible data into equal-count buckets and keeps
 		 *          the min-Y and max-Y point from each bucket. Target bucket count
-		 *          is derived from boundingRect() width.
+		 *          is derived from boundingRect() width in device pixels
+		 *          ( see devicePixelRatio() ).
 		 *          Overrides WeedOutIntermediatePoints when both are set.
 		 */
 		MinMaxReduce = 0x10
@@ -13604,6 +13607,11 @@ public:
 	void setBoundingRect(const QRectF&);
 	// Get the bounding rectangle
 	QRectF boundingRect() const;
+
+	// Set the device pixel ratio of the target paint device
+	void setDevicePixelRatio(qreal ratio);
+	// Get the device pixel ratio of the target paint device
+	qreal devicePixelRatio() const;
 
 	// Translate a series of points into a QPolygonF
 	QPolygonF
