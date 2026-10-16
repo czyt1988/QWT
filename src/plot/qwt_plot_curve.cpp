@@ -612,6 +612,7 @@ void QwtPlotCurve::drawLines(QPainter* painter,
         mapper.setFlag(QwtPointMapper::WeedOutIntermediatePoints, testPaintAttribute(FilterPointsAggressive));
     }
 
+    mapper.setFlag(QwtPointMapper::AdaptiveColumnReduce, testPaintAttribute(FilterPointsAdaptive));
     mapper.setFlag(QwtPointMapper::PixelColumnReduce, testPaintAttribute(FilterPointsPixel));
     mapper.setFlag(QwtPointMapper::LTTBReduce, testPaintAttribute(FilterPointsLTTB));
     mapper.setFlag(QwtPointMapper::MinMaxReduce, testPaintAttribute(FilterPointsMinMaxLTTB));

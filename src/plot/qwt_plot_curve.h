@@ -267,6 +267,11 @@ public:
          * The algorithm is very fast and effective for huge datasets, and can be
          * used inside a replot cycle.
          *
+         * @deprecated Superseded by FilterPointsAdaptive: reducing each chunk to
+         *             integer first/min/max/last quadruples produces 1px
+         *             staircase artifacts for oversampled smooth curves.
+         *             Kept for compatibility for at least one version cycle.
+         *
          * @note Implemented for QwtPlotCurve::Lines only
          * @note As this algo replaces many small lines by a long one
          *      a nasty bug of the raster paint engine ( Qt 4.8, Qt 5.1 - 5.3 )
@@ -290,6 +295,12 @@ public:
          *
          * Output size: ~4 * canvasWidth points regardless of input size.
          * This is the fastest algorithm for datasets exceeding 100k points.
+         *
+         * @deprecated Superseded by FilterPointsAdaptive: the min/max envelope
+         *             per pixel column discards the sample order and shape,
+         *             producing ( milder ) staircase artifacts of the same family
+         *             as FilterPointsAggressive for oversampled smooth curves.
+         *             Kept for compatibility for at least one version cycle.
          *
          * @note Implemented for QwtPlotCurve::Lines only
          * @note Overrides FilterPointsAggressive when both are set
@@ -333,6 +344,38 @@ public:
          * @note Overrides FilterPointsAggressive when both are set
          */
         FilterPointsMinMaxLTTB = 0x80,
+
+        /**
+         * Adaptive column reduce downsampling.
+         *
+         * Single pass O(n) algorithm designed for the display quality of
+         * oversampled curves ( f.e. smooth spectra with many samples per peak ),
+         * all pixel quantities in device pixels:
+         *
+         * - Density gate: when the visible samples are not denser than 2 points
+         *   per device pixel column the curve is painted 1:1 without any
+         *   reduction - zooming in always restores full fidelity.
+         * - Otherwise the samples are clustered by device pixel column. Inside a
+         *   cluster the first sample, every sample whose mapped y differs by at
+         *   least 1 device pixel from the last kept sample and the last sample
+         *   are kept - in their original order and at their real sub pixel
+         *   coordinates. Ramps stay ramps: no 1px staircase artifacts like with
+         *   the min/max envelope per column ( FilterPointsPixel,
+         *   FilterPointsAggressive ).
+         * - High frequency noise inside one column falls back to an ordered
+         *   first/min/max/last quadruple, bounding the output to at most K + 1
+         *   points per column ( K = 4 + column span in device pixels ).
+         *
+         * The deviation from the original curve is bounded by 1 device pixel
+         * vertically and one column horizontally. For smooth data the output
+         * size is roughly the vertical pixel travel - typically larger than
+         * FilterPointsLTTB ( the price of the shape preservation ), but far
+         * below the unreduced point count.
+         *
+         * @note Implemented for QwtPlotCurve::Lines only
+         * @note Overrides all other FilterPoints reductions when both are set
+         */
+        FilterPointsAdaptive = 0x100,
     };
 
     Q_DECLARE_FLAGS(PaintAttributes, PaintAttribute)
