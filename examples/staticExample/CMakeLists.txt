@@ -15,6 +15,13 @@ add_executable(${QWT_APP_NAME}
 )
 
 target_include_directories(${QWT_APP_NAME} PUBLIC "${CMAKE_CURRENT_LIST_DIR}/../../src-amalgamate")
+
+if(MSVC)
+    # the amalgamated QwtPlot.cpp exceeds the 65536 COFF section limit
+    # of the default object file format (fatal error C1128), especially
+    # in Debug builds where /Zi adds extra sections
+    target_compile_options(${QWT_APP_NAME} PRIVATE /bigobj)
+endif()
 target_link_libraries(${QWT_APP_NAME} PUBLIC
                                        Qt${QT_VERSION_MAJOR}::Core 
                                        Qt${QT_VERSION_MAJOR}::Gui 
