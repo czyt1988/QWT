@@ -605,6 +605,7 @@ void QwtPlotCurve::drawLines(QPainter* painter,
     }
 
     QwtPointMapper mapper;
+    mapper.setDevicePixelRatio(QwtPainter::devicePixelRatio(painter->device()));
 
     if (doAlign) {
         mapper.setFlag(QwtPointMapper::RoundPoints, true);
@@ -784,6 +785,7 @@ void QwtPlotCurve::drawDots(QPainter* painter,
     const bool doAlign = QwtPainter::roundingAlignment(painter);
 
     QwtPointMapper mapper;
+    mapper.setDevicePixelRatio(QwtPainter::devicePixelRatio(painter->device()));
     mapper.setBoundingRect(canvasRect);
     mapper.setFlag(QwtPointMapper::RoundPoints, doAlign);
 
@@ -1284,6 +1286,7 @@ void QwtPlotCurve::drawSymbols(QPainter* painter,
                                int to) const
 {
     QwtPointMapper mapper;
+    mapper.setDevicePixelRatio(QwtPainter::devicePixelRatio(painter->device()));
     mapper.setFlag(QwtPointMapper::RoundPoints, QwtPainter::roundingAlignment(painter));
     mapper.setFlag(QwtPointMapper::WeedOutPoints, testPaintAttribute(QwtPlotCurve::FilterPoints));
 
