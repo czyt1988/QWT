@@ -40,6 +40,7 @@ jobs:
         GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        TARGET_COMMITISH: ${{ github.event.release.target_commitish || 'master' }}
         RELEASE_BODY: ${{ github.event.release.body }}
       run: |
         EXISTING_ID=$(curl -sS "https://gitee.com/api/v5/repos/czyt1988/QWT/releases/tags/${TAG}?access_token=${GITEE_TOKEN}" | jq -r '.id // empty')
@@ -56,6 +57,7 @@ jobs:
         RESP=$(curl -sS -X POST "https://gitee.com/api/v5/repos/czyt1988/QWT/releases" \
           --data-urlencode "access_token=${GITEE_TOKEN}" \
           --data-urlencode "tag_name=${TAG}" \
+          --data-urlencode "target_commitish=${TARGET_COMMITISH}" \
           --data-urlencode "name=QwtPlot ${TAG}" \
           --data-urlencode "body@/tmp/gitee-body.txt" \
           --data-urlencode "prerelease=false")
