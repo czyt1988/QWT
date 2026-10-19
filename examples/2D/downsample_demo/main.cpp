@@ -26,6 +26,18 @@
  *   downsample_demo --dots           additionally draw a dot at every mapped
  *                                    point ( batch: into the PNGs, GUI: the
  *                                    toolbar checkbox does the same )
+ *   downsample_demo --noround        switch QwtPainter::roundingAlignment()
+ *                                    off, so that the mapped vertices keep
+ *                                    their sub pixel coordinates
+ *   downsample_demo --nosplit        switch QwtPainter::polylineSplitting()
+ *                                    off ( GUI: the "polyline split" box )
+ *
+ * The last two options drive the two global paint switches that
+ * QwtPlotCurve::drawLines() reads. roundingAlignment() is the one that turns
+ * QwtPointMapper::RoundPoints on - for a raster painter it does so even with
+ * QwtPlotCurve::RenderAntialiased set, which is what makes a dense curve look
+ * stepped. Turning it off restores the sub pixel geometry, at the price of
+ * losing the pixel snapping and the aggressive ( per pixel ) point weeding.
  *****************************************************************************/
 
 #include <QApplication>
@@ -244,7 +256,9 @@ int mappedPointCount(QwtPlot* plot, QwtPlotCurve* curve, qreal dpr)
 
     QwtPointMapper mapper;
     mapper.setDevicePixelRatio(dpr);
-    mapper.setFlag(QwtPointMapper::RoundPoints, true);
+    // QwtPlotCurve::drawLines() only aligns to the device pixel grid while
+    // the global QwtPainter switch is on - report the count it really paints
+    mapper.setFlag(QwtPointMapper::RoundPoints, QwtPainter::roundingAlignment());
     mapper.setFlag(QwtPointMapper::AdaptiveColumnReduce, curve->testPaintAttribute(QwtPlotCurve::FilterPointsAdaptive));
     mapper.setFlag(QwtPointMapper::PixelColumnReduce, curve->testPaintAttribute(QwtPlotCurve::FilterPointsPixel));
     mapper.setFlag(QwtPointMapper::LTTBReduce, curve->testPaintAttribute(QwtPlotCurve::FilterPointsLTTB));
@@ -504,7 +518,8 @@ int runBatch(const QString& outDir, const QVector< DataSet >& sets, qreal dpr, b
     }
 
     delete plot;
-    qInfo("wrote %d images to %s", count, qPrintable(outDir));
+    qInfo("wrote %d images to %s ( roundingAlignment %s, polylineSplitting %s )", count, qPrintable(outDir),
+          QwtPainter::roundingAlignment() ? "on" : "off", QwtPainter::polylineSplitting() ? "on" : "off");
     return count > 0 ? 0 : 1;
 }
 
@@ -551,6 +566,28 @@ class DemoWindow : public QMainWindow
                                                "i.e. after the selected reduction has been applied."));
         bar->addWidget(m_dotsCheck);
 
+        // the two global switches QwtPlotCurve::drawLines() looks at - they
+        // are shared by every item of the application ( grid, symbols, ... )
+        bar->addWidget(new QLabel(QStringLiteral("  paint ")));
+
+        m_alignCheck = new QCheckBox(QStringLiteral("pixel align"));
+        m_alignCheck->setChecked(QwtPainter::roundingAlignment());
+        m_alignCheck->setToolTip(QStringLiteral("QwtPainter::roundingAlignment()\n\n"
+                                                "On ( library default ): every mapped vertex is snapped to the device\n"
+                                                "pixel grid ( QwtPointMapper::RoundPoints ), for raster painters even\n"
+                                                "when antialiasing is on - dense curves then look stepped.\n\n"
+                                                "Off: the sub pixel coordinates are kept, but the pixel snapping and\n"
+                                                "the aggressive ( per pixel ) point weeding are lost."));
+        bar->addWidget(m_alignCheck);
+
+        m_splitCheck = new QCheckBox(QStringLiteral(" polyline split"));
+        m_splitCheck->setChecked(QwtPainter::polylineSplitting());
+        m_splitCheck->setToolTip(QStringLiteral("QwtPainter::polylineSplitting()\n\n"
+                                                "On ( library default ): the raster engine gets the polyline in\n"
+                                                "chunks, which used to be much faster.\n"
+                                                "Off: the polyline is handed over in one piece."));
+        bar->addWidget(m_splitCheck);
+
         QPushButton* saveButton = new QPushButton(QStringLiteral("save PNG"));
         bar->addWidget(saveButton);
 
@@ -561,6 +598,17 @@ class DemoWindow : public QMainWindow
         // receiver of a connect - route through a lambda; setVisible()
         // triggers a replot via itemChanged()
         connect(m_dotsCheck, &QCheckBox::toggled, this, [this](bool on) { m_dotsItem->setVisible(on); });
+        // the curve reads the switches while painting, a replot is enough
+        connect(m_alignCheck, &QCheckBox::toggled, this, [this](bool on)
+        {
+            QwtPainter::setRoundingAlignment(on);
+            m_plot->replot();
+        });
+        connect(m_splitCheck, &QCheckBox::toggled, this, [this](bool on)
+        {
+            QwtPainter::setPolylineSplitting(on);
+            m_plot->replot();
+        });
         connect(saveButton, &QPushButton::clicked, this, &DemoWindow::saveImage);
 
         resize(1400, 700);
@@ -622,6 +670,8 @@ class DemoWindow : public QMainWindow
     QComboBox* m_algoCombo = nullptr;
     QComboBox* m_viewCombo = nullptr;
     QCheckBox* m_dotsCheck = nullptr;
+    QCheckBox* m_alignCheck = nullptr;
+    QCheckBox* m_splitCheck = nullptr;
 };
 
 }  // namespace
@@ -644,6 +694,13 @@ int main(int argc, char* argv[])
         dpr = qMax< qreal >(0.25, args[dprIndex + 1].toDouble());
 
     const bool showDots = args.contains(QStringLiteral("--dots"));
+
+    // the two global QwtPainter switches - they keep their library default
+    // unless the matching command line option is given
+    if (args.contains(QStringLiteral("--noround")))
+        QwtPainter::setRoundingAlignment(false);
+    if (args.contains(QStringLiteral("--nosplit")))
+        QwtPainter::setPolylineSplitting(false);
 
     // batch mode renders offscreen, no window system required
     QVector< QByteArray > holder;
