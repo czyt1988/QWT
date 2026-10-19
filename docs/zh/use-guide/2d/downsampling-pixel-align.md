@@ -13,11 +13,11 @@
 
 ## 1. 先认症状
 
-下图来自 `examples/2D/downsample_demo`。两个面板是同一数据集、同一个谱峰，唯一区别是降采样属性：左边画出全部采样点，右边使用默认的 `FilterPointsLTTB`。
+下图来自 `examples/2D/downsample_demo`。两个面板是同一数据集（每峰约 20 万点）、同一个谱峰、同一个默认降采样 `FilterPointsLTTB`，唯一区别是全局像素对齐开关：左边保持库默认（开启），右边关闭。画面是最高峰肩部的 3 倍最近邻放大。
 
-![同一密集谱线，带与不带点抽稀](../../../assets/screenshots/downsample-demo-compare.png)
+![同一谱峰，像素对齐开启与关闭对比](../../../assets/screenshots/downsample-demo-compare.png)
 
-在这个尺度下两个面板都看不出明显问题。放大峰的斜边，左边就露馅了：边缘以一个像素为单位逐级推进，像楼梯。
+左图的斜边以一个像素为单位逐级推进，像楼梯；右图的同一条曲线保留亚像素顶点，边缘由抗锯齿混合像素铺成，斜边连续。
 
 需要记住的对照关系：
 
@@ -123,7 +123,7 @@ curve->attach(plot);
 - **pixel align**——切换 `QwtPainter::setRoundingAlignment()`；
 - **polyline split**——切换 `QwtPainter::setPolylineSplitting()`（与本现象无关，保留作对比）。
 
-五秒钟看到差异：选择 `many points per peak`、`no reduction`、`window 858..872`，然后反复点 **pixel align**。开启（默认）时能看到阶梯，关闭后斜边恢复平滑。把数据集换成 `few points per peak`，同一个开关几乎没有任何变化——采样太稀疏，形成不了多顶点列。
+五秒钟看到差异：选择 `many points per peak`、`FilterPointsLTTB`（默认）、`window 858..872`，然后反复点 **pixel align**。开启（默认）时能看到阶梯，关闭后斜边恢复平滑——这正是本篇开头那张对比图的复现方式。把数据集换成 `few points per peak`，同一个开关几乎没有任何变化——采样太稀疏，形成不了多顶点列。
 
 批处理模式会把同样的矩阵渲染成 PNG，便于写文档或提交缺陷报告：
 

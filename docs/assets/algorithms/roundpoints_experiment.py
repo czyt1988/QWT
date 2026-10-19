@@ -25,6 +25,8 @@ Figures:
   fig_roundpoints_dpr.png        what one device pixel is at DPR 1 / 2
   fig_roundpoints_staircase.png  synthetic render: the same line, snapped and not
   fig_roundpoints_crops.png      real spectral peak: dense vs sparse, on vs off
+  ../screenshots/downsample-demo-compare.png
+                                 user guide: same peak, same reduction, on vs off
   fig_roundpoints_axis.png       how much of the polyline becomes axis-aligned
   fig_roundpoints_perf.png       mapper time, RoundPoints off vs on
   fig_roundpoints_output.png     output vertex count, off vs on
@@ -269,6 +271,52 @@ def fig_crops():
 
 
 # --------------------------------------------------------------------------
+# Figure: screenshot of the user guide - same data, same reduction, only the
+# global pixel alignment switch differs. This is the pair the guide asks the
+# reader to compare, so it has to be a controlled A/B and not a reduction
+# comparison (both reduction states align their vertices equally).
+# --------------------------------------------------------------------------
+
+
+def fig_guide_compare():
+    try:
+        font = ImageFont.truetype("arial.ttf", 17)
+    except OSError:
+        font = ImageFont.load_default()
+
+    round_dir = os.environ.get("ROUNDPOINTS_ROUND_DIR", "out_round")
+    noround_dir = os.environ.get("ROUNDPOINTS_NOROUND_DIR", "out_noround")
+
+    # tallest peak of the dense spectrum, 160 x 280 px, 3x nearest-neighbour
+    # zoom - wide enough to keep the peak shape in frame, magnified enough
+    # that the 1 px treads of the snapped polyline are unmistakable
+    box = (980, 60, 1140, 340)
+    header = 30
+    cells = []
+
+    for batch, label in ((round_dir, "pixel alignment ON (default)"),
+                         (noround_dir, "pixel alignment OFF")):
+        img = Image.open(os.path.join(batch, "many__lttb__win14.png")).convert("RGB").crop(box)
+        img = img.resize((img.width * 3, img.height * 3), Image.NEAREST)
+
+        cell = Image.new("RGB", (img.width, img.height + header), (255, 255, 255))
+        cell.paste(img, (0, header))
+        draw = ImageDraw.Draw(cell)
+        draw.text((6, 5), label, fill=(0, 0, 0), font=font)
+        draw.rectangle((0, 0, cell.width - 1, cell.height - 1), outline=(214, 214, 214))
+        cells.append(cell)
+
+    gap = 10
+    sheet = Image.new("RGB", (cells[0].width * 2 + gap, cells[0].height), (255, 255, 255))
+    sheet.paste(cells[0], (0, 0))
+    sheet.paste(cells[1], (cells[0].width + gap, 0))
+
+    out = os.path.join(BASE, "..", "screenshots", "downsample-demo-compare.png")
+    sheet.save(out)
+    print("wrote ../screenshots/downsample-demo-compare.png", sheet.size)
+
+
+# --------------------------------------------------------------------------
 # Figure 5: axis-aligned segment fraction
 # --------------------------------------------------------------------------
 
@@ -421,6 +469,7 @@ def main():
     batch_noround = os.path.join(BASE, os.environ.get("ROUNDPOINTS_NOROUND_DIR", "out_noround"))
     if os.path.isdir(batch_round) and os.path.isdir(batch_noround):
         fig_crops()
+        fig_guide_compare()
     else:
         print("render batches not found, skipping fig_roundpoints_crops.png")
 

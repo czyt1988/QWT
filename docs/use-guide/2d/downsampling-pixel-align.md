@@ -13,11 +13,11 @@ This guide explains the switch in plain terms, shows you how to recognize the sy
 
 ## 1. First, Recognize the Symptom
 
-The screenshot below comes from `examples/2D/downsample_demo`. Both panels show the same spectral peak from the same dataset; the only difference is the reduction attribute. The left panel draws every sample, the right one uses the default `FilterPointsLTTB`.
+The screenshot below comes from `examples/2D/downsample_demo`. Both panels show the same peak of the same dense dataset (about 200k samples per peak) with the same default reduction, `FilterPointsLTTB`; the only difference is the global pixel alignment switch: on (the library default) on the left, off on the right. The view is the shoulder of the tallest peak at 3x nearest-neighbour magnification.
 
-![The same dense spectrum, with and without point reduction](../../assets/screenshots/downsample-demo-compare.png)
+![The same spectral peak, pixel alignment on and off](../../assets/screenshots/downsample-demo-compare.png)
 
-Neither panel looks obviously wrong at this scale. Zoom in on the flank of the peak, and the left one falls apart: the edge advances in one-pixel steps, like a staircase.
+On the left the edge advances in one-pixel steps, like a staircase. On the right the same curve keeps its sub-pixel vertices, so the antialiased rasterizer spreads each edge over two rows and the diagonal stays continuous.
 
 The pattern to remember:
 
@@ -123,7 +123,7 @@ The toolbar has the controls you need:
 - **pixel align** — toggles `QwtPainter::setRoundingAlignment()`;
 - **polyline split** — toggles `QwtPainter::setPolylineSplitting()` (unrelated to this effect, kept for comparison).
 
-To see the difference in five seconds: pick `many points per peak`, `no reduction`, `window 858..872`, then click **pixel align** on and off. On is the default and shows the staircase; off restores the smooth flank. Switch the dataset to `few points per peak` and the same toggle changes almost nothing — the samples are too sparse to create multi-vertex columns.
+To see the difference in five seconds: pick `many points per peak`, `FilterPointsLTTB` (the default), `window 858..872`, then click **pixel align** on and off. On is the default and shows the staircase; off restores the smooth flank. That is exactly how the comparison figure at the top of this guide was reproduced. Switch the dataset to `few points per peak` and the same toggle changes almost nothing — the samples are too sparse to create multi-vertex columns.
 
 The batch mode renders the same matrix to PNG for documentation or bug reports:
 
