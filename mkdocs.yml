@@ -81,6 +81,7 @@ plugins:
                     - Chart Items:
                         - Curve: use-guide/2d/curve.md
                         - Rendering Performance & Smoothing: use-guide/2d/rendering-performance.md
+                        - Pixel Alignment & Dense Curves: use-guide/2d/downsampling-pixel-align.md
                         - Scatter: use-guide/2d/scatter.md
                         - Grid: use-guide/2d/grid.md
                         - Marker: use-guide/2d/marker.md
@@ -132,6 +133,7 @@ plugins:
                 - Tech Reports:
                     - Overview: tech-report/index.md
                     - "Downsampling: LTTB & MinMax": tech-report/curve-downsampling.md
+                    - "Pixel Snapping & Dense Curves": tech-report/point-mapper-rounding.md
                     - "Smoothing: Gaussian & Savitzky-Golay": tech-report/curve-smoothing.md
                     - "SIMD argmin/argmax Benchmark": tech-report/simd-argminmax.md
                     - "Raster vs OpenGL Pipelines": tech-report/raster-vs-opengl.md
@@ -176,6 +178,7 @@ plugins:
                     - 核心绘图项:
                         - 曲线图: use-guide/2d/curve.md
                         - 渲染性能与平滑: use-guide/2d/rendering-performance.md
+                        - 像素对齐与密集曲线: use-guide/2d/downsampling-pixel-align.md
                         - 散点图: use-guide/2d/scatter.md
                         - 网格线: use-guide/2d/grid.md
                         - 标记点: use-guide/2d/marker.md
@@ -227,6 +230,7 @@ plugins:
                 - 技术报告:
                     - 总览: tech-report/index.md
                     - "降采样：LTTB 与 MinMax 桶": tech-report/curve-downsampling.md
+                    - "像素吸附与密集曲线阶梯": tech-report/point-mapper-rounding.md
                     - "平滑：高斯与 Savitzky-Golay": tech-report/curve-smoothing.md
                     - "SIMD argmin/argmax 基准": tech-report/simd-argminmax.md
                     - "Raster vs OpenGL 管线": tech-report/raster-vs-opengl.md

@@ -108,6 +108,10 @@ curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);
 
 > 深入了解：算法推导、SIMD 加速与像素级保真度实验见技术报告[《LTTB 降采样算法原理与 QWT7 的 MinMax 桶实现》](../../../tech-report/curve-downsampling.md)。
 
+> **提示 —— 降采样之后仍然有台阶？**
+>
+> 如果密集的抗锯齿曲线在平缓斜边上出现一像素台阶，而同一数据的粗采样版本却平滑，那么原因不是降采样算法，而是顶点像素吸附。参见[《曲线像素对齐：为什么点越多反而越"锯齿"》](downsampling-pixel-align.md)，那里给出了全局开关的一行代码和各算法的注意事项。
+
 ## 3. 渲染平滑：去掉像素级噪声
 
 ### 为什么降采样之后还有毛刺
