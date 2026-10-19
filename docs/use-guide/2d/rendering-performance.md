@@ -108,6 +108,10 @@ When several filter attributes are on at once, the internals resolve them by pri
 
 > Deep dive: algorithm derivation, SIMD acceleration and pixel-level fidelity experiments in the tech report [Downsampling Curves for the Screen: LTTB Theory and the QWT7 MinMax Bucket](../../tech-report/curve-downsampling.md).
 
+> **Tip — Still stepped after downsampling?**
+>
+> If a dense antialiased curve shows a one-pixel staircase on its shallow flanks while a coarser version of the same data looks smooth, the cause is vertex pixel snapping rather than the reduction algorithm. See [Pixel Alignment & Dense Curves](downsampling-pixel-align.md) for the one-line global switch and the per-algorithm guidance.
+
 ## 3. Render Smoothing: Removing Pixel-Level Noise
 
 ### Why downsampling still leaves fuzz

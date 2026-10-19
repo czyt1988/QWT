@@ -37,6 +37,7 @@
 | 报告 | 主题 | 关键源码 | 配套示例 |
 |------|------|----------|----------|
 | [LTTB 降采样算法原理与 QWT7 的 MinMax 桶实现](curve-downsampling.md) | 可视化带宽瓶颈、经典 LTTB 推导、MinMax 桶变体的三条性质、SIMD argmin/argmax、像素级保真度实验 | `src/plot/qwt_point_mapper.cpp`、`src/core/qwt_simd_argminmax.cpp` | `examples/bench/renderbench`、`examples/2D/nanperf` |
+| [曲线管线中的像素吸附：`QwtPointMapper::RoundPoints` 与密集曲线阶梯](point-mapper-rounding.md) | 顶点吸附到设备像素格点的形式化、为何密集抗锯齿曲线退化而稀疏曲线不受影响、逐路径映射器开销与折线几何统计、渲染混合比例实验、AA 感知的对齐规则 | `src/plot/qwt_point_mapper.cpp`、`src/plot/qwt_plot_curve.cpp`、`src/plot/qwt_painter.cpp` | `examples/2D/downsample_demo` |
 | [曲线渲染平滑：高斯卷积、Savitzky-Golay 回归与特征保护](curve-smoothing.md) | 偏差-方差分解、两种滤波核的完整推导（矩条件、噪声增益恒等式）、MAD 特征保护、端到端像素实验 | `src/plot/qwt_curve_smoothing.cpp` | `examples/2D/curvesmoothing` |
 | [SIMD argmin/argmax 向量化基准](simd-argminmax.md) | AVX2 / SSE4.2 / 标量三路运行时派发实测：加速比-数组长度、缓存层级带宽与 roofline、桶大小敏感性与"SIMD 是否划算"的定量判据、三路 NaN 语义差异矩阵 | `src/core/qwt_simd_argminmax.*`、`src/plot/qwt_point_mapper.cpp` | `examples/bench/renderbench` |
 | [Raster 与 OpenGL 渲染管线](raster-vs-opengl.md) | 两条画布管线的帧时间分解（变换/光栅化/合成/blit）、GL canvas 的 QPainter-on-FBO 真实结构、点数×曲线数×画布尺寸矩阵与选型交叉点判据 | `src/plot/qwt_plot_canvas.*`、`src/plot/qwt_plot_opengl_canvas.*` | `examples/2D/refreshtest`、`examples/2D/realtime` |
@@ -86,6 +87,8 @@ python simd_experiment.py            # 读取 simd_bench_results.csv 绘图（ro
 python raster_opengl_experiment.py   # 读取 raster_opengl_results.csv 绘图（帧时间模型）
 python streaming_experiment.py       # 帧预算模型 + 读取 streaming_results.csv 绘图
 python surface3d_experiment.py       # 读取 surface3d_results.csv 绘图（标度拟合）
+python roundpoints_experiment.py      # 由 roundpoints_*.csv 生成像素吸附相关插图
+python roundpoints_render_metrics.py  # 从 downsample_demo 批处理图像计算像素指标
 ```
 
 横向对比那篇读的不是一次性采集的 CSV，它自己会运行程序，因此复现路径是：
@@ -100,4 +103,4 @@ python docs/assets/bench/chartbench_fidelity.py          # 由导出的渲染图
 python docs/assets/bench/chartbench_experiment.py        # 全部插图 + 文中引用的数值
 ```
 
-性能类报告另附 C++ 基准与本机原始数据：`simd_bench.cpp`、`raster_opengl_bench.cpp`、`nan_bench.cpp`、`streaming_bench.cpp`、`surface3d_bench.cpp`（计时）与 `clipper_check.cpp`、`scaleengine_check.cpp`、`surface_export_check.cpp`、`lighting_render_check.cpp`、`boxstats_check.cpp`、`nan_mapper_check.cpp`（正确性交叉验证，不计时）。编译命令写在各 `.cpp` 文件头部注释（MSVC 2019 + Qt 5.15，依赖仓库构建产物）；`*_results.csv` 的 `#` 头注记录了采集机器的硬件、编译配置与计时协议。在另一台机器上复现的路径：重新编译运行 bench 得到新 CSV，再重跑对应 Python 脚本重新生成插图与分析数值；交叉验证 harness 可直接运行比对语义。新增报告的实验脚本也应放入此目录，命名与报告主题对应，并在报告"实验"一节注明脚本名。
+性能类报告另附 C++ 基准与本机原始数据：`simd_bench.cpp`、`raster_opengl_bench.cpp`、`nan_bench.cpp`、`streaming_bench.cpp`、`surface3d_bench.cpp`（计时）、`roundpoints_bench.cpp`、`roundpoints_render_check.cpp`（计时 / 渲染探针）与 `clipper_check.cpp`、`scaleengine_check.cpp`、`surface_export_check.cpp`、`lighting_render_check.cpp`、`boxstats_check.cpp`、`nan_mapper_check.cpp`（正确性交叉验证，不计时）。编译命令写在各 `.cpp` 文件头部注释（MSVC 2019 + Qt 5.15，依赖仓库构建产物）；`*_results.csv` 的 `#` 头注记录了采集机器的硬件、编译配置与计时协议。在另一台机器上复现的路径：重新编译运行 bench 得到新 CSV，再重跑对应 Python 脚本重新生成插图与分析数值；交叉验证 harness 可直接运行比对语义。新增报告的实验脚本也应放入此目录，命名与报告主题对应，并在报告"实验"一节注明脚本名。
