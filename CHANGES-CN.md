@@ -1,3 +1,31 @@
+## tag:v7.5.1 (2026-10-19)
+
+### 新功能
+
+- **自适应列降采样（`QwtPlotCurve::FilterPointsAdaptive`）**
+    - 新增 `QwtPointMapper::AdaptiveColumnReduce` 模式：面向过采样平滑曲线（例如每个峰有大量采样点的光谱）的单遍 O(n) 降采样，所有像素量均按设备像素计算
+    - 密度门限：每个设备像素列不超过 2 个可见样本时按 1:1 映射，放大后总能恢复完整精度
+    - 超过门限时按设备像素列聚类；簇内保留首样本、每个与上一个保留样本的映射 y 相差至少 1 设备像素的样本以及末样本——保持原始顺序与真实亚像素坐标，斜坡仍是斜坡，不会出现逐列 min/max 包络那种 1 像素阶梯
+    - 若某列的保留点数将超过 `4 + 该列 y 跨度（设备像素）`（仅高频噪声会触发），退化为有序的 first/min/max/last 四元组。与原曲线的偏差垂直方向不超过 1 设备像素、水平方向不超过 1 列
+    - 优先级高于所有其他降采样标志；默认绘制属性仍为 `ClipPolygons | FilterPointsLTTB`
+- **新增示例 `examples/2D/downsample_demo`**
+    - 渲染密集与稀疏两条合成光谱曲线，运行时切换降采样算法：none、`FilterPoints`、`FilterPointsAggressive`、`FilterPointsPixel`、`FilterPointsLTTB`、`FilterPointsMinMaxLTTB`、`FilterPointsAdaptive`
+    - `--batch [dir]` 将每种数据集/算法/视图组合离屏渲染为 PNG 并报告映射点数，`--dots` 标出每个保留顶点，`--noround`/`--nosplit` 切换 `QwtPainter::roundingAlignment()`/`polylineSplitting()`，`--dpr` 按指定设备像素比渲染——像素吸附测量的对照工具
+
+### Bug 修复
+
+- 修复 `QwtPointMapper` 的像素量按逻辑像素而非设备像素计算的问题：LTTB/MinMax 降采样的桶数、像素列传的列数以及 `RoundPoints` 的量化步长都忽略了 `devicePixelRatio()`，在 HiDPI 绘制设备上降采样丢失设备分辨率、取整又把折线吸附到 `devicePixelRatio()` 个设备像素的台阶（陡峭曲线段表现为阶梯）。新增 `setDevicePixelRatio()`/`devicePixelRatio()`；`QwtPlotCurve::drawLines()`、`drawDots()`、`drawSymbols()` 传入绘制设备的 `QwtPainter::devicePixelRatio()`，映射坐标仍保持绘制坐标。比值为 1.0 时行为不变（实测逐字节相同的渲染结果）
+
+### 构建
+
+- 修复 MSVC 下 `examples/staticExample` 因“number of sections exceeded object file format limit”构建失败的问题：该目标增加 `/bigobj`
+- 修复 Gitee release 同步工作流：release 事件以 detached HEAD 检出 tag，本地不存在 `master`/`dev`，分支推送报 `src refspec master does not match any`，Gitee release 与合成文件附件都没有创建。现在先物化分支引用，支持带 tag 的手动运行（`workflow_dispatch`），并复用已存在的同 tag release 而不是在创建时失败
+
+### 文档
+
+- **新增技术报告《曲线管线中的像素吸附》（`docs/tech-report/point-mapper-rounding.md`，中英）**：形式化 `QwtPointMapper::RoundPoints`，实测吸附会把平滑密集折线的 99.9 % 变成严格的水平/垂直线段（关闭时为 0 %），并量化渲染图像中的抗锯齿混合比例（密集峰肩 0.547 → 0.284，稀疏峰保持 0.568），同时给出 100 万采样点下各降采样路径的开销
+- **新增使用指南《曲线像素对齐》（`docs/use-guide/2d/downsampling-pixel-align.md`，中英）**：症状、背后的全局开关、屏幕/导出/像素精确渲染各自的一行设置，以及用 `downsample_demo` 复现对比的操作；渲染性能指南已加入链接
+
 ## tag:v7.5.0 (2026-10-14)
 
 ### 新功能

@@ -1,3 +1,31 @@
+## tag:v7.5.1 (2026-10-19)
+
+### New Features
+
+- **Adaptive column-reduce downsampling (`QwtPlotCurve::FilterPointsAdaptive`)**
+    - New `QwtPointMapper::AdaptiveColumnReduce` mode: single pass O(n) reduction for oversampled smooth curves ( f.e. spectra with many samples per peak ), all pixel quantities in device pixels
+    - Density gate: up to 2 visible samples per device pixel column are mapped 1:1, so zooming in restores full fidelity
+    - Above the gate the samples are clustered by device pixel column; inside a cluster the first sample, every sample whose mapped y differs by at least one device pixel from the last kept sample and the last sample are kept - in original order at their real sub pixel coordinates, so ramps stay ramps instead of the one pixel staircase of a per-column min/max envelope
+    - Columns where that selection would exceed `4 + column y span in device pixels` points ( high frequency noise ) fall back to an ordered first/min/max/last quadruple. The deviation from the original curve is bounded by one device pixel vertically and one column horizontally
+    - Takes precedence over all other reduction flags; the default paint attributes stay `ClipPolygons | FilterPointsLTTB`
+- **New example `examples/2D/downsample_demo`**
+    - Renders dense and sparse synthetic spectra and switches the point reduction algorithm at runtime: none, `FilterPoints`, `FilterPointsAggressive`, `FilterPointsPixel`, `FilterPointsLTTB`, `FilterPointsMinMaxLTTB`, `FilterPointsAdaptive`
+    - `--batch [dir]` renders every dataset/algorithm/view combination offscreen and reports the mapped point counts, `--dots` marks every kept vertex, `--noround`/`--nosplit` toggle `QwtPainter::roundingAlignment()`/`polylineSplitting()` and `--dpr` renders at a given device pixel ratio - the controls behind the pixel-snapping measurements
+
+### Bug Fixes
+
+- Fixed `QwtPointMapper` computing its pixel quantities in logical instead of device pixels: the bucket counts of the LTTB/MinMax reductions, the pixel-column bins and the `RoundPoints` quantization step ignored `devicePixelRatio()`, so on high DPI paint devices the reductions lost device resolution and the rounding snapped the polyline to steps of `devicePixelRatio()` device pixels ( visible as stair steps on steep curve segments ). New `setDevicePixelRatio()`/`devicePixelRatio()`; `QwtPlotCurve::drawLines()`, `drawDots()` and `drawSymbols()` pass `QwtPainter::devicePixelRatio()` of the painter device, while the mapped coordinates stay in paint coordinates. Behavior at a ratio of 1.0 is unchanged ( verified byte identical renders )
+
+### Build
+
+- Fixed the MSVC build of `examples/staticExample` failing with "number of sections exceeded object file format limit": the target adds `/bigobj`
+- Fixed the Gitee release sync workflow: a release event checks out the tag in detached HEAD, so no local `master`/`dev` exists and the branch push failed with `src refspec master does not match any`, skipping both the release creation and the amalgamation attachments. The workflow materializes the branch refs first, accepts a manual run with a tag (`workflow_dispatch`) and reuses an existing release for the tag instead of failing on creation
+
+### Documentation
+
+- **New tech report "Pixel Snapping in the Curve Pipeline"** ( `docs/tech-report/point-mapper-rounding.md`, EN/CN ): formalizes `QwtPointMapper::RoundPoints`, shows that snapping turns 99.9 % of a smooth dense polyline into exactly horizontal/vertical segments ( 0 % without it ) and quantifies the antialiasing blend ratio in rendered images ( 0.547 -> 0.284 on the dense peak shoulder, unchanged 0.568 on the sparse one ), together with the per-reduction-path cost on one million samples
+- **New usage guide "Curve Pixel Alignment"** ( `docs/use-guide/2d/downsampling-pixel-align.md`, EN/CN ): the symptom, the global switch behind it, the recommended setting for screen / export / pixel-exact rendering, and the `downsample_demo` controls to reproduce the comparison; linked from the rendering-performance guide
+
 ## tag:v7.5.0 (2026-10-14)
 
 ### New Features
