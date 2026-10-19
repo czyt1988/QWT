@@ -29,11 +29,12 @@ jobs:
         git config --global credential.helper store
         echo "https://${GITEE_USER}:${GITEE_TOKEN}@gitee.com" > ~/.git-credentials
         chmod 600 ~/.git-credentials
-        # a release event checks out the tag in detached HEAD, so the branch refs have to be
-        # materialized before they can be pushed
-        git fetch origin '+refs/heads/master:refs/heads/master' '+refs/heads/dev:refs/heads/dev' '+refs/tags/*:refs/tags/*'
+        # Fetch into remote-tracking refs: on a release event the tag is checked out in
+        # detached HEAD, while workflow_dispatch checks out the branch itself - pushing
+        # refs/remotes/origin/* works in both cases without touching the worktree.
+        git fetch origin '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*'
         git remote add gitee https://gitee.com/czyt1988/QWT.git
-        git push gitee master dev --tags
+        git push gitee refs/remotes/origin/master:refs/heads/master refs/remotes/origin/dev:refs/heads/dev --tags
 
     - name: Create Gitee release
       env:
