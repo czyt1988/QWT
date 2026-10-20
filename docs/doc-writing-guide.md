@@ -1,6 +1,6 @@
 # Qwt Documentation Writing Standards
 
-This guide provides standards for writing Qwt documentation, ensuring consistent style, complete content, and easy readability.
+This guide defines how Qwt documentation is written: what each page should contain, which Markdown subset to use, and which habits to avoid.
 
 The project documentation is built with MkDocs, using the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/getting-started/) theme. The Markdown sources, however, must stay **platform-generic**: the same file has to render correctly on the MkDocs site and on other platforms such as GitHub and GitLab. Write only syntax that plain Markdown and GitHub-Flavored Markdown support, and avoid renderer-specific extensions.
 
@@ -64,12 +64,12 @@ The skeleton below shows the required heading order; add deeper levels only when
 
 ### 2. Required Sections
 
-Each feature document must include the following sections:
+Each feature document uses the following sections:
 
 | Section | Required | Description |
 |------|----------|------|
-| Feature Overview | Required | A one-sentence description of the class's purpose and features at the beginning |
-| Key Features | Required | List core features, marked with ✅ |
+| Feature Overview | Required | One or two paragraphs on what the class does and when to use it |
+| Key Features | Optional | Plain bullets, or prose when there are only a few points; no emoji, no bold labels |
 | Usage | Required | Detailed usage steps and code examples |
 | Notes | Recommended | Use blockquote callouts to highlight important information |
 | References | Optional | Related documentation and example path links |
@@ -85,14 +85,18 @@ Each feature document must include the following sections:
 
 ### 2. Feature Introduction Format
 
-Use feature list format, with each feature prefixed by a ✅ mark:
+Describe features in plain sentences. A short bullet list is fine when the items are parallel and easy to scan, but keep it plain: no emoji, no bold labels, and no repeated "**Feature Name**: description" template.
 
 ```markdown
-**Features**
+QwtPlotCurve supports line, step, stick and dot styles. Symbols can be drawn at
+each sample, and the area between the curve and a baseline can be filled.
 
-- ✅ **Feature Name**: Brief description
-- ✅ **Another Feature**: Brief description
+- Line, step, stick and dot drawing modes
+- Symbols at data points
+- Optional fill between the curve and a baseline
 ```
+
+If there are only two or three items, write a sentence instead of a list.
 
 ### 3. Code Example Standards
 
@@ -173,10 +177,9 @@ Label vocabulary:
 | `Warning` | Caveats that produce wrong or blank plots |
 | `Example` | Example code path or demonstration snippet |
 | `Bug` | Known defects and workarounds |
-| `Success` | New features and improvements |
 | `Abstract` | Executive summary of a long article |
 
-Chinese documents use the same form with the labels 说明 / 信息 / 提示 / 警告 / 示例 / 已知问题 / 亮点 / 摘要.
+Chinese documents use the same form with the labels 说明 / 信息 / 提示 / 警告 / 示例 / 已知问题 / 摘要. Do not add a label when the quoted text is self-explanatory; a plain blockquote is enough.
 
 ### 6. Property/Method Description Format
 
@@ -254,10 +257,22 @@ The box chart example is located in: `examples/2D/boxchart`. Screenshot below:
 ### 1. Language Style
 
 - Use **English as the primary language**; technical terms can remain in their original form
-- Avoid colloquial expressions; use formal written language
+- Use plain technical English; avoid conversational filler and slang
 - Reduce passive voice; use active voice: "You can set..." rather than "It can be set..."
 
-### 2. Terminology Standards
+### 2. Prose Style
+
+Write documentation the way an engineer explains code to a colleague. The subject of a sentence should be the class, the function or the behavior, not the page itself.
+
+- Do not open with "This article provides..." or "This page covers...". Start with the subject.
+- Do not use "not just X, but Y", "it is not X, it is Y", or three-part parallel constructions as rhetorical devices.
+- Avoid promotional adjectives: powerful, comprehensive, robust, seamless, elegant, effortless, cutting-edge. Describe what the code does and let measurements carry the argument.
+- Do not bold every technical term. Bold is reserved for callout labels and warnings; ordinary emphasis comes from sentence position.
+- Do not add a closing summary that repeats the introduction. End when the content ends, or summarize only decisions the reader must act on.
+- Do not use emoji (✅, 🚀, 💡, ⚠️ and similar) in prose or lists.
+- Use em dashes sparingly. A colon, comma or full stop is usually clearer.
+
+### 3. Terminology Standards
 
 | English Term | Description |
 |----------|------|
@@ -266,7 +281,7 @@ The box chart example is located in: `examples/2D/boxchart`. Screenshot below:
 | Outlier | Data points outside the normal range |
 | Whisker | Extension lines of a box chart |
 
-### 3. Code Style
+### 4. Code Style
 
 - Use full class paths: `QwtPlotBoxChart`
 - Use code format for method names: `setBoxStyle()`
@@ -278,7 +293,7 @@ The box chart example is located in: `examples/2D/boxchart`. Screenshot below:
 1. **Gather information**: Read class header files, example code, and related documentation
 2. **Determine structure**: Plan the document framework according to the required sections
 3. **Write content**:
-   - Start with the feature overview and feature list
+   - Start with the feature overview, then describe the features in plain prose or a short plain list
    - Then write the usage section, with text descriptions accompanying each code block
    - Add notes and references
 4. **Add diagrams**: Draw class diagrams, flowcharts, and structural diagrams
@@ -291,14 +306,12 @@ The template assembles every rule on this page into one copy-pasteable page skel
 ```markdown
 # Feature Name Guide
 
-A one-sentence description of the class's purpose and features.
+A one- or two-sentence description of the class's purpose and when to use it.
 
 ## Key Features
 
-**Features**
-
-- ✅ **Feature 1**: Description
-- ✅ **Feature 2**: Description
+- Feature 1
+- Feature 2
 
 ## Basic Concepts
 
