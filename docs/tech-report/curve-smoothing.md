@@ -1,12 +1,12 @@
 # Curve Rendering, Denoised: Gaussian Convolution, Savitzky-Golay Regression and Feature Preservation
 
-> **Abstract** — Downsampling solves "too many points to draw"; smoothing solves "it still looks like noise". The conclusion of the companion article becomes the premise here: the MinMax bucket reduction **deliberately keeps the extremes of every bucket**, so the extremes of random jitter survive as well — measured on a 100,000-sample spectrum (900×500 canvas) the noise band of the reduced polyline is on average 65 pixel rows thick. The render smoothing introduced in v7.4.2 applies a low-pass filter directly to the polyline in the paint pipeline: **Gaussian weighted convolution** and **Savitzky-Golay local polynomial regression**, both touching only the $y$ coordinates and never the sample data. This article derives the mathematical structure of both kernels from the bias-variance decomposition — including the Savitzky-Golay moment conditions, the parity argument that makes order 2 and order 3 identical, and the identity "the noise gain equals the centre coefficient" — and then dissects the third piece, **feature preservation**: a wide baseline, a MAD (median absolute deviation) noise estimate and a soft-threshold blend restore peaks and dips to their original position and height. All properties come with numerical experiments and complete code.
+> **Abstract** — Downsampling solves "too many points to draw"; smoothing solves "it still looks like noise". The MinMax bucket keeps the extremes of every bucket, so the extremes of random jitter survive as well: on a 100,000-sample spectrum drawn on a 900×500 canvas, the reduced polyline still has a noise band about 65 pixel rows thick. The render smoothing added in v7.4.2 applies a low-pass filter to the polyline in the paint pipeline, using either Gaussian weighted convolution or Savitzky-Golay local polynomial regression. Both change only the $y$ coordinates and never touch the sample data. The derivation starts from the bias-variance decomposition and covers the Savitzky-Golay moment conditions, the parity argument that makes order 2 and order 3 identical, and the identity that the noise gain equals the centre coefficient. Feature preservation is the third piece: a wide baseline, a MAD (median absolute deviation) noise estimate and a soft-threshold blend restore peaks and dips to their original position and height. Numerical experiments and complete code accompany the properties.
 
 > **Abstract — Key results**
 >
 > - The Gaussian kernel ($\sigma = w/4$) suppresses noise best (residual noise 28.6% of the input at $w=15$), but its peak attenuation has a closed form $b/\sqrt{b^2+\sigma^2}$: a kernel with $\sigma=3.75$ cuts a peak of width $b=3$ by 35% of its height
-> - The Savitzky-Golay kernel is the convolution form of a local polynomial least-squares fit: any polynomial of degree $\le p$ passes undistorted (polynomial reproduction theorem), so peak shapes survive — at the cost of about 36% more residual noise than the Gaussian at the same window ($\sqrt{g}=0.389$ vs $0.287$)
-> - Feature preservation turns "linear, indiscriminate attenuation" into "nonlinear, selective restoration": at the default $\tau=3$, the top row of a narrow peak and the bottom row of a deep dip stay **row-identical** to the unsmoothed rendering, while the noise band collapses from 65.4 px to 6.1 px (Gaussian + LTTB, 900×500 canvas, measured)
+> - The Savitzky-Golay kernel is the convolution form of a local polynomial least-squares fit: any polynomial of degree $\le p$ passes undistorted (polynomial reproduction theorem), so peak shapes survive, at the cost of about 36% more residual noise than the Gaussian at the same window ($\sqrt{g}=0.389$ vs $0.287$)
+> - Feature preservation makes attenuation selective instead of indiscriminate: at the default $\tau=3$, the top row of a narrow peak and the bottom row of a deep dip stay row-identical to the unsmoothed rendering, while the noise band collapses from 65.4 px to 6.1 px (Gaussian + LTTB, 900×500 canvas, measured)
 
 ---
 
@@ -14,16 +14,16 @@
 
 Proposition 1 of the companion article (global extreme preservation) yields an immediate, counter-intuitive corollary:
 
-**Corollary (noise survival)** If the input contains random jitter, the jitter almost surely produces extremes in every bucket; the MinMax bucket keeps every bucket extreme ⇒ **the noise extremes survive intact**. The reduced polyline is not "cleaner" — it is "fewer points, same fuzz".
+**Corollary (noise survival)** If the input contains random jitter, the jitter almost surely produces extremes in every bucket; the MinMax bucket keeps every bucket extreme ⇒ the noise extremes survive intact. The reduced polyline is no cleaner than the input: it has fewer points and the same fuzz.
 
-Measured (the same 100,000-sample spectrum as in the companion article, 900×500 canvas, MinMax reduction): the mean column-envelope thickness of the polyline is **65.4 pixel rows** — stroked with a 1 px pen, a 60-row-wide fuzzy band.
+Measured (the same 100,000-sample spectrum as in the companion article, 900×500 canvas, MinMax reduction): the mean column-envelope thickness of the polyline is 65.4 pixel rows; stroked with a 1 px pen, that is a 60-row-wide fuzzy band.
 
 Why not smooth the data instead?
 
-1. **The data is an asset.** Samples are used for analysis, export and other tools; render smoothing removes the fuzz but leaves `data()` untouched.
-2. **Render-layer smoothing is zoom-invariant.** It operates on the per-frame polyline, so the window counts *rendered points*; zooming in just spreads those points over more pixels, keeping the visual amount of smoothing constant (Section 6). A fixed-window filter on the data layer would smooth more aggressively when you zoom in.
+1. The data is an asset. Samples are used for analysis, export and other tools; render smoothing removes the fuzz but leaves `data()` untouched.
+2. Render-layer smoothing is zoom-invariant. It operates on the per-frame polyline, so the window counts *rendered points*; zooming in just spreads those points over more pixels, keeping the visual amount of smoothing constant (Section 6). A fixed-window filter on the data layer would smooth more aggressively when you zoom in.
 
-`Fitted` does not help either: it is *interpolation* (a spline through every point), and interpolation reproduces noise exactly instead of filtering it. What is needed is a **low-pass filter**.
+`Fitted` does not help either: it is *interpolation* (a spline through every point), and interpolation reproduces noise exactly instead of filtering it. What is needed is a low-pass filter.
 
 ## 2. Formalizing the problem
 
@@ -41,14 +41,14 @@ $$
 \mathbb{E}\left[ (\hat{f} - f)^2 \right] = \underbrace{\left( \mathbb{E}[\hat{f}] - f \right)^2}_{\text{bias}^2} + \underbrace{\operatorname{Var}[\hat{f}]}_{\text{variance}}
 $$
 
-- **Bias** comes from over-smoothing: peaks shrink, shapes round off — irreversible data distortion;
-- **Variance** comes from under-smoothing: residual noise — the visible fuzz.
+- Bias comes from over-smoothing: peaks shrink and shapes round off, which is irreversible data distortion;
+- Variance comes from under-smoothing: residual noise, the visible fuzz.
 
-The two kernels pick opposite points on this trade-off: the Gaussian minimizes variance (more bias), Savitzky-Golay minimizes bias (more variance). Feature preservation (Section 5) tries to minimize **both simultaneously**: the low-variance estimate in the noise regions, the zero-bias estimate in the feature regions.
+The two kernels pick opposite points on this trade-off: the Gaussian minimizes variance (more bias), Savitzky-Golay minimizes bias (more variance). Feature preservation (Section 5) tries to minimize both simultaneously: the low-variance estimate in the noise regions, the zero-bias estimate in the feature regions.
 
 ### 2.2 Linear shift-invariant filters
 
-Both kernels are **linear shift-invariant** (LSI) filters; the output is a convolution:
+Both kernels are linear shift-invariant (LSI) filters; the output is a convolution:
 
 $$
 \hat{f}_i = \sum_{j=-m}^{m} c_j\, \hat{y}_{i+j}, \qquad m = \frac{w-1}{2}
@@ -56,19 +56,19 @@ $$
 
 with odd window $w$. Two basic constraints:
 
-1. **Unity DC gain** (a constant signal stays constant): $\sum_j c_j = 1$;
-2. **Zero phase** (no horizontal shift): the kernel is symmetric, $c_{-j} = c_j$.
+1. Unity DC gain (a constant signal stays constant): $\sum_j c_j = 1$;
+2. Zero phase (no horizontal shift): the kernel is symmetric, $c_{-j} = c_j$.
 
-Zero phase means the frequency response is real and even: $H(\omega) = c_0 + 2\sum_{j=1}^m c_j \cos(j\omega)$. There is no phase distortion — a peak can only be attenuated *in place*, never displaced.
+Zero phase means the frequency response is real and even: $H(\omega) = c_0 + 2\sum_{j=1}^m c_j \cos(j\omega)$. There is no phase distortion: a peak can only be attenuated *in place*, never displaced.
 
 ### 2.3 Frequency-domain view
 
 A low-pass filter is characterized by its frequency response. Two scalar summary statistics are used throughout:
 
-- **Noise gain** $g = \sum_j c_j^2$: after filtering, the variance of white noise is $\sigma^2 g$ (direct computation of $\operatorname{Var}\sum c_j \varepsilon_j$ under the i.i.d. assumption). The residual standard ratio $\sqrt{g}$ quantifies noise suppression;
-- **-3 dB cutoff frequency**: $|H(f_c)| = 1/\sqrt{2}$.
+- Noise gain $g = \sum_j c_j^2$: after filtering, the variance of white noise is $\sigma^2 g$ (direct computation of $\operatorname{Var}\sum c_j \varepsilon_j$ under the i.i.d. assumption). The residual standard ratio $\sqrt{g}$ quantifies noise suppression;
+- -3 dB cutoff frequency: $|H(f_c)| = 1/\sqrt{2}$.
 
-They are two sides of the same coin: an earlier cutoff implies a smaller noise gain.
+The two are linked: an earlier cutoff implies a smaller noise gain.
 
 ## 3. Gaussian kernel smoothing (GaussianSmoothing)
 
@@ -82,7 +82,7 @@ c_j = \frac{e^{-j^2 / 2\sigma^2}}{\sum_{k=-m}^{m} e^{-k^2 / 2\sigma^2}}, \qquad
 \sigma = \max\left(1,\ \frac{w}{4}\right)
 $$
 
-The denominator normalizes the DC gain to 1. The window choice $w = 4\sigma$ spans $\pm 2\sigma$ — the Gaussian body (95.4% of the mass) — so truncation error is negligible.
+The denominator normalizes the DC gain to 1. The window choice $w = 4\sigma$ spans $\pm 2\sigma$, the Gaussian body (95.4% of the mass), so truncation error is negligible.
 
 ### 3.2 Frequency-domain properties
 
@@ -98,7 +98,7 @@ $$
 f_c = \frac{\sqrt{\ln 2}}{2\pi \sigma} \approx \frac{0.1325}{\sigma}
 $$
 
-Measured on the discrete kernel (Section 7): at $w=15$ ($\sigma=3.75$), $f_c = 0.0394$ cycles/point, close to the closed form 0.0353 (truncation pushes the cutoff slightly up). **Why this matters**: with one polyline point per pixel column, $f_c = 0.0394$ means structure with periods shorter than about 25 columns gets thinned — the quantitative source of "Gaussian smoothing rounds off narrow peaks".
+Measured on the discrete kernel (Section 7): at $w=15$ ($\sigma=3.75$), $f_c = 0.0394$ cycles/point, close to the closed form 0.0353 (truncation pushes the cutoff slightly up). With one polyline point per pixel column, $f_c = 0.0394$ means structure with periods shorter than about 25 columns gets thinned, which is the quantitative source of "Gaussian smoothing rounds off narrow peaks".
 
 ### 3.3 The peak attenuation theorem: a closed form
 
@@ -129,7 +129,7 @@ Numbers ($w = 15$, $\sigma = 3.75$):
 | 8 | 0.923 | 0.905 | 0.993 | 1.000 |
 | 12 | 0.964 | 0.954 | 0.999 | 1.000 |
 
-Narrow features 1–3 points wide — exactly the "features" Section 5 must protect — lose 35% to 73% of their height under the Gaussian kernel. **Without protection, narrow peaks do not merely round off; they visibly shrink.**
+Narrow features 1–3 points wide, exactly the "features" Section 5 must protect, lose 35% to 73% of their height under the Gaussian kernel. Without protection, narrow peaks visibly shrink as well as round off.
 
 ### 3.4 The scale-space interpretation
 
@@ -139,7 +139,7 @@ $$
 \frac{\partial u}{\partial s} = \frac{1}{2}\frac{\partial^2 u}{\partial t^2}, \qquad u(t, 0) = f(t)
 $$
 
-then $u(t, s) = f * G_{\sqrt{s}}(t)$ — convolving with a Gaussian of standard deviation $\sqrt{s}$ is exactly "evolving the signal to scale $s$". This identifies Gaussian smoothing as a **scale-space filter**, the 1-D cousin of the Gaussian pyramids and edge-detection scale space of image processing. The choice $\sigma = w/4$ simply fixes an evolution time.
+then $u(t, s) = f * G_{\sqrt{s}}(t)$: convolving with a Gaussian of standard deviation $\sqrt{s}$ is exactly "evolving the signal to scale $s$". This identifies Gaussian smoothing as a scale-space filter, the 1-D counterpart of the Gaussian pyramids and edge-detection scale space of image processing. The choice $\sigma = w/4$ simply fixes an evolution time.
 
 ### 3.5 Boundary handling: mirror extension
 
@@ -150,7 +150,7 @@ i < \text{lo} \Rightarrow i' = 2\cdot\text{lo} - i, \qquad
 i \ge \text{hi} \Rightarrow i' = 2(\text{hi}-1) - i
 $$
 
-i.e. an **even extension** about the boundary sample itself ($y_{-k} = y_k$, no duplicated boundary point). An even extension has zero derivative at the boundary (Neumann condition), so the smoothed polyline keeps a horizontal tangent at the ends — no step artifact. Non-finite samples split the polyline into segments (`qwtConvolvePolyline`), each convolved independently; segments shorter than the kernel pass through untouched, so small fragments are not distorted.
+i.e. an even extension about the boundary sample itself ($y_{-k} = y_k$, no duplicated boundary point). An even extension has zero derivative at the boundary (Neumann condition), so the smoothed polyline keeps a horizontal tangent at the ends, with no step artifact. Non-finite samples split the polyline into segments (`qwtConvolvePolyline`), each convolved independently; segments shorter than the kernel pass through untouched, so small fragments are not distorted.
 
 ### 3.6 Cost
 
@@ -160,7 +160,7 @@ Direct convolution is $O(n \cdot w)$. The Gaussian has no prefix-sum shortcut (u
 
 ### 4.1 History and intuition
 
-Savitzky and Golay (1964, *Analytical Chemistry*) introduced "smoothing by simplified least squares procedures" — the classic tool of spectroscopy. **The key insight**: for every window, fit a polynomial of degree $p$ to the $w$ points by least squares, and take the polynomial's value *at the window centre* as the output. The fit is linear ⇒ the whole operation is equivalent to a convolution with a fixed kernel, whose coefficients only depend on $(w, p)$ — they can be precomputed once.
+Savitzky and Golay (1964, *Analytical Chemistry*) introduced "smoothing by simplified least squares procedures", the classic tool of spectroscopy. The idea is to fit a polynomial of degree $p$ to the $w$ points of every window by least squares, and take the polynomial's value *at the window centre* as the output. The fit is linear ⇒ the whole operation is equivalent to a convolution with a fixed kernel, whose coefficients only depend on $(w, p)$: they can be precomputed once.
 
 ### 4.2 Derivation: from least squares to the convolution kernel
 
@@ -194,7 +194,7 @@ $$
 \mathbf{c}^\top = \mathbf{e}_1^\top (V^\top V)^{-1} V^\top
 $$
 
-**Conclusion: SG smoothing is a convolution with the kernel $\mathbf{c}$**, which depends only on $(w, p)$.
+SG smoothing is therefore a convolution with the kernel $\mathbf{c}$, which depends only on $(w, p)$.
 
 The QWT7 implementation (`qwtSavitzkyGolayKernel`) works with the *moment form* of the normal equations. Define the window moments
 
@@ -210,9 +210,9 @@ $$
 
 ### 4.3 Moment conditions: the parity argument and $p=2 = p=3$
 
-The odd moments of a symmetric window vanish: $\mu_1 = \mu_3 = \cdots = 0$. Hence $V^\top V$ block-decouples into even and odd coefficient blocks; the right-hand side $\mathbf{e}_1$ lives entirely in the even block, so all odd coefficients of $\mathbf{a}$ are zero: **SG kernels are always even** (zero phase).
+The odd moments of a symmetric window vanish: $\mu_1 = \mu_3 = \cdots = 0$. Hence $V^\top V$ block-decouples into even and odd coefficient blocks; the right-hand side $\mathbf{e}_1$ lives entirely in the even block, so all odd coefficients of $\mathbf{a}$ are zero: SG kernels are always even (zero phase).
 
-A beautiful corollary: **order 2 and order 3 produce the identical kernel** (for $w \ge 5$) — the cubic coefficient is zero, the extra degree of freedom is never used. Verified coefficient-by-coefficient at $w = 9$ in the experiment suite. Likewise orders 0 and 1 both give the moving average kernel (the linear term vanishes at the centre evaluation).
+Another corollary: order 2 and order 3 produce the identical kernel (for $w \ge 5$); the cubic coefficient is zero, so the extra degree of freedom is never used. Verified coefficient-by-coefficient at $w = 9$ in the experiment suite. Likewise orders 0 and 1 both give the moving average kernel (the linear term vanishes at the centre evaluation).
 
 **Explicit kernel** ($w=5$, $p=2$): moments $\mu_0=5,\ \mu_2=10,\ \mu_4=34$; the normal equations
 
@@ -228,7 +228,7 @@ $$
 \mathbf{c} = \frac{1}{35}\,(-3,\ 12,\ 17,\ 12,\ -3)
 $$
 
-— the famous $[-3,12,17,12,-3]/35$ smoothing kernel of the literature. For general windows the kernel is computed by solving the moment equations numerically ($O(p^3)$ Gaussian elimination, negligible for $p \ll w$).
+This is the $[-3,12,17,12,-3]/35$ smoothing kernel that appears throughout the literature. For general windows the kernel is computed by solving the moment equations numerically ($O(p^3)$ Gaussian elimination, negligible for $p \ll w$).
 
 ### 4.4 The polynomial reproduction theorem
 
@@ -242,11 +242,11 @@ $$
 f(t) \approx f(0) + \frac{f''(0)}{2} t^2
 $$
 
-Hence **SG($p=2$) passes the local shape of a peak undistorated** — the reason it outperforms the Gaussian at peak-keeping (Section 3.3's table: at $w=15$ a 3-point peak loses 35% under the Gaussian, only 15% under SG, and almost nothing at order 4).
+Hence SG($p=2$) passes the local shape of a peak undistorted, which is why it outperforms the Gaussian at peak-keeping (Section 3.3's table: at $w=15$ a 3-point peak loses 35% under the Gaussian, only 15% under SG, and almost nothing at order 4).
 
 ### 4.5 The noise gain identity
 
-The SG noise gain has an elegant closed form:
+The SG noise gain has a closed form:
 
 **Proposition** For any SG kernel, $\sum_j c_j^2 = c_0$ (the sum of the squared coefficients equals the centre coefficient).
 
@@ -260,7 +260,7 @@ $$
 
 where the middle step uses $(V^\top V)^{-1} V^\top V = I$. $\square$
 
-Numerically verified (experiments): $w=5$: $0.485714 = 17/35$; $w=15, p=2$: $c_0 = 0.151131$. Hence the residual noise is $\operatorname{Var}(\hat f) = c_0 \sigma^2$ — **the centre coefficient of an SG kernel tells you how much noise remains**.
+Numerically verified (experiments): $w=5$: $0.485714 = 17/35$; $w=15, p=2$: $c_0 = 0.151131$. Hence the residual noise is $\operatorname{Var}(\hat f) = c_0 \sigma^2$: the centre coefficient of an SG kernel gives the fraction of noise that remains.
 
 ### 4.6 Frequency response and low-frequency flatness
 
@@ -277,7 +277,7 @@ $$
 H(\omega) = 1 - \frac{\nu_{p+2}}{(p+2)!}\,\omega^{p+2} + O(\omega^{p+4})
 $$
 
-i.e. **the SG response is flat to order $p+1$ at low frequencies** — the frequency-domain incarnation of polynomial reproduction: trends and wide features pass losslessly until the $\omega^{p+2}$ term kicks in.
+i.e. the SG response is flat to order $p+1$ at low frequencies, the frequency-domain form of polynomial reproduction: trends and wide features pass losslessly until the $\omega^{p+2}$ term becomes significant.
 
 Quantitative comparison of the three filters at $w = 15$ (measured):
 
@@ -294,11 +294,11 @@ Quantitative comparison of the three filters at $w = 15$ (measured):
 
 ![Residual noise vs window size: theory curves and Monte Carlo points coincide](../assets/algorithms/fig_smooth_noisegain.png)
 
-**Conclusion**: at the same window, the SG cutoff is nearly twice as high as the Gaussian's — it keeps more high-frequency content (peak shape) at the price of ~36% more residual noise. Increasing the window recovers the noise suppression ($w=31$: SG $\sqrt{g} = 0.270$).
+At the same window, the SG cutoff is nearly twice as high as the Gaussian's: it keeps more high-frequency content (peak shape) at the price of ~36% more residual noise. Increasing the window recovers the noise suppression ($w=31$: SG $\sqrt{g} = 0.270$).
 
 ## 5. Feature preservation: the nonlinear post-processing
 
-Every linear low-pass filter attenuates features narrower than its window (the attenuation formula of Section 3.3 is its fixed toll). Feature preservation (`setSmoothPreserveThreshold()`, on by default) is a **nonlinear post-processing step**: it identifies the peaks that were flattened and the dips that were filled in, and restores them to their original position and height.
+Every linear low-pass filter attenuates features narrower than its window; the attenuation formula of Section 3.3 is the fixed price. Feature preservation (`setSmoothPreserveThreshold()`, on by default) is a nonlinear post-processing step: it identifies the peaks that were flattened and the dips that were filled in, and restores them to their original position and height.
 
 ### 5.1 The algorithm
 
@@ -317,17 +317,17 @@ flowchart TD
     style D fill:#fff3e0,stroke:#ff9800
 ```
 
-**Baseline.** Two consecutive box (moving average) passes over the polyline — an approximation of a Gaussian kernel, computable in $O(n)$ with prefix sums — with a window $w_b = \max(61, 6w)$ (the code rounds it up to an odd value, $6w+1$ for $w \ge 11$) wide enough to follow the overall shape (the slow envelope) but not the narrow features. Mathematically the baseline is the convolution of the signal with a triangular (Bartlett) kernel.
+The baseline is two consecutive box (moving average) passes over the polyline, an approximation of a Gaussian kernel computable in $O(n)$ with prefix sums. Its window $w_b = \max(61, 6w)$ (the code rounds it up to an odd value, $6w+1$ for $w \ge 11$) is wide enough to follow the overall shape (the slow envelope) but not the narrow features. Mathematically the baseline is the convolution of the signal with a triangular (Bartlett) kernel.
 
-**Noise scale: MAD.** The **median** of the absolute residuals:
+The noise scale is the median absolute deviation (MAD), computed as the median of the absolute residuals:
 
 $$
 \hat{\sigma} = \operatorname*{median}_i \left| y_i - B_i \right|
 $$
 
-The median makes the estimate robust: spikes occupying less than half of the points cannot influence it at all — exactly the "how wide is the noise band" measure we want. For pure Gaussian noise, $\operatorname{median}|\varepsilon| = 0.6745\sigma$, so a threshold $\tau \hat{\sigma}$ corresponds to about $0.6745\tau\sigma$. The default $\tau = 3$ is about $2.02\sigma$: under the pure-noise null hypothesis, only ~4.3% of the points exceed the threshold and would be misclassified as features.
+The median makes the estimate robust: spikes occupying less than half of the points cannot influence it at all, which is exactly the "how wide is the noise band" measure we want. For pure Gaussian noise, $\operatorname{median}|\varepsilon| = 0.6745\sigma$, so a threshold $\tau \hat{\sigma}$ corresponds to about $0.6745\tau\sigma$. The default $\tau = 3$ is about $2.02\sigma$: under the pure-noise null hypothesis, only ~4.3% of the points exceed the threshold and would be misclassified as features.
 
-**Soft-threshold blend.** For every point:
+The soft-threshold blend assigns every point a weight:
 
 $$
 w_i = \begin{cases}
@@ -339,18 +339,18 @@ w_i = \begin{cases}
 \tilde{y}_i = \hat{y}_i + w_i\,(y_i - \hat{y}_i)
 $$
 
-- $w_i = 0$: a noise point — take the smoothed value (lowest variance);
-- $w_i = 1$: a feature core point — **restore the original value fully** (zero bias);
+- $w_i = 0$: a noise point, so take the smoothed value (lowest variance);
+- $w_i = 1$: a feature core point, so restore the original value fully (zero bias);
 - $0 < w_i < 1$: a blend zone that keeps the transition continuous and free of steps.
 
 ![The feature-preservation pipeline in four panels: signal and baseline, residual with thresholds, weights, result](../assets/algorithms/fig_smooth_preserve.png)
 
 ### 5.2 Mathematical nature
 
-1. **Continuous but piecewise-linear in $|d_i|$**: the output is continuous in the input, while the behaviour on the two sides of the threshold differs deliberately — the amplitude threshold separates "fluctuations hidden in noise" from "structure several noise scales above it".
-2. **A shrinkage estimator**: $\tilde{y}_i$ is a convex combination of $\hat{y}_i$ and $y_i$, with the shrinkage decreasing monotonically in $|d_i|$. Conceptually it belongs to the family of Donoho's wavelet soft-thresholding and Huber-style robust regression — "the amount of deviation decides how much you trust the point".
-3. **Relation to median / bilateral filters**: pixel-domain denoising typically uses median filters or bilateral filters (spatial proximity + range similarity). Here "range similarity" is replaced by an explicit deviation from a wide baseline; the price is one $O(n)$ baseline computation, the gain is **exact restoration** of features instead of approximate preservation.
-4. **The factor 1.2 is a soft edge**: the upper end of the blend zone is $1.2\tau\hat{\sigma}$ (`qwt_curve_smoothing.cpp`) — the blend width scales with the threshold itself, so larger thresholds blend over more samples and cannot create isolated discontinuities.
+1. Continuous but piecewise-linear in $|d_i|$: the output is continuous in the input, while the behaviour on the two sides of the threshold differs deliberately. The amplitude threshold separates "fluctuations hidden in noise" from "structure several noise scales above it".
+2. A shrinkage estimator: $\tilde{y}_i$ is a convex combination of $\hat{y}_i$ and $y_i$, with the shrinkage decreasing monotonically in $|d_i|$. Conceptually it belongs to the family of Donoho's wavelet soft-thresholding and Huber-style robust regression: the amount of deviation decides how much the point is trusted.
+3. Relation to median and bilateral filters: pixel-domain denoising typically uses median filters or bilateral filters (spatial proximity plus range similarity). Here "range similarity" is replaced by an explicit deviation from a wide baseline; the price is one $O(n)$ baseline computation, the gain is exact restoration of features instead of approximate preservation.
+4. The factor 1.2 is a soft edge: the upper end of the blend zone is $1.2\tau\hat{\sigma}$ (`qwt_curve_smoothing.cpp`), and the blend width scales with the threshold itself, so larger thresholds blend over more samples and cannot create isolated discontinuities.
 
 ### 5.3 Parameter semantics and failure modes
 
@@ -361,7 +361,7 @@ $$
 | 3 (default) | everything above about $2\sigma$ is preserved; the noise band collapses to a thin line |
 | 6 | medium spikes are absorbed into the smoothing; shallow features begin to flatten |
 
-Failure modes: ① if the noise scale is underestimated (e.g. correlated rather than i.i.d. noise), `median|d|` is too small ⇒ the threshold is too low ⇒ noise points get "restored", and the protection fails; ② a **true bump wider than the baseline window** $w_b$ (a slow hump) is followed by the baseline, hence not flagged as a feature and gets smoothed — by design ("what the baseline follows is background"), but worth knowing; ③ adjacent points in the blend zone get slightly different weights, which can create a barely visible ripple (in the measurements the blend zone involves only ~1–2% of the points).
+Failure modes: ① if the noise scale is underestimated (e.g. correlated rather than i.i.d. noise), `median|d|` is too small ⇒ the threshold is too low ⇒ noise points get "restored", and the protection fails; ② a true bump wider than the baseline window $w_b$ (a slow hump) is followed by the baseline, hence not flagged as a feature and gets smoothed. That is by design ("what the baseline follows is background"), though users should know it; ③ adjacent points in the blend zone get slightly different weights, which can create a barely visible ripple (in the measurements the blend zone involves only ~1–2% of the points).
 
 ## 6. Position and order in the paint pipeline
 
@@ -378,11 +378,11 @@ flowchart LR
 
 Three design decisions and their reasons:
 
-**1. After the downsampling.** The smoothing input is the reduced polyline (≈ 4W points), not the raw data. This makes the window count *rendered points*, which yields an elegant property: **zoom invariance**. Under a zoom factor $\alpha$, the polyline grows by $\alpha$ points and the window covers $\alpha$ times less $x$-span — $\sigma = w/4$ is constant in *screen space*, so "how much smoothing" does not change while zooming. A data-domain filter would flatten features more aggressively the more you zoom in.
+1. After the downsampling. The smoothing input is the reduced polyline (≈ 4W points), not the raw data. This makes the window count *rendered points*, which gives zoom invariance. Under a zoom factor $\alpha$, the polyline grows by $\alpha$ points and the window covers $\alpha$ times less $x$-span, so $\sigma = w/4$ is constant in *screen space* and "how much smoothing" does not change while zooming. A data-domain filter would flatten features more aggressively the more you zoom in.
 
-**2. Only $y$ is modified.** The convolution acts on the values; the $x$ coordinates are copied verbatim. Every feature keeps its horizontal position pixel-exact — peaks never drift sideways — and horizontal smoothing cannot fold the polyline back on itself.
+2. Only $y$ is modified. The convolution acts on the values; the $x$ coordinates are copied verbatim. Every feature keeps its horizontal position pixel-exact, peaks never drift sideways, and horizontal smoothing cannot fold the polyline back on itself.
 
-**3. Before the curve fitter.** The `Fitted` spline receives an already de-noised polyline; interpolation no longer amplifies the noise (interpolation reproduces it, see Section 1). Both settings compose.
+3. Before the curve fitter. The `Fitted` spline receives an already de-noised polyline; interpolation no longer amplifies the noise (interpolation reproduces it, see Section 1). Both settings compose.
 
 Like the downsampling stage, the smoothing is stateless and reentrant: polylines can be painted from several threads (`QwtPlotDirectPainter`, background printing) without synchronization.
 
@@ -390,7 +390,7 @@ Like the downsampling stage, the smoothing is stateless and reentrant: polylines
 
 ### 7.1 End-to-end measurement
 
-Using the same generator as `examples/2D/curvesmoothing` (100,000 samples: slow envelope, humps, three narrow peaks, $\sigma=0.15$ white jitter, 1% upward spikes, 0.8% dropouts, one deterministic deep dip), pipeline = MinMax bucket reduction (`FilterPointsMinMaxLTTB`; `FilterPointsLTTB` mapped to it up to v7.4.2) → smoothing (900×500 canvas, pixel-row metric):
+Using the same generator as `examples/2D/curvesmoothing` (100,000 samples: slow envelope, humps, three narrow peaks, $\sigma=0.15$ white jitter, 1% upward spikes, 0.8% dropouts, one deterministic deep dip), the pipeline is MinMax bucket reduction (`FilterPointsMinMaxLTTB`; `FilterPointsLTTB` mapped to it up to v7.4.2) followed by smoothing (900×500 canvas, pixel-row metric):
 
 | configuration | mean noise band (px) | peak top row | dip bottom row |
 |---|---:|---:|---:|
@@ -401,11 +401,11 @@ Using the same generator as `examples/2D/curvesmoothing` (100,000 samples: slow 
 
 ![The 100,000-sample spectrum: reduction only vs Gaussian smoothing (τ=3) vs SG smoothing (τ=3)](../assets/algorithms/fig_smooth_spectrum.png)
 
-Three readings:
+The measurements show:
 
-1. **Noise band 65.4 → 6.1 px** (4.1 px for the pure low-pass): the fuzz collapses to a thin line;
-2. **Peak top row 0.0 / dip bottom 499.0 identical to the unsmoothed rendering at $\tau=3$**: feature preservation restores what the filter flattened (compare $\tau=0$: the peak top drops to row 38.5 and the dip bottom rises to 369 — 38.5 and 130 rows of height/depth loss). This is the same phenomenon as the "26 px peak / 63 px dip" recorded in the example documentation (900 px canvas);
-3. **SG residual band 11.3 px > Gaussian 6.1 px**: consistent with the theoretical $\sqrt{g}$ ratio (0.389 vs 0.287, predicted 1.36×, measured 1.85×; the residual mismatch comes from spikes and dropout noise not being Gaussian).
+1. The noise band drops from 65.4 to 6.1 px (4.1 px for the pure low-pass), so the fuzz collapses to a thin line;
+2. At $\tau=3$ the peak top row (0.0) and the dip bottom row (499.0) are identical to the unsmoothed rendering: feature preservation restores what the filter flattened. Compare $\tau=0$: the peak top drops to row 38.5 and the dip bottom rises to 369, which is 38.5 and 130 rows of height/depth loss. This is the same phenomenon as the "26 px peak / 63 px dip" recorded in the example documentation (900 px canvas);
+3. The SG residual band is 11.3 px against 6.1 px for the Gaussian, consistent with the theoretical $\sqrt{g}$ ratio (0.389 vs 0.287, predicted 1.36×, measured 1.85×; the residual mismatch comes from spikes and dropout noise not being Gaussian).
 
 ### 7.2 Theory vs measurement
 
@@ -433,7 +433,7 @@ All scripts and numbers are in `docs/assets/algorithms/` (`smoothing_experiment.
 
 ### 8.2 Complete example
 
-The listing below is a minimal, self-contained program: `makeSpectrum()` generates 100,000 spectrum-like samples, and the same data is plotted twice with `QwtPlotCurve` — once through the default pipeline and once with Gaussian smoothing plus feature preservation — for a direct side-by-side comparison.
+The listing below is a minimal, self-contained program: `makeSpectrum()` generates 100,000 spectrum-like samples, and the same data is plotted twice with `QwtPlotCurve`, once through the default pipeline and once with Gaussian smoothing plus feature preservation, for a direct side-by-side comparison.
 
 ```cpp
 #include <qwt_plot.h>
@@ -500,20 +500,20 @@ int main(int argc, char** argv)
 }
 ```
 
-**Effect**: the grey curve shows a noise band 60+ pixel rows thick; the blue curve's band collapses to ~6 px, while the top pixel row of the narrow peak is identical in both curves — and `data()` was never touched.
+The grey curve shows a noise band 60+ pixel rows thick; the blue curve's band collapses to ~6 px, while the top pixel row of the narrow peak is identical in both curves, and `data()` was never touched.
 
-The snippet above is a minimal version of what the official example, **`examples/2D/curvesmoothing`**, demonstrates. That example puts the default rendering and the smoothed rendering side by side in one window and exposes every parameter as a live control:
+The snippet above is a minimal version of what the official example, `examples/2D/curvesmoothing`, demonstrates. That example puts the default rendering and the smoothed rendering side by side in one window and exposes every parameter as a live control:
 
 ![curvesmoothing example: smoothing a 100,000-sample noisy spectrum](../assets/screenshots/curvesmoothing.png)
 
 From left to right:
 
-- **Left plot (plain)**: the 100,000-sample spectrum through the default pipeline (`FilterPointsLTTB` reduction only); the noise shows as a coarse vertical fringe;
-- **Right plot (smooth)**: the same samples plus render smoothing — the noise band collapses to a thin line while the narrow peaks and the deep dip stay where they are;
-- **Bottom controls**: `Algorithm` (Gaussian / Savitzky-Golay), `Window`, `SG Order`, `Preserve` (feature preservation threshold), `Downsampling` (`None ( raw samples )` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB` (default) / `FilterPointsMinMaxLTTB`, applied to both plots), plus a `Run Benchmark` button that replots both plots 50 times each;
-- The `last` label under each plot shows its most recent replot time — the smoothing overhead is in the sub-millisecond range (measured at the ~0.1 ms level).
+- Left plot (plain): the 100,000-sample spectrum through the default pipeline (`FilterPointsLTTB` reduction only); the noise shows as a coarse vertical fringe;
+- Right plot (smooth): the same samples plus render smoothing; the noise band collapses to a thin line while the narrow peaks and the deep dip stay where they are;
+- Bottom controls: `Algorithm` (Gaussian / Savitzky-Golay), `Window`, `SG Order`, `Preserve` (feature preservation threshold), `Downsampling` (`None ( raw samples )` / `FilterPoints` / `FilterPointsAggressive` / `FilterPointsPixel` / `FilterPointsLTTB` (default) / `FilterPointsMinMaxLTTB`, applied to both plots), plus a `Run Benchmark` button that replots both plots 50 times each;
+- The `last` label under each plot shows its most recent replot time; the smoothing overhead is in the sub-millisecond range (measured at the ~0.1 ms level).
 
-When reading the article alongside the example, start with the picture and only then return to the formulas: set `Preserve` to 0 and the same narrow peak immediately shrinks — that is $R(b) = b/\sqrt{b^2+\sigma^2}$ from Section 3.3 on screen.
+The example is best read picture-first: set `Preserve` to 0 and the same narrow peak immediately shrinks, which is $R(b) = b/\sqrt{b^2+\sigma^2}$ from Section 3.3 on screen.
 
 ### 8.3 Parameter selection guide
 
@@ -527,15 +527,11 @@ When reading the article alongside the example, start with the picture and only 
 
 > **Tip — What the window counts**
 >
-> The window counts *polyline points*, not samples: after MinMax reduction the polyline has ≈ 4W points, so window 15 covers about 4 pixel columns horizontally. The span scales with the pixel ratio while zooming — the smoothing strength is constant in screen space (Section 6).
+> The window counts *polyline points*, not samples: after MinMax reduction the polyline has ≈ 4W points, so window 15 covers about 4 pixel columns horizontally. The span scales with the pixel ratio while zooming, so the smoothing strength is constant in screen space (Section 6).
 
 ## 9. Summary
 
-- Downsampling preserves extremes ⇒ noise survives; render smoothing removes it with a low-pass filter in the paint pipeline, without modifying the samples.
-- **Gaussian kernel**: a $\sigma = w/4$ weighted moving window, the strongest noise suppressor ($\sqrt{g}=0.287$ at $w=15$), with the closed-form peak attenuation $R(b)=b/\sqrt{b^2+\sigma^2}$.
-- **SG kernel**: the convolution form of local polynomial least squares; the polynomial reproduction theorem keeps peak shapes intact ($p=2$ loses about 15% on a 3-point peak), at the price of ~36% more residual noise; the moment conditions yield $p=2 = p=3$ and the identity $g=c_0$.
-- **Feature preservation**: wide baseline + MAD noise scale + soft-threshold blend turns indiscriminate attenuation into selective restoration; at the default $\tau=3$ peak tops and dip bottoms are restored row-identically, and the noise band drops from 65.4 to 6.1 px (measured).
-- The stage is stateless, reentrant and $O(nw)$ with $n \approx 4W$ — a full replot of the 100,000-sample spectrum stays at ~0.1 ms.
+Downsampling keeps the extremes, so noise survives; render smoothing removes it with a low-pass filter in the paint pipeline and never modifies the sample data. Gaussian smoothing is a $\sigma = w/4$ weighted window and the strongest noise suppressor ($\sqrt{g}=0.287$ at $w=15$), with peak attenuation $R(b)=b/\sqrt{b^2+\sigma^2}$. Savitzky-Golay is the convolution form of local polynomial least squares; polynomial reproduction keeps peak shapes ($p=2$ loses about 15% on a 3-point peak) at the price of ~36% more residual noise, and its moment conditions give $p=2 = p=3$ and $g=c_0$. Feature preservation combines a wide baseline, a MAD noise scale and a soft-threshold blend: at the default $\tau=3$ peak tops and dip bottoms are restored row-identically, and the noise band drops from 65.4 to 6.1 px. The stage is stateless and reentrant and costs $O(nw)$ with $n \approx 4W$, so a full replot of the 100,000-sample spectrum stays at ~0.1 ms.
 
 ## 10. References
 
@@ -546,4 +542,4 @@ When reading the article alongside the example, start with the picture and only 
 5. QWT7 sources: `src/plot/qwt_curve_smoothing.cpp` (kernels, convolution, feature preservation), `src/plot/qwt_plot_curve.cpp` (pipeline, `drawLines`).
 6. QWT7 example: `examples/2D/curvesmoothing` (100,000-sample noisy spectrum, smoothing comparison).
 
-*Companion article:* [Downsampling Curves for the Screen: LTTB Theory and the QWT7 MinMax Bucket](curve-downsampling.md) — how the polyline that smoothing operates on is produced.
+*Companion article:* [Downsampling Curves for the Screen: LTTB Theory and the QWT7 MinMax Bucket](curve-downsampling.md), on how the polyline that smoothing operates on is produced.

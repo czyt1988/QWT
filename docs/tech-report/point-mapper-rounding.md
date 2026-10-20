@@ -1,14 +1,14 @@
 # Pixel Snapping in the Curve Pipeline: `QwtPointMapper::RoundPoints` and the Dense-Curve Staircase
 
-> **Abstract** — Dense and sparse samples of the same smooth curve should look the same on screen. They do not: in QWT 7.5.0 a spectral line stored with 200,000 samples renders as a visibly stepped polyline in a 14-unit zoom, while the same line shape stored with 18,600 samples renders smoothly, with antialiasing enabled in both cases. This report traces the effect to `QwtPointMapper::RoundPoints`, a transformation flag that snaps every mapped vertex to the device pixel grid, and to the fact that `QwtPlotCurve::drawLines()` enables it for every raster painter — including antialiased ones. We formalize the snapping operation, prove that it destroys the sub-pixel information an antialiasing rasterizer needs, measure its cost per reduction path on one million samples, and quantify the visual signature in rendered images: on the dense curve the fraction of antialiasing blend pixels drops from 0.55 to 0.28 when snapping is enabled, while the sparse curve is unaffected. The report closes with the selection rule the library should follow and a list of the paths that still depend on the flag.
+> **Abstract** — Dense and sparse samples of the same smooth curve should look the same on screen. They do not: in QWT 7.5.0 a spectral line stored with 200,000 samples renders as a visibly stepped polyline in a 14-unit zoom, while the same line shape stored with 18,600 samples renders smoothly, with antialiasing enabled in both cases. The effect comes from `QwtPointMapper::RoundPoints`, a transformation flag that snaps every mapped vertex to the device pixel grid, and from `QwtPlotCurve::drawLines()`, which enables it for every raster painter, including antialiased ones. The snapping operation is formalized and shown to destroy the sub-pixel information an antialiasing rasterizer needs; its cost is measured per reduction path on one million samples, and its visual signature is quantified in rendered images: on the dense curve the fraction of antialiasing blend pixels drops from 0.55 to 0.28 when snapping is enabled, while the sparse curve is unaffected. The measurements lead to a selection rule for the library and to a list of the paths that still depend on the flag.
 
 > **Abstract — Key results**
 >
 > - `RoundPoints` computes `round(p * DPR) / DPR` per coordinate. At device pixel ratio (DPR) 1 this quantizes to whole pixels; at DPR 2 the step is half a logical unit, which is still one whole device pixel.
-> - On one million samples with no reduction the flag costs **+35 %** mapper time (14.2 ms to 19.2 ms) and produces no fewer vertices — it is not a performance optimization by itself.
+> - On one million samples with no reduction the flag costs +35 % mapper time (14.2 ms to 19.2 ms) and produces no fewer vertices; it is not a performance optimization by itself.
 > - After LTTB, MinMax or Adaptive reduction the cost is within measurement noise (−1 % to +2 %), because only the few thousand selected vertices are rounded.
-> - Snapping turns **99.9 %** of the mapped polyline into exactly horizontal or vertical segments on a smooth dense signal; without snapping the figure is **0 %**. The staircase is therefore a property of the geometry handed to `QPainter`, not of the rasterizer.
-> - In rendered images the antialiasing blend ratio of the dense peak shoulder falls from **0.547** (snapping off) to **0.284** (snapping on). The sparse peak stays at **0.568** in both configurations: it never had enough samples per column to trigger the effect.
+> - Snapping turns 99.9 % of the mapped polyline into exactly horizontal or vertical segments on a smooth dense signal; without snapping the figure is 0 %. The staircase is therefore a property of the geometry handed to `QPainter`, not of the rasterizer.
+> - In rendered images the antialiasing blend ratio of the dense peak shoulder falls from 0.547 (snapping off) to 0.284 (snapping on). The sparse peak stays at 0.568 in both configurations: it never had enough samples per column to trigger the effect.
 > - Recommended library rule: align only when the painter does not antialias. Antialiased raster, PDF and SVG output must keep sub-pixel coordinates.
 
 ---
@@ -19,17 +19,17 @@
 
 The demonstration program `examples/2D/downsample_demo` renders two synthetic spectra built from the same line shape: one stored with about 200,000 samples over the full range, one with about 18,600. In the zoomed view used below (wavelength 858 to 872) the dense dataset contributes about 3,500 samples and the sparse one about 330. Both are drawn with `QwtPlotCurve::RenderAntialiased` enabled, both without point reduction, into a 1400 x 700 canvas.
 
-The dense spectrum shows a staircase: every few pixel rows the drawn edge jumps sideways by one pixel, and the diagonal flanks look like a staircase drawn with a one-pixel pen. The sparse spectrum, sampled ten times more coarsely, is smooth. The counter-intuitive part is the direction: **more data produces a worse picture**.
+The dense spectrum shows a staircase: every few pixel rows the drawn edge jumps sideways by one pixel, and the diagonal flanks look like a staircase drawn with a one-pixel pen. The sparse spectrum, sampled ten times more coarsely, is smooth. The counter-intuitive part is the direction: more data produces a worse picture.
 
 ![The same peak, dense and sparse, magnified: the dense curve is stepped, the sparse curve is smooth](../assets/algorithms/fig_roundpoints_crops.png)
 
 *Figure 1 — The rising flank of the tallest peak, 5x nearest-neighbour magnification. Left to right: dense samples with pixel alignment on, dense with alignment off, sparse with alignment on, sparse with alignment off. Antialiasing is enabled in all four renders; the axis grid is visible behind the curve.*
 
-The immediate suspicion — "antialiasing is off" — is wrong. Figure 1 shows blend pixels along every edge in all four panels. What changes between the panels is the **geometry** the rasterizer receives, not the rasterizer's settings.
+The immediate suspicion, "antialiasing is off", is wrong. Figure 1 shows blend pixels along every edge in all four panels. What changes between the panels is the geometry the rasterizer receives, not the rasterizer's settings.
 
 ### 1.2 Scope and method
 
-This report answers four questions:
+Four questions frame the analysis:
 
 1. What exactly does `RoundPoints` do, and where is it enabled?
 2. Why does it hurt a dense antialiased curve and not a sparse one?
@@ -40,7 +40,7 @@ The measurements use the library at v7.5.0 with Qt 6.7.3, a Release build with M
 
 ### 1.3 Relation to the downsampling report
 
-The companion report [Downsampling Curves for the Screen](curve-downsampling.md) treats the problem "too many points for the pixel columns" and derives the bucket algorithms that reduce N samples to roughly 4W vertices. This report treats the opposite end of the same pipeline: what happens to the vertices **after** reduction, when they are converted from data coordinates to paint coordinates. The two interact — a reduction algorithm can only preserve what the mapper does not subsequently destroy — but they are separate stages with separate switches, and conflating them is the root of the confusion this report resolves.
+The companion report [Downsampling Curves for the Screen](curve-downsampling.md) treats the problem "too many points for the pixel columns" and derives the bucket algorithms that reduce N samples to roughly 4W vertices. The opposite end of the same pipeline is treated here: what happens to the vertices after reduction, when they are converted from data coordinates to paint coordinates. The two interact, since a reduction algorithm can only preserve what the mapper does not subsequently destroy, but they are separate stages with separate switches, and conflating them causes confusion.
 
 ## 2. The snapping operation
 
@@ -73,7 +73,7 @@ where $\operatorname{round}$ is round-half-away-from-zero as implemented by `qwt
 
 *Proof.* By construction $x_{\text{snapped}} = k/\rho$ with $k = \operatorname{round}(x_{\text{paint}}\rho) \in \mathbb{Z}$, hence $x_{\text{snapped}}\rho = k$. $\square$
 
-At $\rho = 1$ the lattice is the integer grid, the familiar case. At $\rho = 2$ the lattice is the half-integer grid in logical units, which is the integer grid in device pixels — a vertex can sit between two logical units but never between two device pixels. Figure 2 illustrates the two cases.
+At $\rho = 1$ the lattice is the integer grid, the familiar case. At $\rho = 2$ the lattice is the half-integer grid in logical units, which is the integer grid in device pixels, so a vertex can sit between two logical units but never between two device pixels. Figure 2 illustrates the two cases.
 
 ![Device pixel lattice at DPR 1 and DPR 2](../assets/algorithms/fig_roundpoints_dpr.png)
 
@@ -83,7 +83,7 @@ At $\rho = 1$ the lattice is the integer grid, the familiar case. At $\rho = 2$ 
 
 Consider a smooth curve sampled far more densely than the pixel grid. Its mapped vertices form a sequence whose consecutive differences are much smaller than one pixel. Snapping each vertex independently has two consequences:
 
-1. **Vertex collapse.** Several consecutive samples map into the same lattice cell and become the same point. The polyline loses vertices — this is the mechanism `WeedOutPoints` relies on.
+1. **Vertex collapse.** Several consecutive samples map into the same lattice cell and become the same point. The polyline loses vertices; this is the mechanism `WeedOutPoints` relies on.
 2. **Direction quantization.** Consecutive surviving vertices differ by integer multiples of $1/\rho$. On a shallow flank, where the true curve rises by a fraction of a pixel per column, the snapped polyline must alternate between horizontal runs (constant $y$) and vertical jumps (constant $x$). The result is a staircase.
 
 Figure 3 shows the second consequence in isolation, on a synthetic line that rises 0.2 pixel rows per column.
@@ -98,7 +98,7 @@ The staircase is not a rendering artifact in the sense of a bug in the rasterize
 
 *Proof.* The rasterizer has no access to $L$ once it receives $L'$; it is a pure function of its input. Distinct inputs may of course rasterize identically when the difference is below the coverage resolution, but a difference of up to $1/(2\rho)$ per vertex accumulates along a shallow flank and exceeds it. $\square$
 
-The practical form of Proposition 2: once `RoundPoints` is on, enabling antialiasing cannot restore the smooth flank. This is exactly the combination the library shipped.
+The practical form of Proposition 2: once `RoundPoints` is on, enabling antialiasing cannot restore the smooth flank. This is the combination the library shipped.
 
 ### 2.3 Where snapping is enabled
 
@@ -123,15 +123,15 @@ The same global switch is read by `drawDots()`, `drawSteps()`, `drawSticks()`, `
 
 ## 3. Why density decides
 
-The staircase amplitude is bounded by half a device pixel per vertex, but its **visibility** depends on how many vertices share a pixel column and on the slope of the curve at that point.
+The staircase amplitude is bounded by half a device pixel per vertex, but its visibility depends on how many vertices share a pixel column and on the slope of the curve at that point.
 
 ### 3.1 Samples per column
 
 Let $n$ be the number of visible samples, $W$ the canvas width in device pixels. The mean occupancy is $\lambda = n / W$. Three regimes follow:
 
-- $\lambda \ll 1$: most columns hold no sample. The polyline is a long chord from one sample to the next; there is no vertex inside the column to snap, so the drawn line is a straight interpolation with correct sub-pixel endpoints. **No staircase.**
+- $\lambda \ll 1$: most columns hold no sample. The polyline is a long chord from one sample to the next; there is no vertex inside the column to snap, so the drawn line is a straight interpolation with correct sub-pixel endpoints. No staircase.
 - $\lambda \approx 1$: one vertex per column. Snapping moves it within its cell, but the polyline still descends one column per vertex, so the segments remain diagonal. The staircase is mild.
-- $\lambda \gg 1$: many vertices per column. The snapped polyline can only move vertically inside the column and horizontally between columns; the column becomes a vertical stroke plus a one-pixel horizontal tread. **Visible staircase.**
+- $\lambda \gg 1$: many vertices per column. The snapped polyline can only move vertically inside the column and horizontally between columns; the column becomes a vertical stroke plus a one-pixel horizontal tread. Visible staircase.
 
 The demo's dense spectrum has $\lambda \approx 3500/1300 \approx 2.7$ samples per column in the zoomed window; the sparse one has $\lambda \approx 330/1300 \approx 0.25$. The difference in the renders is the difference between the onset of the third regime and the first regime. The mapper benchmark of Section 4 uses a deliberately extreme density ($\lambda \approx 833$) so that the transform cost is measurable; the geometric mechanism is the same at $\lambda = 2.7$, as the rendered blend-ratio experiment in Section 6 shows.
 
@@ -139,17 +139,17 @@ The demo's dense spectrum has $\lambda \approx 3500/1300 \approx 2.7$ samples pe
 
 A staircase needs a direction to quantize. On a near-vertical flank the snapped segments are mostly vertical anyway, and the treads are one pixel wide; on a near-horizontal flank the treads stretch over many columns and become conspicuous. This is why the effect is easiest to photograph on the shoulder of a peak, where the curve is shallow, and hard to see at the apex.
 
-The synthetic render of Figure 3 uses a deliberately shallow slope of 0.2 rows per column, which yields five-column treads. The real spectrum of Figure 1 has local slopes between 1 and 5 rows per column on the upper flank, which yields one- to two-column treads — still visible at normal magnification, as the figure shows.
+The synthetic render of Figure 3 uses a deliberately shallow slope of 0.2 rows per column, which yields five-column treads. The real spectrum of Figure 1 has local slopes between 1 and 5 rows per column on the upper flank, which yields one- to two-column treads, still visible at normal magnification as the figure shows.
 
 ### 3.3 What the antialiasing rasterizer does with each case
 
-Qt's raster engine computes per-pixel coverage from the distance between the pixel center and the polygon edge. A sub-pixel vertex offset changes that distance by a fraction of a pixel and therefore changes the blend weight of the two adjacent rows. A snapped vertex puts the edge exactly on a pixel boundary, so the coverage of one row is 1 and of the other 0 — no blend pixel at all. The blend ratio is therefore a direct, monotone indicator of how much sub-pixel geometry survives, which is what the experiments measure.
+Qt's raster engine computes per-pixel coverage from the distance between the pixel center and the polygon edge. A sub-pixel vertex offset changes that distance by a fraction of a pixel and therefore changes the blend weight of the two adjacent rows. A snapped vertex puts the edge exactly on a pixel boundary, so the coverage of one row is 1 and of the other 0, with no blend pixel at all. The blend ratio is therefore a direct, monotone indicator of how much sub-pixel geometry survives, which is what the experiments measure.
 
 ## 4. Cost in the mapper
 
 ### 4.1 Benchmark protocol
 
-`roundpoints_bench.cpp` drives `QwtPointMapper::toPolygonF()` directly on a one-million-sample signal, a 1200 x 800 canvas and a linear x map spanning the full data range. Seven flag configurations cover every reduction path. For each, the mapper runs with and without `RoundPoints`, at DPR 1 and DPR 2. Each configuration is calibrated to at least 20 ms per timed run, then measured with three warm-up and nine timed calls; the median is reported. The mapper only is timed — `QPainter::drawPolyline()` is excluded — so the numbers isolate the transform and reduction work.
+`roundpoints_bench.cpp` drives `QwtPointMapper::toPolygonF()` directly on a one-million-sample signal, a 1200 x 800 canvas and a linear x map spanning the full data range. Seven flag configurations cover every reduction path. For each, the mapper runs with and without `RoundPoints`, at DPR 1 and DPR 2. Each configuration is calibrated to at least 20 ms per timed run, then measured with three warm-up and nine timed calls; the median is reported. The mapper only is timed (`QPainter::drawPolyline()` is excluded), so the numbers isolate the transform and reduction work.
 
 The signal is two long-period sines, dense enough to exercise every reduction path ($\lambda \approx 833$ samples per column) while remaining smooth at canvas scale.
 
@@ -171,13 +171,13 @@ The signal is two long-period sines, dense enough to exercise every reduction pa
 
 Medians of nine timed runs; the minimum-based ratios are slightly larger (+41 % for no reduction, +65 % for `WeedOutPoints`) because the flag's extra work is easier to see on the fastest runs.
 
-The first row is the pure cost of the flag: one extra multiply, round and divide per coordinate, over one million vertices, with no reduction in output size. It is a **35–41 % penalty** on the mapper for a dense unreduced curve; the earlier measurement that motivated this report, taken with a different timing protocol, saw +51 %.
+The first row is the pure cost of the flag: one extra multiply, round and divide per coordinate, over one million vertices, with no reduction in output size. It is a 35–41 % penalty on the mapper for a dense unreduced curve; the earlier measurement that motivated this report, taken with a different timing protocol, saw +51 %.
 
 The `WeedOutPoints` row is the flag doing its intended job: 1,000,000 vertices collapse to 3,898 because samples sharing a device pixel are duplicates once snapped. The mapper itself is slower (it still touches every input), but the downstream drawing cost drops by two orders of magnitude in vertex count. This is the trade the flag was designed for.
 
 The `WeedOutIntermediatePoints` row must be read carefully: without `RoundPoints` the aggressive path is not entered at all (`toPolygonF()` guards it inside the `RoundPoints` branch), so the two columns compare two different algorithms, not one algorithm with and without rounding.
 
-The four modern reduction paths — pixel column, LTTB, MinMax, Adaptive — show changes between −3 % and +5 %, i.e. within or barely above run-to-run noise. They select a few thousand vertices and round only those; the scan over the million input samples dominates.
+The four modern reduction paths (pixel column, LTTB, MinMax, Adaptive) show changes between −3 % and +5 %, i.e. within or barely above run-to-run noise. They select a few thousand vertices and round only those; the scan over the million input samples dominates.
 
 ![Vertex count returned, off versus on](../assets/algorithms/fig_roundpoints_output.png)
 
@@ -201,7 +201,7 @@ The ratio is flat, confirming a per-vertex constant cost rather than a cache or 
 
 ## 5. Geometric signature
 
-The mapper output can be inspected without rendering: count how many segments of the returned polyline are exactly horizontal (`dy == 0.0`) or exactly vertical (`dx == 0.0`). Without snapping, a smooth curve mapped to paint coordinates has no exactly axis-aligned segment — floating-point values essentially never coincide. With snapping, the coordinates are integers (at DPR 1) and the segments are axis-aligned by construction.
+The mapper output can be inspected without rendering: count how many segments of the returned polyline are exactly horizontal (`dy == 0.0`) or exactly vertical (`dx == 0.0`). Without snapping, a smooth curve mapped to paint coordinates has no exactly axis-aligned segment, because floating-point values essentially never coincide. With snapping, the coordinates are integers (at DPR 1) and the segments are axis-aligned by construction.
 
 ![Axis-aligned segment fraction](../assets/algorithms/fig_roundpoints_axis.png)
 
@@ -217,9 +217,9 @@ The mapper output can be inspected without rendering: count how many segments of
 | `MinMaxReduce` | 0.0 % | **57.2 %** |
 | `AdaptiveColumnReduce` | 0.0 % | **96.1 %** |
 
-Two readings matter. First, the unreduced and deduplicated paths become essentially **entirely** axis-aligned — the polyline is no longer a curve in any geometric sense, it is a sequence of horizontal and vertical steps. Second, `PixelColumnReduce` is unaffected by the flag: it emits a min/max envelope per column and its own output already contains the horizontal connections, which is why the pixel-column algorithm shows a staircase of its own even with rounding off.
+Two readings matter. First, the unreduced and deduplicated paths become essentially entirely axis-aligned; the polyline is no longer a curve in any geometric sense, but a sequence of horizontal and vertical steps. Second, `PixelColumnReduce` is unaffected by the flag: it emits a min/max envelope per column and its own output already contains the horizontal connections, which is why the pixel-column algorithm shows a staircase of its own even with rounding off.
 
-The reduction algorithms sit in between because they keep a small number of **real** samples: LTTB picks one sample per bucket, MinMax two, Adaptive a tolerance-selected subset. When those few vertices are snapped, most of their connecting segments become axis-aligned, but the vertices themselves are still distributed along the curve, so the result is a coarser staircase rather than a full one.
+The reduction algorithms sit in between because they keep a small number of real samples: LTTB picks one sample per bucket, MinMax two, Adaptive a tolerance-selected subset. When those few vertices are snapped, most of their connecting segments become axis-aligned, but the vertices themselves are still distributed along the curve, so the result is a coarser staircase rather than a full one.
 
 ## 6. Visual experiment
 
@@ -246,18 +246,18 @@ For every crop the script counts curve pixels (blue-dominant pixels), classifies
 | sparse (18.6k) | `FilterPointsLTTB` | 0.568 | 0.564 | 0 |
 | sparse (18.6k) | `FilterPointsAdaptive` | 0.568 | 0.565 | 0 |
 
-Three observations:
+The comparisons show:
 
-1. **Dense data loses half its blend pixels when snapping is on.** The ratio 0.28 versus 0.55 is the quantitative form of the visual difference in Figure 1. The absolute values depend on the crop and the pen width; the factor of two is the signal.
-2. **Sparse data is unaffected.** The ratio is 0.56 in both configurations, because the samples are far enough apart that snapping moves each vertex by less than the antialiasing resolution and never creates a multi-vertex column.
-3. **`FilterPointsPixel` is unaffected by the global switch**, exactly as the geometric analysis predicted: the algorithm computes its own pixel-domain envelope and ignores `RoundPoints`. Its ratio, 0.51, is lower than the sub-pixel paths because its output already contains horizontal connections.
+1. Dense data loses half its blend pixels when snapping is on. The ratio 0.28 versus 0.55 is the quantitative form of the visual difference in Figure 1. The absolute values depend on the crop and the pen width; the factor of two is the signal.
+2. Sparse data is unaffected. The ratio is 0.56 in both configurations, because the samples are far enough apart that snapping moves each vertex by less than the antialiasing resolution and never creates a multi-vertex column.
+3. `FilterPointsPixel` is unaffected by the global switch, as the geometric analysis predicted: the algorithm computes its own pixel-domain envelope and ignores `RoundPoints`. Its ratio, 0.51, is lower than the sub-pixel paths because its output already contains horizontal connections.
 
 The apex row is identical in every configuration, confirming that snapping changes the shape of the flank but not the position of the peak.
 
-### 6.3 Failure modes and honest limits
+### 6.3 Failure modes and limits
 
-- The blend-ratio metric depends on the pen width, the crop and the rendering backend. It is used here for **relative** comparison between two renders of the same configuration, not as an absolute quality score.
-- The `win14` crop was chosen because the staircase is visible there; other windows and the full-range view show smaller differences. The report does not claim that every dense curve looks bad — only that the mechanism is present and that it is governed by samples per column and local slope.
+- The blend-ratio metric depends on the pen width, the crop and the rendering backend. It is used here for relative comparison between two renders of the same configuration, not as an absolute quality score.
+- The `win14` crop was chosen because the staircase is visible there; other windows and the full-range view show smaller differences. The mechanism is still present in all of them, but its strength depends on samples per column and local slope.
 - The synthetic line of Figure 3 is a best case for illustrating the mechanism (slope 0.2). Real spectra have steeper flanks and correspondingly narrower treads.
 - The measurements cover raster rendering at DPR 1 and DPR 2 only. PDF and SVG output is not affected because `QwtPainter::isAligning()` already excludes those engines; that path is argued from the source, not measured here.
 
@@ -283,11 +283,11 @@ const bool doAlign = !doFit
     && QwtPainter::roundingAlignment(painter);
 ```
 
-This preserves the existing behaviour for non-antialiased raster painting, keeps PDF/SVG and transformed painters on the sub-pixel path, and removes the flag for exactly the case where it does harm. The same consideration applies to `drawDots()` and to legend icon rendering, and `FilterPointsAggressive` callers must be checked because the aggressive path is currently reachable only through `RoundPoints`.
+This preserves the existing behaviour for non-antialiased raster painting, keeps PDF/SVG and transformed painters on the sub-pixel path, and removes the flag for the case where it does harm. The same consideration applies to `drawDots()` and to legend icon rendering, and `FilterPointsAggressive` callers must be checked because the aggressive path is currently reachable only through `RoundPoints`.
 
 ## 8. Reproduction
 
-Everything in this report is regenerated from the repository:
+All results below are regenerated from the repository:
 
 ```bash
 # 1. build the library and the demo
@@ -317,9 +317,9 @@ The two `.bat` helpers resolve the repository root from their own location and u
 
 ## 9. Conclusion
 
-The dense-curve staircase is not a rendering bug and not a missing antialiasing hint. It is the predictable result of snapping a dense polyline to the device pixel grid before an antialiasing rasterizer sees it. The operation is cheap per vertex but not free — it costs roughly 45 % of mapper time on an unreduced million-point curve and nothing measurable after a modern reduction — and its visual cost is concentrated exactly where dense data is common: shallow flanks with many samples per pixel column.
+The cost of snapping is a per-vertex constant: roughly 45 % of mapper time on an unreduced million-point curve, and nothing measurable after LTTB, MinMax or Adaptive reduction. Its visual cost is concentrated where dense data is common, on shallow flanks with many samples per pixel column.
 
-The fix is a policy change, not an algorithm: align to pixels only when the painter does not antialias. The reduction algorithms of the companion report then operate on geometry that the rasterizer can actually use.
+The fix is a policy change rather than an algorithm change: align to pixels only when the painter does not antialias. The reduction algorithms of the companion report then operate on geometry that the rasterizer can actually use.
 
 ## 10. References
 

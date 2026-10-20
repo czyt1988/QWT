@@ -1,8 +1,8 @@
 # Tech Reports
 
-This section collects QWT **tech reports**: long-form technical articles for developers who want to understand how the library works under the hood, written to academic-paper standards — with an abstract, derivations, reproducible experimental data, and references. They answer "**why is it designed this way, and how well does it actually perform**", not "how do I use it".
+QWT tech reports are technical articles for developers who want to understand how the library works under the hood. They are written to academic-paper standards, with an abstract, derivations, reproducible experimental data, and references. The reports explain why the library is designed the way it is and how well it performs, rather than how to use it.
 
-If you just want to get a plot on screen, read the [User Guide](../use-guide/first-plot.md) — step-by-step tutorials for users.
+If you just want to get a plot on screen, read the [User Guide](../use-guide/first-plot.md), which has step-by-step tutorials for users.
 
 ## Tech Reports vs User Guide Tutorials
 
@@ -21,18 +21,18 @@ The two cross-reference each other: tutorials link to tech reports under "Deep d
 
 Tech reports are held to publication standards. On top of the general rules in the [Doc Writing Guide](../doc-writing-guide.md) (platform-generic Markdown, mermaid-first diagrams, etc.), every report must satisfy:
 
-1. **Paper structure**: start with an abstract (one paragraph on problem and method) plus a "core conclusions" quick list; organize the body as introduction → problem formalization → method/derivation → experiments → discussion → summary → references; state properties and theorems with proofs or proof sketches.
-2. **Reproducible experiments**: every measured number must be reproducible. matplotlib plotting scripts and raw values live in `docs/assets/algorithms/` (Python + matplotlib + numpy); the article names the script that produced each figure.
-3. **Benchmarks state their environment**: performance data must list the QWT/Qt version, build configuration, canvas size, and hardware class, and must note that absolute numbers vary with hardware while relative orderings are stable.
-4. **Division of labor between figure types**: data figures (curves, scatter, heatmaps, comparison bars) are matplotlib-generated PNGs; flow charts, architecture and sequence diagrams are inline mermaid. Images live in `docs/assets/algorithms/` with file names starting with `fig_`.
-5. **Honest failure analysis**: every report lists the failure modes of the method/implementation; negative data is not hidden.
-6. **Concrete citations**: cite source files by path (e.g. `src/plot/qwt_point_mapper.cpp`) and examples by directory (e.g. `examples/bench/renderbench`).
+1. Paper structure: start with an abstract (one paragraph on problem and method) plus a "core conclusions" quick list; organize the body as introduction → problem formalization → method/derivation → experiments → discussion → summary → references; state properties and theorems with proofs or proof sketches.
+2. Reproducible experiments: every measured number must be reproducible. matplotlib plotting scripts and raw values live in `docs/assets/algorithms/` (Python + matplotlib + numpy); the article names the script that produced each figure.
+3. Benchmarks state their environment: performance data must list the QWT/Qt version, build configuration, canvas size, and hardware class, and must note that absolute numbers vary with hardware while relative orderings are stable.
+4. Division of labor between figure types: data figures (curves, scatter, heatmaps, comparison bars) are matplotlib-generated PNGs; flow charts, architecture and sequence diagrams are inline mermaid. Images live in `docs/assets/algorithms/` with file names starting with `fig_`.
+5. Failure analysis: every report lists the failure modes of the method/implementation; negative data is not hidden.
+6. Concrete citations: cite source files by path (e.g. `src/plot/qwt_point_mapper.cpp`) and examples by directory (e.g. `examples/bench/renderbench`).
 
 ## Available Reports
 
 ### Rendering pipeline and performance
 
-Along the thread "data volume → visual quality → backend choice → streaming updates", these reports cover the full path from samples to pixels for `QwtPlotCurve` plus the GPU pipeline on the 3D side. The downsampling report answers "too many points to draw", the smoothing report answers "the drawing looks like noise", the SIMD report expands the vectorized inner loop of downsampling with measurements, the NaN report covers missing-data semantics and cost, the Raster/GL report derives a backend selection criterion, and the streaming report combines all of these factors into a frame-budget model for real-time applications.
+The reports in this group follow one thread, from data volume through visual quality and backend choice to streaming updates. They cover the full path from samples to pixels for `QwtPlotCurve` plus the GPU pipeline on the 3D side. The downsampling report handles curves with too many points to draw, and the smoothing report handles curves that look like noise. The SIMD report expands the vectorized inner loop of downsampling with measurements, the NaN report covers missing-data semantics and cost, the Raster/GL report derives a backend selection criterion, and the streaming report combines these factors into a frame-budget model for real-time applications.
 
 | Report | Topic | Key sources | Companion examples |
 |--------|-------|-------------|--------------------|
@@ -47,10 +47,7 @@ Along the thread "data volume → visual quality → backend choice → streamin
 
 ### Comparisons with other libraries
 
-The reports above measure QWT against itself: one implementation, different
-configurations. The report below measures it against the alternatives, driven by
-a harness in `examples/bench/chartbench` that runs four libraries through an
-identical protocol.
+The reports above measure QWT against itself: one implementation in different configurations. The comparison report measures it against the alternatives, using a harness in `examples/bench/chartbench` that runs four libraries through an identical protocol.
 
 | Report | Topic | Key sources | Companion examples |
 |--------|-------|-------------|--------------------|
@@ -58,7 +55,7 @@ identical protocol.
 
 ### Algorithms and data semantics
 
-Deep dives into the mathematical foundations and implementation details of five components: spline convergence, clipping correctness, the number theory of ticks, the quantile estimator behind box plots, and quantitative color perception.
+The reports in this group cover the mathematical foundations and implementation details of five components: spline convergence, clipping correctness, the number theory of ticks, the quantile estimator behind box plots, and quantitative color perception.
 
 | Report | Topic | Key sources | Companion examples |
 |--------|-------|-------------|--------------------|
@@ -94,8 +91,7 @@ python roundpoints_experiment.py      # RoundPoints figures from roundpoints_*.c
 python roundpoints_render_metrics.py  # image metrics from a downsample_demo batch
 ```
 
-The library-comparison report does not read a CSV that was collected once; it
-runs several programs itself, so its pipeline is:
+The library-comparison report runs several programs itself instead of reading a CSV collected once, so its pipeline is:
 
 ```bash
 pip install matplotlib numpy pandas pillow
