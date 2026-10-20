@@ -759,18 +759,78 @@ void QwtPlot::updateLayout()
 void QwtPlot::doLayout()
 {
     QwtPlotLayout* layout = m_data->layout;
-    if (isHostPlot()) {
-        layout->activate(this, contentsRect());
+
+    /*
+       Apply the layout, repeating the activation while the axis border
+       distances still change: activate() reads the stored distances, but the
+       hints only settle once the geometries are applied (polished fonts, the
+       first layout from the default widget sizes, ...). Without the
+       iteration the widgets would lag the settled distances by one pass -
+       until some unrelated event runs the next relayout.
+     */
+    for (int pass = 0;; pass++) {
+        if (isHostPlot()) {
+            layout->activate(this, contentsRect());
 #if QwtPlot_DEBUG_PRINT
-        qDebug() << "host plot do layout:" << contentsRect();
+            qDebug() << "host plot do layout:" << contentsRect();
 #endif
-    } else {
-        if (QwtPlot* host = hostPlot()) {
-            layout->activate(this, host->contentsRect());
+        } else {
+            if (QwtPlot* host = hostPlot()) {
+                layout->activate(this, host->contentsRect());
+            }
+#if QwtPlot_DEBUG_PRINT
+            qDebug() << "parasite plot do layout:" << hostPlot()->contentsRect();
+#endif
         }
-#if QwtPlot_DEBUG_PRINT
-        qDebug() << "parasite plot do layout:" << hostPlot()->contentsRect();
-#endif
+
+        bool distsChanged = false;
+
+        for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+            {
+                const QwtAxisId axisId(axisPos);
+
+                QwtScaleWidget* scaleWidget = axisWidget(axisId);
+                if (isAxisVisible(axisId)) {
+
+                    QRect scaleRect = layout->scaleRect(axisId).toRect();
+                    const bool geometryChanged = (scaleRect != scaleWidget->geometry());
+                    if (geometryChanged)
+                        scaleWidget->setGeometry(scaleRect);
+
+                    /*
+                       Refresh the border distances even when the geometry did not
+                       change: tick label contents ( date formats, fonts ... ) can
+                       alter the hint without affecting the scale rect. Otherwise
+                       the backbone would be drawn with stale border distances.
+                     */
+                    int startDist = 0, endDist = 0;
+                    scaleWidget->getBorderDistHint(startDist, endDist);
+                    distsChanged |= (startDist != scaleWidget->startBorderDist())
+                        || (endDist != scaleWidget->endBorderDist());
+                    scaleWidget->setBorderDist(startDist, endDist);
+
+                    /*
+                       Hidden widgets receive their resize event only once they
+                       are shown, so setGeometry() above may not have recalculated
+                       the scale geometry - and setBorderDist() only does when the
+                       distances actually changed. Relayout the scale explicitly
+                       to keep it in sync with the applied rectangle ( f.e. for
+                       the axes of a parasite plot that is grabbed before it was
+                       ever shown ).
+                     */
+                    if (geometryChanged && !scaleWidget->isVisible())
+                        scaleWidget->layoutScale(false);
+
+                    if (!scaleWidget->isVisibleTo(this))
+                        scaleWidget->show();
+                } else {
+                    scaleWidget->hide();
+                }
+            }
+        }
+
+        if (!distsChanged || pass >= 2)
+            break;
     }
 
     const QRect titleRect  = layout->titleRect().toRect();
@@ -793,48 +853,6 @@ void QwtPlot::doLayout()
             m_data->footerLabel->show();
     } else {
         m_data->footerLabel->hide();
-    }
-
-    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
-        {
-            const QwtAxisId axisId(axisPos);
-
-            QwtScaleWidget* scaleWidget = axisWidget(axisId);
-            if (isAxisVisible(axisId)) {
-
-                QRect scaleRect = layout->scaleRect(axisId).toRect();
-                const bool geometryChanged = (scaleRect != scaleWidget->geometry());
-                if (geometryChanged)
-                    scaleWidget->setGeometry(scaleRect);
-
-                /*
-                   Refresh the border distances even when the geometry did not
-                   change: tick label contents ( date formats, fonts ... ) can
-                   alter the hint without affecting the scale rect. Otherwise
-                   the backbone would be drawn with stale border distances.
-                 */
-                int startDist = 0, endDist = 0;
-                scaleWidget->getBorderDistHint(startDist, endDist);
-                scaleWidget->setBorderDist(startDist, endDist);
-
-                /*
-                   Hidden widgets receive their resize event only once they
-                   are shown, so setGeometry() above may not have recalculated
-                   the scale geometry - and setBorderDist() only does when the
-                   distances actually changed. Relayout the scale explicitly
-                   to keep it in sync with the applied rectangle ( f.e. for
-                   the axes of a parasite plot that is grabbed before it was
-                   ever shown ).
-                 */
-                if (geometryChanged && !scaleWidget->isVisible())
-                    scaleWidget->layoutScale(false);
-
-                if (!scaleWidget->isVisibleTo(this))
-                    scaleWidget->show();
-            } else {
-                scaleWidget->hide();
-            }
-        }
     }
 
     // After the host axis geometries are applied, execute doLayout for all
