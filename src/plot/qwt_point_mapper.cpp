@@ -1777,8 +1777,9 @@ qreal QwtPointMapper::devicePixelRatio() const
  *          pixel grid ( see devicePixelRatio() ) but returned as PolygonF -
  *          what only makes sense when the further processing of the values
  *          need a QPolygonF.
- *          When RoundPoints & WeedOutIntermediatePoints is enabled, an even more
- *          aggressive weeding algorithm is enabled.
+ *          When WeedOutIntermediatePoints is enabled, an even more aggressive
+ *          weeding algorithm is enabled. It rounds to device pixels on its
+ *          own and does not require RoundPoints to be set.
  *
  * @param[in] xMap x map
  * @param[in] yMap y map
@@ -1816,10 +1817,12 @@ QPolygonF QwtPointMapper::toPolygonF(const QwtScaleMap& xMap,
         // without RoundPoints the output keeps its sub pixel precision
         polyline = qwtMinMaxBucketReduce< QPolygonF, QPointF >(
             xMap, yMap, series, from, to, d->flags & RoundPoints, dpr);
+    } else if (d->flags & WeedOutIntermediatePoints) {
+        // the quad weeding path rounds to device pixels internally,
+        // so it does not depend on RoundPoints being set
+        polyline = qwtMapPointsQuad< QPolygonF, QPointF >(xMap, yMap, series, from, to, dpr);
     } else if (d->flags & RoundPoints) {
-        if (d->flags & WeedOutIntermediatePoints) {
-            polyline = qwtMapPointsQuad< QPolygonF, QPointF >(xMap, yMap, series, from, to, dpr);
-        } else if (d->flags & WeedOutPoints) {
+        if (d->flags & WeedOutPoints) {
             polyline = qwtToPolylineFilteredF(xMap, yMap, series, from, to, roundF);
         } else {
             polyline = qwtToPointsF(qwtInvalidRect, xMap, yMap, series, from, to, roundF);

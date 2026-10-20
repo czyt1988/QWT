@@ -592,9 +592,17 @@ void QwtPlotCurve::drawLines(QPainter* painter,
 
     QWT_DC(d);
 
-    const bool doFit   = (d->attributes & Fitted) && d->curveFitter;
-    const bool doAlign = !doFit && QwtPainter::roundingAlignment(painter);
-    const bool doFill  = (d->brush.style() != Qt::NoBrush) && (d->brush.color().alpha() > 0);
+    const bool doFit = (d->attributes & Fitted) && d->curveFitter;
+    /*
+        Pixel snapping destroys the sub pixel geometry an antialiasing
+        rasterizer needs, so alignment is limited to painters that do
+        not antialias. PDF/SVG and transformed painters are already
+        excluded by QwtPainter::isAligning().
+     */
+    const bool doAlign = !doFit
+        && !(painter->renderHints() & QPainter::Antialiasing)
+        && QwtPainter::roundingAlignment(painter);
+    const bool doFill = (d->brush.style() != Qt::NoBrush) && (d->brush.color().alpha() > 0);
 
     QRectF clipRect;
     if (d->paintAttributes & ClipPolygons) {
@@ -607,10 +615,12 @@ void QwtPlotCurve::drawLines(QPainter* painter,
     QwtPointMapper mapper;
     mapper.setDevicePixelRatio(QwtPainter::devicePixelRatio(painter->device()));
 
-    if (doAlign) {
+    if (doAlign)
         mapper.setFlag(QwtPointMapper::RoundPoints, true);
-        mapper.setFlag(QwtPointMapper::WeedOutIntermediatePoints, testPaintAttribute(FilterPointsAggressive));
-    }
+
+    // the aggressive weeding path rounds to device pixels on its own,
+    // so it stays reachable when antialiasing turns RoundPoints off
+    mapper.setFlag(QwtPointMapper::WeedOutIntermediatePoints, testPaintAttribute(FilterPointsAggressive));
 
     mapper.setFlag(QwtPointMapper::AdaptiveColumnReduce, testPaintAttribute(FilterPointsAdaptive));
     mapper.setFlag(QwtPointMapper::PixelColumnReduce, testPaintAttribute(FilterPointsPixel));
@@ -782,8 +792,10 @@ void QwtPlotCurve::drawDots(QPainter* painter,
 
     QWT_DC(d);
 
-    const bool doFill  = (d->brush.style() != Qt::NoBrush) && (d->brush.color().alpha() > 0);
-    const bool doAlign = QwtPainter::roundingAlignment(painter);
+    const bool doFill = (d->brush.style() != Qt::NoBrush) && (d->brush.color().alpha() > 0);
+    // no pixel snapping for antialiased painters - same rule as in drawLines()
+    const bool doAlign = !(painter->renderHints() & QPainter::Antialiasing)
+        && QwtPainter::roundingAlignment(painter);
 
     QwtPointMapper mapper;
     mapper.setDevicePixelRatio(QwtPainter::devicePixelRatio(painter->device()));
@@ -1425,7 +1437,12 @@ QwtGraphic QwtPlotCurve::legendIcon(int index, const QSizeF& size) const
 
             painter.setPen(pn);
 
-            const double y = 0.5 * size.height();
+            double y = 0.5 * size.height();
+            if (!(painter.renderHints() & QPainter::Antialiasing)) {
+                // snap the horizontal line to the pixel grid, so that a
+                // non-antialiased renderer keeps it a crisp 1 pixel line
+                y = qRound(y);
+            }
             QwtPainter::drawLine(&painter, 0.0, y, size.width(), y);
         }
     }

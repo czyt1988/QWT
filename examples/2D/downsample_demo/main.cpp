@@ -1,10 +1,11 @@
 /******************************************************************************
  * Down-sampling comparison demo for spectral line rendering.
  *
- * Renders two synthetic spectra ( many / few samples per gaussian peak )
- * with the current qwt build. The point reduction algorithm behind
- * QwtPlotCurve::PaintAttribute can be switched at runtime, so the rendering
- * differences of the algorithms can be compared:
+ * Renders three synthetic spectra ( many / few / million samples over a
+ * gaussian peak ) with the current qwt build. The point reduction algorithm
+ * behind QwtPlotCurve::PaintAttribute can be switched at runtime, so the
+ * rendering differences and the rendering speed of the algorithms can be
+ * compared:
  *
  *   - none            : no reduction at all
  *   - weedout         : FilterPoints           ( WeedOutPoints )
@@ -13,6 +14,10 @@
  *   - lttb            : FilterPointsLTTB       ( largest triangle 3 buckets )
  *   - minmaxlttb      : FilterPointsMinMaxLTTB ( min/max buckets )
  *   - adaptive        : FilterPointsAdaptive   ( density gated ordered column reduce )
+ *
+ * The GUI times every replot and shows the drawing time of the current
+ * dataset / algorithm / view / paint-switch combination, so that the
+ * algorithms can be compared interactively.
  *
  * The spectra are generated at startup from a fixed set of gaussian peaks
  * plus seeded noise, so the demo is self contained and every run is
@@ -44,6 +49,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFileDialog>
 #include <QFontDatabase>
 #include <QImage>
@@ -52,13 +58,16 @@
 #include <QPainter>
 #include <QPushButton>
 #include <QRandomGenerator>
+#include <QTimer>
 #include <QToolBar>
 #include <QVector>
 
 #include <cmath>
+#include <functional>
 #include <limits>
 
 #include <QwtPlot>
+#include <QwtPlotCanvas>
 #include <QwtPlotCanvasZoomer>
 #include <QwtPlotCurve>
 #include <QwtPlotGrid>
@@ -205,8 +214,17 @@ QVector< DataSet > makeDataSets()
     few.title = QStringLiteral("few points per peak");
     few.points = makeSpectrum(0.043, 0x51de2);
 
+    // one order of magnitude above "many" - about 1.23 million samples -
+    // to measure the rendering cost of the reduction algorithms on data
+    // sets that are too large to be painted without reduction
+    DataSet million;
+    million.key = QStringLiteral("million");
+    million.title = QStringLiteral("1.2 million points per range");
+    million.points = makeSpectrum(0.00065, 0x51de3);
+
     sets.append(many);
     sets.append(few);
+    sets.append(million);
 
     return sets;
 }
@@ -257,8 +275,11 @@ int mappedPointCount(QwtPlot* plot, QwtPlotCurve* curve, qreal dpr)
     QwtPointMapper mapper;
     mapper.setDevicePixelRatio(dpr);
     // QwtPlotCurve::drawLines() only aligns to the device pixel grid while
-    // the global QwtPainter switch is on - report the count it really paints
-    mapper.setFlag(QwtPointMapper::RoundPoints, QwtPainter::roundingAlignment());
+    // the global QwtPainter switch is on and the painter does not antialias -
+    // report the count it really paints
+    mapper.setFlag(QwtPointMapper::RoundPoints,
+                   QwtPainter::roundingAlignment()
+                       && !curve->testRenderHint(QwtPlotItem::RenderAntialiased));
     mapper.setFlag(QwtPointMapper::AdaptiveColumnReduce, curve->testPaintAttribute(QwtPlotCurve::FilterPointsAdaptive));
     mapper.setFlag(QwtPointMapper::PixelColumnReduce, curve->testPaintAttribute(QwtPlotCurve::FilterPointsPixel));
     mapper.setFlag(QwtPointMapper::LTTBReduce, curve->testPaintAttribute(QwtPlotCurve::FilterPointsLTTB));
@@ -353,19 +374,17 @@ class MappedPointsItem : public QwtPlotItem
             return;
 
         // replicate the mapper setup of QwtPlotCurve::drawLines - the demo
-        // never enables Fitted, so doFit is false and doAlign reduces to
-        // QwtPainter::roundingAlignment( painter )
-        const bool doAlign = QwtPainter::roundingAlignment(painter);
+        // never enables Fitted, so doFit is false and doAlign reduces to the
+        // antialiasing-aware form of QwtPainter::roundingAlignment( painter )
+        const bool doAlign = !(painter->renderHints() & QPainter::Antialiasing)
+            && QwtPainter::roundingAlignment(painter);
 
         QwtPointMapper mapper;
         mapper.setDevicePixelRatio(QwtPainter::devicePixelRatio(painter->device()));
 
-        if (doAlign)
-        {
-            mapper.setFlag(QwtPointMapper::RoundPoints, true);
-            mapper.setFlag(QwtPointMapper::WeedOutIntermediatePoints,
-                           m_source->testPaintAttribute(QwtPlotCurve::FilterPointsAggressive));
-        }
+        mapper.setFlag(QwtPointMapper::RoundPoints, doAlign);
+        mapper.setFlag(QwtPointMapper::WeedOutIntermediatePoints,
+                       m_source->testPaintAttribute(QwtPlotCurve::FilterPointsAggressive));
 
         mapper.setFlag(QwtPointMapper::AdaptiveColumnReduce,
                        m_source->testPaintAttribute(QwtPlotCurve::FilterPointsAdaptive));
@@ -399,6 +418,31 @@ class MappedPointsItem : public QwtPlotItem
 
   private:
     const QwtPlotCurve* m_source;
+};
+
+// Canvas that reports the duration of its own paint. Timing QwtPlot::replot()
+// is not reliable: in Qt 6 QWidget::repaint() does not necessarily deliver the
+// paint event synchronously, so around replot() one measures the scheduling,
+// not the drawing. The grid, the curves and the markers are painted here, so
+// the reported value is the drawing cost of the current combination.
+class TimedPlotCanvas : public QwtPlotCanvas
+{
+  public:
+    using QwtPlotCanvas::QwtPlotCanvas;
+
+    std::function< void(qreal) > painted;
+
+  protected:
+    void paintEvent(QPaintEvent* event) override
+    {
+        QElapsedTimer timer;
+        timer.start();
+
+        QwtPlotCanvas::paintEvent(event);
+
+        if (painted)
+            painted(timer.nsecsElapsed() / 1.0e6);
+    }
 };
 
 QwtPlot* makePlot()
@@ -492,21 +536,30 @@ int runBatch(const QString& outDir, const QVector< DataSet >& sets, qreal dpr, b
                                    .arg(ds.title, QLatin1String(kAlgos[a].label), QLatin1String(kViews[v].label)));
                 plot->replot();
 
-                if (algo != AlgoVertical1px)
-                {
-                    qInfo("%s/%s/%s: mapped %d points", qPrintable(ds.key), kViews[v].key, kAlgos[a].key,
-                          mappedPointCount(plot, curve, dpr));
-                }
-
                 // render into a device with the given pixel ratio, so that
                 // QwtPainter::devicePixelRatio() sees it inside the curve
                 QImage image(qRound(plot->width() * dpr), qRound(plot->height() * dpr), QImage::Format_ARGB32_Premultiplied);
                 image.setDevicePixelRatio(dpr);
                 image.fill(Qt::white);
 
+                QElapsedTimer timer;
+                timer.start();
+
                 QPainter painter(&image);
                 plot->render(&painter);
                 painter.end();
+
+                const qreal renderMs = timer.nsecsElapsed() / 1.0e6;
+
+                if (algo != AlgoVertical1px)
+                {
+                    qInfo("%s/%s/%s: mapped %d points, rendered in %.1f ms", qPrintable(ds.key), kViews[v].key, kAlgos[a].key,
+                          mappedPointCount(plot, curve, dpr), renderMs);
+                }
+                else
+                {
+                    qInfo("%s/%s/%s: rendered in %.1f ms", qPrintable(ds.key), kViews[v].key, kAlgos[a].key, renderMs);
+                }
 
                 const QString name = QStringLiteral("%1__%2__%3.png").arg(ds.key, QLatin1String(kAlgos[a].key), QLatin1String(kViews[v].key));
                 if (image.save(outDir + QLatin1Char('/') + name))
@@ -530,6 +583,24 @@ class DemoWindow : public QMainWindow
         : m_sets(sets)
     {
         m_plot = makePlot();
+
+        // replace the default canvas by one that reports its paint duration
+        m_canvas = new TimedPlotCanvas();
+        m_plot->setCanvas(m_canvas);
+        m_plot->setCanvasBackground(Qt::white);  // the replacement starts with a fresh palette
+        m_canvas->painted = [this](qreal ms)
+        {
+            m_lastPaintMs = ms;
+            if (m_countDirty)
+            {
+                // the mapping is O( n ) - refresh the count only when the
+                // combination changed, not on every expose repaint
+                m_lastPaintedPoints = paintedPointCount();
+                m_countDirty = false;
+            }
+            m_timeLabel->setText(QStringLiteral("draw %1 ms | %2 pts").arg(m_lastPaintMs, 0, 'f', 1).arg(m_lastPaintedPoints));
+        };
+
         m_curve = makeCurve(m_plot);
         setCentralWidget(m_plot);
 
@@ -588,6 +659,14 @@ class DemoWindow : public QMainWindow
                                                 "Off: the polyline is handed over in one piece."));
         bar->addWidget(m_splitCheck);
 
+        m_timeLabel = new QLabel(QStringLiteral("draw -"));
+        m_timeLabel->setMinimumWidth(200);
+        m_timeLabel->setToolTip(QStringLiteral("Paint time of the plot canvas ( grid, curve, markers ) during\n"
+                                               "the last replot and the number of vertices the selected\n"
+                                               "algorithm painted - the drawing cost of the current\n"
+                                               "dataset / algorithm / view / paint-switch combination."));
+        bar->addWidget(m_timeLabel);
+
         QPushButton* saveButton = new QPushButton(QStringLiteral("save PNG"));
         bar->addWidget(saveButton);
 
@@ -602,17 +681,30 @@ class DemoWindow : public QMainWindow
         connect(m_alignCheck, &QCheckBox::toggled, this, [this](bool on)
         {
             QwtPainter::setRoundingAlignment(on);
-            m_plot->replot();
+            timedReplot();
         });
         connect(m_splitCheck, &QCheckBox::toggled, this, [this](bool on)
         {
             QwtPainter::setPolylineSplitting(on);
-            m_plot->replot();
+            timedReplot();
         });
+        // wheel zoom changes the visible window - the painted point count
+        // belongs to the new view
+        connect(m_zoomer, &QwtPlotCanvasZoomer::zoomed, this, [this] { m_countDirty = true; });
         connect(saveButton, &QPushButton::clicked, this, &DemoWindow::saveImage);
 
         resize(1400, 700);
         updatePlot();
+    }
+
+  protected:
+    void showEvent(QShowEvent* event) override
+    {
+        QMainWindow::showEvent(event);
+
+        // the constructor replotted while the widget was still hidden, when
+        // repaint() does nothing - measure once more when the canvas exists
+        QTimer::singleShot(0, this, [this] { updatePlot(); });
     }
 
   private:
@@ -649,9 +741,25 @@ class DemoWindow : public QMainWindow
 
         m_plot->setTitle(QStringLiteral("%1 | %2 | %3")
                              .arg(ds.title, m_algoCombo->currentText(), m_viewCombo->currentText()));
-        m_plot->replot();
+        timedReplot();
         m_zoomer->setZoomBase(false);
         setWindowTitle(QStringLiteral("downsample demo - %1 points drawn").arg(m_curve->dataSize()));
+    }
+
+    // Number of vertices the current algorithm paints for the current view.
+    // Called from the canvas paint callback, i.e. after updateAxes() has
+    // refreshed the scale maps of the replot that is being reported.
+    int paintedPointCount() const
+    {
+        return mappedPointCount(m_plot, m_curve, m_plot->canvas()->devicePixelRatioF());
+    }
+
+    // Trigger a replot; the canvas reports the drawing time when it has
+    // painted ( see TimedPlotCanvas ), so no timer is needed here.
+    void timedReplot()
+    {
+        m_countDirty = true;
+        m_plot->replot();
     }
 
     void saveImage()
@@ -663,15 +771,20 @@ class DemoWindow : public QMainWindow
 
     const QVector< DataSet >& m_sets;
     QwtPlot* m_plot = nullptr;
+    TimedPlotCanvas* m_canvas = nullptr;
     QwtPlotCurve* m_curve = nullptr;
     QwtPlotCanvasZoomer* m_zoomer = nullptr;
     MappedPointsItem* m_dotsItem = nullptr;
+    qreal m_lastPaintMs = 0.0;
+    int m_lastPaintedPoints = 0;
+    bool m_countDirty = true;
     QComboBox* m_dataCombo = nullptr;
     QComboBox* m_algoCombo = nullptr;
     QComboBox* m_viewCombo = nullptr;
     QCheckBox* m_dotsCheck = nullptr;
     QCheckBox* m_alignCheck = nullptr;
     QCheckBox* m_splitCheck = nullptr;
+    QLabel* m_timeLabel = nullptr;
 };
 
 }  // namespace
