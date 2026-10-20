@@ -75,12 +75,16 @@ public:
 
     /**
      * @brief Corner miter flags
-     * @details When a miter flag is set, the backbone is extended by its pen width
-     *          beyond the corresponding end of the scale, so that it intersects with
-     *          the backbone of a perpendicular scale ending at the same canvas corner.
+     * @details When a miter flag is set, the backbone is extended beyond the
+     *          corresponding end of the scale into a corner shared with a
+     *          perpendicular scale, so that both backbones intersect instead
+     *          of ending in a diagonal step. The extension reaches the target
+     *          position of the perpendicular backbone when one has been set
+     *          with setCornerTargets(), otherwise it falls back to one pixel
+     *          beyond the end of the scale.
      *          For vertical scales AtStart/AtEnd refer to the top/bottom end,
      *          for horizontal scales to the left/right end.
-     * @sa setCornerMiter(), cornerMiter()
+     * @sa setCornerMiter(), cornerMiter(), setCornerTargets()
      */
     enum CornerMiterFlag
     {
@@ -100,6 +104,34 @@ public:
     void setCornerMiter(CornerMiter miter);
     /// @return the corner miter flags
     CornerMiter cornerMiter() const;
+
+    /**
+     * @brief Corner miter target positions in device coordinates
+     * @details Per scale end the outer target is the device coordinate ( a row
+     *          for vertical scales, a column for horizontal scales ) of the
+     *          far edge of the perpendicular backbone band the backbone miter
+     *          has to reach, and the inner target the near edge where a tick
+     *          at the scale border sits. They differ when several perpendicular
+     *          bands are stacked ( parasite axes ). qQNaN() keeps the
+     *          historical fallback of one pixel beyond the end of the scale.
+     * @sa setCornerTargets(), cornerTargets()
+     */
+    struct CornerTargets
+    {
+        /// Backbone miter target at the start of the scale
+        qreal startOuter = qQNaN();
+        /// Border tick target at the start of the scale
+        qreal startInner = qQNaN();
+        /// Backbone miter target at the end of the scale
+        qreal endOuter = qQNaN();
+        /// Border tick target at the end of the scale
+        qreal endInner = qQNaN();
+    };
+
+    /// Set the corner miter target positions (device coordinates)
+    void setCornerTargets(const CornerTargets& targets);
+    /// @return the corner miter target positions
+    CornerTargets cornerTargets() const;
 
     /// Get the border distance hint
     void getBorderDistHint(const QFont&, int& start, int& end) const;
