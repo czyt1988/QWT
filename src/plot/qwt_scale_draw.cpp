@@ -43,13 +43,17 @@ namespace
 /*
     Backbone and ticks are filled as device pixel aligned rectangles instead of
     being stroked with a pen: every edge lands on an integer device coordinate,
-    so the scale renders as crisp hairlines at any device pixel ratio and the
-    pen width truncates to whole device pixels (a width of 1.0 always paints
-    a single device pixel wide line).
+    so the scale renders as crisp hairlines at any device pixel ratio.
+
+    The pen width is a device pixel contract: it is rounded to whole device
+    pixels without being scaled by the device pixel ratio, so setPenWidthF(1.0)
+    paints a one device pixel wide line at any scaling (0.0 maps to 1 as well).
+    Tick lengths, in contrast, stay in logical pixels and are scaled by the
+    device pixel ratio (see qwtDeviceTickLength()).
  */
-inline int qwtDevicePenWidth(const QPainter* painter, qreal deviceStep)
+inline int qwtDevicePenWidth(const QPainter* painter)
 {
-    return qMax(1, static_cast<int>(painter->pen().widthF() * deviceStep + 1e-6));
+    return qMax(1, qRound(painter->pen().widthF() + 1e-6));
 }
 
 inline int qwtDeviceTickLength(qreal length, qreal deviceStep)
@@ -482,7 +486,7 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
     switch (d->alignment) {
     case LeftScale:
     case RightScale: {
-        const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sx) : 0;
+        const int pw      = hasBackbone ? qwtDevicePenWidth(painter) : 0;
         const int inner   = qRound(qwtDeviceX(tr, d->pos.x()));
         const int tickLen = qwtDeviceTickLength(len, sx);
 
@@ -496,7 +500,7 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
             w  = tickLen + pw;
         }
 
-        const int th = qwtDevicePenWidth(painter, sy);
+        const int th = qwtDevicePenWidth(painter);
         int row      = qRound(qwtDeviceY(tr, tval));
 
         // a tick at the scale border sits on the perpendicular backbone
@@ -512,7 +516,7 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
     }
     case TopScale:
     case BottomScale: {
-        const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sy) : 0;
+        const int pw      = hasBackbone ? qwtDevicePenWidth(painter) : 0;
         const int inner   = qRound(qwtDeviceY(tr, d->pos.y()));
         const int tickLen = qwtDeviceTickLength(len, sy);
 
@@ -525,7 +529,7 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
             h  = tickLen + pw;
         }
 
-        const int th = qwtDevicePenWidth(painter, sx);
+        const int th = qwtDevicePenWidth(painter);
         int col      = qRound(qwtDeviceX(tr, tval));
 
         // a tick at the scale border sits on the perpendicular backbone
@@ -554,13 +558,11 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
 {
     QWT_DC(d);
     const QTransform tr = painter->deviceTransform();
-    const qreal sx      = qAbs(tr.m11());
-    const qreal sy      = qAbs(tr.m22());
 
     switch (d->alignment) {
     case LeftScale:
     case RightScale: {
-        const int pw    = qwtDevicePenWidth(painter, sx);
+        const int pw    = qwtDevicePenWidth(painter);
         const int inner = qRound(qwtDeviceX(tr, d->pos.x()));
         const int x0    = (d->alignment == LeftScale) ? inner - pw + 1 : inner;
 
@@ -577,7 +579,7 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
     }
     case TopScale:
     case BottomScale: {
-        const int pw    = qwtDevicePenWidth(painter, sy);
+        const int pw    = qwtDevicePenWidth(painter);
         const int inner = qRound(qwtDeviceY(tr, d->pos.y()));
         const int y0    = (d->alignment == TopScale) ? inner - pw + 1 : inner;
 
