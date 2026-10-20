@@ -1,17 +1,15 @@
 # 数据拾取
 
-数据拾取功能是一个绘图控件常用的需求，旨在用户通过鼠标移动来显示当前鼠标所在位置的具体数值情况
+数据拾取是绘图控件的常见需求：鼠标移动时显示当前位置的数值。
 
-`Qwt7`增加了`QwtPlotSeriesDataPicker`类，它提供了在绘图区域移动鼠标时实时显示数据点信息的功能。该类支持两种拾取模式：Y值拾取模式和最近点拾取模式，能够显著提升数据可视化和分析的交互体验。
+`Qwt7` 增加了 `QwtPlotSeriesDataPicker` 类，鼠标在绘图区域移动时实时显示数据点信息。它支持两种拾取模式：Y 值拾取和最近点拾取，并可用于宿主绘图和寄生绘图。
 
-**特性**
-
-- ✅ **双模式拾取**：支持Y值拾取和最近点拾取两种模式
-- ✅ **智能插值**：支持线性插值计算，在数据点之间精确取值
-- ✅ **高性能优化**：使用二分查找和窗口优化算法，支持大数据集的最近点拾取
-- ✅ **多曲线支持**：同时处理多个曲线的数据拾取
-- ✅ **自定义显示**：可自定义文本样式、特征点绘制和背景
-- ✅ **寄生绘图支持**：支持宿主绘图和寄生绘图的数据获取
+- 双模式拾取：Y 值拾取或最近点拾取
+- 线性插值：在数据点之间取得更精确的值
+- 最近点拾取：用二分查找和窗口搜索处理大数据集
+- 多曲线：同时处理多条曲线的数据拾取
+- 自定义显示：文本样式、特征点绘制和背景
+- 寄生绘图与宿主绘图：两者都能获取数据
 
 头文件引入
 
@@ -25,7 +23,7 @@
 
 ## 基本用法
 
-`QwtPlotSeriesDataPicker`继承`QwtPlotPicker`,要创建拾取器，只要传入绘图的canvas区域即可，示例代码如下
+`QwtPlotSeriesDataPicker` 继承 `QwtPlotPicker`，创建拾取器时传入绘图的 canvas 区域即可：
 
 ```cpp
 // 创建绘图对象
@@ -71,9 +69,9 @@ Y值拾取模式效果如下：
 
 y值拾取模式下，可以通过`setInterpolationMode`方法设置是否进行插值计算，插值计算可以提高数据的精度，如果点比较稀疏，会通过线性插值方式计算出当前x轴对应的y值。
 
-> **信息 — 注意**
+> **说明**
 >
-> 插值方式默认开启
+> 插值默认开启。
 
 ```cpp
 // 不进行插值，使用最近的数据点
@@ -111,22 +109,22 @@ int nearestSearchWindowSize() const;
 
 搜索窗口大小默认为-5，也就是曲线点数的5%
 
-> **警告 — 注意**
+> **警告 — 搜索窗口阈值**
 >
-> Qwt7默认启用窗口搜索算法的阈值是1000个数据点，也就是说如果曲线点数超过1000窗口设置才会生效
+> Qwt7 默认启用窗口搜索算法的阈值是 1000 个数据点：曲线点数超过 1000 时，窗口设置才会生效。
 
-> **说明 — 注意事项**
+> **说明 — 数据排序**
 >
-> 窗口优化算法要求曲线数据必须按X坐标升序排列。如果使用自定义数据源，请确保数据已正确排序。
+> 窗口优化算法要求曲线数据必须按 X 坐标升序排列。如果使用自定义数据源，请确保数据已正确排序。
 
 
 ## 其它属性设置
 
 ### 文本显示设置
 
-`QwtPlotSeriesDataPicker`可以设置文本显示位置，文本显示位置通过枚举`QwtPlotSeriesDataPicker::TextPlacement`定义，你可以使用`setTextArea`函数设置文本放置的地方，默认为自动选择，会根据拾取模式智能选择
+`QwtPlotSeriesDataPicker` 可以设置文本显示位置，文本显示位置通过枚举 `QwtPlotSeriesDataPicker::TextPlacement` 定义。使用 `setTextArea` 函数设置文本放置的位置，默认为自动放置，根据拾取模式选择。
 
-你可以通过以下方法设置文本的对其样式和背景颜色
+可以通过以下方法设置文本对齐样式和背景颜色：
 
 ```cpp
 // 自定义文本背景
@@ -135,9 +133,9 @@ picker->setTextBackgroundBrush(QBrush(QColor(255, 255, 255, 180)));
 picker->setTextAlignment(Qt::AlignLeft | Qt::AlignTop);
 ```
 
-> **已知问题 — Bug**
+> **已知问题 — 寄生绘图的绘制顺序**
 >
-> `QwtPlotSeriesDataPicker`的绘制区域是宿主绘图的图层，寄生绘图的属于宿主绘图的子窗口，因此寄生绘图绘制的图元会覆盖宿主绘图，也就是说寄生绘图显示的曲线是在`QwtPlotSeriesDataPicker`的绘制区域之上。目前的寄生绘图架构无法让`QwtPlotSeriesDataPicker`的内容显示在寄生绘图之上
+> `QwtPlotSeriesDataPicker`的绘制区域是宿主绘图的图层，寄生绘图属于宿主绘图的子窗口，因此寄生绘图绘制的图元会覆盖宿主绘图，寄生绘图显示的曲线位于`QwtPlotSeriesDataPicker`的绘制区域之上。目前的寄生绘图架构无法让`QwtPlotSeriesDataPicker`的内容显示在寄生绘图之上
 
 ### 特征点绘制
 
@@ -189,7 +187,7 @@ protected:
 
 ## 点击信号 (Click Signals)
 
-`QwtPlotSeriesDataPicker` 提供了点击信号，用于响应用户的鼠标点击操作。
+`QwtPlotSeriesDataPicker` 为鼠标点击提供了点击信号。
 
 ### 信号说明
 
@@ -212,13 +210,13 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 ### 左键限制 (Left Button Only)
 
-> **信息 — 注意**
+> **说明 — 仅左键**
 >
 > 点击信号**仅响应鼠标左键** (Qt::LeftButton)。右键和中键点击不会触发这些信号。
 
 ### 双击触发行为 (Double-Fire Behavior)
 
-> **警告 — 注意**
+> **警告 — 双击触发顺序**
 >
 > 当用户双击时，会先触发 `clicked()` 信号，然后触发 `doubleClicked()` 信号。 这是 Qt 的标准行为，不是 Bug。
 >
@@ -230,7 +228,7 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 ### FeaturePoint 结构
 
-每个被拾取的点由内嵌结构体 `QwtPlotSeriesDataPicker::FeaturePoint` 描述，它打包了所属绘图项（`item`）、拾取到的坐标（`feature`）以及该点在系列数据中的索引（`index`）。其定义如下：
+每个被拾取的点由内嵌结构体 `QwtPlotSeriesDataPicker::FeaturePoint` 描述，它包含所属绘图项（`item`）、拾取到的坐标（`feature`）以及该点在系列数据中的索引（`index`）。其定义如下：
 
 ```cpp
 struct FeaturePoint
@@ -251,7 +249,7 @@ struct FeaturePoint
 
 ### featurePoints() 方法
 
-`featurePoints()` 是一个 const 访问器，以 `QList<FeaturePoint>` 返回当前 tracker 位置拾取到的全部特征点，签名如下：
+`featurePoints()` 是一个 const 访问器，返回 `QList<FeaturePoint>`，签名如下：
 
 ```cpp
 // 获取当前拾取到的特征点列表
@@ -260,7 +258,7 @@ QList<FeaturePoint> featurePoints() const;
 
 `featurePoints()` 返回当前 tracker 位置拾取到的所有特征点列表。通常在 `clicked` 或 `doubleClicked` 信号处理器中调用此方法获取点击位置的数据。
 
-> **提示 — 提示**
+> **提示 — 多个特征点**
 >
 > 返回的列表可能包含多个 `FeaturePoint`，因为鼠标位置可能同时对应多条曲线的数据点（特别是在 Y 值拾取模式下）。
 
@@ -282,15 +280,15 @@ void doubleClicked(QwtPlotSeriesDataPicker* picker, const QPoint& pos);
 
 ### 同步机制 (Sync-Before-Signal)
 
-> **信息 — 重要特性**
+> **说明 — 信号发出前同步**
 >
 > Group 在发出点击信号之前，会先同步组内所有其他 picker 的位置。 这意味着当 `clicked` 信号触发时，组内所有 picker 的 `featurePoints()` 都已经更新到同步后的位置。
 
-这个特性对于多子图联动场景非常有用：当用户点击某个子图时，其他子图的 picker 已经同步到对应的 X 轴比例位置，可以直接获取所有子图在相同比例位置的数据。
+多子图联动场景下这一点很重要：用户点击某个子图时，其他子图的 picker 已经同步到相同的 X 轴比例位置，可以直接读取所有子图在该位置的数据。
 
 ## 代码示例 (Code Example)
 
-以下示例展示如何连接 Group 的点击信号并获取拾取数据：
+下面的示例连接 Group 的点击信号并获取拾取数据：
 
 ```cpp
 #include "qwt_plot_series_data_picker.h"
@@ -328,7 +326,7 @@ void MyClass::onPickerGroupClicked(QwtPlotSeriesDataPicker* picker, const QPoint
 
 ### 多子图联动示例
 
-在多子图布局中，可以通过 Group 的同步机制实现跨图数据检视：
+借助 Group 的同步机制，多子图布局可以实现跨图数据检视：
 
 ```cpp
 // 假设有多个子图，每个子图都有自己的 picker

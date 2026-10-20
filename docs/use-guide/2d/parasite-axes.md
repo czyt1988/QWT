@@ -23,7 +23,7 @@ QwtPlot* createParasitePlot(QwtAxis::Position enableAxis);
 
 `enableAxis` is the axis to be displayed on the parasite plot. The parasite plot will only display this axis; all other axes are hidden.
 
-The parasite plot object created by this method shares the same plot area as the host plot, but can have an independent coordinate system. The host plot internally keeps track of the bound parasite plot objects. **When the host plot is destroyed, the parasite plots are also destroyed.**
+The parasite plot object created by this method shares the same plot area as the host plot, but can have an independent coordinate system. The host plot internally keeps track of the bound parasite plot objects. When the host plot is destroyed, the parasite plots are also destroyed.
 
 When the host plot's size changes, the parasite plots' sizes are adjusted accordingly. The host plot ensures all parasite plots maintain the same size as itself.
 
@@ -67,7 +67,7 @@ The result of the above code is shown below:
 
 To create a parasite plot, you first need to create the host plot. The parasite plot is created on top of the host plot via the `QwtPlot::createParasitePlot` function, which returns a pointer to the parasite plot. The parasite plot object is also a `QwtPlot`. You can distinguish whether a plot is a parasite or host plot using the `QwtPlot::isHostPlot` and `QwtPlot::isParasitePlot` functions. If the current plot is a parasite plot, you can get the host plot pointer via `QwtPlot::hostPlot`. If the current plot is a host plot, you can get all parasite plot pointers via `QwtPlot::parasitePlots`.
 
-> **Warning — Note**
+> **Warning — Nested parasite plots**
 >
 > A plot cannot be both a parasite plot and a host plot at the same time. In other words, if a plot is a parasite plot, it is not allowed to create its own parasite plots. Calling `createParasitePlot` on a parasite plot will return `nullptr`.
 
@@ -134,7 +134,7 @@ classDiagram
     QwtPlotLayout <|-- QwtPlotParasiteLayout
 ```
 
-The `activate` function of the `QwtParasitePlotLayout` class calculates the widget sizes for each axis of the parasite plot. These sizes can be retrieved via `parasiteScaleRect`. These sizes are used by the host plot to layout the parasite plot's axis coordinates. Do not use `QwtParasitePlotLayout::scaleRect` to get the parasite plot's axis dimensions — that function returns the same dimensions as the host plot.
+The `activate` function of the `QwtParasitePlotLayout` class calculates the widget sizes for each axis of the parasite plot. These sizes can be retrieved via `parasiteScaleRect`. These sizes are used by the host plot to layout the parasite plot's axis coordinates. Do not use `QwtParasitePlotLayout::scaleRect` to get the parasite plot's axis dimensions: that function returns the same dimensions as the host plot.
 
 The host plot layouts the axis coordinates of each parasite plot via the `QwtPlot::updateAxisEdgeMargin` function.
 
@@ -167,7 +167,7 @@ The general calculation process is as follows:
 3. Set the new values to the corresponding axis QwtScaleWidget
 4. The host's margin is preserved (to avoid overwriting values the user may have set manually).
 
-> **Warning — Note**
+> **Warning — Host margin**
 >
 > `QwtPlot::updateAxisEdgeMargin`/`QwtPlot::updateAllAxisEdgeMargin` do not modify the host plot's `margin` property.
 
@@ -177,7 +177,7 @@ After adding parasite axes and before displaying the plot, you should manually c
 
 ### Getting All Plot Items
 
-When iterating over `QwtPlotItem` objects, you must not only process the host plot but also consider all parasite plots.
+When iterating over `QwtPlotItem` objects, you must process the host plot and all parasite plots.
 
 Typically, event handling is bound to the host plot. You can get the host plot pointer and use the `QwtPlot::plotList` function to get all plot layers. This function returns all plots in ascending order by default, with the host plot itself as the first element in the list.
 
@@ -193,9 +193,9 @@ for (QwtPlot* oneplot : plotList) {
 }
 ```
 
-> **Tip — Note**
+> **Tip — plotList**
 >
-> Calling `QwtPlot::plotList` on any plot will return the complete list of all plots, whether called from a parasite plot or a host plot — the result is the same.
+> Calling `QwtPlot::plotList` on any plot will return the complete list of all plots, whether called from a parasite plot or a host plot; the result is the same.
 
 ### Handling Coordinate Transforms
 
@@ -262,7 +262,7 @@ QPointF screenPos = QwtScaleMap::transform(xMap, yMap, valuePoint);
 
 - Parasite plots cannot be the currently active axis in `QwtFigure`
 - Parasite plots do not participate in `QwtFigureLayout` layout calculations
-- Parasite plots have the `Qt::WA_TransparentForMouseEvents` attribute set, meaning they do not accept any mouse events — all mouse events are handled by the host plot
+- Parasite plots have the `Qt::WA_TransparentForMouseEvents` attribute set, meaning they do not accept any mouse events; all mouse events are handled by the host plot
 - Parasite plot positions are controlled by the host plot
 
 > **Example — Parasite Plot Example**

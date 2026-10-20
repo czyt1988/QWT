@@ -1,21 +1,19 @@
 # 数据系列 - QwtSeriesData
 
-`QwtSeriesData` 是绘图项数据的抽象接口，为绘图提供数据访问方法。通过自定义 `QwtSeriesData` 派生类，可以实现灵活的数据管理方式，支持从内存、文件、数据库等各种数据源获取绘图数据。
+`QwtSeriesData` 是绘图项数据的抽象接口。自定义 `QwtSeriesData` 派生类可以从内存、文件、数据库等任意数据源提供绘图数据。
 
 ## 主要功能特性
 
-**特性**
-
-- ✅ **数据抽象接口**：定义统一的数据访问接口
-- ✅ **多种内置实现**：提供内存存储、外部数组引用等常用实现
-- ✅ **动态数据支持**：支持实时更新和大数据场景
-- ✅ **边界计算**：自动计算数据边界矩形
+- 数据抽象接口：定义统一的数据访问接口
+- 多种内置实现：内存存储、外部数组引用等常用实现
+- 动态数据支持：支持实时更新和大数据场景
+- 边界计算：自动计算数据边界矩形
 
 ## 基本概念
 
 ### 数据接口结构
 
-下面的类图勾勒了 `QwtSeriesData<T>` 接口——`size()`、`sample(i)`、`boundingRect()` 与可选的 `setRectOfInterest()`——以及内置的派生实现：以 `QVector` 存放样本并提供 `setSamples()` / `samples()` 的泛型 `QwtArraySeriesData<T>`、其 `QPointF` 特化 `QwtPointSeriesData`，以及从 `QwtPointSeriesData` 派生、通过纯虚函数 `y(double x)` 即时计算样本而不存储数据的 `QwtSyntheticPointData`：
+下面的类图勾勒了 `QwtSeriesData<T>` 接口（`size()`、`sample(i)`、`boundingRect()` 与可选的 `setRectOfInterest()`）以及内置的派生实现：以 `QVector` 存放样本并提供 `setSamples()` / `samples()` 的泛型 `QwtArraySeriesData<T>`、其 `QPointF` 特化 `QwtPointSeriesData`，以及从 `QwtPointSeriesData` 派生、通过纯虚函数 `y(double x)` 即时计算样本而不存储数据的 `QwtSyntheticPointData`：
 
 ```mermaid
 classDiagram
@@ -83,7 +81,7 @@ curve->setData(seriesData);
 
 ### 2. 引用外部数据
 
-当数据已经存放在你自己的缓冲区里时，`setRawSamples()` 让曲线直接引用原始 `double` 数组而不做复制——这是大数据量下最快的路径——代价是数组的存活期要由你自己保证：
+当数据已经存放在你自己的缓冲区里时，`setRawSamples()` 让曲线直接引用原始 `double` 数组而不做复制，这是大数据量下最快的路径，代价是数组的存活期要由你自己保证：
 
 ```cpp
 #include <QwtPlotCurve>
@@ -161,7 +159,7 @@ curve->setData(new DatabaseSeriesData("measurements"));
 
 ### 4. 函数生成数据
 
-`QwtSyntheticPointData` 可以在不存储任何样本的情况下生成函数曲线：继承它并实现纯虚函数 `y(double x)`，再向基类构造函数传入等距采样点数与 x 轴区间即可——若区间保持无效值，则改为按当前可见绘图区域计算采样点：
+`QwtSyntheticPointData` 可以在不存储任何样本的情况下生成函数曲线：继承它并实现纯虚函数 `y(double x)`，再向基类构造函数传入等距采样点数与 x 轴区间即可；若区间保持无效值，则改为按当前可见绘图区域计算采样点：
 
 ```cpp
 #include <cmath>

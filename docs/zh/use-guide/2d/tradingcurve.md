@@ -4,12 +4,10 @@
 
 ## 主要功能特性
 
-**特性**
-
-- ✅ **标准K线样式**：支持蜡烛图、美国线等多种样式
-- ✅ **涨跌颜色区分**：自动根据开盘/收盘价显示涨跌颜色
-- ✅ **自动缩放范围**：根据数据自动计算合适显示范围
-- ✅ **符号样式自定义**：可自定义涨跌柱体的样式
+- 支持蜡烛图、美国线等多种K线样式
+- 根据开盘价与收盘价自动区分涨跌颜色
+- 根据数据自动计算显示范围
+- 可自定义涨跌柱体的样式
 
 ## 基本概念
 
@@ -40,7 +38,7 @@
 
 ### 数据结构
 
-使用 `QwtOHLCSample`（声明于 `qwt_samples.h`，也可通过 `#include <QwtOHLCSample>` 引入）表示每根K线的数据。注意构造函数的参数顺序为**时间、开盘、最高、最低、收盘**：
+使用 `QwtOHLCSample`（声明于 `qwt_samples.h`，也可通过 `#include <QwtOHLCSample>` 引入）表示每根K线的数据。注意构造函数的参数顺序依次为时间、开盘、最高、最低、收盘：
 
 ```cpp
 class QwtOHLCSample {
@@ -111,7 +109,7 @@ plot->replot();
 
 #### 蜡烛图样式
 
-`CandleStick` 模式下，开盘价与收盘价之间的箱体按价格方向填充：`setSymbolBrush()` 接受一个 `Direction`（收盘高于开盘为 `Increasing`，反之为 `Decreasing`）和画刷；描边画笔则通过 `setSymbolPen()` 全局设置——没有按方向区分的画笔重载——且平盘样本（开盘=收盘）会按 `Decreasing` 的画刷绘制，不存在独立的平盘状态。下面的代码为涨跌分别指定不同的填充：
+`CandleStick` 模式下，开盘价与收盘价之间的箱体按价格方向填充：`setSymbolBrush()` 接受一个 `Direction`（收盘高于开盘为 `Increasing`，反之为 `Decreasing`）和画刷；描边画笔则通过 `setSymbolPen()` 全局设置，没有按方向区分的画笔重载；平盘样本（开盘=收盘）会按 `Decreasing` 的画刷绘制，不存在独立的平盘状态。下面的代码为涨跌分别指定不同的填充：
 
 ```cpp
 curve->setSymbolStyle(QwtPlotTradingCurve::CandleStick);
@@ -152,7 +150,7 @@ curve->setMaxSymbolWidth(20); // 最大20像素宽
 
 ### 4. 数据设置
 
-`setSamples()` 提供两种重载：一种接收 `QVector<QwtOHLCSample>`——每个样本包含时间、开盘、最高、最低、收盘五个值；另一种接收 `QwtSeriesData<QwtOHLCSample>*`，便于接入自定义数据源。下面的代码演示了这两种写法：
+`setSamples()` 提供两种重载：一种接收 `QVector<QwtOHLCSample>`，每个样本包含时间、开盘、最高、最低、收盘五个值；另一种接收 `QwtSeriesData<QwtOHLCSample>*`，便于接入自定义数据源。下面的代码演示了这两种写法：
 
 ```cpp
 // 使用QwtOHLCSample数组

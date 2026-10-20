@@ -1,14 +1,14 @@
 # Arrow Marker - QwtPlotArrowMarker
 
-`QwtPlotArrowMarker` is a plot item for drawing arrow annotations on plots. It supports customizable start/end points, head/tail endpoint styles, line styles, and more. It is commonly used for annotating data regions, indicating directions, or adding explanatory notes.
+`QwtPlotArrowMarker` is a plot item for drawing arrow annotations on plots. It supports configurable start and end points, head and tail endpoint styles, and line styles. It is commonly used for annotating data regions, indicating directions, or adding explanatory notes.
 
 ## Key Features
 
-- ✅ **Two positioning modes**: explicit start/end coordinates, or start point + pixel length + angle
-- ✅ **Seven endpoint styles**: NoEndpoint, ArrowHead, Circle, Square, Diamond, Triangle, CustomPath
-- ✅ **Independent head/tail configuration**: each end can have its own style, size, pen, and brush
-- ✅ **Custom paths**: create arbitrary endpoint shapes via `QPainterPath`
-- ✅ **Pixel-level control**: in `StartLengthAngle` mode, arrow size is preserved during zoom
+- Two positioning modes: explicit start/end coordinates, or start point + pixel length + angle
+- Seven endpoint styles: NoEndpoint, ArrowHead, Circle, Square, Diamond, Triangle, CustomPath
+- Independent head/tail configuration: each end can have its own style, size, pen, and brush
+- Custom paths: create arbitrary endpoint shapes via `QPainterPath`
+- Pixel-level control: in `StartLengthAngle` mode, arrow size is preserved during zoom
 
 ## Basic Concepts
 
@@ -47,7 +47,7 @@ The diagram below shows the anatomy of a `QwtPlotArrowMarker`: it spans from the
 
 ### 1. Basic Arrow (ExplicitPoints Mode)
 
-Create an arrow with explicit start and end coordinates — the most common approach:
+Create an arrow with explicit start and end coordinates (the most common approach):
 
 ```cpp
 #include <QwtPlotArrowMarker>
@@ -191,11 +191,11 @@ arrow->setLegendIconSize(QSize(32, 16));
 | `setTailPen(pen)` | Set tail outline pen |
 | `setTailCustomPath(path)` | Set tail custom QPainterPath |
 
-> **Tip — Tips**
+> **Tip — Usage Notes**
 >
 > - Enable anti-aliasing with `setRenderHint(QwtPlotItem::RenderAntialiased, true)` for smoother lines.
-> - In `StartLengthAngle` mode, length is in pixels — the arrow does not resize when zooming.
-> - In `ExplicitPoints` mode, start/end use plot coordinates — the arrow scales with axis changes.
+> - In `StartLengthAngle` mode, length is in pixels: the arrow does not resize when zooming.
+> - In `ExplicitPoints` mode, start/end use plot coordinates: the arrow scales with axis changes.
 
 > **Example — Related Examples**
 >

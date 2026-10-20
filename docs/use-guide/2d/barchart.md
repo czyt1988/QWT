@@ -1,16 +1,14 @@
 # Bar Chart - QwtPlotBarChart
 
-`QwtPlotBarChart` is a plot item class for drawing bar charts. It supports grouped and stacked bar charts, can be displayed horizontally or vertically, and is suitable for comparative analysis of categorical data.
+`QwtPlotBarChart` is a plot item class for drawing bar charts. It supports grouped and stacked bar charts, can be displayed horizontally or vertically, and is used to compare categorical data.
 
 ## Key Features
 
-**Features**
-
-- Grouped/stacked modes: Supports grouped comparison and stacked cumulative display of multiple data sets
-- Direction switching: Supports both vertical and horizontal display orientations
-- Style customization: Configurable bar fill, border, width, and other properties
-- Baseline configuration: Supports custom bar starting baseline position
-- Legend modes: Choose to display chart title or individual bar titles
+- Grouped/stacked modes: grouped comparison and stacked cumulative display of multiple data sets
+- Direction switching: vertical and horizontal display orientations
+- Style customization: bar fill, border, width, and other properties
+- Baseline configuration: custom bar starting baseline position
+- Legend modes: chart title or individual bar titles
 
 ## Basic Concepts
 
@@ -144,7 +142,7 @@ barChart->setBrush(QBrush(Qt::blue));
 ```
 
 ### 4. Display Orientation
-`setOrientation()` switches between the two orientations: `Qt::Vertical` (default, X axis = categories, Y axis = values) and `Qt::Horizontal` (Y axis = categories, X axis = values — handy when category labels are long):
+`setOrientation()` switches between the two orientations: `Qt::Vertical` (default, X axis = categories, Y axis = values) and `Qt::Horizontal` (Y axis = categories, X axis = values, which helps when category labels are long):
 
 ```cpp
 // Vertical bar chart (default) - X-axis for categories, Y-axis for values
@@ -255,7 +253,7 @@ multiBar->setSymbols(symbols);
 | `setChartMode()` | Set grouped/stacked mode |
 
 ## Legend Modes
-`setLegendMode()` controls how the bar chart appears in the legend: `LegendChartTitle` (default) contributes a single entry for the whole chart, while `LegendBarTitles` gives every bar (set) its own entry — typically combined with multi-bar charts:
+`setLegendMode()` controls how the bar chart appears in the legend: `LegendChartTitle` (default) contributes a single entry for the whole chart, while `LegendBarTitles` gives every bar (set) its own entry, typically combined with multi-bar charts:
 
 ```cpp
 // Single legend entry (display chart title)

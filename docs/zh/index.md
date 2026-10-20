@@ -15,7 +15,7 @@ hide:
 <h1 class="qwt-hero-title">Qt 绘图库</h1>
 
 <p class="qwt-hero-desc">
-基于 Qt 的高性能 2D/3D 绘图库，专为科学计算和工程数据可视化设计。
+基于 Qt 的 2D/3D 绘图库，用于科学计算和工程数据可视化。
 </p>
 
 <div class="qwt-hero-pills">
@@ -46,12 +46,12 @@ hide:
 <div class="qwt-stat-divider"></div>
 <div class="qwt-stat">
 <strong>Qt 5 &amp; 6</strong>
-<span>完全兼容</span>
+<span>兼容</span>
 </div>
 <div class="qwt-stat-divider"></div>
 <div class="qwt-stat">
 <strong>LGPL</strong>
-<span>商业友好</span>
+<span>商业使用</span>
 </div>
 </div>
 
@@ -59,7 +59,7 @@ hide:
 
 <div class="qwt-section-head">
 <h2>核心特性</h2>
-<p>为 Qt 应用的专业数据可视化提供所需的一切。</p>
+<p>面向 Qt 应用的 2D 与 3D 绘图，从曲线到科学可视化。</p>
 </div>
 
 <div class="qwt-card-grid">
@@ -68,15 +68,15 @@ hide:
 <div class="qwt-card-icon">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
 </div>
-<h3>高性能</h3>
-<p>优化的 QPainter 渲染管线，面向大规模数据集。高效的重绘策略实现流畅的实时绘图。</p>
+<h3>性能</h3>
+<p>针对大规模数据集优化的 QPainter 渲染管线，通过重绘策略保持实时绘图的响应速度。</p>
 </div>
 
 <div class="qwt-card">
 <div class="qwt-card-icon">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
 </div>
-<h3>丰富的图表类型</h3>
+<h3>图表类型</h3>
 <p>20+ 内置图表类型：曲线、散点、柱状图、箱线图、直方图、光谱图、K 线图、向量场、极坐标绘图以及 3D 曲面。</p>
 </div>
 
@@ -85,7 +85,7 @@ hide:
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
 </div>
 <h3>CMake &amp; Qt6</h3>
-<p>完整的 CMake 支持，<code>find_package(qwt)</code> 一键引入。提供单文件合并版本，兼容 Qt 5.12+ 和 Qt 6。</p>
+<p>提供 CMake 支持，可通过 <code>find_package(qwt)</code> 引入。另有单文件合并版本，兼容 Qt 5.12+ 和 Qt 6。</p>
 </div>
 
 <div class="qwt-card">
@@ -93,15 +93,15 @@ hide:
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
 </div>
 <h3>多坐标轴系统</h3>
-<p>通过寄生绘图架构创建无限多的独立坐标轴 &mdash; 类似 matplotlib 的双轴系统，支持完整的交互。</p>
+<p>通过寄生绘图架构创建任意数量的独立坐标轴，类似 matplotlib 的双轴系统，并支持交互操作。</p>
 </div>
 
 <div class="qwt-card">
 <div class="qwt-card-icon">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"></circle><circle cx="19" cy="13" r="2"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="10" cy="20" r="2"></circle></svg>
 </div>
-<h3>现代设计</h3>
-<p>简洁的扁平化视觉风格，取代老旧的浮雕效果。专业美观，符合当代应用设计审美。</p>
+<h3>扁平化风格</h3>
+<p>简洁的扁平化视觉风格，取代老旧的浮雕效果。符合现代应用的设计习惯。</p>
 </div>
 
 <div class="qwt-card">
@@ -119,7 +119,7 @@ hide:
 
 <div class="qwt-section-head">
 <h2>可视化展示</h2>
-<p>从基本图表到高级科学可视化。</p>
+<p>基础图表与科学可视化。</p>
 </div>
 
 <div class="qwt-gallery">
@@ -214,7 +214,7 @@ hide:
 
 <div class="qwt-section-head">
 <h2>快速开始</h2>
-<p>几分钟内将 QWT 集成到你的项目中。</p>
+<p>将 QWT 集成到你的项目中。</p>
 </div>
 
 **CMake（推荐）**
@@ -269,7 +269,7 @@ plot->show();
 <div class="qwt-footer">
 <div class="qwt-footer-inner">
 
-<h2>立即开始构建</h2>
+<h2>开始构建</h2>
 <p>浏览文档或查看源代码。</p>
 
 <div class="qwt-footer-links">

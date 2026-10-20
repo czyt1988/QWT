@@ -4,18 +4,16 @@
 
 ## Main Features
 
-**Features**
-
-- ✅ **Multiple export formats**: Supports PNG, JPG, BMP, PDF, SVG, PS, etc.
-- ✅ **Resolution control**: Configurable DPI resolution for exported images
-- ✅ **Size settings**: Customizable export dimensions or millimeter units
-- ✅ **Layout options**: Option to ignore titles, legends, and other components during export
+- Export to PNG, JPG, BMP, PDF, SVG, PS, and other formats
+- Configurable DPI resolution for exported images
+- Custom export dimensions, including millimeter units
+- Titles, legends, and other components optionally ignored during export
 
 ## Usage
 
 ### 1. Export to Image File
 
-All file exports go through `QwtPlotRenderer::renderDocument()`: you pass the plot, the target filename (whose extension selects the format), the output size **in millimeters** (`QSizeF`), and the resolution in DPI (default 85). For image formats the pixel dimensions are derived as `mm / 25.4 * DPI`. The example below writes the same plot as PNG, JPG, and BMP:
+All file exports go through `QwtPlotRenderer::renderDocument()`: you pass the plot, the target filename (whose extension selects the format), the output size in millimeters (`QSizeF`), and the resolution in DPI (default 85). For image formats the pixel dimensions are derived as `mm / 25.4 * DPI`. The example below writes the same plot as PNG, JPG, and BMP:
 
 ```cpp
 #include <QwtPlotRenderer>
@@ -36,7 +34,7 @@ renderer.renderDocument(plot, "plot.bmp", QSizeF(200, 150));
 
 ### 2. Export to PDF
 
-PDF output uses the same `renderDocument()` entry point — just give the file a `.pdf` extension. The result is a vector document that stays sharp at any zoom level, ideal for printing and document embedding:
+PDF output uses the same `renderDocument()` entry point; just give the file a `.pdf` extension. The result is a vector document that stays sharp at any zoom level, ideal for printing and document embedding:
 
 ```cpp
 // Export to PDF
@@ -99,7 +97,7 @@ renderer.setDiscardFlags(QwtPlotRenderer::DiscardNone);
 
 ### 6. Print Function
 
-For printing, a configured `QPrinter` is handed to the renderer (`renderTo(QwtPlot*, QPrinter&)`), which lays the plot out across the page; the printer itself decides the target — a physical device or, as below, a PDF file:
+For printing, a configured `QPrinter` is handed to the renderer (`renderTo(QwtPlot*, QPrinter&)`), which lays the plot out across the page. The printer itself decides the target: a physical device or, as below, a PDF file:
 
 ```cpp
 #include <QPrinter>

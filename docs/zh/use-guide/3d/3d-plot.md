@@ -2,7 +2,7 @@
 
 
 
-Qwt 7.1 将原 `QwtPlot3D` 库整合进来，提供了三维数据可视化能力。从 v7.3.3 起，3D模块已完全重构为 **Plot + Item** 架构，与2D模块（`QwtPlot` + `QwtPlotItem`）对称，并采用现代OpenGL渲染（VBO/VAO + GLSL 3.3 Core着色器）。
+Qwt 7.1 将原 `QwtPlot3D` 库整合进来，用于三维数据可视化。从 v7.3.3 起，3D 模块采用 Plot + Item 架构，与 2D 模块（`QwtPlot` + `QwtPlotItem`）对称，并使用现代 OpenGL 渲染（VBO/VAO + GLSL 3.3 Core 着色器）。
 
 
 
@@ -18,23 +18,19 @@ Qwt 7.1 将原 `QwtPlot3D` 库整合进来，提供了三维数据可视化能�
 
 
 
-**特性**
+- Plot + Item 架构：`Qwt3DPlot`（渲染窗口）+ `Qwt3DPlotItem`（绘图item），与2D的 `QwtPlot` + `QwtPlotItem` 对称
 
+- 多种绘图类型：表面图、网格图、参数曲面、函数绘图、瀑布图（滑动窗口轨迹堆叠）等
 
+- 现代OpenGL渲染：VBO/VAO + GLSL 3.3 Core着色器（不使用旧版固定管线）
 
-- ✅ **Plot + Item 架构**：`Qwt3DPlot`（渲染窗口）+ `Qwt3DPlotItem`（绘图item），与2D的 `QwtPlot` + `QwtPlotItem` 对称
+- 交互操作：支持鼠标旋转、缩放、平移
 
-- ✅ **多种绘图类型**：表面图、网格图、参数曲面、函数绘图、瀑布图（滑动窗口轨迹堆叠）等
+- 光照与材质参数：光照开关、光源旋转、灯光/材质分量与 shininess 均接入着色器（v7.5.1 起；`illuminate()`/`blowout()` 控制唯一那盏灯，默认参数与此前硬编码一致，详见[技术报告](../../tech-report/3d-surface-pipeline.md)）
 
-- ✅ **现代OpenGL渲染**：VBO/VAO + GLSL 3.3 Core着色器（不使用旧版固定管线）
+- 主题系统：可切换视觉风格，支持10种预设主题和22种科学色彩映射
 
-- ✅ **交互操作**：支持鼠标旋转、缩放、平移
-
-- ✅ **光照与材质参数**：光照开关、光源旋转、灯光/材质分量与 shininess 均接入着色器（v7.5.1 起；`illuminate()`/`blowout()` 控制唯一那盏灯，默认参数与此前硬编码一致，详见[技术报告](../../tech-report/3d-surface-pipeline.md)）
-
-- ✅ **主题系统**：一键切换视觉风格，支持10种预设主题和22种科学色彩映射
-
-- ✅ **多item组合**：一个 `Qwt3DPlot` 可挂载任意数量的item，在同一GL上下文中统一渲染
+- 多item组合：一个 `Qwt3DPlot` 可挂载任意数量的item，在同一GL上下文中统一渲染
 
 
 
@@ -42,15 +38,15 @@ Qwt 7.1 将原 `QwtPlot3D` 库整合进来，提供了三维数据可视化能�
 
 
 
-3D模块遵循与2D模块对称的 **Plot + Item** 模式：
+3D 模块采用与 2D 模块对称的 Plot + Item 模式：
 
 
 
-- **`Qwt3DPlot`** 是渲染窗口（`QOpenGLWidget` 子类），负责GL上下文管理、视图变换、光照、坐标系统和鼠标/键盘交互。它本身**不持有任何绘图数据**。
+- `Qwt3DPlot` 是渲染窗口（`QOpenGLWidget` 子类），负责GL上下文管理、视图变换、光照、坐标系统和鼠标/键盘交互。它本身不持有任何绘图数据。
 
-- **`Qwt3DPlotItem`** 是所有3D绘图元素的抽象基类。item自行管理数据、几何和样式，通过 `attach()` / `detach()` 挂载到渲染窗口。
+- `Qwt3DPlotItem` 是所有3D绘图元素的抽象基类。item自行管理数据、几何和样式，通过 `attach()` / `detach()` 挂载到渲染窗口。
 
-- 一个 `Qwt3DPlot` 窗口可以挂载**任意数量的item**，在同一个GL上下文中统一渲染。
+- 一个 `Qwt3DPlot` 窗口可以挂载任意数量的item，在同一个GL上下文中统一渲染。
 
 
 
@@ -144,7 +140,7 @@ classDiagram
 
 >
 
-> 所有3D类直接使用 `Qwt3D` 前缀定义在全局作用域（如 `Qwt3DPlot`、`Qwt3DSurface`）。不再有 `namespace Qwt3D`——这是相对于 v7.3.2 及更早版本的破坏性变更。
+> 所有3D类直接使用 `Qwt3D` 前缀定义在全局作用域（如 `Qwt3DPlot`、`Qwt3DSurface`）。不再有 `namespace Qwt3D`。这是相对于 v7.3.2 及更早版本的破坏性变更。
 
 
 
@@ -380,7 +376,7 @@ surface->setDataColor(new Qwt3DColorMapColor(plot, "viridis"));
 
 
 
-Plot + Item 架构的核心优势之一是能在同一个3D空间中渲染多个item：
+Plot + Item 架构允许在同一个 3D 空间中渲染多个 item：
 
 
 
@@ -418,7 +414,7 @@ overlay->attach(plot);
 
 
 
-除曲面外，3D 模块还提供更多 `Qwt3DPlotItem` 类型——详见各自的使用说明文档：
+除曲面外，3D 模块还提供更多 `Qwt3DPlotItem` 类型，各自都有专门的使用说明：
 
 
 
@@ -434,7 +430,7 @@ overlay->attach(plot);
 
 
 
-瀑布图把一连串一维轨迹（频谱、色谱……）沿深度轴堆叠绘制。一个 `Qwt3DWaterfall` item 就拥有全部实时机制——滑动窗口、深度编号、帘幕几何与上色——因此画瀑布就是"每个 tick 推一条轨迹"：
+瀑布图把一连串一维轨迹（频谱、色谱……）沿深度轴堆叠绘制。一个 `Qwt3DWaterfall` item 负责全部实时机制：滑动窗口、深度编号、帘幕几何与上色，因此画瀑布就是"每个 tick 推一条轨迹"：
 
 
 
@@ -470,9 +466,9 @@ waterfall->pushTrace(frame);                  // QVector<double>，一条频谱
 
 
 
-- [3D瀑布图](3d-waterfall.md) —— 样式、上色模式、滑动窗口语义、深度轴文字、坑与性能建议
+- [3D瀑布图](3d-waterfall.md)：样式、上色模式、滑动窗口语义、深度轴文字、坑与性能建议
 
-- `examples/3D/waterfall3D` —— 完整实时演示：上图 2D 频谱 + 峰值保持，下图 3D 滑动窗口瀑布；工具栏可切换窗口大小/样式/配色/上色模式/不透明度；另有 `--screenshot`、`--selftest`、`--fps` 自动化参数
+- `examples/3D/waterfall3D`：完整实时演示：上图 2D 频谱 + 峰值保持，下图 3D 滑动窗口瀑布；工具栏可切换窗口大小/样式/配色/上色模式/不透明度；另有 `--screenshot`、`--selftest`、`--fps` 自动化参数
 
 
 
@@ -480,7 +476,7 @@ waterfall->pushTrace(frame);                  // QVector<double>，一条频谱
 
 
 
-`Qwt3DTheme` 类提供一键切换 3D 绘图视觉风格的能力，封装了背景色、网格色、数据色彩映射（colormap）、坐标轴颜色、标题样式、光照预设、着色模式等全部视觉属性。
+`Qwt3DTheme` 类用于切换 3D 绘图的视觉风格，封装了背景色、网格色、数据色彩映射（colormap）、坐标轴颜色、标题样式、光照预设、着色模式等视觉属性。
 
 
 
@@ -623,7 +619,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 >
 
-> 3D绘图模块需要 **OpenGL 3.3+ Core Profile**，使用 GLSL 3.30 着色器。请确保显卡驱动支持 OpenGL 3.3 或更高版本。模块还内置 `gl2ps` 用于矢量导出（EPS/PDF），作为 Compatibility Profile 的回退选项。
+> 3D绘图模块需要 OpenGL 3.3+ Core Profile，使用 GLSL 3.30 着色器。显卡驱动必须支持 OpenGL 3.3 或更高版本。模块还内置 `gl2ps` 用于矢量导出（EPS/PDF），作为 Compatibility Profile 的回退选项。
 
 
 
@@ -681,7 +677,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 
 
-> **提示 — 3D绘图建议**
+> **提示**
 
 >
 
@@ -689,7 +685,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 > - 复杂曲面可适当降低分辨率提升性能
 
-> - 使用光照效果增强视觉效果
+> - 开启光照可以让曲面更易读
 
 > - 多item重叠时使用 `setZ()` 控制绘制顺序
 

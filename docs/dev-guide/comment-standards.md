@@ -1,6 +1,6 @@
 # Comment Standards
 
-This document defines the standards for writing code comments in the Qwt project, ensuring consistency and completeness between documentation and code.
+Qwt source comments follow the rules below for language, placement and completeness.
 
 ## Language Requirements
 
@@ -10,12 +10,7 @@ This document defines the standards for writing code comments in the Qwt project
 
 ## Key Requirements
 
-**Features**
-
-- ✅ **Doxygen Format**: Use Doxygen standard format for comments
-- ✅ **English-Only Comments**: All comments must be written in English
-- ✅ **Placement Rules**: Detailed comments go in cpp files; brief comments go in header files
-- ✅ **Completeness**: Classes, functions, and signals all require complete documentation comments
+Comments use Doxygen format and English only. Detailed comments go in cpp files and brief comments in header files. Classes, functions and signals all need a complete documentation comment.
 
 ## Doxygen Keyword Standards
 
@@ -39,7 +34,7 @@ Doxygen keywords must use the `@` prefix (e.g., `@brief`, `@param`, `@return`, `
 
 ## Source File Comment Standards
 
-All new code must use the **Doxygen English format** for comments.
+All new code must use the Doxygen English format for comments.
 
 ### Function Comment Template
 
@@ -60,7 +55,7 @@ void MyClass::myFunction(int param_name)
 
 ### Parameter Descriptions
 
-Parameter direction annotations are **recommended but not mandatory**. For value and const ref parameters, the direction is obvious and `[in]` can be omitted.
+Parameter direction annotations are recommended but not mandatory. For value and const ref parameters, the direction is obvious and `[in]` can be omitted.
 
 However, direction **must** be annotated in the following cases:
 
@@ -101,7 +96,7 @@ void QwtPlotCurve::setSamples(const double* xData,
 
 ## Header File Comment Standards
 
-`public` function declarations in header files should only have **single-line English brief comments**.
+`public` function declarations in header files should only have single-line English brief comments.
 
 ### Brief Comment Example
 
@@ -131,7 +126,7 @@ Class Doxygen comments should be added in header files.
 
 ### Class Comment Template
 
-Class comments live in the header file and follow this template, shown here for `QwtPlot` together with its `QWT_DECLARE_PRIVATE` declaration:
+The template below documents `QwtPlot` together with its `QWT_DECLARE_PRIVATE` declaration:
 
 ```cpp
 /**
@@ -181,7 +176,7 @@ Qt signals are declared in header files and have no corresponding cpp definition
 
 ### Signal Comment Example
 
-Since signals have no cpp definition, their full Doxygen comments are written in the header file; the example below documents a signal inside the `Q_SIGNALS` block:
+Since signals have no cpp definition, their full Doxygen comments are written in the header file. The example below documents a signal inside the `Q_SIGNALS` block:
 
 ```cpp
 class QwtPlot : public QWidget
@@ -210,7 +205,7 @@ When writing comments, please verify the following items:
 
 ## Common Mistakes
 
-### ❌ Wrong: Detailed Comments in Header Files
+### Wrong: Detailed Comments in Header Files
 
 The following example violates the placement rule by putting a detailed Doxygen block on a constructor declaration in the header file:
 
@@ -227,7 +222,7 @@ public:
 };
 ```
 
-### ❌ Wrong: Chinese Comments in Source Code
+### Wrong: Chinese Comments in Source Code
 
 The next example violates the English-only rule by leaving a Chinese inline comment in the source file:
 
@@ -240,7 +235,7 @@ void QwtPlotCurve::setSamples(const double* data, int size)
 }
 ```
 
-### ✅ Correct: Brief Header Comments + Detailed cpp Comments
+### Correct: Brief Header Comments + Detailed cpp Comments
 
 Header file `MyClass.h`:
 

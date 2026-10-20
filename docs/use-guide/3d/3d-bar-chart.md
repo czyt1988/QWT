@@ -14,17 +14,17 @@ For an overview of the 3D module see [3D Plot Introduction](3d-plot.md). `Qwt3DB
 
 
 
-- **Two data shapes** — 1D series (bars placed freely on the xy-plane) and 2D grid (3D histogram over an x/y domain)
+- Two data shapes: 1D series (bars placed freely on the xy-plane) and 2D grid (3D histogram over an x/y domain)
 
-- **Lit solid geometry** — per-bar cuboids with flat per-face normals, responding to `Qwt3DPlot::enableLighting()` (Blinn-Phong)
+- Lit solid geometry: per-bar cuboids with flat per-face normals, responding to `Qwt3DPlot::enableLighting()` (Blinn-Phong)
 
-- **Three styles** — `Filled`, `FilledMesh` (filled + edge lines), `Wireframe`
+- Three styles: `Filled`, `FilledMesh` (filled + edge lines), `Wireframe`
 
-- **Per-bar color** — driven by a `Qwt3DColor` functor (typically by height z), with full colormap-preset support via `Qwt3DColorMapColor`
+- Per-bar color: driven by a `Qwt3DColor` functor (typically by height z), with colormap presets available through `Qwt3DColorMapColor`
 
-- **Configurable geometry** — baseline and auto footprint (bar width/depth = 80% of spacing by default)
+- Configurable geometry: baseline and auto footprint (bar width/depth = 80% of spacing by default)
 
-- **Theme integration** — picked up automatically by `Qwt3DTheme::applyToItem()`
+- Theme integration: picked up automatically by `Qwt3DTheme::applyToItem()`
 
 
 
@@ -326,15 +326,15 @@ plot->coordinates()->setTicLengthScale(0.02);
 
 
 
-> **Tip — Tips**
+> **Tip**
 
 >
 
-> - Keep grids modest (a few thousand bars) — each bar emits 24 vertices.
+> - Keep grids modest (a few thousand bars); each bar emits 24 vertices.
 
-> - Use `FilledMesh` with a semi-transparent mesh color for crisp edges without clutter.
+> - Use `FilledMesh` with a semi-transparent mesh color for visible edges without clutter.
 
-> - `enableLighting(true)` greatly improves the 3D read of flat-shaded bars.
+> - `enableLighting(true)` makes flat-shaded bars easier to read in 3D.
 
 > - For anisotropic data, call `plot->coordinates()->setTicLengthScale(...)` so axis ticks stay proportional.
 

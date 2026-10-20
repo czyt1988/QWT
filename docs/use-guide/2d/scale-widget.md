@@ -4,14 +4,12 @@
 
 ## Main Features
 
-**Features**
-
-- ✅ **Tick drawing**: Draws major ticks, minor ticks, and tick labels
-- ✅ **Axis title**: Supports displaying axis title text
-- ✅ **Outside axis title**: Supports painting the title horizontally below/above the scale widget (`TitleOutside`)
-- ✅ **Built-in interaction**: Supports mouse drag panning and scroll wheel zooming (new in Qwt7)
-- ✅ **Color bar**: Supports displaying color bars (for spectrograms)
-- ✅ **Style customization**: Customizable tick length, label font, etc.
+- Major ticks, minor ticks and tick labels
+- Axis title text
+- Axis titles painted horizontally below or above the scale widget (`TitleOutside`)
+- Mouse drag panning and scroll wheel zooming (new in Qwt7)
+- Color bars for spectrograms
+- Customizable tick length, label font and other style details
 
 ## Basic Concepts
 
@@ -199,7 +197,7 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 
 ### 8. Outside Axis Titles (TitleOutside)
 
-By default the axis title is painted inside the scale widget (rotated for vertical axes). With `QwtScaleWidget::TitleOutside` the title is painted as horizontal text into a caption strip outside the scale widget instead: directly **below** it for `YLeft`/`YRight`/`XBottom` and **above** it for `XTop`. The plot layout reserves the strip automatically and keeps it attached to the scale widget through every relayout (window resize, axis visibility or scale changes, ...).
+By default the axis title is painted inside the scale widget (rotated for vertical axes). With `QwtScaleWidget::TitleOutside` the title is painted as horizontal text into a caption strip outside the scale widget instead: directly below it for `YLeft`/`YRight`/`XBottom` and above it for `XTop`. The plot layout reserves the strip automatically and keeps it attached to the scale widget through every relayout (window resize, axis visibility or scale changes, ...).
 
 ```cpp
 #include <QwtPlot>
@@ -224,12 +222,12 @@ Effect (from the example `examples/2D/outsideTitle`; left: single plot, right: m
 
 ![outside-title](../../assets/screenshots/outside-title.png)
 
-**Behavior notes**
+Behavior notes
 
 - In `TitleOutside` mode the title no longer contributes to the axis dimension; the layout reserves a caption strip in the adjacent band instead. `QwtPlotLayout::scaleCaptionRect()` exposes the geometry of that strip.
 - Multi axis plots (see [Parasite Axes](parasite-axes.md)): all layers share the bottom band. The host layout aggregates the caption demands of every layer and splits the band between the captions at the mid points of the neighboring axis columns, so captions stay below their own column and never overlap.
 - The horizontal alignment of the caption text follows `setTitleAlignment()`; `setTitlePosition()` (position along the backbone) only applies to `TitleInside`.
-- Caption text wraps when it is wider than its region - prefer short titles for narrow multi axis columns.
+- Caption text wraps when it is wider than its region, so prefer short titles for narrow multi axis columns.
 - `QwtPlotRenderer` includes the captions in PNG/SVG/PDF exports (`renderScaleCaption()`).
 
 ## Core Method Summary

@@ -1,15 +1,10 @@
 # Symbol Styles - QwtSymbol
 
-`QwtSymbol` is used to define the display symbol style for data points, supporting multiple predefined shapes and custom paths. Symbols can have properties such as size, fill, and border configured, providing rich visual representation for curves and scatter plots.
+`QwtSymbol` defines how data points are marked. It offers a set of predefined shapes and custom paths, and its size, fill and border are configurable; curves and scatter plots use it to draw markers.
 
 ## Main Features
 
-**Features**
-
-- ✅ **Multiple predefined shapes**: Ellipse, rectangle, diamond, triangle, cross, etc.
-- ✅ **Custom paths**: Supports using QPainterPath to define arbitrary shapes
-- ✅ **Size and color control**: Configurable symbol dimensions, fill color, border color
-- ✅ **Pin point settings**: Configurable anchor position of the symbol relative to the data point
+Predefined shapes include ellipse, rectangle, diamond, triangle and cross, and a custom QPainterPath can describe arbitrary shapes. Size, fill color and border color are configurable, and the pin point sets where the symbol attaches to the data point.
 
 ## Basic Concepts
 
@@ -156,7 +151,7 @@ symbol->setSize(15, 8);  // Width 15, height 8
 
 ### 6. Symbol Pin Point
 
-The pin point defines the position *inside the symbol's own coordinate system* (painter path coordinates for `Path`, pixel coordinates for `Pixmap`, viewBox coordinates for `SvgDocument`) that is aligned to the data point. It only applies to `Path`, `Pixmap`, `Graphic` and `SvgDocument` symbols; the coordinates are **not** normalized to [0,1]. By default the pin point is disabled and symbols are centered on the data point.
+The pin point defines the position *inside the symbol's own coordinate system* (painter path coordinates for `Path`, pixel coordinates for `Pixmap`, viewBox coordinates for `SvgDocument`) that is aligned to the data point. It only applies to `Path`, `Pixmap`, `Graphic` and `SvgDocument` symbols; the coordinates are not normalized to [0,1]. By default the pin point is disabled and symbols are centered on the data point.
 
 ```cpp
 // Pin point alignment is disabled by default: the symbol is centered

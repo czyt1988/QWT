@@ -6,40 +6,40 @@ keywords: [QWT, Qt plotting library, scientific charts, data visualization, Qt6,
 
 # QWT — Qt Plotting Library
 
-QWT (Qt Widgets for Technical Applications) is a high-performance 2D/3D plotting library based on Qt, designed for data visualization in scientific computing and engineering applications.
+QWT (Qt Widgets for Technical Applications) is a 2D/3D plotting library built on Qt, intended for data visualization in scientific computing and engineering.
 
-## Why Choose QWT?
+## Qwt in the Qt plotting ecosystem
 
 There are only a handful of plotting libraries in the Qt ecosystem. The mainstream options are `QCustomPlot`, `Qwt`, `Qt Charts`, and `KDChart`. After Qt 6.8, the former `Qt Charts` (2D) and `Qt DataVisualization` (3D) were merged into a unified Qt Graphs module built entirely on Qt Quick Scene Graph + Qt Quick 3D, abandoning the legacy Graphics-View / QPainter pipeline. However, Qt Graphs must be embedded via `QQuickWidget` or `QQuickWindow`, requires the QML runtime, has limited C++ support, and drops support for older systems like Windows 7.
 
 | Library | License | Strengths | Weaknesses |
 |---------|---------|-----------|------------|
-| **QCustomPlot** | GPL | Simple, easy to use, widely adopted | GPL is "viral" — not commercial-friendly |
-| **Qwt** | LGPL | High performance, solid architecture | Original author stopped maintaining; deployment was difficult |
-| **Qt Charts** | GPL | Qt official | Poor performance; GPL license |
-| **KDChart** | MIT (3.0+) | Commercial-friendly | Mediocre rendering quality |
+| **QCustomPlot** | GPL | Simple API, widely used | GPL requires opening the application source |
+| **Qwt** | LGPL | Fast rendering, clean architecture | Original author stopped maintaining; deployment was difficult |
+| **Qt Charts** | GPL | Official Qt module | Low rendering performance; GPL |
+| **KDChart** | MIT (3.0+) | Commercial-friendly license | Limited rendering quality |
 
-**This project** is based on Qwt 6.2.0, adding modern features and fixes to make it a license-friendly, high-performance, and easy-to-use Qt plotting library.
+This project is based on Qwt 6.2.0. It keeps the original architecture and adds CMake support, Qt 6 compatibility, single-file inclusion, 3D plotting, large-data rendering and other fixes.
 
 ## Qwt 7.0 New Features
 
-- [x] **CMake support** — `find_package(qwt)` for one-line integration
-- [x] **Qt 6 support** — compatible with Qt 5.12+ and Qt 6.x
-- [x] **Single-file inclusion** — just `QwtPlot.h` + `QwtPlot.cpp`, like QCustomPlot
-- [x] **Modernized visual style** — removed legacy embossed look, flat modern UI
-- [x] **Figure container** — matplotlib-inspired multi-plot layout
-- [x] **Multi-axis support** — parasite axis architecture, unlimited axes
-- [x] **Axis interaction** — mouse drag and scroll-wheel zoom on axes
-- [x] **Integrated 2D/3D** — built-in 3D plotting module
-- [x] **C++11 optimization** — modern C++ throughout: `override`, `nullptr`, smart pointers, range-based for loops
-- [x] **Large-scale data rendering optimization** — 4 curve downsampling algorithms + SIMD acceleration, smooth rendering of millions of points
-- [x] **Color cycle system** — customizable color cycle that auto-assigns colors to series data
-- [x] **Box chart** — `QwtPlotBoxChart` for statistical distribution visualization
-- [x] **Flat-style controls** — sliders, knobs, dials and other widgets support flat styling
+- CMake support: `find_package(qwt)` in one line
+- Qt 6 support, compatible with Qt 5.12+ and Qt 6.x
+- Single-file inclusion: add `QwtPlot.h` and `QwtPlot.cpp` to the project
+- Flat visual style, replacing the legacy embossed look
+- Figure container for matplotlib-style multi-plot layouts
+- Parasite axes, with no fixed limit on the number of axes
+- Mouse drag and wheel zoom on axes
+- Built-in 3D plotting module
+- C++11 throughout: `override`, `nullptr`, smart pointers, range-based for loops
+- 4 curve downsampling algorithms plus SIMD acceleration
+- Color cycle that assigns colors to series automatically
+- `QwtPlotBoxChart` for statistical distributions
+- Flat styling for sliders, knobs, dials and other controls
 
 ## Quick Integration
 
-**CMake (Recommended)**
+With CMake (recommended):
 
 
 ```cmake
@@ -49,7 +49,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot)
 target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 ```
 
-**Single File**
+With the single-file amalgamation:
 
 
 ```cpp

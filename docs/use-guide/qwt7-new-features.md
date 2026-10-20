@@ -1,27 +1,25 @@
-# Qwt 7.0 New Features — A More Modern and Powerful Qt Data Visualization Library
+# Qwt 7.0 New Features
 
 ![qwt_figure](../assets/screenshots/qwt_figure.png)
 
-Qwt 7.0 is a modernized version based on the original Qwt 6.2.0, following the Qwt open-source license (LGPL), maintained and continuously updated by the community. This version not only brings **C++11/17 standard support** and a **CMake build system**, but also introduces a large number of practical new features, making data visualization development more convenient and efficient.
-
-This article provides a comprehensive overview of the core new features in Qwt 7.0+, helping you quickly understand and get started with this more powerful data visualization library.
+Qwt 7.0 is a modernized version based on the original Qwt 6.2.0, following the Qwt open-source license (LGPL), maintained and continuously updated by the community. Qwt 7.0 adds C++11/17 standard support and a CMake build system, along with the features described below.
 
 ## Integrated 2D/3D Plotting
 
-> **Success — Qwt Supports Both 2D and 3D**
+> **Note — Qwt Supports Both 2D and 3D**
 >
-> Qwt 7.0 integrates the original `QwtPlot3D` library, achieving **unified 2D and 3D plotting support**. Now a single library can satisfy both two-dimensional and three-dimensional data visualization needs.
+> Qwt 7.0 integrates the original `QwtPlot3D` library, so one library now covers both 2D and 3D data visualization.
 
 ### 3D Plotting Module Overview
 
-Qwt 7.0 includes built-in complete 3D plotting capabilities, supporting:
+Qwt 7.0 includes 3D plotting capabilities that support:
 
-- ✅ **Plot + Item Architecture**: `Qwt3DPlot` (rendering window) + `Qwt3DPlotItem` (drawable items), symmetric with 2D's `QwtPlot` + `QwtPlotItem`
-- ✅ **Multiple Plot Types**: Surface plots, mesh plots, parametric surfaces, function plots, etc.
-- ✅ **Modern OpenGL Rendering**: VBO/VAO + GLSL 3.3 Core shaders (no legacy fixed-function pipeline)
-- ✅ **Interactive Operations**: Mouse rotation, zooming, and panning
-- ✅ **Lighting and Materials**: Realistic lighting effects and material configuration
-- ✅ **Color Mapping**: Automatic color mapping based on Z values, with color bar support
+- Plot + Item architecture: `Qwt3DPlot` (rendering window) + `Qwt3DPlotItem` (drawable items), symmetric with 2D's `QwtPlot` + `QwtPlotItem`
+- Multiple plot types: surface plots, mesh plots, parametric surfaces, function plots
+- Modern OpenGL rendering: VBO/VAO + GLSL 3.3 Core shaders (no legacy fixed-function pipeline)
+- Interactive operations: mouse rotation, zooming and panning
+- Lighting and materials: configurable lights and materials
+- Color mapping: automatic color mapping based on Z values, with color bar support
 
 ### 3D Plotting Effects
 
@@ -42,7 +40,7 @@ Qwt 7.0 includes built-in complete 3D plotting capabilities, supporting:
 
 ### Usage Example
 
-A minimal 3D program needs only three pieces: a `Qwt3DPlot` render window, a `Qwt3DSurface` item attached to it, and a `Qwt3DFunction` subclass defining z = f(x, y) — `setDomain()` limits the x/y ranges, `setMesh()` picks the grid resolution, and `create()` samples the function into the surface, as the example below shows:
+A minimal 3D program needs only three pieces: a `Qwt3DPlot` render window, a `Qwt3DSurface` item attached to it, and a `Qwt3DFunction` subclass defining z = f(x, y). `setDomain()` limits the x/y ranges, `setMesh()` picks the grid resolution, and `create()` samples the function into the surface, as the example below shows:
 
 ```cpp
 #include <qwt3d_plot.h>
@@ -91,9 +89,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 > **Tip — Advantages of Integrated 2D/3D**
 >
-> - **Unified Import**: No need to import two separate libraries, simplifying project dependencies
-> - **Consistent Style**: Unified 2D and 3D plotting API style, reducing the learning curve
-> - **Flexible Selection**: Link 2D or 3D modules independently based on requirements
+> - Unified import: no need to import two separate libraries, which simplifies project dependencies
+> - Consistent style: the 2D and 3D APIs follow the same style, reducing the learning curve
+> - Flexible selection: link the 2D or 3D module independently as needed
 
 > **Example — Complete Example**
 >
@@ -103,16 +101,16 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 ### C++11/17 Standard Support
 
-Qwt 7.0 fully embraces modern C++ standards:
+Qwt 7.0 uses the C++ standard required by the Qt version:
 
-- **Qt5.12+**: Uses C++11 standard
-- **Qt6**: Uses C++17 standard
+- Qt5.12+: Uses C++11 standard
+- Qt6: Uses C++17 standard
 
-This means you can use modern C++ features such as `auto`, `nullptr`, `override`, `final`, lambda expressions, smart pointers, etc., resulting in cleaner and safer code.
+Code can therefore use `auto`, `nullptr`, `override`, `final`, lambda expressions and smart pointers.
 
 ### CMake Build System
 
-Leaving behind the traditional qmake, Qwt 7.0 adopts a modern CMake build system:
+Qwt 7.0 replaces qmake with a CMake build system:
 
 ```cmake
 find_package(qwt REQUIRED)
@@ -124,31 +122,31 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 ### Single-File Import Method
 
-Qwt 7.0 provides an extremely simple import method — merging the entire library into single files:
+Qwt 7.0 can also merge the entire library into two files:
 
-- `src-amalgamate/QwtPlot.h` — Merged single header file
-- `src-amalgamate/QwtPlot.cpp` — Merged single source file
+- `src-amalgamate/QwtPlot.h`: merged single header file
+- `src-amalgamate/QwtPlot.cpp`: merged single source file
 
-Simply add these two files to your project without complex build configuration, which is especially suitable for small projects or rapid prototyping.
+Add these two files to your project; no build configuration is needed. This suits small projects and prototypes.
 
-> **Warning — Note**
+> **Warning — Generated Files**
 >
 > The single files are automatically generated by a tool. Do not directly edit the `QwtPlot.h` and `QwtPlot.cpp` files.
 
 ## QwtFigure — Multi-Plot Layout Container
 
-> **Success — Core New Feature**
+> **Note — Core New Feature**
 >
-> `QwtFigure` is one of the most important new additions in Qwt 7.0, providing multi-plot layout capabilities similar to matplotlib's Figure.
+> `QwtFigure` is new in Qwt 7.0 and provides multi-plot layout capabilities similar to matplotlib's Figure.
 
 ### Feature Overview
 
-`QwtFigure` is a container window for organizing and managing multiple `QwtPlot` plotting components, providing:
+`QwtFigure` is a container window that organizes multiple `QwtPlot` components. It provides:
 
-- **Normalized Coordinate Layout**: Use a `[0,1]` coordinate system for relative position control
-- **Grid Layout**: Row-column grid arrangement, following matplotlib's subplot approach
-- **Parasite Axes Support**: Create multiple independent axes within the same plot area
-- **Graphics Export**: Support for high-resolution image output
+- Normalized coordinate layout: a `[0,1]` coordinate system for relative position control
+- Grid layout: row-column grid arrangement, following matplotlib's subplot approach
+- Parasite axes support: multiple independent axes within the same plot area
+- Graphics export: high-resolution image output
 
 ### Usage Example
 
@@ -186,7 +184,7 @@ Result after alignment:
 
 ### Interactive Operation Overlay
 
-`QwtFigureWidgetOverlay` provides interactive operation capabilities on `QwtFigure`:
+`QwtFigureWidgetOverlay` adds interactive operations to `QwtFigure`:
 
 ![figure-widget-overlay](../assets/screenshots/figure-widget-overlay.gif)
 
@@ -200,19 +198,19 @@ Result after alignment:
 
 ## Parasite Axes — Multi-Axis System
 
-> **Success — Core New Feature**
+> **Note — Core New Feature**
 >
-> Parasite Axes allow creating any number of independent axes within the same plot area, perfectly solving complex multi-Y-axis and multi-X-axis plotting requirements.
+> Parasite Axes allow creating any number of independent axes within the same plot area, which covers multi-Y-axis and multi-X-axis layouts.
 
 ### How It Works
 
-Parasite plots share the plot area with the host plot (transparent background) but have independent coordinate systems. When the host plot is destroyed, parasite plots are automatically destroyed as well, with lifecycle automatically managed.
+Parasite plots share the plot area with the host plot (transparent background) but have independent coordinate systems. When the host plot is destroyed, parasite plots are destroyed as well, and their lifecycle is managed automatically.
 
 ![parasite-01](../assets/picture/parasite-01.png)
 
 ### Creating a Parasite Plot
 
-A parasite plot is created from its host with `QwtPlot::createParasitePlot()`, whose `QwtAxis::Position` argument picks the axis the parasite lives on; afterwards `enableAxis()` switches the parasite's own axes on or off and `setParasiteShareAxis()` lets it share an axis — such as the bottom X axis — with the host, as shown below:
+A parasite plot is created from its host with `QwtPlot::createParasitePlot()`, whose `QwtAxis::Position` argument picks the axis the parasite lives on; afterwards `enableAxis()` switches the parasite's own axes on or off and `setParasiteShareAxis()` lets it share an axis such as the bottom X axis with the host, as shown below:
 
 ```cpp
 // Create the host plot
@@ -243,21 +241,21 @@ Multiple parasite plots can be created to overlay any number of axes:
 
 ## Interaction Feature Overhaul
 
-> **Success — Major Improvement**
+> **Note — Major Improvement**
 >
-> Qwt 7.0 has completely overhauled interactive controls, providing a smoother user experience.
+> Qwt 7.0 rebuilds the interaction classes; the main changes follow.
 
 ### Real-Time Panning — QwtPlotPanner
 
-The original Qwt `QwtPanner` used bitmap caching for panning, which meant data changes were not visible during the pan operation. Qwt 7.0 has rebuilt `QwtPlotPanner` based on the `QwtPicker` state machine to implement **real-time panning**:
+The original Qwt `QwtPanner` used bitmap caching for panning, which meant data changes were not visible during the pan operation. Qwt 7.0 has rebuilt `QwtPlotPanner` based on the `QwtPicker` state machine to implement real-time panning:
 
 ![qwt-realtime-panner](../assets/screenshots/qwt-realtime-panner.gif)
 
 Features:
 
-- ✅ Full support for linear axes, logarithmic axes, and date-time axes
-- ✅ Real-time synchronized movement of multiple axes
-- ✅ Plot refreshes in real time during panning
+- Full support for linear axes, logarithmic axes and date-time axes
+- Real-time synchronized movement of multiple axes
+- Plot refreshes in real time during panning
 
 ### Canvas-Wide Zooming — QwtPlotCanvasZoomer
 
@@ -290,13 +288,13 @@ To maintain naming clarity, some class names have been adjusted:
 
 ## Built-in Axis Interactive Actions
 
-> **Success — New Feature v7.0.5+**
+> **Note — New Feature v7.0.5+**
 >
 > Axis interactive actions allow users to directly manipulate axes with the mouse, providing an experience similar to QCustomPlot.
 
 ### Feature Demonstration
 
-**Axis Drag Operation:**
+Axis drag operation:
 
 ![qwt-scale-builtin-action-pan](../assets/screenshots/qwt-scale-builtin-action-pan.gif)
 
@@ -304,7 +302,7 @@ To maintain naming clarity, some class names have been adjusted:
 - Drag to move the axis range
 - Right-click to deselect
 
-**Axis Scroll Wheel Zoom:**
+Axis scroll wheel zoom:
 
 ![qwt-scale-builtin-action-zoom](../assets/screenshots/qwt-scale-builtin-action-zoom.gif)
 
@@ -344,9 +342,9 @@ plot->axisWidget(QwtAxis::YLeft)->setSelectedPenWidthOffset(1.5);
 
 ## Data Picking Feature
 
-> **Success — New Feature v7.0.6+**
+> **Note — New Feature v7.0.6+**
 >
-> `QwtPlotSeriesDataPicker` provides powerful data picking capabilities, displaying data point information in real time as the mouse moves.
+> `QwtPlotSeriesDataPicker` shows data point information as the mouse moves.
 
 ### Feature Demonstration
 
@@ -354,13 +352,13 @@ plot->axisWidget(QwtAxis::YLeft)->setSelectedPenWidthOffset(1.5);
 
 ### Two Picking Modes
 
-**Y-Value Picking Mode:**
+Y-value picking mode:
 
 ![series-data-picker-yvalue](../assets/picture/series-data-picker-yvalue.gif)
 
 Displays the Y values for all curves at the current X position, with support for linear interpolation.
 
-**Nearest Point Picking Mode:**
+Nearest point picking mode:
 
 ![series-data-picker-nearest-value](../assets/picture/series-data-picker-nearest-value.gif)
 
@@ -368,7 +366,7 @@ Calculates and picks the closest point to the mouse cursor, suitable for peak da
 
 ### Usage Example
 
-`QwtPlotSeriesDataPicker` is constructed on the plot canvas, and two enums drive its behavior: `setPickMode()` selects `PickYValue` (the Y values of all curves at the current X position — the default) or `PickNearestPoint` (the sample closest to the cursor), while `setInterpolationMode()` toggles between `NoInterpolation` and `LinearInterpolation`; the snippet below also restyles the tooltip background with `setTextBackgroundBrush()`:
+`QwtPlotSeriesDataPicker` is constructed on the plot canvas, and two enums drive its behavior: `setPickMode()` selects `PickYValue` (the Y values of all curves at the current X position; this is the default) or `PickNearestPoint` (the sample closest to the cursor), while `setInterpolationMode()` toggles between `NoInterpolation` and `LinearInterpolation`; the snippet below also restyles the tooltip background with `setTextBackgroundBrush()`:
 
 ```cpp
 // Create a data picker
@@ -390,7 +388,7 @@ For large datasets, Qwt 7 provides a window search algorithm:
 
 - Default activation threshold: 1,000 data points
 - Search window defaults to 5% of the curve point count
-- Avoids full curve traversal, significantly improving performance
+- Avoids traversing the full curve, which speeds up picking
 
 > **Example — Complete Example**
 >
@@ -400,19 +398,19 @@ For large datasets, Qwt 7 provides a window search algorithm:
 
 ### Box Chart — QwtPlotBoxChart
 
-> **Success — New Feature v7.2.0+**
+> **Note — New Feature v7.2.0+**
 >
-> `QwtPlotBoxChart` provides complete box-and-whisker plot support, visually presenting statistical distribution characteristics of data.
+> `QwtPlotBoxChart` draws box-and-whisker plots for showing the distribution of a data set.
 
 ![BoxChart](../assets/screenshots/BoxChart.png)
 
 ### Features
 
-- ✅ Supports both pre-computed data and automatic calculation from raw data
-- ✅ Multiple whisker calculation methods: Tukey (1.5×IQR), percentile, min/max, standard deviation, standard error
-- ✅ Three box styles: rectangle, diamond, notch
-- ✅ Vertical and horizontal orientation switching
-- ✅ Automatic outlier detection, custom symbols, and jitter display
+- Supports both pre-computed data and automatic calculation from raw data
+- Multiple whisker calculation methods: Tukey (1.5×IQR), percentile, min/max, standard deviation, standard error
+- Three box styles: rectangle, diamond, notch
+- Vertical and horizontal orientation switching
+- Automatic outlier detection, custom symbols and jitter display
 
 ### Box Chart Structure
 
@@ -420,7 +418,7 @@ For large datasets, Qwt 7 provides a window search algorithm:
 
 ### Usage Example
 
-`QwtPlotBoxChart` accepts either pre-computed statistics or raw samples; in the pre-computed case each `QwtBoxSample` carries position, lower/upper whisker, Q1, median and Q3 and is fed through `setSamples()`, while `setBoxStyle()` picks the box appearance — `Rectangle`, `Diamond` or `Notch`, as the example below demonstrates:
+`QwtPlotBoxChart` accepts either pre-computed statistics or raw samples; in the pre-computed case each `QwtBoxSample` carries position, lower/upper whisker, Q1, median and Q3 and is fed through `setSamples()`, while `setBoxStyle()` picks the box appearance (`Rectangle`, `Diamond` or `Notch`), as the example below demonstrates:
 
 ```cpp
 // Create a box chart
@@ -445,7 +443,7 @@ boxChart->setBoxStyle(QwtPlotBoxChart::Notch);
 
 ### Inward-Facing Ticks
 
-> **Success — New Feature v7.2.1+**
+> **Note — New Feature v7.2.1+**
 >
 > Supports displaying axis tick marks inside the plot area, suitable for compact layout scenarios.
 
@@ -463,19 +461,19 @@ plot->setAxisTickDirection(QwtAxis::XBottom, QwtPlot::TickInside);
 
 ### NaN/Inf Anomaly Value Handling
 
-Qwt 7.0 includes improved handling of anomalous values (NaN, Inf) in data:
+Qwt 7.0 improves handling of anomalous values (NaN, Inf) in data:
 
 - `QwtPointMapper` adds anomaly handling so that data anomalies do not cause coordinate mapping errors
 - Data range calculation includes anomaly value filtering
-- Plotting is more stable and will not crash due to anomalous data
+- Plotting no longer crashes on anomalous data
 
 ### QwtGridRasterData Grid Interpolation
 
-The new `QwtGridRasterData` class, compared to `QwtMatrixRasterData`:
+The new `QwtGridRasterData` class differs from `QwtMatrixRasterData` in these ways:
 
 - Supports 2D data table input
 - Supports X/Y axis grid interpolation
-- More flexible spectrogram data processing
+- More options for spectrogram data processing
 
 ### Bar Chart Interface Enhancements
 
@@ -483,7 +481,7 @@ The new `QwtGridRasterData` class, compared to `QwtMatrixRasterData`:
 
 - Pen style settings
 - Brush (fill) style settings
-- Richer bar chart appearance customization
+- More bar chart appearance options
 
 ## Migration Guide
 
@@ -510,7 +508,7 @@ The new `QwtGridRasterData` class, compared to `QwtMatrixRasterData`:
 
 ## Summary
 
-Qwt 7.0 is a comprehensive modernization upgrade:
+Qwt 7.0 changes the library in these areas:
 
 | Category | New Features |
 |------|--------|
@@ -522,13 +520,11 @@ Qwt 7.0 is a comprehensive modernization upgrade:
 | **Chart Types** | Box chart, inward-facing ticks, 3D surface/mesh plots |
 | **Stability** | NaN/Inf handling, anomaly value filtering |
 
-These new features make Qwt a more modern, more powerful, and more user-friendly Qt data visualization library — **a single library supporting both 2D and 3D plotting** — suitable for scientific computing, engineering applications, data analysis, and many other scenarios.
-
 ---
 
 > **Info — Get More Information**
 >
-> - **Project Repository**: [GitHub](https://github.com/czyt1988/QWT) / [Gitee](https://gitee.com/czyt1988/QWT)
-> - **Build Instructions**: [Build Guide](../build-guide/build-instructions.md)
-> - **Import Method**: [Importing Qwt](import-qwt.md)
-> - **Changelog**: [CHANGES.md](../../CHANGES.md)
+> - Project Repository: [GitHub](https://github.com/czyt1988/QWT) / [Gitee](https://gitee.com/czyt1988/QWT)
+> - Build Instructions: [Build Guide](../build-guide/build-instructions.md)
+> - Import Method: [Importing Qwt](import-qwt.md)
+> - Changelog: [CHANGES.md](../../CHANGES.md)

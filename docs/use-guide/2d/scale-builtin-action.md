@@ -2,11 +2,11 @@
 
 Axis interaction actions allow users to drag and zoom axes via the mouse. This feature was not available in `QWT 6` and earlier versions, and was introduced starting from `QWT 7.0.5`.
 
-The design of this feature was inspired by `QCustomPlot`, which configures built-in interaction behaviors through the `QCustomPlot::setInteractions` method. For example, `QCP::iMoveAxes` allows dragging the selected axis, and `QCP::iRangeZoom` supports zooming the axis range via the scroll wheel or box selection (focusing on data). These interaction features significantly improve the user experience of charts.
+The design of this feature was inspired by `QCustomPlot`, which configures built-in interaction behaviors through the `QCustomPlot::setInteractions` method. For example, `QCP::iMoveAxes` allows dragging the selected axis, and `QCP::iRangeZoom` supports zooming the axis range via the scroll wheel or box selection (focusing on data).
 
 ## Configuring QWT Axis Interaction
 
-Starting from `QWT 7.0.5`, axis interaction functionality was added. This feature is implemented through the `QwtPlotScaleEventDispatcher` class for event dispatching, which forwards events from the plot area to the corresponding axis components. Users typically do not need to use this class directly — simply call `QwtPlot::setEnableScaleBuildinActions` to enable or disable axis interaction events (enabled by default in `QWT7`).
+Starting from `QWT 7.0.5`, axis interaction functionality was added. This feature is implemented through the `QwtPlotScaleEventDispatcher` class for event dispatching, which forwards events from the plot area to the corresponding axis components. Users typically do not need to use this class directly; simply call `QwtPlot::setEnableScaleBuildinActions` to enable or disable axis interaction events (enabled by default in `QWT7`).
 
 Once enabled, the following effects are available:
 

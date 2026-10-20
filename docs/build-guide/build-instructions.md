@@ -4,7 +4,7 @@
 >
 > You don't have to build QWT as a dynamic library. Simply add `QwtPlot.h` and `QwtPlot.cpp` (located in the `src-amalgamate` directory) to your project.
 
-This article explains in detail how to build QWT as a **dynamic library**. If you are not familiar with C++ build systems, you can simply add `QwtPlot.h` and `QwtPlot.cpp` to your project to use it.
+Building QWT as a dynamic library requires a C++ build system. If you are not familiar with one, simply add `QwtPlot.h` and `QwtPlot.cpp` to your project.
 
 ## CMake Build Instructions
 

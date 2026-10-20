@@ -43,13 +43,13 @@ find_package(OpenGL COMPONENTS OpenGL REQUIRED)
 target_link_libraries(YOU_APP_TARGET PRIVATE OpenGL::GLU)
 ```
 
-> **Tip — Tip**
+> **Tip — OpenGL Dependencies**
 >
 > Since Qwt 7.1, the `qwtplot3d` library has been merged, so OpenGL-related dependencies are required. GLU is only needed for gl2ps vector export.
 
 ## Importing the QWT Library via CMake
 
-> **This is the recommended way to import the `QWT` library.**
+> **Tip — Recommended Way to Import `QWT`**
 
 First, it is not recommended to add the entire QWT library as a subproject to your project. Instead, build and install it locally first. For build and installation instructions, refer to: [QWT Build Instructions](../build-guide/build-instructions.md)
 
@@ -59,9 +59,9 @@ To import the `QWT` library via CMake, follow these steps:
 
 Set the `qwt_DIR` variable to the `lib/cmake/qwt` path under the installation directory. (When CMake executes `find_package(xx)`, it first checks whether an `xx_DIR` variable exists. If so, it looks for the corresponding `xxConfig.cmake` file under `xx_DIR`.)
 
-> **Tip — Tip**
+> **Tip — Default Installation Directory**
 >
-> If you use the default installation directory, you can skip setting the `qwt_DIR` variable — CMake will find it automatically.
+> If you use the default installation directory, you can skip setting the `qwt_DIR` variable, and CMake will find it automatically.
 
 For example:
 
@@ -85,17 +85,17 @@ target_link_libraries(YOU_APP_TARGET PRIVATE qwt::plot3d) # Automatically adds Q
 
 The `qwt` project provides three modules:
 
-- `core` module — shared base library containing 28 modules of foundational utilities:
-    - **Color utilities**: `QwtColorMap` (and subclasses), `QwtColorCycle`, `QwtColorMapPreset` (22 scientific colormap presets)
-    - **Math utilities**: `qwt_math.h`, `qwtSimdArgMinMax` (SIMD-accelerated argmin/argmax)
-    - **Data types**: `QwtInterval`, `QwtPoint3D`, `QwtPointPolar`, `QwtSamples`, `QwtBoxStatistics`
-    - **Geometry**: `QwtBezier` (Bézier curves), `QwtClipper` (polygon clipping)
-    - **Coordinate transforms**: `QwtTransform`, `QwtScaleMap`, `QwtScaleDiv`, `QwtScaleEngine`
-    - **Date/Time**: `QwtDate`, `QwtSystemClock`
-    - **Algorithms & compatibility**: `qwt_algorithm.hpp`, `qwt_qt5qt6_compat.hpp` (Qt5/Qt6 compatibility layer)
-    - **Data containers/series/raster**: `QwtGridData`, `QwtSeriesData`, `QwtPointData`, `QwtSeriesStore`, `QwtRasterData`, `QwtMatrixRasterData`, `QwtGridRasterData`
-- `plot` module — the 2D plotting library, integrating the original Qwt functionality
-- `plot3d` module — the 3D plotting library, integrating the qwtplot3d functionality
+- `core` module: shared base library containing 28 modules of foundational utilities:
+    - Color utilities: `QwtColorMap` (and subclasses), `QwtColorCycle`, `QwtColorMapPreset` (22 scientific colormap presets)
+    - Math utilities: `qwt_math.h`, `qwtSimdArgMinMax` (SIMD-accelerated argmin/argmax)
+    - Data types: `QwtInterval`, `QwtPoint3D`, `QwtPointPolar`, `QwtSamples`, `QwtBoxStatistics`
+    - Geometry: `QwtBezier` (Bézier curves), `QwtClipper` (polygon clipping)
+    - Coordinate transforms: `QwtTransform`, `QwtScaleMap`, `QwtScaleDiv`, `QwtScaleEngine`
+    - Date/Time: `QwtDate`, `QwtSystemClock`
+    - Algorithms & compatibility: `qwt_algorithm.hpp`, `qwt_qt5qt6_compat.hpp` (Qt5/Qt6 compatibility layer)
+    - Data containers/series/raster: `QwtGridData`, `QwtSeriesData`, `QwtPointData`, `QwtSeriesStore`, `QwtRasterData`, `QwtMatrixRasterData`, `QwtGridRasterData`
+- `plot` module: the 2D plotting library, integrating the original Qwt functionality
+- `plot3d` module: the 3D plotting library, integrating the qwtplot3d functionality
 
 ```
     ┌────────────────────┐
@@ -120,10 +120,10 @@ The `qwt` project provides three modules:
 
 ## Public Predefined Macros
 
-`QWT` uses several predefined macros during compilation. If you manage your project with `CMake`, these macros are automatically defined when loading the library via `find_package` — no manual configuration is needed.
+`QWT` uses several predefined macros during compilation. If you manage your project with `CMake`, these macros are automatically defined when loading the library via `find_package`, so no manual configuration is needed.
 
 However, if you use an IDE such as `Visual Studio` to manually import the library, you need to specify the predefined macros in addition to adding the lib files. When importing the qwtcore library, you need the predefined macro `QWTCORE_DLL`. When importing the qwtplot library compiled as a DLL, you need the predefined macro `QWT_DLL`. When importing the qwtplot3d library, you need the predefined macro `QWT3D_DLL`.
 
-> **Tip — Tip**
+> **Tip — CMake Setup**
 >
 > As a modern C++ project, it is strongly recommended to use CMake to build your project. All these predefined macros are pre-configured in the CMake configuration.

@@ -4,12 +4,10 @@
 
 ## Main Features
 
-**Features**
-
-- ✅ **Automatic legend item generation**: Automatically generates legend entries based on plot items
-- ✅ **Interactive legend**: Supports clicking legend items to hide/show corresponding plot items (opt-in via `setDefaultItemMode()`)
-- ✅ **Flexible layout**: Supports multiple legend layout modes
-- ✅ **Style customization**: Customizable icon and text styles for legend items
+- Automatic legend item generation: legend entries are generated from the plot items
+- Interactive legend: clicking an entry can hide or show the corresponding plot item (opt-in via `setDefaultItemMode()`)
+- Layout: supports multiple legend layout modes
+- Style customization: icon and text styles of legend items can be customized
 
 ## Basic Concepts
 
@@ -155,7 +153,7 @@ curve->setLegendIconSize(QSize(30, 20));
 
 ### 7. External Legend Widget
 
-The legend can be placed outside the plot. There is no dedicated "connect external legend" call - the plot's `legendDataChanged()` signal is simply connected to the `updateLegend()` slot of the external `QwtLegend`, and `QwtPlot::updateLegend()` populates it with the current items:
+The legend can be placed outside the plot. There is no dedicated "connect external legend" call: the plot's `legendDataChanged()` signal is connected to the `updateLegend()` slot of the external `QwtLegend`, and `QwtPlot::updateLegend()` populates it with the current items:
 
 ```cpp
 // Create external legend

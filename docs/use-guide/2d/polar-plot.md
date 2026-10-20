@@ -4,12 +4,10 @@
 
 ## Main Features
 
-**Features**
-
-- ✅ **Polar coordinate system**: Uses angle (0-360°) and radius as axes
-- ✅ **Curve drawing**: Supports drawing curves in polar coordinate system
-- ✅ **Grid system**: Provides concentric circle and angular ray grids
-- ✅ **Interaction support**: Supports zooming and panning in polar coordinate system
+- Angle (0-360°) and radius axes
+- Curves drawn in polar coordinates
+- Grid of concentric radius circles and angular rays
+- Zooming and panning in polar coordinates
 
 ## Basic Concepts
 
@@ -54,7 +52,7 @@ The polar plot example is located at: `examples/2D/polardemo`. Screenshot:
 
 ### 1. Creating a Polar Plot
 
-A polar plot combines three ingredients: the `QwtPolarPlot` widget itself (azimuth and radius scales set via `setScale()`), a `QwtPolarGrid` item for the background, and one or more `QwtPolarCurve` items. Curves consume `QwtPointPolar` samples wrapped in a `QwtSeriesData<QwtPointPolar>` object passed to `setData()` — for a plain `QVector` of samples a minimal `QwtArraySeriesData` subclass is enough. The example below assembles them into a complete chart:
+A polar plot is built from three parts: the `QwtPolarPlot` widget itself (azimuth and radius scales set via `setScale()`), a `QwtPolarGrid` item for the background, and one or more `QwtPolarCurve` items. Curves consume `QwtPointPolar` samples wrapped in a `QwtSeriesData<QwtPointPolar>` object passed to `setData()`. For a plain `QVector` of samples, a minimal `QwtArraySeriesData` subclass is enough. The example below assembles them into a complete chart:
 
 ```cpp
 #include <QwtPolarPlot>
@@ -116,7 +114,7 @@ polarPlot->replot();
 
 ### 2. Polar Grid Configuration
 
-`QwtPolarGrid` draws both families of grid lines — `showGrid()` toggles the azimuth rays and radius circles by scale id (`QwtPolar::Azimuth` / `QwtPolar::Radius`) — while `showAxis()` switches the tick labels on or off for each of the `QwtPolar::AxisAzimuth`, `AxisLeft`, `AxisRight`, `AxisTop`, and `AxisBottom` axes:
+`QwtPolarGrid` draws both families of grid lines: `showGrid()` toggles the azimuth rays and radius circles by scale id (`QwtPolar::Azimuth` / `QwtPolar::Radius`), while `showAxis()` switches the tick labels on or off for each of the `QwtPolar::AxisAzimuth`, `AxisLeft`, `AxisRight`, `AxisTop`, and `AxisBottom` axes:
 
 ```cpp
 QwtPolarGrid* grid = new QwtPolarGrid();

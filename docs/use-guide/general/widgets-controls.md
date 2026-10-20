@@ -26,7 +26,7 @@ The widget demo is located at: `examples/2D/controls`. Screenshots:
 
 ### 1. QwtDial - Dial
 
-`QwtDial` is a round instrument face with a needle indicating the current value — the classic gauge for angles, directions or cockpit-style displays. The value range comes from the inherited `setScale()` and the tick spacing from `setScaleStepSize()`; its look is dominated by the needle object installed with `setNeedle()` (for instance a `QwtDialSimpleNeedle` in `Arrow` or `Ray` style), and `setMode()` decides whether the needle or the scale rotates. The value itself is set through the inherited `setValue()` and announced by the `valueChanged()` signal. The example below shows a typical setup:
+`QwtDial` is a round instrument face with a needle indicating the current value (the classic gauge for angles, directions or cockpit-style displays). The value range comes from the inherited `setScale()` and the tick spacing from `setScaleStepSize()`; its look is dominated by the needle object installed with `setNeedle()` (for instance a `QwtDialSimpleNeedle` in `Arrow` or `Ray` style), and `setMode()` decides whether the needle or the scale rotates. The value itself is set through the inherited `setValue()` and announced by the `valueChanged()` signal. The example below shows a typical setup:
 
 ```cpp
 #include <QwtDial>
@@ -60,7 +60,7 @@ connect(dial, SIGNAL(valueChanged(double)), this, SLOT(onValueChanged(double)));
 
 ### 2. QwtKnob - Knob Control
 
-`QwtKnob` emulates a rotatable physical knob that you turn with the mouse — a familiar choice for tweaking parameters on audio or instrument panels. `setKnobStyle()` picks the surface shading (`Flat` / `Raised` / `Sunken` / `Styled`), `setKnobWidth()` sizes the knob, the current value is indicated by a marker styled with `setMarkerStyle()`, and `setTracking(true)` emits values continuously while dragging, as shown below:
+`QwtKnob` emulates a rotatable physical knob that you turn with the mouse; it is a familiar choice for tweaking parameters on audio or instrument panels. `setKnobStyle()` picks the surface shading (`Flat` / `Raised` / `Sunken` / `Styled`), `setKnobWidth()` sizes the knob, the current value is indicated by a marker styled with `setMarkerStyle()`, and `setTracking(true)` emits values continuously while dragging, as shown below:
 
 ```cpp
 #include <QwtKnob>
@@ -125,7 +125,7 @@ slider->setPageSteps(10);    // One page step covers 10 single steps
 
 ### 4. QwtThermo - Thermometer
 
-`QwtThermo` displays a value as a liquid column inside a pipe — the natural widget for temperatures, fill levels or progress. `setOrientation()` lays it out vertically or horizontally, `setFillBrush()` colors the column, `setPipeWidth()` sets the pipe thickness, and `setAlarmLevel()` together with `setAlarmBrush()` switches to a warning color once the value crosses a threshold:
+`QwtThermo` displays a value as a liquid column inside a pipe, which makes it natural for temperatures, fill levels or progress. `setOrientation()` lays it out vertically or horizontally, `setFillBrush()` colors the column, `setPipeWidth()` sets the pipe thickness, and `setAlarmLevel()` together with `setAlarmBrush()` switches to a warning color once the value crosses a threshold:
 
 ```cpp
 #include <QwtThermo>
@@ -157,7 +157,7 @@ thermo->setAlarmBrush(QBrush(Qt::darkRed));
 
 ### 5. QwtWheel - Wheel Control
 
-`QwtWheel` emulates a mechanical thumb wheel for smooth, continuous value adjustment — handy wherever a slider would take too much panel space. `setRange()` defines the working interval, `setWheelWidth()` sizes the wheel, `setSingleStep()` sets the increment per notch, `setPageStepCount()` decides how many single steps one page step covers, and `setMass()` turns it into a flywheel that keeps spinning after release; `setTracking(true)` reports values while the user is still dragging, as the snippet below demonstrates:
+`QwtWheel` emulates a mechanical thumb wheel for smooth, continuous value adjustment, and is handy wherever a slider would take too much panel space. `setRange()` defines the working interval, `setWheelWidth()` sizes the wheel, `setSingleStep()` sets the increment per notch, `setPageStepCount()` decides how many single steps one page step covers, and `setMass()` turns it into a flywheel that keeps spinning after release; `setTracking(true)` reports values while the user is still dragging, as the snippet below demonstrates:
 
 ```cpp
 #include <QwtWheel>

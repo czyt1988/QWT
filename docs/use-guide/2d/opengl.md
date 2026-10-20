@@ -1,6 +1,6 @@
 # OpenGL Canvas
 
-QWT provides hardware-accelerated rendering through an OpenGL canvas. This page covers CMake configuration and usage of `QwtPlotOpenGLCanvas`.
+QWT provides hardware-accelerated rendering through an OpenGL canvas. `QwtPlotOpenGLCanvas` is the canvas class, and using it requires the CMake configuration below.
 
 ## CMake Configuration
 
@@ -27,7 +27,7 @@ endif()
 
 ## QwtPlotOpenGLCanvas
 
-`QwtPlotOpenGLCanvas` is a canvas widget derived from `QOpenGLWidget`. It does not build a native shader/VBO pipeline for curves — all plot items are still painted by `QPainter` (Qt's OpenGL2 paint engine) into an offscreen FBO, then reach the screen through MSAA resolve, blit and texture compositing; polyline tessellation happens on the CPU while the GPU only does the filling. Its gains are concentrated in the item-painting segment of heavy multi-curve, large-canvas scenes, at the cost of a fixed per-frame compositing overhead; for single-curve small datasets or incremental-repaint scenarios the default `QwtPlotCanvas` is actually the steadier choice. For quantitative evidence see the technical report [Raster vs. OpenGL Rendering Pipelines](../../tech-report/raster-vs-opengl.md).
+`QwtPlotOpenGLCanvas` is a canvas widget derived from `QOpenGLWidget`. It does not build a native shader/VBO pipeline for curves: all plot items are still painted by `QPainter` (Qt's OpenGL2 paint engine) into an offscreen FBO, then reach the screen through MSAA resolve, blit and texture compositing. Polyline tessellation happens on the CPU while the GPU only does the filling. Its advantage is concentrated in the item-painting segment of heavy multi-curve, large-canvas scenes, at the cost of a fixed per-frame compositing overhead; for single-curve small datasets or incremental-repaint scenarios the default `QwtPlotCanvas` is the steadier choice. For quantitative evidence see the technical report [Raster vs. OpenGL Rendering Pipelines](../../tech-report/raster-vs-opengl.md).
 
 ### Basic Usage
 
@@ -79,7 +79,7 @@ plot->setCanvas(canvas);
 
 ### QwtPlotCanvas Has No OpenGL Buffer Attribute
 
-`QwtPlotCanvas` itself offers no OpenGL paint mode — its `PaintAttribute` enum only contains `BackingStore`, `Opaque`, `HackStyledBackground` and `ImmediatePaint` — so the only entry point to hardware acceleration is switching to `QwtPlotOpenGLCanvas` wholesale. What you can tune on the raster canvas are the caching and refresh attributes:
+`QwtPlotCanvas` itself offers no OpenGL paint mode: its `PaintAttribute` enum only contains `BackingStore`, `Opaque`, `HackStyledBackground` and `ImmediatePaint`, so the only entry point to hardware acceleration is switching to `QwtPlotOpenGLCanvas` wholesale. What you can tune on the raster canvas are the caching and refresh attributes:
 
 ```cpp
 auto* canvas = new QwtPlotCanvas(plot);
@@ -90,7 +90,7 @@ plot->setCanvas(canvas);
 
 > **Note**
 >
-> `BackingStore` serves overlays and `QwtPlotDirectPainter` incremental repaints; in full-frame replot benchmarks, disabling it actually saves one pixmap allocation and blit. Also note that `QOpenGLWidget` switches its entire top-level window onto the OpenGL compositing path, so watch the compositing cost when many regular widgets are mixed in. For quantitative evidence see the [technical report](../../tech-report/raster-vs-opengl.md).
+> `BackingStore` serves overlays and `QwtPlotDirectPainter` incremental repaints; in full-frame replot benchmarks, disabling it saves one pixmap allocation and blit. Note that `QOpenGLWidget` switches its entire top-level window onto the OpenGL compositing path, so watch the compositing cost when many regular widgets are mixed in. For quantitative evidence see the [technical report](../../tech-report/raster-vs-opengl.md).
 
 ### When to Use OpenGL Canvas
 
@@ -106,8 +106,8 @@ For selection criteria and measured data see the technical report [Raster vs. Op
 
 > **Example — Related examples**
 >
-> - `examples/2D/realtime` — real-time plotting with high data throughput
-> - `examples/2D/oscilloscope` — oscilloscope-style waveform display
+> - `examples/2D/realtime` for real-time plotting with high data throughput
+> - `examples/2D/oscilloscope` for oscilloscope-style waveform display
 
 Screenshots of real-time plotting and oscilloscope:
 

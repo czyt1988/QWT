@@ -1,31 +1,31 @@
 # QwtPicker State Machine
 
-In a graphical interaction system, user actions are often not single instantaneous events but rather **ordered sequences of events**. For example:
+In a graphical interaction system, a user action is often a sequence of events rather than a single instant. For example:
 
 - **Drag operation**: Press mouse -> Move mouse -> Release mouse
 - **Rectangle selection**: Click first point -> Move mouse -> Click second point
 - **Polygon drawing**: Click multiple points -> Right-click to finish
 
-Without a state machine to manage interactions, we would need to maintain numerous `if-else` branches and state variables in event handlers, making the code **complex and difficult to maintain**.
+Without a state machine, event handlers would need many `if-else` branches and state variables, which is hard to maintain.
 
 Qwt's `QwtPicker` uses a state machine to manage the interaction process. The corresponding implementation is located in the `qwt_picker_machine.h/cpp` files.
 
 ## Advantages of the QwtPicker State Machine
 
-The state machine separates **event sequence processing** from **specific business operations**:
+The state machine separates event-sequence processing from the actual operation:
 
 - The state machine is responsible for recognizing complete event sequences
 - `QwtPicker` is responsible for executing specific drawing, selection, and other operations
 
 All `QwtPicker` state machines inherit from `QwtPickerMachine` and provide a unified `transition()` interface. `QwtPicker` does not need to know which specific interaction mode is in use.
 
-Adding a new interaction mode only requires inheriting from `QwtPickerMachine` and implementing the state transition logic — no modification of `QwtPicker` core code is needed.
+Adding a new interaction mode only requires inheriting from `QwtPickerMachine` and implementing the state transition logic, without modifying `QwtPicker` core code.
 
 State transitions during the interaction process are managed automatically, avoiding errors caused by manually maintaining state variables.
 
 ## How the QwtPicker State Machine Works
 
-The `QwtPicker` state machine mechanism uses a classic **Observer Pattern + State Pattern** combination:
+The `QwtPicker` state machine mechanism combines an observer pattern with a state pattern:
 
 ```txt
 Event flow: QEvent -> QwtPicker -> QwtPickerMachine -> Commands -> QwtPicker methods
@@ -43,7 +43,7 @@ Specific drawing actions are abstracted by `QwtPicker` into the following states
 | remove() | Remove point |
 | end() | End selection |
 
-The specific operations that compose moving, removing, and adding points are managed by the state machine. For example: clicking a point, moving the mouse, releasing the mouse, and ending the selection. This way, `QwtPicker` does not need to handle both mouse/keyboard events and state transitions simultaneously — this is the advantage of the state machine.
+The specific operations that compose moving, removing, and adding points are managed by the state machine. For example: clicking a point, moving the mouse, releasing the mouse, and ending the selection. This way, `QwtPicker` handles mouse and keyboard events without also tracking state transitions.
 
 The core of the state machine processing is the `transition` method. The `widgetXXXEvent` methods in `QwtPicker` all call the `transition` method.
 
@@ -91,9 +91,9 @@ void QwtPicker::transition(const QEvent* event)
 }
 ```
 
-The `transition()` method above is the core of state machine processing. It receives an event and returns a command sequence `commandList`. Each state machine instance inherits from `QwtPickerMachine` and implements the `transition()` method to return the command sequence.
+This `transition()` method receives an event and returns a command sequence in `commandList`. Each state machine instance inherits from `QwtPickerMachine` and implements `transition()` to produce that sequence.
 
-This can be illustrated by the following flowchart:
+The following flowchart shows the path:
 
 ```mermaid
 flowchart TD
@@ -177,7 +177,7 @@ QList<QwtPickerMachine::Command> QwtPickerDragPointMachine::transition(
 }
 ```
 
-This is the state machine that handles mouse drag operations. Its sequence diagram can be expressed as follows:
+The sequence diagram for a mouse drag looks like this:
 
 ```mermaid
 sequenceDiagram
@@ -235,7 +235,7 @@ stateDiagram-v2
     State1 --> State0: Mouse release -> End
 ```
 
-Through the state machine, event types are translated into various states for chart operations, enabling event dispatching.
+The state machine turns event types into plot operations.
 
 Complex interaction logic is decomposed into:
 - Event recognition (state machine)
@@ -394,7 +394,7 @@ stateDiagram-v2
 ```
 
 #### Use Cases
-- **Precise position selection** (e.g., real-time Panner)
+- Precise position selection (e.g., real-time Panner)
 - Point selection requiring fine adjustment
 - Drag positioning tools
 - High-precision measurement
@@ -549,6 +549,4 @@ stateDiagram-v2
 
 ## Summary
 
-The `QwtPicker` state machine mechanism provides an **elegant and powerful** way to handle complex user interaction sequences. By choosing an appropriate predefined state machine, we can easily implement various interaction modes without writing complex event handling logic.
-
-Understanding how the state machine works not only helps in correctly using QwtPicker, but also enables rapid implementation of custom state machines when custom interactions are needed.
+All built-in state machines map events to the same five commands (begin, append, move, remove and end), and each defines its own state values. To add an interaction mode, inherit from QwtPickerMachine and implement transition(); `QwtPicker` itself does not need to change.

@@ -4,12 +4,7 @@
 
 ## Key Features
 
-**Features**
-
-- Arbitrary shape support: Supports various geometric shapes defined by QPainterPath
-- Coordinate binding: Shape positions use plot coordinates, scaling with transformations
-- Style customization: Configurable fill, border, color, and other styles
-- Rendering optimization: Polygon clipping (`ClipPolygons`) and point weeding (`setRenderTolerance()`) improve rendering performance
+Shapes can be any geometry described by QPainterPath, including rectangles, circles and polygons. Positions use plot coordinates, so shapes scale with the axes. Fill, border and color are configurable, and polygon clipping (`ClipPolygons`) with point weeding (`setRenderTolerance()`) reduces rendering cost.
 
 ## Basic Concepts
 
@@ -40,7 +35,7 @@ QwtPlotShapeItem shapes are positioned using plot coordinates, not pixel coordin
 
 ### 1. Creating a Rectangle Shape
 
-The shape item is constructed with a legend title, and its geometry is handed to `setShape()` as a `QPainterPath` — for a plain rectangle the `setRect()` convenience overload also exists. Path coordinates are interpreted in the plot coordinate system, while `setPen()` / `setBrush()` style the outline and fill. The example below adds a semi-transparent rectangular region to a plot:
+The shape item is constructed with a legend title, and its geometry is handed to `setShape()` as a `QPainterPath`; for a plain rectangle the `setRect()` convenience overload also exists. Path coordinates are interpreted in the plot coordinate system, while `setPen()` / `setBrush()` style the outline and fill. The example below adds a semi-transparent rectangular region to a plot:
 
 ```cpp
 #include <QwtPlot>
@@ -104,7 +99,7 @@ polygon->attach(plot);
 
 ### 4. Style Configuration
 
-Appearance is tuned through `setRenderHint()` (e.g. `RenderAntialiased`, inherited from `QwtPlotItem`), `setPen()` (dashed outlines via `Qt::DashLine`), and `setBrush()` — the brush also accepts Qt pattern fills such as `Qt::FDiagPattern` for hatching. Performance options are the `ClipPolygons` paint attribute (`setPaintAttribute()`) and point weeding via `setRenderTolerance()`; there is no fill-mode setting. The snippet below combines these options:
+Appearance is tuned through `setRenderHint()` (e.g. `RenderAntialiased`, inherited from `QwtPlotItem`), `setPen()` (dashed outlines via `Qt::DashLine`), and `setBrush()`; the brush also accepts Qt pattern fills such as `Qt::FDiagPattern` for hatching. Performance options are the `ClipPolygons` paint attribute (`setPaintAttribute()`) and point weeding via `setRenderTolerance()`; there is no fill-mode setting. The snippet below combines these options:
 
 ```cpp
 // Clip polygons before painting (performance option)

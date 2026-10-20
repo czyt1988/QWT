@@ -2,7 +2,7 @@
 
 
 
-`QwtColorMapPreset`（`qwt::core` 模块）提供 22 种知名科学 colormap 预设，涵盖感知均匀色带（viridis、plasma…）、MATLAB 经典色带（jet、hot、cool…）、彩虹色带（rainbow、hsv、turbo）与发散型色带（coolwarm、rdylbu…），名称与 matplotlib / MATLAB 保持一致，可以零成本替换既有代码中的色带。2D 光谱图、3D 表面图与颜色条（color bar）共用同一套预设，颜色条的刻度与图案颜色永远由同一个 colormap 决定。
+`QwtColorMapPreset`（`qwt::core` 模块）提供 22 种知名科学 colormap 预设，涵盖感知均匀色带（viridis、plasma…）、MATLAB 经典色带（jet、hot、cool…）、彩虹色带（rainbow、hsv、turbo）与发散型色带（coolwarm、rdylbu…），名称与 matplotlib / MATLAB 保持一致，可以直接替换既有代码中的色带。2D 光谱图、3D 表面图与颜色条（color bar）共用同一套预设，颜色条的刻度与图案颜色永远由同一个 colormap 决定。
 
 
 
@@ -10,17 +10,17 @@
 
 
 
-- ✅ **22 种预设**：与 matplotlib / MATLAB 同名的科学色带，按名字创建，无需关心色标定义
+- 22 种预设：与 matplotlib / MATLAB 同名的科学色带，按名字创建，无需写色标定义
 
-- ✅ **感知均匀**：viridis、plasma、cividis 亮度单调、色阶步长均匀，色盲友好、打印安全；inferno、magma 亮度单调，但步长均匀性略逊
+- 感知均匀：viridis、plasma、cividis 亮度单调、色阶步长均匀，色盲友好且打印安全；inferno、magma 亮度单调，但步长均匀性略逊
 
-- ✅ **发散型色带**：coolwarm、rdylbu、rdylgn、spectral，适合含正负号的物理量
+- 发散型色带：coolwarm、rdylbu、rdylgn、spectral，适合含正负号的物理量
 
-- ✅ **随处可用**：2D 光谱图、3D 表面、坐标轴颜色条、以及直接取色都使用同一工厂函数
+- 随处可用：2D 光谱图、3D 表面、坐标轴颜色条以及直接取色都使用同一工厂函数
 
-- ✅ **可程序化查询**：可列出全部预设名、取色标节点、按名字/枚举互转
+- 可程序化查询：可列出全部预设名、读取色标节点、在名字与枚举之间互转
 
-- ✅ **配套示例**：`examples/2D/colormap` 可交互切换对比，并支持 `--screenshot` 批量导出效果图
+- 配套示例：`examples/2D/colormap` 可交互切换对比，并支持 `--screenshot` 批量导出效果图
 
 
 
@@ -228,7 +228,7 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 
-该模式复用界面的窗口系统渲染，导出的文字（标题、刻度、颜色条标签）与窗口中看到的一致；在没有显示器的环境（如无头 Linux CI）中会自动回退到 `offscreen` 平台——此时图片仍可生成，但文字会退化成方框。显式设置 `QT_QPA_PLATFORM` 环境变量可覆盖此行为。GUI 上的 `Save Screenshots...` 按钮与之等价。
+该模式复用界面的窗口系统渲染，导出的文字（标题、刻度、颜色条标签）与窗口中看到的一致；在没有显示器的环境（如无头 Linux CI）中会自动回退到 `offscreen` 平台，此时图片仍可生成，但文字会退化成方框。显式设置 `QT_QPA_PLATFORM` 环境变量可覆盖此行为。GUI 上的 `Save Screenshots...` 按钮与之等价。
 
 
 
@@ -305,7 +305,7 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 
-`jet` 是最广为人知的 MATLAB 默认色带，可以看到它在青-黄过渡处引入了一条肉眼对比较强的假等值线，且灰度化后明暗不再单调——这正是新代码应改用 turbo 或 viridis 的原因。`hot`、`cool`、`spring`、`summer`、`autumn`、`winter`、`gray`、`bone`、`copper` 为传统单色相 / 双色相色带，胜在简单直观。
+`jet` 是最广为人知的 MATLAB 默认色带，可以看到它在青-黄过渡处引入了一条肉眼对比较强的假等值线，且灰度化后明暗不再单调，新代码应改用 turbo 或 viridis。`hot`、`cool`、`spring`、`summer`、`autumn`、`winter`、`gray`、`bone`、`copper` 为传统单色相 / 双色相色带，胜在简单直观。
 
 
 
@@ -331,7 +331,7 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 
-`rainbow` 与 `hsv` 用于周期性数据时首尾颜色相同，可以无缝衔接；`turbo` 是 Google 给出的均衡彩虹色带，相比 `jet` 亮度回退略小，但色觉缺陷下的可区分性不如 `jet`，定量指标互有胜负（评测详见[色彩科学技术报告](../../tech-report/colormap-color-science.md)），适合必须使用彩虹观感的场合。
+`rainbow` 与 `hsv` 的首尾颜色相同，适合周期性数据；`turbo` 是 Google 给出的均衡彩虹色带，相比 `jet` 亮度回退略小，但色觉缺陷下的可区分性不如 `jet`，定量指标互有胜负（评测详见[色彩科学技术报告](../../tech-report/colormap-color-science.md)），适合必须使用彩虹观感的场合。
 
 
 
@@ -359,17 +359,17 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 
-- **顺序型数据用感知均匀色带**：缺省选 `viridis`；想要更醒目的暖色渐变用 `plasma`；暗色背景用 `inferno` / `magma`。
+- 顺序型数据用感知均匀色带：缺省选 `viridis`；想要更醒目的暖色渐变用 `plasma`；暗色背景用 `inferno` / `magma`。
 
-- **有色相方向的语义时用发散型**：例如正负误差用 `coolwarm`，海平面距平用 `rdylbu`。
+- 有色相方向的语义时用发散型：例如正负误差用 `coolwarm`，海平面距平用 `rdylbu`。
 
-- **周期性数据用循环色带**：`rainbow` / `hsv` 首尾同色，注意把数据范围设置为一个完整周期，否则红-红相接处会出现假边界。
+- 周期性数据用循环色带：`rainbow` / `hsv` 首尾同色，注意把数据范围设置为一个完整周期，否则红-红相接处会出现假边界。
 
-- **避免 `jet` / `rainbow` 表达顺序数据**：彩虹色带的感知亮度非单调，会在黄-青过渡处制造并不存在的等值线，灰度打印后尤其明显。
+- 避免 `jet` / `rainbow` 表达顺序数据：彩虹色带的感知亮度非单调，会在黄-青过渡处制造并不存在的等值线，灰度打印后尤其明显。
 
-- **打印与灰度场景**：选 `cividis` 或 `gray`，转灰度后值的大小顺序依然可读。
+- 打印与灰度场景：选 `cividis` 或 `gray`，转灰度后值的大小顺序依然可读。
 
-- **色觉障碍友好**：避开红-绿同时表达大小关系的组合，`viridis`、`cividis`、`coolwarm` 为安全选项。
+- 色觉障碍友好：避开红-绿同时表达大小关系的组合，`viridis`、`cividis`、`coolwarm` 为安全选项。
 
 
 
@@ -385,11 +385,11 @@ QVector< QPair< double, QColor > > stops = QwtColorMapPreset::colorStops(QwtColo
 
 
 
-- `setColorMap()` 转移所有权：传入的 `QwtColorMap*` 由 item / scale widget 持有并负责释放，因此用 `release()` 交出智能指针所有权即可，**不要**把同一个指针同时设置给光谱图和颜色条——示例中为两者分别 `create()` 了一次。
+- `setColorMap()` 转移所有权：传入的 `QwtColorMap*` 由 item / scale widget 持有并负责释放，因此用 `release()` 交出智能指针所有权即可，**不要**把同一个指针同时设置给光谱图和颜色条；示例中为两者分别 `create()` 了一次。
 
 - `QwtColorMap::rgb()` 的形式是 `rgb(double vMin, double vMax, double value)`，在 QWT7.3.1 起统一；早期的 `rgb(const QwtInterval&, double)` 已移除。
 
-- 预设创建的是 `QwtLinearColorMap`，默认 `RGB` 格式（连续插值）；若追求极致的渲染性能，可以用 `setColorTableSize(256)` 之类的量化色表，代价是可能出现色阶（banding），示例的 `Color Table` 组合框可以直接观察该效果。
+- 预设创建的是 `QwtLinearColorMap`，默认 `RGB` 格式（连续插值）；若追求更高的渲染性能，可以用 `setColorTableSize(256)` 之类的量化色表，代价是可能出现色阶（banding），示例的 `Color Table` 组合框可以直接观察该效果。
 
 
 

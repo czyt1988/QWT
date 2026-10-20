@@ -4,12 +4,10 @@ Scatter plots are used to display data distribution, with each data point marked
 
 ## Key Features
 
-**Features**
-
-- Multiple symbol shapes: Supports ellipse, rectangle, diamond, triangle, cross, and other shapes
-- Symbol style customization: Configurable size, fill color, border color, and border width
-- High-performance scatter mode: Use `Dots` style to efficiently render millions of data points
-- Symbol jitter: Prevents visual occlusion of overlapping points
+- Ellipse, rectangle, diamond, triangle, cross and other symbol shapes
+- Configurable symbol size, fill color, border color and border width
+- `Dots` style for rendering millions of points
+- Symbol jitter to separate overlapping points
 
 ## Basic Concepts
 
@@ -162,7 +160,7 @@ scatter->setSymbolJitter(0.05);  // 5% jitter range
 // Note: setSymbolJitter is a method of QwtPlotCurve
 ```
 
-> **Info — Jitter Principle**
+> **Note — Jitter Principle**
 >
 > Jitter adds a random offset to each point's X coordinate during rendering, dispersing overlapping points to make the data density distribution easier to observe.
 

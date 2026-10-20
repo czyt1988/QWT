@@ -1,10 +1,10 @@
 # NaN Data Handling
 
-In scientific and engineering data visualization, missing data is a common scenario — sensor failures, uneven sampling intervals, and anomalies in data processing pipelines can all produce `NaN` (Not a Number) values. If a plotting library cannot handle NaN correctly, it can lead to incorrect axis ranges, abnormal curve rendering, or even application crashes.
+Sensor failures, uneven sampling intervals and anomalies in data processing pipelines can all produce `NaN` (Not a Number) values. If a plotting library cannot handle NaN correctly, axis ranges can end up wrong, curves can render badly, or the application can crash.
 
-**Qwt 7 provides comprehensive correctness handling and performance optimization for NaN data**, a capability absent from the original Qwt 6. In Qwt 6, NaN data causes boundingRect pollution (returning invalid rectangles), incorrect pixel coordinates during mapping, broken autoscaling, and a series of other bugs. Qwt 7 builds a complete NaN handling system from low-level utility functions up to the rendering pipeline.
+Qwt 7 handles NaN data correctly and optimizes rendering for it; the original Qwt 6 did not. In Qwt 6, NaN data pollutes boundingRect (returning invalid rectangles), produces incorrect pixel coordinates during mapping, breaks autoscaling and causes other bugs. Qwt 7 adds NaN handling at every stage, from the utility functions up to the rendering pipeline.
 
-> **Success — Qwt 7 New Feature**
+> **Note — Qwt 7 New Feature**
 >
 > Correct NaN data handling and performance optimization is one of the major improvements of Qwt 7 over the original Qwt 6.2.0. All core improvements were added in December 2025 by the project maintainer.
 
@@ -33,7 +33,7 @@ flowchart TD
 
 ## Core Utility: qwt_is_nan_or_inf()
 
-**Source file**: `src/core/qwt_math.h`
+Source file: `src/core/qwt_math.h`
 
 Qwt 7 introduces a unified NaN/Inf detection function family as the foundation for all NaN handling. The original Qwt 6 does not have such a unified detection utility.
 
@@ -78,11 +78,11 @@ In addition to the base detection functions, the following utilities are provide
 
 ## NaN Handling in boundingRect
 
-**Source file**: `src/core/qwt_series_data.cpp`
+Source file: `src/core/qwt_series_data.cpp`
 
 ### The Qwt 6 Problem
 
-The original Qwt 6.2.0 `qwtBoundingRectT()` template **does not skip NaN samples** when computing the bounding rectangle of a data series. Due to IEEE 754 floating-point comparison semantics (`NaN < x` and `NaN > x` both evaluate to `false`), NaN values cause:
+The original Qwt 6.2.0 `qwtBoundingRectT()` template does not skip NaN samples when computing the bounding rectangle of a data series. Due to IEEE 754 floating-point comparison semantics (`NaN < x` and `NaN > x` both evaluate to `false`), NaN values cause:
 
 - Bounding rectangle boundaries to be polluted with invalid values
 - Autoscaling to receive incorrect ranges, resulting in abnormal axis display
@@ -146,9 +146,9 @@ QRectF qwtBoundingRectT(const QwtSeriesData< T >& series, size_t from, size_t to
 
 ## NaN Handling in Coordinate Mapping
 
-**Source file**: `src/plot/qwt_point_mapper.cpp`
+Source file: `src/plot/qwt_point_mapper.cpp`
 
-`QwtPointMapper` is the core class for coordinate mapping, where all downsampling and coordinate transformation paths are implemented. Qwt 7 ensures that **every mapping path skips NaN points**.
+`QwtPointMapper` is the core class for coordinate mapping, where all downsampling and coordinate transformation paths are implemented. Qwt 7 ensures that every mapping path skips NaN points.
 
 ### NaN Handling per Downsampling Algorithm
 
@@ -163,7 +163,7 @@ QRectF qwtBoundingRectT(const QwtSeriesData< T >& series, size_t from, size_t to
 
 ### Typical Processing Pattern
 
-Most algorithms follow a unified pattern — find the first valid point as the starting point, then skip NaN in the main loop:
+Most algorithms follow a unified pattern: find the first valid point as the starting point, then skip NaN in the main loop:
 
 ```cpp
 // 1. Find the first non-NaN sample
@@ -188,7 +188,7 @@ for (int i = realFrom; i <= to; i++) {
 
 ### MinMax Bucket Reduce NaN Pre-scan (LTTB Path)
 
-`qwtMinMaxBucketReduce()` is the LTTB downsampling algorithm new in Qwt 7. Its NaN handling is the most sophisticated — it uses a **pre-scan** to decide whether to use the SIMD acceleration path:
+`qwtMinMaxBucketReduce()` is the LTTB downsampling algorithm new in Qwt 7. Its NaN handling is the most involved: it uses a pre-scan to decide whether to use the SIMD acceleration path:
 
 ```mermaid
 flowchart TD
@@ -206,11 +206,11 @@ flowchart TD
     style G fill:#999,color:#fff
 ```
 
-**Why pre-scan?** When any NaN is present, the SIMD path's argmin/argmax results could be affected by NaN. The pre-scan requires only a single O(n) pass — once NaN is detected, it switches to the scalar path, which can skip NaN per-element. When data is entirely NaN-free (the common case), the SIMD path provides 3-4x acceleration.
+The pre-scan exists because a NaN sample can distort the SIMD path's argmin/argmax results. It requires a single O(n) pass; once NaN is detected, the code switches to the scalar path, which skips NaN per element. When the data contains no NaN (the common case), the SIMD path provides 3-4x acceleration.
 
 ## NaN Semantics in the SIMD Module
 
-**Source files**: `src/core/qwt_simd_argminmax.h`, `src/core/qwt_simd_argminmax.cpp`
+Source files: `src/core/qwt_simd_argminmax.h`, `src/core/qwt_simd_argminmax.cpp`
 
 `qwtSimdArgMinMax()` uses IEEE 754 comparison semantics to naturally ignore NaN values:
 
@@ -245,26 +245,26 @@ QwtArgMinMaxResult qwtSimdArgMinMax(const double* data, int count)
 
 ## Curve Drawing NaN Handling Coverage
 
-**Source file**: `src/plot/qwt_plot_curve.cpp`
+Source file: `src/plot/qwt_plot_curve.cpp`
 
 All drawing styles now cover NaN handling:
 
 | Drawing Style | NaN Handling | Implementation |
 |-------------|-------------|----------------|
-| Lines (all downsampling modes) | ✅ Handled | Delegates to QwtPointMapper |
-| Dots (default path) | ✅ Handled | Delegates to QwtPointMapper |
-| Symbols | ✅ Handled | Delegates to QwtPointMapper |
-| Dots (MinimizeMemory path) | ✅ Handled | Direct iteration, skipped via `isSampleNanOrInf()` |
-| Sticks | ✅ Handled | Direct iteration, skipped via `isSampleNanOrInf()` |
-| Steps | ✅ Handled | Direct iteration, skipped via `isSampleNanOrInf()` |
+| Lines (all downsampling modes) | Handled | Delegates to QwtPointMapper |
+| Dots (default path) | Handled | Delegates to QwtPointMapper |
+| Symbols | Handled | Delegates to QwtPointMapper |
+| Dots (MinimizeMemory path) | Handled | Direct iteration, skipped via `isSampleNanOrInf()` |
+| Sticks | Handled | Direct iteration, skipped via `isSampleNanOrInf()` |
+| Steps | Handled | Direct iteration, skipped via `isSampleNanOrInf()` |
 
 > **Warning — Skipping is not breaking**
 >
-> In earlier versions the `Sticks`, `Steps` and `Dots` `MinimizeMemory` paths did not check for NaN; since commit `17d0d13` these paths (and `closestPoint()`) have gained the `isSampleNanOrInf()` skip check, so every style is safe. Note, however, what the skip semantics mean: the Lines family and Steps "skip and bridge" NaN — a gap is crossed by a line segment (a bridging chord) that does not exist in the data, and the polyline is **not** broken open at the gap; only per-sample styles like `Dots`/`Sticks` leave gaps naturally blank. If you need true "gap equals blank" break semantics, enable the `QwtPlotCurve::BreakAtNan` curve attribute (see Best Practices below), or split the series at the NaNs into multiple finite segments on the data side, one curve per segment. For the quantitative semantics matrix and pixel-level visual scans see the [technical report](../../tech-report/nan-rendering.md).
+> In earlier versions the `Sticks`, `Steps` and `Dots` `MinimizeMemory` paths did not check for NaN; since commit `17d0d13` these paths (and `closestPoint()`) have gained the `isSampleNanOrInf()` skip check, so every style is safe. Note, however, what the skip semantics mean: the Lines family and Steps "skip and bridge" NaN, so a gap is crossed by a line segment (a bridging chord) that does not exist in the data, and the polyline is not broken open at the gap; only per-sample styles like `Dots`/`Sticks` leave gaps naturally blank. If you need true "gap equals blank" break semantics, enable the `QwtPlotCurve::BreakAtNan` curve attribute (see Best Practices below), or split the series at the NaNs into multiple finite segments on the data side, one curve per segment. For the quantitative semantics matrix and pixel-level visual scans see the [technical report](../../tech-report/nan-rendering.md).
 
 ## NaN Protection in Autoscaling
 
-**Source files**: `src/plot/qwt_plot.cpp`, `src/plot/qwt_plot_axis.cpp`
+Source files: `src/plot/qwt_plot.cpp`, `src/plot/qwt_plot_axis.cpp`
 
 Autoscaling has two independent paths, each with its own form of NaN protection. `QwtPlot::rescaleAxes()` checks the validity of the item boundingRect and the finiteness of all four edges before merging ranges (the predicate is `qwt_is_nan_or_inf()`, which also catches Inf):
 
@@ -277,7 +277,7 @@ if (boundingRect.isValid() && !boundingRect.isEmpty() && !qwt_is_nan_or_inf(boun
 }
 ```
 
-`QwtPlot::updateAxes()`, the path taken during replot, judges only by `width() >= 0` / `height() >= 0`: the boundingRect of an all-NaN series is the invalid rectangle `QRectF(1, 1, -2, -2)` (width and height both -2), which is skipped wholesale, leaving the axis interval invalid and ultimately falling back to the `AxisData` default range 0–1000 — this is where "an all-NaN curve drops the axes back to 0–1000 and leaves the canvas blank" comes from:
+`QwtPlot::updateAxes()`, the path taken during replot, judges only by `width() >= 0` / `height() >= 0`: the boundingRect of an all-NaN series is the invalid rectangle `QRectF(1, 1, -2, -2)` (width and height both -2), which is skipped wholesale, leaving the axis interval invalid and ultimately falling back to the `AxisData` default range 0–1000; this is where "an all-NaN curve drops the axes back to 0–1000 and leaves the canvas blank" comes from:
 
 ```cpp
 // qwt_plot_axis.cpp — updateAxes(): invalid rectangles are skipped outright and never pollute the axis interval
@@ -294,7 +294,7 @@ The dual protection across both paths ensures that even if boundingRect is accid
 
 ### Contour Algorithm
 
-The `QwtRasterData` CONREC contour algorithm detects NaN through accumulation sums — because NaN participating in addition makes the result NaN (the current source uses `qwt_is_nan_or_inf()`, which also catches Inf):
+The `QwtRasterData` CONREC contour algorithm detects NaN through accumulation sums: a NaN participating in addition makes the result NaN (the current source uses `qwt_is_nan_or_inf()`, which also catches Inf):
 
 ```cpp
 if (qwt_is_nan_or_inf(zSum)) {
@@ -324,18 +324,18 @@ rasterData->setAttribute(QwtRasterData::WithoutGaps, true);
 
 ## nanperf Performance Benchmark
 
-> **Success — Qwt 7 New Example**
+> **Note — Qwt 7 New Example**
 >
-> `examples/2D/nanperf/` is a performance benchmark example newly added in Qwt 7, designed to comparatively test rendering performance under different NaN distributions and downsampling modes. The original Qwt 6 does not have this example.
+> `examples/2D/nanperf/` is a performance benchmark example added in Qwt 7 to compare rendering performance under different NaN distributions and downsampling modes. The original Qwt 6 does not have this example.
 
 ### Overview
 
-The nanperf example provides a complete GUI tool for interactively testing the impact of NaN data on rendering performance:
+The nanperf example provides a GUI tool for interactively testing the impact of NaN data on rendering performance:
 
-- **6 NaN distribution scenarios**: Leading NaN, Leading & Trailing NaN, Middle NaN, Trailing NaN, X+Y NaN, X/Y Interleaved NaN
-- **5 downsampling modes**: ClipPolygons, FilterPoints, FilterPointsAggressive, FilterPointsPixel, FilterPointsLTTB
-- **Configurable parameters**: Data point count (1,000 ~ 10,000,000), NaN ratio (0% ~ 99%), repeat count
-- **Automated bottleneck analysis**: Automatically computes the difference between SIMD cliff effect and data reduction effect
+- 6 NaN distribution scenarios: Leading NaN, Leading & Trailing NaN, Middle NaN, Trailing NaN, X+Y NaN, X/Y Interleaved NaN
+- 5 downsampling modes: ClipPolygons, FilterPoints, FilterPointsAggressive, FilterPointsPixel, FilterPointsLTTB
+- Configurable parameters: Data point count (1,000 ~ 10,000,000), NaN ratio (0% ~ 99%), repeat count
+- Bottleneck analysis: computes the difference between the SIMD cliff effect and the data reduction effect
 
 ### UI Layout
 
@@ -361,14 +361,14 @@ The main window contains:
 
 The `BenchmarkRunner::analyze()` method decomposes the performance difference into two factors:
 
-1. **SIMD cliff effect** (LTTB only): When any NaN exists in the data, `qwtMinMaxBucketReduce`'s pre-scan globally disables SIMD, falling back to the scalar path. Measured by comparing LTTB performance ratios with/without NaN.
-2. **Data reduction effect** (all modes): After NaN points are skipped, fewer finite points need processing, resulting in faster rendering. Measured by comparing non-LTTB mode performance ratios with/without NaN.
+1. SIMD cliff effect (LTTB only): When any NaN exists in the data, `qwtMinMaxBucketReduce`'s pre-scan disables SIMD globally and falls back to the scalar path. Measured by comparing LTTB performance ratios with and without NaN.
+2. Data reduction effect (all modes): After NaN points are skipped, fewer finite points need processing, so rendering is faster. Measured by comparing non-LTTB performance ratios with and without NaN.
 
 The differential (delta) isolates the SIMD cliff effect:
 
-- **delta < 0**: LTTB benefits more from data reduction (SIMD penalty negligible at low NaN ratios)
-- **0 ≤ delta ≤ 0.1**: SIMD penalty marginal (scalar overhead negligible at high NaN ratios)
-- **delta > 0.1**: SIMD cliff clearly visible (LTTB penalized by scalar fallback)
+- delta < 0: LTTB benefits more from data reduction (SIMD penalty negligible at low NaN ratios)
+- 0 ≤ delta ≤ 0.1: SIMD penalty marginal (scalar overhead negligible at high NaN ratios)
+- delta > 0.1: SIMD cliff clearly visible (LTTB penalized by scalar fallback)
 
 ### Benchmark Results
 
@@ -384,11 +384,11 @@ Below are two sets of typical test results. Test conditions: 100,000 data points
 | Middle NaN | FilterPointsLTTB | 8.351 | 10.444 | 95.7 | 1000 |
 | X+Y Middle NaN | FilterPointsLTTB | 8.257 | 9.601 | 104.2 | 1000 |
 
-**Bottleneck Analysis**:
+Bottleneck analysis:
 
-- boundingRect: baseline 8.634 ms vs NaN 8.396 ms — cold-cache O(n) scan (cached in practice, re-computed only on data change)
-- FilterPointsLTTB: NaN 9.849 ms vs baseline 12.440 ms (0.79x) — LTTB benefits more from data reduction; SIMD penalty negligible at 1% NaN ratio
-- Other modes: NaN 54.634 ms vs baseline 55.644 ms (0.98x) — no SIMD path; ratio reflects pure data reduction
+- boundingRect: baseline 8.634 ms vs NaN 8.396 ms; cold-cache O(n) scan (cached in practice, re-computed only on data change)
+- FilterPointsLTTB: NaN 9.849 ms vs baseline 12.440 ms (0.79x); LTTB benefits more from data reduction, SIMD penalty negligible at 1% NaN ratio
+- Other modes: NaN 54.634 ms vs baseline 55.644 ms (0.98x); no SIMD path, ratio reflects pure data reduction
 - delta = -0.19 → LTTB benefits more from data reduction
 
 #### High NaN Ratio (99%)
@@ -401,16 +401,16 @@ Below are two sets of typical test results. Test conditions: 100,000 data points
 | Middle NaN | FilterPointsLTTB | 3.468 | 1.762 | 567.6 | 99000 |
 | X+Y Middle NaN | FilterPointsLTTB | 2.720 | 1.896 | 527.4 | 99000 |
 
-**Bottleneck Analysis**:
+Bottleneck analysis:
 
-- boundingRect: baseline 8.540 ms vs NaN 3.164 ms — scanning is faster when NaN points are skipped
-- FilterPointsLTTB: NaN 1.700 ms vs baseline 13.244 ms (0.13x) — 99% of data skipped, rendering is extremely fast
-- Other modes: NaN 5.524 ms vs baseline 54.860 ms (0.10x) — pure data reduction effect
+- boundingRect: baseline 8.540 ms vs NaN 3.164 ms; scanning is faster when NaN points are skipped
+- FilterPointsLTTB: NaN 1.700 ms vs baseline 13.244 ms (0.13x); 99% of data skipped, rendering is much faster
+- Other modes: NaN 5.524 ms vs baseline 54.860 ms (0.10x); pure data reduction effect
 - delta = +0.03 → SIMD penalty marginal, scalar overhead negligible at high NaN ratio
 
 ### Results Summary
 
-The flowchart below condenses the two benchmark sweeps into a single conclusion: at a 1% NaN ratio the LTTB path still beats the no-NaN baseline (0.79x replot time), and at a 99% ratio every mode speeds up dramatically (0.10–0.13x) — the SIMD fallback penalty is negligible in both cases:
+The flowchart below summarizes both benchmark sweeps: at a 1% NaN ratio the LTTB path still beats the no-NaN baseline (0.79x replot time), and at a 99% ratio every mode speeds up dramatically (0.10–0.13x). The SIMD fallback penalty is negligible in both cases:
 
 ```mermaid
 flowchart LR
@@ -432,12 +432,12 @@ flowchart LR
     style C fill:#5cb85c,color:#fff
 ```
 
-**Key Findings**:
+Key findings:
 
-1. **NaN skipping never causes performance degradation**: In all test scenarios, rendering with NaN data is faster than or equal to the no-NaN baseline, because skipping NaN reduces the number of finite points to process.
-2. **SIMD cliff effect is negligible**: Even at 1% NaN ratio, where LTTB falls back to the scalar path due to pre-scan disabling SIMD, performance still exceeds the no-NaN baseline (0.79x) — the data reduction benefit far outweighs the SIMD loss.
-3. **High NaN ratio yields massive speedup**: At 99% NaN, LTTB's replot time drops from 13.2ms to 1.7ms (7.7x speedup), with FPS increasing from 75.5 to 619.6.
-4. **NaN distribution position does not affect performance**: Different NaN distributions (leading, middle, trailing, interleaved) produce nearly identical performance, proving that Qwt 7's NaN handling is effective at all positions.
+1. NaN skipping never causes performance degradation: In all test scenarios, rendering with NaN data is faster than or equal to the no-NaN baseline, because skipping NaN reduces the number of finite points to process.
+2. SIMD cliff effect is negligible: Even at a 1% NaN ratio, where LTTB falls back to the scalar path because the pre-scan disables SIMD, performance still exceeds the no-NaN baseline (0.79x); the data reduction benefit far outweighs the SIMD loss.
+3. High NaN ratios speed up rendering: At 99% NaN, LTTB's replot time drops from 13.2ms to 1.7ms (7.7x speedup), and FPS rises from 75.5 to 619.6.
+4. NaN distribution does not affect performance: Different NaN distributions (leading, middle, trailing, interleaved) produce nearly identical performance, so Qwt 7 handles NaN samples at any position.
 
 ### Running the nanperf Example
 
@@ -466,7 +466,7 @@ flowchart LR
 
 ### Data Preparation
 
-Mark missing samples with a quiet NaN — Qt's `qQNaN()` helper produces one — and append them to the sample vectors like any regular value; `boundingRect()` and the renderers skip them automatically, so the axis scaling stays correct without any extra work. Note that "skip" means the polyline is bridged across the gap rather than broken open — when a gap must appear blank, see the warning under "Curve Drawing NaN Handling Coverage" above, the `BreakAtNan` attribute below, and the [technical report](../../tech-report/nan-rendering.md):
+Mark missing samples with a quiet NaN (Qt's `qQNaN()` helper produces one) and append them to the sample vectors like any regular value; `boundingRect()` and the renderers skip them automatically, so the axis scaling stays correct without any extra work. Note that "skip" means the polyline is bridged across the gap rather than broken open; when a gap must appear blank, see the warning under "Curve Drawing NaN Handling Coverage" above, the `BreakAtNan` attribute below, and the [technical report](../../tech-report/nan-rendering.md):
 
 ```cpp
 // Use qQNaN() to generate NaN values
@@ -485,7 +485,7 @@ curve->setSamples(x, y);
 
 ### Choosing a Drawing Style
 
-All drawing styles now skip NaN samples (see the coverage table above), so for data with NaNs the `QwtPlotCurve::Lines` style remains a good first choice: it has complete NaN handling, and the default-enabled `FilterPointsLTTB` paint attribute gives the best performance at the same time. Note that the Lines/Steps skip semantics are "bridging" — a gap is crossed by a line segment instead of being left blank; when gaps must appear blank, enable the `BreakAtNan` curve attribute (next section), split the data into finite segments across multiple curves, or switch to the per-sample `Dots`/`Sticks` styles:
+All drawing styles now skip NaN samples (see the coverage table above), so for data with NaNs the `QwtPlotCurve::Lines` style remains a good first choice: it has complete NaN handling, and the default-enabled `FilterPointsLTTB` paint attribute gives the best performance at the same time. Note that the Lines/Steps skip semantics are "bridging": a gap is crossed by a line segment instead of being left blank; when gaps must appear blank, enable the `BreakAtNan` curve attribute (next section), split the data into finite segments across multiple curves, or switch to the per-sample `Dots`/`Sticks` styles:
 
 ```cpp
 // Recommended: Lines style — complete NaN handling (skip semantics; gaps are bridged by a chord)
@@ -499,7 +499,7 @@ curve->setStyle(QwtPlotCurve::Lines);
 
 ### Gap Semantics: the BreakAtNan Attribute
 
-By default a curve renders one continuous polyline: NaN/Inf samples are skipped and the neighboring finite samples are connected by a bridging chord that has no correspondence in the data. The `QwtPlotCurve::BreakAtNan` curve attribute switches Lines and Steps to gap semantics instead — every run of consecutive finite samples is rendered as an independent polyline and gaps stay blank, like in matplotlib:
+By default a curve renders one continuous polyline: NaN/Inf samples are skipped and the neighboring finite samples are connected by a bridging chord that has no correspondence in the data. The `QwtPlotCurve::BreakAtNan` curve attribute switches Lines and Steps to gap semantics instead: every run of consecutive finite samples is rendered as an independent polyline and gaps stay blank, like in matplotlib:
 
 ```cpp
 QwtPlotCurve* curve = new QwtPlotCurve();
@@ -510,15 +510,15 @@ curve->attach(plot);
 
 Behavior details:
 
-- **Per-segment processing**: each run is smoothed, fitted (`Fitted`), clipped and filled on its own — neither the smoothing kernel nor the fill area crosses a gap, and the fill of each run closes to the baseline independently.
-- **Per-segment downsampling**: the downsampling budget of the paint attributes (`FilterPointsLTTB` etc.) applies per run; short runs fall back to simpler filtering, which is the defining cost of per-segment rendering.
-- **No effect on Dots/Sticks**: these styles draw per sample and skip NaN/Inf samples anyway, so gaps are naturally blank.
-- **Cached run scan**: the finite-sample runs are scanned once per data change (same cache lifecycle as the series boundingRect) and reused by every repaint, so interactive zoom/pan does not pay the O(n) scan again. Custom `QwtSeriesData` implementations that mutate their content in place must trigger `dataChanged()` (e.g. by calling `setData()` again) for the cache to refresh.
-- **Default off**: without the attribute nothing changes — gaps are bridged exactly as before.
+- Per-segment processing: each run is smoothed, fitted (`Fitted`), clipped and filled on its own; neither the smoothing kernel nor the fill area crosses a gap, and the fill of each run closes to the baseline independently.
+- Per-segment downsampling: the downsampling budget of the paint attributes (`FilterPointsLTTB` etc.) applies per run; short runs fall back to simpler filtering, which is the defining cost of per-segment rendering.
+- No effect on Dots/Sticks: these styles draw per sample and skip NaN/Inf samples anyway, so gaps are naturally blank.
+- Cached run scan: the finite-sample runs are scanned once per data change (same cache lifecycle as the series boundingRect) and reused by every repaint, so interactive zoom/pan does not pay the O(n) scan again. Custom `QwtSeriesData` implementations that mutate their content in place must trigger `dataChanged()` (e.g. by calling `setData()` again) for the cache to refresh.
+- Default off: without the attribute nothing changes; gaps are bridged exactly as before.
 
 ### Data Gaps in Spectrogram
 
-In a spectrogram, NaN cells are rendered as transparent holes by default — usually exactly the desired effect for a `QwtPlotSpectrogram`. Only when the raster truly has no gaps should you set the `QwtRasterData::WithoutGaps` attribute via `setAttribute()` to skip the per-cell NaN checks:
+In a spectrogram, NaN cells are rendered as transparent holes by default, usually exactly the desired effect for a `QwtPlotSpectrogram`. Only when the raster truly has no gaps should you set the `QwtRasterData::WithoutGaps` attribute via `setAttribute()` to skip the per-cell NaN checks:
 
 ```cpp
 // If data contains gaps (NaN), keep default settings
@@ -530,5 +530,5 @@ rasterData->setAttribute(QwtRasterData::WithoutGaps, true);
 
 ## API Reference
 
-- [Curve Downsampling Algorithms](../../tech-report/curve-downsampling.md) — Detailed explanation of the four downsampling algorithms
-- [Curve](../2d/curve.md) — QwtPlotCurve rendering attribute configuration
+- [Curve Downsampling Algorithms](../../tech-report/curve-downsampling.md): Detailed explanation of the four downsampling algorithms
+- [Curve](../2d/curve.md): QwtPlotCurve rendering attribute configuration

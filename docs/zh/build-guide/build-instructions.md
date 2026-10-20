@@ -4,7 +4,7 @@
 >
 > 你可以不把QWT编译为动态库，只需把`QwtPlot.h`和`QwtPlot.cpp`（这两个文件位于`src-amalgamate`目录下）引入你的工程即可
 
-此文会详细介绍如何构建QWT为**动态库**，如果你不熟悉C++的构建，你只需把`QwtPlot.h`和`QwtPlot.cpp`引入你的工程即可使用
+把 QWT 构建为动态库需要 C++ 构建工具。如果你不熟悉 C++ 的构建，只需把`QwtPlot.h`和`QwtPlot.cpp`引入你的工程即可使用
 
 ## CMake构建说明
 

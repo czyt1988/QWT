@@ -10,8 +10,8 @@ QwtPlotZoomer* zoomer2 = new QwtPlotZoomer(QwtAxis::XTop, QwtAxis::YRight, canva
 
 为解决这个问题，新版本进行了以下重构：
 
-- **`QwtPlotAxisZoomer`** - 原 `QwtPlotZoomer` 的重命名，代表绑定两个特定坐标轴的缩放器
-- **`QwtPlotCanvasZoomer`** - 新增的缩放器，无需指定坐标轴，会对整个画布进行整体缩放
+- `QwtPlotAxisZoomer`：原 `QwtPlotZoomer` 的重命名，代表绑定两个特定坐标轴的缩放器
+- `QwtPlotCanvasZoomer`：新增的缩放器，无需指定坐标轴，会对整个画布进行整体缩放
 
 ## 缩放器功能对比
 
@@ -25,7 +25,7 @@ QwtPlotZoomer* zoomer2 = new QwtPlotZoomer(QwtAxis::XTop, QwtAxis::YRight, canva
 
 ## 使用示例
 
-`QwtPlotAxisZoomer`和`QwtPlotCanvasZoomer`的使用方法一致，区别在于`QwtPlotCanvasZoomer`无需指定坐标轴
+`QwtPlotAxisZoomer` 和 `QwtPlotCanvasZoomer` 的使用方法一致，区别在于 `QwtPlotCanvasZoomer` 无需指定坐标轴。
 
 ### QwtPlotAxisZoomer 使用示例
 
@@ -81,14 +81,14 @@ QwtPlotCanvasZoomer* canvasZoomer = new QwtPlotCanvasZoomer(plot->canvas());
 
 ### 自定义按键配置
 
-你可以通过下面预定义的按钮配置来配置快捷键
+快捷键通过预定义的按钮模式配置。
 
-支持如下鼠标快捷键设置：
+鼠标模式：
 - MouseSelect2: 重置回基础
 - MouseSelect3: 缩放栈回退
 - MouseSelect6: 缩放栈前进
 
-支持如下键盘快捷键设置：
+键盘模式：
 - KeyUndo: 缩放栈回退
 - KeyRedo: 缩放栈前进
 - KeyHome: 重置回基础

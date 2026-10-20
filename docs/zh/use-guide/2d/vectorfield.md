@@ -4,12 +4,10 @@
 
 ## 主要功能特性
 
-**特性**
-
-- ✅ **箭头符号显示**：使用箭头表示向量方向和大小
-- ✅ **大小映射**：向量大小可映射到箭头长度或颜色
-- ✅ **密度控制**：支持调整显示密度避免过度拥挤
-- ✅ **样式自定义**：可自定义箭头形状和样式
+- 用箭头表示向量的方向与大小
+- 向量大小可映射到箭头长度或颜色
+- 可调整显示密度，避免数据点过密
+- 可自定义箭头形状与样式
 
 ## 基本概念
 
@@ -57,7 +55,7 @@ public:
 
 ### 1. 基本向量场图
 
-向量场项直接构造 `QwtPlotVectorField`，数据以 `QwtVectorFieldSample` 序列传入 `setSamples()`——每个样本由位置 (x, y) 和向量分量 (vx, vy) 组成。下面的例子生成 10 x 10 的三角函数向量网格并挂载到绘图上：
+向量场项直接构造 `QwtPlotVectorField`，数据以 `QwtVectorFieldSample` 序列传入 `setSamples()`，每个样本由位置 (x, y) 和向量分量 (vx, vy) 组成。下面的例子生成 10 x 10 的三角函数向量网格并挂载到绘图上：
 
 ```cpp
 #include <QwtPlot>
@@ -87,7 +85,7 @@ plot->replot();
 
 ### 2. 箭头样式配置
 
-箭头形状由 `QwtVectorFieldSymbol` 的实现类提供——`QwtVectorFieldArrow`（实心箭头，可指定头宽与尾宽）或 `QwtVectorFieldThinArrow`（细线箭头）——通过 `setSymbol()` 挂载，描边则由向量场项自身的 `setPen()` 控制；`setMagnitudeScaleFactor()` 决定向量大小对箭头长度的影响程度。下面的代码演示这些配置：
+箭头形状由 `QwtVectorFieldSymbol` 的实现类提供，可选 `QwtVectorFieldArrow`（实心箭头，可指定头宽与尾宽）或 `QwtVectorFieldThinArrow`（细线箭头），通过 `setSymbol()` 挂载，描边则由向量场项自身的 `setPen()` 控制；`setMagnitudeScaleFactor()` 决定向量大小对箭头长度的影响程度。下面的代码演示这些配置：
 
 ```cpp
 #include <QwtVectorFieldSymbol>
@@ -112,7 +110,7 @@ vectorField->setMagnitudeScaleFactor(0.5);  // 缩放因子
 
 ### 3. 向量大小映射
 
-大小到长度的映射由 `setMagnitudeScaleFactor()` 控制——对每个向量的大小施加线性缩放因子（在 `MagnitudeAsLength` 模式生效时起作用，该模式默认开启），还可用 `setMinArrowLength()` / `setMaxArrowLength()` 限定箭头长度范围。下面的代码演示线性映射、长度限制与固定长度三种配置：
+大小到长度的映射由 `setMagnitudeScaleFactor()` 控制：它对每个向量的大小施加线性缩放因子（在 `MagnitudeAsLength` 模式生效时起作用，该模式默认开启），还可用 `setMinArrowLength()` / `setMaxArrowLength()` 限定箭头长度范围。下面的代码演示线性映射、长度限制与固定长度三种配置：
 
 ```cpp
 // 将向量大小映射到箭头长度（MagnitudeAsLength 默认已开启）

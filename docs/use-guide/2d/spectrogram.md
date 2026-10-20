@@ -1,16 +1,10 @@
 # Spectrogram / Heatmap - QwtPlotSpectrogram
 
-`QwtPlotSpectrogram` is used to draw spectrograms or heatmaps, displaying three-dimensional data on a 2D plane where the third dimension (intensity value) is represented by color. Widely used in scientific data analysis, image processing, acoustic analysis, and other fields.
+`QwtPlotSpectrogram` draws spectrograms and heatmaps: three-dimensional data on a 2D plane, with the third dimension (intensity value) shown as color. It is commonly used in scientific data analysis, image processing and acoustic analysis.
 
 ## Key Features
 
-**Features**
-
-- Image display mode: Maps numeric values to colors to display 2D data fields
-- Contour display mode: Draws contour lines at specified values
-- Multiple color maps: Supports linear, gradient, discrete, and other color mapping methods
-- Multi-threaded rendering: Supports multi-core parallel rendering for improved large data processing efficiency
-- Data interpolation: Supports multiple interpolation algorithms for smooth display
+Values can be shown as a color field (image mode) or as contour lines at chosen levels. Linear, gradient, discrete and other color mapping methods are supported, rendering can be spread over several CPU cores, and several interpolation algorithms are available for smoother output.
 
 ## Basic Concepts
 
@@ -91,7 +85,7 @@ The spectrogram example is located at: `examples/2D/spectrogram`. Screenshot bel
 
 ### 1. Basic Spectrogram
 
-The basic setup creates a `QwtPlotSpectrogram`, enables `ImageMode` with `setDisplayMode()`, assigns a color map — here a `QwtLinearColorMap` with several intermediate stops — and passes the raster data via `setData()` before attaching the item to the plot:
+The basic setup creates a `QwtPlotSpectrogram`, enables `ImageMode` with `setDisplayMode()`, assigns a color map (here a `QwtLinearColorMap` with several intermediate stops) and passes the raster data via `setData()` before attaching the item to the plot:
 
 ```cpp
 #include <QwtPlot>
@@ -127,7 +121,7 @@ plot->replot();
 
 ### 2. Custom Raster Data
 
-Create a `QwtRasterData` derived class to provide data: implement the pure virtual `interval()` and `value()` methods — contour line computation is optional, the base class already provides a CONREC implementation:
+Create a `QwtRasterData` derived class to provide data: implement the pure virtual `interval()` and `value()` methods; contour line computation is optional because the base class already provides a CONREC implementation:
 
 ```cpp
 #include <QwtRasterData>
@@ -229,7 +223,7 @@ spectrogram->setColorMap(svMap);
 
 ### 4. Contour Display
 
-In `ContourMode`, the spectrogram draws isolines instead of — or, with both display modes enabled, on top of — the color image: `setContourLevels()` fixes the values that get a line, and `setDefaultContourPen()` sets the pen used for all levels without a specific one:
+In `ContourMode`, the spectrogram draws isolines instead of the color image, or on top of it when both display modes are enabled: `setContourLevels()` fixes the values that get a line, and `setDefaultContourPen()` sets the pen used for all levels without a specific one:
 
 ```cpp
 // Enable contour mode
@@ -250,7 +244,7 @@ spectrogram->setDisplayMode(QwtPlotSpectrogram::ContourMode, true);
 
 ### 5. Data Resolution Settings
 
-Raster rendering offers a quality-versus-speed trade-off. There is no explicit "pixel size" setter — the image is normally rendered in the resolution of the paint device. What you can control: `QwtRasterData::pixelHint()` lets the data suggest a pixel grid aligned to the data raster (implemented automatically by `QwtMatrixRasterData`), the `PaintInDeviceResolution` paint attribute expands such an image to device resolution before it is passed to QPainter, `RenderAntialiased` (inherited from `QwtPlotItem`) toggles antialiasing, and `setCachePolicy()` keeps a rendered image between repaints:
+Raster rendering offers a quality-versus-speed trade-off. There is no explicit "pixel size" setter; the image is normally rendered in the resolution of the paint device. What you can control: `QwtRasterData::pixelHint()` lets the data suggest a pixel grid aligned to the data raster (implemented automatically by `QwtMatrixRasterData`), the `PaintInDeviceResolution` paint attribute expands such an image to device resolution before it is passed to QPainter, `RenderAntialiased` (inherited from `QwtPlotItem`) toggles antialiasing, and `setCachePolicy()` keeps a rendered image between repaints:
 
 ```cpp
 // Expand a data-aligned image (per pixelHint()) to paint device resolution

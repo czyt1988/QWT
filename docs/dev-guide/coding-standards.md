@@ -1,15 +1,10 @@
 # Coding Standards
 
-This document defines the coding standards for the Qwt project to ensure consistent code style and quality.
+Qwt source follows the rules below for formatting, C++ version compatibility, naming and Qt usage.
 
 ## Key Requirements
 
-**Features**
-
-- ✅ **Code Formatting**: Automatic formatting using `.clang-format` configuration
-- ✅ **C++11 Compatibility**: Use the project-provided compatibility macros
-- ✅ **Modern C++ Style**: Use modern syntax such as `override`, `nullptr`, `using`, etc.
-- ✅ **Qt Best Practices**: Follow Qt development guidelines
+Qwt source is formatted with the `.clang-format` configuration, uses the project's C++11 compatibility macros, prefers modern syntax such as `override`, `nullptr` and `using`, and follows Qt development guidelines.
 
 ## Code Formatting
 
@@ -61,10 +56,10 @@ constexpr int MAX_SAMPLES = 1000;
 Use standard C++ keywords instead of legacy macros:
 
 ```cpp
-// ❌ Wrong: using legacy macro
+// Wrong: using legacy macro
 virtual void draw(QPainter* painter) QWT_OVERRIDE;
 
-// ✅ Correct: using standard keyword
+// Correct: using standard keyword
 virtual void draw(QPainter* painter) override;
 ```
 
@@ -75,37 +70,37 @@ virtual void draw(QPainter* painter) override;
 
 ### 2. Use nullptr Instead of NULL
 
-The example below contrasts the wrong `NULL` usage with the correct `nullptr` required by the standard:
+Declare null pointers with `nullptr` instead of `NULL`:
 
 ```cpp
-// ❌ Wrong
+// Wrong
 QwtPlot* plot = NULL;
 
-// ✅ Correct
+// Correct
 QwtPlot* plot = nullptr;
 ```
 
 ### 3. Use static_cast Instead of C-Style Casts
 
-The snippet below contrasts a C-style cast with the required `static_cast<>` form:
+Convert with `static_cast<>`:
 
 ```cpp
-// ❌ Wrong: C-style cast
+// Wrong: C-style cast
 int value = (int)doubleValue;
 
-// ✅ Correct: static_cast
+// Correct: static_cast
 int value = static_cast<int>(doubleValue);
 ```
 
 ### 4. Use using Instead of typedef
 
-The example below contrasts a legacy `typedef` with the required `using` alias:
+Replace `typedef` with a `using` alias:
 
 ```cpp
-// ❌ Wrong: old-style typedef
+// Wrong: old-style typedef
 typedef QVector<QwtSample> SampleVector;
 
-// ✅ Correct: using alias
+// Correct: using alias
 using SampleVector = QVector<QwtSample>;
 ```
 
@@ -114,10 +109,10 @@ using SampleVector = QVector<QwtSample>;
 Use `qwt_as_const` to prevent Qt container deep copies:
 
 ```cpp
-// ❌ May cause deep copy
+// Wrong: May cause deep copy
 for (const auto& item : container) { }
 
-// ✅ Safe iteration
+// Correct: Safe iteration
 for (const auto& item : qwt_as_const(container)) { }
 ```
 
@@ -132,10 +127,10 @@ for (const auto& item : qwt_as_const(container)) { }
 Use the Qt5+ signal-slot syntax:
 
 ```cpp
-// ❌ Wrong: using old SIGNAL/SLOT macros
+// Wrong: using old SIGNAL/SLOT macros
 connect(sender, SIGNAL(valueChanged(int)), receiver, SLOT(updateValue(int)));
 
-// ✅ Correct: using new function pointer syntax
+// Correct: using new function pointer syntax
 connect(sender, &Sender::valueChanged, receiver, &Receiver::updateValue);
 ```
 
@@ -163,7 +158,7 @@ Q_SIGNALS:
 Use the macros officially recommended by Qt:
 
 ```cpp
-// ✅ Correct
+// Correct
 Q_SIGNALS:    // instead of signals:
 Q_SLOT:       // instead of slot:
 public Q_SLOTS:  // instead of public slots:

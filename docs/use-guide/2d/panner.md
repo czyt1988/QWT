@@ -1,34 +1,34 @@
 # Panning Tool
 
-> **Success — New Feature**
+> **Note — Panning in Qwt 7**
 >
-> `QwtPlotPicker` is a completely refactored real-time interactive plot picker, providing a more intuitive user experience than the original `QwtPlotPicker` which implemented panning through caching.
+> `QwtPlotPanner` has been refactored for real-time interaction. Panning now moves the live plot content instead of the cached bitmap used by the original `QwtPlotPanner`.
 
-The `Qwt6` version of `QwtPlotPicker` was based on a cache-based panning mechanism, which had two main issues:
+The `Qwt6` version of `QwtPlotPanner` was based on a cache-based panning mechanism, which had two main issues:
 
-- During panning, a cached bitmap was displayed instead of real-time updated plot content
-- Users could not see real-time data changes during panning, preventing smooth interactive data exploration
+- During panning, a cached bitmap was shown instead of the current plot content
+- Data changes were not visible during the pan, so interactive exploration was limited
 
-Although in some aspects, the `Qwt6` `QwtPlotPicker` greatly reduced plot refreshes, it was very unfriendly to the visual experience. Therefore, `Qwt7` refactored `QwtPlotPicker` with the goal of achieving smooth interactive data exploration.
+The `Qwt6` `QwtPlotPanner` reduced plot refreshes by caching, but the cached bitmap made panning feel static. `Qwt7` therefore refactored `QwtPlotPanner` so the plot updates while the mouse moves.
 
-## Refactored QwtPlotPicker Improvements
+## Refactored QwtPlotPanner Improvements
 
-The new `QwtPlotPicker` is based on the `QwtPicker` state machine mechanism, implementing real-time panning and zooming:
+The new `QwtPlotPanner` uses the `QwtPicker` state machine for panning and zooming, and updates the plot while the mouse moves:
 
-The effect is as follows:
+The animation below shows panning in progress:
 
 ![qwt-realtime-panner](../../assets/screenshots/qwt-realtime-panner.gif)
 
-The new `QwtPlotPicker` provides complete axis support:
+The new `QwtPlotPanner` supports these axis scales:
 
-- ✅ Linear Scale
-- ✅ Logarithmic Scale
-- ✅ DateTime Scale
-- ✅ Multiple axes
+- Linear Scale
+- Logarithmic Scale
+- DateTime Scale
+- Multiple axes
 
 > **Warning — Using the Original Cache-Based Picker**
 >
-> If you want to use the original cache-based picker, you can use `QwtPlotCachePicker`.
+> The original cache-based panner is available as `QwtPlotCachePanner`.
 
 | Class Changes                  | Property | Base Class |
 |---------------------------|------|-------|
@@ -37,7 +37,7 @@ The new `QwtPlotPicker` provides complete axis support:
 |Original QwtPolarPanner -> QwtPolarCachePanner| Renamed  |QwtCachePanner|
 |QwtPlotPanner| Refactored  |QwtPicker|
 
-The `Qwt6` `QwtPlotPanner` has been completely refactored, but the interface remains unchanged, so existing code basically requires no modifications.
+The `Qwt6` `QwtPlotPanner` was refactored, but its interface is unchanged, so existing code needs no modification.
 
 ## Basic Usage
 
@@ -63,13 +63,13 @@ panner->setMouseButton(Qt::MiddleButton);  // Middle button panning
 panner->setEnabled(true);
 
 // Connect signal (optional)
-connect(picker, &QwtPlotPicker::panned,
+connect(panner, &QwtPlotPanner::panned,
         [](int dx, int dy) {
             qDebug() << "Canvas panned by:" << dx << dy;
         });
 ```
 
-You can set the panning direction to restrict movement to a single direction:
+You can set the panning direction to restrict movement to one direction:
 
 ```cpp
 // 1. Set panning direction
@@ -78,6 +78,6 @@ panner->setOrientations(Qt::Horizontal | Qt::Vertical); // Default: horizontal a
 // panner->setOrientations(Qt::Vertical);              // Vertical only
 ```
 
-> **Warning — Note**
+> **Note — Axis binding**
 >
-> `QwtPlotPanner` differs from `QwtPlotPicker` in that it does not need to bind to axes, because the movement applies to the entire canvas. During canvas movement, all axes are moved.
+> `QwtPlotPanner` differs from `QwtPlotPicker` in that it does not need to bind to axes, because the movement applies to the entire canvas. All axes move with the canvas.

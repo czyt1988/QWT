@@ -4,8 +4,6 @@
 
 ## Key Features
 
-**Features**
-
 - Major/minor grid lines: Supports both major and minor tick grid lines
 - Independent X/Y axis control: Enables or disables horizontal and vertical grids separately
 - Style customization: Major and minor grids can have different colors, line widths, and line styles
@@ -26,7 +24,7 @@ QwtPlotGrid supports four types of grid lines:
 
 ### Grid Structure Diagram
 
-The figure below shows how the four line families interleave — major grid lines sit at the labeled axis ticks, with optional minor grid lines in between:
+The figure below shows how the four line families interleave: major grid lines sit at the labeled axis ticks, with optional minor grid lines in between:
 
 ```text
     │    │    │    │    │    │  ← Y-axis major grid (solid lines)
@@ -39,7 +37,7 @@ The figure below shows how the four line families interleave — major grid line
 
 ### Class Relationships
 
-The diagram below gives the class relationship — `QwtPlotGrid` inherits from `QwtPlotItem` and adds the grid-specific enable switches, pen setters, and scale-division interfaces:
+The diagram below gives the class relationship: `QwtPlotGrid` inherits from `QwtPlotItem` and adds the grid-specific enable switches, pen setters, and scale-division interfaces:
 
 ```mermaid
 classDiagram
@@ -130,7 +128,7 @@ grid->setMinorPen(minorPen);
 
 #### Setting All Grid Lines Uniformly
 
-When major and minor lines should share one appearance, a single `setPen()` call configures both at once, again accepting either color/width/style arguments or a `QPen`. The one-liner below applies a gray dotted style to every grid line:
+When major and minor lines should share one appearance, a single `setPen()` call configures both at once, again accepting either color/width/style arguments or a `QPen`. The snippet below applies a gray dotted style to every grid line:
 
 ```cpp
 // Set both major and minor grid styles at once

@@ -4,12 +4,7 @@
 
 ## 主要功能特性
 
-**特性**
-
-- ✅ **任意形状支持**：支持 QPainterPath 定义的各种几何形状
-- ✅ **坐标绑定**：形状位置使用绘图坐标，随缩放变换
-- ✅ **样式自定义**：可设置填充、边框、颜色等样式
-- ✅ **渲染优化**：多边形裁剪（`ClipPolygons`）与抽点简化（`setRenderTolerance()`）提升渲染性能
+形状可以是 QPainterPath 能描述的各种几何图形，包括矩形、圆形和多边形。形状位置使用绘图坐标，会随坐标轴缩放。填充、边框和颜色均可设置，多边形裁剪（`ClipPolygons`）与抽点简化（`setRenderTolerance()`）能降低渲染开销。
 
 ## 基本概念
 
@@ -39,7 +34,7 @@ QwtPlotShapeItem 的形状使用绘图坐标定位，而非像素坐标：
 
 ### 1. 创建矩形形状
 
-`QwtPlotShapeItem` 构造时传入图例标题，几何形状以 `QPainterPath` 形式交给 `setShape()`——纯矩形也可直接使用 `setRect()` 便捷接口。路径坐标按绘图坐标系解释，`setPen()` 与 `setBrush()` 分别控制边框与填充。下面的例子在绘图上添加一个半透明矩形区域：
+`QwtPlotShapeItem` 构造时传入图例标题，几何形状以 `QPainterPath` 形式交给 `setShape()`，纯矩形也可直接使用 `setRect()` 便捷接口。路径坐标按绘图坐标系解释，`setPen()` 与 `setBrush()` 分别控制边框与填充。下面的例子在绘图上添加一个半透明矩形区域：
 
 ```cpp
 #include <QwtPlot>
@@ -103,7 +98,7 @@ polygon->attach(plot);
 
 ### 4. 样式配置
 
-外观可通过 `setRenderHint()`（如继承自 `QwtPlotItem` 的 `RenderAntialiased` 抗锯齿）、`setPen()`（`Qt::DashLine` 虚线边框）和 `setBrush()` 调整——画刷同样支持 `Qt::FDiagPattern` 等 Qt 图案实现斜线填充。性能相关选项为 `ClipPolygons` 绘制属性（`setPaintAttribute()`）与 `setRenderTolerance()` 抽点简化；没有填充模式设置。下面的代码组合了这些选项：
+外观可通过 `setRenderHint()`（如继承自 `QwtPlotItem` 的 `RenderAntialiased` 抗锯齿）、`setPen()`（`Qt::DashLine` 虚线边框）和 `setBrush()` 调整；画刷同样支持 `Qt::FDiagPattern` 等 Qt 图案实现斜线填充。性能相关选项为 `ClipPolygons` 绘制属性（`setPaintAttribute()`）与 `setRenderTolerance()` 抽点简化；没有填充模式设置。下面的代码组合了这些选项：
 
 ```cpp
 // 绘制前裁剪多边形（性能选项）

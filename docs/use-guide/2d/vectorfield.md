@@ -4,12 +4,10 @@
 
 ## Key Features
 
-**Features**
-
-- Arrow symbol display: Uses arrows to represent vector direction and magnitude
-- Magnitude mapping: Vector magnitude can be mapped to arrow length or color
-- Density control: Supports adjusting display density to avoid overcrowding
-- Style customization: Customizable arrow shape and style
+- Arrows represent vector direction and magnitude
+- Magnitude mapped to arrow length or color
+- Display density adjustment to avoid overcrowding
+- Customizable arrow shape and style
 
 ## Basic Concepts
 
@@ -57,7 +55,7 @@ The vector field example is located at: `playground/vectorfield`. Screenshot bel
 
 ### 1. Basic Vector Field Plot
 
-The field item is a plain `QwtPlotVectorField` fed with `QwtVectorFieldSample` values — each combining a position (x, y) with vector components (vx, vy) — through `setSamples()`. The example below generates a 10 x 10 trigonometric vector grid and attaches it to a plot:
+The field item is a plain `QwtPlotVectorField` fed through `setSamples()` with `QwtVectorFieldSample` values, each combining a position (x, y) with vector components (vx, vy). The example below generates a 10 x 10 trigonometric vector grid and attaches it to a plot:
 
 ```cpp
 #include <QwtPlot>
@@ -87,7 +85,7 @@ plot->replot();
 
 ### 2. Arrow Style Configuration
 
-The arrow shape is provided by a `QwtVectorFieldSymbol` implementation — `QwtVectorFieldArrow` (filled, with adjustable head and tail width) or `QwtVectorFieldThinArrow` (line-based) — assigned via `setSymbol()`, while the stroke comes from the field item's own `setPen()`. `setMagnitudeScaleFactor()` then controls how strongly the vector magnitude affects the arrow length. The snippet below wires these settings together:
+The arrow shape is provided by a `QwtVectorFieldSymbol` implementation, either `QwtVectorFieldArrow` (filled, with adjustable head and tail width) or `QwtVectorFieldThinArrow` (line-based), assigned via `setSymbol()`, while the stroke comes from the field item's own `setPen()`. `setMagnitudeScaleFactor()` then controls how strongly the vector magnitude affects the arrow length. The snippet below wires these settings together:
 
 ```cpp
 #include <QwtVectorFieldSymbol>
@@ -143,7 +141,7 @@ vectorField->setPaintAttribute(QwtPlotVectorField::FilterVectors, true);
 
 ### 5. Color Mapping
 
-Color-by-magnitude requires a `QwtColorMap` — e.g. a `QwtLinearColorMap` between two colors — assigned with `setColorMap()`, plus the `MagnitudeAsColor` flag enabled through `setMagnitudeMode()`; `setMagnitudeRange()` defines the value interval spanned by the map. The example below sets up a blue-to-red mapping:
+Color-by-magnitude requires a `QwtColorMap`, for example a `QwtLinearColorMap` between two colors, assigned with `setColorMap()`, plus the `MagnitudeAsColor` flag enabled through `setMagnitudeMode()`; `setMagnitudeRange()` defines the value interval spanned by the map. The example below sets up a blue-to-red mapping:
 
 ```cpp
 #include <QwtColorMap>

@@ -4,8 +4,6 @@
 
 ## Key Features
 
-**Features**
-
 - Multiple line styles: Horizontal line, vertical line, crosshair, or no line
 - Symbol markers: Display custom symbols at specified positions
 - Text labels: Add text annotations with controllable position and orientation
@@ -186,7 +184,7 @@ labelMarker->setSpacing(5);  // 5 pixel spacing
 labelMarker->attach(plot);
 ```
 
-### 7. Comprehensive Example - Annotating Data Peaks
+### 7. Full Example - Annotating Data Peaks
 
 This example combines line style, symbol and label in one marker: it scans the curve samples for the maximum, then annotates the peak with a dashed `QwtPlotMarker::VLine`, a red triangular `QwtSymbol` and a `QwtText` label showing the peak value:
 

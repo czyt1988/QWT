@@ -1,13 +1,13 @@
 # QwtFigure Plot Container Window
 
-`QwtFigure` is a container similar to `matplotlib`'s `Figure` class, used to organize and manage multiple `QwtPlot` plotting components. It provides flexible layout options including **normalized coordinate positioning** and **grid layout**, and supports creating **parasite plots (with any number of X and Y axes)**.
+`QwtFigure` is a container similar to `matplotlib`'s `Figure` class, used to organize and manage multiple `QwtPlot` plotting components. It provides layout options including normalized coordinate positioning and grid layout, and supports creating parasite plots (with any number of X and Y axes).
 
 ## Key Features
 
 ### 1. Multiple Layout Methods
 
-- **Normalized coordinate layout**: Uses a coordinate system in the `[0,1]` range for relative position control
-- **Grid layout**: Supports row-column grid arrangement for creating well-organized multi-plot compositions
+- Normalized coordinate layout: a coordinate system in the `[0,1]` range for relative position control
+- Grid layout: row-column grid arrangement for multi-plot compositions
 
 ### 2. Parasite Plot Support
 
@@ -19,10 +19,10 @@
 - Supports exporting the entire figure to an image file or QPixmap
 - DPI can be specified for high-resolution output
 
-### 4. Flexible Appearance Customization
+### 4. Appearance Customization
 
-- Supports custom background color, border color, and line width
-- Supports complex backgrounds (gradients, textures, etc.)
+- Custom background color, border color, and line width
+- Complex backgrounds (gradients, textures, etc.)
 
 ## Usage
 
@@ -65,7 +65,7 @@ figure->addAxes(bottomLeftPlot, 2, 2, 1, 0);
 
 ### Setting Figure Appearance
 
-The overall look of a figure is controlled by four `QwtFigure` methods: `setFaceColor()` fills the background with a solid color, `setFaceBrush()` accepts any `QBrush` — including a `QLinearGradient` for a gradient background — and `setEdgeColor()` together with `setEdgeLineWidth()` draws the border:
+The overall look of a figure is controlled by four `QwtFigure` methods: `setFaceColor()` fills the background with a solid color, `setFaceBrush()` accepts any `QBrush` (for example a `QLinearGradient` for a gradient background), and `setEdgeColor()` together with `setEdgeLineWidth()` draws the border:
 
 ```cpp
 // Set background color
@@ -195,9 +195,9 @@ The result is shown below:
 
 ### Key Features
 
-1. **Plot Component Resizing**: Users can resize and reposition sub-plot components within `QwtFigure` by dragging with the mouse
-2. **Current Plot Selection**: Supports selecting the currently active plot component via mouse click or keyboard shortcuts
-3. **Visual Feedback**: Provides clear visual feedback during operations, including borders, control points, and dimension information
+1. Users can resize and reposition sub-plot components within `QwtFigure` by dragging with the mouse.
+2. The active plot component can be selected with a mouse click or a keyboard shortcut.
+3. Operations show borders, control points, and dimension information as visual feedback.
 
 The overlay's different functions can be controlled via the `BuiltInFunctionsFlag` enum:
 
@@ -266,7 +266,7 @@ overlay->showPercentText(false);
 - `widgetNormGeometryChanged()` - Emitted when the normalized geometry of a plot component changes
 - `activeWidgetChanged()` - Emitted when the currently active component changes
 
-This overlay provides users with an intuitive, interactive way to manage and adjust multiple plot components within `QwtFigure`, improving user experience and operational efficiency.
+The overlay is the interactive editing layer for `QwtFigure`.
 
 > **Example — Parasite Plot Example**
 >

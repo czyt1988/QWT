@@ -1,15 +1,10 @@
 # PIMPL Pattern Guide
 
-This document introduces the PIMPL (Pointer to Implementation) pattern used in the Qwt project, helping developers correctly use the project-provided macro definitions.
+Qwt hides private members with the PIMPL (Pointer to Implementation) pattern and the macros described below.
 
 ## Key Features
 
-**Features**
-
-- ✅ **Hide Implementation Details**: Keep private members and data hidden in the implementation class
-- ✅ **Reduce Header Dependencies**: Lower compilation dependencies and speed up build times
-- ✅ **Binary Compatibility**: Changes to implementation do not affect binary compatibility
-- ✅ **Unified Macros**: The project provides standard macros to simplify implementation
+The pattern keeps private members out of the header, reduces compilation dependencies, leaves binary compatibility unchanged, and uses a fixed set of project macros.
 
 ## What is the PIMPL Pattern
 
@@ -340,7 +335,7 @@ int MyClass::value() const
 
 ## Macro Expansion Details
 
-Below are the macro expansion results to help understand how they work:
+Each macro expands as follows:
 
 | Macro | Expansion |
 |-----|----------|

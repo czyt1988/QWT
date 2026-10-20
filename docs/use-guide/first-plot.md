@@ -1,6 +1,6 @@
 # First Plot - Getting Started with QwtPlot
 
-This tutorial will help you quickly get started with the Qwt plotting library by walking through a simple example that demonstrates the basic usage of QwtPlot.
+A minimal Qwt program creates a QwtPlot window, attaches a grid and a curve, and calls replot() to display the data.
 
 ## QwtPlot Basic Concepts
 
@@ -78,15 +78,13 @@ flowchart TD
 
 ## Simplest Example
 
-The following example demonstrates the most basic usage of QwtPlot:
-
 The simple plot example is located at: `examples/2D/simpleplot`. A screenshot is shown below:
 
 ![Simple Plot](../assets/screenshots/simpleplot.png)
 
 ### Complete Code
 
-The example below puts all the pieces together: it constructs a `QwtPlot` window, attaches a `QwtPlotGrid` and a `QwtPlotCurve` styled with a `QwtSymbol`, feeds the curve a handful of `QPointF` samples through `setSamples()`, and finally shows the window — the whole program is only about 40 lines:
+The example below puts all the pieces together: it constructs a `QwtPlot` window, attaches a `QwtPlotGrid` and a `QwtPlotCurve` styled with a `QwtSymbol`, feeds the curve a handful of `QPointF` samples through `setSamples()`, and finally shows the window; the whole program is only about 40 lines:
 
 ```cpp
 #include <QwtPlot>
@@ -192,7 +190,7 @@ Curves are the most commonly used plot item type:
 
 #### 4. Setting Data Point Symbols
 
-To mark every sample with a shape, build a `QwtSymbol` — here an `Ellipse` with a yellow brush, a red pen, and a size of 8×8 pixels — and hand it to the curve with `setSymbol()`:
+To mark every sample with a shape, build a `QwtSymbol` (here an `Ellipse` with a yellow brush, a red pen, and a size of 8×8 pixels) and hand it to the curve with `setSymbol()`:
 
 ```cpp
 QwtSymbol* symbol = new QwtSymbol(
@@ -214,7 +212,7 @@ Symbols are used to display markers at each data point position. `QwtSymbol` sup
 
 #### 5. Setting Curve Data
 
-Samples reach the curve through `setSamples()`; the simplest overload takes a `QPolygonF` — a list of `QPointF` values — as shown below:
+Samples reach the curve through `setSamples()`; the simplest overload takes a `QPolygonF`, a list of `QPointF` values, as shown below:
 
 ```cpp
 QPolygonF points;
@@ -222,7 +220,7 @@ points << QPointF(0.0, 4.4) << QPointF(1.0, 3.0) ...;
 curve->setSamples(points);
 ```
 
-The `setSamples()` method is used to set the data points of the curve. Qwt provides multiple ways to set data:
+`setSamples()` sets the curve data; Qwt provides several overloads:
 
 | Method | Description |
 |--------|-------------|
@@ -237,7 +235,7 @@ The `setSamples()` method is used to set the data points of the curve. Qwt provi
 
 #### 6. Setting Axes
 
-Finally, `setAxisScale()` pins an axis — selected by a `QwtAxis::Position` value such as `QwtAxis::YLeft` — to a fixed range instead of letting Qwt derive one from the data:
+Finally, `setAxisScale()` fixes an axis (selected by a `QwtAxis::Position` value such as `QwtAxis::YLeft`) to a given range instead of letting Qwt derive one from the data:
 
 ```cpp
 plot.setAxisScale(QwtAxis::YLeft, 0.0, 10.0);
