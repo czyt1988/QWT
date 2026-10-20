@@ -12,6 +12,7 @@
 
 #include <QApplication>
 #include <QImage>
+#include <QMargins>
 #include <QPainter>
 #include <QRect>
 #include <QtTest>
@@ -406,6 +407,22 @@ void TestAxisCorner::testCornerWithTicksInsideBorder()
         QVERIFY2(xr.left() <= cr.left() - 1, "the x widget must cover the y backbone column");
     }
 
+    // the reservation must not shift the scale spans: with the canvas
+    // aligned to the scales they still cover exactly the canvas
+    {
+        const QwtScaleWidget* yw = plot.axisWidget(QwtAxis::YLeft);
+        const QwtScaleDraw* ysd  = yw->scaleDraw();
+        const qreal yEnd         = yw->mapTo(&plot, QPoint(0, 0)).y() + ysd->pos().y() + ysd->length();
+        QVERIFY2(qFuzzyCompare(yEnd, qreal(cr.bottom())),
+            qPrintable(QString("y scale end %1 != canvas bottom %2").arg(yEnd).arg(cr.bottom())));
+
+        const QwtScaleWidget* xw = plot.axisWidget(QwtAxis::XBottom);
+        const QwtScaleDraw* xsd  = xw->scaleDraw();
+        const qreal xStart       = xw->mapTo(&plot, QPoint(0, 0)).x() + xsd->pos().x();
+        QVERIFY2(qFuzzyCompare(xStart, qreal(cr.left())),
+            qPrintable(QString("x scale start %1 != canvas left %2").arg(xStart).arg(cr.left())));
+    }
+
     const QPoint band = bandCorner(img, plot, plot.axisWidget(QwtAxis::YLeft), plot.axisWidget(QwtAxis::XBottom));
     checkCornerClosed(img, cr, band, "ticksInsideBorder");
 }
@@ -522,6 +539,26 @@ void TestAxisCorner::testLayoutMatrix()
 
                     const QString ctx = QString("align=%1 margin=%2 lineWidth=%3 fixed=%4x%5")
                         .arg(align).arg(margin).arg(lineWidth).arg(fixed.width()).arg(fixed.height());
+
+                    if (align) {
+                        // the corner reservation must not shift the scale
+                        // spans away from the aligned canvas content (a
+                        // canvas frame sits between the scales and the
+                        // content rect)
+                        const QMargins cm = plot.canvas()->contentsMargins();
+
+                        const QwtScaleWidget* yw = plot.axisWidget(QwtAxis::YLeft);
+                        const QwtScaleDraw* ysd  = yw->scaleDraw();
+                        const qreal yEnd         = yw->mapTo(&plot, QPoint(0, 0)).y() + ysd->pos().y() + ysd->length();
+                        QVERIFY2(qFuzzyCompare(yEnd, qreal(cr.bottom() - cm.bottom())),
+                            qPrintable(ctx + QString(": y scale end %1 != canvas bottom %2").arg(yEnd).arg(cr.bottom() - cm.bottom())));
+
+                        const QwtScaleWidget* xw = plot.axisWidget(QwtAxis::XBottom);
+                        const QwtScaleDraw* xsd  = xw->scaleDraw();
+                        const qreal xStart       = xw->mapTo(&plot, QPoint(0, 0)).x() + xsd->pos().x();
+                        QVERIFY2(qFuzzyCompare(xStart, qreal(cr.left() + cm.left())),
+                            qPrintable(ctx + QString(": x scale start %1 != canvas left %2").arg(xStart).arg(cr.left() + cm.left())));
+                    }
 
                     const QPoint band = bandCorner(img, plot,
                         plot.axisWidget(QwtAxis::YLeft), plot.axisWidget(QwtAxis::XBottom));
