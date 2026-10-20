@@ -1,17 +1,15 @@
 # Curve Plot - QwtPlotCurve
 
-`QwtPlotCurve` is the most core plot item class in Qwt, used for drawing data curves in a 2D coordinate system. It supports multiple display styles (lines, steps, sticks, etc.), symbol markers, curve fitting, and rich style configuration.
+`QwtPlotCurve` is the central plot-item class in Qwt. It draws data curves in a 2D coordinate system and handles line, step, stick and dot styles, symbols at each sample, curve fitting, fills between the curve and a baseline, and legend appearance.
 
 ## Key Features
 
-**Features**
-
-- Multiple curve styles: Lines, Steps, Sticks, Dots and other drawing modes
-- Symbol marker system: Display various shapes at data points
-- Curve fitting and interpolation: Built-in spline and other fitting algorithms
-- High-performance rendering: Optimized rendering for large datasets
-- Fill area: Configurable fill between the curve and baseline
-- Legend customization: Configurable curve display style in the legend
+- Line, step, stick and dot drawing modes
+- Symbols drawn at data points
+- Spline-based curve fitting
+- Render hints for large data sets
+- Fill between the curve and a baseline
+- Control over the curve's legend icon
 
 ## Basic Concepts
 
@@ -433,7 +431,7 @@ debugCurve->setPaintAttribute(QwtPlotCurve::FilterPointsPixel, false);
 debugCurve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, false);
 ```
 
-> **Tip — Comprehensive Tips for Large Datasets**
+> **Tip — Large-Data Tips**
 >
 > - Real-time updates: Disable `setAutoReplot()`, call `replot()` manually after batch updates
 > - Monotonically increasing X data: `FilterPointsLTTB` automatically uses binary search for the visible range — no manual data trimming needed

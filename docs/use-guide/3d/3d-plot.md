@@ -2,7 +2,7 @@
 
 
 
-Qwt 7.1 integrates the original `QwtPlot3D` library, providing 3D data visualization capabilities. Starting from v7.3.3, the 3D module has been fully refactored to a **Plot + Item** architecture that mirrors the 2D module (`QwtPlot` + `QwtPlotItem`), with modern OpenGL rendering (VBO/VAO + GLSL 3.3 Core shaders).
+Qwt 7.1 integrated the original `QwtPlot3D` library for 3D data visualization. Since v7.3.3 the 3D module uses a Plot + Item architecture that mirrors the 2D module (`QwtPlot` + `QwtPlotItem`), with modern OpenGL rendering (VBO/VAO + GLSL 3.3 Core shaders).
 
 
 
@@ -18,23 +18,19 @@ Qwt 7.1 integrates the original `QwtPlot3D` library, providing 3D data visualiza
 
 
 
-**Features**
+- Plot + Item architecture: `Qwt3DPlot` (rendering window) + `Qwt3DPlotItem` (drawable items), symmetric with 2D's `QwtPlot` + `QwtPlotItem`
 
+- Multiple plot types: surface plots, grid plots, parametric surfaces, function plots, waterfall plots (sliding-window trace stacks), etc.
 
+- Modern OpenGL rendering: VBO/VAO + GLSL 3.3 Core shaders (no legacy fixed-function pipeline)
 
-- ✅ **Plot + Item architecture**: `Qwt3DPlot` (rendering window) + `Qwt3DPlotItem` (drawable items), symmetric with 2D's `QwtPlot` + `QwtPlotItem`
+- Interactive operations: mouse rotation, zooming and panning
 
-- ✅ **Multiple plot types**: Surface plots, grid plots, parametric surfaces, function plots, waterfall plots (sliding-window trace stacks), etc.
+- Lighting and material parameters: the lighting switch, light rotation, light/material components and shininess all reach the shaders (since v7.5.1; `illuminate()`/`blowout()` switch the single light and the defaults equal the previously hardcoded values, see the [technical report](../../tech-report/3d-surface-pipeline.md))
 
-- ✅ **Modern OpenGL rendering**: VBO/VAO + GLSL 3.3 Core shaders (no legacy fixed-function pipeline)
+- Theme system: visual style switching with 10 preset themes and 22 scientific colormaps
 
-- ✅ **Interactive operations**: Supports mouse rotation, zooming, and panning
-
-- ✅ **Lighting and material parameters**: the lighting switch, the light rotation, the light/material components and the shininess all reach the shaders (since v7.5.1; `illuminate()`/`blowout()` switch the single light and the defaults equal the previously hardcoded values — see the [technical report](../../tech-report/3d-surface-pipeline.md))
-
-- ✅ **Theme system**: One-click visual style switching with 10 preset themes and 22 scientific colormaps
-
-- ✅ **Multi-item composition**: Attach multiple items to a single `Qwt3DPlot` for combined rendering
+- Multi-item composition: attach multiple items to a single `Qwt3DPlot` for combined rendering
 
 
 
@@ -42,15 +38,15 @@ Qwt 7.1 integrates the original `QwtPlot3D` library, providing 3D data visualiza
 
 
 
-The 3D module follows a **Plot + Item** pattern, symmetric with the 2D module:
+The 3D module follows a Plot + Item pattern, symmetric with the 2D module:
 
 
 
-- **`Qwt3DPlot`** is a rendering window (`QOpenGLWidget` subclass) that manages the GL context, view transforms, lighting, coordinate system, and mouse/keyboard interaction. It holds **no plotting data** itself.
+- `Qwt3DPlot` is a rendering window (`QOpenGLWidget` subclass) that manages the GL context, view transforms, lighting, coordinate system, and mouse/keyboard interaction. It holds no plotting data itself.
 
-- **`Qwt3DPlotItem`** is the abstract base class for all 3D drawable items. Items manage their own data, geometry, and styles. They attach to a `Qwt3DPlot` via `attach()` / `detach()`.
+- `Qwt3DPlotItem` is the abstract base class for all 3D drawable items. Items manage their own data, geometry, and styles. They attach to a `Qwt3DPlot` via `attach()` / `detach()`.
 
-- A single `Qwt3DPlot` can hold **any number of items**, rendered together in one GL context.
+- A single `Qwt3DPlot` can hold any number of items, rendered together in one GL context.
 
 
 
@@ -144,7 +140,7 @@ classDiagram
 
 >
 
-> All 3D classes use the `Qwt3D` prefix directly in the global scope (e.g., `Qwt3DPlot`, `Qwt3DSurface`). There is no `namespace Qwt3D` — this is a breaking change from v7.3.2 and earlier.
+> All 3D classes use the `Qwt3D` prefix directly in the global scope (e.g., `Qwt3DPlot`, `Qwt3DSurface`). There is no `namespace Qwt3D`; this is a breaking change from v7.3.2 and earlier.
 
 
 
@@ -380,7 +376,7 @@ surface->setDataColor(new Qwt3DColorMapColor(plot, "viridis"));
 
 
 
-One of the key advantages of the Plot + Item architecture is the ability to render multiple items in the same 3D space:
+Several items can share the same 3D space:
 
 
 
@@ -418,15 +414,15 @@ overlay->attach(plot);
 
 
 
-Beyond surfaces, the 3D module ships more `Qwt3DPlotItem` types — see their dedicated usage pages:
+The 3D module provides more `Qwt3DPlotItem` types; each has a dedicated page:
 
 
 
-- [3D Bar Chart](3d-bar-chart.md) (`Qwt3DBar`) — 1D series or 2D grid (3D histogram), per-bar cuboids with flat normals, `Filled`/`FilledMesh`/`Wireframe`.
+- [3D Bar Chart](3d-bar-chart.md) (`Qwt3DBar`): 1D series or 2D grid (3D histogram), per-bar cuboids with flat normals, `Filled`/`FilledMesh`/`Wireframe`.
 
-- [3D Line Plot](3d-line-plot.md) (`Qwt3DLine`) — `Tube` (lit swept cylinder) / `Lines` / `Dots`, per-vertex colormap.
+- [3D Line Plot](3d-line-plot.md) (`Qwt3DLine`): `Tube` (lit swept cylinder) / `Lines` / `Dots`, per-vertex colormap.
 
-- [3D Waterfall](3d-waterfall.md) (`Qwt3DWaterfall`) — sliding-window waterfall of 1D traces (spectra), `Ribbon`/`RibbonMesh`/`Wireframe`/`Tube` styles, depth/amplitude/solid coloring.
+- [3D Waterfall](3d-waterfall.md) (`Qwt3DWaterfall`): sliding-window waterfall of 1D traces (spectra), `Ribbon`/`RibbonMesh`/`Wireframe`/`Tube` styles, depth/amplitude/solid coloring.
 
 
 
@@ -434,7 +430,7 @@ Beyond surfaces, the 3D module ships more `Qwt3DPlotItem` types — see their de
 
 
 
-A waterfall draws a stream of one-dimensional traces (spectra, chromatograms, ...) as stacked curves along the depth axis. One `Qwt3DWaterfall` item owns the whole live machinery - sliding window, depth numbering, ribbon geometry and coloring - so a waterfall is a push-per-tick affair:
+A waterfall draws a stream of one-dimensional traces (spectra, chromatograms, ...) as stacked curves along the depth axis. One `Qwt3DWaterfall` item owns the live machinery (sliding window, depth numbering, ribbon geometry and coloring), so a live waterfall only needs one push per tick:
 
 
 
@@ -480,7 +476,7 @@ Where to look:
 
 
 
-The `Qwt3DTheme` class provides one-click switching of 3D plot visual styles, encapsulating all visual attributes including background color, mesh color, data colormap, axis colors, title styling, lighting presets, and shading modes.
+The `Qwt3DTheme` class switches the visual style of a 3D plot. It encapsulates the visual attributes: background color, mesh color, data colormap, axis colors, title styling, lighting presets and shading modes.
 
 
 
@@ -623,7 +619,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 >
 
-> The 3D plot module requires **OpenGL 3.3+ Core Profile** and uses GLSL 3.30 shaders. Ensure that your graphics driver supports OpenGL 3.3 or higher. The module also bundles `gl2ps` for vector export (EPS/PDF) as a Compatibility Profile fallback.
+> The 3D plot module requires OpenGL 3.3+ Core Profile and uses GLSL 3.30 shaders. The graphics driver must support OpenGL 3.3 or higher. The module also bundles `gl2ps` for vector export (EPS/PDF) as a Compatibility Profile fallback.
 
 
 
@@ -685,7 +681,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 
 
-> **Tip — 3D Plot Recommendations**
+> **Tip**
 
 >
 
@@ -693,7 +689,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE qwt::plot3d)
 
 > - For complex surfaces, reduce resolution to improve performance
 
-> - Use lighting effects to enhance visual appearance
+> - Use lighting to make surfaces easier to read
 
 > - Use `setZ()` to control draw order when multiple items overlap
 

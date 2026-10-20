@@ -4,18 +4,16 @@
 
 ## 主要功能特性
 
-**特性**
-
-- ✅ **多种导出格式**：支持PNG、JPG、BMP、PDF、SVG、PS等
-- ✅ **分辨率控制**：可设置导出图片的DPI分辨率
-- ✅ **尺寸设置**：可自定义导出尺寸或使用毫米单位
-- ✅ **布局选项**：导出时可选择忽略标题、图例等组件
+- 支持导出 PNG、JPG、BMP、PDF、SVG、PS 等格式
+- 可设置导出图片的 DPI 分辨率
+- 可自定义导出尺寸或使用毫米单位
+- 导出时可选择忽略标题、图例等组件
 
 ## 使用方法
 
 ### 1. 导出到图片文件
 
-所有文件导出都经由 `QwtPlotRenderer::renderDocument()` 完成：传入 plot、目标文件名（由扩展名决定格式）、以**毫米**为单位的输出尺寸（`QSizeF`）以及以 DPI 为单位的分辨率（默认 85）。对于图片格式，像素尺寸按 `mm / 25.4 * DPI` 换算得到。下面的例子把同一个 plot 分别写成 PNG、JPG 和 BMP：
+所有文件导出都经由 `QwtPlotRenderer::renderDocument()` 完成：传入 plot、目标文件名（由扩展名决定格式）、以毫米为单位的输出尺寸（`QSizeF`）以及以 DPI 为单位的分辨率（默认 85）。对于图片格式，像素尺寸按 `mm / 25.4 * DPI` 换算得到。下面的例子把同一个 plot 分别写成 PNG、JPG 和 BMP：
 
 ```cpp
 #include <QwtPlotRenderer>
@@ -36,7 +34,7 @@ renderer.renderDocument(plot, "plot.bmp", QSizeF(200, 150));
 
 ### 2. 导出到PDF
 
-PDF 导出使用同一个 `renderDocument()` 入口——把文件扩展名换成 `.pdf` 即可。输出是矢量文档，任意缩放都保持清晰，适合打印与文档嵌入：
+PDF 导出使用同一个 `renderDocument()` 入口，把文件扩展名换成 `.pdf` 即可。输出是矢量文档，任意缩放都保持清晰，适合打印与文档嵌入：
 
 ```cpp
 // 导出到PDF
@@ -99,7 +97,7 @@ renderer.setDiscardFlags(QwtPlotRenderer::DiscardNone);
 
 ### 6. 打印功能
 
-打印时把配置好的 `QPrinter` 交给渲染器（`renderTo(QwtPlot*, QPrinter&)`），由它在页面上排布 plot；打印目标由 printer 自身决定——可以是物理打印机，也可以如下例输出为 PDF 文件：
+打印时把配置好的 `QPrinter` 交给渲染器（`renderTo(QwtPlot*, QPrinter&)`），由它在页面上排布 plot。打印目标由 printer 自身决定：可以是物理打印机，也可以如下例输出为 PDF 文件：
 
 ```cpp
 #include <QPrinter>

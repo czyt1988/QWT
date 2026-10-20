@@ -90,7 +90,7 @@ QVector<double> yOnly = {10, 20, 15, 25, 30};
 QwtPlotCurve* curve3 = QwtPlotFactory::createCurve(plot, "索引曲线", yOnly);
 ```
 
-工厂方法会自动完成创建 → 设置数据 → 绑定坐标轴 → attach 的全部流程，返回的指针可进一步自定义样式。
+工厂方法依次完成创建、设置数据、绑定坐标轴和 attach，返回的指针可进一步自定义样式。
 
 ### 创建柱状图与直方图
 
@@ -111,7 +111,7 @@ QwtPlotHistogram* hist = QwtPlotFactory::createHistogram(plot, "分布", histDat
 
 ### 创建 K 线图（交易曲线）
 
-`createTradingCurve()` 附加一个由 `QwtOHLCSample` 填充的 `QwtPlotTradingCurve*`——每个样本携带时间与开盘、最高、最低、收盘四个价格：
+`createTradingCurve()` 附加一个由 `QwtOHLCSample` 填充的 `QwtPlotTradingCurve*`，每个样本携带时间与开盘、最高、最低、收盘四个价格：
 
 ```cpp
 QVector<QwtOHLCSample> ohlc;
@@ -170,11 +170,11 @@ QwtPlotArrowMarker* arrow = QwtPlotFactory::createArrowMarker(
 
 > **提示 — 完整的工厂方法列表**
 >
-> `QwtPlotFactory` 覆盖全部 **9 种数据绘图项**和 **7 种装饰项**的创建。详见 API 文档。
+> `QwtPlotFactory` 覆盖全部 9 种数据绘图项和 7 种装饰项的创建。详见 API 文档。
 
 ## QwtPlotItemInfo — 类型查询
 
-`QwtPlotItemInfo` 用于查询绘图项的类型信息和过滤，**不会修改**任何绘图项状态。
+`QwtPlotItemInfo` 用于查询绘图项的类型信息和过滤，不会修改任何绘图项状态。
 
 ### 类型判断
 
@@ -346,7 +346,7 @@ qDebug() << "删除了" << removed << "个数据点";
 
 ## QwtPlotTransform — 坐标变换
 
-`QwtPlotTransform` 提供坐标系统之间的转换，所有方法均为只读操作，**不会修改** plot 状态。
+`QwtPlotTransform` 提供坐标系统之间的转换，所有方法均为只读操作，不会修改 plot 状态。
 
 ### 坐标系互转
 
@@ -587,7 +587,7 @@ plot->setStyleSheet(QString::fromUtf8(css.readAll()));
 
 ## 高层封装：QwtPyPlot
 
-如果你熟悉 matplotlib 的接口风格，可以使用 [QwtPyPlot](pyplot-api.md) 获得更简洁的绘图体验。`QwtPyPlot` 在内部使用上述工具类，但提供了类似 `plt.plot()` 的一站式接口：
+如果你熟悉 matplotlib 的接口风格，可以使用 [QwtPyPlot](pyplot-api.md) 用更紧凑的方式绘图。`QwtPyPlot` 在内部使用上述工具类，但提供了类似 `plt.plot()` 的单一接口：
 
 ```cpp
 #include <QwtPyPlot>

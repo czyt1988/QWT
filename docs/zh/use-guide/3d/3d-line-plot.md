@@ -14,17 +14,17 @@
 
 
 
-- **三种样式** —— `Tube`（默认，带光照实体）、`Lines`（细 GL 线）、`Dots`（点标记）
+- 三种样式：`Tube`（默认，带光照实体）、`Lines`（细 GL 线）、`Dots`（点标记）
 
-- **管道几何** —— 用圆形截面沿折线扫掠，采用 parallel-transport 标架（在直线段上稳定，不像 Frenet 标架会退化），带 Blinn-Phong 光照
+- 管道几何：用圆形截面沿折线扫掠，采用 parallel-transport 标架（在直线段上稳定，不像 Frenet 标架会退化），带 Blinn-Phong 光照
 
-- **自动管道半径** —— 未设置时取包围盒对角线的 0.5%；环段细分可调
+- 自动管道半径：未设置时取包围盒对角线的 0.5%；环段细分可调
 
-- **逐顶点着色** —— 沿曲线的 colormap（如按位置/弧长）或纯色
+- 逐顶点着色：沿曲线的 colormap（如按位置/弧长）或纯色
 
-- **点标记叠加** —— 可在 `Lines`/`Tube` 样式之上叠加点标记
+- 点标记叠加：可在 `Lines`/`Tube` 样式之上叠加点标记
 
-- **主题集成** —— 由 `Qwt3DTheme::applyToItem()` 接管
+- 主题集成：由 `Qwt3DTheme::applyToItem()` 接管
 
 
 
@@ -48,7 +48,7 @@
 
 >
 
-> OpenGL Core 难以可靠支持 `glLineWidth > 1`。要得到可见粗细的 3D 曲线（轨迹、流线），请用 `Tube` 样式——它构造真实几何体。
+> OpenGL Core 难以可靠支持 `glLineWidth > 1`。要得到可见粗细的 3D 曲线（轨迹、流线），请用 `Tube` 样式，它构造真实几何体。
 
 
 
@@ -310,7 +310,7 @@ plot->coordinates()->setTicLengthScale(0.02);
 
 
 
-> **提示 — 建议**
+> **提示**
 
 >
 

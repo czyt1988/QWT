@@ -4,7 +4,7 @@
 
 ## Overview
 
-The class diagram below shows how `QwtPyPlot` relates to the infrastructure it wraps and delegates to — `QwtFigure`, `QwtPlot`, `QwtPlotFactory`, and `QwtPlotStyling` — plus `QwtFormatString`, which parses matplotlib-style format strings:
+The class diagram below shows how `QwtPyPlot` relates to the infrastructure it wraps and delegates to, namely `QwtFigure`, `QwtPlot`, `QwtPlotFactory`, and `QwtPlotStyling`, plus `QwtFormatString`, which parses matplotlib-style format strings:
 
 ```mermaid
 classDiagram
@@ -94,7 +94,7 @@ fig->show();
 
 ### Mode 2: QwtPlot Single-Plot Mode
 
-Constructing from a `QwtPlot*` instead gives single-plot mode — every call operates directly on that plot, with no figure or subplot management. This is the lightest way to decorate an existing `QwtPlot` widget:
+Constructing from a `QwtPlot*` instead gives single-plot mode: every call operates directly on that plot, with no figure or subplot management. This is the lightest way to decorate an existing `QwtPlot` widget:
 
 ```cpp
 #include <QwtPlot>
@@ -248,7 +248,7 @@ plt.errorbar(x, y, yerr, "r-", "Measurement");
 
 #### quiver() — Vector Field
 
-`quiver()` creates a `QwtPlotVectorField*` that draws an arrow with components `(u, v)` at every position `(x, y)` — typically used for gradients or flow fields:
+`quiver()` creates a `QwtPlotVectorField*` that draws an arrow with components `(u, v)` at every position `(x, y)`, typically used for gradients or flow fields:
 
 ```cpp
 plt.quiver(x, y, u, v, "k");
@@ -279,7 +279,7 @@ plt.candlestick(ohlcData, "Stock");
 
 ### Titles and Labels
 
-`setTitle()`, `setXLabel()`, and `setYLabel()` set the plot title and the bottom/left axis titles respectively — all applied to the current axes (`gca()`):
+`setTitle()`, `setXLabel()`, and `setYLabel()` set the plot title and the bottom/left axis titles respectively; all of them apply to the current axes (`gca()`):
 
 ```cpp
 plt.setTitle("My Plot");
@@ -383,7 +383,7 @@ plt.savefig("output.png", 300);   // 300 DPI
 
 ### Show Window
 
-`show()` makes the underlying widget visible — the `QwtFigure` in multi-subplot mode, or the current `QwtPlot` in single-plot mode:
+`show()` makes the underlying widget visible: the `QwtFigure` in multi-subplot mode, or the current `QwtPlot` in single-plot mode.
 
 ```cpp
 plt.show();
@@ -518,7 +518,7 @@ int main(int argc, char* argv[])
 
 > **Example — Related Examples**
 >
-> A complete example is located in `examples/2D/pyplot/`, containing 8 tabs demonstrating various QwtPyPlot features.
+> A complete example is located in `examples/2D/pyplot/`, with 8 tabs covering the main QwtPyPlot features.
 
 Screenshot of the PyPlot example:
 

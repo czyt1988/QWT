@@ -1,15 +1,6 @@
 # 曲线像素对齐：为什么点越多反而越"锯齿"，以及该怎么设置
 
-你有一条采样很密的曲线。放大到一个峰，它看起来像用一像素笔画的楼梯——尽管抗锯齿是开着的。换成同一组数据的粗采样版本，曲线却平滑了。问题既不在数据，也不在抗锯齿：Qwt 在光栅器看到曲线之前，就把每个顶点吸附到了设备像素网格上，而密集数据正是这个操作最容易暴露的地方。
-
-本篇用大白话讲清楚这个开关，教你如何辨认症状，并给出各种场景下的一行设置。完整的推导与实测数据见技术报告[《曲线管线中的像素吸附》](../../tech-report/point-mapper-rounding.md)。
-
-**本篇将覆盖**
-
-- ✅ **症状**：阶梯长什么样，为什么点越多越明显
-- ✅ **原因**：全局开关 `QwtPainter::setRoundingAlignment()`，一段话说清
-- ✅ **做法**：抗锯齿屏幕绘图、导出、像素精确渲染分别该怎么设
-- ✅ **亲手验证**：`downsample_demo` 示例，具体点哪个控件
+你有一条采样很密的曲线。放大到一个峰，它看起来像用一像素笔画的楼梯，尽管抗锯齿是开着的。换成同一组数据的粗采样版本，曲线却平滑了。问题既不在数据，也不在抗锯齿：Qwt 在光栅器看到曲线之前，就把每个顶点吸附到了设备像素网格上，而密集数据正是这个操作最容易暴露的地方。开关就是 `QwtPainter::setRoundingAlignment()`，`downsample_demo` 示例可以复现这个对比；完整推导与实测数据见技术报告[《曲线管线中的像素吸附》](../../tech-report/point-mapper-rounding.md)。
 
 ## 1. 先认症状
 
@@ -28,13 +19,13 @@
 | 全范围视图正常，放大到峰才出现台阶 | 每列采样密集——正是本篇情形 |
 | 只有导出的 PDF/SVG 平滑，屏幕上有台阶 | 同一个原因；导出本来就保留亚像素坐标 |
 
-> **说明 —— 这不是抗锯齿失效**
+> **说明 — 这不是抗锯齿失效**
 >
 > 开关抗锯齿只改变边缘的柔和程度，不改变台阶本身。技术报告的对比图中，四个面板都启用了抗锯齿，带台阶的那几张里依然有混合像素。几何在 Qt 绘制之前就已经被量化了。
 
 ## 2. 一段话说清原因
 
-每条 `QwtPlotCurve` 都通过 `QwtPointMapper` 把数据坐标转换成屏幕坐标。全局开关 `QwtPainter::setRoundingAlignment()` 默认打开，打开期间映射器会把每个转换后的顶点四舍五入到最近的设备像素。对于每像素列有多个采样的曲线，取整后的顶点只能以整像素为单位移动，折线于是变成一串水平段与垂直段——楼梯。而每列不足一个采样的曲线，列内根本没有顶点可吸附，这就是为什么稀疏数据在完全相同的设置下依然平滑。
+每条 `QwtPlotCurve` 都通过 `QwtPointMapper` 把数据坐标转换成屏幕坐标。全局开关 `QwtPainter::setRoundingAlignment()` 默认打开，打开期间映射器会把每个转换后的顶点四舍五入到最近的设备像素。对于每像素列有多个采样的曲线，取整后的顶点只能以整像素为单位移动，折线于是变成一串水平段与垂直段，形成楼梯。而每列不足一个采样的曲线，列内根本没有顶点可吸附，这就是为什么稀疏数据在完全相同的设置下依然平滑。
 
 这个开关是全局的：它作用于应用中的每条曲线、每个标记、网格和图例图标，而不是单个图项。所以修复方式通常是启动时调用一次，而不是逐条曲线配置。
 
@@ -65,7 +56,7 @@ int main(int argc, char* argv[])
 
 ### 3.2 像素精确渲染：保持默认开启
 
-如果你刻意要清晰、像素对齐的输出——例如要求每条细线都落在整像素上的工程图——保持默认设置即可：
+如果你刻意要清晰、像素对齐的输出，例如要求每条细线都落在整像素上的工程图，保持默认设置即可：
 
 ```cpp
 // 库的默认值：顶点吸附到设备像素网格
@@ -90,7 +81,7 @@ QwtPainter::setRoundingAlignment(true);
 
 ## 4. 那降采样算法呢？
 
-点抽稀与像素对齐是两个独立阶段，现代降采样算法并不需要对。在 100 万点的曲线上实测：使用 `FilterPointsLTTB`、`FilterPointsMinMaxLTTB`、`FilterPointsPixel` 或 `FilterPointsAdaptive` 之后，对齐开关对映射器耗时的影响小于 5%——因为只对选出的几千个顶点取整，而不是对 100 万个输入采样。
+点抽稀与像素对齐是两个独立阶段，现代降采样算法并不需要像素对齐。在 100 万点的曲线上实测：使用 `FilterPointsLTTB`、`FilterPointsMinMaxLTTB`、`FilterPointsPixel` 或 `FilterPointsAdaptive` 之后，对齐开关对映射器耗时的影响小于 5%，因为只对选出的几千个顶点取整，而不是对 100 万个输入采样。
 
 因此，密集、平滑、抗锯齿曲线的推荐组合是：
 
@@ -110,20 +101,20 @@ curve->attach(plot);
 
 ## 5. 亲手验证
 
-示例 `examples/2D/downsample_demo` 正是为这个对比而写的。它展示两条峰形相同、采样密度不同的谱线——可见窗口内一条约 20 万点，一条约 1.86 万点——并允许你实时切换降采样与两个绘制开关。
+示例 `examples/2D/downsample_demo` 直接服务于这个对比。它展示两条峰形相同、采样密度不同的谱线（可见窗口内一条约 20 万点，一条约 1.86 万点），并允许你实时切换降采样与两个绘制开关。
 
 ![downsample_demo：使用默认降采样的密集谱线](../../../assets/screenshots/downsample-demo.png)
 
 工具栏上有这些控件：
 
-- **dataset**——`many points per peak`（每峰点多）或 `few points per peak`（每峰点少）；
-- **reduction**——`no reduction`、`FilterPointsLTTB`（默认）、`FilterPointsPixel`、`FilterPointsAdaptive`，以及旧版过滤器；
-- **view**——`window 858..872` 是效果最明显的放大峰区；
-- **mapped points**——在每个真正被绘制的顶点上画红点，可以直观看到降采样保留了哪些点；
-- **pixel align**——切换 `QwtPainter::setRoundingAlignment()`；
-- **polyline split**——切换 `QwtPainter::setPolylineSplitting()`（与本现象无关，保留作对比）。
+- **dataset**：`many points per peak`（每峰点多）或 `few points per peak`（每峰点少）；
+- **reduction**：`no reduction`、`FilterPointsLTTB`（默认）、`FilterPointsPixel`、`FilterPointsAdaptive`，以及旧版过滤器；
+- **view**：`window 858..872` 是效果最明显的放大峰区；
+- **mapped points**：在每个真正被绘制的顶点上画红点，可以直观看到降采样保留了哪些点；
+- **pixel align**：切换 `QwtPainter::setRoundingAlignment()`；
+- **polyline split**：切换 `QwtPainter::setPolylineSplitting()`（与本现象无关，保留作对比）。
 
-五秒钟看到差异：选择 `many points per peak`、`FilterPointsLTTB`（默认）、`window 858..872`，然后反复点 **pixel align**。开启（默认）时能看到阶梯，关闭后斜边恢复平滑——这正是本篇开头那张对比图的复现方式。把数据集换成 `few points per peak`，同一个开关几乎没有任何变化——采样太稀疏，形成不了多顶点列。
+快速看到差异：选择 `many points per peak`、`FilterPointsLTTB`（默认）、`window 858..872`，然后反复点 **pixel align**。开启（默认）时能看到阶梯，关闭后斜边恢复平滑，这正是本篇开头那张对比图的复现方式。把数据集换成 `few points per peak`，同一个开关几乎没有任何变化，因为采样太稀疏，形成不了多顶点列。
 
 批处理模式会把同样的矩阵渲染成 PNG，便于写文档或提交缺陷报告：
 

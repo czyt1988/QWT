@@ -4,7 +4,7 @@
 
 ## 概述
 
-下面的类图给出 `QwtPyPlot` 与其封装/委托的基础设施之间的关系——包括 `QwtFigure`、`QwtPlot`、`QwtPlotFactory`、`QwtPlotStyling`，以及负责解析 matplotlib 风格格式字符串的 `QwtFormatString`：
+下面的类图给出 `QwtPyPlot` 与其封装、委托的基础设施之间的关系，包括 `QwtFigure`、`QwtPlot`、`QwtPlotFactory`、`QwtPlotStyling`，以及负责解析 matplotlib 风格格式字符串的 `QwtFormatString`：
 
 ```mermaid
 classDiagram
@@ -94,7 +94,7 @@ fig->show();
 
 ### 模式二：QwtPlot 单图模式
 
-改用 `QwtPlot*` 构造则进入单图模式——所有调用都直接作用于这个 plot，不涉及 figure 与子图管理。这是给现有 `QwtPlot` 控件添加图元最轻量的方式：
+改用 `QwtPlot*` 构造则进入单图模式：所有调用都直接作用于这个 plot，不涉及 figure 与子图管理。这是给现有 `QwtPlot` 控件添加图元最轻量的方式：
 
 ```cpp
 #include <QwtPlot>
@@ -248,7 +248,7 @@ plt.errorbar(x, y, yerr, "r-", "Measurement");
 
 #### quiver() — 向量场
 
-`quiver()` 创建 `QwtPlotVectorField*`，在每个位置 `(x, y)` 绘制分量为 `(u, v)` 的箭头——常用于梯度场或流场可视化：
+`quiver()` 创建 `QwtPlotVectorField*`，在每个位置 `(x, y)` 绘制分量为 `(u, v)` 的箭头，常用于梯度场或流场可视化：
 
 ```cpp
 plt.quiver(x, y, u, v, "k");
@@ -279,7 +279,7 @@ plt.candlestick(ohlcData, "Stock");
 
 ### 标题与标签
 
-`setTitle()`、`setXLabel()`、`setYLabel()` 分别设置图表标题以及底部/左侧坐标轴的标题——都作用于当前坐标轴（`gca()`）：
+`setTitle()`、`setXLabel()`、`setYLabel()` 分别设置图表标题以及底部/左侧坐标轴的标题，三者都作用于当前坐标轴（`gca()`）：
 
 ```cpp
 plt.setTitle("My Plot");
@@ -383,7 +383,7 @@ plt.savefig("output.png", 300);   // 300 DPI
 
 ### 显示窗口
 
-`show()` 显示底层控件——多子图模式下是 `QwtFigure`，单图模式下是当前 `QwtPlot`：
+`show()` 显示底层控件：多子图模式下是 `QwtFigure`，单图模式下是当前 `QwtPlot`。
 
 ```cpp
 plt.show();
@@ -518,7 +518,7 @@ int main(int argc, char* argv[])
 
 > **示例 — 相关示例**
 >
-> 完整示例位于 `examples/2D/pyplot/` 目录，包含 8 个 Tab 页展示各种 QwtPyPlot 功能。
+> 完整示例位于 `examples/2D/pyplot/` 目录，包含 8 个 Tab 页，覆盖 QwtPyPlot 的主要功能。
 
 PyPlot 的例子截图如下：
 

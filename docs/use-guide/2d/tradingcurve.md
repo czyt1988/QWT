@@ -4,12 +4,10 @@
 
 ## Key Features
 
-**Features**
-
-- Standard K-line styles: Supports candlestick, American bar, and other styles
-- Up/down color differentiation: Automatically displays up/down colors based on open/close prices
-- Auto-scaling range: Automatically calculates appropriate display range based on data
-- Symbol style customization: Customizable up/down bar styles
+- Candlestick, American bar and other K-line styles
+- Up/down colors derived automatically from open and close prices
+- Display range calculated from the data
+- Customizable up/down bar styles
 
 ## Basic Concepts
 
@@ -40,7 +38,7 @@ Each K-line contains four price data points:
 
 ### Data Structure
 
-Uses `QwtOHLCSample` (declared in `qwt_samples.h`, also reachable via `#include <QwtOHLCSample>`) to represent each K-line's data. Note that the constructor takes the prices in **time, open, high, low, close** order:
+Uses `QwtOHLCSample` (declared in `qwt_samples.h`, also reachable via `#include <QwtOHLCSample>`) to represent each K-line's data. Note that the constructor takes the prices in the order time, open, high, low, close:
 
 ```cpp
 class QwtOHLCSample {
@@ -111,7 +109,7 @@ plot->replot();
 
 #### Candlestick Style
 
-In `CandleStick` mode the box between open and close is filled according to the price direction: `setSymbolBrush()` takes a `Direction` (`Increasing` when the close is above the open, `Decreasing` otherwise) plus a brush. The outline pen is set globally via `setSymbolPen()` — there is no per-direction pen overload — and a flat sample (open == close) is painted with the `Decreasing` brush, as there is no separate neutral state. The snippet below assigns distinct fills for up and down days:
+In `CandleStick` mode the box between open and close is filled according to the price direction: `setSymbolBrush()` takes a `Direction` (`Increasing` when the close is above the open, `Decreasing` otherwise) plus a brush. The outline pen is set globally via `setSymbolPen()`, which has no per-direction overload, and a flat sample (open == close) is painted with the `Decreasing` brush because there is no separate neutral state. The snippet below assigns distinct fills for up and down days:
 
 ```cpp
 curve->setSymbolStyle(QwtPlotTradingCurve::CandleStick);
@@ -126,7 +124,7 @@ curve->setSymbolPen(QPen(Qt::black, 1));
 
 #### American Bar Style
 
-`Bar` style draws only the vertical line spanning low to high, with small horizontal ticks marking the open (left) and close (right) prices — no filled body. Switch to it with `setSymbolStyle(QwtPlotTradingCurve::Bar)`:
+`Bar` style draws only the vertical line spanning low to high, with small horizontal ticks marking the open (left) and close (right) prices; no filled body is drawn. Switch to it with `setSymbolStyle(QwtPlotTradingCurve::Bar)`:
 
 ```cpp
 curve->setSymbolStyle(QwtPlotTradingCurve::Bar);
@@ -152,7 +150,7 @@ curve->setMaxSymbolWidth(20); // Maximum 20 pixels wide
 
 ### 4. Data Settings
 
-`setSamples()` is overloaded to accept either a `QVector<QwtOHLCSample>` — each sample storing time, open, high, low, and close — or a `QwtSeriesData<QwtOHLCSample>*` for custom data sources. Both forms are shown below:
+`setSamples()` is overloaded to accept either a `QVector<QwtOHLCSample>`, where each sample stores time, open, high, low and close, or a `QwtSeriesData<QwtOHLCSample>*` for custom data sources. Both forms are shown below:
 
 ```cpp
 // Using a QVector of QwtOHLCSample

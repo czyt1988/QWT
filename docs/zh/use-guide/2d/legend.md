@@ -4,12 +4,10 @@
 
 ## 主要功能特性
 
-**特性**
-
-- ✅ **自动图例项生成**：根据绘图项自动生成图例条目
-- ✅ **交互式图例**：支持点击图例项隐藏/显示对应绘图项（需通过 `setDefaultItemMode()` 开启）
-- ✅ **灵活布局**：支持多种图例布局方式
-- ✅ **样式自定义**：可自定义图例项的图标和文字样式
+- 自动图例项生成：根据绘图项自动生成图例条目
+- 交互式图例：支持点击图例项隐藏/显示对应绘图项（需通过 `setDefaultItemMode()` 开启）
+- 布局：支持多种图例布局方式
+- 样式自定义：可自定义图例项的图标和文字样式
 
 ## 基本概念
 
@@ -155,7 +153,7 @@ curve->setLegendIconSize(QSize(30, 20));
 
 ### 7. 外部图例控件
 
-图例可以放在绘图外部。QwtPlot 没有专门的“连接外部图例”方法——把绘图的 `legendDataChanged()` 信号连到外部 `QwtLegend` 的 `updateLegend()` 槽，再用 `QwtPlot::updateLegend()` 填充当前绘图项即可：
+图例可以放在绘图外部。QwtPlot 没有专门的“连接外部图例”方法。做法是把绘图的 `legendDataChanged()` 信号连接到外部 `QwtLegend` 的 `updateLegend()` 槽，再用 `QwtPlot::updateLegend()` 填充当前绘图项：
 
 ```cpp
 // 创建外部图例

@@ -23,7 +23,7 @@ QwtPlot* createParasitePlot(QwtAxis::Position enableAxis);
 
 `enableAxis`为寄生绘图显示的坐标轴，此时寄生绘图只会显示此坐标轴,其他坐标轴隐藏
 
-该方法创建的寄生绘图对象，与宿主绘图的绘图区域是保持一致的，但它可以拥有独立的坐标系统，此时宿主绘图内部会记录绑定的寄生绘图对象，**当宿主绘图被销毁时，寄生绘图也会被销毁。**
+该方法创建的寄生绘图对象，与宿主绘图的绘图区域是保持一致的，但它可以拥有独立的坐标系统，此时宿主绘图内部会记录绑定的寄生绘图对象，当宿主绘图被销毁时，寄生绘图也会被销毁。
 
 宿主绘图的尺寸改变时会同时调整寄生绘图的尺寸，宿主绘图会让所有的寄生绘图尺寸和其保持一致
 
@@ -67,9 +67,9 @@ parasitePlot->axisWidget(QwtAxis::XTop)->setScaleColor(curColor);
 
 要创建寄生绘图，首先需要创建宿主绘图，寄生绘图是在宿主绘图基础上通过`QwtPlot::createParasitePlot`函数创建，此函数返回寄生绘图的指针；寄生绘图的对象也是`QwtPlot`,通过函数`QwtPlot::isHostPlot`和`QwtPlot::isParasitePlot`可以区分这个绘图是寄生绘图还是宿主绘图。如果当前是寄生绘图，可以通过`QwtPlot::hostPlot`获取宿主绘图指针，如果当前是宿主绘图，可以通过`QwtPlot::parasitePlots`获取所有寄生绘图指针
 
-> **警告 — 注意**
+> **警告 — 嵌套寄生绘图**
 >
-> 一个绘图不会既是寄生绘图也是宿主绘图的情况，也就是说，如果绘图是寄生绘图，那么他自身不允许再创建寄生绘图，在寄生绘图上调用`createParasitePlot`将返回`nullptr`
+> 一个绘图不能同时既是寄生绘图又是宿主绘图。如果绘图是寄生绘图，它自身不允许再创建寄生绘图，在寄生绘图上调用`createParasitePlot`将返回`nullptr`
 
 寄生绘图创建后，可以按照正常绘图那样设置它的属性
 
@@ -167,7 +167,7 @@ plot->axisWidget(QwtAxis::YLeft)->setEdgeMargin(100);
 3. 将新值设置给对应轴的 QwtScaleWidget
 4. 宿主的 margin 予以保留（不覆盖用户可能手工设置的值）。
 
-> **警告 — 注意**
+> **警告 — 宿主 margin**
 >
 > `QwtPlot::updateAxisEdgeMargin`/`QwtPlot::updateAllAxisEdgeMargin`不会改变宿主绘图的`margin`属性
 
@@ -195,7 +195,7 @@ for (QwtPlot* oneplot : plotList) {
 }
 ```
 
-> **提示 — 注意**
+> **提示 — plotList**
 >
 > 任意绘图调用 `QwtPlot::plotList` 函数都能返回所有绘图列表，无论在寄生绘图还是宿主绘图中调用，结果相同。
 

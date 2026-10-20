@@ -4,13 +4,11 @@
 
 ## Key Features
 
-**Features**
-
-- **Automatic layout calculation**: Automatically calculates reasonable space allocation based on component content
-- **Flexible spacing control**: Supports custom canvas margins and component spacing
-- **Canvas alignment options**: Choose to align the canvas with axis ticks or keep it independent
-- **Legend position configuration**: Supports placing the legend at four boundary positions with configurable ratio
-- **Export optimization options**: Can ignore scrollbars, frames, and other elements during export
+- Layout calculated from the size of the component content
+- Custom canvas margins and component spacing
+- Canvas aligned with axis ticks or kept independent
+- Legend placed at any of the four boundary positions, with configurable ratio
+- Scrollbars, frames, and other elements optionally ignored during export
 
 ## Basic Concepts
 
@@ -110,14 +108,14 @@ bool aligned = layout->alignCanvasToScale(QwtAxis::YRight);
 
 > **Info — Alignment Effect Description**
 >
-> - **Aligned mode**: Canvas boundaries precisely align with axis tick marks; tick labels may extend beyond the canvas
-> - **Non-aligned mode**: Canvas maintains a fixed size; axis areas are calculated independently; tick labels are fully displayed
+> - Aligned mode: Canvas boundaries precisely align with axis tick marks; tick labels may extend beyond the canvas
+> - Non-aligned mode: Canvas maintains a fixed size; axis areas are calculated independently; tick labels are fully displayed
 
 ### Fixed Canvas Size
 
-Normally the canvas shrinks when axis tick labels grow (the layout reserves more space for the wider scale widget). **Fixed canvas size** mode decouples the canvas dimension from label growth: once locked, the canvas dimension is held stable, and labels that no longer fit overflow beyond the plot rect and are clipped by the scale widget's paint region.
+Normally the canvas shrinks when axis tick labels grow (the layout reserves more space for the wider scale widget). Fixed canvas size mode decouples the canvas dimension from label growth: once locked, the canvas dimension is held stable, and labels that no longer fit overflow beyond the plot rect and are clipped by the scale widget's paint region.
 
-The feature is controlled per axis *direction*: `YLeft`/`YRight` fix the canvas **width**, `XBottom`/`XTop` fix the canvas **height**. Enabling either Y position pins the width; enabling either X position pins the height.
+The feature is controlled per axis direction: `YLeft`/`YRight` fix the canvas width, `XBottom`/`XTop` fix the canvas height. Enabling either Y position pins the width; enabling either X position pins the height.
 
 ```cpp
 QwtPlotLayout* layout = plot->plotLayout();
@@ -143,15 +141,15 @@ layout->setFixedCanvasSize(QwtAxis::YLeft, false);
 
 > **Tip — When to use it**
 >
-> This is mainly intended for **parasite plot** setups where the host and parasite share the canvas area. Locking the host canvas prevents the two from drifting out of alignment when one of them grows axis labels.
+> This is mainly intended for parasite plot setups where the host and parasite share the canvas area. Locking the host canvas prevents the two from drifting out of alignment when one of them grows axis labels.
 
 > **Note — How it behaves**
 >
-> - **Auto mode**: the canvas edge offsets (relative to the plot rect) are
+> - Auto mode: the canvas edge offsets (relative to the plot rect) are
 > captured on the first layout after enabling and then pinned. The canvas neither moves nor shrinks when labels grow; on window resize the offsets are preserved so the canvas grows or shrinks with the window.
-> - **Manual mode**: the canvas is pinned to the exact given size and centered
+> - Manual mode: the canvas is pinned to the exact given size and centered
 >   along each fixed direction.
-> - Axis thickness is *not* clamped, so a scale widget whose labels grew past
+> - Axis thickness is not clamped, so a scale widget whose labels grew past
 > the available space extends beyond the plot rect and its overflow is clipped. This is the intended trade-off for a stable canvas.
 
 ### Legend Position Configuration

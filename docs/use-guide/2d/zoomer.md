@@ -10,8 +10,8 @@ QwtPlotZoomer* zoomer2 = new QwtPlotZoomer(QwtAxis::XTop, QwtAxis::YRight, canva
 
 To solve this problem, the new version introduces the following refactoring:
 
-- **`QwtPlotAxisZoomer`** - A rename of the original `QwtPlotZoomer`, representing a zoomer bound to two specific axes
-- **`QwtPlotCanvasZoomer`** - A new zoomer that does not require specifying axes and performs overall zoom on the entire canvas
+- `QwtPlotAxisZoomer`: a rename of the original `QwtPlotZoomer`, representing a zoomer bound to two specific axes
+- `QwtPlotCanvasZoomer`: a new zoomer that does not require specifying axes and performs overall zoom on the entire canvas
 
 ## Zoomer Feature Comparison
 
@@ -81,14 +81,14 @@ QwtPlotCanvasZoomer* canvasZoomer = new QwtPlotCanvasZoomer(plot->canvas());
 
 ### Custom Key Configuration
 
-You can configure shortcuts using the following predefined button configurations.
+Shortcuts are configured through predefined button patterns.
 
-The following mouse shortcuts are supported:
+Mouse patterns:
 - MouseSelect2: Reset to base
 - MouseSelect3: Zoom stack back
 - MouseSelect6: Zoom stack forward
 
-The following keyboard shortcuts are supported:
+Keyboard patterns:
 - KeyUndo: Zoom stack back
 - KeyRedo: Zoom stack forward
 - KeyHome: Reset to base

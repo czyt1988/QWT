@@ -14,17 +14,17 @@
 
 
 
-- **两种数据形态** —— 1D 序列（柱自由放置在 xy 平面）与 2D 网格（在 x/y 域上的 3D 直方图）
+- 两种数据形态：1D 序列（柱自由放置在 xy 平面）与 2D 网格（在 x/y 域上的 3D 直方图）
 
-- **带光照的实体几何** —— 逐柱立方体、逐面扁平法向，响应 `Qwt3DPlot::enableLighting()`（Blinn-Phong）
+- 带光照的实体几何：逐柱立方体、逐面扁平法向，响应 `Qwt3DPlot::enableLighting()`（Blinn-Phong）
 
-- **三种样式** —— `Filled`、`FilledMesh`（填充+边线）、`Wireframe`
+- 三种样式：`Filled`、`FilledMesh`（填充+边线）、`Wireframe`
 
-- **逐柱颜色** —— 由 `Qwt3DColor` functor 驱动（通常按高度 z），通过 `Qwt3DColorMapColor` 支持全部 colormap 预设
+- 逐柱颜色：由 `Qwt3DColor` functor 驱动（通常按高度 z），通过 `Qwt3DColorMapColor` 使用全部 colormap 预设
 
-- **几何可配** —— baseline 与自动底面（柱宽/深默认取间距的 80%）
+- 几何可配：baseline 与自动底面（柱宽/深默认取间距的 80%）
 
-- **主题集成** —— 由 `Qwt3DTheme::applyToItem()` 自动接管
+- 主题集成：由 `Qwt3DTheme::applyToItem()` 自动接管
 
 
 
@@ -324,15 +324,15 @@ plot->coordinates()->setTicLengthScale(0.02);
 
 
 
-> **提示 — 建议**
+> **提示**
 
 >
 
-> - 网格不宜过大（数千柱以内）——每柱 24 顶点。
+> - 网格不宜过大（数千柱以内），每柱 24 顶点。
 
-> - 用 `FilledMesh` 配半透明 mesh 色可获得清晰边线又不杂乱。
+> - 用 `FilledMesh` 配半透明 mesh 色可获得清晰边线，又不至于杂乱。
 
-> - `enableLighting(true)` 显著改善扁平着色柱的 3D 感。
+> - `enableLighting(true)` 显著改善扁平着色柱的 3D 观感。
 
 > - 各向异性数据时调用 `plot->coordinates()->setTicLengthScale(...)` 让刻度保持比例。
 

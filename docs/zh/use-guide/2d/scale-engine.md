@@ -4,12 +4,10 @@
 
 ## 主要功能特性
 
-**特性**
-
-- ✅ **自动刻度计算**：根据数据范围自动计算主刻度和次刻度
-- ✅ **多种刻度类型**：支持线性、对数、日期等多种刻度引擎
-- ✅ **刻度优化**：自动选择美观的刻度间隔（如10、5、2等）
-- ✅ **边界处理**：支持包含/排除边界的刻度计算
+- 根据数据范围自动计算主刻度和次刻度
+- 支持线性、对数、日期等刻度引擎
+- 自动选择常用的刻度间隔（如 10、5、2）
+- 支持包含或排除边界的刻度计算
 
 ## 基本概念
 
@@ -130,7 +128,7 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 
 ### 5. 刻度引擎属性
 
-刻度布局通过 `setAttribute()` 设置 `QwtScaleEngine::Attribute` 标志来微调：`IncludeReference` 强制参考值处出现刻度、`Symmetric` 强制范围对称、`Floating` 允许端点不落在刻度上、`Inverted` 反转刻度方向；`setMargins(lower, upper)` 则在刻度两端追加边距（以刻度单位计——`QwtLogScaleEngine` 中以“十倍程”为单位）。下面的例子取得底部轴的引擎并调整这些属性：
+刻度布局通过 `setAttribute()` 设置 `QwtScaleEngine::Attribute` 标志来微调：`IncludeReference` 强制参考值处出现刻度、`Symmetric` 强制范围对称、`Floating` 允许端点不落在刻度上、`Inverted` 反转刻度方向；`setMargins(lower, upper)` 则在刻度两端追加边距（以刻度单位计，`QwtLogScaleEngine` 中以“十倍程”为单位）。下面的例子取得底部轴的引擎并调整这些属性：
 
 ```cpp
 // 获取刻度引擎

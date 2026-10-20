@@ -2,7 +2,7 @@
 
 
 
-`QwtColorMapPreset` (in `qwt::core`) ships 22 well-known scientific colormaps — perceptually uniform ramps (viridis, plasma…), MATLAB classics (jet, hot, cool…), rainbow ramps (rainbow, hsv, turbo) and diverging ramps (coolwarm, rdylbu…). The names match matplotlib / MATLAB, so existing palettes can be swapped in place without touching the stop definitions. 2D spectrograms, 3D surfaces and axis color bars share the same presets, and the color bar always uses the very same map as the plot itself.
+`QwtColorMapPreset` (in `qwt::core`) ships 22 well-known scientific colormaps: perceptually uniform ramps (viridis, plasma…), MATLAB classics (jet, hot, cool…), rainbow ramps (rainbow, hsv, turbo) and diverging ramps (coolwarm, rdylbu…). The names match matplotlib / MATLAB, so existing palettes can be swapped in place without touching the stop definitions. 2D spectrograms, 3D surfaces and axis color bars share the same presets, and the color bar always uses the very same map as the plot itself.
 
 
 
@@ -10,17 +10,17 @@
 
 
 
-- ✅ **22 presets**: matplotlib / MATLAB compatible names, created by name without any stop definitions
+- 22 presets: matplotlib / MATLAB compatible names, so a map can be created by name without stop definitions
 
-- ✅ **Perceptually uniform**: viridis, plasma, cividis vary monotonically in lightness with uniform color-step sizes — colorblind friendly and print safe; inferno and magma are monotonic in lightness but slightly less uniform in step size
+- Perceptually uniform: viridis, plasma and cividis vary monotonically in lightness with uniform color-step sizes, which makes them colorblind friendly and print safe; inferno and magma are monotonic in lightness but slightly less uniform in step size
 
-- ✅ **Diverging ramps**: coolwarm, rdylbu, rdylgn, spectral for signed data around a center value
+- Diverging ramps: coolwarm, rdylbu, rdylgn and spectral for signed data around a center value
 
-- ✅ **Reusable everywhere**: 2D spectrograms, 3D surfaces, axis color bars and plain `rgb()` sampling share one factory
+- Reusable everywhere: 2D spectrograms, 3D surfaces, axis color bars and plain `rgb()` sampling share one factory
 
-- ✅ **Discoverable at runtime**: list all preset names, inspect color stops, convert name ↔ enum
+- Discoverable at runtime: list all preset names, inspect color stops, convert between name and enum
 
-- ✅ **Example included**: `examples/2D/colormap` browses all presets interactively and exports them via `--screenshot`
+- Example included: `examples/2D/colormap` browses all presets interactively and exports them via `--screenshot`
 
 
 
@@ -224,7 +224,7 @@ What is written:
 
 
 
-Screenshot mode renders through the same window system as the GUI, so the text in the exported images (titles, tick labels, color bar labels) matches what is seen in the window. Without a display (headless Linux CI) it falls back to the `offscreen` platform plugin — the images are still written, but every character degenerates to a box. Setting the `QT_QPA_PLATFORM` environment variable overrides this choice. The `Save Screenshots...` toolbar button does the same from within the GUI.
+Screenshot mode renders through the same window system as the GUI, so the text in the exported images (titles, tick labels, color bar labels) matches what is seen in the window. Without a display (headless Linux CI) it falls back to the `offscreen` platform plugin, so the images are still written, but every character degenerates to a box. Setting the `QT_QPA_PLATFORM` environment variable overrides this choice. The `Save Screenshots...` toolbar button does the same from within the GUI.
 
 
 
@@ -301,7 +301,7 @@ The comparison renders below were exported with `--screenshot`. Every image show
 
 
 
-`jet` is the best-known MATLAB default. Note the artificial contour line where the cyan-yellow transition crosses, and that its lightness is no longer monotonic after a grayscale conversion — the reason new code should prefer turbo or viridis. `hot`, `cool`, `spring`, `summer`, `autumn`, `winter`, `gray`, `bone` and `copper` are the traditional single/dual hue ramps, valued for their simplicity.
+`jet` is the best-known MATLAB default. Note the artificial contour line where the cyan-yellow transition crosses, and that its lightness is no longer monotonic after a grayscale conversion, which is why new code should prefer turbo or viridis. `hot`, `cool`, `spring`, `summer`, `autumn`, `winter`, `gray`, `bone` and `copper` are the traditional single/dual hue ramps, valued for their simplicity.
 
 
 
@@ -327,7 +327,7 @@ The comparison renders below were exported with `--screenshot`. Every image show
 
 
 
-`rainbow` and `hsv` wrap around to their first color, which makes them suitable for periodic data. `turbo` is Google's balanced rainbow: compared with `jet` its lightness dip is slightly smaller, but its distinguishability under color-vision deficiency is worse than `jet`, and the quantitative metrics are a mixed bag (see the [color-science technical report](../../tech-report/colormap-color-science.md) for the evaluation) — suitable for scenes where the rainbow look is a must.
+`rainbow` and `hsv` wrap around to their first color, which makes them suitable for periodic data. `turbo` is Google's balanced rainbow: compared with `jet` its lightness dip is slightly smaller, but its distinguishability under color-vision deficiency is worse than `jet`, and the quantitative metrics are a mixed bag (see the [color-science technical report](../../tech-report/colormap-color-science.md) for the evaluation), so use it where the rainbow look is required.
 
 
 
@@ -355,17 +355,17 @@ Whenever the data has a meaningful center (a zero value or a reference), a two-s
 
 
 
-- **Sequential data**: use a perceptually uniform ramp — `viridis` by default, `plasma` for a warmer gradient, `inferno` / `magma` on dark backdrops
+- Sequential data: use a perceptually uniform ramp, `viridis` by default, `plasma` for a warmer gradient, and `inferno` / `magma` on dark backdrops
 
-- **Signed or deviating data**: use a diverging ramp — `coolwarm` for errors, `rdylbu` for anomalies
+- Signed or deviating data: use a diverging ramp, `coolwarm` for errors and `rdylbu` for anomalies
 
-- **Periodic data**: use `rainbow` / `hsv`, whose first and last colors match; scale the data to exactly one period, otherwise a false boundary appears where red meets red
+- Periodic data: use `rainbow` / `hsv`, whose first and last colors match; scale the data to exactly one period, otherwise a false boundary appears where red meets red
 
-- **Avoid `jet` / `rainbow` for sequential data**: their lightness is not monotonic, which invents contour lines that are not in the data — especially after grayscale printing
+- Avoid `jet` / `rainbow` for sequential data: their lightness is not monotonic, which invents contour lines that are not in the data, especially after grayscale printing
 
-- **Printing and grayscale**: `cividis` or `gray` keep the ordering of the values readable
+- Printing and grayscale: `cividis` or `gray` keep the ordering of the values readable
 
-- **Color vision deficiency**: avoid encoding the magnitude in red-vs-green alone; `viridis`, `cividis` and `coolwarm` are safe options
+- Color vision deficiency: avoid encoding the magnitude in red-vs-green alone; `viridis`, `cividis` and `coolwarm` are safe options
 
 
 
@@ -381,11 +381,11 @@ Whenever the data has a meaningful center (a zero value or a reference), a two-s
 
 
 
-- `setColorMap()` takes ownership: the `QwtColorMap*` is owned by the item / scale widget, so hand over the `unique_ptr` with `release()`. Do **not** set the same pointer on the spectrogram and the color bar at once — the example calls `create()` for both
+- `setColorMap()` takes ownership: the `QwtColorMap*` is owned by the item / scale widget, so hand over the `unique_ptr` with `release()`. Do **not** set the same pointer on the spectrogram and the color bar at once; the example calls `create()` for both
 
 - The sampling signature is `rgb(double vMin, double vMax, double value)` (unified since QWT7.3.1); the earlier `rgb(const QwtInterval&, double)` has been removed
 
-- Presets are `QwtLinearColorMap`s with `RGB` format (continuous interpolation). For maximum rendering speed a quantized color table (e.g. `setColorTableSize(256)`) can be used, at the price of visible banding — directly observable with the `Color Table` combobox of the example
+- Presets are `QwtLinearColorMap`s with `RGB` format (continuous interpolation). For maximum rendering speed a quantized color table (e.g. `setColorTableSize(256)`) can be used, at the price of visible banding, directly observable with the `Color Table` combobox of the example
 
 
 

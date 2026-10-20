@@ -1,10 +1,10 @@
 # 3D Waterfall - Qwt3DWaterfall
 
-`Qwt3DWaterfall` is a 3D plot item that renders a sequence of one-dimensional traces (spectra, chromatograms, ...) as stacked curves along the depth axis. It owns the complete live-data machinery: push one trace per sample interval with `pushTrace()` and the item maintains the sliding window, the depth numbering, the ribbon geometry and the color mapping.
+`Qwt3DWaterfall` is a 3D plot item that renders a sequence of one-dimensional traces (spectra, chromatograms, ...) as stacked curves along the depth axis. It owns the live-data machinery: push one trace per sample interval with `pushTrace()` and the item maintains the sliding window, the depth numbering, the ribbon geometry and the color mapping.
 
 For an overview of the 3D module see [3D Plot Introduction](3d-plot.md). `Qwt3DWaterfall` is a `Qwt3DPlotItem` and follows the same attach/draw/hull contract as `Qwt3DSurface` and `Qwt3DLine`.
 
-The axes follow the module convention that the value axis is z (as in `Qwt3DSurface`): **x = bin value, y = trace position in the window (depth), z = amplitude** (up). Label them accordingly (`X1` "Bin", `Y1` "Frames ago", `Z1` "Amplitude"); the depth axis is the one to put a `Qwt3DTextScale` on.
+The axes follow the module convention that the value axis is z (as in `Qwt3DSurface`): x = bin value, y = trace position in the window (depth), z = amplitude (up). Label them accordingly (`X1` "Bin", `Y1` "Frames ago", `Z1` "Amplitude"); the depth axis is the one to put a `Qwt3DTextScale` on.
 
 ![waterfall3D example](../../assets/screenshots-3D/waterfall3D.png)
 
@@ -14,13 +14,13 @@ The same live scene in the outline-only `Wireframe` style - the cheapest way to 
 
 ## Key Features
 
-- **Built-in sliding window** — `pushTrace()` appends the newest trace and drops the oldest; no user-side window or depth bookkeeping
-- **Stable depth axis** — the depth coordinate of a trace is its slot index, so the hull y-range grows monotonically to `[0, traceCapacity()-1]` and then stays pinned: no per-frame depth autoscale jitter
-- **Four geometry styles** — `Ribbon` (filled curtain), `RibbonMesh` (curtain + outline), `Wireframe` (outline only), `Tube` (lit solid strokes)
-- **Three color modes** — by depth position, by amplitude (sample value), or solid
-- **Text scale for the depth axis** — label the depth axis with "frames ago" / timestamps via `Qwt3DTextScale`
-- **One item = one legend** — a waterfall contributes a single colormap gradient to the color legend, instead of N per-curve entries
-- **Theme integration** — picked up by `Qwt3DTheme::applyToItem()`
+- Built-in sliding window: `pushTrace()` appends the newest trace and drops the oldest; no user-side window or depth bookkeeping
+- Stable depth axis: the depth coordinate of a trace is its slot index, so the hull y-range grows monotonically to `[0, traceCapacity()-1]` and then stays pinned: no per-frame depth autoscale jitter
+- Four geometry styles: `Ribbon` (filled curtain), `RibbonMesh` (curtain + outline), `Wireframe` (outline only), `Tube` (lit solid strokes)
+- Three color modes: by depth position, by amplitude (sample value), or solid
+- Text scale for the depth axis: label the depth axis with "frames ago" / timestamps via `Qwt3DTextScale`
+- One item = one legend: a waterfall contributes a single colormap gradient to the color legend, instead of N per-curve entries
+- Theme integration: picked up by `Qwt3DTheme::applyToItem()`
 
 ## Basic Concepts
 
@@ -134,7 +134,7 @@ axis.setScale(scale);
 
 > **Warning — Pitfall: every axis needs its own scale object**
 >
-> `Qwt3DAxis::setScale()` stores the scale in a clone pointer that **clones and consumes** the passed object. Sharing one `Qwt3DTextScale*` between several axes leaves a dangling pointer and crashes. Create one instance per axis.
+> `Qwt3DAxis::setScale()` stores the scale in a clone pointer that clones and consumes the passed object. Sharing one `Qwt3DTextScale*` between several axes leaves a dangling pointer and crashes. Create one instance per axis.
 
 ### 4. Coloring and the Color Functor
 
@@ -172,9 +172,9 @@ Semi-transparent ribbons are drawn oldest-slot-first. Interpenetration artifacts
 
 ## Two Pitfalls Verified by Real Rendering
 
-1. **Attach before feeding data.** Before v7.5.0, `Qwt3DPlot::attach()` did not recalculate the scene. An item whose data was loaded *before* `attach()` — with no setter (and therefore no `itemChanged()`) in between — left the plot hull at `(0,0,0)-(0,0,0)` and the widget rendered **blank without any warning**. `attach()`/`detach()` now recalculate the hull union and the coordinate system, and detaching shrinks the hull again.
+1. Attach before feeding data. Before v7.5.0, `Qwt3DPlot::attach()` did not recalculate the scene. An item whose data was loaded *before* `attach()` — with no setter (and therefore no `itemChanged()`) in between — left the plot hull at `(0,0,0)-(0,0,0)` and the widget rendered blank without any warning. `attach()`/`detach()` now recalculate the hull union and the coordinate system, and detaching shrinks the hull again.
 
-2. **Derived scales must override `clone()`.** `Qwt3DAxis::setScale()` hands the scale to a clone pointer whose assignment calls `clone()`. A user-derived scale that does not override `clone()` is **sliced to its base class inside `setScale()`**, and the custom `ticLabel()` silently stops working (verified pixel-identical rendering before the fix). `Qwt3DTextScale` overrides `clone()`; if you write your own scale class, you must too.
+2. Derived scales must override `clone()`. `Qwt3DAxis::setScale()` hands the scale to a clone pointer whose assignment calls `clone()`. A user-derived scale that does not override `clone()` is sliced to its base class inside `setScale()`, and the custom `ticLabel()` silently stops working (verified pixel-identical rendering before the fix). `Qwt3DTextScale` overrides `clone()`; if you write your own scale class, you must too.
 
 ## Performance Notes
 
@@ -185,7 +185,7 @@ Semi-transparent ribbons are drawn oldest-slot-first. Interpenetration artifacts
 
 - Every `pushTrace()` rebuilds the whole-window VBO (all slots shift). The upload budget is `capacity x bins x 28 bytes` per frame; at the target workload (<= 128 x 512) this is ~14 MB/s at 30 fps.
 - For very large windows (`capacity > 128` and `bins > 1024`) an optimization channel is documented in the source: one draw call per slot with the row z provided by a private shader uniform, so only the newest row is re-uploaded. Measure before you need it.
-- Use `Wireframe` when you only need the shape; use `Tube` only when you need thick, lit strokes — it is by far the most expensive style (one swept surface per trace). The tube radius is capped below half a slot so neighboring traces never fuse; at very large windows prefer `Ribbon`/`RibbonMesh`.
+- Use `Wireframe` when you only need the shape; use `Tube` only when you need thick, lit strokes, as it is by far the most expensive style (one swept surface per trace). The tube radius is capped below half a slot so neighboring traces never fuse; at very large windows prefer `Ribbon`/`RibbonMesh`.
 
 ## See Also
 

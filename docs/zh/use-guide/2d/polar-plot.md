@@ -4,12 +4,10 @@
 
 ## 主要功能特性
 
-**特性**
-
-- ✅ **极坐标系统**：使用角度（0-360°）和半径作为坐标轴
-- ✅ **曲线绘制**：支持在极坐标系中绘制曲线
-- ✅ **网格系统**：提供同心圆和角度射线网格
-- ✅ **交互支持**：支持极坐标系下的缩放和平移
+- 使用角度（0-360°）和半径作为坐标轴
+- 在极坐标系中绘制曲线
+- 提供同心圆和角度射线网格
+- 支持极坐标系下的缩放和平移
 
 ## 基本概念
 
@@ -54,7 +52,7 @@
 
 ### 1. 创建极坐标绘图
 
-一幅极坐标图由三部分组成：`QwtPolarPlot` 控件本身（用 `setScale()` 设定方位角与半径刻度）、作背景用的 `QwtPolarGrid`，以及若干 `QwtPolarCurve`。曲线消费包装在 `QwtSeriesData<QwtPointPolar>` 对象中的 `QwtPointPolar` 样本，并通过 `setData()` 传入——对普通的 `QVector` 样本，写一个极简的 `QwtArraySeriesData` 子类即可。下面的例子把它们组装成一张完整的图：
+一幅极坐标图由三部分组成：`QwtPolarPlot` 控件本身（用 `setScale()` 设定方位角与半径刻度）、作背景用的 `QwtPolarGrid`，以及若干 `QwtPolarCurve`。曲线消费包装在 `QwtSeriesData<QwtPointPolar>` 对象中的 `QwtPointPolar` 样本，并通过 `setData()` 传入；对普通的 `QVector` 样本，写一个极简的 `QwtArraySeriesData` 子类即可。下面的例子把它们组装成一张完整的图：
 
 ```cpp
 #include <QwtPolarPlot>
@@ -116,7 +114,7 @@ polarPlot->replot();
 
 ### 2. 极坐标网格配置
 
-`QwtPolarGrid` 负责两族网格线——`showGrid()` 按刻度 id（`QwtPolar::Azimuth` / `QwtPolar::Radius`）开关方位角射线与半径同心圆；`showAxis()` 则分别控制 `QwtPolar::AxisAzimuth`、`AxisLeft`、`AxisRight`、`AxisTop`、`AxisBottom` 各轴刻度标签的显示：
+`QwtPolarGrid` 负责两族网格线：`showGrid()` 按刻度 id（`QwtPolar::Azimuth` / `QwtPolar::Radius`）开关方位角射线与半径同心圆；`showAxis()` 则分别控制 `QwtPolar::AxisAzimuth`、`AxisLeft`、`AxisRight`、`AxisTop`、`AxisBottom` 各轴刻度标签的显示：
 
 ```cpp
 QwtPolarGrid* grid = new QwtPolarGrid();
@@ -230,7 +228,7 @@ marker->attach(polarPlot);
 
 ## 数据点结构
 
-所有极坐标 item 都使用 `QwtPointPolar` 样本——它只是把方位角（度数）与半径配对，通过 `azimuth()` / `radius()` 读取；接受 `QPointF` 的构造函数会自动完成笛卡尔坐标转换，`toPoint()` 则转换回去：
+所有极坐标 item 都使用 `QwtPointPolar` 样本：它只是把方位角（度数）与半径配对，通过 `azimuth()` / `radius()` 读取；接受 `QPointF` 的构造函数会自动完成笛卡尔坐标转换，`toPoint()` 则转换回去：
 
 ```cpp
 // 极坐标点

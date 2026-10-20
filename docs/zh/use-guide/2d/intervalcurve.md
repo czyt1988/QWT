@@ -4,18 +4,16 @@
 
 ## 主要功能特性
 
-**特性**
-
-- ✅ **区间表示**：在曲线周围显示上下边界
-- ✅ **多种样式**：支持曲线、填充区域、符号等显示方式
-- ✅ **误差棒显示**：可绘制垂直或水平的误差棒线条
-- ✅ **样式自定义**：区间边界和填充可独立配置
+- 区间表示：在曲线周围显示上下边界
+- 多种样式：支持曲线、填充区域、符号等显示方式
+- 误差棒显示：可绘制垂直或水平的误差棒线条
+- 样式自定义：区间边界和填充可独立配置
 
 ## 基本概念
 
 ### 区间曲线组成
 
-下图给出 `Tube` 区间曲线的组成结构——每个区间的上下限连接成两条边界曲线，两者之间的区域被填充：
+下图给出 `Tube` 区间曲线的组成结构：每个区间的上下限连接成两条边界曲线，两者之间的区域被填充：
 
 ```text
      上限
@@ -31,7 +29,7 @@
 
 ### 数据结构
 
-使用 `QwtIntervalSample` 表示区间数据——一个轴上的位置值搭配另一个轴上的区间：
+使用 `QwtIntervalSample` 表示区间数据，即一个轴上的位置值搭配另一个轴上的区间：
 
 ```cpp
 class QwtIntervalSample {
@@ -57,7 +55,7 @@ public:
 
 ### 1. 基本区间曲线
 
-`QwtPlotIntervalCurve` 接收 `QwtIntervalSample` 数据——每个样本由位置值和 `QwtInterval` 区间组成——其 `CurveStyle`（`NoCurve` / `Tube`，默认 `Tube`）决定区间的渲染方式。`Tube` 样式下 `setPen()` 绘制边界曲线，`setBrush()` 填充两者之间的区域。下面的例子创建绘图并把四个样本绘制成半透明带状区域：
+`QwtPlotIntervalCurve` 接收 `QwtIntervalSample` 数据，每个样本由位置值和 `QwtInterval` 区间组成；其 `CurveStyle`（`NoCurve` / `Tube`，默认 `Tube`）决定区间的渲染方式。`Tube` 样式下 `setPen()` 绘制边界曲线，`setBrush()` 填充两者之间的区域。下面的例子创建绘图并把四个样本绘制成半透明带状区域：
 
 ```cpp
 #include <QwtPlot>
@@ -94,7 +92,7 @@ plot->replot();
 
 ### 2. 误差棒样式
 
-`CurveStyle` 中没有专门的误差棒取值——误差棒通过把曲线样式设为 `NoCurve`、再用 `setSymbol()` 挂载 `QwtIntervalSymbol` 实现：符号的 `Style` 选择端帽形状（`Bar` 绘制带端帽的线段），符号自身的 `setPen()` 决定线条样式，`setWidth()` 决定端帽宽度。注意 `setSymbol()` 会接管指针的所有权。下面的代码只绘制误差棒：
+`CurveStyle` 中没有专门的误差棒取值；误差棒通过把曲线样式设为 `NoCurve`、再用 `setSymbol()` 挂载 `QwtIntervalSymbol` 实现：符号的 `Style` 选择端帽形状（`Bar` 绘制带端帽的线段），符号自身的 `setPen()` 决定线条样式，`setWidth()` 决定端帽宽度。`setSymbol()` 会接管指针的所有权。下面的代码只绘制误差棒：
 
 ```cpp
 // 只绘制逐区间的符号，不绘制管状区域
@@ -125,7 +123,7 @@ curve->setBrush(QBrush(QColor(255, 200, 200, 150)));
 
 ### 4. 符号配置
 
-`QwtIntervalSymbol` 构造时接受 `Style`——`Bar` 为带端帽的线段、`Box` 为矩形——可用 `setPen()`、`setBrush()` 和 `setWidth()`（线宽/端帽宽度，单位像素）配置，再通过曲线的 `setSymbol()` 挂载（所有权转移给曲线）。下面的例子创建一个宽 8 像素的蓝色 `Bar` 符号：
+`QwtIntervalSymbol` 构造时接受 `Style`（`Bar` 为带端帽的线段，`Box` 为矩形），可用 `setPen()`、`setBrush()` 和 `setWidth()`（线宽/端帽宽度，单位像素）配置，再通过曲线的 `setSymbol()` 挂载（所有权转移给曲线）。下面的例子创建一个宽 8 像素的蓝色 `Bar` 符号：
 
 ```cpp
 #include <QwtIntervalSymbol>

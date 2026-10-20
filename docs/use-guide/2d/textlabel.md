@@ -4,12 +4,7 @@
 
 ## Key Features
 
-**Features**
-
-- Canvas-aligned positioning: Aligned to the plot canvas, does not transform with axes
-- Text style support: Supports font, color, background, border and other style configuration
-- Alignment control: Alignment inside the canvas rect configured through the render flags of `QwtText`
-- Margin setting: Distance between the canvas contents rect and the label rect via `setMargin()`
+The label is aligned to the plot canvas and does not transform with the axes. Font, color, background and border come from the `QwtText` object, whose render flags also place the text inside the canvas rect. `setMargin()` sets the distance between the canvas contents rect and the label rect.
 
 ## Basic Concepts
 

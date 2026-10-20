@@ -1,23 +1,14 @@
 # Rendering Performance & Curve Smoothing
 
-A curve with a few thousand points is fast no matter how you draw it. Once the data grows to hundreds of thousands or millions of points, or scrolls by at dozens of frames per second, stutter, visual noise and ghosting show up one by one. This tutorial walks the QWT rendering-performance route: **start from the rendering pipeline, then pick up four weapons in order — downsampling, render-time smoothing, hardware acceleration and incremental painting** — and finish with a tuning checklist you can work through line by line.
+A `QwtPlotCurve` with a few thousand points is fast no matter how you draw it. Once the data grows to hundreds of thousands or millions of points, or scrolls by at dozens of frames per second, stutter, visual noise and ghosting show up one by one. The sections below follow the drawing pipeline: downsampling, render-time smoothing, hardware acceleration, real-time updates and data-side tuning, with a tuning checklist at the end.
 
-The good news: QWT 7's defaults already apply the most important optimization (downsampling is on out of the box), so most applications need no configuration at all. What follows explains **what the defaults do, when to go further, and how**.
-
-**What this tutorial covers**
-
-- ✅ **The rendering pipeline**: the stages a `QwtPlotCurve` passes through from data to pixels, and where each switch lives
-- ✅ **Downsampling**: drawing a million-point curve within one frame, and choosing between the four filter attributes
-- ✅ **Render-time smoothing**: removing the pixel-level noise that survives downsampling, without shrinking peaks
-- ✅ **Hardware acceleration**: when the OpenGL canvas pays off
-- ✅ **Real-time updates**: incremental painting and interaction-tool choices for oscilloscope-style applications
-- ✅ **Data-side tuning**: which data containers unlock the fastest rendering paths
+QWT 7's defaults already apply the most important optimization (downsampling is on out of the box), so most applications need no configuration at all. The rest of the page explains when to go further.
 
 > Every step links to the matching [tech report](../../tech-report/index.md) for the algorithms and measurements behind it.
 
 ## Cheat Sheet (conclusions first)
 
-In a hurry? Match your symptom to the fix:
+Match your symptom to the fix:
 
 | Symptom | Remedy | Section |
 |---------|--------|---------|
@@ -42,20 +33,20 @@ flowchart LR
     E --> F["QPainter rasterization<br/>or OpenGL canvas"]
 ```
 
-Each stage has a clear job and a clear switch:
+Each stage has its own job and switch:
 
-- **Visible-range clipping**: points outside the canvas never reach the painter. The prerequisite is x-monotonic data — sorted data needs two binary searches; unordered data degrades to a full scan;
-- **Downsampling**: compresses the visible N points to roughly 4W (W = canvas width in pixel columns). This is the **biggest win** for large data, controlled by paint attributes (Section 2);
-- **Render smoothing**: a low-pass filter over the downsampled polyline that removes pixel-level fuzz, controlled by `setSmoothAlgorithm()` (Section 3);
-- **Clipping & rasterization**: software rasterization via QPainter by default; the whole canvas can be switched to OpenGL (Section 4).
+- Visible-range clipping: points outside the canvas never reach the painter. The prerequisite is x-monotonic data: sorted data needs two binary searches, unordered data degrades to a full scan.
+- Downsampling: compresses the visible N points to roughly 4W (W = canvas width in pixel columns). This is the biggest win for large data, controlled by paint attributes (Section 2).
+- Render smoothing: a low-pass filter over the downsampled polyline that removes pixel-level fuzz, controlled by `setSmoothAlgorithm()` (Section 3).
+- Clipping and rasterization: software rasterization via QPainter by default; the whole canvas can be switched to OpenGL (Section 4).
 
-The key insight: **the screen has only so many pixels**. A 900-pixel-wide canvas shows at most 900 pixel columns, so the vast majority of a million points share a column with a neighbor — handing all of them to the rasterizer is pure waste. Downsampling means "draw exactly the points that can show up, at the precision that can show up".
+The screen has only so many pixels. A 900-pixel-wide canvas shows at most 900 pixel columns, so the vast majority of a million points share a column with a neighbor, and handing all of them to the rasterizer is pure waste. Downsampling means "draw exactly the points that can show up, at the precision that can show up".
 
 ## 2. Downsampling: Taming Million-Point Curves
 
 ### Default behavior: nothing to do
 
-QWT 7's `QwtPlotCurve` enables `ClipPolygons | FilterPointsLTTB` **by default**. `FilterPointsLTTB` runs the "MinMax bucket" algorithm: the visible data is split into ~2W index buckets and each bucket contributes its minimum and maximum point. A million-point curve ends up drawing only ~3600 points (on a 900-pixel canvas), and **no spike can get lost** — each bucket's extremes are guaranteed to survive.
+QWT 7's `QwtPlotCurve` enables `ClipPolygons | FilterPointsLTTB` by default. `FilterPointsLTTB` runs the "MinMax bucket" algorithm: the visible data is split into ~2W index buckets and each bucket contributes its minimum and maximum point. A million-point curve ends up drawing only ~3600 points (on a 900-pixel canvas), and no spike can get lost because each bucket's extremes are guaranteed to survive.
 
 The bundled benchmark `examples/bench/renderbench` measured each option on one million points (680×490 canvas, 100 frames):
 
@@ -89,7 +80,7 @@ curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, true);
 // curve->setPaintAttribute(QwtPlotCurve::FilterPointsLTTB, false);
 ```
 
-When several filter attributes are on at once, the internals resolve them by priority `FilterPointsPixel > FilterPointsLTTB > FilterPointsAggressive` — **enable one at a time**.
+When several filter attributes are on at once, the internals resolve them by priority `FilterPointsPixel > FilterPointsLTTB > FilterPointsAggressive`, so enable one at a time.
 
 ### Choosing between the two workhorses
 
@@ -102,7 +93,7 @@ When several filter attributes are on at once, the internals resolve them by pri
 
 ### Verify it yourself with renderbench
 
-`examples/bench/renderbench` is the dedicated comparison tool: adjustable point count (1,000 – 10,000,000), frame count and waveform; `Run All (Compare)` benchmarks all five methods and pops up a Markdown report. Toggling `Method` on the same data lets you **see with your own eyes** how narrow peaks survive differently.
+`examples/bench/renderbench` is the dedicated comparison tool: adjustable point count (1,000 – 10,000,000), frame count and waveform; `Run All (Compare)` benchmarks all five methods and pops up a Markdown report. Toggling `Method` on the same data shows how differently narrow peaks survive.
 
 ![renderbench example: live benchmark of the five downsampling methods](../../assets/screenshots/renderbench.png)
 
@@ -116,9 +107,9 @@ When several filter attributes are on at once, the internals resolve them by pri
 
 ### Why downsampling still leaves fuzz
 
-"Keep every bucket's extremes" has a side effect: **the extremes of random noise survive too**. A 100,000-point noisy spectrum, once downsampled, still shows a noise band ~65 pixel rows thick — the curve looks like a fuzzy ribbon instead of a line.
+"Keep every bucket's extremes" has a side effect: the extremes of random noise survive too. A 100,000-point noisy spectrum, once downsampled, still shows a noise band ~65 pixel rows thick, and the curve looks like a fuzzy ribbon instead of a line.
 
-Render smoothing fixes exactly that: a low-pass filter applied to the downsampled polyline inside the paint pipeline. **It changes pixels, not data** — the samples in `data()` are untouched, so analysis and export still see the original values.
+Render smoothing fixes exactly that: a low-pass filter applied to the downsampled polyline inside the paint pipeline. It changes only the rendered pixels; the samples in `data()` are untouched, so analysis and export still see the original values.
 
 ### Hands-on: enabling smoothing
 
@@ -135,7 +126,7 @@ curve->setSmoothPreserveThreshold(3.0); // feature-preservation threshold (defau
 curve->attach(plot);
 ```
 
-Measured on a 100,000-point spectrum (900×500 canvas): the noise band collapses from **65.4 to 6.1 pixel rows**, while narrow peaks and deep dips stay on **exactly the same pixel rows** as the unsmoothed render — that is feature preservation at work: structures rising ~2× above the noise scale are restored to their original position and height.
+Measured on a 100,000-point spectrum (900×500 canvas): the noise band collapses from 65.4 to 6.1 pixel rows, while narrow peaks and deep dips stay on exactly the same pixel rows as the unsmoothed render. That is feature preservation at work: structures rising ~2× above the noise scale are restored to their original position and height.
 
 ### Gaussian or Savitzky-Golay
 
@@ -146,11 +137,11 @@ Measured on a 100,000-point spectrum (900×500 canvas): the noise band collapses
 | Best for | General denoising: spectra, acquired signals | Peak-dense spectra, chromatograms |
 | Extra parameter | — | `setSmoothPolynomialOrder(3)`; orders 2 and 3 are identical |
 
-Rule of thumb: **noise-limited → Gaussian, peak-limited → SG**; if SG leaves too much noise, widen the window (21–31) to compensate.
+Rule of thumb: use Gaussian for noise-limited data and Savitzky-Golay for peak-limited data; if SG leaves too much noise, widen the window (21–31) to compensate.
 
 ### Tune interactively with the curvesmoothing example
 
-`examples/2D/curvesmoothing` exposes both algorithms, window, order and preservation threshold as live controls, shows "default render vs smoothed render" side by side, and has a `Run Benchmark` button (50 replots each). Dragging `Preserve` to 0 visibly shortens the narrow peaks — which is exactly why the feature preservation exists.
+`examples/2D/curvesmoothing` exposes both algorithms, window, order and preservation threshold as live controls, shows "default render vs smoothed render" side by side, and has a `Run Benchmark` button (50 replots each). Dragging `Preserve` to 0 visibly shortens the narrow peaks, which is why feature preservation exists.
 
 ![curvesmoothing example: smoothing comparison on a 100,000-point noisy spectrum](../../assets/screenshots/curvesmoothing.png)
 
@@ -169,10 +160,10 @@ plot->setCanvas(canvas);   // curves, axes, everything else stays as-is
 
 When it pays off:
 
-- **Worth it**: many large curves repainted at high rate (live monitoring), or software rasterization visibly saturating a CPU core (the `refreshtest` example compares both canvases directly);
-- **Skip it**: static plots, image/PDF export (export goes through `QwtPlotRenderer`, independent of the canvas), or deployments with GPU compatibility concerns.
+- Worth it: many large curves repainted at high rate (live monitoring), or software rasterization visibly saturating a CPU core (the `refreshtest` example compares both canvases directly);
+- Skip it: static plots, image/PDF export (export goes through `QwtPlotRenderer`, independent of the canvas), or deployments with GPU compatibility concerns.
 
-CMake dependencies, surface-format customization and the full story: [OpenGL Canvas](opengl.md).
+CMake dependencies, surface-format customization and other details: [OpenGL Canvas](opengl.md).
 
 ![refreshtest example: canvas refresh-rate comparison](../../assets/screenshots/refreshtest.png)
 
@@ -180,7 +171,7 @@ CMake dependencies, surface-format customization and the full story: [OpenGL Can
 
 ### Incremental painting: QwtPlotDirectPainter
 
-Oscilloscope-style applications append thousands of points per second. Replotting the whole widget for every append is wasteful — `QwtPlotDirectPainter` paints **only the new segment** straight onto the canvas:
+Oscilloscope-style applications append thousands of points per second. Replotting the whole widget for every append is wasteful, so `QwtPlotDirectPainter` paints only the new segment straight onto the canvas:
 
 ```cpp
 #include <qwt_plot_directpainter.h>
@@ -206,23 +197,23 @@ directPainter->draw(curve, fromIndex, toIndex);
 | `QwtPlotCachePanner` | Drags a **pixel cache**, redraws on release | Never stutters; shows the cached bitmap while dragging |
 | `QwtPlotAxisZoomer` | Rubber-band zoom (2 axes) | Zoom always triggers a full redraw — fine once downsampling is on |
 
-Prescription for stuttery panning of heavy scenes: switch to `QwtPlotCachePanner`; if the cached ghosting feels wrong, switch back to `QwtPlotPanner`. Full usage in [Panner](panner.md) and [Zoomer](zoomer.md).
+For stuttery panning of heavy scenes, switch to `QwtPlotCachePanner`; if the cached ghosting feels wrong, switch back to `QwtPlotPanner`. Full usage in [Panner](panner.md) and [Zoomer](zoomer.md).
 
 ![Live panning in action](../../assets/screenshots/qwt-realtime-panner.gif)
 
 ### Throttle your replots
 
-When the data source pushes at high rate, do not `replot()` per sample — coalesce repaints to a fixed frame budget (30–60 FPS) with a timer. `examples/2D/cpuplot` demonstrates the standard "cache on arrival, repaint on timer" pattern:
+When the data source pushes at high rate, do not `replot()` per sample; coalesce repaints to a fixed frame budget (30–60 FPS) with a timer. `examples/2D/cpuplot` demonstrates the standard "cache on arrival, repaint on timer" pattern:
 
 ![cpuplot example: timer-throttled monitoring curves](../../assets/screenshots/cpuplot.png)
 
 ## 6. Data-Side Tuning
 
-How fast the pipeline runs also depends on the shape of the data you feed it. Three points:
+How fast the pipeline runs also depends on the shape of the data you feed it.
 
-1. **Keep x monotonic**: visible-range clipping relies on binary search — O(log N) for sorted data, a full scan otherwise; on a million points the difference is orders of magnitude.
-2. **Prefer raw-pointer data sources**: `setRawSamples(xArray, yArray, n)` or `QwtPointArrayData<double>` / `QwtCPointerData<double>` let the downsampler grab contiguous `double*` arrays and take the SIMD (AVX2/SSE4.2) per-bucket argmin/argmax fast path; `QVector<QPointF>` goes through the generic per-point virtual-call path. With `setRawSamples` you own the array lifetime (see the [curve tutorial](curve.md)).
-3. **NaN is not free**: NaN splits the polyline into segments and pushes the downsampler onto the scalar path. Behavior and performance impact: [NaN Handling](../general/nan-handling.md); measure it yourself with `examples/2D/nanperf` (NaN ratio sweep across the five filter attributes).
+1. Keep x monotonic: visible-range clipping relies on binary search, O(log N) for sorted data and a full scan otherwise; on a million points the difference is orders of magnitude.
+2. Prefer raw-pointer data sources: `setRawSamples(xArray, yArray, n)` or `QwtPointArrayData<double>` / `QwtCPointerData<double>` let the downsampler grab contiguous `double*` arrays and take the SIMD (AVX2/SSE4.2) per-bucket argmin/argmax fast path; `QVector<QPointF>` goes through the generic per-point virtual-call path. With `setRawSamples` you own the array lifetime (see the [curve tutorial](curve.md)).
+3. NaN is not free: NaN splits the polyline into segments and pushes the downsampler onto the scalar path. Behavior and performance impact: [NaN Handling](../general/nan-handling.md); measure it yourself with `examples/2D/nanperf` (NaN ratio sweep across the five filter attributes).
 
 The full menu of data ingestion options (`setSamples` overloads, custom `QwtSeriesData`) lives in [Series Data](../general/series-data.md).
 

@@ -1,16 +1,10 @@
 # 光谱图/热力图 - QwtPlotSpectrogram
 
-`QwtPlotSpectrogram` 用于绘制光谱图（Spectrogram）或热力图，将三维数据显示在二维平面上，其中第三维（强度值）通过颜色来表示。广泛应用于科学数据分析、图像处理、声学分析等领域。
+`QwtPlotSpectrogram` 用于绘制光谱图（Spectrogram）或热力图，将三维数据显示在二维平面上，其中第三维（强度值）通过颜色来表示。常用于科学数据分析、图像处理与声学分析。
 
 ## 主要功能特性
 
-**特性**
-
-- ✅ **图像显示模式**：将数值映射为颜色显示二维数据场
-- ✅ **等高线显示模式**：绘制指定数值的等高线
-- ✅ **多种颜色映射**：支持线性、渐变、离散等颜色映射方式
-- ✅ **多线程渲染**：支持多核并行渲染，提升大数据处理效率
-- ✅ **数据插值**：支持多种插值算法平滑显示
+数值可以映射为颜色显示二维数据场（图像模式），也可以在指定数值处绘制等高线（等高线模式）。颜色映射支持线性、渐变、离散等方式，渲染可分摊到多个 CPU 核心，并提供多种插值算法使显示更平滑。
 
 ## 基本概念
 
@@ -90,7 +84,7 @@ classDiagram
 
 ### 1. 基本光谱图
 
-基本流程是：创建 `QwtPlotSpectrogram`，用 `setDisplayMode()` 打开 `ImageMode`，指定颜色映射——这里用带若干中间色标的 `QwtLinearColorMap`——再通过 `setData()` 传入栅格数据，最后把 item attach 到 plot：
+基本流程是：创建 `QwtPlotSpectrogram`，用 `setDisplayMode()` 打开 `ImageMode`，指定颜色映射（这里用带若干中间色标的 `QwtLinearColorMap`），再通过 `setData()` 传入栅格数据，最后把 item attach 到 plot：
 
 ```cpp
 #include <QwtPlot>
@@ -126,7 +120,7 @@ plot->replot();
 
 ### 2. 自定义栅格数据
 
-创建 `QwtRasterData` 派生类提供数据：实现纯虚函数 `interval()` 与 `value()` 即可——等高线计算是可选的，基类已内置 CONREC 算法实现：
+创建 `QwtRasterData` 派生类提供数据：实现纯虚函数 `interval()` 与 `value()` 即可；等高线计算是可选的，基类已内置 CONREC 算法实现：
 
 ```cpp
 #include <QwtRasterData>
@@ -228,7 +222,7 @@ spectrogram->setColorMap(svMap);
 
 ### 4. 等高线显示
 
-在 `ContourMode` 下，spectrogram 绘制等值线而非彩色图像——两个显示模式同时打开时则叠加显示：`setContourLevels()` 指定哪些数值画线，`setDefaultContourPen()` 为没有专属画笔的级别设置默认画笔：
+在 `ContourMode` 下，spectrogram 绘制等值线而非彩色图像；两个显示模式同时打开时则叠加显示：`setContourLevels()` 指定哪些数值画线，`setDefaultContourPen()` 为没有专属画笔的级别设置默认画笔：
 
 ```cpp
 // 启用等高线模式
@@ -249,7 +243,7 @@ spectrogram->setDisplayMode(QwtPlotSpectrogram::ContourMode, true);
 
 ### 5. 数据分辨率设置
 
-栅格渲染存在质量与速度的权衡。没有显式的"像素大小"设置项——图像通常按绘图设备的分辨率渲染。可控的手段有：`QwtRasterData::pixelHint()` 让数据给出与数据栅格对齐的像素网格提示（`QwtMatrixRasterData` 自动实现）；`PaintInDeviceResolution` 绘制属性会把这种对齐数据的图像放大到设备分辨率后再交给 QPainter；`RenderAntialiased`（继承自 `QwtPlotItem`）开关抗锯齿；`setCachePolicy()` 可在多次重绘之间缓存已渲染的图像：
+栅格渲染存在质量与速度的权衡。没有显式的"像素大小"设置项，图像通常按绘图设备的分辨率渲染。可控的手段有：`QwtRasterData::pixelHint()` 让数据给出与数据栅格对齐的像素网格提示（`QwtMatrixRasterData` 自动实现）；`PaintInDeviceResolution` 绘制属性会把这种对齐数据的图像放大到设备分辨率后再交给 QPainter；`RenderAntialiased`（继承自 `QwtPlotItem`）开关抗锯齿；`setCachePolicy()` 可在多次重绘之间缓存已渲染的图像：
 
 ```cpp
 // 把按pixelHint()对齐数据的图像放大到绘图设备分辨率

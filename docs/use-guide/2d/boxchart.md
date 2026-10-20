@@ -1,17 +1,15 @@
 # Box Chart (Box-and-Whisker Plot) User Guide
 
-`QwtPlotBoxChart` is Qwt's box-and-whisker plot drawing class, used to visually display statistical distribution characteristics of data. Box plots can clearly present key statistical information such as median, quartiles, and outliers, making them an indispensable tool for data analysis and scientific visualization.
+`QwtPlotBoxChart` draws box-and-whisker plots. A box plot summarizes the median, quartiles, and outliers of a data set, and is common in data analysis and scientific visualization.
 
 ## Key Features
 
-**Features**
-
-- Flexible data input: Supports both pre-computed statistics and automatic calculation from raw data
-- Automatic statistical computation: Built-in statistics calculator supporting Tukey, percentile, standard deviation, and other calculation methods
-- Diverse box styles: Rectangle, diamond, and notch display styles for different analysis scenarios
-- Flexible orientation: Vertical and horizontal display orientations to meet different layout requirements
-- Intelligent outlier handling: Automatic outlier detection with customizable symbols and jitter display
-- Rich style customization: Box fill, border, median line, and whisker styles are all customizable
+- Pre-computed statistics or automatic calculation from raw data
+- Built-in statistics calculator with Tukey, percentile, standard deviation, and other calculation methods
+- Rectangle, diamond, and notch box styles
+- Vertical and horizontal orientations
+- Automatic outlier detection with customizable symbols and jitter display
+- Customizable box fill, border, median line, and whisker styles
 
 ## Basic Concepts
 
@@ -19,11 +17,11 @@
 
 A box-and-whisker plot is a statistical chart used to display data distribution characteristics. It describes data distribution through five key values (five-number summary):
 
-- **Minimum**: The smallest value in the dataset or the lower whisker position
-- **Q1 (First Quartile)**: 25% of the data falls below this value
-- **Median**: The middle value of the data, 50th percentile
-- **Q3 (Third Quartile)**: 75% of the data falls below this value
-- **Maximum**: The largest value in the dataset or the upper whisker position
+- Minimum: The smallest value in the dataset or the lower whisker position
+- Q1 (First Quartile): 25% of the data falls below this value
+- Median: The middle value of the data, 50th percentile
+- Q3 (Third Quartile): 75% of the data falls below this value
+- Maximum: The largest value in the dataset or the upper whisker position
 
 ### Box Plot Structure Diagram
 
@@ -123,9 +121,9 @@ struct QwtBoxOutlierSample {
 
 Advantages of separating outlier data from box data:
 
-- **Independent rendering control**: Outliers can use different symbols, colors, and sizes
-- **Flexible data management**: Outliers can be added or removed independently without affecting box data
-- **Avoid data redundancy**: Box data and outlier data are maintained independently
+- Outliers can use their own symbols, colors, and sizes.
+- Outliers can be added or removed independently without affecting box data.
+- Box data and outlier data are maintained independently.
 
 ## Usage
 
@@ -137,7 +135,7 @@ The box chart example is located at: `examples/2D/boxchart`. Screenshot below:
 
 The simplest approach is to directly provide pre-computed statistical data. This is suitable for scenarios where statistical analysis has already been completed.
 
-**Applicable scenarios**:
+Applicable scenarios:
 - Data already processed by other statistical software
 - Precise control over each statistical value is needed
 - Batch display of multiple pre-computed statistical datasets
@@ -175,7 +173,7 @@ boxChart->setBoxExtent(0.35);                    // Box width (relative to coord
 
 When only raw data is available, use `QwtBoxStatisticsCalculator` to automatically compute statistics and outliers.
 
-**Applicable scenarios**:
+Applicable scenarios:
 - Real-time data analysis display
 - Direct visualization of raw data
 - Dynamic data update scenarios
@@ -265,7 +263,7 @@ flowchart LR
 
 ### 4. Box Style Configuration
 
-`QwtPlotBoxChart` provides three box display styles, each with different visual effects and analytical purposes:
+`QwtPlotBoxChart` provides three box display styles:
 
 ```cpp
 // Rectangle box (default) - the most commonly used standard style
@@ -325,7 +323,7 @@ void switchOrientation(QwtPlot* plot, QwtPlotBoxChart* boxChart, bool horizontal
 
 ### 6. Outlier Style Customization
 
-Outliers are an important component of box plots, and their display style can be independently customized:
+Outliers can use their own symbol and jitter:
 
 ```cpp
 // Create outlier symbol
@@ -342,6 +340,6 @@ boxChart->setOutlierSymbol(symbol);
 boxChart->setOutlierJitter(0.15);
 ```
 
-**Jitter Feature Description**:
+Jitter:
 
-When multiple outlier values are identical or similar, they will overlap at the same position when displayed
+When multiple outlier values are identical or similar, they overlap at the same position when displayed.

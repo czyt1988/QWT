@@ -14,17 +14,17 @@ For an overview of the 3D module see [3D Plot Introduction](3d-plot.md). `Qwt3DL
 
 
 
-- **Three styles** — `Tube` (default, lit solid), `Lines` (thin GL line), `Dots` (point markers)
+- Three styles: `Tube` (default, lit solid), `Lines` (thin GL line), `Dots` (point markers)
 
-- **Tube geometry** — polyline swept with a circular cross-section using parallel-transport framing (robust on straight segments, unlike Frenet frames), with Blinn-Phong lighting
+- Tube geometry: the polyline is swept with a circular cross-section using parallel-transport framing (stable on straight segments, unlike Frenet frames), with Blinn-Phong lighting
 
-- **Auto tube radius** — 0.5% of the hull diagonal when not set; tunable ring tessellation
+- Auto tube radius: 0.5% of the hull diagonal when not set; ring tessellation is tunable
 
-- **Per-vertex coloring** — colormap along the curve (e.g. by position/arc-length) or solid color
+- Per-vertex coloring: colormap along the curve (e.g. by position/arc-length) or solid color
 
-- **Point-marker overlay** — optional markers on top of the `Lines`/`Tube` styles
+- Point-marker overlay: optional markers on top of the `Lines`/`Tube` styles
 
-- **Theme integration** — picked up by `Qwt3DTheme::applyToItem()`
+- Theme integration: picked up by `Qwt3DTheme::applyToItem()`
 
 
 
@@ -310,7 +310,7 @@ plot->coordinates()->setTicLengthScale(0.02);
 
 
 
-> **Tip — Tips**
+> **Tip**
 
 >
 

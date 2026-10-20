@@ -4,14 +4,12 @@
 
 ## 主要功能特性
 
-**特性**
-
-- ✅ **刻度绘制**：绘制主刻度、次刻度和刻度标签
-- ✅ **轴标题**：支持显示坐标轴标题文字
-- ✅ **外置轴标题**：支持将标题以水平文字画在 scale widget 正下方/正上方（`TitleOutside`）
-- ✅ **内置交互**：支持鼠标拖动平移和滚轮缩放（Qwt7新增）
-- ✅ **颜色条**：支持显示颜色条（用于光谱图）
-- ✅ **样式自定义**：可自定义刻度长度、标签字体等
+- 绘制主刻度、次刻度和刻度标签
+- 显示坐标轴标题文字
+- 将标题以水平文字画在 scale widget 正下方或正上方（`TitleOutside`）
+- 鼠标拖动平移和滚轮缩放（Qwt7 新增）
+- 显示颜色条（用于光谱图）
+- 自定义刻度长度、标签字体等样式
 
 ## 基本概念
 
@@ -28,7 +26,7 @@ Qwt 使用 `QwtAxis::Position` 枚举标识坐标轴位置：
 
 ### 坐标轴组成结构
 
-坐标轴由带刻度线的骨干线、旁边的刻度标签以及轴标题组成；刻度分为两种长度——长的主刻度与短的次刻度。下面的示意图给出一根水平轴的组成结构：
+坐标轴由带刻度线的骨干线、旁边的刻度标签以及轴标题组成；刻度分为长的主刻度和短的次刻度两种。下面的示意图给出一根水平轴的组成结构：
 
 ```text
           标题
@@ -121,7 +119,7 @@ scaleWidget->setSelectionColor(Qt::blue);
 
 ### 4. 颜色条显示
 
-用于光谱图等需要颜色映射的场景。颜色条没有独立的位置设置接口——它画在哪一侧由刻度绘制（scale draw）的对齐方式决定：
+用于光谱图等需要颜色映射的场景。颜色条没有独立的位置设置接口，它画在哪一侧由刻度绘制（scale draw）的对齐方式决定：
 
 ```cpp
 // 启用颜色条
@@ -199,7 +197,7 @@ plot->setAxisScaleDiv(QwtAxis::XBottom, scaleDiv);
 
 ### 8. 坐标轴外置标题（TitleOutside）
 
-默认情况下轴标题画在 scale widget 内部（垂直轴为旋转文字）。使用 `QwtScaleWidget::TitleOutside` 后，标题改为以水平文字画在 scale widget 外侧的字幕条中：`YLeft`/`YRight`/`XBottom` 在其**正下方**，`XTop` 在其**正上方**。布局会自动预留字幕条空间，并在每次重新布局（窗口缩放、轴显隐、刻度变化等）时保持字幕条跟随 scale widget。
+默认情况下轴标题画在 scale widget 内部（垂直轴为旋转文字）。使用 `QwtScaleWidget::TitleOutside` 后，标题改为以水平文字画在 scale widget 外侧的字幕条中：`YLeft`/`YRight`/`XBottom` 在其正下方，`XTop` 在其正上方。布局会自动预留字幕条空间，并在每次重新布局（窗口缩放、轴显隐、刻度变化等）时保持字幕条跟随 scale widget。
 
 ```cpp
 #include <QwtPlot>
@@ -224,12 +222,12 @@ plot->setAxisTitlePlacement(QwtAxis::YLeft, QwtScaleWidget::TitleInside);
 
 ![outside-title](../../../assets/screenshots/outside-title.png)
 
-**行为说明**
+行为说明
 
 - `TitleOutside` 模式下标题不再计入轴维度，改由布局在相邻带区预留字幕条；`QwtPlotLayout::scaleCaptionRect()` 可查询该字幕条的几何。
 - 多坐标轴（见[多坐标轴的创建](parasite-axes.md)）：所有层共享底部带区。宿主布局聚合所有层的字幕高度需求，并以相邻轴列中心为界在层间分区，因此字幕始终位于本列正下方且互不重叠。
 - 字幕文字的水平对齐遵循 `setTitleAlignment()`；`setTitlePosition()`（沿骨干线的位置）仅对 `TitleInside` 生效。
-- 字幕文字宽于其分区时会自动换行——窄列的多轴场景建议使用短标题。
+- 字幕文字宽于其分区时会自动换行，窄列的多轴场景建议使用短标题。
 - `QwtPlotRenderer` 的 PNG/SVG/PDF 导出包含外置标题（`renderScaleCaption()`）。
 
 ## 核心方法总结

@@ -1,21 +1,19 @@
 # Data Series - QwtSeriesData
 
-`QwtSeriesData` is the abstract interface for plot item data, providing data access methods for plots. By creating custom `QwtSeriesData` derived classes, flexible data management can be achieved, supporting data retrieval from various sources such as memory, files, and databases.
+`QwtSeriesData` is the abstract interface for plot item data. A custom `QwtSeriesData` subclass can supply samples from memory, a file, a database or any other source.
 
 ## Main Features
 
-**Features**
-
-- ✅ **Data abstraction interface**: Defines a unified data access interface
-- ✅ **Multiple built-in implementations**: Provides common implementations such as memory storage and external array references
-- ✅ **Dynamic data support**: Supports real-time updates and large data scenarios
-- ✅ **Bounding calculation**: Automatically calculates data bounding rectangle
+- Data abstraction interface: defines a unified data access interface
+- Multiple built-in implementations: memory storage and external array references
+- Dynamic data support: real-time updates and large data sets
+- Bounding calculation: computes the data bounding rectangle automatically
 
 ## Basic Concepts
 
 ### Data Interface Structure
 
-The class diagram below outlines the `QwtSeriesData<T>` interface — `size()`, `sample(i)`, `boundingRect()` and the optional `setRectOfInterest()` — together with the built-in derivations: the generic `QwtArraySeriesData<T>` stores samples in a `QVector` and adds `setSamples()` / `samples()`, `QwtPointSeriesData` is its specialization for `QPointF` samples, and `QwtSyntheticPointData` derives from `QwtPointSeriesData` to compute samples on the fly from a pure virtual `y(double x)` function without storing them:
+The class diagram below outlines the `QwtSeriesData<T>` interface (`size()`, `sample(i)`, `boundingRect()` and the optional `setRectOfInterest()`) together with the built-in derivations: the generic `QwtArraySeriesData<T>` stores samples in a `QVector` and adds `setSamples()` / `samples()`, `QwtPointSeriesData` is its specialization for `QPointF` samples, and `QwtSyntheticPointData` derives from `QwtPointSeriesData` to compute samples on the fly from a pure virtual `y(double x)` function without storing them:
 
 ```mermaid
 classDiagram
@@ -83,7 +81,7 @@ curve->setData(seriesData);
 
 ### 2. Referencing External Data
 
-When the samples already live in your own buffers, `setRawSamples()` lets the curve reference the raw `double` arrays instead of copying them — the fastest path for large data sets — at the cost of keeping those arrays alive yourself:
+When the samples already live in your own buffers, `setRawSamples()` lets the curve reference the raw `double` arrays instead of copying them, which is the fastest path for large data sets, at the cost of keeping those arrays alive yourself:
 
 ```cpp
 #include <QwtPlotCurve>
@@ -161,7 +159,7 @@ curve->setData(new DatabaseSeriesData("measurements"));
 
 ### 4. Function-Generated Data
 
-`QwtSyntheticPointData` generates function curves without storing any samples: subclass it, implement the pure virtual `y(double x)`, and pass the number of equidistant samples plus the x interval to the base constructor — when the interval is left invalid, the points are computed for the visible plot area instead:
+`QwtSyntheticPointData` generates function curves without storing any samples: subclass it, implement the pure virtual `y(double x)`, and pass the number of equidistant samples plus the x interval to the base constructor; when the interval is left invalid, the points are computed for the visible plot area instead:
 
 ```cpp
 #include <cmath>

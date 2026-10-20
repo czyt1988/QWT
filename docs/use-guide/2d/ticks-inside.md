@@ -1,15 +1,10 @@
 # Inward-Facing Ticks Usage Guide
 
-`QwtPlot::TickDirection` is a tick direction control feature provided by Qwt, allowing axis tick marks to be displayed inside the plot area instead of the default outside display. This is very useful in scenarios requiring compact layouts or special visual effects.
+`QwtPlot::TickDirection` controls where axis tick marks are drawn: inside the plot area instead of outside the axis line. This suits compact layouts or special visual effects.
 
 ## Main Features
 
-**Features**
-
-- ✅ **Tick direction control**: Supports both outward (default) and inward tick display modes
-- ✅ **Independent axis control**: Each axis (XBottom, XTop, YLeft, YRight) can be set independently
-- ✅ **Style synchronization**: Inward ticks share the same style settings as outward ticks (length, color, line width)
-- ✅ **Dynamic switching**: Tick direction can be switched at any time without resetting tick styles
+Ticks can point outward (the default) or inward. Each axis (XBottom, XTop, YLeft, YRight) is configured independently. Inward ticks use the same length, color and line width as outward ticks, and the direction can be switched at any time without resetting the tick style.
 
 ## Basic Concepts
 

@@ -1,14 +1,14 @@
 # 3D绘图架构：从QwtPlot3D到Plot + Item
 
-本文是QWT 3D模块的**架构综述**，回答三个问题：旧的 `QwtPlot3D` 到底错在哪里、这次重构做了什么、重构后的模块为什么更合理。与 [3D绘图简介](3d-plot.md)（讲怎么用）不同，本文讲**为什么长成这样**；与 [3D模块重构说明](../../dev-guide/plot3d-refactor.md)（讲提交过程与开发约定）不同，本文面向想建立整体认知的读者，用最少的术语把设计讲透。
+Qwt 的 3D 模块最初是 Qt 3/4 时代的独立库 `QwtPlot3D`，在 Qwt 7.1 并入本库，7.3 系列起被 Plot + Item 架构取代。[3D绘图简介](3d-plot.md) 讲 API 用法；下面说明旧设计的问题、重构改了什么，以及新结构为什么可行。提交过程与开发约定见 [3D模块重构说明](../../dev-guide/plot3d-refactor.md)。
 
 > **信息 — 阅读建议**
 >
-> 如果你只想上手画图，请先读 [3D绘图简介](3d-plot.md)。如果你改过3D模块的代码、或者想知道"新增一种3D图形要不要改窗口类"，本文会给你明确答案：**不用改**，原因在第5.4节。
+> 如果你只想上手画图，请先读 [3D绘图简介](3d-plot.md)。新增一种 3D 图形不需要修改窗口类，原因见第5.4节。
 
 ## 1. 两代3D模块
 
-QWT的3D能力有两段生命。第一段是独立的 `QwtPlot3D` 库（Qt 3/4 时代的遗产），在 Qwt 7.1 随发行合入；第二段是 QWT 7.3 系列发起的结构性重构——**保留它的数学和交互，重写它的架构和渲染**。
+Qwt 的 3D 能力有两代。第一代是 Qt 3/4 时代的独立库 `QwtPlot3D`，在 Qwt 7.1 随发行合入；第二代是 Qwt 7.3 系列发起的结构性重构，保留了数学与交互，重写了架构与渲染。
 
 ```mermaid
 flowchart LR
@@ -19,13 +19,13 @@ flowchart LR
     E --> F["当前：Plot + Item<br/>VBO/VAO + GLSL 3.3 Core"]
 ```
 
-这次重构的核心不是"把老代码翻译成新语法"，而是换掉一类**结构性决定**：旧模块把"一个绘图窗口"和"一个绘图对象"焊死成同一个类，新模块把它们拆成两个类，并规定了两者之间唯一合法的依赖方向。下面先看旧结构为什么走不通。
+这次重构不是把老代码翻译成新语法，而是换掉了一组结构性决定。旧模块把绘图窗口和绘图对象焊死成同一个类；新模块把它们拆成两个类，并规定两者之间只允许一个依赖方向。下面先看旧结构为什么走不通。
 
 ## 2. 旧架构的缺陷
 
 ### 2.1 每种图形都是一个窗口
 
-旧模块是一个**以控件为中心**的类层次：`Qwt3D::Plot3D` 直接继承 `QOpenGLWidget`，`Qwt3D::SurfacePlot` 继承 `Plot3D`。曲面不是"画在窗口里的东西"，曲面**就是**窗口。
+旧模块采用以控件为中心的类层次：`Qwt3D::Plot3D` 直接继承 `QOpenGLWidget`，`Qwt3D::SurfacePlot` 继承 `Plot3D`。曲面本身就是窗口，而不是画在窗口里的对象。
 
 ```mermaid
 classDiagram
@@ -62,15 +62,15 @@ classDiagram
     Plot3D <|-- VolumePlot
 ```
 
-这个模型有一个致命限制：**一个窗口只能有一种数据**。想在同一个三维场景里画"曲面 + 柱状图"，或者把两条曲线叠加到同一坐标盒中，旧架构没有任何办法——除非把数据硬塞进 `SurfacePlot` 那一份存储里。那三个 `GraphPlot` / `MultiPlot` / `VolumePlot` 名义上是"多图类型的扩展点"，实际上是空壳（只有构造函数和一个纯虚函数），重构时作为死代码删除。
+这个模型有一个致命限制：一个窗口只能放一份数据。想在同一个三维场景里画曲面加柱状图，或者把两条曲线叠加到同一坐标盒中，旧架构没有别的办法，除非把数据硬塞进 `SurfacePlot` 那一份存储里。`GraphPlot` / `MultiPlot` / `VolumePlot` 名义上是多图类型的扩展点，实际上只是空壳（只有构造函数和一个纯虚函数），重构时作为死代码删除。
 
 ### 2.2 一个"万能控件"
 
 `Plot3D` 的公开接口有 70 多个，其中混着四类互不相干的职责：视图变换（旋转/平移/缩放）、数据与样式（`setPlotStyle` / `setDataColor` / `setMeshColor` / `setIsolines` / `setPolygonOffset` / `setShading` / `addEnrichment`）、光照与材质（`setMaterialComponent` / `setLightComponent`）、以及交互与导出（`assignMouse` / `assignKeyboard` / `savePixmap` / `saveVector`）。
 
-更要命的是它的私有数据里直接躺着**绘图数据本身**（`Data* m_actualData`）和**GPU 缓存**（`std::vector<GLuint> m_displayLists`）。窗口与数据在存储层耦合，于是"新增一种绘图类型 = 修改中心控件"。这与2D模块形成鲜明对比：2D 早早就把 `QwtPlot`（画布）与 `QwtPlotItem`（图形对象）分开了。
+更要命的是它的私有数据里直接存着绘图数据本身（`Data* m_actualData`）和 GPU 缓存（`std::vector<GLuint> m_displayLists`）。窗口与数据在存储层耦合，于是新增一种绘图类型就要修改中心控件。2D 模块早就把 `QwtPlot`（画布）与 `QwtPlotItem`（图形对象）分开了。
 
-重构做了什么：把混在窗口上的数据/样式成员**整体移走**。前后接口的差集是可验证的——旧 `Plot3D` 上的方法如今已从窗口类彻底消失，落在了各自的 item 上：
+重构把混在窗口上的数据与样式成员整体移走。前后接口的差集可以直接核对：旧 `Plot3D` 上的方法已从窗口类消失，落在了各自的 item 上：
 
 | 从窗口消失的成员（旧 `Plot3D`） | 现在属于 |
 |------|------|
@@ -80,20 +80,20 @@ classDiagram
 | `updateData` / `hasData` / `hull` | `Qwt3DPlotItem::itemChanged()` 与 `Qwt3DPlot::hull()`（由全部 item 取并集） |
 | `setCoordinateStyle` | `Qwt3DCoordinateSystem` 直接操作 |
 
-窗口上只留下**窗口本来该管的事**：GL 上下文、视图变换、光照、坐标系、主题、导出，以及新增的 item 管理（`attach` / `detach` / `itemList`）和共享资源访问器（`lineShader()` / `polygonShader()` / `textShader()` / `modelViewMatrix()` / `worldToScreen()`）。
+窗口上只留下窗口本来该管的事：GL 上下文、视图变换、光照、坐标系、主题、导出，以及新增的 item 管理（`attach` / `detach` / `itemList`）和共享资源访问器（`lineShader()` / `polygonShader()` / `textShader()` / `modelViewMatrix()` / `worldToScreen()`）。
 
 ### 2.3 固定管线OpenGL：已被废弃的渲染方式
 
-旧渲染路径是一份"OpenGL 1.x 教科书"：
+旧渲染路径通篇使用 OpenGL 1.x 的接口：
 
-- **立即模式**：`glBegin/glEnd` 逐顶点提交（`qwt3d_axis.cpp`、`qwt3d_coordsys.cpp`、`qwt3d_colorlegend.cpp` 等）；
-- **显示列表**：`glGenLists` / `glNewList` / `glCallList` 把几何缓存进驱动（`qwt3d_plot.cpp` 的 `m_displayLists`）；
-- **矩阵栈**：`glRotatef` / `glTranslatef` / `glPushMatrix` 在 CPU/GPU 之间来回搬运变换；
-- **固定管线光照**：`glLightfv` / `glMaterialfv` / `GL_COLOR_MATERIAL`（`qwt3d_lighting.cpp`）；
-- **GLU 二次曲面**：`gluQuadric*` 画圆柱/圆盘（`qwt3d_enrichment_std.cpp`）、`gluProject` 做坐标投影（`qwt3d_drawable.cpp`）；
-- **光栅文字**：`glRasterPos3d` + `glDrawPixels` 直接把像素贴到屏幕（`qwt3d_label.cpp`）。
+- 立即模式：`glBegin/glEnd` 逐顶点提交（`qwt3d_axis.cpp`、`qwt3d_coordsys.cpp`、`qwt3d_colorlegend.cpp` 等）；
+- 显示列表：`glGenLists` / `glNewList` / `glCallList` 把几何缓存进驱动（`qwt3d_plot.cpp` 的 `m_displayLists`）；
+- 矩阵栈：`glRotatef` / `glTranslatef` / `glPushMatrix` 在 CPU/GPU 之间来回搬运变换；
+- 固定管线光照：`glLightfv` / `glMaterialfv` / `GL_COLOR_MATERIAL`（`qwt3d_lighting.cpp`）；
+- GLU 二次曲面：`gluQuadric*` 画圆柱/圆盘（`qwt3d_enrichment_std.cpp`）、`gluProject` 做坐标投影（`qwt3d_drawable.cpp`）；
+- 光栅文字：`glRasterPos3d` + `glDrawPixels` 直接把像素贴到屏幕（`qwt3d_label.cpp`）。
 
-这些 API 在现代 OpenGL 中**要么被删除、要么被废弃**：Core Profile（3.3+）里没有 `glBegin`、没有显示列表、没有 GLU、没有固定管线光照。后果很具体——模块无法在 Core Profile 下工作，也就无法适配 ANGLE / OpenGL ES（移动端、WebAssembly、以及 Windows 上稳定的 ANGLE 后端），而 Qt 6 的 `QOpenGLWidget` 默认正朝着 Core Profile 靠拢。同时立即模式逐帧提交顶点，是典型的 CPU→GPU 瓶颈。
+这些 API 在现代 OpenGL 中要么被删除，要么被废弃：Core Profile（3.3+）里没有 `glBegin`、没有显示列表、没有 GLU、没有固定管线光照。模块因此无法在 Core Profile 下工作，也无法适配 ANGLE / OpenGL ES（移动端、WebAssembly，以及 Windows 上稳定的 ANGLE 后端），而 Qt 6 的 `QOpenGLWidget` 正朝着 Core Profile 靠拢。立即模式还要逐顶点提交，是典型的 CPU→GPU 瓶颈。
 
 重构后的方案：
 
@@ -111,25 +111,25 @@ classDiagram
 
 ### 2.4 依赖倒置：低层反向持有高层指针
 
-这是旧结构里最隐蔽、也最伤的一类问题。按常理，颜色计算属于底层工具，窗口属于上层，**上层认识底层是正常的，底层反手握着上层的指针就是隐患**。旧代码里这样的反向指针有三处：
+旧结构还存在依赖方向颠倒的问题。按常理，颜色计算属于底层工具，窗口属于上层；上层认识底层是正常的，但底层反手握着上层的指针就是隐患。旧代码里这样的反向指针有三处：
 
-1. **颜色 functor 握着窗口**：`Qwt3D::ColorMapColor(Plot3D* plot, ...)` 存 `m_plot`，构造时必须传一个窗口进来；
-2. **数据映射握着曲面控件**：`Qwt3D::GridMapping::setPlotWidget(SurfacePlot*)`；
-3. **绘制基类握着控件**：`Drawable` 保存顶层窗口指针用于取矩阵/视口。
+1. 颜色 functor 握着窗口：`Qwt3D::ColorMapColor(Plot3D* plot, ...)` 存 `m_plot`，构造时必须传一个窗口进来；
+2. 数据映射握着曲面控件：`Qwt3D::GridMapping::setPlotWidget(SurfacePlot*)`；
+3. 绘制基类握着控件：`Drawable` 保存顶层窗口指针用于取矩阵/视口。
 
-反向指针的代价是真实发生过的：颜色 functor 在窗口销毁或主题切换后仍可能被访问，仓库里就留着 `fix(qwtplot3d): recreate color functor to prevent dangling pointer` 这样的修复记录——这是崩溃，而不是风格问题。它还堵死了单元测试：想单独测一个颜色 functor，必须先造一个 `QOpenGLWidget`。
+反向指针的代价是真实发生过的：颜色 functor 在窗口销毁或主题切换后仍可能被访问，仓库里就留着 `fix(qwtplot3d): recreate color functor to prevent dangling pointer` 这样的修复记录，它修的是崩溃，不是代码风格。反向指针还堵死了单元测试：想单独测一个颜色 functor，必须先造一个 `QOpenGLWidget`。
 
-重构的对策是**把依赖方向扳正，并给出一套通用机制**（第3.2、3.3节）：低层需要的上下文由上层**作为参数推下来**，而不是低层伸手去抓上层的指针。
+重构的对策是把依赖方向扳正，并给出一套通用机制（第3.2、3.3节）：低层需要的上下文由上层作为参数推下来，而不是让低层去抓上层的指针。
 
 ### 2.5 命名空间不一致
 
-旧类型全部位于 `namespace Qwt3D` 里，`Triple`、`RGBA`、`ParallelEpiped` 这些基础类型也散落在命名空间中；而 Qwt 库其余部分的约定是**全局作用域 + `Qwt` 前缀**（`QwtPlot`、`QwtPlotCurve`）。同一个库里两套命名法，`using namespace Qwt3D;` 一旦写进业务代码就是污染。
+旧类型全部位于 `namespace Qwt3D` 里，`Triple`、`RGBA`、`ParallelEpiped` 这些基础类型也在其中；而 Qwt 库其余部分使用全局作用域加 `Qwt` 前缀（`QwtPlot`、`QwtPlotCurve`）。同一个库里两套命名法，`using namespace Qwt3D;` 一旦写进业务代码就是污染。
 
 重构移除了整个命名空间，全部类型改为 `Qwt3D` 前缀（`Qwt3DPlot`、`Qwt3DSurface`、`Qwt3DColorMapColor`），与库风格统一。这是一次破坏性变更，对照表见 [3D模块重构说明](../../dev-guide/plot3d-refactor.md)。
 
 ### 2.6 与2D架构脱节
 
-2D 模块的心智模型已经沉淀了十几年：`QwtPlot` 是画布，`QwtPlotItem` 是挂在画布上的图形对象，`attach()` / `detach()` 管生命周期，`itemChanged()` 通知重绘，样式对象（`QwtColorMap`、`QwtSymbol`）是**静默值对象**，改完由 item 主动通知。3D 模块原本完全没有这套语言，导致：
+2D 模块的心智模型已经沉淀了十几年：`QwtPlot` 是画布，`QwtPlotItem` 是挂在画布上的图形对象，`attach()` / `detach()` 管生命周期，`itemChanged()` 通知重绘，样式对象（`QwtColorMap`、`QwtSymbol`）是静默值对象，改完由 item 主动通知。3D 模块原本没有这套语言，导致：
 
 - 用户要在两套完全不同的 API 之间切换思维；
 - 2D 已经趟平的坑（脏标记、所有权、通知时机）3D 要重新踩一遍；
@@ -148,17 +148,17 @@ classDiagram
 
 ## 3. 重构思路：五条原则
 
-重构不是一次性重写，而是在 `new3d` 分支上按一套固定原则渐进推进。原则比代码更重要——下面五条决定了后面所有设计决策的取舍。
+重构不是一次性重写，而是在 `new3d` 分支上按固定原则渐进推进。原则比代码更重要，下面五条决定了后面所有设计决策的取舍。
 
 ### 3.1 原则一：按职责拆分，窗口只管窗口
 
-**窗口类管的是"看"，item 管的是"画什么"。** `Qwt3DPlot` 负责 GL 上下文、视图变换、光照、坐标系、主题、item 列表——这些是**场景级**状态；`Qwt3DPlotItem` 负责数据、几何、样式、GPU 缓存——这些是**对象级**状态。
+窗口类管的是"看"，item 管的是"画什么"。`Qwt3DPlot` 负责 GL 上下文、视图变换、光照、坐标系、主题和 item 列表，这些是场景级状态；`Qwt3DPlotItem` 负责数据、几何、样式和 GPU 缓存，这些是对象级状态。
 
-判断标准很简单：如果一个属性随数据集变化（网格分辨率、线框颜色、着色模式），它属于 item；如果一个属性对整幅图生效（背景色、灯光方向、相机角度、坐标盒范围），它属于窗口。这条界线使"一个窗口挂多个 item"成为自然结果，而不是特例。
+判断标准很简单：如果一个属性随数据集变化（网格分辨率、线框颜色、着色模式），它属于 item；如果一个属性对整幅图生效（背景色、灯光方向、相机角度、坐标盒范围），它属于窗口。这条界线使一个窗口挂多个 item 成为常规情况，而不是特例。
 
 ### 3.2 原则二：依赖只能向下，上引只留一条
 
-模块按概念分成六层，**依赖只允许指向更低的层**（或同层），任何低层 → 高层的指针都视为缺陷：
+模块按概念分成六层，依赖只允许指向更低的层（或同层），任何低层 → 高层的指针都视为缺陷：
 
 ```mermaid
 flowchart TD
@@ -196,11 +196,11 @@ flowchart TD
 
 唯一被允许的"向上"指针是 `Qwt3DPlotItem::plot()`：item 渲染时确实需要窗口提供的 GL 上下文和着色器，这是一条刻意保留、写进 `src/plot3d/AGENTS.md` 的合法通道。除此之外的反向引用一律是 bug。
 
-**为什么要这么较真？** 因为依赖方向决定了**哪些东西可以被单独测试**。Tier 0 的类型没有指向任何 3D 类的指针，可以直接做数值测试；Tier 1 的值对象没有回调，可以随便构造、拷贝、比较；Tier 2 的 drawable 只依赖传进来的上下文参数，可以在没有窗口的情况下验证绘制逻辑。
+依赖方向决定了哪些东西可以被单独测试。Tier 0 的类型没有指向任何 3D 类的指针，可以直接做数值测试；Tier 1 的值对象没有回调，可以自由构造、拷贝和比较；Tier 2 的 drawable 只依赖传进来的上下文参数，可以在没有窗口的情况下验证绘制逻辑。
 
 ### 3.3 原则三：值对象静默，通知由上层负责
 
-低层不能调高层，那低层状态变了怎么通知渲染？答案是**不通知**——值对象（颜色 functor、enrichment、主题）的 setter 保持静默，把"我变了"这件事交给拥有它的 item：
+低层不能调高层，因此状态变化不会向上传递。值对象（颜色 functor、enrichment、主题）的 setter 保持静默，由拥有它的 item 负责报告变化：
 
 ```mermaid
 flowchart LR
@@ -211,9 +211,9 @@ flowchart LR
     D --> F["plot->itemChanged()<br/>重算 hull、刷新坐标系、repaint"]
 ```
 
-这与2D模块的契约**逐字对应**：改了 `QwtSymbol` 之后调 `itemChanged()`，改了 `QwtColorMap` 之后由 `QwtPlotSpectrogram` 决定怎么刷新。同一个库里的两套3D/2D API 遵循同一条纪律，用户只需要学一次。
+这与 2D 模块的契约完全一致：改了 `QwtSymbol` 之后调 `itemChanged()`，改了 `QwtColorMap` 之后由 `QwtPlotSpectrogram` 决定怎么刷新。3D 与 2D 两套 API 遵循同一条纪律，用户只需要学一次。
 
-配套的机制是**数据推入而非查询**：颜色归一化需要的 z 范围，不是 functor 自己去问 `plot()->hull()`（那需要反向指针），而是 `Qwt3DSurface::pushColorRange()` 在构建 VBO 前把并集 hull 的范围主动 `setActiveRange()` 进 functor。
+配套的机制是数据推入而非查询：颜色归一化需要的 z 范围不是由 functor 去问 `plot()->hull()`（那需要反向指针），而是由 `Qwt3DSurface::pushColorRange()` 在构建 VBO 前把并集 hull 的范围主动 `setActiveRange()` 进 functor。
 
 > **说明 — 为什么用 `invalidateColors()` 而不是自动通知**
 >
@@ -221,13 +221,13 @@ flowchart LR
 
 ### 3.4 原则四：渲染走Core Profile
 
-迁移不是"把 glBegin 换成 VBO"这么简单，而是**把 GPU 交互的职责也重新分了工**：
+迁移不只是把 glBegin 换成 VBO，还重新划分了 GPU 交互的职责：
 
-- **窗口**负责阶段性的公共状态：在 `paintGL()` 中一次性算好 modelView / projection 矩阵，打包进 `Qwt3DRenderContext` 下传，并提供共享着色器（同一个窗口的所有 item 复用 `lineShader` / `polygonShader` / `textShader`，避免每个 item 各自编译链接）；
-- **item** 负责自己的私有几何：VBO / VAO / EBO 在 item 内部创建与销毁，脏了就重建，否则跨帧复用；
-- **着色器**按图元类型分组（面/线/点/文字），存在 `src/plot3d/shaders/`，通过 Qt 资源系统编译进二进制。
+- 窗口负责阶段性的公共状态：在 `paintGL()` 中一次性算好 modelView / projection 矩阵，打包进 `Qwt3DRenderContext` 下传，并提供共享着色器（同一个窗口的所有 item 复用 `lineShader` / `polygonShader` / `textShader`，避免每个 item 各自编译链接）；
+- item 负责自己的私有几何：VBO / VAO / EBO 在 item 内部创建与销毁，脏了就重建，否则跨帧复用；
+- 着色器按图元类型分组（面/线/点/文字），存在 `src/plot3d/shaders/`，通过 Qt 资源系统编译进二进制。
 
-选择 GLSL 3.30 Core 是一次**可移植性下注**：Core Profile 是桌面 OpenGL、OpenGL ES 3.0 与 ANGLE 之间的最大公约数，一条着色器路径同时覆盖 Windows / macOS / Linux 与未来的 ES 后端。
+选择 GLSL 3.30 Core 出于可移植性：Core Profile 是桌面 OpenGL、OpenGL ES 3.0 与 ANGLE 之间的最大公约数，一条着色器路径同时覆盖 Windows / macOS / Linux 与未来的 ES 后端。
 
 ### 3.5 原则五：渐进重构，每一步都可构建
 
@@ -245,13 +245,13 @@ flowchart TB
     H --> I["Qwt3DBar / Qwt3DLine<br/>在新扩展点上落地"]
 ```
 
-每一步的产出物都对应仓库里一个可回溯的提交，这也是本文所有论断都可以被核对的原因——重构没有推倒重来，而是**在旧代码上连续做对的小决定**。
+每一步的产出物都对应仓库里一个可回溯的提交，因此上面的论断都可以核对。重构没有推倒重来，而是在旧代码上连续做对的小决定。
 
 ### 3.6 取舍：先正架构，后补特性
 
-重构明确接受了一次"功能让位"：地板投影、法线显示、enrichment（十字丝/圆锥箭头/圆点）的**数据接口保留**，但**渲染被标记为待实现**——因为旧实现完全依赖 `glBegin/glEnd`，在 Core Profile 下根本跑不起来，而这些属于"锦上添花"的图元，不应阻塞主干架构的迁移。入口在 `src/plot3d/qwt3d_surface.cpp`：`addEnrichment()` 的文档注释与 `draw()` 末尾都留着明确的 TODO（"Enrichment rendering with VBO will be implemented in a future plan"），函数体照常接受数据、维护列表，只是暂不产出像素。
+重构明确推迟了一部分功能：地板投影、法线显示、enrichment（十字丝、圆锥箭头、圆点）保留数据接口，但渲染标记为待实现。旧实现完全依赖 `glBegin/glEnd`，在 Core Profile 下跑不起来，而这些属于装饰性图元，不应阻塞主干架构的迁移。入口在 `src/plot3d/qwt3d_surface.cpp`：`addEnrichment()` 的文档注释与 `draw()` 末尾都留着明确的 TODO（"Enrichment rendering with VBO will be implemented in a future plan"），函数体照常接受数据、维护列表，只是暂不产出像素。
 
-这个取舍的判断依据是：架构错误会让**每一次**后续开发都变贵（旧模块多年来的实际状态），而特性缺失是局部的、可增量补齐的。事实证明判断正确——架构理顺之后，柱状图与线图两个 item 一周内无痛加入。
+判断依据是：架构错误会让每一次后续开发都变贵，旧模块多年来就处在这样的状态；特性缺失则是局部的，可以增量补齐。后来的情况也支持这个判断：架构理顺之后，柱状图与线图两个 item 一周内就加入了，没有遇到阻力。
 
 ## 4. 重构后的总体架构
 
@@ -342,7 +342,7 @@ classDiagram
 
 ### 4.2 一帧是怎么画出来的
 
-`paintGL()` 是理解新架构最好的切片——它清楚地展示了"窗口准备什么、item 准备什么"：
+`paintGL()` 清楚地展示了每一帧里窗口准备什么、item 准备什么：
 
 ```mermaid
 sequenceDiagram
@@ -369,10 +369,10 @@ sequenceDiagram
     L-->>Qt: 图例与标题锚定屏幕，不随场景旋转
 ```
 
-两个设计细节值得单独说：
+绘制路径中有两个细节：
 
-- **`Qwt3DRenderContext` 是值对象，不是指针**。它按调用点构造（矩阵、视口、共享着色器指针），以 const 引用沿 draw 链下传。这直接消灭了旧 `Drawable` 里那根 `Qwt3DPlot*` 反向指针——drawable 需要的一切都在参数里，自己不认识窗口。
-- **图例/标题使用固定矩阵**。这两样东西锚在屏幕上，如果跟着场景一起转就错了；窗口在最后一个绘制阶段把 modelView 换成一个不随用户交互变化的基准矩阵，保证 UI 元素稳定。
+- `Qwt3DRenderContext` 是值对象，不是指针。它按调用点构造（矩阵、视口、共享着色器指针），以 const 引用沿 draw 链下传。这直接消除了旧 `Drawable` 里那根 `Qwt3DPlot*` 反向指针：drawable 需要的一切都在参数里，它并不认识窗口。
+- 图例与标题使用固定矩阵。它们锚定在屏幕上，如果跟着场景一起转就错了；窗口在最后一个绘制阶段把 modelView 换成一个不随用户交互变化的基准矩阵，保证 UI 元素稳定。
 
 ### 4.3 数据怎么流到GPU
 
@@ -391,19 +391,19 @@ flowchart TD
     Q --> R["glDrawElements 提交"]
 ```
 
-这条链上没有任何环节需要低层回调高层：数据源**返回**数据，item **请求**刷新，窗口**汇总**各 item 的 hull 决定坐标盒——职责在一条单向链上流动。特别注意 hull 的处理：`Qwt3DPlot::hull()` 是**全部 item 包围盒的并集**，坐标系会据此自动定位；多 item 叠加时，坐标盒自动贴合数据范围，不需要用户手工同步。
+这条链上没有任何环节需要低层回调高层：数据源返回数据，item 请求刷新，窗口汇总各 item 的 hull 决定坐标盒。hull 的处理是：`Qwt3DPlot::hull()` 是全部 item 包围盒的并集，坐标系据此自动定位；多 item 叠加时，坐标盒自动贴合数据范围，不需要用户手工同步。
 
 > **警告 — 先 attach，再灌数据**
 >
-> hull 的重算只发生在 `itemChanged()` 里，而 `Qwt3DPlot::attach()` 本身不重算 hull。如果你先 `loadFromData()` 再 `attach()`，之后又不再改动任何属性——那么 item 的通知在挂载之前就发完了（`itemChanged()` 只在 `plot()` 非空时才通知窗口），窗口的 hull 停留在退化的原点，坐标盒建立不起来，整幅图**空白且没有任何警告**。正确顺序是：`item->attach(plot)` 在前，`loadFromData()` 及各类 setter 在后。
+> hull 的重算只发生在 `itemChanged()` 里，`Qwt3DPlot::attach()` 本身不重算 hull。如果你先 `loadFromData()` 再 `attach()`，之后又不再改动任何属性，那么 item 的通知在挂载之前就发完了（`itemChanged()` 只在 `plot()` 非空时才通知窗口），窗口的 hull 停留在退化的原点，坐标盒建立不起来，整幅图空白且没有任何警告。正确顺序是：`item->attach(plot)` 在前，`loadFromData()` 及各类 setter 在后。
 
 ### 4.4 颜色与主题：接入core生态
 
-3D 模块不重复造颜色系统的轮子，而是**适配** core 模块：
+3D 模块适配 core 模块的颜色系统：
 
-- `Qwt3DColorMapColor` 桥接 `QwtColorMap` 与 core 的 22 种科学 colormap 预设（`viridis`、`plasma`、`jet`、`coolwarm` …），2D 光谱图和 3D 曲面因此可以使用**同一份预设表**；
+- `Qwt3DColorMapColor` 桥接 `QwtColorMap` 与 core 的 22 种科学 colormap 预设（`viridis`、`plasma`、`jet`、`coolwarm` …），2D 光谱图和 3D 曲面因此可以使用同一份预设表；
 - `Qwt3DTheme` 的 10 种预设把背景、坐标轴、标题、网格、光照预设（`NoLighting`/`FlatLight`/`Studio`/`Outdoor`/`Soft`）打包成一个值类型，`plot->applyTheme(...)` 一次到位；
-- 主题落地时分成两半：控件级属性（背景、坐标色、光照）施加到 `Qwt3DPlot`，item 级属性（线框色、着色模式、渲染样式、数据 colormap）通过 `applyToItem()` 施加到每个已挂载的 item——**这正是 Plot/Item 拆分带来的副产品**：主题不再需要知道"我长什么样"，它只需要描述属性，由两个接收方各自落实。
+- 主题落地时分成两半：控件级属性（背景、坐标色、光照）施加到 `Qwt3DPlot`，item 级属性（线框色、着色模式、渲染样式、数据 colormap）通过 `applyToItem()` 施加到每个已挂载的 item。这是 Plot/Item 拆分的自然结果：主题不再需要知道"我长什么样"，它只描述属性，由两个接收方各自落实。
 
 ```mermaid
 flowchart LR
@@ -415,9 +415,9 @@ flowchart LR
 
 ### 4.5 与2D、与core的关系
 
-模块依赖是一条单向边：`plot3d` → `core`，**不依赖** `plot`（2D）。也就是说 3D 独立成库，但通过 core 与 2D 共享基础设施——`Qwt3DLine::setSamples()` 直接收 `QVector<QwtPoint3D>` / `QwtSeriesData<QwtPoint3D>`（core 的类型，也是 2D `QwtPlotCurve` 的数据语言），两个模块的数据契约是同一个。
+模块依赖是一条单向边：`plot3d` → `core`，不依赖 `plot`（2D）。3D 因此是一个独立的库，但通过 core 与 2D 共享基础设施：`Qwt3DLine::setSamples()` 直接接收 `QVector<QwtPoint3D>` / `QwtSeriesData<QwtPoint3D>`（core 的类型，也是 2D `QwtPlotCurve` 的数据语言），两个模块使用同一套数据契约。
 
-在展示层，二者可以同框：`examples/3D/figureSurface3D` 在一个 `QwtFigure` 网格里同时放置 3D 曲面窗口和 2D 横截面/时间序列曲线，3D 场景一动，2D 曲线跟着重采样——这在旧架构下需要跨越两套完全不同的事件模型，现在只需要各自 `attach()` 到各自的画布。
+在展示层，二者可以同框：`examples/3D/figureSurface3D` 在一个 `QwtFigure` 网格里同时放置 3D 曲面窗口和 2D 横截面/时间序列曲线，3D 场景一动，2D 曲线跟着重采样。这在旧架构下需要跨越两套完全不同的事件模型，现在只需要各自 `attach()` 到各自的画布。
 
 ## 5. 收益与先进性
 
@@ -436,7 +436,7 @@ flowchart LR
 
 ### 5.2 扩展点是被验证过的，不是画在图上的
 
-"Plot + Item 是好架构"这类判断不能靠宣称，要看**第二个、第三个实现进来时改动了多少**。仓库给出了答案：`Qwt3DBar`（柱状图，逐柱立方体、6 面扁平法向，1D 序列或 2D 网格）与 `Qwt3DLine`（线图，`Lines`/`Tube`/`Dots` 三种样式）都是**新增文件 + 新增 item 子类**，`Qwt3DPlot` 一行未改。
+"Plot + Item 是好架构"这类判断不能靠宣称，要看第二个、第三个实现进来时改动了多少。仓库给出了答案：`Qwt3DBar`（柱状图，逐柱立方体、6 面扁平法向，1D 序列或 2D 网格）与 `Qwt3DLine`（线图，`Lines`/`Tube`/`Dots` 三种样式）都是新增文件和新增 item 子类，`Qwt3DPlot` 一行未改。
 
 这两个 item 还顺便示范了架构的几个约束确实被遵守：
 
@@ -445,20 +445,20 @@ flowchart LR
 - 实现 `populateLegendColors()` 接入统一图例；
 - 遵循 `invalidateColors()` / `itemChanged()` 的通知契约。
 
-需要如实说明的是，"零改动"限定在窗口类：`Qwt3DTheme::applyToItem()`（`qwt3d_theme.cpp`）目前按具体 item 类型 `dynamic_cast` 分发 item 级属性，新增 item 想接收主题的线框色与数据 colormap，需要在那里补一个分支。这是主题按类型分发带来的少量扩展成本，与"修改窗口类"完全不是一回事。
+"零改动"限定在窗口类：`Qwt3DTheme::applyToItem()`（`qwt3d_theme.cpp`）目前按具体 item 类型 `dynamic_cast` 分发 item 级属性，新增 item 想接收主题的线框色与数据 colormap，需要在那里补一个分支。这是主题按类型分发带来的少量扩展成本，与修改窗口类不是一回事。
 
-其中 `Qwt3DLine` 的 Tube 样式用了**平行传输标架**（parallel-transport framing）沿折线扫掠圆柱截面——这类细节以前必须侵入窗口类才能实现，现在是 item 的私事。柱状图与线图的完整用法见 [3D柱状图](3d-bar-chart.md) 与 [3D线图](3d-line-plot.md)。
+`Qwt3DLine` 的 Tube 样式使用平行传输标架（parallel-transport framing）沿折线扫掠圆柱截面。这类细节以前必须侵入窗口类才能实现，现在只属于 item。柱状图与线图的完整用法见 [3D柱状图](3d-bar-chart.md) 与 [3D线图](3d-line-plot.md)。
 
 ### 5.3 渲染层面的先进性
 
-- **Core Profile 兼容**：全部图元走着色器，没有一条被废弃的 GL 调用；
-- **共享着色器**：窗口级复用，item 创建/销毁不触发编译链接；
-- **脏标记 + 常驻 VBO**：数据不动就零拷贝，动画场景只在数据变化的帧重建顶点缓冲；
-- **CPU 端矩阵**：视图变换是普通 `QMatrix4x4` 运算，可打印、可序列化、可单测（`worldToScreen()` 甚至不需要 GL 上下文就能算）；
-- **矢量导出保留**：`gl2ps` 无条件编译，`saveVector()` 支持 EPS / PS / PDF / SVG / PGF，作为 Core Profile 管线之外的回退通道；
-- **序列化地基**：`qwt3d_serialize.h` 为 `Triple`、`RGBA`、`ParallelEpiped`、`Qwt3DFunctionData` 等值类型提供了 `QDataStream` 运算符，配合 `Qwt3DIO` 的 `save()`/`load()` 可扩展到整图持久化。
+- Core Profile 兼容：全部图元走着色器，没有一条被废弃的 GL 调用；
+- 共享着色器：窗口级复用，item 创建/销毁不触发编译链接；
+- 脏标记 + 常驻 VBO：数据不动就零拷贝，动画场景只在数据变化的帧重建顶点缓冲；
+- CPU 端矩阵：视图变换是普通 `QMatrix4x4` 运算，可打印、可序列化、可单测（`worldToScreen()` 甚至不需要 GL 上下文就能算）；
+- 矢量导出保留：`gl2ps` 无条件编译，`saveVector()` 支持 EPS / PS / PDF / SVG / PGF，作为 Core Profile 管线之外的回退通道；
+- 序列化地基：`qwt3d_serialize.h` 为 `Triple`、`RGBA`、`ParallelEpiped`、`Qwt3DFunctionData` 等值类型提供了 `QDataStream` 运算符，配合 `Qwt3DIO` 的 `save()`/`load()` 可扩展到整图持久化。
 
-**一帧到底要多久（实测基线）**：在 MSVC2019 + Qt 6.7.3、Release 构建、1000×700 视口下用 `glFinish` 包住 `paintGL()` 计时，得到一组基线数据（同一台机器上的绝对值，用来感受量级，不是跨平台对比）：
+下面的帧耗时来自在 MSVC2019 + Qt 6.7.3、Release 构建、1000×700 视口下用 `glFinish` 包住 `paintGL()` 的计时。这些是同一台机器上的绝对值，用来感受量级，不是跨平台对比：
 
 | 场景 | 单帧耗时 |
 |------|---------|
@@ -471,11 +471,11 @@ flowchart LR
 
 ### 5.4 生态统一的复利
 
-2D 与 3D 现在共享同一套**颜色语言**（core colormap 预设）、同一套**数据语言**（`QwtPoint3D` / `QwtSeriesData`）、同一套**通知语言**（`itemChanged()` 与静默值对象），以及同一套**构建语言**（CMake target：`qwt::core` / `qwt::plot` / `qwt::plot3d`）。这些对齐是"看不见的收益"，但它意味着：2D 修过的 bug 不会在 3D 复现，2D 新增的 colormap 自动可用，用户学到一半的 API 猜测在 3D 里照样猜得中。
+2D 与 3D 现在共享同一套颜色预设（core colormap 预设）、同一套数据类型（`QwtPoint3D` / `QwtSeriesData`）、同一套通知契约（`itemChanged()` 与静默值对象），以及同一组 CMake target（`qwt::core` / `qwt::plot` / `qwt::plot3d`）。2D 修过的 bug 不会在 3D 复现，2D 新增的 colormap 自动可用，用户在一半里学到的 API 习惯在另一半里同样成立。
 
 ## 6. 已知局限与后续工作
 
-架构文章如果只列优点就没有价值。当前状态的诚实清单：
+模块目前还有以下局限，升级前可以据此核对：
 
 | 事项 | 状态 | 位置 |
 |------|------|------|
@@ -488,7 +488,7 @@ flowchart LR
 
 > **已知问题 — 如果你依赖上述特性**
 >
-> 升级到新架构前请核对上面这张表。旧模块能画出地板投影和 enrichment（见库内存档截图），新模块的数据接口已就位但像素还没跟上——这是**有意的让步**（见 3.6 节），不是遗漏。
+> 升级到新架构前请核对上面这张表。旧模块能画出地板投影和 enrichment（见库内存档截图），新模块的数据接口已就位，但像素还没跟上。这是有意的让步（见 3.6 节），不是遗漏。
 
 ## 7. 代码与示例索引
 
@@ -528,8 +528,8 @@ flowchart LR
 
 ### 7.3 延伸阅读
 
-- [3D绘图简介](3d-plot.md) —— API 与用法
-- [3D柱状图](3d-bar-chart.md) / [3D线图](3d-line-plot.md) —— 两个新 item 类型
-- [3D模块重构说明](../../dev-guide/plot3d-refactor.md) —— 提交流程、迁移对照表、开发约定
-- `src/plot3d/AGENTS.md` —— 模块级分层规则（含 DO/DON'T 反例）
-- 仓库根目录 `AGENTS.md` —— 全库构建与编码约定
+- [3D绘图简介](3d-plot.md)：API 与用法
+- [3D柱状图](3d-bar-chart.md) / [3D线图](3d-line-plot.md)：两个新 item 类型
+- [3D模块重构说明](../../dev-guide/plot3d-refactor.md)：提交流程、迁移对照表、开发约定
+- `src/plot3d/AGENTS.md`：模块级分层规则（含 DO/DON'T 反例）
+- 仓库根目录 `AGENTS.md`：全库构建与编码约定

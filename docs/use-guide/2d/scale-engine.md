@@ -4,12 +4,10 @@
 
 ## Main Features
 
-**Features**
-
-- ✅ **Automatic tick calculation**: Automatically calculates major and minor ticks based on data range
-- ✅ **Multiple scale types**: Supports linear, logarithmic, date, and other scale engines
-- ✅ **Tick optimization**: Automatically selects aesthetically pleasing tick intervals (e.g., 10, 5, 2)
-- ✅ **Boundary handling**: Supports tick calculation with included/excluded boundaries
+- Automatic calculation of major and minor ticks from the data range
+- Linear, logarithmic and date scale engines
+- Tick intervals chosen automatically (for example 10, 5, 2)
+- Tick calculation with included or excluded boundaries
 
 ## Basic Concepts
 

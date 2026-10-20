@@ -1,18 +1,18 @@
 # QwtPicker的状态机
 
-在图形交互系统中，用户的操作往往不是单一的瞬间动作，而是一个**有序的事件序列**。比如：
+在图形交互系统中，用户的操作往往由一串有序事件组成。比如：
 
 - **拖拽操作**：按下鼠标 → 移动鼠标 → 释放鼠标
 - **矩形选择**：点击第一个点 → 移动鼠标 → 点击第二个点
 - **多边形绘制**：点击多个点 → 右键结束
 
-如果没有状态机管理，我们需要在事件处理函数中维护大量`if-else`分支和状态变量，代码会变得**复杂且难以维护**。
+如果没有状态机管理，我们需要在事件处理函数中维护大量`if-else`分支和状态变量，代码会变得复杂且难以维护。
 
 Qwt的`QwtPicker`就使用状态机来管理交互过程，对应的实现位于`qwt_picker_machine.h/cpp`文件中
 
 ## QwtPicker状态机的优势
 
-状态机将**事件序列的处理**与**具体的业务操作**分离：
+状态机将事件序列的处理与具体的业务操作分离：
 
 - 状态机负责识别完整的事件序列
 - `QwtPicker`负责执行具体的绘制、选择等操作
@@ -25,7 +25,7 @@ Qwt的`QwtPicker`就使用状态机来管理交互过程，对应的实现位于
 
 ## QwtPicker状态机工作原理
 
-`QwtPicker`的状态机机制采用了经典的**观察者模式 + 状态模式**组合：
+`QwtPicker`的状态机机制采用了观察者模式与状态模式的组合：
 
 ```txt
 事件流: QEvent → QwtPicker → QwtPickerMachine → Commands → QwtPicker方法
@@ -43,9 +43,9 @@ Qwt的`QwtPicker`就使用状态机来管理交互过程，对应的实现位于
 | remove()| 删除点 |
 | end()| 结束选择 |
 
-而具体移动店、删除点、添加点是由哪些操作组成，这些则由状态机进行管理：例如点击一个点，移动鼠标，释放鼠标，结束选择，这样就不用在`QwtPicker`里既要处理鼠标/键盘事件，还要处理状态转换，这就是状态机的优势。
+移动点、删除点、添加点由哪些操作组成，则由状态机管理：例如点击一个点，移动鼠标，释放鼠标，结束选择。这样`QwtPicker`就不必同时处理鼠标/键盘事件和状态转换。
 
-状态机处理核心为`transition`方法,`QwtPicker`中的`widgetXXXEvent`方法都是调用`transition`方法
+状态机处理核心为`transition`方法，`QwtPicker`中的`widgetXXXEvent`方法都是调用`transition`方法
 
 ```cpp
 void QwtPicker::transition(const QEvent* event)
@@ -93,7 +93,7 @@ void QwtPicker::transition(const QEvent* event)
 
 上面的`transition()`方法，就是状态机处理核心，它接收一个事件，返回一个命令序列`commandList`,而各种状态机的实例都继承自`QwtPickerMachine`，并实现`transition()`方法，返回命令序列。
 
-可以通过下面这个流程图来表诉：
+下面的流程图展示了这条路径：
 
 ```mermaid
 flowchart TD
@@ -177,7 +177,7 @@ QList<QwtPickerMachine::Command> QwtPickerDragPointMachine::transition(
 }
 ```
 
-这是处理鼠标拖拽操作的状态机，它的时序图可以如下表述：
+处理鼠标拖拽操作的状态机，时序图如下：
 
 ```mermaid
 sequenceDiagram
@@ -235,7 +235,7 @@ stateDiagram-v2
     状态1 --> 状态0: 鼠标释放 → End
 ```
 
-通过状态机，即可把事件类型转换为图表操作的各种状态，实现了事件的分发
+状态机把事件类型转换为图表操作中的各个状态，完成事件分发。
 
 将复杂的交互逻辑分解为：
 - 事件识别（状态机）
@@ -337,7 +337,7 @@ stateDiagram-v2
 
 #### 状态转换过程
 
-`QwtPickerClickPointMachine::transition()` 一步完成选择：匹配 `MouseSelect1` 的鼠标按下或匹配 `KeySelect1` 的按键会一次性发出 `Begin`、`Append`、`End` 并停留在状态 0——不存在中间状态：
+`QwtPickerClickPointMachine::transition()` 一步完成选择：匹配 `MouseSelect1` 的鼠标按下或匹配 `KeySelect1` 的按键会一次性发出 `Begin`、`Append`、`End` 并停留在状态 0，不存在中间状态：
 
 ```cpp
 初始状态: 0 (等待点击)
@@ -394,7 +394,7 @@ stateDiagram-v2
 ```
 
 #### 适用场景
-- **精确位置选择**（如我们的实时Panner）
+- 精确位置选择（如实时Panner）
 - 需要微调的点选择
 - 拖拽定位工具
 - 高精度测量
@@ -406,7 +406,7 @@ stateDiagram-v2
 
 #### 状态转换过程
 
-`QwtPickerClickRectMachine::transition()` 跨越三个状态：第一次按下发出 `Begin` + `Append`（状态 1），第一次释放追加对角点（状态 2），再次按下才发出 `End` 回到状态 0——矩形由两次独立点击确定：
+`QwtPickerClickRectMachine::transition()` 跨越三个状态：第一次按下发出 `Begin` + `Append`（状态 1），第一次释放追加对角点（状态 2），再次按下才发出 `End` 回到状态 0。矩形由两次独立点击确定：
 
 ```cpp
 初始状态: 0 (等待第一次点击)
@@ -455,7 +455,7 @@ stateDiagram-v2
 
 #### 状态转换图
 
-下图与点击矩形状态机形成对照——它完全跳过状态 1；状态值由 `QwtPickerDragRectMachine` 通过 `setState()` 赋予：状态 0（空闲）与状态 2（拖拽出实时矩形）：
+下图与点击矩形状态机形成对照：它完全跳过状态 1；状态值由 `QwtPickerDragRectMachine` 通过 `setState()` 赋予：状态 0（空闲）与状态 2（拖拽出实时矩形）：
 
 ```mermaid
 stateDiagram-v2
@@ -492,7 +492,7 @@ stateDiagram-v2
 
 #### 状态转换图
 
-下面的状态转换图展示了这一两点拖拽过程；状态 0 与状态 1 由 `QwtPickerDragLineMachine` 自己的 `setState()` 调用定义——分别表示空闲与正在拖拽线段终点：
+下面的状态转换图展示了这一两点拖拽过程；状态 0 与状态 1 由 `QwtPickerDragLineMachine` 自己的 `setState()` 调用定义，分别表示空闲与正在拖拽线段终点：
 
 ```mermaid
 stateDiagram-v2
@@ -549,6 +549,4 @@ stateDiagram-v2
 
 ## 总结
 
-`QwtPicker`的状态机机制提供了一种**优雅且强大**的方式来处理复杂的用户交互序列。通过选择合适的预定义状态机，我们可以轻松实现各种交互模式，而无需编写复杂的事件处理逻辑。
-
-理解状态机的工作原理不仅有助于正确使用QwtPicker，还能在需要自定义交互时，快速实现符合需求的状态机。
+所有内置状态机都把事件映射为同样的五个命令（begin、append、move、remove、end），各自定义自己的状态值。新增交互模式时，继承 QwtPickerMachine 并实现 transition() 即可，`QwtPicker` 本身不需要修改。

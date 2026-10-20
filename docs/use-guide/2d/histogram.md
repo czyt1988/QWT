@@ -4,8 +4,6 @@
 
 ## Key Features
 
-**Features**
-
 - Multiple display styles: Supports outline, column, and line drawing modes
 - Interval data structure: Uses interval+value data format, suitable for statistical distributions
 - Symbol customization: Configurable display style for each interval column

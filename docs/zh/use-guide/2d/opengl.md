@@ -1,6 +1,6 @@
 # 使用 OpenGL
 
-QWT 通过 OpenGL 画布提供硬件加速渲染。本页介绍 CMake 配置以及 `QwtPlotOpenGLCanvas` 的使用方法。
+QWT 通过 OpenGL 画布提供硬件加速渲染。`QwtPlotOpenGLCanvas` 是 OpenGL 画布类，使用时需要下面的 CMake 配置。
 
 ## CMake 配置
 
@@ -27,7 +27,7 @@ endif()
 
 ## QwtPlotOpenGLCanvas
 
-`QwtPlotOpenGLCanvas` 是继承自 `QOpenGLWidget` 的画布控件。它并没有为曲线建立原生的 shader/VBO 管线——所有 plot item 仍由 `QPainter`（Qt 的 OpenGL2 paint engine）绘制到离屏 FBO，再经 MSAA resolve、blit 与纹理合成上屏，折线细分发生在 CPU 侧、GPU 负责填充。它的收益集中在重载多曲线、大画布场景的 item 绘制段，同时每帧要付出固定的合成开销；单曲线小数据量或增量重绘场景下，默认的 `QwtPlotCanvas` 反而更稳。定量依据见技术报告[《Raster 与 OpenGL 渲染管线》](../../tech-report/raster-vs-opengl.md)。
+`QwtPlotOpenGLCanvas` 是继承自 `QOpenGLWidget` 的画布控件。它并没有为曲线建立原生的 shader/VBO 管线：所有 plot item 仍由 `QPainter`（Qt 的 OpenGL2 paint engine）绘制到离屏 FBO，再经 MSAA resolve、blit 与纹理合成上屏。折线细分发生在 CPU 侧，GPU 负责填充。它的优势集中在重载多曲线、大画布场景的 item 绘制段，代价是每帧固定的合成开销；单曲线小数据量或增量重绘场景下，默认的 `QwtPlotCanvas` 反而更稳。定量依据见技术报告[《Raster 与 OpenGL 渲染管线》](../../tech-report/raster-vs-opengl.md)。
 
 ### 基本用法
 
@@ -106,8 +106,8 @@ plot->setCanvas(canvas);
 
 > **示例 — 相关示例**
 >
-> - `examples/2D/realtime` — 高吞吐量的实时绘图
-> - `examples/2D/oscilloscope` — 示波器风格的波形显示
+> - `examples/2D/realtime`，高吞吐量的实时绘图
+> - `examples/2D/oscilloscope`，示波器风格的波形显示
 
 实时绘图与示波器的例子截图如下：
 

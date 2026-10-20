@@ -90,7 +90,7 @@ QVector<double> yOnly = {10, 20, 15, 25, 30};
 QwtPlotCurve* curve3 = QwtPlotFactory::createCurve(plot, "Index Curve", yOnly);
 ```
 
-The factory methods handle the entire workflow: create → set data → bind axes → attach. The returned pointer can be further customized.
+The factory methods create the item, set its data, bind the axes, and attach it to the plot. The returned pointer can be further customized.
 
 ### Creating Bar Charts and Histograms
 
@@ -170,11 +170,11 @@ QwtPlotArrowMarker* arrow = QwtPlotFactory::createArrowMarker(
 
 > **Tip — Complete Factory Method List**
 >
-> `QwtPlotFactory` covers all **9 data plot items** and **7 decorator items**. See the API documentation for the full list.
+> `QwtPlotFactory` covers all 9 data plot items and 7 decorator items. See the API documentation for the full list.
 
 ## QwtPlotItemInfo — Type Queries
 
-`QwtPlotItemInfo` is used to query item types and filter items. It **never modifies** any plot or item state.
+`QwtPlotItemInfo` is used to query item types and filter items. It never modifies any plot or item state.
 
 ### Type Checks
 
@@ -343,7 +343,7 @@ qDebug() << "Removed" << removed << "samples";
 
 ## QwtPlotTransform — Coordinate Transformations
 
-`QwtPlotTransform` provides conversions between coordinate systems. All methods are read-only and **never modify** plot state.
+`QwtPlotTransform` provides conversions between coordinate systems. All methods are read-only and never modify plot state.
 
 ### Cross-Axis Transformation
 
@@ -390,7 +390,7 @@ This is useful for implementing drag, nudge, or other pixel-precision interactio
 
 ### Visible Range
 
-`visibleRange()` reports the data rectangle currently shown on the canvas, while `totalDataRange()` computes the union of the data items' bounding rectangles — its `onlyVisible` flag (default `true`) controls whether hidden items are included:
+`visibleRange()` reports the data rectangle currently shown on the canvas, while `totalDataRange()` computes the union of the data items' bounding rectangles; its `onlyVisible` flag (default `true`) controls whether hidden items are included:
 
 ```cpp
 // Get the currently visible data range
@@ -584,7 +584,7 @@ plot->setStyleSheet(QString::fromUtf8(css.readAll()));
 
 ## Higher-Level Wrapper: QwtPyPlot
 
-If you are familiar with matplotlib's interface style, you can use [QwtPyPlot](pyplot-api.md) for a more concise plotting experience. `QwtPyPlot` uses the utility classes described above internally, but provides a one-stop interface similar to `plt.plot()`:
+If you are familiar with matplotlib's interface style, [QwtPyPlot](pyplot-api.md) offers a more compact plotting interface. `QwtPyPlot` uses the utility classes described above internally, but exposes a single interface similar to `plt.plot()`:
 
 ```cpp
 #include <QwtPyPlot>

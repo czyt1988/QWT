@@ -1,6 +1,6 @@
 # 第一个绘图 - QwtPlot 入门
 
-本教程将帮助你快速上手 Qwt 绘图库，通过一个简单的示例了解 QwtPlot 的基本使用方法。
+一个最小的 Qwt 程序会创建 QwtPlot 窗口、挂上网格与曲线，然后调用 replot() 显示数据。
 
 ## QwtPlot 基础概念
 
@@ -78,15 +78,13 @@ flowchart TD
 
 ## 最简单的示例
 
-下面的示例展示了 QwtPlot 的最基本用法：
-
 简单绘图的例子位于:`examples/2D/simpleplot`，例子截图如下：
 
 ![Simple Plot](../../assets/screenshots/simpleplot.png)
 
 ### 完整代码
 
-下面的完整示例把所有零件拼在一起：先构造 `QwtPlot` 窗口，再挂载 `QwtPlotGrid` 网格和一条带 `QwtSymbol` 符号的 `QwtPlotCurve` 曲线，通过 `setSamples()` 喂入若干 `QPointF` 数据点，最后显示窗口——整个程序只有 40 行左右：
+下面的完整示例把各部分组合起来：先构造 `QwtPlot` 窗口，再挂载 `QwtPlotGrid` 网格和一条带 `QwtSymbol` 符号的 `QwtPlotCurve` 曲线，通过 `setSamples()` 喂入若干 `QPointF` 数据点，最后显示窗口，整个程序只有 40 行左右。
 
 ```cpp
 #include <QwtPlot>
@@ -192,7 +190,7 @@ curve->setRenderHint(QwtPlotItem::RenderAntialiased, true);
 
 #### 4. 设置数据点符号
 
-想在每个数据点上画出形状，就构造一个 `QwtSymbol`——这里是 `Ellipse` 椭圆、黄色填充、红色边框、8×8 像素大小——再用 `setSymbol()` 交给曲线：
+想在每个数据点上画出形状，就构造一个 `QwtSymbol`（这里使用 `Ellipse` 椭圆、黄色填充、红色边框、8×8 像素大小），再用 `setSymbol()` 交给曲线：
 
 ```cpp
 QwtSymbol* symbol = new QwtSymbol(
@@ -214,7 +212,7 @@ curve->setSymbol(symbol);
 
 #### 5. 设置曲线数据
 
-数据通过 `setSamples()` 送进曲线，最简单的重载形式是传入一个装满 `QPointF` 的 `QPolygonF`，如下所示：
+数据通过 `setSamples()` 送进曲线，最简单的重载接受一个包含 `QPointF` 的 `QPolygonF`，如下所示：
 
 ```cpp
 QPolygonF points;
@@ -237,7 +235,7 @@ curve->setSamples(points);
 
 #### 6. 设置坐标轴
 
-最后用 `setAxisScale()` 把某个坐标轴——以 `QwtAxis::Position` 枚举指定，如 `QwtAxis::YLeft`——固定在给定范围内，而不是让 Qwt 根据数据自动计算：
+最后用 `setAxisScale()` 把某个坐标轴（以 `QwtAxis::Position` 枚举指定，如 `QwtAxis::YLeft`）固定在给定范围内，而不是让 Qwt 根据数据自动计算：
 
 ```cpp
 plot.setAxisScale(QwtAxis::YLeft, 0.0, 10.0);
