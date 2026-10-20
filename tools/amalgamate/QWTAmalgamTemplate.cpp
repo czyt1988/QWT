@@ -63,6 +63,7 @@
 #include "../../src/plot/qwt_abstract_scale_draw.cpp"
 #include "../../src/plot/qwt_scale_draw.cpp"
 #include "../../src/plot/qwt_scale_widget.cpp"
+#include "../../src/plot/qwt_scale_corner.cpp"
 #include "../../src/plot/qwt_abstract_scale.cpp"
 #include "../../src/plot/qwt_abstract_slider.cpp"
 #include "../../src/plot/qwt_slider.cpp"

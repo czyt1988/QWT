@@ -60,6 +60,7 @@
 #include "../../src/plot/qwt_sampling_thread.h"
 #include "../../src/plot/qwt_scale_draw.h"
 #include "../../src/plot/qwt_scale_widget.h"
+#include "../../src/plot/qwt_scale_corner.h"
 #include "../../src/plot/qwt_abstract_scale_draw.h"
 #include "../../src/plot/qwt_abstract_scale.h"
 #include "../../src/plot/qwt_abstract_slider.h"

@@ -8,9 +8,15 @@ class TestAxisCorner : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
+    void testComposeFixtureClips();
     void testCornerIntersection();
     void testTickDoesNotCrossBackbone();
     void testNoMiterStubWithoutNeighbour();
+    void testCornerWithTicksInsideBorder();
+    void testPenWidthDeviceContract();
+    void testLayoutMatrix();
+    void testRendererDeterminism();
+    void testParasiteCorner();
 };
 
 #endif

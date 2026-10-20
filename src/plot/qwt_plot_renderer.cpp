@@ -30,6 +30,7 @@
 #include "qwt_plot_layout.h"
 #include "qwt_abstract_legend.h"
 #include "qwt_scale_widget.h"
+#include "qwt_scale_corner.h"
 #include "qwt_scale_engine.h"
 #include "qwt_scale_map.h"
 #include "qwt_text.h"
@@ -760,8 +761,48 @@ void QwtPlotRenderer::renderScale(const QwtPlot* plot,
 
     const bool hasBackbone = sd->hasComponent(QwtAbstractScaleDraw::Backbone);
 
-    if (d->layoutFlags & FrameWithScales)
+    const QwtScaleDraw::CornerMiter sdMiter     = sd->cornerMiter();
+    const QwtScaleDraw::CornerTargets sdTargets = sd->cornerTargets();
+
+    if (d->layoutFlags & FrameWithScales) {
         sd->enableComponent(QwtAbstractScaleDraw::Backbone, false);
+        sd->setCornerMiter(QwtScaleDraw::NoMiter);
+        sd->setCornerTargets(QwtScaleDraw::CornerTargets());
+    } else {
+        /*
+            Set the corner miter and its targets explicitly: the scale draw is
+            shared with the axis widget, so exporting must not depend on what
+            a previous paint of the widgets left behind. The targets are
+            derived from the plot layout rectangles the renderer activated,
+            not from the widget geometries.
+         */
+        const QwtScaleDraw::CornerMiter miter = QwtScaleCorner::miterFlags(plot, axisId);
+        sd->setCornerMiter(miter);
+
+        QwtScaleDraw::CornerTargets targets;
+        if (miter != QwtScaleDraw::NoMiter) {
+            const QTransform tr = painter->deviceTransform();
+
+            const QwtScaleCorner::Targets positions =
+                QwtScaleCorner::layoutTargetPositions(plot, axisId, qAbs(tr.m11()));
+
+            const bool vertical = QwtAxis::isYAxis(axisId);
+            const auto toDevice = [&tr, vertical](qreal v) -> qreal {
+                if (qIsNaN(v))
+                    return v;
+
+                return vertical ? qRound(tr.map(QPointF(0.0, v)).y())
+                                : qRound(tr.map(QPointF(v, 0.0)).x());
+            };
+
+            targets.startOuter = toDevice(positions.startOuter);
+            targets.startInner = toDevice(positions.startInner);
+            targets.endOuter   = toDevice(positions.endOuter);
+            targets.endInner   = toDevice(positions.endInner);
+        }
+
+        sd->setCornerTargets(targets);
+    }
 
     sd->move(x, y);
     sd->setLength(w);
@@ -774,6 +815,8 @@ void QwtPlotRenderer::renderScale(const QwtPlot* plot,
     sd->move(sdPos);
     sd->setLength(sdLength);
     sd->enableComponent(QwtAbstractScaleDraw::Backbone, hasBackbone);
+    sd->setCornerMiter(sdMiter);
+    sd->setCornerTargets(sdTargets);
 
     painter->restore();
 }

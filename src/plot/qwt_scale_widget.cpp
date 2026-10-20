@@ -28,6 +28,7 @@
 #include "qwt_painter.h"
 #include "qwt_plot.h"
 #include "qwt_color_map.h"
+#include "qwt_scale_corner.h"
 #include "qwt_scale_map.h"
 #include "qwt_math.h"
 #include "qwt_scale_div.h"
@@ -62,6 +63,7 @@ public:
 
     int borderDist[ 2 ];
     int minBorderDist[ 2 ];
+    int cornerExt[ 2 ] { 0, 0 };
     int scaleLength { 0 };
     int margin { 0 };
     int edgeMargin { 0 };
@@ -569,34 +571,45 @@ void QwtScaleWidget::draw(QPainter* painter) const
     /*
         Extend the backbone into the canvas corners that are shared with
         a visible perpendicular axis, so that both backbones intersect
-        instead of ending in a diagonal step.
+        instead of ending in a diagonal step. The extension reaches the
+        actual position of the perpendicular backbone instead of a fixed
+        guess, so the corner closes for any border distance, pen width and
+        device pixel ratio. QwtPlot::doLayout() reserves the corner pixels
+        inside the widget rectangle (see setCornerExtension()), otherwise
+        the extension would be clipped away here.
      */
     if (const QwtPlot* plot = qobject_cast<const QwtPlot*>(parentWidget())) {
-        QwtAxisId startAxis, endAxis;
-        if (m_data->scaleDraw->orientation() == Qt::Vertical) {
-            startAxis = QwtAxis::XTop;
-            endAxis   = QwtAxis::XBottom;
-        } else {
-            startAxis = QwtAxis::YLeft;
-            endAxis   = QwtAxis::YRight;
+        QwtScaleDraw* sd = const_cast<QwtScaleDraw*>(m_data->scaleDraw.get());
+
+        const QwtAxisId axisId                = axisID();
+        const QwtScaleDraw::CornerMiter miter = QwtScaleCorner::miterFlags(plot, axisId);
+        // the miter and its targets are pure paint-time state of our scale draw
+        sd->setCornerMiter(miter);
+
+        QwtScaleDraw::CornerTargets targets;
+        if (miter != QwtScaleDraw::NoMiter) {
+            const QwtScaleCorner::Targets positions = QwtScaleCorner::widgetTargetPositions(plot, axisId);
+
+            // logical plot coordinates -> device coordinates of this painter
+            const QPoint origin = pos();
+            const QTransform tr = painter->deviceTransform();
+
+            const auto toDevice = [&](qreal v) -> qreal {
+                if (qIsNaN(v))
+                    return v;
+
+                return m_data->scaleDraw->orientation() == Qt::Vertical
+                    ? qRound(tr.map(QPointF(0.0, v - origin.y())).y())
+                    : qRound(tr.map(QPointF(v - origin.x(), 0.0)).x());
+            };
+
+            targets.startOuter = toDevice(positions.startOuter);
+            targets.startInner = toDevice(positions.startInner);
+            targets.endOuter   = toDevice(positions.endOuter);
+            targets.endInner   = toDevice(positions.endInner);
         }
 
-        const auto meetsBackbone = [plot](QwtAxisId axisId) {
-            if (!plot->isAxisVisible(axisId))
-                return false;
-
-            const QwtScaleDraw* sd = plot->axisScaleDraw(axisId);
-            return sd && sd->hasComponent(QwtAbstractScaleDraw::Backbone);
-        };
-
-        QwtScaleDraw::CornerMiter miter = QwtScaleDraw::NoMiter;
-        if (meetsBackbone(startAxis))
-            miter |= QwtScaleDraw::MiterAtStart;
-        if (meetsBackbone(endAxis))
-            miter |= QwtScaleDraw::MiterAtEnd;
-
-        // the miter is a pure paint-time flag of our own scale draw
-        const_cast<QwtScaleDraw*>(m_data->scaleDraw.get())->setCornerMiter(miter);
+        sd->setCornerTargets(targets);
     }
 
     m_data->scaleDraw->draw(painter, palette());
@@ -776,6 +789,15 @@ void QwtScaleWidget::layoutScale(bool update_geometry)
         bd0 = m_data->borderDist[ 0 ];
     if (m_data->borderDist[ 1 ] > bd1)
         bd1 = m_data->borderDist[ 1 ];
+
+    /*
+        The corner extension reserves space at the widget borders for the
+        backbone miter into the corners (see setCornerExtension()). Adding it
+        to the border distances keeps position and length of the scale - and
+        with it the scale maps of the plot - unaffected by the reservation.
+     */
+    bd0 += m_data->cornerExt[ 0 ];
+    bd1 += m_data->cornerExt[ 1 ];
 
     int colorBarWidth = 0;
     if (m_data->colorBar.isEnabled && m_data->colorBar.interval.isValid())
@@ -1262,6 +1284,30 @@ void QwtScaleWidget::getBorderDistHint(int& start, int& end) const
 
     if (end < m_data->minBorderDist[ 1 ])
         end = m_data->minBorderDist[ 1 ];
+}
+
+/**
+ * @brief Reserve logical pixels at the scale ends for the backbone corner miter
+ * @param start Reservation at the beginning of the scale (top/left)
+ * @param end Reservation at the end of the scale (bottom/right)
+ * @details The backbone miter into a corner shared with a perpendicular axis
+ *          is clipped away when it leaves the widget rectangle. QwtPlot grows
+ *          the widget rectangle by the reservation computed from
+ *          QwtScaleCorner::widgetExtensions() and passes the same values here,
+ *          so that layoutScale() can absorb them into the border distances:
+ *          position and length of the scale - and with it the alignment to
+ *          the canvas - stay unaffected.
+ */
+void QwtScaleWidget::setCornerExtension(int start, int end)
+{
+    start = qMax(0, start);
+    end   = qMax(0, end);
+
+    if (start != m_data->cornerExt[ 0 ] || end != m_data->cornerExt[ 1 ]) {
+        m_data->cornerExt[ 0 ] = start;
+        m_data->cornerExt[ 1 ] = end;
+        layoutScale();
+    }
 }
 
 /**

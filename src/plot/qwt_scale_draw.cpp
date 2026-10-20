@@ -43,18 +43,32 @@ namespace
 /*
     Backbone and ticks are filled as device pixel aligned rectangles instead of
     being stroked with a pen: every edge lands on an integer device coordinate,
-    so the scale renders as crisp hairlines at any device pixel ratio and the
-    pen width truncates to whole device pixels (a width of 1.0 always paints
-    a single device pixel wide line).
+    so the scale renders as crisp hairlines at any device pixel ratio.
+
+    The pen width is a device pixel contract: it is rounded to whole device
+    pixels without being scaled by the device pixel ratio, so setPenWidthF(1.0)
+    paints a one device pixel wide line at any scaling (0.0 maps to 1 as well).
+    Tick lengths, in contrast, stay in logical pixels and are scaled by the
+    device pixel ratio (see qwtDeviceTickLength()).
  */
-inline int qwtDevicePenWidth(const QPainter* painter, qreal deviceStep)
+inline int qwtDevicePenWidth(const QPainter* painter)
 {
-    return qMax(1, static_cast<int>(painter->pen().widthF() * deviceStep + 1e-6));
+    return qMax(1, qRound(painter->pen().widthF() + 1e-6));
 }
 
 inline int qwtDeviceTickLength(qreal length, qreal deviceStep)
 {
     return qMax(1, qRound(length * deviceStep));
+}
+
+/*
+    Device position a corner miter reaches: the target of the perpendicular
+    backbone when one is set, otherwise the historical one pixel beyond the
+    end of the scale.
+ */
+inline int qwtCornerMiterPos(qreal target, int fallback)
+{
+    return qIsNaN(target) ? fallback : qRound(target);
 }
 
 inline void qwtFillDeviceRect(QPainter* painter, const QRect& deviceRect)
@@ -96,6 +110,14 @@ public:
     double labelRotation;
 
     QwtScaleDraw::CornerMiter cornerMiter { QwtScaleDraw::NoMiter };
+
+    /*
+        Device coordinates ( y for vertical, x for horizontal scales ) of the
+        perpendicular backbone bands the miter has to reach at the start/end
+        of the scale. qQNaN() falls back to extending one pixel beyond the
+        end of the scale.
+     */
+    QwtScaleDraw::CornerTargets cornerTargets;
 };
 
 /**
@@ -136,6 +158,34 @@ QwtScaleDraw::CornerMiter QwtScaleDraw::cornerMiter() const
 {
     QWT_DC(d);
     return d->cornerMiter;
+}
+
+/**
+ * @brief Set the corner miter target positions
+ * @param targets Target positions in device coordinates
+ * @details When a miter flag is set and its outer target is valid, the
+ *          backbone is extended exactly to that position instead of one
+ *          pixel beyond the end of the scale; border ticks snap to the
+ *          inner targets. QwtScaleWidget and QwtPlotRenderer compute the
+ *          targets from the geometry of the perpendicular axes; standalone
+ *          use keeps them unset and the historical fallback.
+ * @sa setCornerMiter(), cornerTargets(), CornerTargets
+ */
+void QwtScaleDraw::setCornerTargets(const CornerTargets& targets)
+{
+    QWT_D(d);
+    d->cornerTargets = targets;
+}
+
+/**
+ * @brief Get the corner miter target positions
+ * @return Target positions in device coordinates, qQNaN() when unset
+ * @sa setCornerTargets()
+ */
+QwtScaleDraw::CornerTargets QwtScaleDraw::cornerTargets() const
+{
+    QWT_DC(d);
+    return d->cornerTargets;
 }
 
 /**
@@ -482,7 +532,7 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
     switch (d->alignment) {
     case LeftScale:
     case RightScale: {
-        const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sx) : 0;
+        const int pw      = hasBackbone ? qwtDevicePenWidth(painter) : 0;
         const int inner   = qRound(qwtDeviceX(tr, d->pos.x()));
         const int tickLen = qwtDeviceTickLength(len, sx);
 
@@ -496,23 +546,28 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
             w  = tickLen + pw;
         }
 
-        const int th = qwtDevicePenWidth(painter, sy);
+        const int th = qwtDevicePenWidth(painter);
         int row      = qRound(qwtDeviceY(tr, tval));
 
         // a tick at the scale border sits on the perpendicular backbone
         const int first = qRound(qwtDeviceY(tr, d->pos.y()));
         const int last  = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
-        if (row == first && (d->cornerMiter & MiterAtStart))
-            row = qRound(qwtDeviceY(tr, d->pos.y() - 1.0));
-        else if (row == last && (d->cornerMiter & MiterAtEnd))
-            row = qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0));
+        if (row == first && (d->cornerMiter & MiterAtStart)) {
+            const qreal target = qIsNaN(d->cornerTargets.startInner)
+                ? d->cornerTargets.startOuter : d->cornerTargets.startInner;
+            row = qwtCornerMiterPos(target, qRound(qwtDeviceY(tr, d->pos.y() - 1.0)));
+        } else if (row == last && (d->cornerMiter & MiterAtEnd)) {
+            const qreal target = qIsNaN(d->cornerTargets.endInner)
+                ? d->cornerTargets.endOuter : d->cornerTargets.endInner;
+            row = qwtCornerMiterPos(target, qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0)));
+        }
 
         qwtFillDeviceRect(painter, QRect(x0, row - (th - 1) / 2, w, th));
         break;
     }
     case TopScale:
     case BottomScale: {
-        const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sy) : 0;
+        const int pw      = hasBackbone ? qwtDevicePenWidth(painter) : 0;
         const int inner   = qRound(qwtDeviceY(tr, d->pos.y()));
         const int tickLen = qwtDeviceTickLength(len, sy);
 
@@ -525,16 +580,21 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
             h  = tickLen + pw;
         }
 
-        const int th = qwtDevicePenWidth(painter, sx);
+        const int th = qwtDevicePenWidth(painter);
         int col      = qRound(qwtDeviceX(tr, tval));
 
         // a tick at the scale border sits on the perpendicular backbone
         const int first = qRound(qwtDeviceX(tr, d->pos.x()));
         const int last  = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
-        if (col == first && (d->cornerMiter & MiterAtStart))
-            col = qRound(qwtDeviceX(tr, d->pos.x() - 1.0));
-        else if (col == last && (d->cornerMiter & MiterAtEnd))
-            col = qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0));
+        if (col == first && (d->cornerMiter & MiterAtStart)) {
+            const qreal target = qIsNaN(d->cornerTargets.startInner)
+                ? d->cornerTargets.startOuter : d->cornerTargets.startInner;
+            col = qwtCornerMiterPos(target, qRound(qwtDeviceX(tr, d->pos.x() - 1.0)));
+        } else if (col == last && (d->cornerMiter & MiterAtEnd)) {
+            const qreal target = qIsNaN(d->cornerTargets.endInner)
+                ? d->cornerTargets.endOuter : d->cornerTargets.endInner;
+            col = qwtCornerMiterPos(target, qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0)));
+        }
 
         qwtFillDeviceRect(painter, QRect(col - (th - 1) / 2, y0, th, h));
         break;
@@ -554,22 +614,20 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
 {
     QWT_DC(d);
     const QTransform tr = painter->deviceTransform();
-    const qreal sx      = qAbs(tr.m11());
-    const qreal sy      = qAbs(tr.m22());
 
     switch (d->alignment) {
     case LeftScale:
     case RightScale: {
-        const int pw    = qwtDevicePenWidth(painter, sx);
+        const int pw    = qwtDevicePenWidth(painter);
         const int inner = qRound(qwtDeviceX(tr, d->pos.x()));
         const int x0    = (d->alignment == LeftScale) ? inner - pw + 1 : inner;
 
         int y0 = qRound(qwtDeviceY(tr, d->pos.y()));
         int y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
         if (d->cornerMiter & MiterAtStart)
-            y0 = qRound(qwtDeviceY(tr, d->pos.y() - 1.0));
+            y0 = qMin(y0, qwtCornerMiterPos(d->cornerTargets.startOuter, qRound(qwtDeviceY(tr, d->pos.y() - 1.0))));
         if (d->cornerMiter & MiterAtEnd)
-            y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0));
+            y1 = qMax(y1, qwtCornerMiterPos(d->cornerTargets.endOuter, qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0))));
 
         // the length can be negative (QwtPolarGrid)
         qwtFillDeviceRect(painter, QRect(x0, qMin(y0, y1), pw, qAbs(y1 - y0) + 1));
@@ -577,16 +635,16 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
     }
     case TopScale:
     case BottomScale: {
-        const int pw    = qwtDevicePenWidth(painter, sy);
+        const int pw    = qwtDevicePenWidth(painter);
         const int inner = qRound(qwtDeviceY(tr, d->pos.y()));
         const int y0    = (d->alignment == TopScale) ? inner - pw + 1 : inner;
 
         int x0 = qRound(qwtDeviceX(tr, d->pos.x()));
         int x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
         if (d->cornerMiter & MiterAtStart)
-            x0 = qRound(qwtDeviceX(tr, d->pos.x() - 1.0));
+            x0 = qMin(x0, qwtCornerMiterPos(d->cornerTargets.startOuter, qRound(qwtDeviceX(tr, d->pos.x() - 1.0))));
         if (d->cornerMiter & MiterAtEnd)
-            x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0));
+            x1 = qMax(x1, qwtCornerMiterPos(d->cornerTargets.endOuter, qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0))));
 
         // the length can be negative (QwtPolarGrid)
         qwtFillDeviceRect(painter, QRect(qMin(x0, x1), y0, qAbs(x1 - x0) + 1, pw));
