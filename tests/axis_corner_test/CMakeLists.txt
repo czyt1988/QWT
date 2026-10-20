@@ -46,6 +46,16 @@ set_target_properties(${QWT_TEST_NAME} PROPERTIES
 enable_testing()
 add_test(NAME ${QWT_TEST_NAME} COMMAND ${QWT_TEST_NAME})
 
+# The corner geometry depends on the device pixel ratio, and QT_SCALE_FACTOR
+# must be set before QApplication is constructed, so every ratio runs in its
+# own process (see main() in test_axis_corner.cpp).
+set_tests_properties(${QWT_TEST_NAME} PROPERTIES
+    ENVIRONMENT "QWT_TEST_SCALE_FACTOR=1.0")
+
+add_test(NAME ${QWT_TEST_NAME}_dpr2_0 COMMAND ${QWT_TEST_NAME})
+set_tests_properties(${QWT_TEST_NAME}_dpr2_0 PROPERTIES
+    ENVIRONMENT "QWT_TEST_SCALE_FACTOR=2.0")
+
 install(TARGETS ${QWT_TEST_NAME}
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION bin
