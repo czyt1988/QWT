@@ -285,6 +285,8 @@ const bool doAlign = !doFit
 
 这样既保留非抗锯齿光栅绘制的现有行为，又让 PDF/SVG 与带变换的画笔继续走亚像素路径，同时在真正有害的情形下移除该标志。同样的考量适用于 `drawDots()` 与图例图标渲染；`FilterPointsAggressive` 的调用方也需要检查，因为 aggressive 路径目前只能通过 `RoundPoints` 到达。
 
+*更新：*上述规则现已在库中落地。`drawLines()`、`drawDots()` 与图例图标都改为仅在画笔未开启抗锯齿时对齐像素；`WeedOutIntermediatePoints` 不再依赖 `RoundPoints`——激进去重路径内部自带设备像素取整，在抗锯齿下仍然可达。上文的一切测量数字与"只能通过 `RoundPoints` 到达"的表述描述的是修复前的 v7.5.0 行为。
+
 ## 8. 复现
 
 本文的一切都可由仓库重新生成：

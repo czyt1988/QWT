@@ -285,6 +285,8 @@ const bool doAlign = !doFit
 
 This preserves the existing behaviour for non-antialiased raster painting, keeps PDF/SVG and transformed painters on the sub-pixel path, and removes the flag for exactly the case where it does harm. The same consideration applies to `drawDots()` and to legend icon rendering, and `FilterPointsAggressive` callers must be checked because the aggressive path is currently reachable only through `RoundPoints`.
 
+*Update:* this rule has since been implemented in the library. `drawLines()`, `drawDots()` and the legend icon align to pixels only when the painter does not antialias, and `WeedOutIntermediatePoints` no longer depends on `RoundPoints` — the quad weeding path rounds to device pixels internally and stays reachable under antialiasing. The measurements and the "reachable only through RoundPoints" statement above describe the pre-fix v7.5.0 behaviour.
+
 ## 8. Reproduction
 
 Everything in this report is regenerated from the repository:
