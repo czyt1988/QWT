@@ -885,6 +885,11 @@ void QwtPlot::doLayout()
             r.setRight(r.right() + extEnd);
         }
         scaleWidget->setGeometry(r);
+
+        // like in the geometry pass above: hidden widgets relayout only once
+        // they are shown, so refresh the scale geometry right away
+        if (!scaleWidget->isVisible())
+            scaleWidget->layoutScale(false);
     }
 
     // Outside axis titles (QwtScaleWidget::TitleOutside) are painted by
