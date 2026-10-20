@@ -1,15 +1,15 @@
 # Pixel Snapping in the Curve Pipeline: `QwtPointMapper::RoundPoints` and the Dense-Curve Staircase
 
-> **Abstract** — Dense and sparse samples of the same smooth curve should look the same on screen. They do not: in QWT 7.5.0 a spectral line stored with 200,000 samples renders as a visibly stepped polyline in a 14-unit zoom, while the same line shape stored with 18,600 samples renders smoothly, with antialiasing enabled in both cases. The effect comes from `QwtPointMapper::RoundPoints`, a transformation flag that snaps every mapped vertex to the device pixel grid, and from `QwtPlotCurve::drawLines()`, which enables it for every raster painter, including antialiased ones. The snapping operation is formalized and shown to destroy the sub-pixel information an antialiasing rasterizer needs; its cost is measured per reduction path on one million samples, and its visual signature is quantified in rendered images: on the dense curve the fraction of antialiasing blend pixels drops from 0.55 to 0.28 when snapping is enabled, while the sparse curve is unaffected. The measurements lead to a selection rule for the library and to a list of the paths that still depend on the flag.
+> **Abstract** — Two samplings of the same smooth curve should draw the same picture. In QWT they did not: with antialiasing enabled, a spectral line stored with 200,000 samples showed a visible staircase in a 14-unit zoom, while the same line shape stored with 18,600 samples was smooth. The effect traces back to the Qwt 6.2 base. `QwtPainter::roundingAlignment()` defaults to `true`; `QwtPainter::isAligning()` only asks whether the paint engine floors coordinates to integers, never whether the painter antialiases; and `QwtPlotCurve::drawLines()` therefore switched on `QwtPointMapper::RoundPoints` for an antialiased widget canvas. Snapping is formalized below and shown to erase the sub-pixel geometry the rasterizer needs for coverage. QWT 7 fixes the problem in two layers: the 7.x series adds reduction algorithms that keep sub-pixel coordinates (pixel column, true LTTB, MinMax buckets, adaptive), and the policy introduced after v7.5.1 aligns to pixels only when the painter does not antialias, with `WeedOutIntermediatePoints` decoupled from `RoundPoints`. Re-running the demo with the library default now reproduces the alignment-off blend ratio exactly (0.5470 at the dense peak shoulder, against 0.284 with snapping); the sparse peak measures 0.568 in both builds, and `FilterPointsAggressive` still collapses 199,751 vertices to 7,384. The cost of snapping is measured per reduction path on one million samples, and its geometric and visual signatures are quantified.
 
 > **Abstract — Key results**
 >
 > - `RoundPoints` computes `round(p * DPR) / DPR` per coordinate. At device pixel ratio (DPR) 1 this quantizes to whole pixels; at DPR 2 the step is half a logical unit, which is still one whole device pixel.
 > - On one million samples with no reduction the flag costs +35 % mapper time (14.2 ms to 19.2 ms) and produces no fewer vertices; it is not a performance optimization by itself.
 > - After LTTB, MinMax or Adaptive reduction the cost is within measurement noise (−1 % to +2 %), because only the few thousand selected vertices are rounded.
-> - Snapping turns 99.9 % of the mapped polyline into exactly horizontal or vertical segments on a smooth dense signal; without snapping the figure is 0 %. The staircase is therefore a property of the geometry handed to `QPainter`, not of the rasterizer.
+> - Snapping turns 99.9 % of the mapped polyline into exactly horizontal or vertical segments on a smooth dense signal; without snapping the figure is 0 %. The staircase is a property of the geometry handed to `QPainter`, not of the rasterizer.
 > - In rendered images the antialiasing blend ratio of the dense peak shoulder falls from 0.547 (snapping off) to 0.284 (snapping on). The sparse peak stays at 0.568 in both configurations: it never had enough samples per column to trigger the effect.
-> - Recommended library rule: align only when the painter does not antialias. Antialiased raster, PDF and SVG output must keep sub-pixel coordinates.
+> - QWT 7 policy, implemented after v7.5.1: align only when the painter does not antialias. Antialiased raster, PDF and SVG output keep sub-pixel coordinates.
 
 ---
 
@@ -25,20 +25,57 @@ The dense spectrum shows a staircase: every few pixel rows the drawn edge jumps 
 
 *Figure 1 — The rising flank of the tallest peak, 5x nearest-neighbour magnification. Left to right: dense samples with pixel alignment on, dense with alignment off, sparse with alignment on, sparse with alignment off. Antialiasing is enabled in all four renders; the axis grid is visible behind the curve.*
 
-The immediate suspicion, "antialiasing is off", is wrong. Figure 1 shows blend pixels along every edge in all four panels. What changes between the panels is the geometry the rasterizer receives, not the rasterizer's settings.
+The immediate suspicion, that antialiasing is off, is wrong. Figure 1 shows blend pixels along every edge in all four panels. What changes between the panels is the geometry the rasterizer receives.
 
-### 1.2 Scope and method
+### 1.2 Why QWT 6 renders it this way
 
-Four questions frame the analysis:
+The code path behind the staircase comes from Qwt 6.2, the upstream release this branch started from. Three decisions combine.
+
+The first is the default of the global switch (`src/plot/qwt_painter.cpp`):
+
+```cpp
+bool QwtPainter::m_roundingAlignment = true;
+```
+
+The second is the condition inside `QwtPainter::isAligning()`. It returns `false` for PDF, SVG and unknown paint engines, and for painters with a rotating or scaling transform. Integer-flooring raster engines pass, and the function never inspects `QPainter::Antialiasing`:
+
+```cpp
+const QPaintEngine::Type type = painter->paintEngine()->type();
+// PDF, SVG, QPaintEngine::User and transformed painters return false
+return true;
+```
+
+The third is the wiring in `QwtPlotCurve::drawLines()`: when the combined switch is on, the curve enables `RoundPoints`, and with `FilterPointsAggressive` also `WeedOutIntermediatePoints`:
+
+```cpp
+const bool doAlign = !doFit && QwtPainter::roundingAlignment(painter);
+...
+if (doAlign) {
+    mapper.setFlag(QwtPointMapper::RoundPoints, true);
+    mapper.setFlag(QwtPointMapper::WeedOutIntermediatePoints,
+                   testPaintAttribute(FilterPointsAggressive));
+}
+```
+
+For the rendering stack Qwt 6 targeted, this was a sensible default. On an integer-flooring engine without antialiasing, snapped coordinates keep one-pixel pens, grid lines and markers sharp, and they give `WeedOutPoints` its definition: samples that land in the same device pixel collapse into one vertex, which is what made dense curves affordable to draw. Qwt 6 had exactly two reduction attributes, `FilterPoints` and `FilterPointsAggressive`, and both are defined on snapped coordinates. No algorithm in the library preserved fractional coordinates, so the snapping step could not damage anything upstream. Antialiasing was treated as a render hint that changes coverage, not as a change to coordinate semantics.
+
+On an antialiased canvas the same decision has the opposite effect. The rasterizer receives a polyline whose vertices sit on the pixel lattice, and on a shallow flank the best it can draw is a sequence of horizontal runs and vertical jumps (§2.2). There was no per-painter escape hatch either. Turning the global switch off smoothed the curve, but it also removed hairline crispness from non-antialiased output and made the aggressive weeding path unreachable.
+
+That wiring survived into QWT 7 up to v7.5.1. Sections 2 to 6 measure what it costs in geometry and time; Section 7 describes how QWT 7 changes it.
+
+### 1.3 Scope and method
+
+Five questions frame the analysis:
 
 1. What exactly does `RoundPoints` do, and where is it enabled?
 2. Why does it hurt a dense antialiased curve and not a sparse one?
 3. What does it cost, per reduction path, in the mapper?
-4. Which flag combinations should applications and the library itself use?
+4. Why did QWT 6 behave this way, and what does QWT 7 change?
+5. Which flag combinations should applications use?
 
-The measurements use the library at v7.5.0 with Qt 6.7.3, a Release build with MSVC 2019 (`/O2 /MD /std:c++17`), on an Intel Core i7-8700 at 3.20 GHz under Windows 10 x64. Absolute times vary with hardware; the relative ordering and the ratios are stable. All figures and tables are regenerated by `docs/assets/algorithms/roundpoints_experiment.py` from two raw inputs: `roundpoints_results.csv` (mapper timings and polyline geometry, produced by `roundpoints_bench.cpp`) and `roundpoints_render_metrics.csv` (image metrics, produced by `roundpoints_render_metrics.py`). The rendered batches come from `examples/2D/downsample_demo --batch`, once with the library default and once with `--noround`.
+The mapper and render measurements use the library at v7.5.0 with Qt 6.7.3, a Release build with MSVC 2019 (`/O2 /MD /std:c++17`), on an Intel Core i7-8700 at 3.20 GHz under Windows 10 x64. Absolute times vary with hardware; the relative ordering and the ratios are stable. All figures and tables are regenerated by `docs/assets/algorithms/roundpoints_experiment.py` from two raw inputs: `roundpoints_results.csv` (mapper timings and polyline geometry, produced by `roundpoints_bench.cpp`) and `roundpoints_render_metrics.csv` (image metrics, produced by `roundpoints_render_metrics.py`). The rendered batches come from `examples/2D/downsample_demo --batch`, once with the pre-fix library default and once with `--noround`. The alignment policy that fixes the behaviour postdates v7.5.1; the numbers in Sections 4 to 6 describe the pre-fix library, and Section 7.4 re-runs the same batch on the fixed build.
 
-### 1.3 Relation to the downsampling report
+### 1.4 Relation to the downsampling report
 
 The companion report [Downsampling Curves for the Screen](curve-downsampling.md) treats the problem "too many points for the pixel columns" and derives the bucket algorithms that reduce N samples to roughly 4W vertices. The opposite end of the same pipeline is treated here: what happens to the vertices after reduction, when they are converted from data coordinates to paint coordinates. The two interact, since a reduction algorithm can only preserve what the mapper does not subsequently destroy, but they are separate stages with separate switches, and conflating them causes confusion.
 
@@ -98,7 +135,7 @@ The staircase is not a rendering artifact in the sense of a bug in the rasterize
 
 *Proof.* The rasterizer has no access to $L$ once it receives $L'$; it is a pure function of its input. Distinct inputs may of course rasterize identically when the difference is below the coverage resolution, but a difference of up to $1/(2\rho)$ per vertex accumulates along a shallow flank and exceeds it. $\square$
 
-The practical form of Proposition 2: once `RoundPoints` is on, enabling antialiasing cannot restore the smooth flank. This is the combination the library shipped.
+The practical form of Proposition 2: once `RoundPoints` is on, enabling antialiasing cannot restore the smooth flank. That was the combination QWT 6 shipped, and QWT 7 carried it through v7.5.1.
 
 ### 2.3 Where snapping is enabled
 
@@ -109,15 +146,9 @@ const bool doFit   = (d->attributes & Fitted) && d->curveFitter;
 const bool doAlign = !doFit && QwtPainter::roundingAlignment(painter);
 ```
 
-`QwtPainter::roundingAlignment(painter)` is the conjunction of a global user switch (`QwtPainter::setRoundingAlignment()`, default `true`) and `QwtPainter::isAligning(painter)`. The latter, in `src/plot/qwt_painter.cpp`, returns `false` for PDF, SVG, unknown paint engines, and for painters with a rotating or scaling transformation. **It does not inspect `QPainter::Antialiasing`.** A plain widget canvas with antialiasing enabled therefore takes the aligning branch:
+`QwtPainter::roundingAlignment(painter)` is the conjunction of the global user switch (`QwtPainter::setRoundingAlignment()`, default `true`) and `QwtPainter::isAligning(painter)`. The latter returns `false` for PDF, SVG, unknown paint engines, and for painters with a rotating or scaling transformation. It does not inspect `QPainter::Antialiasing`, so a plain widget canvas with antialiasing enabled takes the aligning branch shown in §1.2.
 
-```cpp
-if (doAlign) {
-    mapper.setFlag(QwtPointMapper::RoundPoints, true);
-    mapper.setFlag(QwtPointMapper::WeedOutIntermediatePoints,
-                   testPaintAttribute(FilterPointsAggressive));
-}
-```
+The aggressive weeding flag is set inside that branch as well. The detail matters in §7.3: for the pre-fix library, `FilterPointsAggressive` did nothing at all unless `RoundPoints` was on, because the mapper also guards its quad path behind the same flag (`toPolygonF()`, `src/plot/qwt_point_mapper.cpp`).
 
 The same global switch is read by `drawDots()`, `drawSteps()`, `drawSticks()`, `drawSymbols()` and several other plot items (`qwt_plot_intervalcurve.cpp`, `qwt_plot_boxchart.cpp`, `qwt_plot_marker.cpp`, `qwt_plot_shapeitem.cpp`, `qwt_plot_grid.cpp`), so turning it off is an application-wide decision, not a per-curve one.
 
@@ -175,7 +206,7 @@ The first row is the pure cost of the flag: one extra multiply, round and divide
 
 The `WeedOutPoints` row is the flag doing its intended job: 1,000,000 vertices collapse to 3,898 because samples sharing a device pixel are duplicates once snapped. The mapper itself is slower (it still touches every input), but the downstream drawing cost drops by two orders of magnitude in vertex count. This is the trade the flag was designed for.
 
-The `WeedOutIntermediatePoints` row must be read carefully: without `RoundPoints` the aggressive path is not entered at all (`toPolygonF()` guards it inside the `RoundPoints` branch), so the two columns compare two different algorithms, not one algorithm with and without rounding.
+The `WeedOutIntermediatePoints` row must be read carefully: in the pre-fix library, without `RoundPoints` the aggressive path is not entered at all (`toPolygonF()` guards it inside the `RoundPoints` branch), so the two columns compare two different algorithms, not one algorithm with and without rounding. Section 7.3 removes that coupling.
 
 The four modern reduction paths (pixel column, LTTB, MinMax, Adaptive) show changes between −3 % and +5 %, i.e. within or barely above run-to-run noise. They select a few thousand vertices and round only those; the scan over the million input samples dominates.
 
@@ -225,7 +256,7 @@ The reduction algorithms sit in between because they keep a small number of real
 
 ### 6.1 Setup
 
-`examples/2D/downsample_demo --batch <dir>` renders a matrix of dataset x reduction x view combinations to PNG. Two batches were produced with the same binary: one with the library default (`roundingAlignment` on) and one with `--noround`. The analysis crop is the rising shoulder of the tallest peak in the `win14` view, a 120 x 360 pixel region where the flank is shallow and the staircase is most visible.
+`examples/2D/downsample_demo --batch <dir>` renders a matrix of dataset x reduction x view combinations to PNG. Two batches were produced with the same binary: one with the pre-fix library default (`roundingAlignment` on) and one with `--noround`. The analysis crop is the rising shoulder of the tallest peak in the `win14` view, a 120 x 360 pixel region where the flank is shallow and the staircase is most visible.
 
 For every crop the script counts curve pixels (blue-dominant pixels), classifies them as pure pen or blend, and reports the blend ratio. It also records the topmost curve pixel row (the peak apex), which must not move.
 
@@ -261,7 +292,11 @@ The apex row is identical in every configuration, confirming that snapping chang
 - The synthetic line of Figure 3 is a best case for illustrating the mechanism (slope 0.2). Real spectra have steeper flanks and correspondingly narrower treads.
 - The measurements cover raster rendering at DPR 1 and DPR 2 only. PDF and SVG output is not affected because `QwtPainter::isAligning()` already excludes those engines; that path is argued from the source, not measured here.
 
-## 7. The selection rule
+## 7. The QWT 7 fix
+
+QWT 7 addresses the problem from both ends. The 7.x series gives the mapper reduction algorithms that keep sub-pixel coordinates, so dense data can be reduced without being quantized. The alignment policy added after v7.5.1 then stops the last stage from snapping those coordinates away.
+
+### 7.1 The selection rule
 
 The evidence supports a simple rule, stated as a decision table for the two switches that matter.
 
@@ -270,12 +305,12 @@ The evidence supports a simple rule, stated as a decision table for the two swit
 | Antialiased raster (widget canvas), any reduction | **off** | sub-pixel geometry is the input the rasterizer needs |
 | Non-antialiased raster, thin lines, pixel-exact look | on | vertices land on real pixels; edges stay crisp |
 | `WeedOutPoints` used as a pixel deduplicator | on | the algorithm's purpose is to merge samples per device pixel |
-| `WeedOutIntermediatePoints` (aggressive) | on | the path is only reachable with the flag set |
+| `WeedOutIntermediatePoints` (aggressive) | on | the quad path rounds to device pixels internally |
 | `PixelColumnReduce` | irrelevant | the algorithm does not read the flag |
 | PDF / SVG / rotated or scaled painter | off | already excluded by `QwtPainter::isAligning()` |
 | After LTTB / MinMax / Adaptive, for performance | **off** | no measurable gain, visible loss on dense data |
 
-The library-level consequence is that `drawLines()` should tie alignment to antialiasing rather than to the paint engine alone:
+At the library level this becomes:
 
 ```cpp
 const bool doAlign = !doFit
@@ -283,9 +318,47 @@ const bool doAlign = !doFit
     && QwtPainter::roundingAlignment(painter);
 ```
 
-This preserves the existing behaviour for non-antialiased raster painting, keeps PDF/SVG and transformed painters on the sub-pixel path, and removes the flag for the case where it does harm. The same consideration applies to `drawDots()` and to legend icon rendering, and `FilterPointsAggressive` callers must be checked because the aggressive path is currently reachable only through `RoundPoints`.
+Non-antialiased raster painting keeps its previous behaviour, PDF/SVG and transformed painters stay on the sub-pixel path, and the flag disappears for the case where it does harm.
 
-*Update:* this rule has since been implemented in the library. `drawLines()`, `drawDots()` and the legend icon align to pixels only when the painter does not antialias, and `WeedOutIntermediatePoints` no longer depends on `RoundPoints` — the quad weeding path rounds to device pixels internally and stays reachable under antialiasing. The measurements and the "reachable only through RoundPoints" statement above describe the pre-fix v7.5.0 behaviour.
+### 7.2 Reduction algorithms added in QWT 7
+
+The reduction side of the pipeline grew over the 7.x series:
+
+| Release | Attribute | Mapper path | What it keeps |
+|---|---|---|---|
+| v7.3.1 | `FilterPointsPixel` | `PixelColumnReduce` | min/max envelope per device pixel column |
+| v7.3.1 | `FilterPointsLTTB` | bucket reduction (became `MinMaxReduce`) | min/max samples per bucket |
+| v7.5.0 | `FilterPointsLTTB` | `LTTBReduce` | one area-selected sample per bucket (true LTTB) |
+| v7.5.0 | `FilterPointsMinMaxLTTB` | `MinMaxReduce` | the former bucket implementation |
+| v7.5.1 | `FilterPointsAdaptive` | `AdaptiveColumnReduce` | density-gated cluster points at their real y |
+
+All of these paths honor `RoundPoints`: with the flag off they return the selected samples at their fractional coordinates, so the rasterizer can compute coverage from the real slope. `PixelColumnReduce` is the exception by design, because its output is an envelope rather than samples. v7.5.1 also moved the pixel budgets of all reduction paths from logical to device pixels (`setDevicePixelRatio()`, commit `9ce35af`), which keeps the same number of device pixels under an arbitrary DPR.
+
+The output size is what makes dense data affordable: the 1.2 million sample dataset of the demo renders in 4 to 8 ms with any of the modern reductions, against 44 ms without reduction. The reduction happens before the mapper emits geometry, and none of these algorithms rounds the surviving vertices.
+
+### 7.3 The antialiasing-aware alignment policy
+
+The final change (commit `7294c68`, after v7.5.1) applies the rule of §7.1 to the curve paths:
+
+- `drawLines()` and `drawDots()` enable `RoundPoints` only when the painter does not antialias. Non-antialiased raster output keeps the old snapping behaviour, and `roundingAlignment(painter)` still excludes PDF, SVG and transformed painters.
+- `legendIcon()` snaps its horizontal line to the pixel grid only when the icon is recorded without antialiasing, which keeps the 1-pixel line crisp in a non-antialiased legend.
+- `WeedOutIntermediatePoints` no longer depends on `RoundPoints`. The quad weeding path in `toPolygonF()` rounds to device pixels internally and now runs before the `RoundPoints` branch, so `FilterPointsAggressive` stays reachable on an antialiased canvas. The integer `toPolygon()` path already treated the flags independently.
+
+What did not change: non-antialiased raster painting still snaps, PDF/SVG and transformed painters were already excluded, and items outside the curve pipeline (grid, markers, box charts) still read the global switch. The latter is a separate scope; the fix targets the paths where the curve's own geometry was being quantized.
+
+### 7.4 Measured effect
+
+The same batch pipeline on the fixed build, with the library default (no `--noround`), now produces the alignment-off result:
+
+| Quantity | pre-fix default | fixed default | `--noround` |
+|---|---:|---:|---:|
+| dense shoulder blend ratio (`many`, no reduction) | 0.284 | **0.5470** | 0.5470 |
+| sparse shoulder blend ratio (`few`, no reduction) | 0.564 | 0.5682 | 0.5682 |
+| `FilterPointsAggressive` vertices, dense win14 | 7,384 | **7,384** | 7,384 |
+
+The curve pixels of the fixed default batch and the `--noround` batch are identical, and the aggressive vertex count is unchanged: the decoupling keeps the quad path reachable now that `RoundPoints` is off for an antialiased painter. The only differing pixels are grid lines, which still respond to the global switch. The two smooth panels of Figure 1 now come from the default configuration: no application-level switch, no per-curve setting.
+
+The mapper cost table of §4 still applies to the non-antialiased path, where snapping remains enabled. On the antialiased path the snapping pass disappears, and the vertex count is no longer reduced by accidental deduplication, so the reduction attributes become the tool that controls cost. That is the arrangement the companion downsampling report assumes.
 
 ## 8. Reproduction
 
@@ -317,18 +390,22 @@ python roundpoints_experiment.py
 
 The two `.bat` helpers resolve the repository root from their own location and use `QT_DIR` (Qt installation) and `QWT_BUILD_DIR` (build tree) environment variables, defaulting to a local Qt 6.7.3 path and `<repo>/build`; adjust those two settings for another machine. `roundpoints_bench.cpp` and `roundpoints_render_check.cpp` also carry the equivalent `cl` command lines in their header comments.
 
+The render measurements in Sections 4 to 6 were taken with the pre-fix library. A current build never snaps an antialiased painter, so `out_round` and `out_noround` now contain the same curve pixels; reproducing the pre-fix images requires a build at v7.5.1 or earlier. The committed CSV files and the figures generated from them remain reproducible without re-rendering. The batch now renders three datasets (`many`, `few`, and the 1.2 million sample `million`); the metrics script analyzes `many` and `few`.
+
 ## 9. Conclusion
 
-The cost of snapping is a per-vertex constant: roughly 45 % of mapper time on an unreduced million-point curve, and nothing measurable after LTTB, MinMax or Adaptive reduction. Its visual cost is concentrated where dense data is common, on shallow flanks with many samples per pixel column.
+QWT 6 inherited a snapping policy from Qwt 6.2 that was built for integer-flooring, non-antialiased raster output: a global switch that defaulted to on, an engine check that ignored antialiasing, and a reduction toolbox defined entirely on snapped coordinates. On an antialiased canvas that combination quantized dense polylines before the rasterizer saw them, and the result was the staircase of Figure 1.
 
-The fix is a policy change rather than an algorithm change: align to pixels only when the painter does not antialias. The reduction algorithms of the companion report then operate on geometry that the rasterizer can actually use.
+QWT 7 fixes both halves of the problem. The 7.x series adds reduction algorithms that select samples without rounding them, and the policy after v7.5.1 enables pixel snapping only when the painter does not antialias. The dense peak shoulder now renders with the same blend ratio as the alignment-off build (0.5470 against 0.284), sparse data is unchanged, and the aggressive weeding path still reduces 199,751 vertices to 7,384 under antialiasing. The per-vertex cost of snapping, roughly 45 % of mapper time on an unreduced million-point curve, now applies only where it buys something: crisp hairlines on non-antialiased output.
 
 ## 10. References
 
 1. QWT 7.5.0 sources: `src/plot/qwt_point_mapper.cpp` (`QwtRoundF`, `qwtAdaptiveColumnReduce`, `qwtLttbReduce`, `qwtMinMaxBucketReduce`, `qwtPixelColumnReduce`, `toPolygonF()` dispatch), `src/plot/qwt_plot_curve.cpp` (`drawLines()`), `src/plot/qwt_painter.cpp` (`isAligning()`, `roundingAlignment()`).
-2. Companion report: [Downsampling Curves for the Screen: LTTB Theory and the QWT7 MinMax Bucket](curve-downsampling.md).
-3. Companion report: [Curve Rendering: Gaussian, Savitzky-Golay and Feature Preservation](curve-smoothing.md).
-4. Demonstration program: `examples/2D/downsample_demo` (interactive GUI plus `--batch`, `--noround`, `--nosplit`, `--dots` modes).
-5. Raw data and scripts: `docs/assets/algorithms/roundpoints_bench.cpp`, `roundpoints_render_check.cpp`, `roundpoints_render_metrics.py`, `roundpoints_experiment.py`, `roundpoints_results.csv`, `roundpoints_render_metrics.csv`.
-6. Steinarsson, S. *Downsampling Time Series for Visual Representation.* MSc thesis, University of Iceland, 2013.
-7. Qt documentation: `QPainter::Antialiasing`, `QPaintEngine::Type`.
+2. QWT 7.5.1 release notes: `CHANGES.md`, entries for `FilterPointsAdaptive`, the device-pixel fix (commit `9ce35af`) and the downsample demo.
+3. Antialiasing-aware alignment fix (after v7.5.1): commit `7294c68`, `QwtPlotCurve::drawLines()`/`drawDots()`/`legendIcon()` and `QwtPointMapper::toPolygonF()`.
+4. Companion report: [Downsampling Curves for the Screen: LTTB Theory and the QWT7 MinMax Bucket](curve-downsampling.md).
+5. Companion report: [Curve Rendering: Gaussian, Savitzky-Golay and Feature Preservation](curve-smoothing.md).
+6. Demonstration program: `examples/2D/downsample_demo` (interactive GUI with render-time readout, plus `--batch`, `--noround`, `--nosplit`, `--dots` modes).
+7. Raw data and scripts: `docs/assets/algorithms/roundpoints_bench.cpp`, `roundpoints_render_check.cpp`, `roundpoints_render_metrics.py`, `roundpoints_experiment.py`, `roundpoints_results.csv`, `roundpoints_render_metrics.csv`.
+8. Steinarsson, S. *Downsampling Time Series for Visual Representation.* MSc thesis, University of Iceland, 2013.
+9. Qt documentation: `QPainter::Antialiasing`, `QPaintEngine::Type`.
