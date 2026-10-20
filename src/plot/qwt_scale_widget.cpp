@@ -62,6 +62,7 @@ public:
 
     int borderDist[ 2 ];
     int minBorderDist[ 2 ];
+    int cornerExt[ 2 ] { 0, 0 };
     int scaleLength { 0 };
     int margin { 0 };
     int edgeMargin { 0 };
@@ -777,6 +778,15 @@ void QwtScaleWidget::layoutScale(bool update_geometry)
     if (m_data->borderDist[ 1 ] > bd1)
         bd1 = m_data->borderDist[ 1 ];
 
+    /*
+        The corner extension reserves space at the widget borders for the
+        backbone miter into the corners (see setCornerExtension()). Adding it
+        to the border distances keeps position and length of the scale - and
+        with it the scale maps of the plot - unaffected by the reservation.
+     */
+    bd0 += m_data->cornerExt[ 0 ];
+    bd1 += m_data->cornerExt[ 1 ];
+
     int colorBarWidth = 0;
     if (m_data->colorBar.isEnabled && m_data->colorBar.interval.isValid())
         colorBarWidth = m_data->colorBar.width + m_data->spacing;
@@ -1262,6 +1272,30 @@ void QwtScaleWidget::getBorderDistHint(int& start, int& end) const
 
     if (end < m_data->minBorderDist[ 1 ])
         end = m_data->minBorderDist[ 1 ];
+}
+
+/**
+ * @brief Reserve logical pixels at the scale ends for the backbone corner miter
+ * @param start Reservation at the beginning of the scale (top/left)
+ * @param end Reservation at the end of the scale (bottom/right)
+ * @details The backbone miter into a corner shared with a perpendicular axis
+ *          is clipped away when it leaves the widget rectangle. QwtPlot grows
+ *          the widget rectangle by the reservation computed from
+ *          QwtScaleCorner::widgetExtensions() and passes the same values here,
+ *          so that layoutScale() can absorb them into the border distances:
+ *          position and length of the scale - and with it the alignment to
+ *          the canvas - stay unaffected.
+ */
+void QwtScaleWidget::setCornerExtension(int start, int end)
+{
+    start = qMax(0, start);
+    end   = qMax(0, end);
+
+    if (start != m_data->cornerExt[ 0 ] || end != m_data->cornerExt[ 1 ]) {
+        m_data->cornerExt[ 0 ] = start;
+        m_data->cornerExt[ 1 ] = end;
+        layoutScale();
+    }
 }
 
 /**

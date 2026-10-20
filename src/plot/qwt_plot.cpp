@@ -46,6 +46,7 @@
 #include "qwt_parasite_plot_layout.h"
 #include "qwt_plot_scale_event_dispatcher.h"
 #include "qwt_painter.h"
+#include "qwt_scale_corner.h"
 #include "qwt_scale_draw.h"
 #include "qwt_color_cycle.h"
 // qt
@@ -802,7 +803,8 @@ void QwtPlot::doLayout()
             if (isAxisVisible(axisId)) {
 
                 QRect scaleRect = layout->scaleRect(axisId).toRect();
-                if (scaleRect != scaleWidget->geometry())
+                const bool geometryChanged = (scaleRect != scaleWidget->geometry());
+                if (geometryChanged)
                     scaleWidget->setGeometry(scaleRect);
 
                 /*
@@ -815,12 +817,74 @@ void QwtPlot::doLayout()
                 scaleWidget->getBorderDistHint(startDist, endDist);
                 scaleWidget->setBorderDist(startDist, endDist);
 
+                /*
+                   Hidden widgets receive their resize event only once they
+                   are shown, so setGeometry() above may not have recalculated
+                   the scale geometry - and setBorderDist() only does when the
+                   distances actually changed. Relayout the scale explicitly
+                   to keep it in sync with the applied rectangle ( f.e. for
+                   the axes of a parasite plot that is grabbed before it was
+                   ever shown ).
+                 */
+                if (geometryChanged && !scaleWidget->isVisible())
+                    scaleWidget->layoutScale(false);
+
                 if (!scaleWidget->isVisibleTo(this))
                     scaleWidget->show();
             } else {
                 scaleWidget->hide();
             }
         }
+    }
+
+    // After the host axis geometries are applied, execute doLayout for all
+    // parasite plots, so that the corner reservation below sees the final
+    // positions of the stacked parasite axis bands.
+    if (isHostPlot()) {
+        const QList< QwtPlot* > allparasites = parasitePlots();
+        // Set dimensions first, then adjust the rest
+        for (QwtPlot* p : allparasites) {
+            p->setGeometry(QRect(0, 0, width(), height()));
+            // The parasite layout copies the host rects during activate(). Refresh
+            // it here so the copy - and everything derived from it, like the
+            // caption rects of outside axis titles - sees the final host layout
+            // of this pass instead of a stale one from an earlier event.
+            p->updateLayout();
+        }
+    }
+
+    /*
+       Reserve the corner pixels the backbone miters paint into: an axis
+       widget clips everything outside of its rectangle, so where the border
+       distances don't reach the perpendicular backbone the widget is grown
+       toward the corner. QwtScaleWidget::setCornerExtension() absorbs the
+       same amounts into the border distances, keeping position and length of
+       the scales - and the alignment between canvas and scales - unchanged.
+     */
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+        const QwtAxisId axisId(axisPos);
+        if (!isAxisVisible(axisId))
+            continue;
+
+        QwtScaleWidget* scaleWidget = axisWidget(axisId);
+
+        int extStart = 0;
+        int extEnd   = 0;
+        QwtScaleCorner::widgetExtensions(this, axisId, scaleWidget->devicePixelRatioF(), extStart, extEnd);
+
+        scaleWidget->setCornerExtension(extStart, extEnd);
+        if (extStart == 0 && extEnd == 0)
+            continue;
+
+        QRect r = scaleWidget->geometry();
+        if (QwtAxis::isYAxis(axisId)) {
+            r.setTop(r.top() - extStart);
+            r.setBottom(r.bottom() + extEnd);
+        } else {
+            r.setLeft(r.left() - extStart);
+            r.setRight(r.right() + extEnd);
+        }
+        scaleWidget->setGeometry(r);
     }
 
     // Outside axis titles (QwtScaleWidget::TitleOutside) are painted by
@@ -870,20 +934,6 @@ void QwtPlot::doLayout()
     }
 
     m_data->canvas->setGeometry(canvasRect);
-
-    // After the host axis layout completes, execute doLayout for all parasite axes
-    if (isHostPlot()) {
-        const QList< QwtPlot* > allparasites = parasitePlots();
-        // Set dimensions first, then adjust the rest
-        for (QwtPlot* p : allparasites) {
-            p->setGeometry(QRect(0, 0, width(), height()));
-            // The parasite layout copies the host rects during activate(). Refresh
-            // it here so the copy - and everything derived from it, like the
-            // caption rects of outside axis titles - sees the final host layout
-            // of this pass instead of a stale one from an earlier event.
-            p->updateLayout();
-        }
-    }
 }
 
 /**

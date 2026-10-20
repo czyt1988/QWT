@@ -182,6 +182,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_matrix_raster_data.h
         qwt_grid_raster_data.h
         qwt_scale_widget.h
+        qwt_scale_corner.h
         qwt_figure_layout.h
         qwt_figure.h
         qwt_figure_widget_overlay.h
@@ -252,6 +253,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_vectorfield_symbol.cpp
         qwt_sampling_thread.cpp
         qwt_scale_widget.cpp
+        qwt_scale_corner.cpp
         qwt_figure_layout.cpp
         qwt_figure.cpp
         qwt_figure_widget_overlay.cpp

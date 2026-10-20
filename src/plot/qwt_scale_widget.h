@@ -222,6 +222,9 @@ public:
     /// Get the border distance hint
     void getBorderDistHint(int& start, int& end) const;
 
+    /// Reserve logical pixels at the scale ends for the backbone corner miter
+    void setCornerExtension(int start, int end);
+
     /// Get the minimum border distances
     void getMinBorderDist(int& start, int& end) const;
     /// Set the minimum border distances
