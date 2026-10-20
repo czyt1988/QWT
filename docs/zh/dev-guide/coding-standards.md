@@ -1,15 +1,10 @@
 # 编码规范
 
-本文档规定 Qwt 项目开发过程中的编码规范，确保代码风格统一、质量可控。
+Qwt 源码遵循以下格式化、C++ 版本兼容、命名和 Qt 使用规范。
 
 ## 主要规范要求
 
-**特性**
-
-- ✅ **代码格式化**：使用 `.clang-format` 配置自动格式化
-- ✅ **C++11兼容性**：使用项目提供的兼容性宏
-- ✅ **现代C++风格**：使用 `override`、`nullptr`、`using` 等现代语法
-- ✅ **Qt最佳实践**：遵循 Qt 开发规范
+Qwt 源码使用 `.clang-format` 配置格式化，使用项目提供的 C++11 兼容宏，优先采用 `override`、`nullptr`、`using` 等现代语法，并遵循 Qt 开发规范。
 
 ## 代码格式化
 
@@ -61,10 +56,10 @@ constexpr int MAX_SAMPLES = 1000;
 使用标准 C++ 关键字代替旧宏：
 
 ```cpp
-// ❌ 错误：使用旧宏
+// 错误：使用旧宏
 virtual void draw(QPainter* painter) QWT_OVERRIDE;
 
-// ✅ 正确：使用标准关键字
+// 正确：使用标准关键字
 virtual void draw(QPainter* painter) override;
 ```
 
@@ -75,37 +70,37 @@ virtual void draw(QPainter* painter) override;
 
 ### 2. 使用 nullptr 代替 NULL
 
-下例对照了错误的 `NULL` 用法与规范要求的 `nullptr` 正确写法：
+空指针用 `nullptr` 声明，不用 `NULL`：
 
 ```cpp
-// ❌ 错误
+// 错误
 QwtPlot* plot = NULL;
 
-// ✅ 正确
+// 正确
 QwtPlot* plot = nullptr;
 ```
 
 ### 3. 使用 static_cast 代替 C 风格强制转换
 
-下例对照了错误的 C 风格强制转换与正确的 `static_cast<>` 写法：
+强制转换使用 `static_cast<>`：
 
 ```cpp
-// ❌ 错误：C 风格强制转换
+// 错误：C 风格强制转换
 int value = (int)doubleValue;
 
-// ✅ 正确：static_cast
+// 正确：static_cast
 int value = static_cast<int>(doubleValue);
 ```
 
 ### 4. 使用 using 代替 typedef
 
-下例对照了错误的旧式 `typedef` 与正确的 `using` 别名写法：
+用 `using` 别名代替 `typedef`：
 
 ```cpp
-// ❌ 错误：旧式 typedef
+// 错误：旧式 typedef
 typedef QVector<QwtSample> SampleVector;
 
-// ✅ 正确：using 别名
+// 正确：using 别名
 using SampleVector = QVector<QwtSample>;
 ```
 
@@ -114,10 +109,10 @@ using SampleVector = QVector<QwtSample>;
 使用 `qwt_as_const` 防止 Qt 容器深拷贝：
 
 ```cpp
-// ❌ 可能导致深拷贝
+// 错误: 可能导致深拷贝
 for (const auto& item : container) { }
 
-// ✅ 安全迭代
+// 正确: 安全迭代
 for (const auto& item : qwt_as_const(container)) { }
 ```
 
@@ -132,10 +127,10 @@ for (const auto& item : qwt_as_const(container)) { }
 使用 Qt5+ 的信号槽语法：
 
 ```cpp
-// ❌ 错误：使用旧式 SIGNAL/SLOT 宏
+// 错误：使用旧式 SIGNAL/SLOT 宏
 connect(sender, SIGNAL(valueChanged(int)), receiver, SLOT(updateValue(int)));
 
-// ✅ 正确：使用新式函数指针语法
+// 正确：使用新式函数指针语法
 connect(sender, &Sender::valueChanged, receiver, &Receiver::updateValue);
 ```
 
@@ -163,7 +158,7 @@ Q_SIGNALS:
 使用 Qt 官方推荐的宏：
 
 ```cpp
-// ✅ 正确
+// 正确
 Q_SIGNALS:    // 而非 signals:
 Q_SLOT:       // 而非 slot:
 public Q_SLOTS:  // 而非 public slots:

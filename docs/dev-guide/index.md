@@ -1,6 +1,6 @@
 # Developer Guide
 
-This section provides detailed development standards and design pattern guidelines for Qwt project developers, ensuring code quality and consistent style.
+Standards and design patterns used when developing Qwt, plus the workflow every change goes through.
 
 ## Documentation Overview
 
@@ -13,7 +13,7 @@ This section provides detailed development standards and design pattern guidelin
 
 ## Development Workflow Overview
 
-The flowchart below outlines the standard development workflow, from understanding requirements to committing code, with the coding and commenting standards applied along the way:
+The standard workflow runs from understanding requirements to committing code, applying the coding and commenting standards along the way:
 
 ```mermaid
 flowchart TD

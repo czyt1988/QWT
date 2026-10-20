@@ -1,28 +1,28 @@
 # 3D 模块重构说明
 
-本文档说明 `qwt::plot3d` 3D 绘图模块为何进行彻底重构、原架构及其问题、重构思路、重构后的架构，以及带来的收益。面向维护或扩展 3D 模块的开发者。
+`qwt::plot3d` 3D 绘图模块已完成重构：单体控件和遗留 OpenGL 渲染器换成了 Plot+Item 架构，渲染改用 Core Profile。
 
 > **信息 — 范围**
 >
-> 本重构随 **v7.3.5** 发布于 `new3d` 分支。面向最终用户的使用指南见 [3D 绘图简介](../use-guide/3d/3d-plot.md)；模块级开发约定见 [`src/plot3d/AGENTS.md`](../../../src/plot3d/AGENTS.md)。
+> 本重构随 v7.3.5 发布于 `new3d` 分支。面向最终用户的使用指南见 [3D 绘图简介](../use-guide/3d/3d-plot.md)；模块级开发约定见 [`src/plot3d/AGENTS.md`](../../../src/plot3d/AGENTS.md)。
 
 ## 1. 为何要重构
 
 3D 模块源自独立的 `QwtPlot3D` 库（Qt 3/4 时代），于 Qwt 7.1 合入。多年累积了若干结构性债务，阻碍了后续开发：
 
-- **职责耦合** —— 3D 控件把窗口管理、视图变换、**以及**绘图数据/样式揉在同一个类里。新增一种绘图类型就得改动中心控件。
-- **遗留 OpenGL** —— 渲染使用固定管线（`glBegin/glEnd`、显示列表、`gluSphere`/`gluCylinder`、GL 矩阵栈）。已被废弃、性能差，且与现代 Qt/ANGLE/ES 要求的 Core Profile 不兼容。
-- **依赖方向倒置** —— 底层值对象（颜色 functor、drawable、数据映射）持有顶层控件的反向指针，形成脆弱的循环引用，导致悬空指针崩溃，且无法单元测试。
-- **命名不一致** —— 类型位于 `namespace Qwt3D`，而库其余部分采用全局作用域的 `Qwt` 类前缀约定。
-- **与 2D 脱节** —— 2D 模块早已采用清晰的 `QwtPlot`（画布）+ `QwtPlotItem`（数据）拆分；3D 没有这种分离，模式无法共享。
+- 职责耦合：3D 控件把窗口管理、视图变换和绘图数据/样式揉在同一个类里，新增一种绘图类型就得改动中心控件。
+- 渲染使用固定管线（`glBegin/glEnd`、显示列表、`gluSphere`/`gluCylinder`、GL 矩阵栈）。该管线已被废弃、性能差，且与现代 Qt/ANGLE/ES 要求的 Core Profile 不兼容。
+- 底层值对象（颜色 functor、drawable、数据映射）持有顶层控件的反向指针，形成脆弱的循环引用，导致悬空指针崩溃，且无法单元测试。
+- 类型位于 `namespace Qwt3D`，而库其余部分采用全局作用域的 `Qwt` 类前缀约定。
+- 2D 模块早已采用清晰的 `QwtPlot`（画布）+ `QwtPlotItem`（数据）拆分，3D 没有这种分离，模式无法共享。
 
-这些问题意味着每个新功能（主题、NaN 处理、新绘图样式）都有在别处引发回归的风险。因此进行了结构性重构，使 3D 与 2D 架构及现代渲染实践对齐。
+每个新功能（主题、NaN 处理、新绘图样式）因此都有在别处引发回归的风险。重构的目标是让 3D 与 2D 架构及现代渲染实践对齐。
 
 ## 2. 原始架构
 
 ### 2.1 单体式 `Plot3D` 控件
 
-旧的 `Plot3D`（位于 `namespace Qwt3D`）是 `QOpenGLWidget` 子类，持有*一切* —— 坐标系、变换、鼠标/键盘处理，**以及**数据/颜色/样式：
+旧的 `Plot3D`（位于 `namespace Qwt3D`）是 `QOpenGLWidget` 子类，把坐标系、变换、鼠标和键盘处理以及数据、颜色和样式都放在同一个类里：
 
 ```cpp
 namespace Qwt3D {
@@ -69,10 +69,10 @@ protected:
 
 ### 2.3 反向指针（"deferred smells"）
 
-低层类向上*回指*顶层控件 —— 这是依赖方向的违规：
+低层类向上回指顶层控件，违反了依赖方向：
 
-- **`Drawable::m_plot`** —— Tier-2 drawable 基类烤入了 `Qwt3D::Plot*` 反向指针。
-- **`GridMapping::m_surface`** —— Tier-3 数据源持有 `SurfacePlot*`：
+- `Drawable::m_plot`：Tier-2 drawable 基类内置了 `Qwt3D::Plot*` 反向指针。
+- `GridMapping::m_surface`：Tier-3 数据源持有 `SurfacePlot*`：
 
 ```cpp
 class QWT3D_EXPORT GridMapping : public Mapping
@@ -87,7 +87,7 @@ protected:
 
 ### 2.4 原始文件结构
 
-下面是重构前 `src/plot3d/` 的文件布局：单体绘图控件、未使用的 stub、分散在多文件的绘图逻辑，以及携带反向指针的基类：
+重构前 `src/plot3d/` 的文件布局：单体绘图控件、未使用的 stub、分散在多文件的绘图逻辑，以及携带反向指针的类：
 
 ```
 src/plot3d/
@@ -123,7 +123,7 @@ src/plot3d/
 
 ### 4.1 Plot + Item 架构（对齐 2D）
 
-采用与 2D `QwtPlot` + `QwtPlotItem` 相同的分离：控件成为**纯渲染窗口**，每个数据集成为一个挂载其上的**item**。
+采用与 2D `QwtPlot` + `QwtPlotItem` 相同的分离：控件成为纯渲染窗口，每个数据集成为一个挂载其上的 item。
 
 ```mermaid
 classDiagram
@@ -159,11 +159,11 @@ classDiagram
 
 所有遗留 GL 替换为现代、Core Profile 安全的渲染：
 
-- **VBO**（`QOpenGLBuffer`）+ **VAO**（`QOpenGLVertexArrayObject`）管理顶点数据，一次上传、跨帧复用。
-- **GLSL 3.30 Core 着色器**覆盖每种图元 —— `src/plot3d/shaders/` 下 10 个着色器文件（`surface`、`polygon`、`line`、`point`、`text`；vert+frag 成对）。
-- **CPU 端 `QMatrix4x4`** 矩阵计算 —— 不再用 GL 矩阵栈。
-- **`QOpenGLTexture`** 渲染文本标签 —— 取代 `glRasterPos3d` + `glDrawPixels`。
-- **CPU 生成几何体**用于 Cone/Arrow 扩展 —— 取代 `gluCylinder`/`gluDisk`。
+- 顶点数据放在 VBO（`QOpenGLBuffer`）和 VAO（`QOpenGLVertexArrayObject`）中，一次上传、跨帧复用。
+- 每种图元都使用 GLSL 3.30 Core 着色器：`src/plot3d/shaders/` 下共 10 个着色器文件（`surface`、`polygon`、`line`、`point`、`text`；vert+frag 成对）。
+- 矩阵在 CPU 端用 `QMatrix4x4` 计算，不再使用 GL 矩阵栈。
+- 文本标签用 `QOpenGLTexture` 渲染，取代 `glRasterPos3d` + `glDrawPixels`。
+- Cone/Arrow 扩展使用 CPU 生成的几何体，取代 `gluCylinder`/`gluDisk`。
 - `gl2ps` 矢量导出作为 Compatibility Profile 回退保留，无条件编译（系统 gl2ps，或 `src/plot3d/3rdparty/gl2ps/` 内置副本）。
 - 删除 `qwt3d_openglhelper.h`。
 
@@ -175,7 +175,7 @@ classDiagram
 
 两个"deferred smell"通过反转依赖方向解决：
 
-**Smell #1 —— `Qwt3DDrawable::m_plot`。** 引入值结构体 `Qwt3DRenderContext`，打包某次 `paintGL()` 调用点当前的矩阵、视口和共享着色器程序。它以 const 引用沿 `draw()` 链下传，drawable 不再需要控件指针：
+Smell #1：`Qwt3DDrawable::m_plot`。新增值结构体 `Qwt3DRenderContext`，打包某次 `paintGL()` 调用点当前的矩阵、视口和共享着色器程序。它以 const 引用沿 `draw()` 链下传，drawable 不再需要控件指针：
 
 ```cpp
 struct QWT3D_EXPORT Qwt3DRenderContext
@@ -199,11 +199,11 @@ public:
 };
 ```
 
-**Smell #2 —— `Qwt3DGridMapping::m_surface`。** `create()` 现在*返回*数据结构（`Qwt3DFunctionData` / `Qwt3DParametricData`），由调用方喂给 `Qwt3DSurface::loadFromData()`，而非映射持有 surface 指针。`m_surface`、`surface()`、`setSurface()`、`assign()` 及带 `Qwt3DSurface` 参数的构造函数均已移除。
+Smell #2：`Qwt3DGridMapping::m_surface`。`create()` 现在返回数据结构（`Qwt3DFunctionData` / `Qwt3DParametricData`），由调用方喂给 `Qwt3DSurface::loadFromData()`，而非映射持有 surface 指针。`m_surface`、`surface()`、`setSurface()`、`assign()` 及带 `Qwt3DSurface` 参数的构造函数均已移除。
 
 ### 4.5 颜色 functor 作为纯值对象
 
-颜色类（`Qwt3DColor`、`Qwt3DStandardColor`、`Qwt3DColorMapColor`）变为纯值对象 —— 无 `Qwt3DSurface*`/`Qwt3DPlot*` 指针、无回调、无信号。mutator 是**静默**的。z 范围由 `Qwt3DSurface::pushColorRange()` 作为数据*推入*，而非 functor 去拉。修改已挂载 functor 后，调用方必须调用 `surface->invalidateColors()` —— 这与 2D"修改 `QwtSymbol` 后调 `itemChanged()`"的契约完全对应。
+颜色类（`Qwt3DColor`、`Qwt3DStandardColor`、`Qwt3DColorMapColor`）变为纯值对象：无 `Qwt3DSurface*`/`Qwt3DPlot*` 指针、无回调、无信号。mutator 是静默的。z 范围由 `Qwt3DSurface::pushColorRange()` 作为数据推入，而非 functor 去拉。修改已挂载 functor 后，调用方必须调用 `surface->invalidateColors()`，这与 2D"修改 `QwtSymbol` 后调 `itemChanged()`"的契约一致。
 
 ### 4.6 分层依赖规则
 
@@ -249,10 +249,10 @@ flowchart TD
     Surface -->|"plot() 上引（合法）"| Widget
 ```
 
-- **`Qwt3DPlot`** —— 纯渲染窗口。每绘制阶段构建 `Qwt3DRenderContext` 交给 drawable；按 z 序遍历 item；暴露共享着色器访问器（`lineShader()`、`polygonShader()`、`textShader()`）。
-- **`Qwt3DPlotItem`** —— 抽象基类：`attach/detach/draw/hull/z/title/setVisible/itemChanged/populateLegendColors`。对应 `QwtPlotItem`。
-- **`Qwt3DSurface`** —— 具体表面 item。持有数据、VBO/VAO/EBO/shader、颜色 functor 和扩展。拥有从旧控件移来的方法（`setPlotStyle`、`setDataColor`、`loadFromData`、`setResolution`、`setMeshColor`、`addEnrichment`、`setFloorStyle`、`setShading`、`showNormals`）。
-- **`Qwt3DBar`** / **`Qwt3DLine`** —— v7.3.5 新增的另外两个具体 `Qwt3DPlotItem` 子类，验证了扩展点：柱状图（逐柱立方体、逐面扁平法向；1D 序列或 2D 网格）与线/曲线 item（`Tube`/`Lines`/`Dots`；Tube 样式用 parallel-transport 标架扫掠圆形截面）。与 `Qwt3DSurface` 一样，各自持有 VBO/VAO + `Qwt3DColor` functor 并实现 `draw()`/`hull()`/`populateLegendColors()`；均已接入 `Qwt3DTheme::applyToItem()`。
+- `Qwt3DPlot` 是纯渲染窗口，每个绘制阶段构建 `Qwt3DRenderContext` 交给 drawable，按 z 序遍历 item，并暴露共享着色器访问器（`lineShader()`、`polygonShader()`、`textShader()`）。
+- `Qwt3DPlotItem` 是抽象基类：`attach/detach/draw/hull/z/title/setVisible/itemChanged/populateLegendColors`。对应 `QwtPlotItem`。
+- `Qwt3DSurface` 是具体的表面 item，持有数据、VBO/VAO/EBO/shader、颜色 functor 和扩展，并拥有从旧控件移来的方法（`setPlotStyle`、`setDataColor`、`loadFromData`、`setResolution`、`setMeshColor`、`addEnrichment`、`setFloorStyle`、`setShading`、`showNormals`）。
+- `Qwt3DBar` / `Qwt3DLine` 是 v7.3.5 新增的另外两个具体 `Qwt3DPlotItem` 子类，验证了扩展点：柱状图（逐柱立方体、逐面扁平法向；1D 序列或 2D 网格）与线/曲线 item（`Tube`/`Lines`/`Dots`；Tube 样式用 parallel-transport 标架扫掠圆形截面）。与 `Qwt3DSurface` 一样，各自持有 VBO/VAO + `Qwt3DColor` functor 并实现 `draw()`/`hull()`/`populateLegendColors()`；均已接入 `Qwt3DTheme::applyToItem()`。
 
 ### 5.2 主题系统拆分
 
@@ -260,7 +260,7 @@ flowchart TD
 
 ### 5.3 新文件结构
 
-下面是重构后 `src/plot3d/` 的文件布局，包含新增的 item 类、渲染上下文和着色器目录：
+重构后 `src/plot3d/` 的文件布局，包含新增的 item 类、渲染上下文和着色器目录：
 
 ```
 src/plot3d/
@@ -284,14 +284,14 @@ src/plot3d/
 
 ## 6. 重构收益
 
-1. **与 2D 对称** —— `Qwt3DPlot`+`Qwt3DPlotItem` 对应 `QwtPlot`+`QwtPlotItem`；模式（attach、z 序、`itemChanged`、值对象样式）可在 2D/3D 间直接迁移。
-2. **一个窗口多个数据集** —— 可向一个 `Qwt3DPlot` 挂载任意数量的 `Qwt3DPlotItem`；旧架构无法做到。
-3. **现代 Core Profile OpenGL** —— VBO/VAO + GLSL 着色器更快、可移植到 ES/ANGLE，规避所有废弃的 GLU/立即模式调用。
-4. **无环依赖** —— 带单一合法上引（item→plot）的分层规则消除了悬空指针崩溃，使低层类可独立单元测试。
-5. **纯值对象** —— 颜色 functor 与主题静默、可拷贝、自包含，匹配 2D `QwtColorMap`/`QwtSymbol` 契约。
-6. **清晰扩展点** —— 新 3D 绘图类型只需新的 `Qwt3DPlotItem` 子类；控件无需改动。（旧的 `GraphPlot`/`MultiPlot`/`VolumePlot` stub 作为死代码已删除。）这一点在 v7.3.5 由 `Qwt3DBar` 与 `Qwt3DLine` 落地——各自作为自包含 item 加入，`Qwt3DPlot` 无任何改动。
-7. **命名统一** —— 弃用 `namespace Qwt3D`、改用 `Qwt3D` 类前缀，统一了库的命名约定。
-8. **统一 colormap 生态** —— `Qwt3DColorMapColor` 桥接 core 模块 22 种科学 colormap 预设（viridis、plasma……）直达 3D 表面，使 2D 与 3D 共享同一颜色系统。
+1. `Qwt3DPlot`+`Qwt3DPlotItem` 对应 `QwtPlot`+`QwtPlotItem`；attach、z 序、`itemChanged`、值对象样式等模式可在 2D/3D 间直接迁移。
+2. 可向一个 `Qwt3DPlot` 挂载任意数量的 `Qwt3DPlotItem`，旧架构无法做到。
+3. VBO/VAO + GLSL 着色器更快、可移植到 ES/ANGLE，规避所有废弃的 GLU/立即模式调用。
+4. 带单一合法上引（item→plot）的分层规则消除了悬空指针崩溃，使低层类可独立单元测试。
+5. 颜色 functor 与主题静默、可拷贝、自包含，匹配 2D `QwtColorMap`/`QwtSymbol` 契约。
+6. 新 3D 绘图类型只需新的 `Qwt3DPlotItem` 子类，控件无需改动。（旧的 `GraphPlot`/`MultiPlot`/`VolumePlot` stub 作为死代码已删除。）`Qwt3DBar` 与 `Qwt3DLine` 在 v7.3.5 各自作为自包含 item 加入，`Qwt3DPlot` 无任何改动。
+7. 弃用 `namespace Qwt3D`、改用 `Qwt3D` 类前缀，统一了库的命名约定。
+8. `Qwt3DColorMapColor` 桥接 core 模块 22 种科学 colormap 预设（viridis、plasma……）直达 3D 表面，使 2D 与 3D 共享同一颜色系统。
 
 ## 7. 迁移对照
 
@@ -324,4 +324,4 @@ src/plot3d/
 
 ## 8. 总结
 
-重构将 3D 模块从遗留、单体、固定管线的控件，转变为现代 Plot+Item 架构，采用 Core Profile OpenGL 与无环分层依赖。它使 3D 与 2D 模块的成熟设计对齐，让渲染路径可移植且高效，并为未来 3D 绘图类型建立了清晰、安全的扩展点 —— 同时在 2D 与 3D 间共享统一的颜色/主题生态。
+3D 模块现在使用 Plot+Item 架构、Core Profile OpenGL 和无环分层依赖，取代了单体的固定管线控件。它与 2D 模块的设计一致，渲染路径保持可移植，并为新的 3D 绘图类型提供了扩展点，颜色和主题生态由 2D 与 3D 共享。

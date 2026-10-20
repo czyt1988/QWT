@@ -1,28 +1,28 @@
 # 3D Module Refactoring Guide
 
-This document explains why the 3D plotting module (`qwt::plot3d`) was completely refactored, what the original architecture looked like and its problems, the refactoring approach, the resulting architecture, and the benefits it brings. It is intended for developers maintaining or extending the 3D module.
+The 3D plotting module (`qwt::plot3d`) was completely refactored: the monolithic widget and its legacy OpenGL renderer became a Plot+Item architecture with Core-Profile rendering.
 
 > **Info — Scope**
 >
-> The refactor ships in **v7.3.5** on the `new3d` branch. For the end-user usage guide see [3D Plot Introduction](../use-guide/3d/3d-plot.md); for the per-module conventions see [`src/plot3d/AGENTS.md`](../../src/plot3d/AGENTS.md).
+> The refactor ships in v7.3.5 on the `new3d` branch. For the end-user usage guide see [3D Plot Introduction](../use-guide/3d/3d-plot.md); for the per-module conventions see [`src/plot3d/AGENTS.md`](../../src/plot3d/AGENTS.md).
 
 ## 1. Why Refactor
 
 The 3D module originated from the standalone `QwtPlot3D` library (Qt 3/4 era) and was integrated into Qwt 7.1. Over the years it accumulated several structural debts that blocked further development:
 
-- **Coupled responsibilities** — the 3D widget mixed window management, view transforms, *and* plotting data/style in a single class. Adding a new plot type meant editing the central widget.
-- **Legacy OpenGL** — the renderer used the fixed-function pipeline (`glBegin/glEnd`, display lists, `gluSphere`/`gluCylinder`, GL matrix stack). This is deprecated, slow, and incompatible with OpenGL Core Profile required by modern Qt/ANGLE/ES.
-- **Inverted dependency direction** — low-level value objects (color functors, drawables, data mappings) held back-pointers to the top-level widget, creating fragile cycles that caused dangling-pointer crashes and made testing impossible.
-- **Naming inconsistency** — types lived in `namespace Qwt3D`, while the rest of the library used the `Qwt` class-prefix convention in the global scope.
-- **Divergence from 2D** — the 2D module had long adopted a clean `QwtPlot` (canvas) + `QwtPlotItem` (data) split; 3D had no such separation, so patterns could not be shared.
+- Responsibilities were coupled: the 3D widget mixed window management, view transforms, and plotting data/style in a single class, so adding a new plot type meant editing the central widget.
+- The renderer used the fixed-function pipeline (`glBegin/glEnd`, display lists, `gluSphere`/`gluCylinder`, GL matrix stack). That pipeline is deprecated, slow, and incompatible with the OpenGL Core Profile required by modern Qt, ANGLE and OpenGL ES.
+- Low-level value objects (color functors, drawables, data mappings) held back-pointers to the top-level widget, creating fragile cycles that caused dangling-pointer crashes and made testing impossible.
+- Types lived in `namespace Qwt3D`, while the rest of the library used the `Qwt` class-prefix convention in the global scope.
+- The 2D module had long adopted a clean `QwtPlot` (canvas) + `QwtPlotItem` (data) split; 3D had no such separation, so patterns could not be shared.
 
-These issues meant every new feature (themes, NaN handling, new plot styles) risked regressions elsewhere. A structural refactor was undertaken to align 3D with the 2D architecture and modern rendering practice.
+Every new feature (themes, NaN handling, new plot styles) therefore risked regressions elsewhere. The refactor aligned 3D with the 2D architecture and modern rendering practice.
 
 ## 2. Original Architecture
 
 ### 2.1 Monolithic `Plot3D` widget
 
-The old `Plot3D` (in `namespace Qwt3D`) was a `QOpenGLWidget` subclass that held *everything* — coordinate system, transforms, mouse/keyboard handling, **and** data/color/style:
+The old `Plot3D` (in `namespace Qwt3D`) was a `QOpenGLWidget` subclass that held the coordinate system, transforms, mouse and keyboard handling, and also the data, color and style:
 
 ```cpp
 namespace Qwt3D {
@@ -69,10 +69,10 @@ Rendering relied on immediate mode, display lists, GLU quadrics, and the GL matr
 
 ### 2.3 Reverse pointers (the "deferred smells")
 
-Low-level classes reached *up* to the top-level widget — a dependency-direction violation:
+Low-level classes reached up to the top-level widget, violating the dependency direction:
 
-- **`Drawable::m_plot`** — the Tier-2 drawable base baked in a `Qwt3D::Plot*` back-pointer.
-- **`GridMapping::m_surface`** — the Tier-3 data source held a `SurfacePlot*`:
+- `Drawable::m_plot`: the Tier-2 drawable base baked in a `Qwt3D::Plot*` back-pointer.
+- `GridMapping::m_surface`: the Tier-3 data source held a `SurfacePlot*`:
 
 ```cpp
 class QWT3D_EXPORT GridMapping : public Mapping
@@ -87,7 +87,7 @@ Color functors likewise stored a `Qwt3D::Plot*`/`SurfacePlot*` and called back i
 
 ### 2.4 Original file structure
 
-The listing below shows the pre-refactor `src/plot3d/` layout: a monolithic plot widget, unused stubs, plotting logic split across files, and the classes carrying reverse pointers:
+The pre-refactor `src/plot3d/` layout: a monolithic plot widget, unused stubs, plotting logic split across files, and the classes carrying reverse pointers:
 
 ```
 src/plot3d/
@@ -123,7 +123,7 @@ The refactor was driven by five principles, applied incrementally across the `ne
 
 ### 4.1 Plot + Item architecture (mirror 2D)
 
-Adopt the same separation as 2D's `QwtPlot` + `QwtPlotItem`: the widget becomes a **pure rendering window**, and each dataset becomes an **item** that attaches to it.
+Adopt the same separation as 2D's `QwtPlot` + `QwtPlotItem`: the widget becomes a pure rendering window, and each dataset becomes an item that attaches to it.
 
 ```mermaid
 classDiagram
@@ -159,11 +159,11 @@ classDiagram
 
 All legacy GL was replaced with modern, Core-Profile-safe rendering:
 
-- **VBO** (`QOpenGLBuffer`) + **VAO** (`QOpenGLVertexArrayObject`) for vertex data, uploaded once and reused across frames.
-- **GLSL 3.30 Core shaders** for every primitive type — 10 shader files under `src/plot3d/shaders/` (`surface`, `polygon`, `line`, `point`, `text`; vert+frag pairs).
-- **CPU-side `QMatrix4x4`** matrix computation — no GL matrix stack.
-- **`QOpenGLTexture`** for text labels — replacing `glRasterPos3d` + `glDrawPixels`.
-- **CPU-generated geometry** for Cone/Arrow enrichments — replacing `gluCylinder`/`gluDisk`.
+- Vertex data lives in a VBO (`QOpenGLBuffer`) and a VAO (`QOpenGLVertexArrayObject`), uploaded once and reused across frames.
+- Every primitive type uses a GLSL 3.30 Core shader: 10 shader files under `src/plot3d/shaders/` (`surface`, `polygon`, `line`, `point`, `text`; vert+frag pairs).
+- Matrices are computed on the CPU with `QMatrix4x4`; there is no GL matrix stack.
+- Text labels use `QOpenGLTexture`, replacing `glRasterPos3d` + `glDrawPixels`.
+- Cone and arrow enrichments use CPU-generated geometry instead of `gluCylinder`/`gluDisk`.
 - `gl2ps` vector export kept as a Compatibility Profile fallback, compiled in unconditionally (system gl2ps, or the bundled copy under `src/plot3d/3rdparty/gl2ps/`).
 - Deleted `qwt3d_openglhelper.h`.
 
@@ -175,7 +175,7 @@ Removed `namespace Qwt3D` entirely. All types now use a `Qwt3D` class prefix in 
 
 Two "deferred smells" were resolved by inverting the dependency direction:
 
-**Smell #1 — `Qwt3DDrawable::m_plot`.** Introduced a value struct `Qwt3DRenderContext` that bundles the matrices, viewport, and shared shader programs current at a given `paintGL()` call site. It is passed by const reference down the `draw()` chain, so drawables no longer need a widget pointer:
+Smell #1: `Qwt3DDrawable::m_plot`. A value struct `Qwt3DRenderContext` bundles the matrices, viewport, and shared shader programs current at a given `paintGL()` call site. It is passed by const reference down the `draw()` chain, so drawables no longer need a widget pointer:
 
 ```cpp
 struct QWT3D_EXPORT Qwt3DRenderContext
@@ -199,11 +199,11 @@ public:
 };
 ```
 
-**Smell #2 — `Qwt3DGridMapping::m_surface`.** `create()` now *returns* data structures (`Qwt3DFunctionData` / `Qwt3DParametricData`) that the caller feeds to `Qwt3DSurface::loadFromData()`, instead of the mapping holding a surface pointer. `m_surface`, `surface()`, `setSurface()`, `assign()`, and the `Qwt3DSurface*` constructor were removed.
+Smell #2: `Qwt3DGridMapping::m_surface`. `create()` now returns data structures (`Qwt3DFunctionData` / `Qwt3DParametricData`) that the caller feeds to `Qwt3DSurface::loadFromData()`, instead of the mapping holding a surface pointer. `m_surface`, `surface()`, `setSurface()`, `assign()`, and the `Qwt3DSurface*` constructor were removed.
 
 ### 4.5 Color functors as pure value objects
 
-Color classes (`Qwt3DColor`, `Qwt3DStandardColor`, `Qwt3DColorMapColor`) were made pure value objects — no `Qwt3DSurface*`/`Qwt3DPlot*` pointer, no callbacks, no signals. Mutators are **silent**. The z-range is *pushed in* as data by `Qwt3DSurface::pushColorRange()` rather than pulled by the functor. After mutating an attached functor, the caller must invoke `surface->invalidateColors()` — exactly mirroring 2D's "mutate the `QwtSymbol`, then call `itemChanged()`" contract.
+Color classes (`Qwt3DColor`, `Qwt3DStandardColor`, `Qwt3DColorMapColor`) were made pure value objects: no `Qwt3DSurface*`/`Qwt3DPlot*` pointer, no callbacks, no signals. Mutators are silent. The z-range is pushed in as data by `Qwt3DSurface::pushColorRange()` rather than pulled by the functor. After mutating an attached functor, the caller must invoke `surface->invalidateColors()`, which mirrors 2D's "mutate the `QwtSymbol`, then call `itemChanged()`" contract.
 
 ### 4.6 Tiered dependency layering
 
@@ -249,10 +249,10 @@ flowchart TD
     Surface -->|"plot() up-ref (legal)"| Widget
 ```
 
-- **`Qwt3DPlot`** — pure rendering window. Builds a `Qwt3DRenderContext` per draw phase and hands it to drawables; iterates items by z-order; exposes shared shader accessors (`lineShader()`, `polygonShader()`, `textShader()`).
-- **`Qwt3DPlotItem`** — abstract base: `attach/detach/draw/hull/z/title/setVisible/itemChanged/populateLegendColors`. Mirrors `QwtPlotItem`.
-- **`Qwt3DSurface`** — concrete surface item. Owns data, VBO/VAO/EBO/shader, color functor, and enrichments. Holds the methods moved off the old widget (`setPlotStyle`, `setDataColor`, `loadFromData`, `setResolution`, `setMeshColor`, `addEnrichment`, `setFloorStyle`, `setShading`, `showNormals`).
-- **`Qwt3DBar`** / **`Qwt3DLine`** — additional concrete `Qwt3DPlotItem` subclasses added in v7.3.5, demonstrating the extension point: a bar chart (per-bar cuboids with flat per-face normals; 1D series or 2D grid) and a line/curve item (`Tube`/`Lines`/`Dots`; the Tube style sweeps a circular cross-section with parallel-transport framing). Like `Qwt3DSurface`, they own VBO/VAO + a `Qwt3DColor` functor and implement `draw()`/`hull()`/`populateLegendColors()`; both are wired into `Qwt3DTheme::applyToItem()`.
+- `Qwt3DPlot` is the pure rendering window. It builds a `Qwt3DRenderContext` per draw phase and hands it to drawables, iterates items by z-order, and exposes shared shader accessors (`lineShader()`, `polygonShader()`, `textShader()`).
+- `Qwt3DPlotItem` is the abstract base: `attach/detach/draw/hull/z/title/setVisible/itemChanged/populateLegendColors`. It mirrors `QwtPlotItem`.
+- `Qwt3DSurface` is the concrete surface item. It owns data, VBO/VAO/EBO/shader, color functor, and enrichments, and holds the methods moved off the old widget (`setPlotStyle`, `setDataColor`, `loadFromData`, `setResolution`, `setMeshColor`, `addEnrichment`, `setFloorStyle`, `setShading`, `showNormals`).
+- `Qwt3DBar` / `Qwt3DLine` are additional concrete `Qwt3DPlotItem` subclasses added in v7.3.5, demonstrating the extension point: a bar chart (per-bar cuboids with flat per-face normals; 1D series or 2D grid) and a line/curve item (`Tube`/`Lines`/`Dots`; the Tube style sweeps a circular cross-section with parallel-transport framing). Like `Qwt3DSurface`, they own VBO/VAO + a `Qwt3DColor` functor and implement `draw()`/`hull()`/`populateLegendColors()`; both are wired into `Qwt3DTheme::applyToItem()`.
 
 ### 5.2 Theme system split
 
@@ -260,7 +260,7 @@ flowchart TD
 
 ### 5.3 New file structure
 
-The listing below shows the post-refactor `src/plot3d/` layout, with the new item classes, render context and shader directory:
+The post-refactor `src/plot3d/` layout, with the new item classes, render context and shader directory:
 
 ```
 src/plot3d/
@@ -284,14 +284,14 @@ Removed: `graphplot.h`, `multiplot.h`, `volumeplot.h`, `meshplot.cpp`, `gridplot
 
 ## 6. Benefits
 
-1. **Symmetry with 2D** — `Qwt3DPlot`+`Qwt3DPlotItem` mirrors `QwtPlot`+`QwtPlotItem`; patterns (attach, z-order, `itemChanged`, value-object styles) transfer directly between 2D and 3D.
-2. **Multiple datasets per window** — attach any number of `Qwt3DPlotItem`s to one `Qwt3DPlot`; the old architecture could not do this.
-3. **Modern, Core-Profile OpenGL** — VBO/VAO + GLSL shaders are faster, portable to ES/ANGLE, and avoid all deprecated GLU/immediate-mode calls.
-4. **Acyclic dependencies** — the tiered layering with a single legal up-pointer (`item→plot`) eliminates dangling-pointer crashes and makes low-level classes unit-testable in isolation.
-5. **Pure value objects** — color functors and themes are silent, copyable, and self-contained, matching the 2D `QwtColorMap`/`QwtSymbol` contract.
-6. **Clear extension points** — a new 3D plot type is just a new `Qwt3DPlotItem` subclass; the widget never needs editing. (The old stubs `GraphPlot`/`MultiPlot`/`VolumePlot` were deleted as dead extensibility theatre.) This was realized in v7.3.5 by `Qwt3DBar` and `Qwt3DLine`, each added as a self-contained item with no changes to `Qwt3DPlot`.
-7. **Consistent naming** — dropping `namespace Qwt3D` for the `Qwt3D` class prefix unifies the library's naming convention.
-8. **Unified colormap ecosystem** — `Qwt3DColorMapColor` bridges the core module's 22 scientific colormap presets (viridis, plasma, …) directly onto 3D surfaces, so 2D and 3D share one color system.
+1. `Qwt3DPlot`+`Qwt3DPlotItem` mirrors `QwtPlot`+`QwtPlotItem`; patterns such as attach, z-order, `itemChanged` and value-object styles transfer directly between 2D and 3D.
+2. Any number of `Qwt3DPlotItem`s can attach to one `Qwt3DPlot`; the old architecture could not do this.
+3. VBO/VAO and GLSL shaders are faster, portable to ES/ANGLE, and avoid all deprecated GLU and immediate-mode calls.
+4. The tiered layering with a single legal up-pointer (`item→plot`) eliminates dangling-pointer crashes and makes low-level classes unit-testable in isolation.
+5. Color functors and themes are silent, copyable and self-contained, matching the 2D `QwtColorMap`/`QwtSymbol` contract.
+6. A new 3D plot type is just a new `Qwt3DPlotItem` subclass; the widget never needs editing. (The old stubs `GraphPlot`/`MultiPlot`/`VolumePlot` were deleted as dead code.) `Qwt3DBar` and `Qwt3DLine` in v7.3.5 were each added as a self-contained item with no changes to `Qwt3DPlot`.
+7. Dropping `namespace Qwt3D` for the `Qwt3D` class prefix unifies the library's naming convention.
+8. `Qwt3DColorMapColor` bridges the core module's 22 scientific colormap presets (viridis, plasma, …) directly onto 3D surfaces, so 2D and 3D share one color system.
 
 ## 7. Migration Reference
 
@@ -324,4 +324,4 @@ Removed: `graphplot.h`, `multiplot.h`, `volumeplot.h`, `meshplot.cpp`, `gridplot
 
 ## 8. Conclusion
 
-The refactor converts the 3D module from a legacy, monolithic, fixed-function widget into a modern Plot+Item architecture with Core-Profile OpenGL and acyclic, tiered dependencies. It aligns 3D with the 2D module's proven design, makes the rendering path portable and fast, and establishes clear, safe extension points for future 3D plot types — all while sharing the unified color/theme ecosystem across 2D and 3D.
+The 3D module now uses a Plot+Item architecture with Core-Profile OpenGL and acyclic, tiered dependencies, replacing the monolithic fixed-function widget. It matches the 2D module's design, keeps the rendering path portable, and provides extension points for new 3D plot types, with the color and theme ecosystem shared between 2D and 3D.

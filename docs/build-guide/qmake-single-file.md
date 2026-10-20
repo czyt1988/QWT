@@ -1,17 +1,17 @@
 # qmake Single-File Build
 
-Besides [building QWT as shared libraries](build-instructions.md), Qwt also ships an **amalgamated single-file** form that skips the build step entirely. The `src-amalgamate/` directory contains two generated files:
+Besides [building QWT as shared libraries](build-instructions.md), Qwt also ships an amalgamated single-file form that skips the build step entirely. The `src-amalgamate/` directory contains two generated files:
 
-- `QwtPlot.h` — every Qwt header (core + 2D plotting + 3D plotting) merged into one file.
-- `QwtPlot.cpp` — every Qwt source file merged into one file.
+- `QwtPlot.h`: every Qwt header (core + 2D plotting + 3D plotting) merged into one file.
+- `QwtPlot.cpp`: every Qwt source file merged into one file.
 
 A single `#include "QwtPlot.h"` gives you the complete Qwt API. You compile these two files directly into your own program; no `qwtcore` / `qwtplot` / `qwtplot3d` library is linked at all.
 
-This page explains how to pull the two files into a **qmake** project: which Qt modules are required, which macros to set (and which to avoid), plus a ready-to-use `.pro` file. The runnable example lives in `examples/qmakeExample/`.
+To use the two files in a qmake project, set the Qt modules and macros listed below and add them to a `.pro` file. A runnable example lives in `examples/qmakeExample/`.
 
 > **Tip**
 >
-> The single-file route is ideal for quick integration, prototyping and single-file deployment. If you need shared libraries, follow the [CMake build instructions](build-instructions.md) and the [Import Qwt](../use-guide/import-qwt.md) guide instead.
+> The single-file route suits quick integration, prototyping and single-file deployment. If you need shared libraries, follow the [CMake build instructions](build-instructions.md) and the [Import Qwt](../use-guide/import-qwt.md) guide instead.
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ This page explains how to pull the two files into a **qmake** project: which Qt 
 
 ## Required Dependencies
 
-The amalgamation inlines the **entire** Qwt project — core, 2D plotting, 3D plotting, SVG, OpenGL and polar support all collapse into `QwtPlot.cpp`. Unlike the [library build](build-instructions.md) (where `QWT_CONFIG_*` options can switch SVG, OpenGL or 3D off), the single file has no such switches: every feature is always present, so every dependency listed below is mandatory.
+The amalgamation inlines the whole Qwt project: core, 2D plotting, 3D plotting, SVG, OpenGL and polar support all end up in `QwtPlot.cpp`. Unlike the [library build](build-instructions.md) (where `QWT_CONFIG_*` options can switch SVG, OpenGL or 3D off), the single file has no such switches: every feature is always present, so every dependency listed below is mandatory.
 
 | Dependency | Required | Notes |
 |------------|----------|-------|
@@ -34,7 +34,7 @@ The amalgamation inlines the **entire** Qwt project — core, 2D plotting, 3D pl
 
 ## Compile-Time Macros
 
-Qwt's `*_global.h` headers turn the per-module `*_EXPORT` macros into `__declspec(dllexport)` / `__declspec(dllimport)` **only when the matching `*_DLL` macro is defined**. With no `*_DLL` macro defined, `*_EXPORT` resolves to nothing — exactly the behavior needed when compiling the amalgamated sources straight into an executable (you are neither building nor consuming a DLL).
+Qwt's `*_global.h` headers turn the per-module `*_EXPORT` macros into `__declspec(dllexport)` / `__declspec(dllimport)` only when the matching `*_DLL` macro is defined. With no `*_DLL` macro defined, `*_EXPORT` resolves to nothing, which is exactly the behavior needed when compiling the amalgamated sources straight into an executable (you are neither building nor consuming a DLL).
 
 | Macro | Default | Effect |
 |-------|---------|--------|
@@ -47,9 +47,9 @@ Qwt's `*_global.h` headers turn the per-module `*_EXPORT` macros into `__declspe
 
 > **Warning**
 >
-> `QWT_CONFIG_*` (e.g. `QWT_CONFIG_QWTSVG`) are **CMake build options**, not C++ preprocessor macros. They have no effect on the amalgamated single file — it always contains the full feature set.
+> `QWT_CONFIG_*` (e.g. `QWT_CONFIG_QWTSVG`) are CMake build options, not C++ preprocessor macros. They have no effect on the amalgamated single file; it always contains the full feature set.
 
-You also do **not** need `QT_NO_KEYWORDS` or `CONFIG += no_keywords`: Qwt uses the `Q_SIGNALS` / `Q_SLOTS` macros internally and works with or without Qt keywords.
+You also do not need `QT_NO_KEYWORDS` or `CONFIG += no_keywords`: Qwt uses the `Q_SIGNALS` / `Q_SLOTS` macros internally and works with or without Qt keywords.
 
 ## Complete .pro Example
 
@@ -93,7 +93,7 @@ unix:!macx {
 
 > **Tip — Why `QwtPlot.h` goes into `HEADERS`**
 >
-> The amalgamated header contains all `Q_OBJECT` declarations (50 of them) while `QwtPlot.cpp` contains none. Putting `QwtPlot.h` into `HEADERS` makes qmake's automatic moc generate `moc_QwtPlot.cpp` with all the meta-object code — the qmake equivalent of CMake's `AUTOMOC`. `QwtPlot.cpp` never needs a separate moc step.
+> The amalgamated header contains all `Q_OBJECT` declarations (50 of them) while `QwtPlot.cpp` contains none. Putting `QwtPlot.h` into `HEADERS` makes qmake's automatic moc generate `moc_QwtPlot.cpp` with all the meta-object code, the qmake equivalent of CMake's `AUTOMOC`. `QwtPlot.cpp` never needs a separate moc step.
 
 ## Build Steps
 
@@ -127,7 +127,7 @@ greaterThan(QT_MAJOR_VERSION, 5) {
 
 ## CMake Single-File Build: staticExample
 
-Besides qmake, the repository ships a CMake version of the single-file build as `examples/staticExample/`: it adds `src-amalgamate/QwtPlot.h/.cpp` straight to `add_executable()` without depending on any qwt library target, proving the "two files embed Qwt" promise:
+Besides qmake, the repository ships a CMake version of the single-file build as `examples/staticExample/`: it adds `src-amalgamate/QwtPlot.h/.cpp` straight to `add_executable()` without depending on any qwt library target, so a program needs nothing beyond the two files:
 
 ```cmake
 add_executable(${QWT_APP_NAME}
