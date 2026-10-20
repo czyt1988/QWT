@@ -257,8 +257,11 @@ int mappedPointCount(QwtPlot* plot, QwtPlotCurve* curve, qreal dpr)
     QwtPointMapper mapper;
     mapper.setDevicePixelRatio(dpr);
     // QwtPlotCurve::drawLines() only aligns to the device pixel grid while
-    // the global QwtPainter switch is on - report the count it really paints
-    mapper.setFlag(QwtPointMapper::RoundPoints, QwtPainter::roundingAlignment());
+    // the global QwtPainter switch is on and the painter does not antialias -
+    // report the count it really paints
+    mapper.setFlag(QwtPointMapper::RoundPoints,
+                   QwtPainter::roundingAlignment()
+                       && !curve->testRenderHint(QwtPlotItem::RenderAntialiased));
     mapper.setFlag(QwtPointMapper::AdaptiveColumnReduce, curve->testPaintAttribute(QwtPlotCurve::FilterPointsAdaptive));
     mapper.setFlag(QwtPointMapper::PixelColumnReduce, curve->testPaintAttribute(QwtPlotCurve::FilterPointsPixel));
     mapper.setFlag(QwtPointMapper::LTTBReduce, curve->testPaintAttribute(QwtPlotCurve::FilterPointsLTTB));
