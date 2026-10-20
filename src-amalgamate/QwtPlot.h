@@ -10501,12 +10501,16 @@ public:
 
 	/**
 	 * @brief Corner miter flags
-	 * @details When a miter flag is set, the backbone is extended by its pen width
-	 *          beyond the corresponding end of the scale, so that it intersects with
-	 *          the backbone of a perpendicular scale ending at the same canvas corner.
+	 * @details When a miter flag is set, the backbone is extended beyond the
+	 *          corresponding end of the scale into a corner shared with a
+	 *          perpendicular scale, so that both backbones intersect instead
+	 *          of ending in a diagonal step. The extension reaches the target
+	 *          position of the perpendicular backbone when one has been set
+	 *          with setCornerTargets(), otherwise it falls back to one pixel
+	 *          beyond the end of the scale.
 	 *          For vertical scales AtStart/AtEnd refer to the top/bottom end,
 	 *          for horizontal scales to the left/right end.
-	 * @sa setCornerMiter(), cornerMiter()
+	 * @sa setCornerMiter(), cornerMiter(), setCornerTargets()
 	 */
 	enum CornerMiterFlag
 	{
@@ -10526,6 +10530,34 @@ public:
 	void setCornerMiter(CornerMiter miter);
 	/// @return the corner miter flags
 	CornerMiter cornerMiter() const;
+
+	/**
+	 * @brief Corner miter target positions in device coordinates
+	 * @details Per scale end the outer target is the device coordinate ( a row
+	 *          for vertical scales, a column for horizontal scales ) of the
+	 *          far edge of the perpendicular backbone band the backbone miter
+	 *          has to reach, and the inner target the near edge where a tick
+	 *          at the scale border sits. They differ when several perpendicular
+	 *          bands are stacked ( parasite axes ). qQNaN() keeps the
+	 *          historical fallback of one pixel beyond the end of the scale.
+	 * @sa setCornerTargets(), cornerTargets()
+	 */
+	struct CornerTargets
+	{
+		/// Backbone miter target at the start of the scale
+		qreal startOuter = qQNaN();
+		/// Border tick target at the start of the scale
+		qreal startInner = qQNaN();
+		/// Backbone miter target at the end of the scale
+		qreal endOuter = qQNaN();
+		/// Border tick target at the end of the scale
+		qreal endInner = qQNaN();
+	};
+
+	/// Set the corner miter target positions (device coordinates)
+	void setCornerTargets(const CornerTargets& targets);
+	/// @return the corner miter target positions
+	CornerTargets cornerTargets() const;
 
 	/// Get the border distance hint
 	void getBorderDistHint(const QFont&, int& start, int& end) const;
@@ -10804,6 +10836,9 @@ public:
 	/// Get the border distance hint
 	void getBorderDistHint(int& start, int& end) const;
 
+	/// Reserve logical pixels at the scale ends for the backbone corner miter
+	void setCornerExtension(int start, int end);
+
 	/// Get the minimum border distances
 	void getMinBorderDist(int& start, int& end) const;
 	/// Set the minimum border distances
@@ -10957,6 +10992,82 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(QwtScaleWidget::LayoutFlags)
 #endif
 
 /*** End of inlined file: qwt_scale_widget.h ***/
+
+
+/*** Start of inlined file: qwt_scale_corner.h ***/
+#ifndef QWT_SCALE_CORNER_H
+#define QWT_SCALE_CORNER_H
+
+class QwtPlot;
+
+/**
+ * @brief Helpers for the corners where perpendicular scale backbones meet
+ * @details When two perpendicular axes are visible, their backbones should
+ *          intersect at the shared canvas corner instead of ending in a
+ *          diagonal step. QwtScaleDraw extends (miters) the backbone into
+ *          the corner for this purpose. These helpers answer the questions
+ *          around that extension:
+ *
+ *          - which corners exist (miterFlags()),
+ *          - where the perpendicular backbone actually is, so that the
+ *            extension reaches it exactly (widgetTargetPositions() for the
+ *            on-screen widgets, layoutTargetPositions() for QwtPlotRenderer,
+ *            which lays out independently of the widget geometries),
+ *          - how many logical pixels an axis widget has to reserve beyond
+ *            its ends, so that the extension is not clipped away by the
+ *            widget rectangle (widgetExtensions()).
+ *
+ *          Parasite plots share the canvas of their host and stack their
+ *          axis bands outside of the bands of the host, so a corner is
+ *          resolved across the whole family of plots. Two targets are
+ *          reported per end: the outer one is the far edge of the
+ *          outermost perpendicular band (where the backbone miter has to
+ *          reach, so that every stacked band is joined), the inner one is
+ *          the near edge of the innermost band (where a tick at the scale
+ *          border sits). For plots without parasites both are the same.
+ *
+ *          All positions are in logical coordinates of the plot the axis
+ *          belongs to; qQNaN() means "no corner at this end".
+ */
+namespace QwtScaleCorner
+{
+/// @brief Target positions of the perpendicular backbones at one corner
+struct QWT_EXPORT Targets
+{
+	/// Far edge of the outermost perpendicular band at the start of the scale
+	qreal startOuter = qQNaN();
+	/// Near edge of the innermost perpendicular band at the start of the scale
+	qreal startInner = qQNaN();
+	/// Far edge of the outermost perpendicular band at the end of the scale
+	qreal endOuter = qQNaN();
+	/// Near edge of the innermost perpendicular band at the end of the scale
+	qreal endInner = qQNaN();
+
+	/// @return true when any target is set
+	bool isValid() const
+	{
+		return !qIsNaN(startOuter) || !qIsNaN(startInner)
+			|| !qIsNaN(endOuter) || !qIsNaN(endInner);
+	}
+};
+
+/// @return the corner miter flags for an axis of a plot
+QWT_EXPORT QwtScaleDraw::CornerMiter miterFlags(const QwtPlot* plot, QwtAxisId axisId);
+
+/// Target positions derived from the axis widgets of the whole plot family
+QWT_EXPORT Targets widgetTargetPositions(const QwtPlot* plot, QwtAxisId axisId);
+
+/// Target positions derived from the plot layout (for QwtPlotRenderer)
+QWT_EXPORT Targets layoutTargetPositions(const QwtPlot* plot, QwtAxisId axisId, qreal deviceScale);
+
+/// Logical pixels an axis widget must reserve at its ends for the miter
+QWT_EXPORT void widgetExtensions(const QwtPlot* plot, QwtAxisId axisId,
+								 qreal devicePixelRatio, int& startExtension, int& endExtension);
+}
+
+#endif
+
+/*** End of inlined file: qwt_scale_corner.h ***/
 
 
 /*** Start of inlined file: qwt_abstract_scale.h ***/

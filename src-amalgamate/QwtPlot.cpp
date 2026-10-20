@@ -74,7 +74,9 @@ quint32 qwtRand()
 #if defined(_MSC_VER)
 #include <intrin.h>
 #elif defined(__GNUC__) || defined(__clang__)
+#if defined(__x86_64__) || defined(__i386__)
 #include <x86intrin.h>
+#endif//__x86_64__ || __i386__
 #endif
 
 namespace
@@ -18370,18 +18372,32 @@ namespace
 /*
 	Backbone and ticks are filled as device pixel aligned rectangles instead of
 	being stroked with a pen: every edge lands on an integer device coordinate,
-	so the scale renders as crisp hairlines at any device pixel ratio and the
-	pen width truncates to whole device pixels (a width of 1.0 always paints
-	a single device pixel wide line).
+	so the scale renders as crisp hairlines at any device pixel ratio.
+
+	The pen width is a device pixel contract: it is rounded to whole device
+	pixels without being scaled by the device pixel ratio, so setPenWidthF(1.0)
+	paints a one device pixel wide line at any scaling (0.0 maps to 1 as well).
+	Tick lengths, in contrast, stay in logical pixels and are scaled by the
+	device pixel ratio (see qwtDeviceTickLength()).
  */
-inline int qwtDevicePenWidth(const QPainter* painter, qreal deviceStep)
+inline int qwtDevicePenWidth(const QPainter* painter)
 {
-	return qMax(1, static_cast<int>(painter->pen().widthF() * deviceStep + 1e-6));
+	return qMax(1, qRound(painter->pen().widthF() + 1e-6));
 }
 
 inline int qwtDeviceTickLength(qreal length, qreal deviceStep)
 {
 	return qMax(1, qRound(length * deviceStep));
+}
+
+/*
+	Device position a corner miter reaches: the target of the perpendicular
+	backbone when one is set, otherwise the historical one pixel beyond the
+	end of the scale.
+ */
+inline int qwtCornerMiterPos(qreal target, int fallback)
+{
+	return qIsNaN(target) ? fallback : qRound(target);
 }
 
 inline void qwtFillDeviceRect(QPainter* painter, const QRect& deviceRect)
@@ -18423,6 +18439,14 @@ public:
 	double labelRotation;
 
 	QwtScaleDraw::CornerMiter cornerMiter { QwtScaleDraw::NoMiter };
+
+	/*
+		Device coordinates ( y for vertical, x for horizontal scales ) of the
+		perpendicular backbone bands the miter has to reach at the start/end
+		of the scale. qQNaN() falls back to extending one pixel beyond the
+		end of the scale.
+	 */
+	QwtScaleDraw::CornerTargets cornerTargets;
 };
 
 /**
@@ -18463,6 +18487,34 @@ QwtScaleDraw::CornerMiter QwtScaleDraw::cornerMiter() const
 {
 	QWT_DC(d);
 	return d->cornerMiter;
+}
+
+/**
+ * @brief Set the corner miter target positions
+ * @param targets Target positions in device coordinates
+ * @details When a miter flag is set and its outer target is valid, the
+ *          backbone is extended exactly to that position instead of one
+ *          pixel beyond the end of the scale; border ticks snap to the
+ *          inner targets. QwtScaleWidget and QwtPlotRenderer compute the
+ *          targets from the geometry of the perpendicular axes; standalone
+ *          use keeps them unset and the historical fallback.
+ * @sa setCornerMiter(), cornerTargets(), CornerTargets
+ */
+void QwtScaleDraw::setCornerTargets(const CornerTargets& targets)
+{
+	QWT_D(d);
+	d->cornerTargets = targets;
+}
+
+/**
+ * @brief Get the corner miter target positions
+ * @return Target positions in device coordinates, qQNaN() when unset
+ * @sa setCornerTargets()
+ */
+QwtScaleDraw::CornerTargets QwtScaleDraw::cornerTargets() const
+{
+	QWT_DC(d);
+	return d->cornerTargets;
 }
 
 /**
@@ -18809,7 +18861,7 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
 	switch (d->alignment) {
 	case LeftScale:
 	case RightScale: {
-		const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sx) : 0;
+		const int pw      = hasBackbone ? qwtDevicePenWidth(painter) : 0;
 		const int inner   = qRound(qwtDeviceX(tr, d->pos.x()));
 		const int tickLen = qwtDeviceTickLength(len, sx);
 
@@ -18823,23 +18875,28 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
 			w  = tickLen + pw;
 		}
 
-		const int th = qwtDevicePenWidth(painter, sy);
+		const int th = qwtDevicePenWidth(painter);
 		int row      = qRound(qwtDeviceY(tr, tval));
 
 		// a tick at the scale border sits on the perpendicular backbone
 		const int first = qRound(qwtDeviceY(tr, d->pos.y()));
 		const int last  = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
-		if (row == first && (d->cornerMiter & MiterAtStart))
-			row = qRound(qwtDeviceY(tr, d->pos.y() - 1.0));
-		else if (row == last && (d->cornerMiter & MiterAtEnd))
-			row = qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0));
+		if (row == first && (d->cornerMiter & MiterAtStart)) {
+			const qreal target = qIsNaN(d->cornerTargets.startInner)
+				? d->cornerTargets.startOuter : d->cornerTargets.startInner;
+			row = qwtCornerMiterPos(target, qRound(qwtDeviceY(tr, d->pos.y() - 1.0)));
+		} else if (row == last && (d->cornerMiter & MiterAtEnd)) {
+			const qreal target = qIsNaN(d->cornerTargets.endInner)
+				? d->cornerTargets.endOuter : d->cornerTargets.endInner;
+			row = qwtCornerMiterPos(target, qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0)));
+		}
 
 		qwtFillDeviceRect(painter, QRect(x0, row - (th - 1) / 2, w, th));
 		break;
 	}
 	case TopScale:
 	case BottomScale: {
-		const int pw      = hasBackbone ? qwtDevicePenWidth(painter, sy) : 0;
+		const int pw      = hasBackbone ? qwtDevicePenWidth(painter) : 0;
 		const int inner   = qRound(qwtDeviceY(tr, d->pos.y()));
 		const int tickLen = qwtDeviceTickLength(len, sy);
 
@@ -18852,16 +18909,21 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
 			h  = tickLen + pw;
 		}
 
-		const int th = qwtDevicePenWidth(painter, sx);
+		const int th = qwtDevicePenWidth(painter);
 		int col      = qRound(qwtDeviceX(tr, tval));
 
 		// a tick at the scale border sits on the perpendicular backbone
 		const int first = qRound(qwtDeviceX(tr, d->pos.x()));
 		const int last  = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
-		if (col == first && (d->cornerMiter & MiterAtStart))
-			col = qRound(qwtDeviceX(tr, d->pos.x() - 1.0));
-		else if (col == last && (d->cornerMiter & MiterAtEnd))
-			col = qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0));
+		if (col == first && (d->cornerMiter & MiterAtStart)) {
+			const qreal target = qIsNaN(d->cornerTargets.startInner)
+				? d->cornerTargets.startOuter : d->cornerTargets.startInner;
+			col = qwtCornerMiterPos(target, qRound(qwtDeviceX(tr, d->pos.x() - 1.0)));
+		} else if (col == last && (d->cornerMiter & MiterAtEnd)) {
+			const qreal target = qIsNaN(d->cornerTargets.endInner)
+				? d->cornerTargets.endOuter : d->cornerTargets.endInner;
+			col = qwtCornerMiterPos(target, qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0)));
+		}
 
 		qwtFillDeviceRect(painter, QRect(col - (th - 1) / 2, y0, th, h));
 		break;
@@ -18881,22 +18943,20 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
 {
 	QWT_DC(d);
 	const QTransform tr = painter->deviceTransform();
-	const qreal sx      = qAbs(tr.m11());
-	const qreal sy      = qAbs(tr.m22());
 
 	switch (d->alignment) {
 	case LeftScale:
 	case RightScale: {
-		const int pw    = qwtDevicePenWidth(painter, sx);
+		const int pw    = qwtDevicePenWidth(painter);
 		const int inner = qRound(qwtDeviceX(tr, d->pos.x()));
 		const int x0    = (d->alignment == LeftScale) ? inner - pw + 1 : inner;
 
 		int y0 = qRound(qwtDeviceY(tr, d->pos.y()));
 		int y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
 		if (d->cornerMiter & MiterAtStart)
-			y0 = qRound(qwtDeviceY(tr, d->pos.y() - 1.0));
+			y0 = qMin(y0, qwtCornerMiterPos(d->cornerTargets.startOuter, qRound(qwtDeviceY(tr, d->pos.y() - 1.0))));
 		if (d->cornerMiter & MiterAtEnd)
-			y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0));
+			y1 = qMax(y1, qwtCornerMiterPos(d->cornerTargets.endOuter, qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0))));
 
 		// the length can be negative (QwtPolarGrid)
 		qwtFillDeviceRect(painter, QRect(x0, qMin(y0, y1), pw, qAbs(y1 - y0) + 1));
@@ -18904,16 +18964,16 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
 	}
 	case TopScale:
 	case BottomScale: {
-		const int pw    = qwtDevicePenWidth(painter, sy);
+		const int pw    = qwtDevicePenWidth(painter);
 		const int inner = qRound(qwtDeviceY(tr, d->pos.y()));
 		const int y0    = (d->alignment == TopScale) ? inner - pw + 1 : inner;
 
 		int x0 = qRound(qwtDeviceX(tr, d->pos.x()));
 		int x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
 		if (d->cornerMiter & MiterAtStart)
-			x0 = qRound(qwtDeviceX(tr, d->pos.x() - 1.0));
+			x0 = qMin(x0, qwtCornerMiterPos(d->cornerTargets.startOuter, qRound(qwtDeviceX(tr, d->pos.x() - 1.0))));
 		if (d->cornerMiter & MiterAtEnd)
-			x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0));
+			x1 = qMax(x1, qwtCornerMiterPos(d->cornerTargets.endOuter, qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0))));
 
 		// the length can be negative (QwtPolarGrid)
 		qwtFillDeviceRect(painter, QRect(qMin(x0, x1), y0, qAbs(x1 - x0) + 1, pw));
@@ -19336,6 +19396,7 @@ public:
 
 	int borderDist[ 2 ];
 	int minBorderDist[ 2 ];
+	int cornerExt[ 2 ] { 0, 0 };
 	int scaleLength { 0 };
 	int margin { 0 };
 	int edgeMargin { 0 };
@@ -19843,34 +19904,45 @@ void QwtScaleWidget::draw(QPainter* painter) const
 	/*
 		Extend the backbone into the canvas corners that are shared with
 		a visible perpendicular axis, so that both backbones intersect
-		instead of ending in a diagonal step.
+		instead of ending in a diagonal step. The extension reaches the
+		actual position of the perpendicular backbone instead of a fixed
+		guess, so the corner closes for any border distance, pen width and
+		device pixel ratio. QwtPlot::doLayout() reserves the corner pixels
+		inside the widget rectangle (see setCornerExtension()), otherwise
+		the extension would be clipped away here.
 	 */
 	if (const QwtPlot* plot = qobject_cast<const QwtPlot*>(parentWidget())) {
-		QwtAxisId startAxis, endAxis;
-		if (m_data->scaleDraw->orientation() == Qt::Vertical) {
-			startAxis = QwtAxis::XTop;
-			endAxis   = QwtAxis::XBottom;
-		} else {
-			startAxis = QwtAxis::YLeft;
-			endAxis   = QwtAxis::YRight;
+		QwtScaleDraw* sd = const_cast<QwtScaleDraw*>(m_data->scaleDraw.get());
+
+		const QwtAxisId axisId                = axisID();
+		const QwtScaleDraw::CornerMiter miter = QwtScaleCorner::miterFlags(plot, axisId);
+		// the miter and its targets are pure paint-time state of our scale draw
+		sd->setCornerMiter(miter);
+
+		QwtScaleDraw::CornerTargets targets;
+		if (miter != QwtScaleDraw::NoMiter) {
+			const QwtScaleCorner::Targets positions = QwtScaleCorner::widgetTargetPositions(plot, axisId);
+
+			// logical plot coordinates -> device coordinates of this painter
+			const QPoint origin = pos();
+			const QTransform tr = painter->deviceTransform();
+
+			const auto toDevice = [&](qreal v) -> qreal {
+				if (qIsNaN(v))
+					return v;
+
+				return m_data->scaleDraw->orientation() == Qt::Vertical
+					? qRound(tr.map(QPointF(0.0, v - origin.y())).y())
+					: qRound(tr.map(QPointF(v - origin.x(), 0.0)).x());
+			};
+
+			targets.startOuter = toDevice(positions.startOuter);
+			targets.startInner = toDevice(positions.startInner);
+			targets.endOuter   = toDevice(positions.endOuter);
+			targets.endInner   = toDevice(positions.endInner);
 		}
 
-		const auto meetsBackbone = [plot](QwtAxisId axisId) {
-			if (!plot->isAxisVisible(axisId))
-				return false;
-
-			const QwtScaleDraw* sd = plot->axisScaleDraw(axisId);
-			return sd && sd->hasComponent(QwtAbstractScaleDraw::Backbone);
-		};
-
-		QwtScaleDraw::CornerMiter miter = QwtScaleDraw::NoMiter;
-		if (meetsBackbone(startAxis))
-			miter |= QwtScaleDraw::MiterAtStart;
-		if (meetsBackbone(endAxis))
-			miter |= QwtScaleDraw::MiterAtEnd;
-
-		// the miter is a pure paint-time flag of our own scale draw
-		const_cast<QwtScaleDraw*>(m_data->scaleDraw.get())->setCornerMiter(miter);
+		sd->setCornerTargets(targets);
 	}
 
 	m_data->scaleDraw->draw(painter, palette());
@@ -20050,6 +20122,15 @@ void QwtScaleWidget::layoutScale(bool update_geometry)
 		bd0 = m_data->borderDist[ 0 ];
 	if (m_data->borderDist[ 1 ] > bd1)
 		bd1 = m_data->borderDist[ 1 ];
+
+	/*
+		The corner extension reserves space at the widget borders for the
+		backbone miter into the corners (see setCornerExtension()). Adding it
+		to the border distances keeps position and length of the scale - and
+		with it the scale maps of the plot - unaffected by the reservation.
+	 */
+	bd0 += m_data->cornerExt[ 0 ];
+	bd1 += m_data->cornerExt[ 1 ];
 
 	int colorBarWidth = 0;
 	if (m_data->colorBar.isEnabled && m_data->colorBar.interval.isValid())
@@ -20539,6 +20620,30 @@ void QwtScaleWidget::getBorderDistHint(int& start, int& end) const
 }
 
 /**
+ * @brief Reserve logical pixels at the scale ends for the backbone corner miter
+ * @param start Reservation at the beginning of the scale (top/left)
+ * @param end Reservation at the end of the scale (bottom/right)
+ * @details The backbone miter into a corner shared with a perpendicular axis
+ *          is clipped away when it leaves the widget rectangle. QwtPlot grows
+ *          the widget rectangle by the reservation computed from
+ *          QwtScaleCorner::widgetExtensions() and passes the same values here,
+ *          so that layoutScale() can absorb them into the border distances:
+ *          position and length of the scale - and with it the alignment to
+ *          the canvas - stay unaffected.
+ */
+void QwtScaleWidget::setCornerExtension(int start, int end)
+{
+	start = qMax(0, start);
+	end   = qMax(0, end);
+
+	if (start != m_data->cornerExt[ 0 ] || end != m_data->cornerExt[ 1 ]) {
+		m_data->cornerExt[ 0 ] = start;
+		m_data->cornerExt[ 1 ] = end;
+		layoutScale();
+	}
+}
+
+/**
  * @brief Set a minimum value for the distances of the scale's endpoints from the widget borders
  * @details This is useful to avoid that the scales are "jumping" when the tick labels
  *          or their positions change often.
@@ -20705,6 +20810,316 @@ const QwtColorMap* QwtScaleWidget::colorMap() const
 }
 
 /*** End of inlined file: qwt_scale_widget.cpp ***/
+
+
+/*** Start of inlined file: qwt_scale_corner.cpp ***/
+#include <qmath.h>
+#include <QWidget>
+
+namespace
+{
+//! The perpendicular axes sharing the start/end corner of an axis
+void cornerAxes(QwtAxisId axisId, QwtAxisId& startAxis, QwtAxisId& endAxis)
+{
+	if (QwtAxis::isYAxis(axisId)) {
+		startAxis = QwtAxis::XTop;
+		endAxis   = QwtAxis::XBottom;
+	} else {
+		startAxis = QwtAxis::YLeft;
+		endAxis   = QwtAxis::YRight;
+	}
+}
+
+bool hasBackbone(const QwtPlot* plot, QwtAxisId axisId)
+{
+	if (!plot || !plot->isAxisVisible(axisId))
+		return false;
+
+	const QwtScaleDraw* sd = plot->axisScaleDraw(axisId);
+	return sd && sd->hasComponent(QwtAbstractScaleDraw::Backbone);
+}
+
+/*
+	All plots sharing the canvas of plot: the host (or plot itself) and
+	every parasite stacked on it. The perpendicular axis of a corner may
+	live on any of them, and several of them can carry a band of the same
+	axis position, stacked outwards from the canvas.
+ */
+QList<const QwtPlot*> cornerFamily(const QwtPlot* plot)
+{
+	QList<const QwtPlot*> family;
+	if (!plot)
+		return family;
+
+	const QwtPlot* root = plot;
+	while (root->hostPlot())
+		root = root->hostPlot();
+
+	family += root;
+
+	const QList<QwtPlot*> parasites = root->parasitePlots();
+	for (const QwtPlot* parasite : parasites)
+		family += parasite;
+
+	return family;
+}
+
+/*
+	Device pixel width a scale draw paints its backbone with: mirrors the pen
+	QwtAbstractScaleDraw::draw() installs and the device pixel contract of
+	QwtScaleDraw (rounded to whole device pixels, never scaled by the device
+	pixel ratio).
+ */
+int devicePenWidth(const QwtAbstractScaleDraw* scaleDraw)
+{
+	qreal w = scaleDraw->penWidthF();
+	if (scaleDraw->isSelected())
+		w = qFuzzyIsNull(w) ? 1.0 + scaleDraw->selectedPenWidthOffset() : w + scaleDraw->selectedPenWidthOffset();
+
+	return qMax(1, qRound(w + 1e-6));
+}
+
+/*
+	Logical positions of the two edges of the backbone band of a scale draw:
+	the band starts at pos() and grows away from the canvas, its width in
+	logical pixels is the device pixel width divided by the device pixel ratio.
+	inner is the edge at pos(), outer the far edge. For vertical scales both
+	are rows (y coordinates), for horizontal scales columns (x coordinates).
+ */
+void bandEdges(const QwtScaleDraw* scaleDraw, qreal devicePixelRatio, qreal& inner, qreal& outer)
+{
+	const qreal spread = (devicePenWidth(scaleDraw) - 1) / devicePixelRatio;
+
+	switch (scaleDraw->alignment()) {
+	case QwtScaleDraw::BottomScale:
+		inner = scaleDraw->pos().y();
+		outer = inner + spread;
+		break;
+	case QwtScaleDraw::TopScale:
+		inner = scaleDraw->pos().y();
+		outer = inner - spread;
+		break;
+	case QwtScaleDraw::RightScale:
+		inner = scaleDraw->pos().x();
+		outer = inner + spread;
+		break;
+	case QwtScaleDraw::LeftScale:
+	default:
+		inner = scaleDraw->pos().x();
+		outer = inner - spread;
+		break;
+	}
+}
+}
+
+/**
+ * @brief Compute the corner miter flags for an axis of a plot
+ * @param plot Plot the axis belongs to
+ * @param axisId Axis
+ * @return Miter flags for the corners shared with visible perpendicular axes
+ * @details A corner exists when a perpendicular axis is visible and paints a
+ *          backbone - in the plot itself or anywhere in its family (the host
+ *          and the sibling parasites sharing the canvas).
+ */
+QwtScaleDraw::CornerMiter QwtScaleCorner::miterFlags(const QwtPlot* plot, QwtAxisId axisId)
+{
+	QwtScaleDraw::CornerMiter miter = QwtScaleDraw::NoMiter;
+
+	QwtAxisId startAxis, endAxis;
+	cornerAxes(axisId, startAxis, endAxis);
+
+	const QList<const QwtPlot*> family = cornerFamily(plot);
+
+	for (const QwtPlot* p : family) {
+		if (hasBackbone(p, startAxis))
+			miter |= QwtScaleDraw::MiterAtStart;
+		if (hasBackbone(p, endAxis))
+			miter |= QwtScaleDraw::MiterAtEnd;
+	}
+
+	return miter;
+}
+
+/**
+ * @brief Compute where the backbone miter should reach, from the axis widgets
+ * @param plot Plot the axis belongs to
+ * @param axisId Axis
+ * @return Target positions in logical coordinates of plot
+ * @details The targets are derived from the geometry and scale draw positions
+ *          of the perpendicular axis widgets of the whole plot family. Per end
+ *          the outer target is the far edge of the outermost band (the miter
+ *          joins every stacked band) and the inner target the near edge of the
+ *          innermost band (where a border tick sits). Call after the plot
+ *          layout has been applied to the widgets of the family.
+ */
+QwtScaleCorner::Targets QwtScaleCorner::widgetTargetPositions(const QwtPlot* plot, QwtAxisId axisId)
+{
+	Targets targets;
+
+	QwtAxisId startAxis, endAxis;
+	cornerAxes(axisId, startAxis, endAxis);
+
+	const QPoint plotOrigin = plot ? plot->mapToGlobal(QPoint(0, 0)) : QPoint();
+	const bool vertical     = QwtAxis::isYAxis(axisId);
+	const QList<const QwtPlot*> family = cornerFamily(plot);
+
+	// atStart: the outermost band is the one with the smallest coordinate
+	const auto collect = [&](QwtAxisId perpAxisId, bool atStart, qreal& outer, qreal& inner) {
+		for (const QwtPlot* p : family) {
+			if (!hasBackbone(p, perpAxisId))
+				continue;
+
+			const QwtScaleWidget* w = p->axisWidget(perpAxisId);
+			if (!w || !w->scaleDraw() || w->width() <= 0 || w->height() <= 0)
+				continue;
+
+			qreal bandInner, bandOuter;
+			bandEdges(w->scaleDraw(), w->devicePixelRatioF(), bandInner, bandOuter);
+
+			// widget origins are integer, so the fractional part of the band
+			// position survives the round trip through global coordinates
+			const QPoint delta = w->mapToGlobal(QPoint(0, 0)) - plotOrigin;
+			const qreal offset = vertical ? delta.y() : delta.x();
+			bandInner += offset;
+			bandOuter += offset;
+
+			if (qIsNaN(outer)) {
+				outer = bandOuter;
+				inner = bandInner;
+			} else if (atStart ? (bandOuter < outer) : (bandOuter > outer)) {
+				outer = bandOuter;
+			} else if (atStart ? (bandInner > inner) : (bandInner < inner)) {
+				inner = bandInner;
+			}
+		}
+	};
+
+	collect(startAxis, true, targets.startOuter, targets.startInner);
+	collect(endAxis, false, targets.endOuter, targets.endInner);
+
+	return targets;
+}
+
+/**
+ * @brief Compute where the backbone miter should reach, from the plot layout
+ * @param plot Plot the axis belongs to
+ * @param axisId Axis
+ * @param deviceScale Device pixels per logical pixel of the paint device
+ * @return Target positions in logical coordinates of the plot layout
+ * @details Variant of widgetTargetPositions() for QwtPlotRenderer: the
+ *          renderer activates the plot layout for the paint device and
+ *          positions the scales from the layout rectangles, so the widget
+ *          geometries are not a reliable source here. Stacked parasite axes
+ *          are not rendered into documents and are ignored. The plot layout
+ *          must be activated when calling.
+ */
+QwtScaleCorner::Targets QwtScaleCorner::layoutTargetPositions(const QwtPlot* plot, QwtAxisId axisId, qreal deviceScale)
+{
+	Targets targets;
+
+	if (!plot || deviceScale <= 0.0)
+		return targets;
+
+	QwtAxisId startAxis, endAxis;
+	cornerAxes(axisId, startAxis, endAxis);
+
+	const auto collect = [plot, deviceScale](QwtAxisId perpAxisId, qreal& outer, qreal& inner) {
+		if (!hasBackbone(plot, perpAxisId))
+			return;
+
+		const QwtScaleWidget* w = plot->axisWidget(perpAxisId);
+		const QwtScaleDraw* sd  = plot->axisScaleDraw(perpAxisId);
+		if (!w || !sd)
+			return;
+
+		const QRectF r = plot->plotLayout()->scaleRect(perpAxisId);
+		if (!r.isValid())
+			return;
+
+		int baseDist = w->margin();
+		if (w->isColorBarEnabled() && w->colorBarWidth() > 0)
+			baseDist += w->colorBarWidth() + w->spacing();
+
+		// backbone position like QwtPlotRenderer::renderScale()
+		switch (perpAxisId) {
+		case QwtAxis::YLeft:
+			inner = r.right() - 1.0 - baseDist;
+			break;
+		case QwtAxis::YRight:
+			inner = r.left() + baseDist;
+			break;
+		case QwtAxis::XTop:
+			inner = r.bottom() - 1.0 - baseDist;
+			break;
+		case QwtAxis::XBottom:
+			inner = r.top() + baseDist;
+			break;
+		default:
+			inner = qQNaN();
+			return;
+		}
+
+		const qreal spread = (devicePenWidth(sd) - 1) / deviceScale;
+		outer = (perpAxisId == QwtAxis::YLeft || perpAxisId == QwtAxis::XTop)
+			? inner - spread
+			: inner + spread;
+	};
+
+	collect(startAxis, targets.startOuter, targets.startInner);
+	collect(endAxis, targets.endOuter, targets.endInner);
+
+	return targets;
+}
+
+/**
+ * @brief Compute how much an axis widget has to reserve for the corner miter
+ * @param plot Plot the axis belongs to
+ * @param axisId Axis
+ * @param devicePixelRatio Device pixel ratio of the axis widget
+ * @param[out] startExtension Logical pixels to reserve at the start of the scale
+ * @param[out] endExtension Logical pixels to reserve at the end of the scale
+ * @details QwtScaleWidget clips everything painted outside of its rectangle,
+ *          so a backbone miter reaching the perpendicular backbone is only
+ *          visible when the widget covers the corner pixels. The extensions
+ *          are the gap between the widget borders and the outer miter targets
+ *          of widgetTargetPositions(), rounded up to whole logical pixels. The
+ *          caller grows the widget rectangle accordingly and passes the same
+ *          values to QwtScaleWidget::setCornerExtension(), which keeps the
+ *          scale span unchanged by absorbing them into the border distances.
+ */
+void QwtScaleCorner::widgetExtensions(const QwtPlot* plot, QwtAxisId axisId,
+									  qreal devicePixelRatio, int& startExtension, int& endExtension)
+{
+	startExtension = 0;
+	endExtension   = 0;
+
+	if (!plot || devicePixelRatio <= 0.0)
+		return;
+
+	const QwtScaleWidget* w = plot->axisWidget(axisId);
+	if (!w)
+		return;
+
+	const Targets targets = widgetTargetPositions(plot, axisId);
+
+	const bool vertical = QwtAxis::isYAxis(axisId);
+	const QRect r       = w->geometry();
+
+	if (!qIsNaN(targets.startOuter)) {
+		// the widget border must not sit after the first pixel of the target
+		const qreal edge   = vertical ? r.top() : r.left();
+		const qreal target = qRound(targets.startOuter * devicePixelRatio) / devicePixelRatio;
+		startExtension     = qMax(0, static_cast< int >(qCeil(edge - target)));
+	}
+
+	if (!qIsNaN(targets.endOuter)) {
+		const qreal edge   = (vertical ? r.bottom() : r.right()) + 1.0;
+		const qreal target = (qRound(targets.endOuter * devicePixelRatio) + 1.0) / devicePixelRatio;
+		endExtension       = qMax(0, static_cast< int >(qCeil(target - edge)));
+	}
+}
+
+/*** End of inlined file: qwt_scale_corner.cpp ***/
 
 
 /*** Start of inlined file: qwt_abstract_scale.cpp ***/
@@ -34835,8 +35250,9 @@ qreal QwtPointMapper::devicePixelRatio() const
  *          pixel grid ( see devicePixelRatio() ) but returned as PolygonF -
  *          what only makes sense when the further processing of the values
  *          need a QPolygonF.
- *          When RoundPoints & WeedOutIntermediatePoints is enabled, an even more
- *          aggressive weeding algorithm is enabled.
+ *          When WeedOutIntermediatePoints is enabled, an even more aggressive
+ *          weeding algorithm is enabled. It rounds to device pixels on its
+ *          own and does not require RoundPoints to be set.
  *
  * @param[in] xMap x map
  * @param[in] yMap y map
@@ -34874,10 +35290,12 @@ QPolygonF QwtPointMapper::toPolygonF(const QwtScaleMap& xMap,
 		// without RoundPoints the output keeps its sub pixel precision
 		polyline = qwtMinMaxBucketReduce< QPolygonF, QPointF >(
 			xMap, yMap, series, from, to, d->flags & RoundPoints, dpr);
+	} else if (d->flags & WeedOutIntermediatePoints) {
+		// the quad weeding path rounds to device pixels internally,
+		// so it does not depend on RoundPoints being set
+		polyline = qwtMapPointsQuad< QPolygonF, QPointF >(xMap, yMap, series, from, to, dpr);
 	} else if (d->flags & RoundPoints) {
-		if (d->flags & WeedOutIntermediatePoints) {
-			polyline = qwtMapPointsQuad< QPolygonF, QPointF >(xMap, yMap, series, from, to, dpr);
-		} else if (d->flags & WeedOutPoints) {
+		if (d->flags & WeedOutPoints) {
 			polyline = qwtToPolylineFilteredF(xMap, yMap, series, from, to, roundF);
 		} else {
 			polyline = qwtToPointsF(qwtInvalidRect, xMap, yMap, series, from, to, roundF);
@@ -45643,9 +46061,17 @@ void QwtPlotCurve::drawLines(QPainter* painter,
 
 	QWT_DC(d);
 
-	const bool doFit   = (d->attributes & Fitted) && d->curveFitter;
-	const bool doAlign = !doFit && QwtPainter::roundingAlignment(painter);
-	const bool doFill  = (d->brush.style() != Qt::NoBrush) && (d->brush.color().alpha() > 0);
+	const bool doFit = (d->attributes & Fitted) && d->curveFitter;
+	/*
+		Pixel snapping destroys the sub pixel geometry an antialiasing
+		rasterizer needs, so alignment is limited to painters that do
+		not antialias. PDF/SVG and transformed painters are already
+		excluded by QwtPainter::isAligning().
+	 */
+	const bool doAlign = !doFit
+		&& !(painter->renderHints() & QPainter::Antialiasing)
+		&& QwtPainter::roundingAlignment(painter);
+	const bool doFill = (d->brush.style() != Qt::NoBrush) && (d->brush.color().alpha() > 0);
 
 	QRectF clipRect;
 	if (d->paintAttributes & ClipPolygons) {
@@ -45658,10 +46084,12 @@ void QwtPlotCurve::drawLines(QPainter* painter,
 	QwtPointMapper mapper;
 	mapper.setDevicePixelRatio(QwtPainter::devicePixelRatio(painter->device()));
 
-	if (doAlign) {
+	if (doAlign)
 		mapper.setFlag(QwtPointMapper::RoundPoints, true);
-		mapper.setFlag(QwtPointMapper::WeedOutIntermediatePoints, testPaintAttribute(FilterPointsAggressive));
-	}
+
+	// the aggressive weeding path rounds to device pixels on its own,
+	// so it stays reachable when antialiasing turns RoundPoints off
+	mapper.setFlag(QwtPointMapper::WeedOutIntermediatePoints, testPaintAttribute(FilterPointsAggressive));
 
 	mapper.setFlag(QwtPointMapper::AdaptiveColumnReduce, testPaintAttribute(FilterPointsAdaptive));
 	mapper.setFlag(QwtPointMapper::PixelColumnReduce, testPaintAttribute(FilterPointsPixel));
@@ -45833,8 +46261,10 @@ void QwtPlotCurve::drawDots(QPainter* painter,
 
 	QWT_DC(d);
 
-	const bool doFill  = (d->brush.style() != Qt::NoBrush) && (d->brush.color().alpha() > 0);
-	const bool doAlign = QwtPainter::roundingAlignment(painter);
+	const bool doFill = (d->brush.style() != Qt::NoBrush) && (d->brush.color().alpha() > 0);
+	// no pixel snapping for antialiased painters - same rule as in drawLines()
+	const bool doAlign = !(painter->renderHints() & QPainter::Antialiasing)
+		&& QwtPainter::roundingAlignment(painter);
 
 	QwtPointMapper mapper;
 	mapper.setDevicePixelRatio(QwtPainter::devicePixelRatio(painter->device()));
@@ -46476,7 +46906,12 @@ QwtGraphic QwtPlotCurve::legendIcon(int index, const QSizeF& size) const
 
 			painter.setPen(pn);
 
-			const double y = 0.5 * size.height();
+			double y = 0.5 * size.height();
+			if (!(painter.renderHints() & QPainter::Antialiasing)) {
+				// snap the horizontal line to the pixel grid, so that a
+				// non-antialiased renderer keeps it a crisp 1 pixel line
+				y = qRound(y);
+			}
 			QwtPainter::drawLine(&painter, 0.0, y, size.width(), y);
 		}
 	}
@@ -55719,8 +56154,48 @@ void QwtPlotRenderer::renderScale(const QwtPlot* plot,
 
 	const bool hasBackbone = sd->hasComponent(QwtAbstractScaleDraw::Backbone);
 
-	if (d->layoutFlags & FrameWithScales)
+	const QwtScaleDraw::CornerMiter sdMiter     = sd->cornerMiter();
+	const QwtScaleDraw::CornerTargets sdTargets = sd->cornerTargets();
+
+	if (d->layoutFlags & FrameWithScales) {
 		sd->enableComponent(QwtAbstractScaleDraw::Backbone, false);
+		sd->setCornerMiter(QwtScaleDraw::NoMiter);
+		sd->setCornerTargets(QwtScaleDraw::CornerTargets());
+	} else {
+		/*
+			Set the corner miter and its targets explicitly: the scale draw is
+			shared with the axis widget, so exporting must not depend on what
+			a previous paint of the widgets left behind. The targets are
+			derived from the plot layout rectangles the renderer activated,
+			not from the widget geometries.
+		 */
+		const QwtScaleDraw::CornerMiter miter = QwtScaleCorner::miterFlags(plot, axisId);
+		sd->setCornerMiter(miter);
+
+		QwtScaleDraw::CornerTargets targets;
+		if (miter != QwtScaleDraw::NoMiter) {
+			const QTransform tr = painter->deviceTransform();
+
+			const QwtScaleCorner::Targets positions =
+				QwtScaleCorner::layoutTargetPositions(plot, axisId, qAbs(tr.m11()));
+
+			const bool vertical = QwtAxis::isYAxis(axisId);
+			const auto toDevice = [&tr, vertical](qreal v) -> qreal {
+				if (qIsNaN(v))
+					return v;
+
+				return vertical ? qRound(tr.map(QPointF(0.0, v)).y())
+								: qRound(tr.map(QPointF(v, 0.0)).x());
+			};
+
+			targets.startOuter = toDevice(positions.startOuter);
+			targets.startInner = toDevice(positions.startInner);
+			targets.endOuter   = toDevice(positions.endOuter);
+			targets.endInner   = toDevice(positions.endInner);
+		}
+
+		sd->setCornerTargets(targets);
+	}
 
 	sd->move(x, y);
 	sd->setLength(w);
@@ -55733,6 +56208,8 @@ void QwtPlotRenderer::renderScale(const QwtPlot* plot,
 	sd->move(sdPos);
 	sd->setLength(sdLength);
 	sd->enableComponent(QwtAbstractScaleDraw::Backbone, hasBackbone);
+	sd->setCornerMiter(sdMiter);
+	sd->setCornerTargets(sdTargets);
 
 	painter->restore();
 }
@@ -66153,7 +66630,8 @@ void QwtPlot::doLayout()
 			if (isAxisVisible(axisId)) {
 
 				QRect scaleRect = layout->scaleRect(axisId).toRect();
-				if (scaleRect != scaleWidget->geometry())
+				const bool geometryChanged = (scaleRect != scaleWidget->geometry());
+				if (geometryChanged)
 					scaleWidget->setGeometry(scaleRect);
 
 				/*
@@ -66166,12 +66644,74 @@ void QwtPlot::doLayout()
 				scaleWidget->getBorderDistHint(startDist, endDist);
 				scaleWidget->setBorderDist(startDist, endDist);
 
+				/*
+				   Hidden widgets receive their resize event only once they
+				   are shown, so setGeometry() above may not have recalculated
+				   the scale geometry - and setBorderDist() only does when the
+				   distances actually changed. Relayout the scale explicitly
+				   to keep it in sync with the applied rectangle ( f.e. for
+				   the axes of a parasite plot that is grabbed before it was
+				   ever shown ).
+				 */
+				if (geometryChanged && !scaleWidget->isVisible())
+					scaleWidget->layoutScale(false);
+
 				if (!scaleWidget->isVisibleTo(this))
 					scaleWidget->show();
 			} else {
 				scaleWidget->hide();
 			}
 		}
+	}
+
+	// After the host axis geometries are applied, execute doLayout for all
+	// parasite plots, so that the corner reservation below sees the final
+	// positions of the stacked parasite axis bands.
+	if (isHostPlot()) {
+		const QList< QwtPlot* > allparasites = parasitePlots();
+		// Set dimensions first, then adjust the rest
+		for (QwtPlot* p : allparasites) {
+			p->setGeometry(QRect(0, 0, width(), height()));
+			// The parasite layout copies the host rects during activate(). Refresh
+			// it here so the copy - and everything derived from it, like the
+			// caption rects of outside axis titles - sees the final host layout
+			// of this pass instead of a stale one from an earlier event.
+			p->updateLayout();
+		}
+	}
+
+	/*
+	   Reserve the corner pixels the backbone miters paint into: an axis
+	   widget clips everything outside of its rectangle, so where the border
+	   distances don't reach the perpendicular backbone the widget is grown
+	   toward the corner. QwtScaleWidget::setCornerExtension() absorbs the
+	   same amounts into the border distances, keeping position and length of
+	   the scales - and the alignment between canvas and scales - unchanged.
+	 */
+	for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+		const QwtAxisId axisId(axisPos);
+		if (!isAxisVisible(axisId))
+			continue;
+
+		QwtScaleWidget* scaleWidget = axisWidget(axisId);
+
+		int extStart = 0;
+		int extEnd   = 0;
+		QwtScaleCorner::widgetExtensions(this, axisId, scaleWidget->devicePixelRatioF(), extStart, extEnd);
+
+		scaleWidget->setCornerExtension(extStart, extEnd);
+		if (extStart == 0 && extEnd == 0)
+			continue;
+
+		QRect r = scaleWidget->geometry();
+		if (QwtAxis::isYAxis(axisId)) {
+			r.setTop(r.top() - extStart);
+			r.setBottom(r.bottom() + extEnd);
+		} else {
+			r.setLeft(r.left() - extStart);
+			r.setRight(r.right() + extEnd);
+		}
+		scaleWidget->setGeometry(r);
 	}
 
 	// Outside axis titles (QwtScaleWidget::TitleOutside) are painted by
@@ -66221,20 +66761,6 @@ void QwtPlot::doLayout()
 	}
 
 	m_data->canvas->setGeometry(canvasRect);
-
-	// After the host axis layout completes, execute doLayout for all parasite axes
-	if (isHostPlot()) {
-		const QList< QwtPlot* > allparasites = parasitePlots();
-		// Set dimensions first, then adjust the rest
-		for (QwtPlot* p : allparasites) {
-			p->setGeometry(QRect(0, 0, width(), height()));
-			// The parasite layout copies the host rects during activate(). Refresh
-			// it here so the copy - and everything derived from it, like the
-			// caption rects of outside axis titles - sees the final host layout
-			// of this pass instead of a stale one from an earlier event.
-			p->updateLayout();
-		}
-	}
 }
 
 /**
