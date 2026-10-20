@@ -15,7 +15,7 @@ hide:
 <h1 class="qwt-hero-title">Qt Plotting Library</h1>
 
 <p class="qwt-hero-desc">
-A high-performance 2D/3D plotting library for Qt applications, designed for scientific computing and engineering data visualization.
+A 2D/3D plotting library for Qt applications, for scientific computing and engineering data visualization.
 </p>
 
 <div class="qwt-hero-pills">
@@ -46,12 +46,12 @@ A high-performance 2D/3D plotting library for Qt applications, designed for scie
 <div class="qwt-stat-divider"></div>
 <div class="qwt-stat">
 <strong>Qt 5 &amp; 6</strong>
-<span>Fully Compatible</span>
+<span>Supported</span>
 </div>
 <div class="qwt-stat-divider"></div>
 <div class="qwt-stat">
 <strong>LGPL</strong>
-<span>Commercial Friendly</span>
+<span>Commercial Use</span>
 </div>
 </div>
 
@@ -59,7 +59,7 @@ A high-performance 2D/3D plotting library for Qt applications, designed for scie
 
 <div class="qwt-section-head">
 <h2>Core Features</h2>
-<p>Everything you need for professional data visualization in Qt applications.</p>
+<p>2D and 3D plotting for Qt applications, from line charts to scientific visualization.</p>
 </div>
 
 <div class="qwt-card-grid">
@@ -68,15 +68,15 @@ A high-performance 2D/3D plotting library for Qt applications, designed for scie
 <div class="qwt-card-icon">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
 </div>
-<h3>High Performance</h3>
-<p>Optimized QPainter rendering pipeline for large-scale datasets. Smooth real-time plotting with efficient redraw strategies.</p>
+<h3>Performance</h3>
+<p>QPainter rendering pipeline optimized for large datasets. Redraw strategies keep real-time plots responsive.</p>
 </div>
 
 <div class="qwt-card">
 <div class="qwt-card-icon">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
 </div>
-<h3>Rich Chart Types</h3>
+<h3>Chart Types</h3>
 <p>20+ built-in chart types: curves, scatter, bar, box, histogram, spectrogram, K-line, vector field, polar plots, and 3D surfaces.</p>
 </div>
 
@@ -85,7 +85,7 @@ A high-performance 2D/3D plotting library for Qt applications, designed for scie
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
 </div>
 <h3>CMake &amp; Qt6</h3>
-<p>Full CMake support with <code>find_package(qwt)</code>. Single-file amalgamation available. Compatible with Qt 5.12+ and Qt 6.</p>
+<p>CMake support with <code>find_package(qwt)</code>. Single-file amalgamation available. Compatible with Qt 5.12+ and Qt 6.</p>
 </div>
 
 <div class="qwt-card">
@@ -93,15 +93,15 @@ A high-performance 2D/3D plotting library for Qt applications, designed for scie
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
 </div>
 <h3>Multi-Axis System</h3>
-<p>Create unlimited independent axes via parasite plot architecture &mdash; similar to matplotlib's twin axis system with full interaction support.</p>
+<p>Create any number of independent axes through the parasite plot architecture, similar to matplotlib's twin axis system, with interaction support across all of them.</p>
 </div>
 
 <div class="qwt-card">
 <div class="qwt-card-icon">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"></circle><circle cx="19" cy="13" r="2"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="10" cy="20" r="2"></circle></svg>
 </div>
-<h3>Modern Design</h3>
-<p>Clean, flat visual style replacing the legacy embossed look. Professional aesthetics that fit contemporary application design.</p>
+<h3>Flat Visual Style</h3>
+<p>Clean, flat visual style replacing the legacy embossed look. Fits current application design conventions.</p>
 </div>
 
 <div class="qwt-card">
@@ -119,7 +119,7 @@ A high-performance 2D/3D plotting library for Qt applications, designed for scie
 
 <div class="qwt-section-head">
 <h2>Visualization Showcase</h2>
-<p>From basic charts to advanced scientific visualizations.</p>
+<p>Basic charts and scientific visualizations.</p>
 </div>
 
 <div class="qwt-gallery">
@@ -214,7 +214,7 @@ A high-performance 2D/3D plotting library for Qt applications, designed for scie
 
 <div class="qwt-section-head">
 <h2>Quick Start</h2>
-<p>Integrate QWT into your project in minutes.</p>
+<p>Add QWT to your project.</p>
 </div>
 
 **CMake (Recommended)**
@@ -269,7 +269,7 @@ plot->show();
 <div class="qwt-footer">
 <div class="qwt-footer-inner">
 
-<h2>Start Building Today</h2>
+<h2>Start Building</h2>
 <p>Explore the documentation or browse the source code.</p>
 
 <div class="qwt-footer-links">

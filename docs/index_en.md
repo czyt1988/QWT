@@ -2,12 +2,12 @@
 
 ## Overview
 
-**QWT** (Qt Widgets for Technical Applications) is a high-performance 2D/3D plotting library based on Qt, designed for data visualization in scientific computing and engineering applications.
+QWT (Qt Widgets for Technical Applications) is a 2D/3D plotting library based on Qt, designed for data visualization in scientific computing and engineering applications.
 
-- **License**: LGPL (commercial-friendly)
-- **Qt Support**: Qt 5.12+ and Qt 6
-- **C++ Standard**: C++11 (C++17 for Qt6)
-- **Build System**: CMake
+- License: LGPL
+- Qt Support: Qt 5.12+ and Qt 6
+- C++ Standard: C++11 (C++17 for Qt6)
+- Build System: CMake
 
 ## Core 2D Plotting Module
 

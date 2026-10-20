@@ -2,12 +2,12 @@
 
 ## 概述
 
-**QWT**（Qt Widgets for Technical Applications）是一个基于Qt的高性能2D/3D绘图库， 适用于科学计算和工程应用中的数据可视化。
+QWT（Qt Widgets for Technical Applications）是一个基于 Qt 的 2D/3D 绘图库，用于科学计算和工程应用中的数据可视化。
 
-- **协议**：LGPL（商业友好）
-- **Qt支持**：Qt 5.12+ 和 Qt 6
-- **C++标准**：C++11（Qt6时使用C++17）
-- **构建系统**：CMake
+- 协议：LGPL
+- Qt 支持：Qt 5.12+ 和 Qt 6
+- C++ 标准：C++11（Qt6 时使用 C++17）
+- 构建系统：CMake
 
 ## 基础工具模块 (core)
 
