@@ -10504,12 +10504,13 @@ public:
 	 * @details When a miter flag is set, the backbone is extended beyond the
 	 *          corresponding end of the scale into a corner shared with a
 	 *          perpendicular scale, so that both backbones intersect instead
-	 *          of ending in a diagonal step. The extension reaches the near
+	 *          of ending in a diagonal step. The extension reaches the far
 	 *          edge of the perpendicular backbone band closest to the canvas
-	 *          when a target has been set with setCornerTargets(), otherwise
-	 *          it falls back to one pixel beyond the end of the scale.
-	 *          For vertical scales AtStart/AtEnd refer to the top/bottom end,
-	 *          for horizontal scales to the left/right end.
+	 *          when a target has been set with setCornerTargets(), so that
+	 *          the whole corner square is covered for any pen width;
+	 *          otherwise it falls back to one pixel beyond the end of the
+	 *          scale. For vertical scales AtStart/AtEnd refer to the
+	 *          top/bottom end, for horizontal scales to the left/right end.
 	 * @sa setCornerMiter(), cornerMiter(), setCornerTargets()
 	 */
 	enum CornerMiterFlag
@@ -10539,6 +10540,11 @@ public:
 	 *          the canvas, where a border tick sits. Bands stacked farther
 	 *          out ( parasite axes ) are not crossed. qQNaN() keeps the
 	 *          historical fallback of one pixel beyond the end of the scale.
+	 *
+	 *          The backbone miter reaches width - 1 device pixels beyond the
+	 *          target - the far edge of the perpendicular band - so that the
+	 *          corner square closes for pen widths above one, while border
+	 *          ticks snap to the target itself.
 	 * @sa setCornerTargets(), cornerTargets()
 	 */
 	struct CornerTargets
@@ -10547,6 +10553,11 @@ public:
 		qreal start = qQNaN();
 		/// Target at the end of the scale
 		qreal end = qQNaN();
+
+		/// Device pen width of the perpendicular band at the start
+		qreal startWidth = 1.0;
+		/// Device pen width of the perpendicular band at the end
+		qreal endWidth = 1.0;
 	};
 
 	/// Set the corner miter target positions (device coordinates)
@@ -11035,12 +11046,27 @@ struct QWT_EXPORT Targets
 	/// Near edge of the innermost perpendicular band at the end of the scale
 	qreal end = qQNaN();
 
+	/// Device pen width of the perpendicular band at the start of the scale
+	int startWidth = 1;
+	/// Device pen width of the perpendicular band at the end of the scale
+	int endWidth = 1;
+
 	/// @return true when any target is set
 	bool isValid() const
 	{
 		return !qIsNaN(start) || !qIsNaN(end);
 	}
 };
+
+/// The perpendicular axes sharing the start/end corner of an axis
+QWT_EXPORT void cornerAxes(QwtAxisId axisId, QwtAxisId& startAxis, QwtAxisId& endAxis);
+
+/// @return 1 for top/left axes, 0 for bottom/right axes
+/// @details Added to a band position before rounding it to device pixels,
+///          and subtracted again afterwards: the near edge of a top/left
+///          backbone band is the last device pixel of its logical pixel,
+///          while the near edge of a bottom/right band is the first one.
+QWT_EXPORT qreal nearEdgeShift(QwtAxisId axisId);
 
 /// @return the corner miter flags for an axis of a plot
 QWT_EXPORT QwtScaleDraw::CornerMiter miterFlags(const QwtPlot* plot, QwtAxisId axisId);
