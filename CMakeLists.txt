@@ -106,6 +106,11 @@ if(QWT_CONFIG_BUILD_PLAYGROUND)
     add_subdirectory(playground)
 endif()
 if(QWT_CONFIG_BUILD_TESTS)
+    # CTest discovers tests from the directory it is invoked in, so testing
+    # has to be enabled at the top level: otherwise ctest --test-dir build
+    # finds no tests, while the test subdirectories still generate their own
+    # (unreachable) CTestTestfile.cmake.
+    enable_testing()
     add_subdirectory(tests)
 endif()
 
