@@ -586,6 +586,95 @@ void TestAxisCorner::testCornerSquareAtAnyPenWidth()
         QVERIFY2(!isDark(img, rightCol + pw, midRow), qPrintable(ctx + ": right band too wide"));
         QVERIFY2(!isDark(img, midCol, topRow - pw), qPrintable(ctx + ": top band too wide"));
         QVERIFY2(!isDark(img, midCol, bottomRow + pw), qPrintable(ctx + ": bottom band too wide"));
+
+        /*
+            A backbone must not stick out beyond the perpendicular band at
+            the corners: the scale span edge and the band edge fall into
+            different device pixels of the same logical pixel at device
+            pixel ratios above one, and the miter - not the span - defines
+            where the backbone ends.
+         */
+        QVERIFY2(!isDark(img, leftCol - pw, topRow), qPrintable(ctx + ": top band sticks out left of the y band"));
+        QVERIFY2(!isDark(img, leftCol - pw, bottomRow), qPrintable(ctx + ": bottom band sticks out left of the y band"));
+        QVERIFY2(!isDark(img, rightCol + pw, topRow), qPrintable(ctx + ": top band sticks out right of the y band"));
+        QVERIFY2(!isDark(img, rightCol + pw, bottomRow), qPrintable(ctx + ": bottom band sticks out right of the y band"));
+        QVERIFY2(!isDark(img, leftCol, topRow - pw), qPrintable(ctx + ": left band sticks out above the x band"));
+        QVERIFY2(!isDark(img, rightCol, topRow - pw), qPrintable(ctx + ": right band sticks out above the x band"));
+        QVERIFY2(!isDark(img, leftCol, bottomRow + pw), qPrintable(ctx + ": left band sticks out below the x band"));
+        QVERIFY2(!isDark(img, rightCol, bottomRow + pw), qPrintable(ctx + ": right band sticks out below the x band"));
+    }
+}
+
+/*
+    A tick at the scale border snaps onto the perpendicular backbone and
+    must sit exactly on the span of that band: for even pen widths the
+    band of a top/left axis grows away from the canvas, and centering the
+    tick thickness on the near edge instead would leave it off the band by
+    a device pixel.
+ */
+void TestAxisCorner::testBorderTickSitsOnBand()
+{
+    const qreal widths[] = { 1.0, 2.0, 3.0 };
+
+    for (qreal w : widths) {
+        QwtPlot plot;
+        plot.plotLayout()->setAlignCanvasToScales(true);
+        plot.setAxisVisible(QwtAxis::XTop, true);
+        plot.setAxisVisible(QwtAxis::YRight, true);
+
+        QwtPlotCanvas* canvas = new QwtPlotCanvas(&plot);
+        canvas->setLineWidth(0);
+        plot.setCanvas(canvas);
+
+        const QwtAxisId axes[] = { QwtAxis::XBottom, QwtAxis::XTop, QwtAxis::YLeft, QwtAxis::YRight };
+        for (QwtAxisId axisId : axes)
+            plot.axisScaleDraw(axisId)->setPenWidthF(w);
+
+        plot.resize(480, 360);
+        plot.replot();
+
+        const QImage img  = composePlot(plot);
+        const QRect cr    = canvasRectInPlot(plot);
+        const int pw      = devicePenWidth(w);
+        const QString ctx = QString("penWidthF(%1) dpr(%2)").arg(w).arg(img.devicePixelRatio());
+
+        const int leftCol   = toDevice(img, cr.left()) - 1;
+        const int topRow    = toDevice(img, cr.top()) - 1;
+        const int rightCol  = toDevice(img, cr.right() + 1);
+        const int bottomRow = toDevice(img, cr.bottom() + 1);
+
+        // a column left of the y band carrying the horizontal border ticks
+        const int tickCol = leftCol - pw - 3;
+        // a row below the x band carrying the vertical border ticks
+        const int tickRow = bottomRow + pw + 3;
+
+        // the y border ticks sit on the rows of the x bands
+        for (int r = topRow - pw + 1; r <= topRow; r++) {
+            QVERIFY2(isDark(img, tickCol, r),
+                qPrintable(ctx + QString(": y border tick misses the top band row %1").arg(r)));
+        }
+        QVERIFY2(!isDark(img, tickCol, topRow - pw), qPrintable(ctx + ": y border tick above the top band"));
+        QVERIFY2(!isDark(img, tickCol, topRow + 1), qPrintable(ctx + ": y border tick below the top band"));
+        for (int r = bottomRow; r <= bottomRow + pw - 1; r++) {
+            QVERIFY2(isDark(img, tickCol, r),
+                qPrintable(ctx + QString(": y border tick misses the bottom band row %1").arg(r)));
+        }
+        QVERIFY2(!isDark(img, tickCol, bottomRow - 1), qPrintable(ctx + ": y border tick above the bottom band"));
+        QVERIFY2(!isDark(img, tickCol, bottomRow + pw), qPrintable(ctx + ": y border tick below the bottom band"));
+
+        // the x border ticks sit on the columns of the y bands
+        for (int c = leftCol - pw + 1; c <= leftCol; c++) {
+            QVERIFY2(isDark(img, c, tickRow),
+                qPrintable(ctx + QString(": x border tick misses the left band column %1").arg(c)));
+        }
+        QVERIFY2(!isDark(img, leftCol - pw, tickRow), qPrintable(ctx + ": x border tick left of the left band"));
+        QVERIFY2(!isDark(img, leftCol + 1, tickRow), qPrintable(ctx + ": x border tick right of the left band"));
+        for (int c = rightCol; c <= rightCol + pw - 1; c++) {
+            QVERIFY2(isDark(img, c, tickRow),
+                qPrintable(ctx + QString(": x border tick misses the right band column %1").arg(c)));
+        }
+        QVERIFY2(!isDark(img, rightCol - 1, tickRow), qPrintable(ctx + ": x border tick left of the right band"));
+        QVERIFY2(!isDark(img, rightCol + pw, tickRow), qPrintable(ctx + ": x border tick right of the right band"));
     }
 }
 

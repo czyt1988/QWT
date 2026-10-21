@@ -15,6 +15,7 @@ private Q_SLOTS:
     void testCornerWithTicksInsideBorder();
     void testPenWidthDeviceContract();
     void testCornerSquareAtAnyPenWidth();
+    void testBorderTickSitsOnBand();
     void testLayoutMatrix();
     void testRendererDeterminism();
     void testParasiteCorner();
