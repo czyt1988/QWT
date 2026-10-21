@@ -18410,6 +18410,25 @@ inline int qwtCornerMiterWidth(qreal width)
 	return qMax(1, qRound(width + 1e-6));
 }
 
+/*
+	Offset of a border tick that snapped onto the perpendicular backbone
+	band: the tick thickness is aligned into the span of that band, which
+	grows away from the canvas for top/left bands. Without the alignment an
+	even pen width would leave the tick off the band by up to width - 1
+	device pixels; unsnapped ticks ( bandWidth 0 ) keep the historical
+	centering on their value position.
+ */
+inline int qwtSnappedTickShift(int bandWidth, int tickWidth, bool atStart)
+{
+	if (bandWidth <= 0)
+		return (tickWidth - 1) / 2;
+
+	// the band of a start ( top/left ) perpendicular grows away from the
+	// canvas, the band of an end ( bottom/right ) one towards it
+	const int inset = qMax(0, (bandWidth - tickWidth) / 2);
+	return atStart ? (bandWidth - 1) - inset : -inset;
+}
+
 inline void qwtFillDeviceRect(QPainter* painter, const QRect& deviceRect)
 {
 	/*
@@ -18914,13 +18933,18 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
 		// a tick at the scale border sits on the perpendicular backbone
 		const int first = qRound(qwtDeviceY(tr, d->pos.y()));
 		const int last  = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
+		int bandWidth   = 0;
+		bool atStart    = false;
 		if (row == first && (d->cornerMiter & MiterAtStart)) {
-			row = qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceY(tr, d->pos.y() - 1.0)));
+			row       = qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceY(tr, d->pos.y() - 1.0)));
+			bandWidth = qwtCornerMiterWidth(d->cornerTargets.startWidth);
+			atStart   = true;
 		} else if (row == last && (d->cornerMiter & MiterAtEnd)) {
-			row = qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0)));
+			row       = qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0)));
+			bandWidth = qwtCornerMiterWidth(d->cornerTargets.endWidth);
 		}
 
-		qwtFillDeviceRect(painter, QRect(x0, row - (th - 1) / 2, w, th));
+		qwtFillDeviceRect(painter, QRect(x0, row - qwtSnappedTickShift(bandWidth, th, atStart), w, th));
 		break;
 	}
 	case TopScale:
@@ -18944,13 +18968,18 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
 		// a tick at the scale border sits on the perpendicular backbone
 		const int first = qRound(qwtDeviceX(tr, d->pos.x()));
 		const int last  = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
+		int bandWidth   = 0;
+		bool atStart    = false;
 		if (col == first && (d->cornerMiter & MiterAtStart)) {
-			col = qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceX(tr, d->pos.x() - 1.0)));
+			col       = qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceX(tr, d->pos.x() - 1.0)));
+			bandWidth = qwtCornerMiterWidth(d->cornerTargets.startWidth);
+			atStart   = true;
 		} else if (col == last && (d->cornerMiter & MiterAtEnd)) {
-			col = qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0)));
+			col       = qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0)));
+			bandWidth = qwtCornerMiterWidth(d->cornerTargets.endWidth);
 		}
 
-		qwtFillDeviceRect(painter, QRect(col - (th - 1) / 2, y0, th, h));
+		qwtFillDeviceRect(painter, QRect(col - qwtSnappedTickShift(bandWidth, th, atStart), y0, th, h));
 		break;
 	}
 	}
@@ -18978,12 +19007,20 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
 
 		int y0 = qRound(qwtDeviceY(tr, d->pos.y()));
 		int y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
+		/*
+			Where a corner miter exists the backbone ends exactly at the
+			perpendicular band: clamping against the scale span would leave
+			the first device pixel of the span sticking out beyond the band
+			at device pixel ratios above one, where the span edge and the
+			band edge fall into different device pixels of the same logical
+			pixel.
+		 */
 		if (d->cornerMiter & MiterAtStart)
-			y0 = qMin(y0, qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceY(tr, d->pos.y() - 1.0)))
-					- (qwtCornerMiterWidth(d->cornerTargets.startWidth) - 1));
+			y0 = qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceY(tr, d->pos.y() - 1.0)))
+				- (qwtCornerMiterWidth(d->cornerTargets.startWidth) - 1);
 		if (d->cornerMiter & MiterAtEnd)
-			y1 = qMax(y1, qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0)))
-					+ (qwtCornerMiterWidth(d->cornerTargets.endWidth) - 1));
+			y1 = qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0)))
+				+ (qwtCornerMiterWidth(d->cornerTargets.endWidth) - 1);
 
 		// the length can be negative (QwtPolarGrid)
 		qwtFillDeviceRect(painter, QRect(x0, qMin(y0, y1), pw, qAbs(y1 - y0) + 1));
@@ -18997,12 +19034,14 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
 
 		int x0 = qRound(qwtDeviceX(tr, d->pos.x()));
 		int x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
+		// see the vertical branch: the miter ends the backbone at the
+		// perpendicular band instead of clamping it against the scale span
 		if (d->cornerMiter & MiterAtStart)
-			x0 = qMin(x0, qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceX(tr, d->pos.x() - 1.0)))
-					- (qwtCornerMiterWidth(d->cornerTargets.startWidth) - 1));
+			x0 = qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceX(tr, d->pos.x() - 1.0)))
+				- (qwtCornerMiterWidth(d->cornerTargets.startWidth) - 1);
 		if (d->cornerMiter & MiterAtEnd)
-			x1 = qMax(x1, qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0)))
-					+ (qwtCornerMiterWidth(d->cornerTargets.endWidth) - 1));
+			x1 = qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0)))
+				+ (qwtCornerMiterWidth(d->cornerTargets.endWidth) - 1);
 
 		// the length can be negative (QwtPolarGrid)
 		qwtFillDeviceRect(painter, QRect(qMin(x0, x1), y0, qAbs(x1 - x0) + 1, pw));
