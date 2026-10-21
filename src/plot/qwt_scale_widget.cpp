@@ -563,6 +563,33 @@ void QwtScaleWidget::paintEvent(QPaintEvent* event)
     draw(&painter);
 }
 
+/**
+ * @brief Contents rectangle without the corner extension
+ * @return Contents rectangle reduced by the reserved corner pixels
+ * @details setCornerExtension() grows the widget rectangle at the scale ends,
+ *          so the backbone miter into the canvas corners is not clipped. The
+ *          reserved pixels are not part of the scale area: every geometry
+ *          derived from the contents rectangle ( color bar, inside title,
+ *          scaleRect() ) has to ignore them, otherwise it would grow with the
+ *          reservation. The scale itself is laid out from the full contents
+ *          rectangle with the extension added to the border distances ( see
+ *          layoutScale() ), which yields the same span as this rectangle.
+ */
+QRect QwtScaleWidget::scaleContentsRect() const
+{
+    QRect r = contentsRect();
+
+    if (m_data->scaleDraw->orientation() == Qt::Vertical) {
+        r.setTop(r.top() + m_data->cornerExt[ 0 ]);
+        r.setBottom(r.bottom() - m_data->cornerExt[ 1 ]);
+    } else {
+        r.setLeft(r.left() + m_data->cornerExt[ 0 ]);
+        r.setRight(r.right() - m_data->cornerExt[ 1 ]);
+    }
+
+    return r;
+}
+
 /*!
    @brief draw the scale
  */
@@ -614,11 +641,13 @@ void QwtScaleWidget::draw(QPainter* painter) const
 
     m_data->scaleDraw->draw(painter, palette());
 
+    const QRect contents = scaleContentsRect();
+
     if (m_data->colorBar.isEnabled && m_data->colorBar.width > 0 && m_data->colorBar.interval.isValid()) {
-        drawColorBar(painter, colorBarRect(contentsRect()));
+        drawColorBar(painter, colorBarRect(contents));
     }
 
-    QRect r = contentsRect();
+    QRect r = contents;
     if (m_data->scaleDraw->orientation() == Qt::Horizontal) {
         r.setLeft(r.left() + m_data->borderDist[ 0 ]);
         r.setWidth(r.width() - m_data->borderDist[ 1 ]);
@@ -640,6 +669,12 @@ QRectF QwtScaleWidget::colorBarRect(const QRectF& rect) const
 {
     QRectF cr = rect;
 
+    /*
+        setTop()/setLeft() shift the origin to the first border distance and
+        keep the far edge, so the extent only has to lose the end distance
+        (plus one to keep the last scale row inside). Together this covers
+        exactly the range of the scale.
+     */
     if (m_data->scaleDraw->orientation() == Qt::Horizontal) {
         cr.setLeft(cr.left() + m_data->borderDist[ 0 ]);
         cr.setWidth(cr.width() - m_data->borderDist[ 1 ] + 1);
@@ -678,7 +713,7 @@ QRectF QwtScaleWidget::colorBarRect(const QRectF& rect) const
 }
 
 /**
- * @brief Get the rectangle for drawing the scale (excluding colorBar, margin, edgeMargin, borderDist)
+ * @brief Get the rectangle for drawing the scale (excluding colorBar, margin, edgeMargin, borderDist and the corner extension)
  * @return Rectangle used for drawing the scale
  */
 QRect QwtScaleWidget::scaleRect() const
@@ -686,8 +721,9 @@ QRect QwtScaleWidget::scaleRect() const
     if (!m_data->scaleDraw)  // No scale draw object
         return QRect();
 
-    /* 1. Content area, remove the outer contentsMargins() */
-    QRect cr = contentsRect();
+    /* 1. Content area, remove the outer contentsMargins() and the corner
+          extension reserved for the backbone miter */
+    QRect cr = scaleContentsRect();
 
     /* 2. Remove user-specified borderDist (empty space at scale endpoints) */
     int bd0, bd1;
@@ -1296,7 +1332,9 @@ void QwtScaleWidget::getBorderDistHint(int& start, int& end) const
  *          QwtScaleCorner::widgetExtensions() and passes the same values here,
  *          so that layoutScale() can absorb them into the border distances:
  *          position and length of the scale - and with it the alignment to
- *          the canvas - stay unaffected.
+ *          the canvas - stay unaffected. Geometry derived from the contents
+ *          rectangle ( color bar, inside title, scaleRect() ) ignores the
+ *          reservation, see scaleContentsRect().
  */
 void QwtScaleWidget::setCornerExtension(int start, int end)
 {

@@ -17,6 +17,7 @@ private Q_SLOTS:
     void testLayoutMatrix();
     void testRendererDeterminism();
     void testParasiteCorner();
+    void testReservationDoesNotExtendScaleGeometry();
 };
 
 #endif

@@ -305,7 +305,7 @@ public:
     /// @return the rectangle for the color bar
     QRectF colorBarRect(const QRectF&) const;
 
-    /// @return the scale rectangle (excluding color bar, margin, edge margin, border distances)
+    /// @return the scale rectangle (excluding color bar, margin, edge margin, border distances, corner extension)
     QRect scaleRect() const;
     /// Set the text color (font color of the coordinate axis)
     void setTextColor(const QColor& c);
@@ -371,6 +371,8 @@ protected:
 
 private:
     void initScale(QwtScaleDraw::Alignment);
+    /// Contents rectangle without the corner extension reserved for the miter
+    QRect scaleContentsRect() const;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(QwtScaleWidget::LayoutFlags)

@@ -1,6 +1,8 @@
 #include "test_axis_corner.h"
 
 #include <qwt_axis.h>
+#include <qwt_color_map.h>
+#include <qwt_interval.h>
 #include <qwt_plot.h>
 #include <qwt_plot_canvas.h>
 #include <qwt_plot_curve.h>
@@ -11,6 +13,7 @@
 #include <qwt_scale_widget.h>
 
 #include <QApplication>
+#include <QColor>
 #include <QImage>
 #include <QMargins>
 #include <QPainter>
@@ -91,11 +94,15 @@ protected:
     every widget with its window background instead, erasing the pixels of
     previously rendered widgets in the overlap.
  */
-QImage composePlot(QwtPlot& plot, const QList<QWidget*>& extraWidgets = QList<QWidget*>())
+QImage composePlot(QwtPlot& plot, const QList<QWidget*>& extraWidgets = QList<QWidget*>(),
+    bool runLayout = true)
 {
     // grab() runs the layout of the still hidden widget tree, so all
-    // geometries are current when the widgets are rendered below
-    plot.grab();
+    // geometries are current when the widgets are rendered below. Callers
+    // that changed paint state after the last layout pass can skip it, so
+    // the rendering keeps the geometries of that pass.
+    if (runLayout)
+        plot.grab();
 
     const qreal dpr = plot.devicePixelRatioF();
     QImage img(qRound(plot.width() * dpr), qRound(plot.height() * dpr), QImage::Format_ARGB32_Premultiplied);
@@ -672,6 +679,64 @@ void TestAxisCorner::testParasiteCorner()
     QVERIFY2(band.x() < hostBand.x(), "the parasite band must sit outside of the host band");
     QCOMPARE(band.y(), hostBand.y());
     checkCornerClosed(img, QRect(), band, "parasite");
+}
+
+/*
+    The corner reservation grows the axis widget rectangle at the scale
+    ends so the backbone miter is not clipped. It must not grow the geometry
+    derived from the contents rectangle: the color bar, the inside title and
+    scaleRect() describe the scale and keep its extent.
+ */
+void TestAxisCorner::testReservationDoesNotExtendScaleGeometry()
+{
+    QwtPlot plot;
+    setupTicksInsideBorderPlot(plot);
+
+    QwtScaleWidget* yw = plot.axisWidget(QwtAxis::YLeft);
+    yw->setColorBarEnabled(true);
+    yw->setColorBarWidth(10);
+    yw->setColorMap(QwtInterval(0.0, 1.0),
+        new QwtLinearColorMap(QColor(Qt::black), QColor(Qt::blue)));
+
+    plot.replot();
+
+    /*
+        Apply the layout once (including the corner reservation), then hide
+        the x backbone for the composition: the reserved corner row of the
+        y widget overlaps the x backbone, and the assertion below needs that
+        row to show the background instead.
+     */
+    plot.grab();
+    plot.axisScaleDraw(QwtAxis::XBottom)->enableComponent(QwtAbstractScaleDraw::Backbone, false);
+
+    const QImage img = composePlot(plot, QList<QWidget*>(), false);
+
+    // precondition: the bottom corner reservation of yLeft is active
+    // (XBottom is visible, XTop is not), so the widget is taller than the
+    // scale rect the layout allocated for it
+    const QRect layoutRect = plot.plotLayout()->scaleRect(QwtAxis::YLeft).toRect();
+    QVERIFY2(yw->geometry().bottom() > layoutRect.bottom(),
+        "the corner reservation must be active for this test");
+
+    const QwtScaleDraw* sd = yw->scaleDraw();
+    const QPoint origin    = yw->mapTo(&plot, QPoint(0, 0));
+    const qreal scaleStart = origin.y() + sd->pos().y();
+    const qreal scaleEnd   = scaleStart + sd->length();
+
+    // scaleRect() keeps the scale extent at both ends
+    const QRect sr = yw->scaleRect();
+    QCOMPARE(sr.top(), qRound(sd->pos().y()));
+    QCOMPARE(sr.bottom() + 1, qRound(sd->pos().y() + sd->length()));
+
+    // the drawn color bar ends with the scale as well: its last row is
+    // inside the scale, the reserved corner row below it stays untouched
+    const QRectF bar = yw->colorBarRect(yw->contentsRect());
+    const int col    = toDevice(img, origin.x() + bar.center().x());
+
+    QVERIFY2(isDark(img, col, toDevice(img, scaleEnd)),
+        "the color bar must reach the end of the scale");
+    QVERIFY2(!isDark(img, col, toDevice(img, scaleEnd + 1)),
+        "the color bar must not grow into the reserved corner pixels");
 }
 
 int main(int argc, char* argv[])
