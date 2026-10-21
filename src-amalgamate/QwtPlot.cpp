@@ -66621,6 +66621,22 @@ void QwtPlot::replot()
 			m_data->canvas->update(m_data->canvas->contentsRect());
 		}
 	}
+
+	/*
+		The axis widgets paint the scales: repaint them as well, so runtime
+		changes of the scale draws that do not change the layout ( pen width,
+		colors ) become visible - without this the scales would keep showing
+		the state of the last layout driven repaint.
+	 */
+	for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+		const QwtAxisId axisId(axisPos);
+		if (!isAxisVisible(axisId))
+			continue;
+
+		if (QwtScaleWidget* w = axisWidget(axisId))
+			w->update();
+	}
+
 	restoreAutoReplotState();
 }
 
