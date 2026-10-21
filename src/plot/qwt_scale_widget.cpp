@@ -630,10 +630,8 @@ void QwtScaleWidget::draw(QPainter* painter) const
                     : qRound(tr.map(QPointF(v - origin.x(), 0.0)).x());
             };
 
-            targets.startOuter = toDevice(positions.startOuter);
-            targets.startInner = toDevice(positions.startInner);
-            targets.endOuter   = toDevice(positions.endOuter);
-            targets.endInner   = toDevice(positions.endInner);
+            targets.start = toDevice(positions.start);
+            targets.end   = toDevice(positions.end);
         }
 
         sd->setCornerTargets(targets);

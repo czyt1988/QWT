@@ -672,13 +672,29 @@ void TestAxisCorner::testParasiteCorner()
         host.axisWidget(QwtAxis::YLeft), host.axisWidget(QwtAxis::XBottom));
     checkCornerClosed(img, cr, hostBand, "parasite-host");
 
-    // the parasite band is stacked outside of the host band, and the host
-    // x backbone reaches out to it, so its corner closes as well
+    /*
+        The parasite band is stacked outside of the host band. Its y backbone
+        still reaches the host x backbone row, but the host x backbone must
+        not stretch out to the parasite band: extending to the outermost band
+        would run the backbone through the whole axis stack and close the
+        corners of unrelated bands ( the parasite example drew a box around
+        the plot when both directions had stacked bands ).
+     */
     const QPoint band = bandCorner(img, host,
         parasite->axisWidget(QwtAxis::YLeft), host.axisWidget(QwtAxis::XBottom));
     QVERIFY2(band.x() < hostBand.x(), "the parasite band must sit outside of the host band");
     QCOMPARE(band.y(), hostBand.y());
-    checkCornerClosed(img, QRect(), band, "parasite");
+
+    const int dpr = qCeil(img.devicePixelRatio());
+    QVERIFY2(band.x() + 5 * dpr < hostBand.x(),
+        "the fixture needs a gap between the parasite and host bands");
+
+    QVERIFY2(isDark(img, band.x(), hostBand.y()),
+        "the parasite y backbone must reach the host x backbone row");
+    QVERIFY2(!isDark(img, band.x() + 5 * dpr, hostBand.y()),
+        "the host x backbone must not stretch out to the parasite band");
+    QVERIFY2(!isDark(img, hostBand.x() - 5 * dpr, hostBand.y()),
+        "the host x backbone must end at the host corner");
 }
 
 /*

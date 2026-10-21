@@ -784,7 +784,7 @@ void QwtPlotRenderer::renderScale(const QwtPlot* plot,
             const QTransform tr = painter->deviceTransform();
 
             const QwtScaleCorner::Targets positions =
-                QwtScaleCorner::layoutTargetPositions(plot, axisId, qAbs(tr.m11()));
+                QwtScaleCorner::layoutTargetPositions(plot, axisId);
 
             const bool vertical = QwtAxis::isYAxis(axisId);
             const auto toDevice = [&tr, vertical](qreal v) -> qreal {
@@ -795,10 +795,8 @@ void QwtPlotRenderer::renderScale(const QwtPlot* plot,
                                 : qRound(tr.map(QPointF(v, 0.0)).x());
             };
 
-            targets.startOuter = toDevice(positions.startOuter);
-            targets.startInner = toDevice(positions.startInner);
-            targets.endOuter   = toDevice(positions.endOuter);
-            targets.endInner   = toDevice(positions.endInner);
+            targets.start = toDevice(positions.start);
+            targets.end   = toDevice(positions.end);
         }
 
         sd->setCornerTargets(targets);

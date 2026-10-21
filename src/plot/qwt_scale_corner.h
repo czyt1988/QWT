@@ -36,13 +36,12 @@ class QwtPlot;
  *            widget rectangle (widgetExtensions()).
  *
  *          Parasite plots share the canvas of their host and stack their
- *          axis bands outside of the bands of the host, so a corner is
- *          resolved across the whole family of plots. Two targets are
- *          reported per end: the outer one is the far edge of the
- *          outermost perpendicular band (where the backbone miter has to
- *          reach, so that every stacked band is joined), the inner one is
- *          the near edge of the innermost band (where a tick at the scale
- *          border sits). For plots without parasites both are the same.
+ *          axis bands outside of the bands of the host, so the perpendicular
+ *          band adjacent to the canvas may belong to any plot of the family.
+ *          The target is the near edge of that innermost band - the band a
+ *          border tick sits on. Bands stacked farther out are not crossed:
+ *          extending a backbone to them would draw long lines through the
+ *          whole axis stack and close the corners of unrelated bands.
  *
  *          All positions are in logical coordinates of the plot the axis
  *          belongs to; qQNaN() means "no corner at this end".
@@ -52,20 +51,15 @@ namespace QwtScaleCorner
 /// @brief Target positions of the perpendicular backbones at one corner
 struct QWT_EXPORT Targets
 {
-    /// Far edge of the outermost perpendicular band at the start of the scale
-    qreal startOuter = qQNaN();
     /// Near edge of the innermost perpendicular band at the start of the scale
-    qreal startInner = qQNaN();
-    /// Far edge of the outermost perpendicular band at the end of the scale
-    qreal endOuter = qQNaN();
+    qreal start = qQNaN();
     /// Near edge of the innermost perpendicular band at the end of the scale
-    qreal endInner = qQNaN();
+    qreal end = qQNaN();
 
     /// @return true when any target is set
     bool isValid() const
     {
-        return !qIsNaN(startOuter) || !qIsNaN(startInner)
-            || !qIsNaN(endOuter) || !qIsNaN(endInner);
+        return !qIsNaN(start) || !qIsNaN(end);
     }
 };
 
@@ -76,7 +70,7 @@ QWT_EXPORT QwtScaleDraw::CornerMiter miterFlags(const QwtPlot* plot, QwtAxisId a
 QWT_EXPORT Targets widgetTargetPositions(const QwtPlot* plot, QwtAxisId axisId);
 
 /// Target positions derived from the plot layout (for QwtPlotRenderer)
-QWT_EXPORT Targets layoutTargetPositions(const QwtPlot* plot, QwtAxisId axisId, qreal deviceScale);
+QWT_EXPORT Targets layoutTargetPositions(const QwtPlot* plot, QwtAxisId axisId);
 
 /// Logical pixels an axis widget must reserve at its ends for the miter
 QWT_EXPORT void widgetExtensions(const QwtPlot* plot, QwtAxisId axisId,
