@@ -21,18 +21,6 @@
 
 namespace
 {
-//! The perpendicular axes sharing the start/end corner of an axis
-void cornerAxes(QwtAxisId axisId, QwtAxisId& startAxis, QwtAxisId& endAxis)
-{
-    if (QwtAxis::isYAxis(axisId)) {
-        startAxis = QwtAxis::XTop;
-        endAxis   = QwtAxis::XBottom;
-    } else {
-        startAxis = QwtAxis::YLeft;
-        endAxis   = QwtAxis::YRight;
-    }
-}
-
 bool hasBackbone(const QwtPlot* plot, QwtAxisId axisId)
 {
     if (!plot || !plot->isAxisVisible(axisId))
@@ -84,6 +72,38 @@ qreal bandPosition(const QwtScaleDraw* scaleDraw)
         return scaleDraw->pos().x();
     }
 }
+}
+
+/**
+ * @brief The perpendicular axes sharing the start/end corner of an axis
+ * @param axisId Axis
+ * @param[out] startAxis Perpendicular axis at the start of the scale
+ * @param[out] endAxis Perpendicular axis at the end of the scale
+ */
+void QwtScaleCorner::cornerAxes(QwtAxisId axisId, QwtAxisId& startAxis, QwtAxisId& endAxis)
+{
+    if (QwtAxis::isYAxis(axisId)) {
+        startAxis = QwtAxis::XTop;
+        endAxis   = QwtAxis::XBottom;
+    } else {
+        startAxis = QwtAxis::YLeft;
+        endAxis   = QwtAxis::YRight;
+    }
+}
+
+/**
+ * @brief Logical offset of the near band edge from the scale position
+ * @param axisId Axis the backbone band belongs to
+ * @return 1 for top/left axes, 0 for bottom/right axes
+ * @details The near ( canvas side ) edge of a top/left backbone band is the
+ *          last device pixel of the logical pixel of the scale position,
+ *          while the near edge of a bottom/right band is the first one:
+ *          rounding position + shift to device pixels and subtracting the
+ *          shift again yields the near edge for both cases.
+ */
+qreal QwtScaleCorner::nearEdgeShift(QwtAxisId axisId)
+{
+    return (axisId == QwtAxis::XTop || axisId == QwtAxis::YLeft) ? 1.0 : 0.0;
 }
 
 /**
@@ -140,9 +160,10 @@ QwtScaleCorner::Targets QwtScaleCorner::widgetTargetPositions(const QwtPlot* plo
     /*
         Keep the position of the band closest to the canvas: the largest
         coordinate at the start of the scale (top/left) and the smallest one
-        at the end (bottom/right).
+        at the end (bottom/right). The pen width of the winning band travels
+        with the target: the miter has to cover the whole band.
      */
-    const auto collect = [&](QwtAxisId perpAxisId, bool atStart, qreal& target) {
+    const auto collect = [&](QwtAxisId perpAxisId, bool atStart, qreal& target, int& width) {
         for (const QwtPlot* p : family) {
             if (!hasBackbone(p, perpAxisId))
                 continue;
@@ -158,13 +179,15 @@ QwtScaleCorner::Targets QwtScaleCorner::widgetTargetPositions(const QwtPlot* plo
             const QPoint delta = w->mapToGlobal(QPoint(0, 0)) - plotOrigin;
             position += vertical ? delta.y() : delta.x();
 
-            if (qIsNaN(target) || (atStart ? position > target : position < target))
+            if (qIsNaN(target) || (atStart ? position > target : position < target)) {
                 target = position;
+                width  = qMax(1, qRound(w->scaleDraw()->penWidthF() + 1e-6));
+            }
         }
     };
 
-    collect(startAxis, true, targets.start);
-    collect(endAxis, false, targets.end);
+    collect(startAxis, true, targets.start, targets.startWidth);
+    collect(endAxis, false, targets.end, targets.endWidth);
 
     return targets;
 }
@@ -191,7 +214,7 @@ QwtScaleCorner::Targets QwtScaleCorner::layoutTargetPositions(const QwtPlot* plo
     QwtAxisId startAxis, endAxis;
     cornerAxes(axisId, startAxis, endAxis);
 
-    const auto collect = [plot](QwtAxisId perpAxisId, qreal& target) {
+    const auto collect = [plot](QwtAxisId perpAxisId, qreal& target, int& width) {
         if (!hasBackbone(plot, perpAxisId))
             return;
 
@@ -206,6 +229,9 @@ QwtScaleCorner::Targets QwtScaleCorner::layoutTargetPositions(const QwtPlot* plo
         int baseDist = w->margin();
         if (w->isColorBarEnabled() && w->colorBarWidth() > 0)
             baseDist += w->colorBarWidth() + w->spacing();
+
+        // the miter has to cover the whole perpendicular band
+        width = qMax(1, qRound(w->scaleDraw()->penWidthF() + 1e-6));
 
         // backbone position like QwtPlotRenderer::renderScale()
         switch (perpAxisId) {
@@ -227,8 +253,8 @@ QwtScaleCorner::Targets QwtScaleCorner::layoutTargetPositions(const QwtPlot* plo
         }
     };
 
-    collect(startAxis, targets.start);
-    collect(endAxis, targets.end);
+    collect(startAxis, targets.start, targets.startWidth);
+    collect(endAxis, targets.end, targets.endWidth);
 
     return targets;
 }
@@ -243,8 +269,9 @@ QwtScaleCorner::Targets QwtScaleCorner::layoutTargetPositions(const QwtPlot* plo
  * @details QwtScaleWidget clips everything painted outside of its rectangle,
  *          so a backbone miter reaching the perpendicular backbone is only
  *          visible when the widget covers the corner pixels. The extensions
- *          are the gap between the widget borders and the targets of
- *          widgetTargetPositions(), rounded up to whole logical pixels. The
+ *          are the gap between the widget borders and the outer edge of the
+ *          perpendicular backbone band the miter reaches, rounded up to
+ *          whole logical pixels. The
  *          caller grows the widget rectangle accordingly and passes the same
  *          values to QwtScaleWidget::setCornerExtension(), which keeps the
  *          scale span unchanged by absorbing them into the border distances.
@@ -264,19 +291,32 @@ void QwtScaleCorner::widgetExtensions(const QwtPlot* plot, QwtAxisId axisId,
 
     const Targets targets = widgetTargetPositions(plot, axisId);
 
+    QwtAxisId startAxis, endAxis;
+    cornerAxes(axisId, startAxis, endAxis);
+
     const bool vertical = QwtAxis::isYAxis(axisId);
     const QRect r       = w->geometry();
 
+    /*
+        The device pixel row/column the widget rectangle has to cover at each
+        end: the miter reaches the far edge of the perpendicular band, width - 1
+        device pixels beyond its near edge.
+     */
+    const auto cover = [devicePixelRatio](qreal target, qreal shift, int width, bool atStart) {
+        const qreal nearEdge = qRound((target + shift) * devicePixelRatio) - shift;
+        return atStart ? nearEdge - (width - 1) : nearEdge + (width - 1);
+    };
+
     if (!qIsNaN(targets.start)) {
-        // the widget border must not sit after the first pixel of the target
-        const qreal edge   = vertical ? r.top() : r.left();
-        const qreal target = qRound(targets.start * devicePixelRatio) / devicePixelRatio;
-        startExtension     = qMax(0, static_cast< int >(qCeil(edge - target)));
+        // the widget border must not sit after the first pixel to cover
+        const qreal edge = qRound((vertical ? r.top() : r.left()) * devicePixelRatio);
+        const qreal cov  = cover(targets.start, nearEdgeShift(startAxis), targets.startWidth, true);
+        startExtension   = qMax(0, static_cast< int >(qCeil((edge - cov) / devicePixelRatio)));
     }
 
     if (!qIsNaN(targets.end)) {
-        const qreal edge   = (vertical ? r.bottom() : r.right()) + 1.0;
-        const qreal target = (qRound(targets.end * devicePixelRatio) + 1.0) / devicePixelRatio;
-        endExtension       = qMax(0, static_cast< int >(qCeil(target - edge)));
+        const qreal edge = qRound(((vertical ? r.bottom() : r.right()) + 1.0) * devicePixelRatio);
+        const qreal cov  = cover(targets.end, nearEdgeShift(endAxis), targets.endWidth, false);
+        endExtension     = qMax(0, static_cast< int >(qCeil((cov + 1.0 - edge) / devicePixelRatio)));
     }
 }

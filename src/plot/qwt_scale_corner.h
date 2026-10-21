@@ -56,12 +56,27 @@ struct QWT_EXPORT Targets
     /// Near edge of the innermost perpendicular band at the end of the scale
     qreal end = qQNaN();
 
+    /// Device pen width of the perpendicular band at the start of the scale
+    int startWidth = 1;
+    /// Device pen width of the perpendicular band at the end of the scale
+    int endWidth = 1;
+
     /// @return true when any target is set
     bool isValid() const
     {
         return !qIsNaN(start) || !qIsNaN(end);
     }
 };
+
+/// The perpendicular axes sharing the start/end corner of an axis
+QWT_EXPORT void cornerAxes(QwtAxisId axisId, QwtAxisId& startAxis, QwtAxisId& endAxis);
+
+/// @return 1 for top/left axes, 0 for bottom/right axes
+/// @details Added to a band position before rounding it to device pixels,
+///          and subtracted again afterwards: the near edge of a top/left
+///          backbone band is the last device pixel of its logical pixel,
+///          while the near edge of a bottom/right band is the first one.
+QWT_EXPORT qreal nearEdgeShift(QwtAxisId axisId);
 
 /// @return the corner miter flags for an axis of a plot
 QWT_EXPORT QwtScaleDraw::CornerMiter miterFlags(const QwtPlot* plot, QwtAxisId axisId);

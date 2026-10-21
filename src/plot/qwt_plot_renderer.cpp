@@ -786,17 +786,26 @@ void QwtPlotRenderer::renderScale(const QwtPlot* plot,
             const QwtScaleCorner::Targets positions =
                 QwtScaleCorner::layoutTargetPositions(plot, axisId);
 
+            QwtAxisId startAxis, endAxis;
+            QwtScaleCorner::cornerAxes(axisId, startAxis, endAxis);
+
             const bool vertical = QwtAxis::isYAxis(axisId);
-            const auto toDevice = [&tr, vertical](qreal v) -> qreal {
+            const auto toDevice = [&tr, vertical](qreal v, QwtAxisId perpAxis) -> qreal {
                 if (qIsNaN(v))
                     return v;
 
-                return vertical ? qRound(tr.map(QPointF(0.0, v)).y())
-                                : qRound(tr.map(QPointF(v, 0.0)).x());
+                // the near edge of a top/left band is the last device pixel
+                // of its logical pixel - see QwtScaleCorner::nearEdgeShift()
+                const qreal shift = QwtScaleCorner::nearEdgeShift(perpAxis);
+
+                return vertical ? qRound(tr.map(QPointF(0.0, v + shift)).y()) - shift
+                                : qRound(tr.map(QPointF(v + shift, 0.0)).x()) - shift;
             };
 
-            targets.start = toDevice(positions.start);
-            targets.end   = toDevice(positions.end);
+            targets.start      = toDevice(positions.start, startAxis);
+            targets.end        = toDevice(positions.end, endAxis);
+            targets.startWidth = positions.startWidth;
+            targets.endWidth   = positions.endWidth;
         }
 
         sd->setCornerTargets(targets);

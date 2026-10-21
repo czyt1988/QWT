@@ -78,12 +78,13 @@ public:
      * @details When a miter flag is set, the backbone is extended beyond the
      *          corresponding end of the scale into a corner shared with a
      *          perpendicular scale, so that both backbones intersect instead
-     *          of ending in a diagonal step. The extension reaches the near
+     *          of ending in a diagonal step. The extension reaches the far
      *          edge of the perpendicular backbone band closest to the canvas
-     *          when a target has been set with setCornerTargets(), otherwise
-     *          it falls back to one pixel beyond the end of the scale.
-     *          For vertical scales AtStart/AtEnd refer to the top/bottom end,
-     *          for horizontal scales to the left/right end.
+     *          when a target has been set with setCornerTargets(), so that
+     *          the whole corner square is covered for any pen width;
+     *          otherwise it falls back to one pixel beyond the end of the
+     *          scale. For vertical scales AtStart/AtEnd refer to the
+     *          top/bottom end, for horizontal scales to the left/right end.
      * @sa setCornerMiter(), cornerMiter(), setCornerTargets()
      */
     enum CornerMiterFlag
@@ -113,6 +114,11 @@ public:
      *          the canvas, where a border tick sits. Bands stacked farther
      *          out ( parasite axes ) are not crossed. qQNaN() keeps the
      *          historical fallback of one pixel beyond the end of the scale.
+     *
+     *          The backbone miter reaches width - 1 device pixels beyond the
+     *          target - the far edge of the perpendicular band - so that the
+     *          corner square closes for pen widths above one, while border
+     *          ticks snap to the target itself.
      * @sa setCornerTargets(), cornerTargets()
      */
     struct CornerTargets
@@ -121,6 +127,11 @@ public:
         qreal start = qQNaN();
         /// Target at the end of the scale
         qreal end = qQNaN();
+
+        /// Device pen width of the perpendicular band at the start
+        qreal startWidth = 1.0;
+        /// Device pen width of the perpendicular band at the end
+        qreal endWidth = 1.0;
     };
 
     /// Set the corner miter target positions (device coordinates)

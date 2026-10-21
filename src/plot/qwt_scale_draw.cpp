@@ -71,6 +71,16 @@ inline int qwtCornerMiterPos(qreal target, int fallback)
     return qIsNaN(target) ? fallback : qRound(target);
 }
 
+/*
+    Device pixels a corner miter reaches beyond the target: the target is the
+    near edge of the perpendicular backbone band, and closing the corner
+    square for pen widths above one needs the far edge of that band as well.
+ */
+inline int qwtCornerMiterWidth(qreal width)
+{
+    return qMax(1, qRound(width + 1e-6));
+}
+
 inline void qwtFillDeviceRect(QPainter* painter, const QRect& deviceRect)
 {
     /*
@@ -90,6 +100,28 @@ inline qreal qwtDeviceX(const QTransform& tr, qreal x)
 inline qreal qwtDeviceY(const QTransform& tr, qreal y)
 {
     return tr.map(QPointF(0.0, y)).y();
+}
+
+/*
+    Device coordinate of the canvas side ( near ) edge of a backbone band.
+
+    The position of a scale draw is a logical pixel: at device pixel ratios
+    above one it covers several device pixels. A right/bottom band grows
+    towards the canvas from the first of them - the one qRound() of the
+    position yields, which is the pixel adjacent to the canvas. A left/top
+    band grows away from the canvas, so its near edge is the last device
+    pixel of the position instead: rounding the position itself would leave
+    the band one device pixel short of the canvas per missing pixel of the
+    logical pixel.
+ */
+inline int qwtNearBandEdgeX(const QTransform& tr, qreal x, bool growsAwayFromCanvas)
+{
+    return growsAwayFromCanvas ? qRound(qwtDeviceX(tr, x + 1.0)) - 1 : qRound(qwtDeviceX(tr, x));
+}
+
+inline int qwtNearBandEdgeY(const QTransform& tr, qreal y, bool growsAwayFromCanvas)
+{
+    return growsAwayFromCanvas ? qRound(qwtDeviceY(tr, y + 1.0)) - 1 : qRound(qwtDeviceY(tr, y));
 }
 }
 
@@ -534,7 +566,7 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
     case LeftScale:
     case RightScale: {
         const int pw      = hasBackbone ? qwtDevicePenWidth(painter) : 0;
-        const int inner   = qRound(qwtDeviceX(tr, d->pos.x()));
+        const int inner   = qwtNearBandEdgeX(tr, d->pos.x(), d->alignment == LeftScale);
         const int tickLen = qwtDeviceTickLength(len, sx);
 
         // the tick ends at the inner edge of the backbone band, never crossing it
@@ -565,7 +597,7 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
     case TopScale:
     case BottomScale: {
         const int pw      = hasBackbone ? qwtDevicePenWidth(painter) : 0;
-        const int inner   = qRound(qwtDeviceY(tr, d->pos.y()));
+        const int inner   = qwtNearBandEdgeY(tr, d->pos.y(), d->alignment == TopScale);
         const int tickLen = qwtDeviceTickLength(len, sy);
 
         int y0, h;
@@ -612,15 +644,17 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
     case LeftScale:
     case RightScale: {
         const int pw    = qwtDevicePenWidth(painter);
-        const int inner = qRound(qwtDeviceX(tr, d->pos.x()));
+        const int inner = qwtNearBandEdgeX(tr, d->pos.x(), d->alignment == LeftScale);
         const int x0    = (d->alignment == LeftScale) ? inner - pw + 1 : inner;
 
         int y0 = qRound(qwtDeviceY(tr, d->pos.y()));
         int y1 = qRound(qwtDeviceY(tr, d->pos.y() + d->len));
         if (d->cornerMiter & MiterAtStart)
-            y0 = qMin(y0, qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceY(tr, d->pos.y() - 1.0))));
+            y0 = qMin(y0, qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceY(tr, d->pos.y() - 1.0)))
+                    - (qwtCornerMiterWidth(d->cornerTargets.startWidth) - 1));
         if (d->cornerMiter & MiterAtEnd)
-            y1 = qMax(y1, qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0))));
+            y1 = qMax(y1, qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceY(tr, d->pos.y() + d->len + 1.0)))
+                    + (qwtCornerMiterWidth(d->cornerTargets.endWidth) - 1));
 
         // the length can be negative (QwtPolarGrid)
         qwtFillDeviceRect(painter, QRect(x0, qMin(y0, y1), pw, qAbs(y1 - y0) + 1));
@@ -629,15 +663,17 @@ void QwtScaleDraw::drawBackbone(QPainter* painter) const
     case TopScale:
     case BottomScale: {
         const int pw    = qwtDevicePenWidth(painter);
-        const int inner = qRound(qwtDeviceY(tr, d->pos.y()));
+        const int inner = qwtNearBandEdgeY(tr, d->pos.y(), d->alignment == TopScale);
         const int y0    = (d->alignment == TopScale) ? inner - pw + 1 : inner;
 
         int x0 = qRound(qwtDeviceX(tr, d->pos.x()));
         int x1 = qRound(qwtDeviceX(tr, d->pos.x() + d->len));
         if (d->cornerMiter & MiterAtStart)
-            x0 = qMin(x0, qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceX(tr, d->pos.x() - 1.0))));
+            x0 = qMin(x0, qwtCornerMiterPos(d->cornerTargets.start, qRound(qwtDeviceX(tr, d->pos.x() - 1.0)))
+                    - (qwtCornerMiterWidth(d->cornerTargets.startWidth) - 1));
         if (d->cornerMiter & MiterAtEnd)
-            x1 = qMax(x1, qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0))));
+            x1 = qMax(x1, qwtCornerMiterPos(d->cornerTargets.end, qRound(qwtDeviceX(tr, d->pos.x() + d->len + 1.0)))
+                    + (qwtCornerMiterWidth(d->cornerTargets.endWidth) - 1));
 
         // the length can be negative (QwtPolarGrid)
         qwtFillDeviceRect(painter, QRect(qMin(x0, x1), y0, qAbs(x1 - x0) + 1, pw));

@@ -49,6 +49,18 @@ int toDevice(const QImage& img, qreal logicalPos)
 }
 
 /*
+    Device coordinate of the canvas side ( near ) edge of a backbone band,
+    mirroring the rule of QwtScaleDraw: a left/top band grows away from the
+    canvas, so its near edge is the last device pixel of the logical pixel of
+    the scale position, while a right/bottom band grows towards the canvas
+    from the first one.
+ */
+int nearBandEdge(const QImage& img, qreal logicalPos, bool growsAwayFromCanvas)
+{
+    return growsAwayFromCanvas ? toDevice(img, logicalPos + 1) - 1 : toDevice(img, logicalPos);
+}
+
+/*
     The device width of the scale pens: the pixel contract of QwtScaleDraw
     rounds the pen width to whole device pixels without scaling it by the
     device pixel ratio.
@@ -223,7 +235,7 @@ QPoint bandCorner(const QImage& img, const QwtPlot& root, const QwtScaleWidget* 
 {
     const qreal yCol = yw->mapTo(&root, QPoint(0, 0)).x() + yw->scaleDraw()->pos().x();
     const qreal xRow = xw->mapTo(&root, QPoint(0, 0)).y() + xw->scaleDraw()->pos().y();
-    return QPoint(toDevice(img, yCol), toDevice(img, xRow));
+    return QPoint(nearBandEdge(img, yCol, true), nearBandEdge(img, xRow, false));
 }
 
 /*
@@ -241,7 +253,7 @@ void checkCornerClosed(const QImage& img, const QRect& cr, const QPoint& band, c
 
     if (cr.isValid()) {
         // sanity: the bands sit where the canvas corner is
-        QVERIFY2(qAbs(yCol - toDevice(img, cr.left() - 1)) <= 8 * dpr,
+        QVERIFY2(qAbs(yCol - (toDevice(img, cr.left()) - 1)) <= 8 * dpr,
             qPrintable(ctx + QString(": unexpected y band column %1").arg(yCol)));
         QVERIFY2(xRow >= toDevice(img, cr.bottom()) - 2 * dpr && xRow <= toDevice(img, cr.bottom()) + 10 * dpr,
             qPrintable(ctx + QString(": unexpected x band row %1").arg(xRow)));
@@ -321,7 +333,7 @@ void TestAxisCorner::testCornerIntersection()
     const QRect cr   = canvasRectInPlot(plot);
 
     // the yLeft backbone column and the xBottom backbone row
-    const int yCol = toDevice(img, cr.left() - 1);
+    const int yCol = toDevice(img, cr.left()) - 1;
     const int xRow = toDevice(img, cr.bottom() + 1);
     const int pw   = devicePenWidth(1.0);
 
@@ -348,7 +360,8 @@ void TestAxisCorner::testTickDoesNotCrossBackbone()
 
     // the tick at the scale minimum sits at the canvas bottom row:
     // it may darken the backbone column but not the first canvas column
-    QVERIFY(isDark(img, toDevice(img, cr.left() - 1), toDevice(img, cr.bottom())));
+    const int yCol = toDevice(img, cr.left()) - 1;
+    QVERIFY(isDark(img, yCol, toDevice(img, cr.bottom())));
     QVERIFY(!isDark(img, toDevice(img, cr.left()), toDevice(img, cr.bottom())));
 
     // the tick at the scale minimum of xBottom sits at the canvas left column:
@@ -359,7 +372,7 @@ void TestAxisCorner::testTickDoesNotCrossBackbone()
     // the border ticks snap onto the perpendicular backbone:
     // the x minimum tick hangs at the y backbone column,
     // the y minimum tick sits on the x backbone row
-    QVERIFY(isDark(img, toDevice(img, cr.left() - 1), toDevice(img, cr.bottom() + 2)));
+    QVERIFY(isDark(img, yCol, toDevice(img, cr.bottom() + 2)));
     QVERIFY(isDark(img, toDevice(img, cr.left() - 3), toDevice(img, cr.bottom() + 1)));
 }
 
@@ -377,8 +390,9 @@ void TestAxisCorner::testNoMiterStubWithoutNeighbour()
     const int pw     = devicePenWidth(1.0);
 
     // xTop is invisible: the yLeft backbone starts at the canvas top row
-    QVERIFY(isDark(img, toDevice(img, cr.left() - 1), toDevice(img, cr.top())));
-    QVERIFY(!isDark(img, toDevice(img, cr.left() - 1), toDevice(img, cr.top()) - pw));
+    const int yCol = toDevice(img, cr.left()) - 1;
+    QVERIFY(isDark(img, yCol, toDevice(img, cr.top())));
+    QVERIFY(!isDark(img, yCol, toDevice(img, cr.top()) - pw));
 
     // yRight is invisible: the xBottom backbone ends at the canvas right column
     QVERIFY(isDark(img, toDevice(img, cr.right()), toDevice(img, cr.bottom() + 1)));
@@ -467,7 +481,7 @@ void TestAxisCorner::testPenWidthDeviceContract()
 
         // width of the dark run around the inner edge of the y backbone
         {
-            const int inner = toDevice(img, cr.left() - 1);
+            const int inner = toDevice(img, cr.left()) - 1;
             const int row   = toDevice(img, cr.top() + cr.height() * 0.5);
 
             int c0 = inner;
@@ -498,6 +512,80 @@ void TestAxisCorner::testPenWidthDeviceContract()
                 qPrintable(QString("penWidthF(%1): x backbone is %2 device pixels wide, expected %3")
                     .arg(w).arg(r1 - r0 + 1).arg(pw)));
         }
+    }
+}
+
+/*
+    At any pen width the corner square where two perpendicular backbone
+    bands meet must be fully covered: every band reaches the far edge of
+    its perpendicular neighbour, and all four bands sit flush with the
+    canvas edges they frame.
+ */
+void TestAxisCorner::testCornerSquareAtAnyPenWidth()
+{
+    const qreal widths[] = { 1.0, 2.0, 3.0 };
+
+    for (qreal w : widths) {
+        QwtPlot plot;
+        plot.plotLayout()->setAlignCanvasToScales(true);
+        plot.setAxisVisible(QwtAxis::XTop, true);
+        plot.setAxisVisible(QwtAxis::YRight, true);
+
+        QwtPlotCanvas* canvas = new QwtPlotCanvas(&plot);
+        canvas->setLineWidth(0);
+        plot.setCanvas(canvas);
+
+        const QwtAxisId axes[] = { QwtAxis::XBottom, QwtAxis::XTop, QwtAxis::YLeft, QwtAxis::YRight };
+        for (QwtAxisId axisId : axes) {
+            QwtScaleDraw* sd = plot.axisScaleDraw(axisId);
+            sd->setPenWidthF(w);
+            sd->enableComponent(QwtAbstractScaleDraw::Ticks, false);
+            sd->enableComponent(QwtAbstractScaleDraw::Labels, false);
+        }
+
+        plot.resize(480, 360);
+        plot.replot();
+
+        const QImage img    = composePlot(plot);
+        const QRect cr      = canvasRectInPlot(plot);
+        const int pw        = devicePenWidth(w);
+        const QString ctx   = QString("penWidthF(%1) dpr(%2)").arg(w).arg(img.devicePixelRatio());
+
+        // near edges of the four bands, flush with the canvas
+        const int leftCol   = toDevice(img, cr.left()) - 1;
+        const int topRow    = toDevice(img, cr.top()) - 1;
+        const int rightCol  = toDevice(img, cr.right() + 1);
+        const int bottomRow = toDevice(img, cr.bottom() + 1);
+
+        struct Square
+        {
+            int c0, c1, r0, r1;
+            const char* name;
+        };
+        const Square squares[] = {
+            { leftCol - pw + 1, leftCol, topRow - pw + 1, topRow, "top-left" },
+            { rightCol, rightCol + pw - 1, topRow - pw + 1, topRow, "top-right" },
+            { leftCol - pw + 1, leftCol, bottomRow, bottomRow + pw - 1, "bottom-left" },
+            { rightCol, rightCol + pw - 1, bottomRow, bottomRow + pw - 1, "bottom-right" },
+        };
+
+        for (const Square& sq : squares) {
+            for (int r = sq.r0; r <= sq.r1; r++) {
+                for (int c = sq.c0; c <= sq.c1; c++) {
+                    QVERIFY2(isDark(img, c, r),
+                        qPrintable(ctx + QString(": %1 corner open at (%2,%3)")
+                            .arg(sq.name).arg(c).arg(r)));
+                }
+            }
+        }
+
+        // nothing painted outside of the frame: the bands stay flush
+        const int midRow = (topRow + bottomRow) / 2;
+        const int midCol = (leftCol + rightCol) / 2;
+        QVERIFY2(!isDark(img, leftCol - pw, midRow), qPrintable(ctx + ": left band too wide"));
+        QVERIFY2(!isDark(img, rightCol + pw, midRow), qPrintable(ctx + ": right band too wide"));
+        QVERIFY2(!isDark(img, midCol, topRow - pw), qPrintable(ctx + ": top band too wide"));
+        QVERIFY2(!isDark(img, midCol, bottomRow + pw), qPrintable(ctx + ": bottom band too wide"));
     }
 }
 

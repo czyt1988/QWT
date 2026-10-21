@@ -617,21 +617,35 @@ void QwtScaleWidget::draw(QPainter* painter) const
         if (miter != QwtScaleDraw::NoMiter) {
             const QwtScaleCorner::Targets positions = QwtScaleCorner::widgetTargetPositions(plot, axisId);
 
+            QwtAxisId startAxis, endAxis;
+            QwtScaleCorner::cornerAxes(axisId, startAxis, endAxis);
+
             // logical plot coordinates -> device coordinates of this painter
             const QPoint origin = pos();
             const QTransform tr = painter->deviceTransform();
 
-            const auto toDevice = [&](qreal v) -> qreal {
+            const auto toDevice = [&](qreal v, QwtAxisId perpAxis) -> qreal {
                 if (qIsNaN(v))
                     return v;
 
-                return m_data->scaleDraw->orientation() == Qt::Vertical
-                    ? qRound(tr.map(QPointF(0.0, v - origin.y())).y())
-                    : qRound(tr.map(QPointF(v - origin.x(), 0.0)).x());
+                /*
+                    The near edge of a top/left band is the last device pixel
+                    of its logical pixel, not the first one rounding the
+                    position yields - see QwtScaleCorner::nearEdgeShift().
+                 */
+                const qreal shift   = QwtScaleCorner::nearEdgeShift(perpAxis);
+                const bool vertical = m_data->scaleDraw->orientation() == Qt::Vertical;
+
+                const QPointF point = vertical ? QPointF(0.0, v + shift - origin.y()) : QPointF(v + shift - origin.x(), 0.0);
+                const qreal device  = vertical ? tr.map(point).y() : tr.map(point).x();
+
+                return qRound(device) - shift;
             };
 
-            targets.start = toDevice(positions.start);
-            targets.end   = toDevice(positions.end);
+            targets.start      = toDevice(positions.start, startAxis);
+            targets.end        = toDevice(positions.end, endAxis);
+            targets.startWidth = positions.startWidth;
+            targets.endWidth   = positions.endWidth;
         }
 
         sd->setCornerTargets(targets);
