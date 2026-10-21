@@ -14,7 +14,7 @@ Qt 生态里能画图的库不多，主流的为`QCustomPlot`、`Qwt`、`Qt Char
 
 项目文档：[https://czyt1988.github.io/QWT/zh/](https://czyt1988.github.io/QWT/zh/)
 
-## Qwt 7.0
+## Qwt 7
 
 我在`Qwt`最后版本上进行了维护，后续我将我需要的功能添加进去，同时逐步修改、优化一些已有的功能，例如它默认的老旧样式
 
@@ -38,8 +38,9 @@ Qt 生态里能画图的库不多，主流的为`QCustomPlot`、`Qwt`、`Qt Char
   - [x] 调整QwtPanner的实现，使其拖动时能实时渲染，并使其能支持多坐标轴
   - [x] 调整zoomer的实现，使其支持多坐标轴
 - [x] 集成3D绘图
+- [x] 3D绘图item：曲面、柱状图、线图、滑动窗口瀑布图、函数曲面
 - [x] 箱线图（`QwtPlotBoxChart`）
-- [x] 曲线降采样算法（4种算法 + SIMD加速），百万级数据流畅渲染
+- [x] 曲线降采样算法（6种算法 + SIMD加速），百万级数据流畅渲染
 - [x] 颜色循环系统（`QwtColorCycle`）
 - [x] 箭头标记（`QwtPlotArrowMarker`）
 - [x] 支持坐标刻度朝内(ticks inside)
@@ -52,11 +53,13 @@ Qt 生态里能画图的库不多，主流的为`QCustomPlot`、`Qwt`、`Qt Char
 
 总之，我将继续维护`Qwt`，让其成为一个协议友好，性能优越，方便使用的Qt绘图库
 
-## Qwt7的新特性
+![使用qwt7,你可以实现如下效果](./docs/assets/screenshots-3D/waterfall3D.png)
 
-### Cmake支持
+## Qwt 7 的新特性
 
-Qwt7.0已经支持`CMake`，并且抛弃`QMake`
+### CMake 支持
+
+Qwt 7 以 `CMake` 作为主构建系统，不再维护 `.pro` 工程文件，但仍完整支持通过 `qmake` 引入（见下文）
 
 安装Qwt后，你的项目只需如下即可引入Qwt，免去以往繁琐的配置和预定义宏：
 
@@ -76,13 +79,13 @@ target_link_libraries(${YOUR_APP_TARGET} PUBLIC qwt::core)
 
 具体参阅:[QWT库的引入](https://czyt1988.github.io/QWT/zh/use-guide/import-qwt)
 
-参见例子：`examples\staticExample`
+参见例子：`examples/staticExample`
 
 ![staticExample](./docs/assets/screenshots/staticExample.png)
 
-### 通过 qmake 使用 Qwt 7.0
+### 通过 qmake 使用 Qwt 7
 
-Qwt 7 不再使用 `qmake` 作为主构建系统，但仍然完全支持通过 `qmake` 集成。你可以参考 `examples/qmakeExample` 示例了解具体用法，或查阅文档：[qmake 单文件构建](docs\zh\build-guide\qmake-single-file.md)
+Qwt 7 不再使用 `qmake` 作为主构建系统，但仍然完全支持通过 `qmake` 集成。你可以参考 `examples/qmakeExample` 示例了解具体用法，或查阅文档：[qmake 单文件构建](docs/zh/build-guide/qmake-single-file.md)
 
 ### 美化了风格
 
@@ -104,13 +107,13 @@ Qwt 7 不再使用 `qmake` 作为主构建系统，但仍然完全支持通过 `
 
 ![figure-widget-overlay](./docs/assets/picture/figure-scale-aligment.png)
 
-具体可参见教程：[Figure绘图容器](https://czyt1988.github.io/QWT/zh/use-guide/figure-widget/)
+具体可参见教程：[Figure绘图容器](https://czyt1988.github.io/QWT/zh/use-guide/2d/figure-widget/)
 
 ### 支持多坐标轴
 
 增加了类似matplotlib的寄生轴功能，支持任意多个坐标轴显示
 
-具体可参见教程：[多坐标轴的创建](https://czyt1988.github.io/QWT/zh/use-guide/parasite-axes/)
+具体可参见教程：[多坐标轴的创建](https://czyt1988.github.io/QWT/zh/use-guide/2d/parasite-axes/)
 
 ### 增加了坐标轴交互
 
@@ -122,7 +125,7 @@ Qwt 7 不再使用 `qmake` 作为主构建系统，但仍然完全支持通过 `
 缩放：
 ![qwt-scale-builtin-action-zoom](./docs/assets/screenshots/qwt-scale-builtin-action-zoom.gif)
 
-具体可参见教程：[坐标轴交互动作](https://czyt1988.github.io/QWT/zh/use-guide/scale-builtin-action/)
+具体可参见教程：[坐标轴交互动作](https://czyt1988.github.io/QWT/zh/use-guide/2d/scale-builtin-action/)
 
 ### 增加了数据拾取功能
 
@@ -132,7 +135,7 @@ Qwt 7 不再使用 `qmake` 作为主构建系统，但仍然完全支持通过 `
 
 ![series-data-picker-nearest-value](./docs/assets/picture/series-data-picker-nearest-value.gif)
 
-具体可参见教程：[绘图数据拾取](https://czyt1988.github.io/QWT/zh/use-guide/pick-value/)
+具体可参见教程：[绘图数据拾取](https://czyt1988.github.io/QWT/zh/use-guide/2d/pick-value/)
 
 ### 修改了画布拖动
 
@@ -142,7 +145,7 @@ Qwt 7 不再使用 `qmake` 作为主构建系统，但仍然完全支持通过 `
 
 ![qwt-realtime-panner](./docs/assets/screenshots/qwt-realtime-panner.gif)
 
-具体可参见教程：[拖动工具](https://czyt1988.github.io/QWT/zh/use-guide/panner/)
+具体可参见教程：[拖动工具](https://czyt1988.github.io/QWT/zh/use-guide/2d/panner/)
 
 ### 新增了画布放大器
 
@@ -150,7 +153,7 @@ Qwt 7 不再使用 `qmake` 作为主构建系统，但仍然完全支持通过 `
 
 新增了`QwtPlotCanvasZoomer`无需指定坐标轴，会对整个画布进行整体缩放，且能支持任意多坐标轴
 
-具体可参见教程：[缩放工具](https://czyt1988.github.io/QWT/zh/use-guide/zoomer/)
+具体可参见教程：[缩放工具](https://czyt1988.github.io/QWT/zh/use-guide/2d/zoomer/)
 
 ### 新增箱线图(Box Chart)支持
 
@@ -164,7 +167,7 @@ Qwt 7 不再使用 `qmake` 作为主构建系统，但仍然完全支持通过 `
 
 ![Box Chart](./docs/assets/screenshots/BoxChart.png)
 
-具体可参见教程：[箱线图使用指南](https://czyt1988.github.io/QWT/zh/use-guide/boxchart/)
+具体可参见教程：[箱线图使用指南](https://czyt1988.github.io/QWT/zh/use-guide/2d/boxchart/)
 
 ### 坐标刻度可朝内显示
 
@@ -184,7 +187,7 @@ plot->replot();
 
 ![ticks_inside](./docs/assets/screenshots/ticks_inside.png)
 
-具体可参见教程：[刻度朝内显示使用指南](https://czyt1988.github.io/QWT/zh/use-guide/ticks-inside/)，示例代码位于 `examples/2D/ticks_inside`
+具体可参见教程：[刻度朝内显示使用指南](https://czyt1988.github.io/QWT/zh/use-guide/2d/ticks-inside/)，示例代码位于 `examples/2D/ticks_inside`
 
 ### Matplotlib风格绘图接口（`QwtPyPlot`）
 
@@ -212,11 +215,55 @@ plt.savefig("output.png", 300);
 fig->show();
 ```
 
-具体可参见教程：[QwtPyPlot — Matplotlib风格接口](https://czyt1988.github.io/QWT/zh/use-guide/pyplot-api/)
+具体可参见教程：[QwtPyPlot — Matplotlib风格接口](https://czyt1988.github.io/QWT/zh/use-guide/2d/pyplot-api/)
 
-### 3D绘图与主题系统
+### 3D绘图
 
-集成的 3D 模块（`qwt::plot3d`）采用 **Plot + Item** 架构（`Qwt3DPlot` + `Qwt3DPlotItem`），与 2D 模块对称。提供表面图、网格图和函数图，基于现代 OpenGL 渲染（VBO/VAO + GLSL着色器），并支持完整的鼠标交互（旋转 / 缩放 / 平移）。
+3D 模块（`qwt::plot3d`）采用与 2D 模块对称的 **Plot + Item** 架构，渲染完全基于现代 OpenGL（VBO/VAO + GLSL 3.3 Core 着色器；固定管线接口仅用于 gl2ps 矢量导出的回放，正常绘制不会使用）：
+
+- `Qwt3DPlot`（`QOpenGLWidget` 子类）是渲染窗口，负责 GL 上下文、视图变换、光照、坐标系统与鼠标交互，本身不持有数据。
+- `Qwt3DPlotItem` 是所有可绘制 item 的基类，item 自持数据与几何，通过 `attach()` 挂载到 `Qwt3DPlot`。一个 `Qwt3DPlot` 可以同时挂载任意多个 item，在同一个 GL 上下文中一起渲染。
+
+内置 item：
+
+| Item | 用途 |
+|------|------|
+| `Qwt3DSurface` | 规则网格高度场曲面，支持 colormap 着色与叠加网格线 |
+| `Qwt3DBar` | 3D 柱状图 / 直方图，支持一维序列与二维网格两种数据形态 |
+| `Qwt3DLine` | 3D 折线 / 轨迹，支持 `Lines`、`Dots` 与带光照的 `Tube` 样式 |
+| `Qwt3DWaterfall` | 滑动窗口瀑布图，用 `pushTrace()` 推入一维谱线，item 自行维护窗口 |
+
+此外，`Qwt3DFunction` 与 `Qwt3DParametricSurface` 用于由函数或参数方程生成曲面数据，生成结果通过 `Qwt3DSurface::loadFromData()` 载入。
+
+最小曲面示例：
+
+```cpp
+Qwt3DPlot* plot = new Qwt3DPlot(parent);
+
+auto* surface = new Qwt3DSurface();
+surface->loadFromData(z, cols, rows, minX, maxX, minY, maxY);
+surface->attach(plot);
+plot->showColorLegend(true);
+```
+
+实时瀑布图无需在应用层维护窗口与深度，item 内部完成：
+
+```cpp
+auto* waterfall = new Qwt3DWaterfall();
+waterfall->attach(plot);
+waterfall->setTraceCapacity(64);                       // 保留最近 64 条谱线
+waterfall->setColorMode(Qwt3DWaterfall::ByAmplitude);  // 按幅度着色
+waterfall->setColorRange(0.0, 1.0);                    // 固定色标范围，避免闪烁
+
+// 每个定时器周期推入一帧
+waterfall->pushTrace(frame);                           // QVector<double>
+```
+
+交互与导出均为内置能力：左键拖动旋转、滚轮缩放、`Ctrl` + 左键拖动平移，`setMouseSpeed()` 调整拖动灵敏度，`setRollMouse()` 可指定滚转（roll）手势；位图通过 `savePixmap()` 导出，PDF/SVG 矢量图通过 gl2ps 导出。3D 绘图本身也是 widget，可以直接放进 `QwtFigure` 与 2D 绘图组合布局，`examples/3D/figureSurface3D` 演示了 3D 曲面与 2D 截面曲线、时间序列曲线的联动。
+
+具体可参见教程：[3D绘图简介](https://czyt1988.github.io/QWT/zh/use-guide/3d/3d-plot/)，以及各 item 的专页：[3D柱状图](https://czyt1988.github.io/QWT/zh/use-guide/3d/3d-bar-chart/)、[3D线图](https://czyt1988.github.io/QWT/zh/use-guide/3d/3d-line-plot/)、[3D瀑布图](https://czyt1988.github.io/QWT/zh/use-guide/3d/3d-waterfall/)。
+
+### 3D主题系统
 
 7.3 新增的 `Qwt3DTheme` 主题系统将全部视觉属性 —— 背景、网格、colormap、坐标轴、标题、光照、着色模式、材质 —— 打包为一个描述符，一行调用即可套用整套风格：
 
@@ -235,13 +282,14 @@ theme.setDataColorPreset("plasma");
 theme.setLightingPreset(Qwt3DTheme::Studio);
 theme.setShininess(20.0);
 theme.apply(plot);
+
+// 也可以只应用到单个 item
+theme.applyToItem(surface);
 ```
 
 - 10 种内置主题：`Default`、`Dark`、`Scientific`、`Warm`、`Cool`、`Matplotlib`、`EarthTones`、`Ocean`、`HighContrast`、`Presentation`
 - 5 种光照预设：`NoLighting`、`FlatLight`、`Studio`、`Outdoor`、`Soft`
 - `Qwt3DColorMapColor` 适配器将 core 模块的 colormap 桥接到 3D 表面，因此 22 种科学预设同样可用于 3D
-
-具体可参见教程：[3D绘图](https://czyt1988.github.io/QWT/zh/use-guide/3d-plot/)
 
 ### 科学Colormap预设
 
@@ -256,20 +304,22 @@ auto cmap = QwtColorMapPreset::create("viridis");
 
 其中感知均匀的 colormap（`viridis`、`plasma`、`inferno`、`magma`、`cividis`）对色盲友好且打印安全，非常适合科研论文。
 
-22 种预设的实际效果与交互对比示例，可参见教程：[科学Colormap预设](https://czyt1988.github.io/QWT/zh/use-guide/colormap/)
+22 种预设的实际效果与交互对比示例，可参见教程：[科学Colormap预设](https://czyt1988.github.io/QWT/zh/use-guide/general/colormap/)
 
 ### SIMD加速的曲线降采样
 
-百万级数据点的流畅渲染现已成为一等公民。`QwtPlotCurve` 提供四种降采样算法，其中 MinMax-bucket 路径采用 SIMD 加速（SSE2 / AVX2 / NEON，运行时自动检测）：
+百万级数据点的流畅渲染现已成为一等公民。`QwtPlotCurve` 提供六种降采样算法，其中 MinMax 桶路径采用 SIMD 加速（SSE2 / AVX2 / NEON，运行时自动检测）：
 
+- `FilterPointsAdaptive` —— 自适应列归约，单遍 O(n)，在像素列内保留坡面形状（优先级最高，推荐）
+- `FilterPointsLTTB` —— 真正的 Largest-Triangle-Three-Buckets，保形且性能优秀（默认值）
+- `FilterPointsMinMaxLTTB` —— MinMax 桶算法，v7.3.2 至 v7.4.2 的默认行为
+- `FilterPointsPixel` —— 按像素列取 min/max 包络，适合纯噪声信号（旧算法，保留兼容）
+- `FilterPointsAggressive` —— 针对单调大数据集的快速剔除（旧算法，保留兼容）
 - `FilterPoints` —— 原始剔除算法
-- `FilterPointsAggressive` —— 针对单调大数据集的快速剔除
-- `FilterPointsPixel` —— 按像素列归约，适用于像素对齐的粗趋势
-- `FilterPointsLTTB` —— 保形且性能最优的 LTTB（MinMax bucket）（新默认值）
 
 效果：百万点曲线可交互帧率渲染。可用 `renderbench` 示例自行基准测试。
 
-具体可参见教程：[曲线降采样](https://czyt1988.github.io/QWT/zh/use-guide/curve-downsampling/)
+具体可参见教程：[曲线降采样](https://czyt1988.github.io/QWT/zh/use-guide/2d/rendering-performance/)
 
 ### 独立的Core基础工具库
 
@@ -293,6 +343,7 @@ target_link_libraries(${YOUR_APP_TARGET} PUBLIC qwt::core)
 ### 其它修改
 
 - 修复了`NAN`值和`INF`值对绘图的影响
+- 新增 `QwtPlotCurve::BreakAtNan` 属性：将 NaN/Inf 样本渲染为断点而不是跨越连线，行为与 matplotlib 一致
 - `QwtPlotSeriesDataPicker` 现已支持所有系列图元类型的拾取 —— K线、区间曲线、直方图、矢量场、柱状/箱线图、光谱曲线等
 - 全代码库现代化 C++：`override`/`final`、`nullptr`、移动语义、`constexpr`、`noexcept`、范围 for，以及统一的 PIMPL 宏模式（180+ 文件）
 - `renderbench` 示例用于测量曲线渲染性能并生成报告
@@ -325,101 +376,101 @@ target_link_libraries(${YOUR_APP_TARGET} PUBLIC qwt::core)
 
 ### 基本图表
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Figure Widget](./docs/assets/picture/figure-scale-aligment.png)|![Simple Plot](./docs/assets/screenshots/simpleplot.png)|![Bar Chart - Grouped](./docs/assets/screenshots/BarChart-grouped.png)|
-|`examples/figure`|`examples/simpleplot`|`examples/simpleplot`|
+|`examples/2D/figure`|`examples/2D/simpleplot`|`examples/2D/simpleplot`|
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Bar Chart - Stacked](./docs/assets/screenshots/BarChart-stacked.png) |![Scatter Plot](./docs/assets/screenshots/scatterplot.png)  |![Curve Demo](./docs/assets/screenshots/curvedemo.png)  |
-|`examples/barchart`  |`examples/scatterplot`  |`examples/curvedemo` |
+|`examples/2D/barchart`  |`examples/2D/scatterplot`  |`examples/2D/curvedemo` |
 
 ### 实时可视化
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![CPU Monitor](./docs/assets/screenshots/cpuplot.png)|![Real-Time Plot](./docs/assets/screenshots/realtime.png)|![Oscilloscope](./docs/assets/screenshots/oscilloscope.png)  |
-|`examples/cpuplot`|`examples/realtime`|`examples/oscilloscope` |
+|`examples/2D/cpuplot`|`examples/2D/realtime`|`examples/2D/oscilloscope` |
 
 ### 高级图表
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
-|![Polar Demo](./docs/assets/screenshots/polardemo.png)|![Spectrogram](./docs/assets/screenshots/spectrogram.png)|![Contour Spectrogram](./docs/assets/screenshots/spectrogram-contour.png) |
-|`examples/polardemo`|`examples/spectrogram`|`examples/spectrogram`|
+|![Polar Demo](./docs/assets/screenshots/polardemo.png)|![Spectrogram](./docs/assets/screenshots/spectrogram.png)|![Contour Spectrogram](./docs/assets/screenshots/spectrogram-contour.png)|
+|`examples/2D/polardemo`|`examples/2D/spectrogram`|`examples/2D/spectrogram`|
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Vector Field](./docs/assets/screenshots/vectorfield.png)|![Stock Chart](./docs/assets/screenshots/stockchart.png)|![Bode Plot](./docs/assets/screenshots/bode.png)|
-|`playground/vectorfield`|`examples/stockchart`|`examples/bode`|
+|`playground/vectorfield`|`examples/2D/stockchart`|`examples/2D/bode`|
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Tube Display](./docs/assets/screenshots/friedberg-tube.png)|![plot matrix](./docs/assets/screenshots/plotmatrix.png)|![Scale Engine](./docs/assets/screenshots/scaleengine.png)|
-|`examples/friedberg`|`playground/plotmatrix`|`playground/scaleengine`|
+|`examples/2D/friedberg`|`playground/plotmatrix`|`playground/scaleengine`|
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Rescaler](./docs/assets/screenshots/rescaler.png)|![Graphics Scale](./docs/assets/screenshots/graphicscale.png)|![Spline Editor](./docs/assets/screenshots/splineeditor.png)|
-|`playground/rescaler`|`playground/graphicscale`|`examples/splineeditor`|
+|`playground/rescaler`|`playground/graphicscale`|`examples/2D/splineeditor`|
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Ticks Inside](./docs/assets/screenshots/ticks_inside.png)|![Box Chart](./docs/assets/screenshots/BoxChart.png)|![parasite plot](./docs/assets/screenshots/parasite-plot.png)|
-|`examples/ticks_inside`|`examples/boxchart`|`examples/parasitePlot`|
+|`examples/2D/ticks_inside`|`examples/2D/boxchart`|`examples/2D/parasitePlot`|
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![System Info](./docs/assets/screenshots/sysinfo.png)|![Distro Watch](./docs/assets/screenshots/distrowatch.png)|![Raster View 1](./docs/assets/screenshots/rasterview-1.png)|
-|`examples/sysinfo`|`examples/distrowatch`|`examples/rasterview`|
+|`examples/2D/sysinfo`|`examples/2D/distrowatch`|`examples/2D/rasterview`|
   
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Raster View 2](./docs/assets/screenshots/rasterview-2.png)|![SVG Map](./docs/assets/screenshots/svgmap.png)|![Item Editor](./docs/assets/screenshots/itemeditor.png)|
-|`examples/rasterview`|`playground/svgmap`|`examples/itemeditor`|
+|`examples/2D/rasterview`|`playground/svgmap`|`examples/2D/itemeditor`|
 
 ### 3D可视化
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
-|![Simple 3D Plot](./docs/assets/screenshots-3D/simpleplot3D.png)|![3D Axes](./docs/assets/screenshots-3D/axes.png)|![3D Enrichments](./docs/assets/screenshots-3D/enrichments.png)|
-|`examples/3D/simpleplot3D`|`examples/3D/axes`|`examples/3D/enrichments`|
+|![Comprehensive 3D Demo](./docs/assets/screenshots-3D/simpleplot3D.png)|![3D Bar Chart](./docs/assets/screenshots-3D/bar3D.png)|![3D Line Plot](./docs/assets/screenshots-3D/line3D.png)|
+|`examples/3D/qwtplot3d`|`examples/3D/bar3D`|`examples/3D/line3D`|
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
-|![3D Autoswitch](./docs/assets/screenshots-3D/autoswitch.png)|![figureSurface3D](./docs/assets/screenshots-3D/figureSurface3D.png)|
-|`examples/3D/autoswitch`|`examples/3D/figureSurface3D`|
+|![3D Waterfall](./docs/assets/screenshots-3D/waterfall3D.png)|![3D Waterfall - Wireframe](./docs/assets/screenshots-3D/waterfall3D-2.png)|![3D Surface in a Figure](./docs/assets/screenshots-3D/figureSurface3D.png)|
+|`examples/3D/waterfall3D`|`examples/3D/waterfall3D --style 2`|`examples/3D/figureSurface3D`|
 
 ### 动态演示
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Animated Demo](./docs/assets/screenshots/animated.png)|![Curve Tracker](./docs/assets/screenshots/curvetracker.png)|![Refresh Test](./docs/assets/screenshots/refreshtest.png)|
-|`examples/animated`|`playground/curvetracker`|`examples/refreshtest`|
+|`examples/2D/animation`|`playground/curvetracker`|`examples/2D/refreshtest`|
 
 ### 样式与符号
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Legends Demo](./docs/assets/screenshots/legends.png)|![Symbols Demo](./docs/assets/screenshots/symbols.png)|![Shape Rendering](./docs/assets/screenshots/shapes.png)|
-|`examples/legends`|`playground/symbols`|`playground/shapes`|
+|`examples/2D/legends`|`playground/symbols`|`playground/shapes`|
 
 ### 控件窗口
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Dial Controls](./docs/assets/screenshots/controls-dial.png)|![Knob Controls](./docs/assets/screenshots/controls-knob.png)|![Slider Controls](./docs/assets/screenshots/controls-sliders.png)|
-|`examples/controls`|`examples/controls`|`examples/controls`|
+|`examples/2D/controls`|`examples/2D/controls`|`examples/2D/controls`|
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Wheel & Thermo](./docs/assets/screenshots/controls-wheel-thermo.png)|![Radio Buttons](./docs/assets/screenshots/radio.png)|![Time Scale Demo](./docs/assets/screenshots/timescale.png)|
-|`examples/controls`|`examples/radio`|`playground/timescale`|
+|`examples/2D/controls`|`examples/2D/radio`|`playground/timescale`|
 
 ### 仪表盘
 
-|  |  |  |
+||||
 |:---:|:---:|:---:|
 |![Compass Dial](./docs/assets/screenshots/dials-compass.png)|![Cockpit Dials](./docs/assets/screenshots/dials-cockpit.png)||
-|`examples/dials`|`examples/dials`||
+|`examples/2D/dials`|`examples/2D/dials`||
