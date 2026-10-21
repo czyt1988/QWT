@@ -9,6 +9,7 @@
 #include <QwtPlotCurve>
 #include <QwtPlotGrid>
 #include <QwtLegend>
+#include <QwtScaleDraw>
 
 #include <QCheckBox>
 #include <QGroupBox>
@@ -16,6 +17,7 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QLabel>
+#include <QDoubleSpinBox>
 
 #include <cmath>
 
@@ -31,6 +33,7 @@ MainWindow::MainWindow(QWidget* parent)
     , m_chkXBottom(nullptr)
     , m_chkLogYRight(nullptr)
     , m_chkInvertedYLeft(nullptr)
+    , m_spinPenWidth(nullptr)
 {
     setupPlot();
 
@@ -181,6 +184,21 @@ QWidget* MainWindow::createControlPanel()
 
     layout->addWidget(axisGroup);
 
+    // Backbone Pen Width Group
+    QGroupBox* penGroup = new QGroupBox("Backbone Pen Width", this);
+    QHBoxLayout* penLayout = new QHBoxLayout(penGroup);
+
+    penLayout->addWidget(new QLabel("Axis pen width (device pixels)", this));
+
+    m_spinPenWidth = new QDoubleSpinBox(this);
+    m_spinPenWidth->setRange(0.5, 3.0);
+    m_spinPenWidth->setSingleStep(0.5);
+    m_spinPenWidth->setDecimals(2);
+    m_spinPenWidth->setValue(1.0);
+    penLayout->addWidget(m_spinPenWidth);
+
+    layout->addWidget(penGroup);
+
     layout->addStretch();
 
     // Connect signals
@@ -192,6 +210,7 @@ QWidget* MainWindow::createControlPanel()
     connect(btnAllOutside, &QPushButton::clicked, this, &MainWindow::onAllOutsideClicked);
     connect(m_chkLogYRight, &QCheckBox::toggled, this, &MainWindow::onLogYRightToggled);
     connect(m_chkInvertedYLeft, &QCheckBox::toggled, this, &MainWindow::onInvertedYLeftToggled);
+    connect(m_spinPenWidth, &QDoubleSpinBox::valueChanged, this, &MainWindow::onPenWidthChanged);
 
     return panel;
 }
@@ -249,6 +268,15 @@ void MainWindow::onLogYRightToggled(bool checked)
         m_plot->setAxisScale(QwtAxis::YRight, 0.0, 1000.0);
         m_plot->setAxisTitle(QwtAxis::YRight, "YRight (Linear scale)");
     }
+    m_plot->replot();
+}
+
+void MainWindow::onPenWidthChanged(double width)
+{
+    const QwtAxisId axes[] = { QwtAxis::XBottom, QwtAxis::XTop, QwtAxis::YLeft, QwtAxis::YRight };
+    for (QwtAxisId axisId : axes)
+        m_plot->axisScaleDraw(axisId)->setPenWidthF(width);
+
     m_plot->replot();
 }
 

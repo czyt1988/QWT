@@ -11,6 +11,7 @@
 class QwtPlot;
 class QwtPlotCurve;
 class QCheckBox;
+class QDoubleSpinBox;
 
 class MainWindow : public QMainWindow
 {
@@ -28,6 +29,7 @@ private Q_SLOTS:
     void onAllOutsideClicked();
     void onLogYRightToggled(bool checked);
     void onInvertedYLeftToggled(bool checked);
+    void onPenWidthChanged(double width);
 
 private:
     void setupPlot();
@@ -44,6 +46,7 @@ private:
     QCheckBox* m_chkXBottom;
     QCheckBox* m_chkLogYRight;       // Toggle log scale for YRight
     QCheckBox* m_chkInvertedYLeft;   // Toggle inverted scale for YLeft
+    QDoubleSpinBox* m_spinPenWidth;  // Backbone pen width of all axes
 };
 
 #endif // MAIN_WINDOW_H
