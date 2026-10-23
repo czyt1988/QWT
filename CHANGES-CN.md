@@ -1,3 +1,37 @@
+## tag:v7.5.2 (2026-10-23)
+
+### 新功能
+
+- **`examples/2D/downsample_demo`：逐次绘制耗时与 123 万采样数据集**
+    - GUI 对每次画布绘制计时（`TimedPlotCanvas::paintEvent`），在工具栏显示 `draw <ms> | <pts>`，切换数据集/算法/视图/绘制开关后即可看到对应开销；直接给 `replot()` 计时并不可靠，Qt 6 的 `QWidget::repaint()` 不保证同步送达绘制事件。批处理模式也会为每张图报告渲染耗时
+    - 新增约 123 万采样点的第三组数据（比 "many" 高一个数量级），让降采样算法在"不降采样根本画不动"的数据规模上可测量
+    - 映射点覆盖层改用与 `QwtPlotCurve::drawLines()` 相同的抗锯齿感知对齐规则，对齐策略改变后叠加点与曲线保持一致
+- **`examples/2D/ticks_inside`：轴线笔宽控件**
+    - 新增 "Backbone Pen Width" 分组中的 `QDoubleSpinBox`（0.5 .. 3.0，单位为设备像素），对四条轴调用 `QwtAbstractScaleDraw::setPenWidthF()`，可在任意显示缩放下交互验证设备像素笔宽契约与角点闭合
+
+### Bug 修复
+
+- 修复抗锯齿曲线被吸附到设备像素网格的问题：只要绘制引擎是光栅引擎，`drawLines()`/`drawDots()` 就无条件启用 `RoundPoints`，而把映射顶点吸附到整数像素后再交给抗锯齿光栅器，会破坏它所需的亚像素几何——密集的抗锯齿曲线在缓坡上渲染出可见的阶梯。现在标志以 `QwtPainter::roundingAlignment(painter)` 为基础、再与 `!QPainter::Antialiasing` 绑定：非抗锯齿光栅、PDF/SVG 与带变换的 painter 保持原有行为；`legendIcon()` 只在图标以非抗锯齿方式记录时吸附；`WeedOutIntermediatePoints` 不再要求 `RoundPoints`（四边形抽稀路径内部自行取整到设备像素），`FilterPointsAggressive` 在抗锯齿下仍然可用。实测效果记录在像素吸附技术报告第 7 节
+- 修复刻度笔宽被乘以设备像素比的问题：200% 缩放下 `setPenWidthF(1.0)` 会把轴线与刻度画成 2 个设备像素宽，违背设备像素对齐刻度渲染的细线承诺，同一设置在 150% 与 200% 屏幕上看起来也不同。现在笔宽取整为整数设备像素且不乘设备像素比，1.0（以及 0.0）在任意缩放下都是 1 设备像素细线；刻度长度仍从逻辑像素换算
+- 修复 HiDPI 下坐标轴角点方块无法闭合的问题：左/上轴线带的内缘（画布侧）取的是刻度位置所在逻辑像素的第一个设备像素，导致轴线带距离它所框的画布边 `dpr - 1` 个设备像素；角点 miter 又只是把轴线在刻度末端之外硬编码延伸 1 像素——只有当边框距离、笔宽与设备像素比恰好对齐时才能对上垂直轴线，线宽大于 1 时外角留下 `( pw - 1 ) x ( pw - 1 )` 设备像素的缺口。现在背离画布延伸的轴线带内缘取其逻辑像素的最后一个设备像素，`QwtScaleWidget::draw()` 计算垂直轴线带的真实设备位置（`QwtScaleDraw::setCornerTargets()`），miter 延伸到紧邻画布的轴线带外缘而不是猜测值，边界刻度仍吸附到其内缘；轴线恰好终止于该带而不是与自身刻度跨度取最小/最大——后者在设备像素比大于 1 时会让跨度的第一个设备像素伸出带外，在左侧两角留下 1 像素毛刺。吸附的边界刻度把厚度对齐到所在带的跨度，偶数线宽下不再偏出 1 设备像素；寄生轴堆叠在更外侧的轴带不会被跨越，轴线不会贯穿整组轴带
+- 修复刻度朝内（`QwtPlot::TickInside`）不遵守轴线与外侧刻度设备像素规则的问题：此前按 `penWidthF()` 逻辑像素宽的 QPen 描边，设备像素比 2 时线宽 2 会画出 4 个设备像素、而轴线只有 2 个；像素比 1 时 1.5 这类小数线宽还会因刻度的亚像素位置不同而分别栅格化为 1 或 2 个像素。新增的 `QwtScaleDraw::drawTicksInside()` 改以设备像素对齐的矩形绘制，任意像素比下厚度都是 `qMax( 1, round( penWidthF ) )` 个设备像素，并从朝向轴线色带的画布边缘开始；选中状态的线宽增量提取为 `QwtAbstractScaleDraw::effectivePenWidthF()`，内外刻度与轴线共用
+- 修复轴线 miter 在画布角上被裁剪的问题：只要边框距离不够远——最典型的是最外侧主刻度远离刻度端点、边界距离提示塌缩为 0——轴 widget 就紧贴刻度结束，miter 落在 widget 矩形之外被 paintEvent 裁掉，任意设备像素比下垂直轴线之间都留下 1 逻辑像素的缺口。`QwtPlot::doLayout()` 现在按 widget 边界到垂直轴线带的间隙，把每个可见轴 widget 向共享角点扩展（新增 `qwt_scale_corner.h/.cpp` 辅助函数），在共享画布的整个绘图族（含寄生轴）上统一解算角点，并把扩展量吸收进 `layoutScale()` 使用的边框距离，刻度的位置、长度以及画布与刻度的对齐完全不变；`QwtPlotRenderer` 按自身布局设置同样的状态而不是依赖 widget 几何，导出结果确定且与屏幕一致。预留像素不参与由内容矩形派生的几何计算（新增 `scaleContentsRect()`），色条、内置标题与 `scaleRect()` 保持刻度的实际范围而不会随预留一起变长
+- 修复轴边框距离滞后一轮布局的问题：`activate()` 读取已存储的边框距离，而提示值要等几何应用后才稳定，因此新绘图的首轮布局使用默认 widget 尺寸的刻度映射，下一轮激活只修正距离却不重新应用矩形——widget 保留过渡尺寸、刻度跨度偏离画布。`doLayout()` 现在在边框距离仍在变化时重复激活与轴几何处理（最多三轮）；由于角点预留会扩展轴 widget，而 Qt 对隐藏 widget 会推迟 resize 事件，预留后还会显式调用 `layoutScale()`，从未显示过就被 grab 的绘图也能收敛，不再保留过渡几何
+- 修复 `QwtPlot::replot()` 之后轴 widget 仍显示旧刻度绘制的问题：replot 只重绘画布，轴 widget 仅作为布局变化的副作用才重绘，因此不改变布局的运行时修改——尤其是 `QwtAbstractScaleDraw::setPenWidthF()`——要等到下一次布局驱动的重绘才可见（真实 200% 缩放下实测：新线宽要等一个无关复选框切换刻度方向后才出现）。replot() 现在会为每个可见轴 widget 调度一次重绘。该缺陷是在 200% 真实缩放下用 `examples/2D/ticks_inside` 新增的线宽选项在屏幕上验证角点修复时发现的
+- 回归测试：`tests/axis_corner_test` 改为逐 widget 合成夹具——每个 widget 单独渲染，合成时像屏幕一样在 widget 边界裁剪——覆盖 HiDPI 问题报告中的刻度朝内贴边配置（边框距离提示塌缩为 0）、`setPenWidthF()` 的设备像素契约、`alignCanvasToScales`/画布边距/画布边框宽度/固定画布尺寸的 72 组矩阵、导出确定性（两次导出之间在屏幕绘制不得改变一个字节）、寄生绘图角点，以及笔宽 1/2/3、设备像素比 1 与 2 下完整的角点方块。CTest 按像素比各跑一次（在构造 `QApplication` 前设置 `QT_SCALE_FACTOR` 为 1.0 与 2.0），像素比不为 1 时的 QSKIP 已移除
+
+### 构建
+
+- 修复 `ctest --test-dir build` 找不到测试的问题：此前只有测试子目录调用 `enable_testing()`，生成的 `CTestTestfile.cmake` 从构建根不可达，CI 的测试步骤实际上什么都没跑。现在在添加 tests 目录之前调用 `enable_testing()`
+- 修复 Gitee release 同步工作流：创建 release 时传入 `target_commitish`，分支推送改用抓取到的远程跟踪引用，release 事件（detached HEAD、无本地分支）与手动 `workflow_dispatch` 都能同步 `master`/`dev` 并附加合成文件
+- amalgamate 模板加入新增的 `qwt_scale_corner.h/.cpp`，重新生成 `src-amalgamate/QwtPlot.{h,cpp}`，并以 `/bigobj` 按单一翻译单元编译验证
+
+### 文档
+
+- **像素吸附技术报告新增第 7 节**（`docs/tech-report/point-mapper-rounding.md`，中英）：解释 Qwt 6.2 基线为何会吸附（`roundingAlignment` 默认为 true，`isAligning()` 只检查绘制引擎与变换、从不检查 `QPainter::Antialiasing`，所以抗锯齿画布上 `drawLines()` 仍会启用 `RoundPoints`），并记录 QWT 7 的修复：7.x 的降采样族保留亚像素坐标，v7.5.1 之后的策略只在非抗锯齿 painter 下于 `drawLines()`/`drawDots()`/`legendIcon()` 吸附，`WeedOutIntermediatePoints` 与之解耦。实测效果：密集峰肩混合比从 0.284 变为 0.5470（与 `--noround` 一致），稀疏数据保持 0.568，激进路径仍把 199,751 个顶点压缩到 7,384 个
+- **README（中英）同步并补充 3D 模块**：Qwt 7.0 标题改为 Qwt 7，修正 CMake/qmake 措辞，加入实时 3D 瀑布截图，扩写 3D 章节（Plot + Item 架构、内置 item、最小曲面示例、滑动窗口瀑布 API、交互/导出与 `QwtFigure` 集成），更新 3D 画廊（qwtplot3d、bar3D、line3D、waterfall3D、figureSurface3D），统一表头，文档链接指向当前的中英文页面结构，示例路径更新为 `examples/2D`/`examples/3D`，降采样列表更新为当前六种过滤器并提及 `BreakAtNan`
+- **文档风格整理**：落地页与简介改为平实的技术叙述；使用指南（2D、3D、通用、入门，中英）中的勾选/加粗特性模板改为普通条目或段落，移除宣传性措辞并修正 panner 类名；开发指南与构建指南去掉文档定义式开头与勾选列表；技术报告摘要收紧，推导、代码、表格、图与基准数据保持不变；风格指南本身改为明确反对 AI 腔（直接主语、无元介绍、无宣传形容词、不滥用加粗、无 emoji、少用破折号、不复述结论）
+
 ## tag:v7.5.1 (2026-10-19)
 
 ### 新功能
@@ -15,7 +49,6 @@
 ### Bug 修复
 
 - 修复 `QwtPointMapper` 的像素量按逻辑像素而非设备像素计算的问题：LTTB/MinMax 降采样的桶数、像素列传的列数以及 `RoundPoints` 的量化步长都忽略了 `devicePixelRatio()`，在 HiDPI 绘制设备上降采样丢失设备分辨率、取整又把折线吸附到 `devicePixelRatio()` 个设备像素的台阶（陡峭曲线段表现为阶梯）。新增 `setDevicePixelRatio()`/`devicePixelRatio()`；`QwtPlotCurve::drawLines()`、`drawDots()`、`drawSymbols()` 传入绘制设备的 `QwtPainter::devicePixelRatio()`，映射坐标仍保持绘制坐标。比值为 1.0 时行为不变（实测逐字节相同的渲染结果）
-- 修复刻度朝内（`QwtPlot::TickInside`）的刻度线不遵守轴线和外侧刻度的设备像素规则的问题：此前按 `penWidthF()` 逻辑像素宽的 QPen 描边，设备像素比为 2 时线宽 2 会画出 4 个设备像素、而轴线只有 2 个；像素比为 1 时 1.5 这类小数线宽还会因刻度的亚像素位置不同而分别栅格化为 1 或 2 个像素。新增的 `QwtScaleDraw::drawTicksInside()` 改以设备像素对齐的矩形绘制，任意像素比下厚度都是 `qMax( 1, round( penWidthF ) )` 个设备像素，并从朝向轴线色带的画布边缘开始；选中状态的线宽增量提取为 `QwtAbstractScaleDraw::effectivePenWidthF()`，内外刻度与轴线共用。回归测试：`tests/axis_corner_test`（`testInsideTicksShareBackboneWidth`，设备像素比 1 与 2）
 
 ### 构建
 
@@ -62,8 +95,7 @@
 
 - 修复降采样破坏窄峰视觉形状且无视抗锯齿的问题：默认的 `FilterPointsLTTB`（MinMax 桶，v7.3.2 - v7.4.2）每桶只保留 y 最小/最大的样本，采样点数超过桶容量的峰塌缩成平顶竖线、峰肩全部丢失；且所有降采样路径无视 `RoundPoints` 标志、把映射坐标强制取整到整数像素 —— 开不开抗锯齿画面毫无差别。现在两个降采样算法都遵循 `RoundPoints`（画布不按整数对齐时保留亚像素精度，含低于阈值的回退路径），默认降采样改为保峰形的真 LTTB。回归测试：`tests/downsampling_test`
 - 修复单文件合成构建（`src-amalgamate`，`examples/staticExample` 使用）自 3D 瀑布图合入后无法链接的问题：amalgamate 模板从未列入 `qwt3d_waterfall.h/.cpp`，导致 `Qwt3DTheme::applyToItem()` 引用的 `Qwt3DWaterfall` setter 在合成文件内没有定义。已更新模板并重新生成 `src-amalgamate`；同时把 `qwt3d_waterfall.cpp` 中重复的文件级 `clampf()` 辅助函数改名为 `clampFloat()`，使单一翻译单元可以通过编译。另移除 `tests/flat_style_test` 中仅 Qt5 可用的 `QwtPlotGLCanvas` 包含——它在 Qt6 下因不存在 `<qgl.h>` 而编译失败
-- 修复坐标轴主线在画布四角不相交、以及 HiDPI 缩放下轴线/刻度线宽度不一致的问题：`QwtScaleDraw` 现在把主线与刻度绘制为设备像素对齐的填充矩形，且笔宽按设备像素解释——四舍五入为整数设备像素、不再乘以设备像素比——`setPenWidthF(1.0)` 在任意缩放比例下都是 1 设备像素的细线（0.0 同样映射为 1），刻度长度仍按逻辑像素计算；刻度恰好止于主线内缘而不再与主线交叉；位于刻度范围端点的刻度吸附到垂直轴的主线上，角上不再残留端点刻度与垂直轴线之间 1 像素的台阶。左/上主线带的内缘取其逻辑像素的最后一个设备像素而非第一个，任意设备像素比下四条带都紧贴所框的画布边，边界刻度也仍止于该内缘。`QwtScaleDraw::setCornerMiter()` 标志——由 `QwtScaleWidget` 按垂直轴的可见性设置——把每条主线向共享的画布角延伸，延伸终点是紧邻画布的垂直轴带的外缘（`setCornerTargets()`，由实际轴几何推导并携带该带的宽度），不再是固定的猜测值，线宽大于 1 时整个角点方块也完全闭合；miter 让主线恰好终止于垂直带，而不是与自身刻度跨度取最小/最大——后者在设备像素比大于 1 时会让跨度的第一个设备像素伸出垂直带之外，在左侧两角留下 1 像素的毛刺；吸附的边界刻度按其所在带的跨度对齐厚度，偶数线宽下不再与带错开 1 设备像素；不会跨过寄生轴堆叠在更外侧的轴带，主线不会贯穿整组轴带；`QwtPlot::doLayout()` 在轴 widget 内预留角点像素，延伸永不被裁剪——即使最外侧主刻度远离刻度端点、边界距离提示塌缩为 0 也不例外——`QwtPlotRenderer` 也按自身布局设置同样的状态，导出结果确定且与屏幕一致。预留的角点像素不参与由内容矩形派生的几何计算，色条、内置标题和 `QwtScaleWidget::scaleRect()` 保持刻度的实际范围而不会随预留像素一起变长。回归测试：`tests/axis_corner_test`（在设备像素比 1 和 2 下运行）
-- 修复 `QwtPlot::replot()` 之后轴 widget 仍显示旧的刻度绘制：replot 只重绘画布，轴 widget 仅作为布局变化的副作用才重绘，因此不改变布局的运行时修改——尤其是 `QwtAbstractScaleDraw::setPenWidthF()`——要等到下一次布局驱动的重绘才可见（在真实 200% 缩放下实测：新线宽要等一个无关复选框切换刻度方向后才出现）。replot() 现在会为每个可见轴 widget 调度一次重绘。该缺陷是在 200% 真实缩放下用 `examples/2D/ticks_inside` 新增的线宽选项在屏幕上验证角点修复时发现的
+- 修复坐标轴主线在画布四角不相交、以及 HiDPI 缩放下轴线/刻度线宽度不一致的问题：`QwtScaleDraw` 现在把主线与刻度绘制为设备像素对齐的填充矩形（笔宽截断为整数设备像素，`setPenWidthF(1.0)` 在任意设备像素比下都是 1 像素细线），刻度恰好止于主线内缘而不再与主线交叉；位于刻度范围端点的刻度吸附到垂直轴的主线上，角上不再残留端点刻度与垂直轴线之间 1 像素的台阶；新增 `QwtScaleDraw::setCornerMiter()` 标志——由 `QwtScaleWidget` 按垂直轴的可见性设置——把每条主线向共享的画布角延伸一个笔宽，互相垂直的主线因此交成干净的 L 形，而不是对角台阶（分数缩放下甚至是彻底的缺口）。回归测试：`tests/axis_corner_test`
 - 修复 `Qwt3DPlot::attach()` 不重算场景的问题：若数据在 `attach()` 之前装载、且中间没有调用任何 setter（因此未触发 `itemChanged()`），plot 的 hull 停留在 (0,0,0)-(0,0,0)，画面全白且无任何警告。z 排序 + hull 并集 + 坐标系更新被抽取为私有 `recalculateScene()`，`attach()` 与 `detach()` 现在也会调用，detach 后 hull 同步收缩。已加回归测试（`tests/waterfall_test`）
 - 修复派生 `Qwt3DScale` 在 `Qwt3DAxis::setScale()` 内被切片的问题：`Qwt3DClonePtr` 赋值经 `clone()` 克隆，未 override `clone()` 的派生 scale 的自定义 `ticLabel()` 静默失效（实测逐像素零差异）。`Qwt3DTextScale` 已 override；`Qwt3DLinearScale` 新增 protected `copyLinearScaleState()` 供派生类复制 autoscaler 状态
 - 修复 `Qwt3DWaterfall::pushTrace()` 对短轨迹的越界读取：入帧按已建立的 bin 宽度装填（超长截断、过短零填充）
