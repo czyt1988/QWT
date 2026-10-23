@@ -120,6 +120,9 @@ protected:
 
     const QwtText& tickLabel(const QFont&, double value) const;
 
+    // Pen width including the offset of the selected state
+    qreal effectivePenWidthF() const;
+
 private:
     QwtAbstractScaleDraw(const QwtAbstractScaleDraw&)            = delete;
     QwtAbstractScaleDraw& operator=(const QwtAbstractScaleDraw&) = delete;

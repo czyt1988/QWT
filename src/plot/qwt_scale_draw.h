@@ -191,6 +191,9 @@ public:
     /// Get the bounding label rectangle
     QRect boundingLabelRect(const QFont&, double value) const;
 
+    /// Draw the ticks from the edges of a canvas towards its interior
+    void drawTicksInside(QPainter*, const QRectF& canvasRect, const QwtScaleMap&) const;
+
 protected:
     QTransform labelTransformation(const QPointF&, const QSizeF&) const;
 

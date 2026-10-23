@@ -15,6 +15,7 @@
 ### Bug 修复
 
 - 修复 `QwtPointMapper` 的像素量按逻辑像素而非设备像素计算的问题：LTTB/MinMax 降采样的桶数、像素列传的列数以及 `RoundPoints` 的量化步长都忽略了 `devicePixelRatio()`，在 HiDPI 绘制设备上降采样丢失设备分辨率、取整又把折线吸附到 `devicePixelRatio()` 个设备像素的台阶（陡峭曲线段表现为阶梯）。新增 `setDevicePixelRatio()`/`devicePixelRatio()`；`QwtPlotCurve::drawLines()`、`drawDots()`、`drawSymbols()` 传入绘制设备的 `QwtPainter::devicePixelRatio()`，映射坐标仍保持绘制坐标。比值为 1.0 时行为不变（实测逐字节相同的渲染结果）
+- 修复刻度朝内（`QwtPlot::TickInside`）的刻度线不遵守轴线和外侧刻度的设备像素规则的问题：此前按 `penWidthF()` 逻辑像素宽的 QPen 描边，设备像素比为 2 时线宽 2 会画出 4 个设备像素、而轴线只有 2 个；像素比为 1 时 1.5 这类小数线宽还会因刻度的亚像素位置不同而分别栅格化为 1 或 2 个像素。新增的 `QwtScaleDraw::drawTicksInside()` 改以设备像素对齐的矩形绘制，任意像素比下厚度都是 `qMax( 1, round( penWidthF ) )` 个设备像素，并从朝向轴线色带的画布边缘开始；选中状态的线宽增量提取为 `QwtAbstractScaleDraw::effectivePenWidthF()`，内外刻度与轴线共用。回归测试：`tests/axis_corner_test`（`testInsideTicksShareBackboneWidth`，设备像素比 1 与 2）
 
 ### 构建
 

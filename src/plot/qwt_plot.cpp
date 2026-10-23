@@ -1060,43 +1060,6 @@ void QwtPlot::updateCanvasMargins()
 }
 
 /*!
-   @brief Draw a single inside tick
-
-   @param painter Painter
-   @param tickPixelPos Tick position in pixels
-   @param tickLength Tick length
-   @param backbonePos Backbone position (canvas edge)
-   @param axisPos Axis position (YLeft, YRight, XTop, XBottom)
- */
-void QwtPlot::drawSingleInsideTick(QPainter* painter, double tickPixelPos, double tickLength, double backbonePos, int axisPos) const
-{
-    using namespace QwtAxis;
-    const double len = tickLength;
-
-    switch (axisPos) {
-    case YLeft:
-        // From canvas left edge, draw toward right (inside)
-        QwtPainter::drawLine(painter, backbonePos, tickPixelPos, backbonePos + len, tickPixelPos);
-        break;
-
-    case YRight:
-        // From canvas right edge, draw toward left (inside)
-        QwtPainter::drawLine(painter, backbonePos, tickPixelPos, backbonePos - len, tickPixelPos);
-        break;
-
-    case XTop:
-        // From canvas top edge, draw toward bottom (inside)
-        QwtPainter::drawLine(painter, tickPixelPos, backbonePos, tickPixelPos, backbonePos + len);
-        break;
-
-    case XBottom:
-        // From canvas bottom edge, draw toward top (inside)
-        QwtPainter::drawLine(painter, tickPixelPos, backbonePos, tickPixelPos, backbonePos - len);
-        break;
-    }
-}
-
-/*!
    @brief Draw inside ticks for axes with TickInside direction
 
    This method is called after drawItems() to draw tick marks that
@@ -1127,56 +1090,11 @@ void QwtPlot::drawInsideTicks(QPainter* painter, const QRectF& canvasRect, const
 
         painter->save();
 
-        // Set pen style (sync with outside ticks)
-        QPen pen;
-        pen.setWidthF(scaleDraw->penWidthF());
+        QPen pen = painter->pen();
         pen.setColor(scaleWidget->scaleColor());
         painter->setPen(pen);
 
-        // Get scale division
-        const QwtScaleDiv& scaleDiv = scaleDraw->scaleDiv();
-        const QwtScaleMap& map      = maps[ axisPos ];
-
-        // Calculate backbone position (canvas edge)
-        double backbonePos;
-        switch (axisPos) {
-        case YLeft:
-            backbonePos = canvasRect.left();
-            break;
-        case YRight:
-            backbonePos = canvasRect.right();
-            break;
-        case XTop:
-            backbonePos = canvasRect.top();
-            break;
-        case XBottom:
-            backbonePos = canvasRect.bottom();
-            break;
-        }
-
-        // Draw all tick types
-        const QList< double >& minorTicks  = scaleDiv.ticks(QwtScaleDiv::MinorTick);
-        const QList< double >& mediumTicks = scaleDiv.ticks(QwtScaleDiv::MediumTick);
-        const QList< double >& majorTicks  = scaleDiv.ticks(QwtScaleDiv::MajorTick);
-
-        double minorLen  = scaleDraw->tickLength(QwtScaleDiv::MinorTick);
-        double mediumLen = scaleDraw->tickLength(QwtScaleDiv::MediumTick);
-        double majorLen  = scaleDraw->tickLength(QwtScaleDiv::MajorTick);
-
-        for (const double tickValue : minorTicks) {
-            double tickPixelPos = map.transform(tickValue);
-            drawSingleInsideTick(painter, tickPixelPos, minorLen, backbonePos, axisPos);
-        }
-
-        for (const double tickValue : mediumTicks) {
-            double tickPixelPos = map.transform(tickValue);
-            drawSingleInsideTick(painter, tickPixelPos, mediumLen, backbonePos, axisPos);
-        }
-
-        for (const double tickValue : majorTicks) {
-            double tickPixelPos = map.transform(tickValue);
-            drawSingleInsideTick(painter, tickPixelPos, majorLen, backbonePos, axisPos);
-        }
+        scaleDraw->drawTicksInside(painter, canvasRect, maps[ axisPos ]);
 
         painter->restore();
     }

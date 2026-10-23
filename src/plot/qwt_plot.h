@@ -571,9 +571,6 @@ private:
     // Top parasite plot triggers host to update all axis margins
     void topParasiteTriggerHostUpdateAxisMargins();
 
-    // Helper: Draw a single inside tick
-    void drawSingleInsideTick(QPainter* painter, double tickPixelPos, double tickLength, double backbonePos, int axisPos) const;
-
     class ScaleData;
     ScaleData* m_scaleData;
 };

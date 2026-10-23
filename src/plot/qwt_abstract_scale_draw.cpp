@@ -236,6 +236,27 @@ qreal QwtAbstractScaleDraw::selectedPenWidthOffset() const
 }
 
 /**
+ * @brief Pen width including the offset of the selected state
+ * @return Pen width used for the backbone and the ticks
+ * @details When the scale is selected, the pen grows by
+ *          selectedPenWidthOffset(); a zero width ( hairline ) becomes
+ *          1 + offset, as the hairline has no width to grow from.
+ * @sa setSelected(), setSelectedPenWidthOffset()
+ */
+qreal QwtAbstractScaleDraw::effectivePenWidthF() const
+{
+    QWT_DC(d);
+
+    if (!isSelected())
+        return d->penWidthF;
+
+    if (qFuzzyIsNull(d->penWidthF))
+        return 1.0 + d->penWidthOffset;
+
+    return d->penWidthF + d->penWidthOffset;
+}
+
+/**
  * @brief Draw the scale
  * @param painter The painter
  * @param palette Palette, text color is used for the labels, foreground color for ticks and backbone
@@ -246,14 +267,7 @@ void QwtAbstractScaleDraw::draw(QPainter* painter, const QPalette& palette) cons
     painter->save();
 
     QPen pen = painter->pen();
-    pen.setWidthF(d->penWidthF);
-    if (isSelected()) {
-        if (qFuzzyIsNull(d->penWidthF)) {
-            pen.setWidthF(1.0 + d->penWidthOffset);
-        } else {
-            pen.setWidthF(d->penWidthF + d->penWidthOffset);
-        }
-    }
+    pen.setWidthF(effectivePenWidthF());
     painter->setPen(pen);
 
     if (hasComponent(QwtAbstractScaleDraw::Labels)) {

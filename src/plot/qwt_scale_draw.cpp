@@ -142,6 +142,22 @@ inline int qwtNearBandEdgeY(const QTransform& tr, qreal y, bool growsAwayFromCan
 {
     return growsAwayFromCanvas ? qRound(qwtDeviceY(tr, y + 1.0)) - 1 : qRound(qwtDeviceY(tr, y));
 }
+
+/*
+    Device coordinate of the first canvas pixel at an edge facing a
+    backbone band. A left/top edge starts at the first device pixel of its
+    logical pixel, a right/bottom edge ends at the last one: the band of
+    the axis widget is adjacent to the far side of that pixel.
+ */
+inline int qwtCanvasInnerEdgeX(const QTransform& tr, qreal edge, bool fromLeft)
+{
+    return fromLeft ? qRound(qwtDeviceX(tr, edge)) : qRound(qwtDeviceX(tr, edge + 1.0)) - 1;
+}
+
+inline int qwtCanvasInnerEdgeY(const QTransform& tr, qreal edge, bool fromTop)
+{
+    return fromTop ? qRound(qwtDeviceY(tr, edge)) : qRound(qwtDeviceY(tr, edge + 1.0)) - 1;
+}
 }
 
 class QwtScaleDraw::PrivateData
@@ -654,6 +670,75 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
         break;
     }
     }
+}
+
+/**
+ * @brief Draw the ticks from the edges of a canvas towards its interior
+ * @param painter Painter
+ * @param canvasRect Canvas rectangle in painter coordinates
+ * @param map Scale map of the axis on the canvas
+ *
+ * @details Used by QwtPlot for axes with QwtPlot::TickInside. The ticks
+ *          start at the canvas edge adjacent to the backbone band and grow
+ *          into the canvas, following the same device pixel rules as the
+ *          backbone and the outside ticks of draw(): the thickness is
+ *          qMax( 1, round( pen width ) ) device pixels without being scaled
+ *          by the device pixel ratio, and every tick is aligned to the
+ *          device pixel grid. Stroking a pen of a fractional logical width
+ *          instead would make the ticks thicker than the backbone at device
+ *          pixel ratios above one and rasterize ticks at different
+ *          subpixel positions with different widths.
+ *
+ * @sa drawTick()
+ */
+void QwtScaleDraw::drawTicksInside(QPainter* painter, const QRectF& canvasRect, const QwtScaleMap& map) const
+{
+    QWT_DC(d);
+
+    painter->save();
+
+    QPen pen = painter->pen();
+    pen.setWidthF(effectivePenWidthF());
+    painter->setPen(pen);
+
+    const QTransform tr = painter->deviceTransform();
+    const qreal sx      = qAbs(tr.m11());
+    const qreal sy      = qAbs(tr.m22());
+
+    const bool vertical  = orientation() == Qt::Vertical;
+    const bool fromStart = (d->alignment == LeftScale || d->alignment == TopScale);
+
+    // first device pixel of the canvas at the edge facing the backbone band
+    int edge = 0;
+    if (vertical)
+        edge = qwtCanvasInnerEdgeX(tr, fromStart ? canvasRect.left() : canvasRect.right(), fromStart);
+    else
+        edge = qwtCanvasInnerEdgeY(tr, fromStart ? canvasRect.top() : canvasRect.bottom(), fromStart);
+
+    const int th = qwtDevicePenWidth(painter);
+
+    for (int tickType = QwtScaleDiv::MinorTick; tickType <= QwtScaleDiv::MajorTick; tickType++) {
+        const double lengthF = tickLength(static_cast< QwtScaleDiv::TickType >(tickType));
+        if (lengthF <= 0.0)
+            continue;
+
+        const int len = qwtDeviceTickLength(lengthF, vertical ? sy : sx);
+
+        const QList< double >& ticks = scaleDiv().ticks(static_cast< QwtScaleDiv::TickType >(tickType));
+        for (double value : ticks) {
+            if (vertical) {
+                const int row = qRound(qwtDeviceY(tr, map.transform(value)));
+                const int x0  = fromStart ? edge : edge - len + 1;
+                qwtFillDeviceRect(painter, QRect(x0, row - (th - 1) / 2, len, th));
+            } else {
+                const int col = qRound(qwtDeviceX(tr, map.transform(value)));
+                const int y0  = fromStart ? edge : edge - len + 1;
+                qwtFillDeviceRect(painter, QRect(col - (th - 1) / 2, y0, th, len));
+            }
+        }
+    }
+
+    painter->restore();
 }
 
 /**

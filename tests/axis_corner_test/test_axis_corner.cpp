@@ -10,6 +10,7 @@
 #include <qwt_plot_renderer.h>
 #include <qwt_scale_div.h>
 #include <qwt_scale_draw.h>
+#include <qwt_scale_map.h>
 #include <qwt_scale_widget.h>
 
 #include <QApplication>
@@ -236,6 +237,61 @@ QPoint bandCorner(const QImage& img, const QwtPlot& root, const QwtScaleWidget* 
     const qreal yCol = yw->mapTo(&root, QPoint(0, 0)).x() + yw->scaleDraw()->pos().x();
     const qreal xRow = xw->mapTo(&root, QPoint(0, 0)).y() + xw->scaleDraw()->pos().y();
     return QPoint(nearBandEdge(img, yCol, true), nearBandEdge(img, xRow, false));
+}
+
+/*
+    The plot of the inside tick report: all four axes with their ticks
+    inside the canvas, a pen width that is not a whole device pixel and
+    explicit major ticks clear of the canvas corners, so every tick can be
+    measured without being clipped.
+ */
+void setupInsideTicksPlot(QwtPlot& plot, qreal penWidth)
+{
+    plot.plotLayout()->setAlignCanvasToScales(true);
+    plot.setAxisVisible(QwtAxis::XTop, true);
+    plot.setAxisVisible(QwtAxis::YRight, true);
+
+    QwtPlotCanvas* canvas = new QwtPlotCanvas(&plot);
+    canvas->setLineWidth(0);
+    plot.setCanvas(canvas);
+
+    QList< double > majors;
+    for (int v = 1; v <= 9; v++)
+        majors += double(v);
+
+    const QwtAxisId axes[] = { QwtAxis::XBottom, QwtAxis::XTop, QwtAxis::YLeft, QwtAxis::YRight };
+    for (QwtAxisId axisId : axes) {
+        plot.setAxisTickDirection(axisId, QwtPlot::TickInside);
+        plot.axisScaleDraw(axisId)->setPenWidthF(penWidth);
+        plot.setAxisScaleDiv(axisId, QwtScaleDiv(0.0, 10.0, QList< double >(), QList< double >(), majors));
+    }
+
+    plot.resize(520, 400);
+    plot.replot();
+}
+
+/*
+    Length of the longest dark run on a pixel column ( vertical = true )
+    or row ( vertical = false ) around center. Measuring the run instead
+    of a single pixel keeps the result independent of where exactly the
+    tick landed.
+ */
+int longestDarkRun(const QImage& img, int fixed, int center, bool vertical, int radius = 8)
+{
+    int best = 0;
+    int run  = 0;
+
+    for (int p = center - radius; p <= center + radius; p++) {
+        const bool dark = vertical ? isDark(img, fixed, p) : isDark(img, p, fixed);
+        if (dark) {
+            run++;
+            best = qMax(best, run);
+        } else {
+            run = 0;
+        }
+    }
+
+    return best;
 }
 
 /*
@@ -675,6 +731,69 @@ void TestAxisCorner::testBorderTickSitsOnBand()
         }
         QVERIFY2(!isDark(img, rightCol - 1, tickRow), qPrintable(ctx + ": x border tick left of the right band"));
         QVERIFY2(!isDark(img, rightCol + pw, tickRow), qPrintable(ctx + ": x border tick right of the right band"));
+    }
+}
+
+/*
+    Inside ticks must be rasterized with the same device pixel rules as the
+    backbone and the outside ticks: every tick is qMax(1, round(penWidthF))
+    device pixels thick at any device pixel ratio, and ticks at different
+    subpixel positions do not end up with different thicknesses.
+
+    Before the fix the inside ticks were stroked with a QPen in logical
+    coordinates: at 200% a pen width of 2 painted 4 device pixels while the
+    backbone painted 2, and a fractional width like 1.5 rasterized to 1 or
+    2 pixels depending on the position of the tick.
+ */
+void TestAxisCorner::testInsideTicksShareBackboneWidth()
+{
+    const qreal widths[] = { 0.0, 1.0, 1.5, 2.0, 3.0 };
+
+    for (qreal w : widths) {
+        QwtPlot plot;
+        setupInsideTicksPlot(plot, w);
+
+        const QImage img  = composePlot(plot);
+        const QRect cr    = canvasRectInPlot(plot);
+        const int pw      = devicePenWidth(w);
+        const QString ctx = QString("penWidthF(%1) dpr(%2)").arg(w).arg(img.devicePixelRatio());
+
+        // sample a column/row a few pixels inside the canvas edge: all
+        // inside ticks are longer than that and cross it
+        struct Probe
+        {
+            QwtAxisId axisId;
+            int sample;     // device column for vertical ticks, row for horizontal ticks
+            bool vertical;  // measure the tick thickness along a column
+            const char* name;
+        };
+
+        const Probe probes[] = {
+            { QwtAxis::YLeft, toDevice(img, cr.left() + 2), true, "YLeft" },
+            { QwtAxis::YRight, toDevice(img, cr.right() - 2), true, "YRight" },
+            { QwtAxis::XTop, toDevice(img, cr.top() + 2), false, "XTop" },
+            { QwtAxis::XBottom, toDevice(img, cr.bottom() - 2), false, "XBottom" },
+        };
+
+        for (const Probe& probe : probes) {
+            const QwtScaleMap map       = plot.canvasMap(probe.axisId);
+            const QList< double > ticks = plot.axisScaleDiv(probe.axisId).ticks(QwtScaleDiv::MajorTick);
+            QVERIFY2(ticks.count() == 9, qPrintable(ctx + QString(": unexpected major tick count on %1").arg(probe.name)));
+
+            for (double value : ticks) {
+                const qreal localPos = map.transform(value);
+                const int pos = probe.vertical ? toDevice(img, cr.top() + localPos) : toDevice(img, cr.left() + localPos);
+                const int thickness = longestDarkRun(img, probe.sample, pos, probe.vertical);
+
+                QVERIFY2(thickness == pw,
+                         qPrintable(ctx
+                                    + QString(": %1 tick at %2 is %3 device pixels thick, expected %4")
+                                          .arg(probe.name)
+                                          .arg(value)
+                                          .arg(thickness)
+                                          .arg(pw)));
+            }
+        }
     }
 }
 
