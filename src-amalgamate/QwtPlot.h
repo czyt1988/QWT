@@ -10443,6 +10443,9 @@ protected:
 
 	const QwtText& tickLabel(const QFont&, double value) const;
 
+	// Pen width including the offset of the selected state
+	qreal effectivePenWidthF() const;
+
 private:
 	QwtAbstractScaleDraw(const QwtAbstractScaleDraw&)            = delete;
 	QwtAbstractScaleDraw& operator=(const QwtAbstractScaleDraw&) = delete;
@@ -10616,6 +10619,9 @@ public:
 
 	/// Get the bounding label rectangle
 	QRect boundingLabelRect(const QFont&, double value) const;
+
+	/// Draw the ticks from the edges of a canvas towards its interior
+	void drawTicksInside(QPainter*, const QRectF& canvasRect, const QwtScaleMap&) const;
 
 protected:
 	QTransform labelTransformation(const QPointF&, const QSizeF&) const;
@@ -22282,9 +22288,6 @@ private:
 	void initPlot(const QwtText& title);
 	// Top parasite plot triggers host to update all axis margins
 	void topParasiteTriggerHostUpdateAxisMargins();
-
-	// Helper: Draw a single inside tick
-	void drawSingleInsideTick(QPainter* painter, double tickPixelPos, double tickLength, double backbonePos, int axisPos) const;
 
 	class ScaleData;
 	ScaleData* m_scaleData;

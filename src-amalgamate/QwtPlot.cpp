@@ -18093,6 +18093,27 @@ qreal QwtAbstractScaleDraw::selectedPenWidthOffset() const
 }
 
 /**
+ * @brief Pen width including the offset of the selected state
+ * @return Pen width used for the backbone and the ticks
+ * @details When the scale is selected, the pen grows by
+ *          selectedPenWidthOffset(); a zero width ( hairline ) becomes
+ *          1 + offset, as the hairline has no width to grow from.
+ * @sa setSelected(), setSelectedPenWidthOffset()
+ */
+qreal QwtAbstractScaleDraw::effectivePenWidthF() const
+{
+	QWT_DC(d);
+
+	if (!isSelected())
+		return d->penWidthF;
+
+	if (qFuzzyIsNull(d->penWidthF))
+		return 1.0 + d->penWidthOffset;
+
+	return d->penWidthF + d->penWidthOffset;
+}
+
+/**
  * @brief Draw the scale
  * @param painter The painter
  * @param palette Palette, text color is used for the labels, foreground color for ticks and backbone
@@ -18103,14 +18124,7 @@ void QwtAbstractScaleDraw::draw(QPainter* painter, const QPalette& palette) cons
 	painter->save();
 
 	QPen pen = painter->pen();
-	pen.setWidthF(d->penWidthF);
-	if (isSelected()) {
-		if (qFuzzyIsNull(d->penWidthF)) {
-			pen.setWidthF(1.0 + d->penWidthOffset);
-		} else {
-			pen.setWidthF(d->penWidthF + d->penWidthOffset);
-		}
-	}
+	pen.setWidthF(effectivePenWidthF());
 	painter->setPen(pen);
 
 	if (hasComponent(QwtAbstractScaleDraw::Labels)) {
@@ -18470,6 +18484,22 @@ inline int qwtNearBandEdgeX(const QTransform& tr, qreal x, bool growsAwayFromCan
 inline int qwtNearBandEdgeY(const QTransform& tr, qreal y, bool growsAwayFromCanvas)
 {
 	return growsAwayFromCanvas ? qRound(qwtDeviceY(tr, y + 1.0)) - 1 : qRound(qwtDeviceY(tr, y));
+}
+
+/*
+	Device coordinate of the first canvas pixel at an edge facing a
+	backbone band. A left/top edge starts at the first device pixel of its
+	logical pixel, a right/bottom edge ends at the last one: the band of
+	the axis widget is adjacent to the far side of that pixel.
+ */
+inline int qwtCanvasInnerEdgeX(const QTransform& tr, qreal edge, bool fromLeft)
+{
+	return fromLeft ? qRound(qwtDeviceX(tr, edge)) : qRound(qwtDeviceX(tr, edge + 1.0)) - 1;
+}
+
+inline int qwtCanvasInnerEdgeY(const QTransform& tr, qreal edge, bool fromTop)
+{
+	return fromTop ? qRound(qwtDeviceY(tr, edge)) : qRound(qwtDeviceY(tr, edge + 1.0)) - 1;
 }
 }
 
@@ -18983,6 +19013,75 @@ void QwtScaleDraw::drawTick(QPainter* painter, double value, double len) const
 		break;
 	}
 	}
+}
+
+/**
+ * @brief Draw the ticks from the edges of a canvas towards its interior
+ * @param painter Painter
+ * @param canvasRect Canvas rectangle in painter coordinates
+ * @param map Scale map of the axis on the canvas
+ *
+ * @details Used by QwtPlot for axes with QwtPlot::TickInside. The ticks
+ *          start at the canvas edge adjacent to the backbone band and grow
+ *          into the canvas, following the same device pixel rules as the
+ *          backbone and the outside ticks of draw(): the thickness is
+ *          qMax( 1, round( pen width ) ) device pixels without being scaled
+ *          by the device pixel ratio, and every tick is aligned to the
+ *          device pixel grid. Stroking a pen of a fractional logical width
+ *          instead would make the ticks thicker than the backbone at device
+ *          pixel ratios above one and rasterize ticks at different
+ *          subpixel positions with different widths.
+ *
+ * @sa drawTick()
+ */
+void QwtScaleDraw::drawTicksInside(QPainter* painter, const QRectF& canvasRect, const QwtScaleMap& map) const
+{
+	QWT_DC(d);
+
+	painter->save();
+
+	QPen pen = painter->pen();
+	pen.setWidthF(effectivePenWidthF());
+	painter->setPen(pen);
+
+	const QTransform tr = painter->deviceTransform();
+	const qreal sx      = qAbs(tr.m11());
+	const qreal sy      = qAbs(tr.m22());
+
+	const bool vertical  = orientation() == Qt::Vertical;
+	const bool fromStart = (d->alignment == LeftScale || d->alignment == TopScale);
+
+	// first device pixel of the canvas at the edge facing the backbone band
+	int edge = 0;
+	if (vertical)
+		edge = qwtCanvasInnerEdgeX(tr, fromStart ? canvasRect.left() : canvasRect.right(), fromStart);
+	else
+		edge = qwtCanvasInnerEdgeY(tr, fromStart ? canvasRect.top() : canvasRect.bottom(), fromStart);
+
+	const int th = qwtDevicePenWidth(painter);
+
+	for (int tickType = QwtScaleDiv::MinorTick; tickType <= QwtScaleDiv::MajorTick; tickType++) {
+		const double lengthF = tickLength(static_cast< QwtScaleDiv::TickType >(tickType));
+		if (lengthF <= 0.0)
+			continue;
+
+		const int len = qwtDeviceTickLength(lengthF, vertical ? sy : sx);
+
+		const QList< double >& ticks = scaleDiv().ticks(static_cast< QwtScaleDiv::TickType >(tickType));
+		for (double value : ticks) {
+			if (vertical) {
+				const int row = qRound(qwtDeviceY(tr, map.transform(value)));
+				const int x0  = fromStart ? edge : edge - len + 1;
+				qwtFillDeviceRect(painter, QRect(x0, row - (th - 1) / 2, len, th));
+			} else {
+				const int col = qRound(qwtDeviceX(tr, map.transform(value)));
+				const int y0  = fromStart ? edge : edge - len + 1;
+				qwtFillDeviceRect(painter, QRect(col - (th - 1) / 2, y0, th, len));
+			}
+		}
+	}
+
+	painter->restore();
 }
 
 /**
@@ -67011,43 +67110,6 @@ void QwtPlot::updateCanvasMargins()
 }
 
 /*!
-   @brief Draw a single inside tick
-
-   @param painter Painter
-   @param tickPixelPos Tick position in pixels
-   @param tickLength Tick length
-   @param backbonePos Backbone position (canvas edge)
-   @param axisPos Axis position (YLeft, YRight, XTop, XBottom)
- */
-void QwtPlot::drawSingleInsideTick(QPainter* painter, double tickPixelPos, double tickLength, double backbonePos, int axisPos) const
-{
-	using namespace QwtAxis;
-	const double len = tickLength;
-
-	switch (axisPos) {
-	case YLeft:
-		// From canvas left edge, draw toward right (inside)
-		QwtPainter::drawLine(painter, backbonePos, tickPixelPos, backbonePos + len, tickPixelPos);
-		break;
-
-	case YRight:
-		// From canvas right edge, draw toward left (inside)
-		QwtPainter::drawLine(painter, backbonePos, tickPixelPos, backbonePos - len, tickPixelPos);
-		break;
-
-	case XTop:
-		// From canvas top edge, draw toward bottom (inside)
-		QwtPainter::drawLine(painter, tickPixelPos, backbonePos, tickPixelPos, backbonePos + len);
-		break;
-
-	case XBottom:
-		// From canvas bottom edge, draw toward top (inside)
-		QwtPainter::drawLine(painter, tickPixelPos, backbonePos, tickPixelPos, backbonePos - len);
-		break;
-	}
-}
-
-/*!
    @brief Draw inside ticks for axes with TickInside direction
 
    This method is called after drawItems() to draw tick marks that
@@ -67078,56 +67140,11 @@ void QwtPlot::drawInsideTicks(QPainter* painter, const QRectF& canvasRect, const
 
 		painter->save();
 
-		// Set pen style (sync with outside ticks)
-		QPen pen;
-		pen.setWidthF(scaleDraw->penWidthF());
+		QPen pen = painter->pen();
 		pen.setColor(scaleWidget->scaleColor());
 		painter->setPen(pen);
 
-		// Get scale division
-		const QwtScaleDiv& scaleDiv = scaleDraw->scaleDiv();
-		const QwtScaleMap& map      = maps[ axisPos ];
-
-		// Calculate backbone position (canvas edge)
-		double backbonePos;
-		switch (axisPos) {
-		case YLeft:
-			backbonePos = canvasRect.left();
-			break;
-		case YRight:
-			backbonePos = canvasRect.right();
-			break;
-		case XTop:
-			backbonePos = canvasRect.top();
-			break;
-		case XBottom:
-			backbonePos = canvasRect.bottom();
-			break;
-		}
-
-		// Draw all tick types
-		const QList< double >& minorTicks  = scaleDiv.ticks(QwtScaleDiv::MinorTick);
-		const QList< double >& mediumTicks = scaleDiv.ticks(QwtScaleDiv::MediumTick);
-		const QList< double >& majorTicks  = scaleDiv.ticks(QwtScaleDiv::MajorTick);
-
-		double minorLen  = scaleDraw->tickLength(QwtScaleDiv::MinorTick);
-		double mediumLen = scaleDraw->tickLength(QwtScaleDiv::MediumTick);
-		double majorLen  = scaleDraw->tickLength(QwtScaleDiv::MajorTick);
-
-		for (const double tickValue : minorTicks) {
-			double tickPixelPos = map.transform(tickValue);
-			drawSingleInsideTick(painter, tickPixelPos, minorLen, backbonePos, axisPos);
-		}
-
-		for (const double tickValue : mediumTicks) {
-			double tickPixelPos = map.transform(tickValue);
-			drawSingleInsideTick(painter, tickPixelPos, mediumLen, backbonePos, axisPos);
-		}
-
-		for (const double tickValue : majorTicks) {
-			double tickPixelPos = map.transform(tickValue);
-			drawSingleInsideTick(painter, tickPixelPos, majorLen, backbonePos, axisPos);
-		}
+		scaleDraw->drawTicksInside(painter, canvasRect, maps[ axisPos ]);
 
 		painter->restore();
 	}
