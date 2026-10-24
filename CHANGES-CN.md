@@ -5,6 +5,10 @@
 - 修复非整数显示缩放（125%、150%、175%）下调整窗口宽度时，右侧轴线宽度在笔宽与两倍笔宽之间跳变的问题（例如笔宽 2 时在 2 与 4 个设备像素之间变化）：`QwtPlotCanvas` 的 backing store 尺寸为 `qRound( size * ratio )` 个设备像素，并在逻辑原点绘制；而 Qt 对绘制区域的两条边分别取整，画布覆盖的设备像素数取决于其位置，可能比 pixmap 多出一列/一行。画布是不透明的，没有任何绘制会覆盖这一列，它保留的是窗口的旧内容——通常就是缩放前紧贴画布的右侧轴线，于是轴线看起来变宽一倍。现在只要 painter 的设备变换是纯粹的等比缩放，backing store 就按画布实际覆盖的设备像素区域分配，并在设备坐标下 1:1 贴图；其他变换保持原有路径。整数缩放不受影响
 - 回归测试：`tests/axis_corner_test` 新增 `testCanvasCoversDeviceFootprint()`，在 8 个亚像素偏移下渲染画布，检查覆盖区域内每个设备像素都被绘制、区域外不被绘制；CTest 额外以设备像素比 1.75 运行该套件
 
+### 构建
+
+- `examples/bench/chartbench` 在 `qim/` 为空时于 configure 阶段自动拉取可选的 QIm 子模块：优先检出子模块固定的提交，发布包没有 `.git` 目录时退回浅克隆；下载失败（无网络、未安装 git）只会禁用 QIm 适配器，不会让 configure 失败。拉取过程不交互、带超时，且每个构建目录只尝试一次；可用 `CHARTBENCH_QIM_AUTOFETCH`、`CHARTBENCH_QIM_DIR`、`CHARTBENCH_QIM_URL`、`CHARTBENCH_QIM_FETCH_TIMEOUT`、`CHARTBENCH_QIM_FETCH_ATTEMPTED` 控制
+
 ## tag:v7.5.2 (2026-10-23)
 
 ### 新功能
