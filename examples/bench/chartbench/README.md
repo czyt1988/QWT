@@ -84,13 +84,35 @@ cmake --build build --config Release --target chartbench chartbench_qcpgl
 `chartbench_qcpgl` is the same program compiled with `QCUSTOMPLOT_USE_OPENGL`,
 because QCustomPlot's paint buffer backend is a compile time switch.
 
-The QIm adapter needs the submodule:
+The QIm adapter needs the QIm sources in `qim/`, a git submodule. Configure
+takes care of that automatically: when `qim/` is empty, CMake asks git to check
+out the pinned submodule commit and, if that is not possible (release archive
+without a `.git` directory, no git installed), falls back to a shallow clone.
+Both attempts are non-interactive and time limited, so a missing network never
+stalls or fails the configure step - the example then simply builds without the
+QIm adapter, the same way it copes with a missing Qt Charts.
+
+The download can be controlled with these cache options:
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `CHARTBENCH_QIM_AUTOFETCH` | `ON` | allow configure to download QIm |
+| `CHARTBENCH_QIM_DIR` | `<source>/qim` | use an existing checkout at this path |
+| `CHARTBENCH_QIM_URL` | `https://gitee.com/czyt1988/qim.git` | repository to pull from |
+| `CHARTBENCH_QIM_FETCH_TIMEOUT` | `60` | seconds before the download is abandoned |
+| `CHARTBENCH_QIM_FETCH_ATTEMPTED` | `OFF` | set to `OFF` to retry a failed download |
+
+For example, to work offline with a checkout kept elsewhere:
+
+```bash
+cmake -S . -B build -DCHARTBENCH_QIM_DIR=/path/to/qim -DCHARTBENCH_QIM_AUTOFETCH=OFF
+```
+
+The manual way still works as well:
 
 ```bash
 git submodule update --init examples/bench/chartbench/qim
 ```
-
-Without it the example still configures and builds, it just has no QIm adapter.
 
 Run a single configuration:
 
