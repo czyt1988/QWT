@@ -1051,6 +1051,63 @@ void TestAxisCorner::testReservationDoesNotExtendScaleGeometry()
         "the color bar must not grow into the reserved corner pixels");
 }
 
+/*
+    The canvas is opaque: nothing paints beneath it, so its backing store has
+    to cover every device pixel of its paint region. At a fractional device
+    pixel ratio that footprint depends on the position of the canvas, not
+    only on its size - an uncovered column keeps stale content, f.e. the
+    backbone of the right axis from before a resize, which then looks twice
+    as wide. The canvas is rendered at several offsets reusing the same
+    backing store, onto a red sentinel background.
+ */
+void TestAxisCorner::testCanvasCoversDeviceFootprint()
+{
+    QwtPlot plot;
+    plot.setCanvasBackground(Qt::white);
+    plot.resize(480, 360);
+    plot.grab();
+
+    QwtPlotCanvas* canvas = qobject_cast< QwtPlotCanvas* >(plot.canvas());
+    QVERIFY(canvas != nullptr);
+    QVERIFY(canvas->testPaintAttribute(QwtPlotCanvas::BackingStore));
+
+    const QRgb sentinel = qRgb(255, 0, 0);
+    const QRgb white    = qRgb(255, 255, 255);
+    const int w         = canvas->width();
+    const int h         = canvas->height();
+
+    // the backing store is created at the ratio of the widget, and only a
+    // fractional one makes the footprint depend on the position
+    const qreal dpr = canvas->devicePixelRatioF();
+    if (qFloor(dpr) == dpr)
+        QSKIP("the device footprint depends on the position at fractional device pixel ratios only");
+
+    for (int offset = 0; offset < 8; offset++) {
+        QImage img(qCeil((w + 16) * dpr), qCeil((h + 16) * dpr), QImage::Format_ARGB32_Premultiplied);
+        img.setDevicePixelRatio(dpr);
+        img.fill(sentinel);
+
+        canvas->render(&img, QPoint(offset, offset), QRegion(), QWidget::DrawChildren);
+
+        const int x0      = qRound(offset * dpr);
+        const int x1      = qRound((offset + w) * dpr);
+        const int y0      = qRound(offset * dpr);
+        const int y1      = qRound((offset + h) * dpr);
+        const QString ctx = QString("dpr(%1) offset(%2)").arg(dpr).arg(offset);
+
+        for (int x = x0; x < x1; x++) {
+            QVERIFY2(img.pixel(x, (y0 + y1) / 2) == white,
+                     qPrintable(ctx + QString(" column %1 of [%2, %3) not painted").arg(x).arg(x0).arg(x1)));
+        }
+        for (int y = y0; y < y1; y++) {
+            QVERIFY2(img.pixel((x0 + x1) / 2, y) == white,
+                     qPrintable(ctx + QString(" row %1 of [%2, %3) not painted").arg(y).arg(y0).arg(y1)));
+        }
+        QVERIFY2(img.pixel(x1, (y0 + y1) / 2) == sentinel, qPrintable(ctx + " painted beyond the right edge"));
+        QVERIFY2(img.pixel((x0 + x1) / 2, y1) == sentinel, qPrintable(ctx + " painted beyond the bottom edge"));
+    }
+}
+
 int main(int argc, char* argv[])
 {
     /*

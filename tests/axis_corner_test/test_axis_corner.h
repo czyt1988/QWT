@@ -21,6 +21,7 @@ private Q_SLOTS:
     void testRendererDeterminism();
     void testParasiteCorner();
     void testReservationDoesNotExtendScaleGeometry();
+    void testCanvasCoversDeviceFootprint();
 };
 
 #endif

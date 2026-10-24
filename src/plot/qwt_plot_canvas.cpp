@@ -191,8 +191,40 @@ void QwtPlotCanvas::paintEvent(QPaintEvent* event)
 
     if (testPaintAttribute(QwtPlotCanvas::BackingStore) && d->backingStore != nullptr) {
         QPixmap& bs = *d->backingStore;
-        if (bs.size() != size() * QwtPainter::devicePixelRatio(&bs)) {
-            bs = QwtPainter::backingStore(this, size());
+
+        /*
+            At a fractional device pixel ratio the device pixels covered by the
+            canvas depend on its position, not only on its size: both edges of
+            the paint region are rounded independently. A pixmap of
+            qRound( size * ratio ) pixels can be a column/row short of that
+            footprint, and as the canvas is opaque nothing else paints the
+            uncovered pixels - they keep stale content, f.e. the backbone of
+            the right axis before a resize. So the pixmap is sized to the
+            footprint and blitted 1:1 onto it.
+         */
+        const QTransform deviceTransform = painter.deviceTransform();
+        const qreal ratio                = deviceTransform.m11();
+        const bool deviceAligned         = deviceTransform.type() <= QTransform::TxScale && ratio > 0.0
+                                           && qFuzzyCompare(ratio, deviceTransform.m22());
+
+        QRect deviceRect;
+        if (deviceAligned) {
+            const QPointF topLeft     = deviceTransform.map(QPointF(0.0, 0.0));
+            const QPointF bottomRight = deviceTransform.map(QPointF(width(), height()));
+            deviceRect                = QRect(QPoint(qRound(topLeft.x()), qRound(topLeft.y())),
+                                              QPoint(qRound(bottomRight.x()) - 1, qRound(bottomRight.y()) - 1));
+        }
+
+        const bool outdated = deviceAligned
+                                  ? (bs.size() != deviceRect.size() || !qFuzzyCompare(bs.devicePixelRatio(), ratio))
+                                  : bs.size() != size() * QwtPainter::devicePixelRatio(&bs);
+        if (outdated) {
+            if (deviceAligned) {
+                bs = QPixmap(deviceRect.size());
+                bs.setDevicePixelRatio(ratio);
+            } else {
+                bs = QwtPainter::backingStore(this, size());
+            }
             // Initialize with full transparency first
             bs.fill(Qt::transparent);
 
@@ -214,7 +246,14 @@ void QwtPlotCanvas::paintEvent(QPaintEvent* event)
                     drawBorder(&p);
             }
         }
-        painter.drawPixmap(0, 0, *d->backingStore);
+        if (deviceAligned) {
+            painter.save();
+            painter.setWorldTransform(deviceTransform.inverted(), true);
+            painter.drawPixmap(deviceRect, bs, bs.rect());
+            painter.restore();
+        } else {
+            painter.drawPixmap(0, 0, bs);
+        }
     } else {
         if (testAttribute(Qt::WA_StyledBackground)) {
             if (testAttribute(Qt::WA_OpaquePaintEvent)) {

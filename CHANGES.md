@@ -1,3 +1,10 @@
+## Unreleased
+
+### Bug Fixes
+
+- Fixed the right axis backbone flickering between its pen width and twice that width while resizing the window at fractional display scaling ( 125 %, 150 %, 175 % ), f.e. 2 and 4 device pixels at a pen width of 2: the backing store of `QwtPlotCanvas` was `qRound( size * ratio )` device pixels and was drawn at the logical origin, but Qt rounds both edges of the paint region independently, so the device footprint of the canvas depends on its position and can be one column/row larger than the pixmap. The canvas is opaque, so nothing painted the uncovered column - it kept stale window content, typically the backbone of the right axis from before the resize, which sits right beside the canvas and doubled its visible width. The backing store is now sized to the device footprint of the canvas and blitted 1:1 in device coordinates whenever the painter maps by a pure uniform scale; other transformations keep the previous path. Integer scaling is unaffected
+- Regression test: `tests/axis_corner_test` gained `testCanvasCoversDeviceFootprint()`, which renders the canvas at eight subpixel offsets and checks that every device pixel of the footprint is painted and none beyond it; CTest runs the suite at a device pixel ratio of 1.75 as well
+
 ## tag:v7.5.2 (2026-10-23)
 
 ### New Features
