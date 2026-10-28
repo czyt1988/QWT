@@ -42499,6 +42499,36 @@ void QwtPlotCanvas::paintEvent(QPaintEvent* event)
 			// Initialize with full transparency first
 			bs.fill(Qt::transparent);
 
+			/*
+				The pixmap is sized to the device footprint of the canvas,
+				which can exceed the logical canvas rect by a fraction of a
+				device pixel at fractional device pixel ratios. Backgrounds
+				painted by a style ( styled backgrounds, rounded borders )
+				cover the logical rect only, so the remaining columns/rows
+				would stay transparent. The canvas is opaque: Qt assigns
+				those pixels to it and nothing else paints them, and the
+				transparent blit would let stale window content shine
+				through. Fill the remainder with the canvas background.
+			 */
+			const QBrush canvasBrush = palette().brush(backgroundRole()).isOpaque()
+										   ? palette().brush(backgroundRole())
+										   : palette().brush(QPalette::Window);
+			if (canvasBrush.isOpaque()) {
+				const qreal pixmapRatio   = bs.devicePixelRatio();
+				const qreal logicalWidth  = bs.width() / pixmapRatio;
+				const qreal logicalHeight = bs.height() / pixmapRatio;
+
+				if (logicalWidth > width() || logicalHeight > height()) {
+					QPainter p(&bs);
+					p.setPen(Qt::NoPen);
+					p.setBrush(canvasBrush);
+					if (logicalWidth > width())
+						p.drawRect(QRectF(width(), 0.0, logicalWidth - width(), logicalHeight));
+					if (logicalHeight > height())
+						p.drawRect(QRectF(0.0, height(), width(), logicalHeight - height()));
+				}
+			}
+
 			if (testAttribute(Qt::WA_StyledBackground)) {
 				QPainter p(&bs);
 				drawStyled(&p, testPaintAttribute(HackStyledBackground));

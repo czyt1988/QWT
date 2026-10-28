@@ -1108,6 +1108,60 @@ void TestAxisCorner::testCanvasCoversDeviceFootprint()
     }
 }
 
+/*
+    The same footprint requirement applies when the background is painted by
+    a style sheet: a styled background covers the logical canvas rect only,
+    and the fractional remainder of the device footprint used to stay
+    transparent, letting stale window content shine through the blit.
+ */
+void TestAxisCorner::testStyledCanvasCoversDeviceFootprint()
+{
+    QwtPlot plot;
+    plot.setCanvasBackground(Qt::white);
+    plot.resize(480, 360);
+
+    QwtPlotCanvas* canvas = qobject_cast< QwtPlotCanvas* >(plot.canvas());
+    QVERIFY(canvas != nullptr);
+
+    canvas->setStyleSheet("QwtPlotCanvas { background-color: white; border: none; }");
+    canvas->ensurePolished();
+    QVERIFY(canvas->testAttribute(Qt::WA_StyledBackground));
+
+    plot.grab();
+
+    const QRgb sentinel = qRgb(255, 0, 0);
+    const QRgb white    = qRgb(255, 255, 255);
+    const int w         = canvas->width();
+    const int h         = canvas->height();
+
+    const qreal dpr = canvas->devicePixelRatioF();
+    if (qFloor(dpr) == dpr)
+        QSKIP("the device footprint depends on the position at fractional device pixel ratios only");
+
+    for (int offset = 0; offset < 8; offset++) {
+        QImage img(qCeil((w + 16) * dpr), qCeil((h + 16) * dpr), QImage::Format_ARGB32_Premultiplied);
+        img.setDevicePixelRatio(dpr);
+        img.fill(sentinel);
+
+        canvas->render(&img, QPoint(offset, offset), QRegion(), QWidget::DrawChildren);
+
+        const int x0      = qRound(offset * dpr);
+        const int x1      = qRound((offset + w) * dpr);
+        const int y0      = qRound(offset * dpr);
+        const int y1      = qRound((offset + h) * dpr);
+        const QString ctx = QString("styled dpr(%1) offset(%2)").arg(dpr).arg(offset);
+
+        for (int x = x0; x < x1; x++) {
+            QVERIFY2(img.pixel(x, (y0 + y1) / 2) == white,
+                     qPrintable(ctx + QString(" column %1 of [%2, %3) not painted").arg(x).arg(x0).arg(x1)));
+        }
+        for (int y = y0; y < y1; y++) {
+            QVERIFY2(img.pixel((x0 + x1) / 2, y) == white,
+                     qPrintable(ctx + QString(" row %1 of [%2, %3) not painted").arg(y).arg(y0).arg(y1)));
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
     /*
