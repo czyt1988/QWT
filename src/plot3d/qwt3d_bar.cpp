@@ -245,14 +245,15 @@ void Qwt3DBar::setSamples(double** z, int columns, int rows,
     d->m_spacingY = dy;
     auto dims = resolveDims(d->m_barWidth, d->m_barDepth, dx, dy);
 
-    for (int i = 0; i < columns; ++i) {
-        for (int j = 0; j < rows; ++j) {
+    // z[row][column]: row is the y direction, column the x direction
+    for (int j = 0; j < rows; ++j) {
+        for (int i = 0; i < columns; ++i) {
             Qwt3DBarSpec s;
             s.center = Triple(minX + i * dx, minY + j * dy, 0.0);
             s.halfWidth = dims.first;
             s.halfDepth = dims.second;
-            s.height = z[i][j];
-            const double topZ = d->m_baseline + z[i][j];
+            s.height = z[j][i];
+            const double topZ = d->m_baseline + z[j][i];
             s.baseZ = std::min(d->m_baseline, topZ);
             s.topZ = std::max(d->m_baseline, topZ);
             d->m_bars.push_back(s);
@@ -270,11 +271,11 @@ void Qwt3DBar::setSamples(double** z, int columns, int rows,
     d->m_gridMaxX = maxX;
     d->m_gridMinY = minY;
     d->m_gridMaxY = maxY;
-    d->m_gridZ.resize(static_cast<size_t>(columns));
-    for (int i = 0; i < columns; ++i) {
-        d->m_gridZ[static_cast<size_t>(i)].resize(static_cast<size_t>(rows));
-        for (int j = 0; j < rows; ++j) {
-            d->m_gridZ[static_cast<size_t>(i)][static_cast<size_t>(j)] = z[i][j];
+    d->m_gridZ.resize(static_cast<size_t>(rows));
+    for (int j = 0; j < rows; ++j) {
+        d->m_gridZ[static_cast<size_t>(j)].resize(static_cast<size_t>(columns));
+        for (int i = 0; i < columns; ++i) {
+            d->m_gridZ[static_cast<size_t>(j)][static_cast<size_t>(i)] = z[j][i];
         }
     }
 
@@ -287,7 +288,7 @@ void Qwt3DBar::setSamples(const Qwt3DFunctionData& data)
 
     if (data.columns == 0 || data.rows == 0)
         return;
-    if (data.z.size() < data.columns)
+    if (data.z.size() < data.rows)
         return;
 
     // Record 2D grid metadata for serialization before delegating to the pointer-array overload
@@ -300,10 +301,10 @@ void Qwt3DBar::setSamples(const Qwt3DFunctionData& data)
     d->m_gridMaxY = data.maxy;
     d->m_gridZ = data.z;
 
-    // Build a temporary pointer array from the vector-of-vectors
-    std::vector<double*> ptrs(data.columns);
-    for (unsigned int i = 0; i < data.columns; ++i)
-        ptrs[i] = const_cast<double*>(data.z[i].data());
+    // Build a temporary pointer array from the vector-of-vectors (z[row][column])
+    std::vector<double*> ptrs(data.rows);
+    for (unsigned int j = 0; j < data.rows; ++j)
+        ptrs[j] = const_cast<double*>(data.z[j].data());
 
     setSamples(ptrs.data(), static_cast<int>(data.columns), static_cast<int>(data.rows),
                data.minx, data.maxx, data.miny, data.maxy);

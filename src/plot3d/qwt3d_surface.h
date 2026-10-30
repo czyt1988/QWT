@@ -27,6 +27,7 @@ class Qwt3DCellData;
  * @code
  * auto plot = new Qwt3DPlot(parent);
  *
+ * // Grid data is indexed as data[row][column]: row = y direction, column = x direction
  * auto surface = new Qwt3DSurface();
  * surface->loadFromData(data, columns, rows, minX, maxX, minY, maxY);
  * surface->setPlotStyle(FILLEDMESH);
@@ -47,15 +48,15 @@ public:
 
     // Data loading — grid data
 
-    /// Load grid data from Triple array (x, y, z per vertex)
+    /// Load grid data from Triple array (data[row][column], row = y, column = x)
     void loadFromData(Triple** data, unsigned int columns, unsigned int rows,
                       bool uperiodic = false, bool vperiodic = false);
-    /// Load grid data from z-value matrix with explicit x/y domain
+    /// Load grid data from z-value matrix (data[row][column], row = y, column = x)
     void loadFromData(double** data, unsigned int columns, unsigned int rows,
                       double minx, double maxx, double miny, double maxy);
-    /// Load grid data from a Qwt3DFunctionData result (modern vector API)
+    /// Load grid data from a Qwt3DFunctionData result (modern vector API, z[row][column])
     void loadFromData(const Qwt3DFunctionData& data);
-    /// Load grid data from a Qwt3DParametricData result (modern vector API)
+    /// Load grid data from a Qwt3DParametricData result (modern vector API, vertices[row][column])
     void loadFromData(const Qwt3DParametricData& data);
 
     // Data loading — cell data

@@ -274,6 +274,7 @@ v7.3.3+ 起，3D 模块从旧的 widget-per-plot 模式重构为与 2D 对称的
 ```cpp
 Qwt3DPlot* plot = new Qwt3DPlot(parent);
 Qwt3DSurface* surface = new Qwt3DSurface();
+// 网格数据统一按 data[row][column] 索引：第一维是 y 方向的行，第二维是 x 方向的列
 surface->loadFromData(data, cols, rows, minX, maxX, minY, maxY);
 surface->attach(plot);
 ```

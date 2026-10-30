@@ -21,7 +21,7 @@
  *    (setSamples with QwtPoint3D, where (x,y) is the footprint center and
  *    z is the bar height).
  *  - A 2D grid of bars (bar3 / 3D histogram) sampled over a rectangular
- *    x/y domain, where z[i][j] is the height at cell (i,j).
+ *    x/y domain, where z[row][column] is the height at row (y) and column (x).
  *
  * The item manages its own bar specifications, color mapping, and GL
  * resources (VBO, VAO, EBO, shader program). Geometry is uploaded to GPU
@@ -35,6 +35,7 @@
  * @code
  * auto plot = new Qwt3DPlot(parent);
  *
+ * // zMatrix is indexed as z[row][column]: row = y direction, column = x direction
  * auto bars = new Qwt3DBar();
  * bars->setSamples(zMatrix, columns, rows, minX, maxX, minY, maxY);
  * bars->setBarStyle(Qwt3DBar::FilledMesh);
@@ -72,6 +73,7 @@ public:
     // 2D grid — 3D histogram (bar3 style)
 
     /// Set a grid of bars from a z-value matrix with an explicit x/y domain
+    /// (z is indexed as z[row][column]: row = y direction, column = x direction)
     void setSamples(double** z, int columns, int rows,
                     double minX, double maxX, double minY, double maxY);
     /// Set a grid of bars from a Qwt3DFunctionData result (modern vector API)
@@ -137,7 +139,7 @@ public:
     double gridMinY() const;
     /// Returns grid y maximum (valid only if isGridData())
     double gridMaxY() const;
-    /// Returns the raw z matrix (valid only if isGridData(), empty otherwise)
+    /// Returns the raw z matrix (indexed as z[row][column], valid only if isGridData())
     std::vector<std::vector<double>> gridZValues() const;
 
 private:

@@ -111,15 +111,16 @@ PLOTSTYLE parseStyle(const QString& s)
 }
 
 // z = sin(2r) * exp(-r^2/8), r = sqrt(x^2+y^2), domain [-3,3]^2
+// z is indexed as z[row][column]: row = y direction, column = x direction
 void makeGrid(std::vector<std::vector<double> >& z, int cols, int rows)
 {
-    z.assign(cols, std::vector<double>(rows, 0.0));
-    for (int i = 0; i < cols; ++i) {
-        const double x = -3.0 + 6.0 * i / (cols - 1);
-        for (int j = 0; j < rows; ++j) {
-            const double y = -3.0 + 6.0 * j / (rows - 1);
+    z.assign(rows, std::vector<double>(cols, 0.0));
+    for (int j = 0; j < rows; ++j) {
+        const double y = -3.0 + 6.0 * j / (rows - 1);
+        for (int i = 0; i < cols; ++i) {
+            const double x = -3.0 + 6.0 * i / (cols - 1);
             const double r2 = x * x + y * y;
-            z[i][j] = std::sin(2.0 * std::sqrt(r2)) * std::exp(-r2 / 8.0);
+            z[j][i] = std::sin(2.0 * std::sqrt(r2)) * std::exp(-r2 / 8.0);
         }
     }
 }

@@ -296,6 +296,10 @@ surface->setResolution(1);
 
 ```
 
+> **⚠️ Grid data layout**
+>
+> `Qwt3DSurface::loadFromData()` and `Qwt3DBar::setSamples()` take the z matrix indexed as `z[row][column]`: the first index is the row (the y direction, `rows` of them), the second is the column (the x direction, `columns` of them). This is the usual matrix / NumPy / DataFrame layout, so `df.values[row][col]` can be passed as is.
+
 
 
 ### Interactive Operations

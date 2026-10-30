@@ -24,6 +24,7 @@ namespace
 {
 
 /// Reads Triple grid data into Qwt3DGridData and computes hull
+/// data[row][column]: row is the y direction, column the x direction
 void readInGridTriples(Qwt3DGridData& gdata, Triple** data,
                        unsigned int columns, unsigned int rows)
 {
@@ -32,30 +33,31 @@ void readInGridTriples(Qwt3DGridData& gdata, Triple** data,
     ParallelEpiped range(Triple(DBL_MAX, DBL_MAX, DBL_MAX),
                          Triple(-DBL_MAX, -DBL_MAX, -DBL_MAX));
 
-    for (unsigned i = 0; i != columns; ++i) {
-        for (unsigned j = 0; j != rows; ++j) {
-            gdata.vertices[i][j][0] = data[i][j].x;
-            gdata.vertices[i][j][1] = data[i][j].y;
-            gdata.vertices[i][j][2] = data[i][j].z;
+    for (unsigned j = 0; j != rows; ++j) {
+        for (unsigned i = 0; i != columns; ++i) {
+            gdata.vertices[j][i][0] = data[j][i].x;
+            gdata.vertices[j][i][1] = data[j][i].y;
+            gdata.vertices[j][i][2] = data[j][i].z;
 
-            if (data[i][j].x > range.maxVertex.x)
-                range.maxVertex.x = data[i][j].x;
-            if (data[i][j].y > range.maxVertex.y)
-                range.maxVertex.y = data[i][j].y;
-            if (data[i][j].z > range.maxVertex.z)
-                range.maxVertex.z = data[i][j].z;
-            if (data[i][j].x < range.minVertex.x)
-                range.minVertex.x = data[i][j].x;
-            if (data[i][j].y < range.minVertex.y)
-                range.minVertex.y = data[i][j].y;
-            if (data[i][j].z < range.minVertex.z)
-                range.minVertex.z = data[i][j].z;
+            if (data[j][i].x > range.maxVertex.x)
+                range.maxVertex.x = data[j][i].x;
+            if (data[j][i].y > range.maxVertex.y)
+                range.maxVertex.y = data[j][i].y;
+            if (data[j][i].z > range.maxVertex.z)
+                range.maxVertex.z = data[j][i].z;
+            if (data[j][i].x < range.minVertex.x)
+                range.minVertex.x = data[j][i].x;
+            if (data[j][i].y < range.minVertex.y)
+                range.minVertex.y = data[j][i].y;
+            if (data[j][i].z < range.minVertex.z)
+                range.minVertex.z = data[j][i].z;
         }
     }
     gdata.setHull(range);
 }
 
 /// Reads z-value matrix into Qwt3DGridData with explicit x/y domain
+/// data[row][column]: row is the y direction, column the x direction
 void readInGridZ(Qwt3DGridData& gdata, double** data,
                  unsigned int columns, unsigned int rows,
                  double minx, double maxx, double miny, double maxy)
@@ -69,23 +71,23 @@ void readInGridZ(Qwt3DGridData& gdata, double** data,
     double tmin = DBL_MAX;
     double tmax = -DBL_MAX;
 
-    for (unsigned i = 0; i != columns; ++i) {
-        for (unsigned j = 0; j != rows; ++j) {
-            gdata.vertices[i][j][0] = minx + i * dx;
-            gdata.vertices[i][j][1] = miny + j * dy;
-            gdata.vertices[i][j][2] = data[i][j];
+    for (unsigned j = 0; j != rows; ++j) {
+        for (unsigned i = 0; i != columns; ++i) {
+            gdata.vertices[j][i][0] = minx + i * dx;
+            gdata.vertices[j][i][1] = miny + j * dy;
+            gdata.vertices[j][i][2] = data[j][i];
 
-            if (data[i][j] > tmax)
-                tmax = data[i][j];
-            if (data[i][j] < tmin)
-                tmin = data[i][j];
+            if (data[j][i] > tmax)
+                tmax = data[j][i];
+            if (data[j][i] < tmin)
+                tmin = data[j][i];
         }
     }
 
     ParallelEpiped hull(Triple(gdata.vertices[0][0][0],
                                gdata.vertices[0][0][1], tmin),
-                        Triple(gdata.vertices[gdata.columns() - 1][gdata.rows() - 1][0],
-                               gdata.vertices[gdata.columns() - 1][gdata.rows() - 1][1],
+                        Triple(gdata.vertices[gdata.rows() - 1][gdata.columns() - 1][0],
+                               gdata.vertices[gdata.rows() - 1][gdata.columns() - 1][1],
                                tmax));
     gdata.setHull(hull);
 }
@@ -98,54 +100,55 @@ void calcNormalsGrid(Qwt3DGridData& gdata)
 
     Triple u, v, n;
 
-    for (unsigned i = 0; i != columns; ++i) {
-        for (unsigned j = 0; j != rows; ++j) {
+    // j indexes the row (y direction), i the column (x direction)
+    for (unsigned j = 0; j != rows; ++j) {
+        for (unsigned i = 0; i != columns; ++i) {
             n = Triple(0, 0, 0);
 
             if (i < columns - 1 && j < rows - 1) {
-                u = Triple(gdata.vertices[i + 1][j][0] - gdata.vertices[i][j][0],
-                           gdata.vertices[i + 1][j][1] - gdata.vertices[i][j][1],
-                           gdata.vertices[i + 1][j][2] - gdata.vertices[i][j][2]);
-                v = Triple(gdata.vertices[i][j + 1][0] - gdata.vertices[i][j][0],
-                           gdata.vertices[i][j + 1][1] - gdata.vertices[i][j][1],
-                           gdata.vertices[i][j + 1][2] - gdata.vertices[i][j][2]);
+                u = Triple(gdata.vertices[j][i + 1][0] - gdata.vertices[j][i][0],
+                           gdata.vertices[j][i + 1][1] - gdata.vertices[j][i][1],
+                           gdata.vertices[j][i + 1][2] - gdata.vertices[j][i][2]);
+                v = Triple(gdata.vertices[j + 1][i][0] - gdata.vertices[j][i][0],
+                           gdata.vertices[j + 1][i][1] - gdata.vertices[j][i][1],
+                           gdata.vertices[j + 1][i][2] - gdata.vertices[j][i][2]);
                 n += normalizedcross(u, v);
             }
 
             if (i > 0 && j < rows - 1) {
-                u = Triple(gdata.vertices[i][j + 1][0] - gdata.vertices[i][j][0],
-                           gdata.vertices[i][j + 1][1] - gdata.vertices[i][j][1],
-                           gdata.vertices[i][j + 1][2] - gdata.vertices[i][j][2]);
-                v = Triple(gdata.vertices[i - 1][j][0] - gdata.vertices[i][j][0],
-                           gdata.vertices[i - 1][j][1] - gdata.vertices[i][j][1],
-                           gdata.vertices[i - 1][j][2] - gdata.vertices[i][j][2]);
+                u = Triple(gdata.vertices[j + 1][i][0] - gdata.vertices[j][i][0],
+                           gdata.vertices[j + 1][i][1] - gdata.vertices[j][i][1],
+                           gdata.vertices[j + 1][i][2] - gdata.vertices[j][i][2]);
+                v = Triple(gdata.vertices[j][i - 1][0] - gdata.vertices[j][i][0],
+                           gdata.vertices[j][i - 1][1] - gdata.vertices[j][i][1],
+                           gdata.vertices[j][i - 1][2] - gdata.vertices[j][i][2]);
                 n += normalizedcross(u, v);
             }
 
             if (i > 0 && j > 0) {
-                u = Triple(gdata.vertices[i - 1][j][0] - gdata.vertices[i][j][0],
-                           gdata.vertices[i - 1][j][1] - gdata.vertices[i][j][1],
-                           gdata.vertices[i - 1][j][2] - gdata.vertices[i][j][2]);
-                v = Triple(gdata.vertices[i][j - 1][0] - gdata.vertices[i][j][0],
-                           gdata.vertices[i][j - 1][1] - gdata.vertices[i][j][1],
-                           gdata.vertices[i][j - 1][2] - gdata.vertices[i][j][2]);
+                u = Triple(gdata.vertices[j][i - 1][0] - gdata.vertices[j][i][0],
+                           gdata.vertices[j][i - 1][1] - gdata.vertices[j][i][1],
+                           gdata.vertices[j][i - 1][2] - gdata.vertices[j][i][2]);
+                v = Triple(gdata.vertices[j - 1][i][0] - gdata.vertices[j][i][0],
+                           gdata.vertices[j - 1][i][1] - gdata.vertices[j][i][1],
+                           gdata.vertices[j - 1][i][2] - gdata.vertices[j][i][2]);
                 n += normalizedcross(u, v);
             }
 
             if (i < columns - 1 && j > 0) {
-                u = Triple(gdata.vertices[i][j - 1][0] - gdata.vertices[i][j][0],
-                           gdata.vertices[i][j - 1][1] - gdata.vertices[i][j][1],
-                           gdata.vertices[i][j - 1][2] - gdata.vertices[i][j][2]);
-                v = Triple(gdata.vertices[i + 1][j][0] - gdata.vertices[i][j][0],
-                           gdata.vertices[i + 1][j][1] - gdata.vertices[i][j][1],
-                           gdata.vertices[i + 1][j][2] - gdata.vertices[i][j][2]);
+                u = Triple(gdata.vertices[j - 1][i][0] - gdata.vertices[j][i][0],
+                           gdata.vertices[j - 1][i][1] - gdata.vertices[j][i][1],
+                           gdata.vertices[j - 1][i][2] - gdata.vertices[j][i][2]);
+                v = Triple(gdata.vertices[j][i + 1][0] - gdata.vertices[j][i][0],
+                           gdata.vertices[j][i + 1][1] - gdata.vertices[j][i][1],
+                           gdata.vertices[j][i + 1][2] - gdata.vertices[j][i][2]);
                 n += normalizedcross(u, v);
             }
             n.normalize();
 
-            gdata.normals[i][j][0] = n.x;
-            gdata.normals[i][j][1] = n.y;
-            gdata.normals[i][j][2] = n.z;
+            gdata.normals[j][i][0] = n.x;
+            gdata.normals[j][i][1] = n.y;
+            gdata.normals[j][i][2] = n.z;
         }
     }
 }
@@ -160,24 +163,24 @@ void sewPeriodicGrid(Qwt3DGridData& gdata)
 
     if (gdata.uperiodic()) {
         for (unsigned i = 0; i != columns; ++i) {
-            n = Triple(gdata.normals[i][0][0] + gdata.normals[i][rows - 1][0],
-                       gdata.normals[i][0][1] + gdata.normals[i][rows - 1][1],
-                       gdata.normals[i][0][2] + gdata.normals[i][rows - 1][2]);
+            n = Triple(gdata.normals[0][i][0] + gdata.normals[rows - 1][i][0],
+                       gdata.normals[0][i][1] + gdata.normals[rows - 1][i][1],
+                       gdata.normals[0][i][2] + gdata.normals[rows - 1][i][2]);
             n.normalize();
-            gdata.normals[i][0][0] = gdata.normals[i][rows - 1][0] = n.x;
-            gdata.normals[i][0][1] = gdata.normals[i][rows - 1][1] = n.y;
-            gdata.normals[i][0][2] = gdata.normals[i][rows - 1][2] = n.z;
+            gdata.normals[0][i][0] = gdata.normals[rows - 1][i][0] = n.x;
+            gdata.normals[0][i][1] = gdata.normals[rows - 1][i][1] = n.y;
+            gdata.normals[0][i][2] = gdata.normals[rows - 1][i][2] = n.z;
         }
     }
     if (gdata.vperiodic()) {
         for (unsigned j = 0; j != rows; ++j) {
-            n = Triple(gdata.normals[0][j][0] + gdata.normals[columns - 1][j][0],
-                       gdata.normals[0][j][1] + gdata.normals[columns - 1][j][1],
-                       gdata.normals[0][j][2] + gdata.normals[columns - 1][j][2]);
+            n = Triple(gdata.normals[j][0][0] + gdata.normals[j][columns - 1][0],
+                       gdata.normals[j][0][1] + gdata.normals[j][columns - 1][1],
+                       gdata.normals[j][0][2] + gdata.normals[j][columns - 1][2]);
             n.normalize();
-            gdata.normals[0][j][0] = gdata.normals[columns - 1][j][0] = n.x;
-            gdata.normals[0][j][1] = gdata.normals[columns - 1][j][1] = n.y;
-            gdata.normals[0][j][2] = gdata.normals[columns - 1][j][2] = n.z;
+            gdata.normals[j][0][0] = gdata.normals[j][columns - 1][0] = n.x;
+            gdata.normals[j][0][1] = gdata.normals[j][columns - 1][1] = n.y;
+            gdata.normals[j][0][2] = gdata.normals[j][columns - 1][2] = n.z;
         }
     }
 }
@@ -256,9 +259,9 @@ Qwt3DSurface::~Qwt3DSurface() = default;
 
 /**
  * @brief Load grid data from Triple array
- * @param data 2D array of Triple values [columns][rows]
- * @param columns Number of columns in the grid
- * @param rows Number of rows in the grid
+ * @param data 2D array of Triple values [row][column] (row = y direction, column = x direction)
+ * @param columns Number of columns in the grid (x direction)
+ * @param rows Number of rows in the grid (y direction)
  * @param uperiodic Whether the u-direction is periodic
  * @param vperiodic Whether the v-direction is periodic
  * @details Reads vertex positions, computes normals, and marks the VBO for rebuild.
@@ -280,9 +283,9 @@ void Qwt3DSurface::loadFromData(Triple** data, unsigned int columns, unsigned in
 
 /**
  * @brief Load grid data from z-value matrix
- * @param data 2D array of z-values [columns][rows]
- * @param columns Number of columns in the grid
- * @param rows Number of rows in the grid
+ * @param data 2D array of z-values [row][column] (row = y direction, column = x direction)
+ * @param columns Number of columns in the grid (x direction)
+ * @param rows Number of rows in the grid (y direction)
  * @param minx Minimum x coordinate
  * @param maxx Maximum x coordinate
  * @param miny Minimum y coordinate
@@ -318,10 +321,10 @@ void Qwt3DSurface::loadFromData(const Qwt3DFunctionData& data)
     if (data.columns == 0 || data.rows == 0)
         return;
 
-    // Build a temporary pointer array from the vector-of-vectors
-    std::vector<double*> ptrs(data.columns);
-    for (unsigned int i = 0; i < data.columns; ++i)
-        ptrs[i] = const_cast<double*>(data.z[i].data());
+    // Build a temporary pointer array from the vector-of-vectors (z[row][column])
+    std::vector<double*> ptrs(data.rows);
+    for (unsigned int j = 0; j < data.rows; ++j)
+        ptrs[j] = const_cast<double*>(data.z[j].data());
 
     loadFromData(ptrs.data(), data.columns, data.rows,
                  data.minx, data.maxx, data.miny, data.maxy);
@@ -340,10 +343,10 @@ void Qwt3DSurface::loadFromData(const Qwt3DParametricData& data)
     if (data.columns == 0 || data.rows == 0)
         return;
 
-    // Build a temporary pointer array from the vector-of-vectors
-    std::vector<Triple*> ptrs(data.columns);
-    for (unsigned int i = 0; i < data.columns; ++i)
-        ptrs[i] = const_cast<Triple*>(data.vertices[i].data());
+    // Build a temporary pointer array from the vector-of-vectors (vertices[row][column])
+    std::vector<Triple*> ptrs(data.rows);
+    for (unsigned int j = 0; j < data.rows; ++j)
+        ptrs[j] = const_cast<Triple*>(data.vertices[j].data());
 
     loadFromData(ptrs.data(), data.columns, data.rows,
                  data.uperiodic, data.vperiodic);
@@ -840,7 +843,7 @@ ParallelEpiped Qwt3DSurface::hull() const
  *          5. Creates and uploads EBO with combined tri+line indices
  *          6. Configures VAO vertex attribute pointers
  *
- * For grid data: vertex index = column * rows + row
+ * For grid data: vertex index = row * columns + column (row-major, row = y)
  * For cell data: vertex index = node index in TripleField
  *
  * Resolution > 1 skips vertices in index generation (VBO stays full).
@@ -870,22 +873,22 @@ bool Qwt3DSurface::buildGeometry(QVector< SurfaceVertex >& vertices,
         int rows = d->m_actualDataG->rows();
         int step = d->m_resolution;
 
-        // Build vertex array
-        for (int i = 0; i < cols; ++i) {
-            for (int j = 0; j < rows; ++j) {
+        // Build vertex array (row-major: one block of columns per row)
+        for (int j = 0; j < rows; ++j) {
+            for (int i = 0; i < cols; ++i) {
                 SurfaceVertex v;
                 v.position = QVector3D(
-                    static_cast<float>(d->m_actualDataG->vertices[i][j][0]),
-                    static_cast<float>(d->m_actualDataG->vertices[i][j][1]),
-                    static_cast<float>(d->m_actualDataG->vertices[i][j][2]));
+                    static_cast<float>(d->m_actualDataG->vertices[j][i][0]),
+                    static_cast<float>(d->m_actualDataG->vertices[j][i][1]),
+                    static_cast<float>(d->m_actualDataG->vertices[j][i][2]));
                 v.normal = QVector3D(
-                    static_cast<float>(d->m_actualDataG->normals[i][j][0]),
-                    static_cast<float>(d->m_actualDataG->normals[i][j][1]),
-                    static_cast<float>(d->m_actualDataG->normals[i][j][2]));
+                    static_cast<float>(d->m_actualDataG->normals[j][i][0]),
+                    static_cast<float>(d->m_actualDataG->normals[j][i][1]),
+                    static_cast<float>(d->m_actualDataG->normals[j][i][2]));
                 RGBA col = (*d->m_dataColor)(
-                    d->m_actualDataG->vertices[i][j][0],
-                    d->m_actualDataG->vertices[i][j][1],
-                    d->m_actualDataG->vertices[i][j][2]);
+                    d->m_actualDataG->vertices[j][i][0],
+                    d->m_actualDataG->vertices[j][i][1],
+                    d->m_actualDataG->vertices[j][i][2]);
                 v.color = QVector4D(static_cast<float>(col.r),
                                     static_cast<float>(col.g),
                                     static_cast<float>(col.b),
@@ -895,12 +898,12 @@ bool Qwt3DSurface::buildGeometry(QVector< SurfaceVertex >& vertices,
         }
 
         // Build triangle indices: each quad -> 2 triangles
-        for (int i = 0; i < cols - step; i += step) {
-            for (int j = 0; j < rows - step; j += step) {
-                unsigned int v0 = static_cast<unsigned int>(i * rows + j);
-                unsigned int v1 = static_cast<unsigned int>((i + step) * rows + j);
-                unsigned int v2 = static_cast<unsigned int>(i * rows + (j + step));
-                unsigned int v3 = static_cast<unsigned int>((i + step) * rows + (j + step));
+        for (int j = 0; j < rows - step; j += step) {
+            for (int i = 0; i < cols - step; i += step) {
+                unsigned int v0 = static_cast<unsigned int>(j * cols + i);
+                unsigned int v1 = static_cast<unsigned int>(j * cols + (i + step));
+                unsigned int v2 = static_cast<unsigned int>((j + step) * cols + i);
+                unsigned int v3 = static_cast<unsigned int>((j + step) * cols + (i + step));
 
                 // Triangle 1: v0, v1, v2
                 triIndices.append(v0);
@@ -914,31 +917,31 @@ bool Qwt3DSurface::buildGeometry(QVector< SurfaceVertex >& vertices,
         }
 
         // Build line indices: horizontal and vertical edges
-        for (int i = 0; i < cols - step; i += step) {
-            for (int j = 0; j < rows - step; j += step) {
-                unsigned int v0 = static_cast<unsigned int>(i * rows + j);
-                unsigned int v1 = static_cast<unsigned int>((i + step) * rows + j);
-                unsigned int v2 = static_cast<unsigned int>(i * rows + (j + step));
+        for (int j = 0; j < rows - step; j += step) {
+            for (int i = 0; i < cols - step; i += step) {
+                unsigned int v0 = static_cast<unsigned int>(j * cols + i);
+                unsigned int v1 = static_cast<unsigned int>(j * cols + (i + step));
+                unsigned int v2 = static_cast<unsigned int>((j + step) * cols + i);
 
-                // Horizontal edge: v0 -> v2
+                // Horizontal edge (along y, next row): v0 -> v2
                 lineIndices.append(v0);
                 lineIndices.append(v2);
-                // Vertical edge: v0 -> v1
+                // Vertical edge (along x, next column): v0 -> v1
                 lineIndices.append(v0);
                 lineIndices.append(v1);
             }
         }
         // Right boundary (last column)
         for (int j = 0; j < rows - step; j += step) {
-            unsigned int v0 = static_cast<unsigned int>((cols - 1) * rows + j);
-            unsigned int v1 = static_cast<unsigned int>((cols - 1) * rows + (j + step));
+            unsigned int v0 = static_cast<unsigned int>(j * cols + (cols - 1));
+            unsigned int v1 = static_cast<unsigned int>((j + step) * cols + (cols - 1));
             lineIndices.append(v0);
             lineIndices.append(v1);
         }
         // Top boundary (last row)
         for (int i = 0; i < cols - step; i += step) {
-            unsigned int v0 = static_cast<unsigned int>(i * rows + (rows - 1));
-            unsigned int v1 = static_cast<unsigned int>((i + step) * rows + (rows - 1));
+            unsigned int v0 = static_cast<unsigned int>((rows - 1) * cols + i);
+            unsigned int v1 = static_cast<unsigned int>((rows - 1) * cols + (i + step));
             lineIndices.append(v0);
             lineIndices.append(v1);
         }

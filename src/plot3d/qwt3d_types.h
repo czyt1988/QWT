@@ -415,7 +415,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -443,6 +446,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -463,9 +469,9 @@ public:
     // Destroys content and set new size, elements are uninitialized
     void setSize(unsigned int columns, unsigned int rows);
 
-    // Mesh vertices
+    // Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
     DataMatrix vertices;
-    // Mesh normals
+    // Mesh normals, normals[row][column]
     DataMatrix normals;
     void setPeriodic(bool u, bool v);
     bool uperiodic() const;
@@ -541,7 +547,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-    /// z[i][j] = z-value at column i, row j
+    /// z[row][column] = z-value at row j (y direction), column i (x direction)
     std::vector<std::vector<double>> z;
     unsigned int columns = 0;
     unsigned int rows = 0;
@@ -558,7 +564,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-    /// vertices[i][j] = xyz position at column i, row j
+    /// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
     std::vector<std::vector<Triple>> vertices;
     unsigned int columns = 0;
     unsigned int rows = 0;

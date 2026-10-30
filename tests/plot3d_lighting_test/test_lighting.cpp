@@ -26,7 +26,8 @@ float fuzzy(double v)
 
 Qwt3DSurface* makeSurface(Qwt3DPlot& plot)
 {
-    const int cols = 16, rows = 16;
+    // Non-square on purpose: a transposed/column-major read would be caught here
+    const int cols = 16, rows = 12;
 
     static std::vector< std::vector< double > > grid;
     static std::vector< double* > rowsPtr;
