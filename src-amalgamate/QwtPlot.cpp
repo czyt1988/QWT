@@ -42796,7 +42796,8 @@ void QwtPlotOpenGLCanvas::init(const QSurfaceFormat& format)
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 #endif
 
-	setLineWidth(1);
+	// same default frame as QwtPlotCanvas: a box without a visible border
+	setLineWidth(0);
 	setFrameShadow(QFrame::Plain);
 	setFrameShape(QFrame::Box);
 }
@@ -42941,6 +42942,35 @@ void QwtPlotOpenGLCanvas::paintGL()
 
 			QPainter fboPainter(&pd);
 			fboPainter.scale(pixelRatio, pixelRatio);
+
+			/*
+				The FBO is sized to round( size * ratio ) device pixels, which
+				can exceed the logical canvas rect by a fraction of a device
+				pixel at fractional ratios. The canvas background covers the
+				logical rect only, so the remaining column/row would keep
+				uninitialized content. Fill the remainder with the canvas
+				background, like QwtPlotCanvas does for its backing store.
+			 */
+			const QBrush canvasBrush = palette().brush(backgroundRole()).isOpaque()
+										   ? palette().brush(backgroundRole())
+										   : palette().brush(QPalette::Window);
+
+			const qreal logicalWidth  = fboSize.width() / pixelRatio;
+			const qreal logicalHeight = fboSize.height() / pixelRatio;
+
+			if (logicalWidth > width() || logicalHeight > height()) {
+				fboPainter.setPen(Qt::NoPen);
+				fboPainter.setBrush(canvasBrush.isOpaque() ? canvasBrush : QBrush(Qt::transparent));
+				fboPainter.setCompositionMode(QPainter::CompositionMode_Source);
+
+				if (logicalWidth > width())
+					fboPainter.drawRect(QRectF(width(), 0.0, logicalWidth - width(), logicalHeight));
+				if (logicalHeight > height())
+					fboPainter.drawRect(QRectF(0.0, height(), width(), logicalHeight - height()));
+
+				fboPainter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+			}
+
 			draw(&fboPainter);
 			fboPainter.end();
 
