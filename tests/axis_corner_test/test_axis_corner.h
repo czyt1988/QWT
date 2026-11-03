@@ -22,6 +22,7 @@ private Q_SLOTS:
     void testParasiteCorner();
     void testReservationDoesNotExtendScaleGeometry();
     void testCanvasCoversDeviceFootprint();
+    void testStyledCanvasCoversDeviceFootprint();
 };
 
 #endif
