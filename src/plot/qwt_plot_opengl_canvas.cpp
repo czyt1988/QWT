@@ -195,7 +195,9 @@ void QwtPlotOpenGLCanvas::paintGL()
     QPainter painter;
 
     if (testPaintAttribute(QwtPlotOpenGLCanvas::BackingStore) && QOpenGLFramebufferObject::hasOpenGLFramebufferBlit()) {
-        const qreal pixelRatio = QwtPainter::devicePixelRatio(nullptr);
+        // the ratio of the screen this canvas lives on - not the maximum
+        // over all screens, what QwtPainter::devicePixelRatio( nullptr ) returns
+        const qreal pixelRatio = devicePixelRatioF();
         const QSize fboSize    = size() * pixelRatio;
 
         if (hasFocusIndicator)
