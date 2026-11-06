@@ -24741,7 +24741,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -24769,6 +24772,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -24789,9 +24795,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -24867,7 +24873,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -24884,7 +24890,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -25344,7 +25350,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -25372,6 +25381,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -25392,9 +25404,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -25470,7 +25482,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -25487,7 +25499,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -26120,7 +26132,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -26148,6 +26163,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -26168,9 +26186,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -26246,7 +26264,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -26263,7 +26281,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -26961,7 +26979,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -26989,6 +27010,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -27009,9 +27033,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -27087,7 +27111,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -27104,7 +27128,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -27620,7 +27644,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -27648,6 +27675,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -27668,9 +27698,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -27746,7 +27776,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -27763,7 +27793,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -28263,7 +28293,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -28291,6 +28324,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -28311,9 +28347,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -28389,7 +28425,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -28406,7 +28442,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -29204,7 +29240,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -29232,6 +29271,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -29252,9 +29294,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -29330,7 +29372,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -29347,7 +29389,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -30425,7 +30467,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -30453,6 +30498,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -30473,9 +30521,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -30551,7 +30599,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -30568,7 +30616,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -31079,7 +31127,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -31107,6 +31158,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -31127,9 +31181,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -31205,7 +31259,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -31222,7 +31276,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -31726,7 +31780,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -31754,6 +31811,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -31774,9 +31834,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -31852,7 +31912,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -31869,7 +31929,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -32525,7 +32585,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -32553,6 +32616,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -32573,9 +32639,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -32651,7 +32717,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -32668,7 +32734,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -33174,7 +33240,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -33202,6 +33271,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -33222,9 +33294,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -33300,7 +33372,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -33317,7 +33389,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -34260,7 +34332,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -34288,6 +34363,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -34308,9 +34386,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -34386,7 +34464,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -34403,7 +34481,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -34464,6 +34542,7 @@ class Qwt3DCellData;
  * @code
  * auto plot = new Qwt3DPlot(parent);
  *
+ * // Grid data is indexed as data[row][column]: row = y direction, column = x direction
  * auto surface = new Qwt3DSurface();
  * surface->loadFromData(data, columns, rows, minX, maxX, minY, maxY);
  * surface->setPlotStyle(FILLEDMESH);
@@ -34484,15 +34563,15 @@ public:
 
 	// Data loading — grid data
 
-	/// Load grid data from Triple array (x, y, z per vertex)
+	/// Load grid data from Triple array (data[row][column], row = y, column = x)
 	void loadFromData(Triple** data, unsigned int columns, unsigned int rows,
 					  bool uperiodic = false, bool vperiodic = false);
-	/// Load grid data from z-value matrix with explicit x/y domain
+	/// Load grid data from z-value matrix (data[row][column], row = y, column = x)
 	void loadFromData(double** data, unsigned int columns, unsigned int rows,
 					  double minx, double maxx, double miny, double maxy);
-	/// Load grid data from a Qwt3DFunctionData result (modern vector API)
+	/// Load grid data from a Qwt3DFunctionData result (modern vector API, z[row][column])
 	void loadFromData(const Qwt3DFunctionData& data);
-	/// Load grid data from a Qwt3DParametricData result (modern vector API)
+	/// Load grid data from a Qwt3DParametricData result (modern vector API, vertices[row][column])
 	void loadFromData(const Qwt3DParametricData& data);
 
 	// Data loading — cell data
@@ -35032,7 +35111,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -35060,6 +35142,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -35080,9 +35165,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -35158,7 +35243,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -35175,7 +35260,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -35798,7 +35883,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -35826,6 +35914,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -35846,9 +35937,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -35924,7 +36015,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -35941,7 +36032,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -35995,7 +36086,7 @@ enum Rtti3DValues
  *    (setSamples with QwtPoint3D, where (x,y) is the footprint center and
  *    z is the bar height).
  *  - A 2D grid of bars (bar3 / 3D histogram) sampled over a rectangular
- *    x/y domain, where z[i][j] is the height at cell (i,j).
+ *    x/y domain, where z[row][column] is the height at row (y) and column (x).
  *
  * The item manages its own bar specifications, color mapping, and GL
  * resources (VBO, VAO, EBO, shader program). Geometry is uploaded to GPU
@@ -36009,6 +36100,7 @@ enum Rtti3DValues
  * @code
  * auto plot = new Qwt3DPlot(parent);
  *
+ * // zMatrix is indexed as z[row][column]: row = y direction, column = x direction
  * auto bars = new Qwt3DBar();
  * bars->setSamples(zMatrix, columns, rows, minX, maxX, minY, maxY);
  * bars->setBarStyle(Qwt3DBar::FilledMesh);
@@ -36046,6 +36138,7 @@ public:
 	// 2D grid — 3D histogram (bar3 style)
 
 	/// Set a grid of bars from a z-value matrix with an explicit x/y domain
+	/// (z is indexed as z[row][column]: row = y direction, column = x direction)
 	void setSamples(double** z, int columns, int rows,
 					double minX, double maxX, double minY, double maxY);
 	/// Set a grid of bars from a Qwt3DFunctionData result (modern vector API)
@@ -36111,7 +36204,7 @@ public:
 	double gridMinY() const;
 	/// Returns grid y maximum (valid only if isGridData())
 	double gridMaxY() const;
-	/// Returns the raw z matrix (valid only if isGridData(), empty otherwise)
+	/// Returns the raw z matrix (indexed as z[row][column], valid only if isGridData())
 	std::vector<std::vector<double>> gridZValues() const;
 
 private:
@@ -36544,7 +36637,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -36572,6 +36668,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -36592,9 +36691,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -36670,7 +36769,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -36687,7 +36786,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -37289,7 +37388,10 @@ QWT3D_EXPORT QColor GL2Qt(double r, double g, double b);
 QWT3D_EXPORT RGBA Qt2GL(QColor col);
 
 using Vertex     = double*;
+/// One row of a grid: the vertices of the x direction (columns), index by column
 using DataRow    = std::vector< Vertex >;
+/// Grid matrix indexed as matrix[row][column]: the first index is the y direction
+/// (row), the second the x direction (column). Same convention as a DataFrame.
 using DataMatrix = std::vector< DataRow >;
 
 /**
@@ -37317,6 +37419,9 @@ public:
  * @brief Implements a matrix of z-Values with limit access functions
  * @details Qwt3DGridData represents data on a rectangular grid topology,
  *          providing z-values organized in a matrix with associated normals.
+ *          The matrix is indexed as vertices[row][column], row being the y
+ *          direction and column the x direction (the usual matrix / DataFrame
+ *          layout), so rows() is the outer dimension and columns() the inner one.
  */
 class Qwt3DGridData : public Qwt3DData
 {
@@ -37337,9 +37442,9 @@ public:
 	// Destroys content and set new size, elements are uninitialized
 	void setSize(unsigned int columns, unsigned int rows);
 
-	// Mesh vertices
+	// Mesh vertices, vertices[row][column] = xyz of the vertex at row (y), column (x)
 	DataMatrix vertices;
-	// Mesh normals
+	// Mesh normals, normals[row][column]
 	DataMatrix normals;
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
@@ -37415,7 +37520,7 @@ void convexhull2d(std::vector< unsigned >& idx, const std::vector< Tuple >& src)
  */
 struct QWT3D_EXPORT Qwt3DFunctionData
 {
-	/// z[i][j] = z-value at column i, row j
+	/// z[row][column] = z-value at row j (y direction), column i (x direction)
 	std::vector<std::vector<double>> z;
 	unsigned int columns = 0;
 	unsigned int rows = 0;
@@ -37432,7 +37537,7 @@ struct QWT3D_EXPORT Qwt3DFunctionData
  */
 struct QWT3D_EXPORT Qwt3DParametricData
 {
-	/// vertices[i][j] = xyz position at column i, row j
+	/// vertices[row][column] = xyz position at row j (y direction), column i (x direction)
 	std::vector<std::vector<Triple>> vertices;
 	unsigned int columns = 0;
 	unsigned int rows = 0;

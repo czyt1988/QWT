@@ -97,8 +97,8 @@ QDataStream& operator>>(QDataStream& in, ParallelEpiped& p)
  * @details 格式：version(quint32) + magic(quint32) + columns(uint) + rows(uint)
  *          + minx(double) + maxx(double) + miny(double) + maxy(double)
  *          + magic2(quint32) + z_vector_size(quint32) + z_data(double*) + magic3(quint32)
- *          z 矩阵以嵌套 vector 结构写入：先写外层大小（columns），
- *          再逐列写入行数（rowSize）+ 该列的 double 值。
+ *          z 矩阵（z[row][column]）以嵌套 vector 结构写入：先写外层大小（rows），
+ *          再逐行写入列数（rowSize）+ 该行的 double 值。
  */
 QDataStream& operator<<(QDataStream& out, const Qwt3DFunctionData& d)
 {
@@ -184,8 +184,8 @@ QDataStream& operator>>(QDataStream& in, Qwt3DFunctionData& d)
  * @details 格式：version(quint32) + magic(quint32) + columns(uint) + rows(uint)
  *          + uperiodic(bool) + vperiodic(bool) + magic2(quint32)
  *          + vertices_vector_size(quint32) + vertices_data(Triple*) + magic3(quint32)
- *          vertices 矩阵以嵌套 vector 结构写入：先写外层大小，
- *          再逐列写入行数（rowSize）+ 该列的 Triple 值（通过 Triple operator<<）。
+ *          vertices 矩阵（vertices[row][column]）以嵌套 vector 结构写入：先写外层大小（rows），
+ *          再逐行写入列数（rowSize）+ 该行的 Triple 值（通过 Triple operator<<）。
  */
 QDataStream& operator<<(QDataStream& out, const Qwt3DParametricData& d)
 {

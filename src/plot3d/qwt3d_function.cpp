@@ -30,11 +30,11 @@ void Qwt3DFunction::setMaxZ(double val)
 /**
  * @brief Evaluates the function over the mesh grid and returns the result
  * @return Qwt3DFunctionData containing the z-value matrix and domain bounds
- * @details Allocates a z-value matrix, evaluates operator() over the
- *          mesh grid, clips values to the min/max z range, and returns
- *          the result. The caller is responsible for feeding this to
- *          Qwt3DSurface::loadFromData(). Returns an empty result
- *          (columns=0) if the mesh is too small.
+ * @details Allocates a z-value matrix indexed as z[row][column] (row = y,
+ *          column = x), evaluates operator() over the mesh grid, clips values
+ *          to the min/max z range, and returns the result. The caller is
+ *          responsible for feeding this to Qwt3DSurface::loadFromData().
+ *          Returns an empty result (columns=0) if the mesh is too small.
  */
 Qwt3DFunctionData Qwt3DFunction::create()
 {
@@ -55,15 +55,15 @@ Qwt3DFunctionData Qwt3DFunction::create()
         return result;
     }
 
-    result.z.resize(um);
-    for (unsigned int i = 0; i < um; ++i)
-        result.z[i].resize(vm);
+    result.z.resize(vm);
+    for (unsigned int j = 0; j < vm; ++j)
+        result.z[j].resize(um);
 
     const double dx = (maxU() - minU()) / (um - 1);
     const double dy = (maxV() - minV()) / (vm - 1);
 
-    for (unsigned int i = 0; i < um; ++i) {
-        for (unsigned int j = 0; j < vm; ++j) {
+    for (unsigned int j = 0; j < vm; ++j) {
+        for (unsigned int i = 0; i < um; ++i) {
             double val = operator()(minU() + i * dx, minV() + j * dy);
 
             if (val > range().maxVertex.z)
@@ -71,7 +71,7 @@ Qwt3DFunctionData Qwt3DFunction::create()
             else if (val < range().minVertex.z)
                 val = range().minVertex.z;
 
-            result.z[i][j] = val;
+            result.z[j][i] = val;
         }
     }
 

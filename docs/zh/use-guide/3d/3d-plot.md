@@ -296,6 +296,10 @@ surface->setResolution(1);
 
 ```
 
+> **⚠️ 网格数据布局**
+>
+> `Qwt3DSurface::loadFromData()` 与 `Qwt3DBar::setSamples()` 接收的 z 矩阵按 `z[row][column]` 索引：第一维是行（y 方向，共 `rows` 行），第二维是列（x 方向，共 `columns` 列）。这就是通常的矩阵 / NumPy / DataFrame 布局，`df.values[row][col]` 可以直接传入。
+
 
 
 ### 交互操作

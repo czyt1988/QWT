@@ -125,42 +125,43 @@ void BarSettingsDock::regenerateData()
     const int rows = cols;
     const double minX = -2.0, maxX = 2.0, minY = -2.0, maxY = 2.0;
 
-    QVector<QVector<double>> z(cols, QVector<double>(rows));
+    // z is indexed as z[row][column]: row = y direction, column = x direction
+    QVector<QVector<double>> z(rows, QVector<double>(cols));
     const int funcType = m_functionTypeCombo->currentData().toInt();
 
-    for (int i = 0; i < cols; ++i) {
-        const double x = minX + (maxX - minX) * i / (cols - 1);
-        for (int j = 0; j < rows; ++j) {
-            const double y = minY + (maxY - minY) * j / (rows - 1);
+    for (int j = 0; j < rows; ++j) {
+        const double y = minY + (maxY - minY) * j / (rows - 1);
+        for (int i = 0; i < cols; ++i) {
+            const double x = minX + (maxX - minX) * i / (cols - 1);
             switch (funcType) {
                 case 0: // Gaussian peak
-                    z[i][j] = std::exp(-(x * x + y * y) / 1.5);
+                    z[j][i] = std::exp(-(x * x + y * y) / 1.5);
                     break;
                 case 1: // Saddle
-                    z[i][j] = (x * x - y * y) * 0.3;
+                    z[j][i] = (x * x - y * y) * 0.3;
                     break;
                 case 2: { // Ridge
-                    z[i][j] = std::exp(-y * y) * std::cos(x);
+                    z[j][i] = std::exp(-y * y) * std::cos(x);
                     break;
                 }
                 case 3: { // Sombrero
                     const double r = std::sqrt(x * x + y * y);
-                    z[i][j] = r > 0.01 ? std::sin(r) / r : 1.0;
+                    z[j][i] = r > 0.01 ? std::sin(r) / r : 1.0;
                     break;
                 }
                 case 4: // Wave
-                    z[i][j] = std::sin(x) * std::cos(y);
+                    z[j][i] = std::sin(x) * std::cos(y);
                     break;
                 default:
-                    z[i][j] = 0.0;
+                    z[j][i] = 0.0;
                     break;
             }
         }
     }
 
-    std::vector<double*> ptrs(cols);
-    for (int i = 0; i < cols; ++i)
-        ptrs[i] = z[i].data();
+    std::vector<double*> ptrs(rows);
+    for (int j = 0; j < rows; ++j)
+        ptrs[j] = z[j].data();
 
     m_bar->setSamples(ptrs.data(), cols, rows, minX, maxX, minY, maxY);
 }

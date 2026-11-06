@@ -57,7 +57,7 @@ flowchart TB
 
 上传单元是 40 字节的交错结构体 `SurfaceVertex`（`src/plot3d/qwt3d_surface_p.h:23-28`）：位置 `QVector3D`（12 B）+ 法向 `QVector3D`（12 B）+ 颜色 `QVector4D`（16 B），对应着色器 attribute location 0/1/2（`qwt3d_surface.cpp:1036-1043`）。颜色在构建时由颜色 functor 逐顶点求值烘焙进缓冲：默认 `Qwt3DStandardColor` 从 viridis 预设采样 100 个色标再按 z 线性查表（`qwt3d_color.cpp:104-115, 124-145`），换成 `Qwt3DColorMapColor` 可接入 core 模块的 22 种科学 colormap。
 
-索引结构在 `buildGeometry()`/`buildVBO()`（`qwt3d_surface.cpp:848-995, 1002-1063`）里按固定模式生成：网格数据顶点序为 $idx = i \cdot rows + j$（列主序）；每个 quad 出 2 个三角形（6 个索引）与 2 条网格线（4 个索引），加上右/上边界补线；三角形索引与线索引合并在同一个 EBO（三角形在前、线在后，`qwt3d_surface.cpp:1050-1059`），绘制时用偏移量分段。由此得到解析量（与 bench 的 stderr 诊断逐项核对一致）：
+索引结构在 `buildGeometry()`/`buildVBO()`（`qwt3d_surface.cpp:848-995, 1002-1063`）里按固定模式生成：网格数据顶点序为 $idx = row \cdot columns + column$（行主序，数据本身按 `z[row][column]` 索引）；每个 quad 出 2 个三角形（6 个索引）与 2 条网格线（4 个索引），加上右/上边界补线；三角形索引与线索引合并在同一个 EBO（三角形在前、线在后，`qwt3d_surface.cpp:1050-1059`），绘制时用偏移量分段。由此得到解析量（与 bench 的 stderr 诊断逐项核对一致）：
 
 | cols=rows | 顶点数 $V$ | 三角形数 | 三角形索引 | 线索引 | VBO 字节 | EBO 字节 |
 |---:|---:|---:|---:|---:|---:|---:|

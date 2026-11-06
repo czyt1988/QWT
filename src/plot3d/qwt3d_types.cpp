@@ -136,12 +136,12 @@ Qwt3DGridData::~Qwt3DGridData()
 
 int Qwt3DGridData::columns() const
 {
-    return static_cast< int >(vertices.size());
+    return (empty()) ? 0 : static_cast< int >(vertices[ 0 ].size());
 }
 
 int Qwt3DGridData::rows() const
 {
-    return (empty()) ? 0 : static_cast< int >(vertices[ 0 ].size());
+    return static_cast< int >(vertices.size());
 }
 
 bool Qwt3DGridData::empty() const
@@ -197,21 +197,22 @@ void Qwt3DGridData::clear()
 void Qwt3DGridData::setSize(unsigned int columns, unsigned int rows)
 {
     this->clear();
-    vertices = std::vector< DataRow >(columns);
+    // matrix[row][column]: the outer dimension is the y direction (rows)
+    vertices = std::vector< DataRow >(rows);
     {
-        for (unsigned int i = 0; i != vertices.size(); ++i) {
-            vertices[ i ] = DataRow(rows);
-            for (unsigned int j = 0; j != vertices[ i ].size(); ++j) {
-                vertices[ i ][ j ] = new double[ 3 ];
+        for (unsigned int j = 0; j != vertices.size(); ++j) {
+            vertices[ j ] = DataRow(columns);
+            for (unsigned int i = 0; i != vertices[ j ].size(); ++i) {
+                vertices[ j ][ i ] = new double[ 3 ];
             }
         }
     }
-    normals = std::vector< DataRow >(columns);
+    normals = std::vector< DataRow >(rows);
     {
-        for (unsigned int i = 0; i != normals.size(); ++i) {
-            normals[ i ] = DataRow(rows);
-            for (unsigned int j = 0; j != normals[ i ].size(); ++j) {
-                normals[ i ][ j ] = new double[ 3 ];
+        for (unsigned int j = 0; j != normals.size(); ++j) {
+            normals[ j ] = DataRow(columns);
+            for (unsigned int i = 0; i != normals[ j ].size(); ++i) {
+                normals[ j ][ i ] = new double[ 3 ];
             }
         }
     }

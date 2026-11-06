@@ -138,20 +138,21 @@ bool check_type(FILE* fp, const char* val)
     return true;
 }
 
+/// Allocates a z matrix indexed as data[row][column] (row = y, column = x)
 double** allocateData(int columns, int rows)
 {
-    double** data = new double*[ columns ];
+    double** data = new double*[ rows ];
 
-    for (int i = 0; i < columns; ++i) {
-        data[ i ] = new double[ rows ];
+    for (int j = 0; j < rows; ++j) {
+        data[ j ] = new double[ columns ];
     }
     return data;
 }
 
-void deleteData(double** data, int columns)
+void deleteData(double** data, int rows)
 {
-    for (int i = 0; i < columns; i++) {
-        delete[] data[ i ];
+    for (int j = 0; j < rows; j++) {
+        delete[] data[ j ];
     }
     delete[] data;
 }
@@ -236,15 +237,17 @@ bool Qwt3DNativeReader::operator()(Qwt3DPlot* plot, QString const& fname)
 
     for (unsigned int j = 0; j < ymesh; j++) {
         for (unsigned int i = 0; i < xmesh; i++) {
-            if (fscanf(file, "%lf", &data[ i ][ j ]) != 1) {
+            // The file stores one y row after another (x varying fastest),
+            // which maps onto the data[row][column] layout directly.
+            if (fscanf(file, "%lf", &data[ j ][ i ]) != 1) {
                 fprintf(stderr, "Qwt3DNativeReader::read: error in data file \"%s\"\n", QWT3DLOCAL8BIT(fname));
                 return false;
             }
 
-            if (data[ i ][ j ] > d->m_maxZ)
-                data[ i ][ j ] = d->m_maxZ;
-            else if (data[ i ][ j ] < d->m_minZ)
-                data[ i ][ j ] = d->m_minZ;
+            if (data[ j ][ i ] > d->m_maxZ)
+                data[ j ][ i ] = d->m_maxZ;
+            else if (data[ j ][ i ] < d->m_minZ)
+                data[ j ][ i ] = d->m_minZ;
         }
     }
 
@@ -260,12 +263,12 @@ bool Qwt3DNativeReader::operator()(Qwt3DPlot* plot, QString const& fname)
     }
     if (!surface) {
         fprintf(stderr, "Qwt3DNativeReader::read: no Qwt3DSurface item attached to plot\n");
-        deleteData(data, xmesh);
+        deleteData(data, ymesh);
         return false;
     }
 
     surface->loadFromData(data, xmesh, ymesh, minx, maxx, miny, maxy);
-    deleteData(data, xmesh);
+    deleteData(data, ymesh);
 
     return true;
 }

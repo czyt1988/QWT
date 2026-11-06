@@ -138,7 +138,8 @@ SvgStats exportFlatSurface(const QString& dir, bool& glOk, bool minimalScene)
     Qwt3DPlot plot;
     plot.resize(320, 240);
 
-    const int cols = 16, rows = 16;
+    // Non-square on purpose: a transposed/column-major read would be caught here
+    const int cols = 16, rows = 12;
     std::vector< std::vector< double > > grid(rows, std::vector< double >(cols));
     std::vector< double* > rowsPtr(rows);
     for (int j = 0; j < rows; ++j) {
