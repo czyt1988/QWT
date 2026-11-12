@@ -7,9 +7,43 @@
 #include <QDebug>
 #include <QWidget>
 
+#include "qwt_figure.h"
+#include "qwt_figure_grid.h"
+
 #ifndef QWTFIGURELAYOUT_DEBUG_PRINT
 #define QWTFIGURELAYOUT_DEBUG_PRINT 0
 #endif
+
+// Returns the retained grid of the figure owning this layout (nullptr if none).
+static QwtFigureGrid* figureGridOfLayout(const QLayout* lay)
+{
+    if (!lay) {
+        return nullptr;
+    }
+    QwtFigure* figure = qobject_cast< QwtFigure* >(lay->parentWidget());
+    return figure ? figure->grid() : nullptr;
+}
+
+// Returns true if the widget is registered as a member of the retained grid.
+static bool gridPositionOf(const QwtFigureGrid* grid, QWidget* widget, QRectF* normRect)
+{
+    if (!grid || !grid->isEnabled()) {
+        return false;
+    }
+    int row = 0, col = 0, rowSpan = 0, colSpan = 0;
+    if (!grid->gridPosition(widget, &row, &col, &rowSpan, &colSpan)) {
+        return false;
+    }
+    const QRectF rect = grid->normRectFor(row, col, rowSpan, colSpan);
+    if (!rect.isValid()) {
+        return false;
+    }
+    if (normRect) {
+        *normRect = rect;
+    }
+    return true;
+}
+
 class QwtFigureLayout::PrivateData
 {
     QWT_DECLARE_PUBLIC(QwtFigureLayout)
@@ -111,18 +145,24 @@ void QwtFigureLayout::setGeometry(const QRect& rect)
     qDebug() << "QwtFigureLayout setGeometry(rect=" << rect << "),left=" << m_data->m_left
              << ",right=" << m_data->m_right << ",bottom=" << m_data->m_bottom << ",top=" << m_data->m_top;
 #endif
+    QwtFigureGrid* figureGrid = figureGridOfLayout(this);
     for (const auto& item : qwt_as_const(m_data->m_items)) {
-        if (!item.item || !item.item->widget() || !item.item->widget()->isVisibleTo(item.item->widget()->parentWidget())) {
+        QWidget* widget = item.item ? item.item->widget() : nullptr;
+        if (!widget || !widget->isVisibleTo(widget->parentWidget())) {
             continue;
         }
         // Convert normalized coordinates to actual pixels using Qt's top-left coordinate system.
         // Apply margins to both grid-based and normalized coordinate-based items.
+        // Members of the retained grid are laid out from the current track sizes,
+        // free members keep the normalized rectangle they were added with.
+        QRectF normRect = item.normRect;
+        gridPositionOf(figureGrid, widget, &normRect);
 
-        QRect actualRect = calcActualRect(rect, item.normRect);
+        QRect actualRect = calcActualRect(rect, normRect);
         item.item->setGeometry(actualRect);
 
 #if QWTFIGURELAYOUT_DEBUG_PRINT && QWT_DEBUG_DRAW
-        qDebug() << "normRect=" << item.normRect << ",actualRect=" << actualRect;
+        qDebug() << "normRect=" << normRect << ",actualRect=" << actualRect;
 #endif
     }
 }
@@ -357,6 +397,11 @@ QRectF QwtFigureLayout::widgetNormRect(QWidget* widget) const
     if (!widget) {
         qWarning() << "QwtFigureLayout::getAxesNormRect: null widget provided";
         return QRectF();
+    }
+
+    QRectF gridRect;
+    if (gridPositionOf(figureGridOfLayout(this), widget, &gridRect)) {
+        return gridRect;
     }
 
     for (const auto& item : qwt_as_const(m_data->m_items)) {

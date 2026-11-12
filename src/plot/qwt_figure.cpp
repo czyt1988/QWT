@@ -8,6 +8,7 @@
 #include <QPointer>
 #include <QPaintEvent>
 #include <QResizeEvent>
+#include <QEvent>
 #include <QApplication>
 #include <QGuiApplication>
 #include <QScreen>
@@ -16,6 +17,7 @@
 #include <QDebug>
 // qwt
 #include "qwt_figure_layout.h"
+#include "qwt_figure_grid.h"
 #include "qwt_scale_engine.h"
 #include "qwt_scale_widget.h"
 #include "qwt_plot_layout.h"
@@ -59,6 +61,7 @@ public:
     QColor edgeColor { Qt::black };             ///< Border color of the figure
     int edgeLineWidth { 0 };                    ///< Border line width
     QPointer< QwtPlot > currentAxes;            ///< Current active axes
+    QPointer< QwtFigureGrid > grid;             ///< Retained grid layout (created on demand)
     QList< AlignmentConfig > alignmentConfigs;  // All alignment configurations
 };
 
@@ -109,6 +112,10 @@ void QwtFigure::addWidget(QWidget* widget, qreal left, qreal top, qreal width, q
     QWTFIGURE_SAFEGET_LAY(lay)
     if (widget && widget->parentWidget() != this) {
         widget->setParent(this);
+    }
+    if (widget) {
+        // Track mouse presses to make the clicked sub plot the current one.
+        widget->installEventFilter(this);
     }
     lay->addAxes(widget, left, top, width, height);
 }
@@ -190,6 +197,179 @@ void QwtFigure::addGridAxes(QwtPlot* plot, int rowCnt, int colCnt, int row, int 
     addWidget(plot, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
     Q_EMIT axesAdded(plot);
     setCurrentAxes(plot);
+}
+
+/**
+ * @brief Enable the retained grid layout
+ * @details The retained grid keeps the row/column track sizes and the member positions
+ *          as the single source of truth. The layout asks the grid for the normalized
+ *          rectangle of every member whenever the figure geometry changes, so the track
+ *          proportions survive resizes. Calling this again re-initializes the tracks with
+ *          equal sizes and drops the previous member registrations.
+ * @param rowCount Number of rows (must be positive)
+ * @param columnCount Number of columns (must be positive)
+ * @return true if the grid was enabled, false for invalid counts
+ * @note Old addGridAxes() is unaffected and still converts the grid coordinates once.
+ * @sa addAxes(QwtPlot*, int, int, int, int), addGridItem(QWidget*, int, int, int, int)
+ */
+bool QwtFigure::enableGrid(int rowCount, int columnCount)
+{
+    if (rowCount <= 0 || columnCount <= 0) {
+        qWarning() << "QwtFigure::enableGrid: row and column count must be positive";
+        return false;
+    }
+
+    if (!m_data->grid) {
+        m_data->grid = new QwtFigureGrid(this);
+        connect(m_data->grid.data(), &QwtFigureGrid::sizesChanged, this, &QwtFigure::gridSizesChanged);
+        connect(m_data->grid.data(), &QwtFigureGrid::sizesChangeFinished, this, &QwtFigure::gridSizesChangeFinished);
+        connect(m_data->grid.data(), &QwtFigureGrid::sizesChanged, this, [ this ]() {
+            if (QLayout* lay = layout()) {
+                lay->setGeometry(rect());
+            }
+        });
+    }
+    m_data->grid->setup(rowCount, columnCount);
+
+    if (QLayout* lay = layout()) {
+        lay->invalidate();
+        lay->activate();
+    }
+    return true;
+}
+
+/**
+ * @brief Get the retained grid model
+ * @return Pointer to the grid, or nullptr if enableGrid() was never called
+ */
+QwtFigureGrid* QwtFigure::grid() const
+{
+    return m_data->grid.data();
+}
+
+/**
+ * @brief Check whether the retained grid layout is enabled
+ * @return true if a grid was set up and is enabled
+ */
+bool QwtFigure::isGridEnabled() const
+{
+    return m_data->grid && m_data->grid->isEnabled();
+}
+
+/**
+ * @brief Add a plot as a member of the retained grid layout
+ * @details The plot keeps its grid cell when the figure is resized. The free normalized
+ *          rectangle stored for it is only a snapshot used if the grid is unavailable.
+ * @param plot QwtPlot to add
+ * @param row Grid row (0-based)
+ * @param col Grid column (0-based)
+ * @param rowSpan Number of rows to span (default 1)
+ * @param colSpan Number of columns to span (default 1)
+ * @note enableGrid() must be called before adding grid members.
+ * @note This function emits axesAdded, followed by currentAxesChanged.
+ * @sa addGridAxes, addGridItem(QWidget*, int, int, int, int)
+ */
+void QwtFigure::addAxes(QwtPlot* plot, int row, int col, int rowSpan, int colSpan)
+{
+    if (!plot) {
+        qWarning() << "QwtFigure::addAxes: null plot";
+        return;
+    }
+    if (!isGridEnabled()) {
+        qWarning() << "QwtFigure::addAxes: enableGrid() must be called before adding grid members";
+        return;
+    }
+    if (hasAxes(plot)) {
+        qWarning() << "QwtFigure::addAxes: plot is already part of the figure";
+        return;
+    }
+    if (!m_data->grid->addItem(plot, row, col, rowSpan, colSpan)) {
+        return;  // QwtFigureGrid already reported the invalid position/span
+    }
+    const QRectF rect = m_data->grid->normRectFor(row, col, rowSpan, colSpan);
+    addWidget(plot, rect.x(), rect.y(), rect.width(), rect.height());
+
+    Q_EMIT axesAdded(plot);
+    setCurrentAxes(plot);
+}
+
+/**
+ * @brief Add a non-plot widget as a member of the retained grid layout
+ * @details Typical usage is a 3D plot widget or any custom widget that should share the
+ *          grid tracks with the plots. No axes signals are emitted.
+ * @param widget Widget to add
+ * @param row Grid row (0-based)
+ * @param col Grid column (0-based)
+ * @param rowSpan Number of rows to span (default 1)
+ * @param colSpan Number of columns to span (default 1)
+ * @return true if the widget was registered, false for invalid arguments
+ * @note enableGrid() must be called before adding grid members.
+ * @note This is not an addWidget() overload on purpose: a 5 argument addWidget() call
+ *       would be ambiguous with the legacy addWidget(widget, rowCnt, colCnt, row, col).
+ */
+bool QwtFigure::addGridItem(QWidget* widget, int row, int col, int rowSpan, int colSpan)
+{
+    if (!widget) {
+        qWarning() << "QwtFigure::addGridItem: null widget";
+        return false;
+    }
+    if (!isGridEnabled()) {
+        qWarning() << "QwtFigure::addGridItem: enableGrid() must be called before adding grid members";
+        return false;
+    }
+    if (!m_data->grid->addItem(widget, row, col, rowSpan, colSpan)) {
+        return false;  // QwtFigureGrid already reported the invalid position/span
+    }
+    const QRectF rect = m_data->grid->normRectFor(row, col, rowSpan, colSpan);
+    addWidget(widget, rect.x(), rect.y(), rect.width(), rect.height());
+    return true;
+}
+
+/**
+ * @brief Remove a widget from the figure without deleting it
+ * @details Plots are removed through takeAxes(), which also updates the current axes and
+ *          the parasite axes. Other widgets are unregistered from the layout and the grid,
+ *          hidden and re-parented to nullptr.
+ * @param widget Widget to remove
+ * @note The caller keeps ownership of the widget.
+ */
+void QwtFigure::removeWidget(QWidget* widget)
+{
+    if (!widget) {
+        qWarning() << "QwtFigure::removeWidget: null widget";
+        return;
+    }
+
+    if (QwtPlot* plot = qobject_cast< QwtPlot* >(widget)) {
+        if (hasAxes(plot)) {
+            takeAxes(plot);
+            plot->hide();
+            plot->setParent(nullptr);
+            return;
+        }
+    }
+
+    if (m_data->grid) {
+        m_data->grid->removeItem(widget);
+    }
+    widget->removeEventFilter(this);
+
+    QLayout* lay = layout();
+    if (lay) {
+        for (int i = 0; i < lay->count(); ++i) {
+            QLayoutItem* item = lay->itemAt(i);
+            if (item && item->widget() == widget) {
+                lay->removeItem(item);
+                delete item;
+                break;
+            }
+        }
+        lay->invalidate();
+    }
+    if (widget->parentWidget() == this) {
+        widget->hide();
+        widget->setParent(nullptr);
+    }
 }
 
 /**
@@ -329,6 +509,10 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
     // Check if the plot to remove is the current axes
     bool removingCurrent = (plot == currentAxes());
     m_data->plotWillRemove(plot);
+    plot->removeEventFilter(this);
+    if (m_data->grid) {
+        m_data->grid->removeItem(plot);
+    }
     QLayout* lay = layout();
     if (lay) {
         for (int i = 0; i < lay->count(); ++i) {
@@ -370,8 +554,12 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
         // Handle parasite axes
         const QList< QwtPlot* > parasites = plot->parasitePlots();
         for (QwtPlot* para : parasites) {
+            para->removeEventFilter(this);
             para->setParent(nullptr);
             para->hide();
+        }
+        if (lay) {
+            lay->invalidate();
         }
         Q_EMIT axesRemoved(plot);
     }
@@ -403,6 +591,10 @@ void QwtFigure::clear()
                     Q_EMIT axesRemoved(plot);
                 }
                 if (QWidget* w = item->widget()) {
+                    w->removeEventFilter(this);
+                    if (m_data->grid) {
+                        m_data->grid->removeItem(w);
+                    }
                     w->hide();
                     w->deleteLater();
                 }
@@ -573,6 +765,10 @@ QwtPlot* QwtFigure::createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enab
     }
     // Create parasite axes
     QwtPlot* parasitePlot = hostPlot->createParasitePlot(enableAxis);
+    if (parasitePlot) {
+        // A press on the parasite axes activates its host plot.
+        parasitePlot->installEventFilter(this);
+    }
 
     return parasitePlot;
 }
@@ -1067,4 +1263,27 @@ void QwtFigure::resizeEvent(QResizeEvent* event)
 {
     applyAllAxisAlignments(false);  // Realign when window size changes
     QFrame::resizeEvent(event);
+}
+
+/**
+ * @brief Handle mouse presses on the sub widgets of the figure
+ * @details A mouse press on a plot makes it the current axes. Presses on a parasite axes
+ *          are mapped to the host plot. The event is never consumed, so zooming, panning,
+ *          picking and the plot editors keep working unchanged.
+ * @param watched Object the event was delivered to
+ * @param event Event to process
+ * @return Always false, the event is not consumed
+ * @note 3D widgets are not handled here; the figure owner is responsible for them.
+ */
+bool QwtFigure::eventFilter(QObject* watched, QEvent* event)
+{
+    if (event->type() == QEvent::MouseButtonPress) {
+        if (QwtPlot* plot = qobject_cast< QwtPlot* >(watched)) {
+            QwtPlot* target = plot->isParasitePlot() ? plot->hostPlot() : plot;
+            if (target && currentAxes() != target) {
+                setCurrentAxes(target);
+            }
+        }
+    }
+    return QFrame::eventFilter(watched, event);
 }
