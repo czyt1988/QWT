@@ -185,6 +185,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_scale_corner.h
         qwt_figure_layout.h
         qwt_figure.h
+        qwt_figure_grid.h
         qwt_figure_widget_overlay.h
         # utility classes
         qwt_plot_item_info.h
@@ -256,6 +257,7 @@ if(QWT_CONFIG_QWTPLOT)
         qwt_scale_corner.cpp
         qwt_figure_layout.cpp
         qwt_figure.cpp
+        qwt_figure_grid.cpp
         qwt_figure_widget_overlay.cpp
         # utility classes
         qwt_plot_item_info.cpp
