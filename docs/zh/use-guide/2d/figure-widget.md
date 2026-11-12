@@ -63,6 +63,41 @@ QwtPlot* bottomLeftPlot = new QwtPlot;
 figure->addAxes(bottomLeftPlot, 2, 2, 1, 0);
 ```
 
+#### 保留式网格布局与可拖拽分隔条
+
+上面网格形式的 `addAxes` 只在添加时把单元格换算成固定的归一化矩形，之后无法再调整比例。保留式网格（retained grid）则把行列轨道比例和成员登记作为唯一数据源保留下来，交互式调整比例正是建立在这个模型上：
+
+```cpp
+// 启用 2x2 保留式网格，并按网格坐标登记成员
+figure->enableGrid(2, 2);
+
+figure->grid()->setRowSizes({ 0.56, 0.44 });     // 行轨道比例（归一化）
+figure->grid()->setColumnSizes({ 0.50, 0.50 });  // 列轨道比例（归一化）
+figure->grid()->setSpacing(0.01, 0.01);          // 可选：单元格之间的间隙
+
+figure->addAxes(wavePlot, 0, 0, 1, 2);  // 第0行，跨第0-1列
+figure->addAxes(specPlot, 1, 0);
+figure->addAxes(heatmapPlot, 1, 1);
+
+// 非绘图成员（例如 3D 绘图控件）用同样的方式登记
+figure->addGridItem(waterfall3D, 1, 1);
+
+// 让轨道之间的分隔条可以拖拽
+figure->setGridEditable(true);
+```
+
+启用网格编辑后，`QwtFigureGridSplitter` 会在 figure 以及覆盖单元格的控件上安装事件过滤器：只有落在分隔条附近窄带内的事件会被拦截，其余事件原样放行，因此缩放、平移、拾取、悬停等交互不受影响：
+
+- 鼠标距分隔条中心不超过 `QwtFigureGridSplitter::setHitWidth()` 像素（默认 4）时命中；两列之间的竖直分隔条显示 `Qt::SplitHCursor`，两行之间的水平分隔条显示 `Qt::SplitVCursor`
+- 拖动只改变相邻两条轨道的比例：两条轨道的比例和保持不变，并同时受 `QwtFigureGrid::minimumTrackPixels()`（默认 40 像素）约束，因此轨道不会被压到 0，也不会互相重叠
+- 拖动过程中成员控件停止重绘，松手后恢复重绘并重绘整个 figure
+- 拖动过程中连续发出 `QwtFigureGrid::sizesChanged()`（转发为 `QwtFigure::gridSizesChanged()`），可用于实时预览；松手时且比例确实发生变化才发出一次 `QwtFigureGrid::sizesChangeFinished()`（转发为 `QwtFigure::gridSizesChangeFinished()`），把它接到撤销栈即可为整次拖动压入一条撤销命令
+- 拖动中按 `Esc` 会恢复原始比例，且不发出完成信号
+- `QOpenGLWidget` 成员（3D 绘图）不会被拦截：3D 单元格的边界由相邻的 2D 绘图一侧负责命中。寄生绘图本身对鼠标事件透明，其边界同样由宿主绘图负责
+- 网格分隔条与 `QwtFigureWidgetOverlay` 不能同时启用：蒙版覆盖整个 figure，会吞掉子绘图的事件，所以网格可编辑时应关闭蒙版的 `FunResizePlot` 模式（或把蒙版设为对鼠标事件透明）
+
+`setGridEditable(true)` 要求已经启用网格，否则只打印警告，`isGridEditable()` 保持 false。`examples/2D/figure` 的工具栏新增了「Grid layout (draggable)」动作，可切换到 2x2 保留式网格演示。
+
 ### 设置图形外观
 
 图形的整体外观由 `QwtFigure` 的四个方法控制：`setFaceColor()` 用纯色填充背景，`setFaceBrush()` 接受任意 `QBrush`（例如用 `QLinearGradient` 做渐变背景），`setEdgeColor()` 与 `setEdgeLineWidth()` 则负责绘制边框：

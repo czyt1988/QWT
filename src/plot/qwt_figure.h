@@ -14,6 +14,7 @@ class QEvent;
 #include "qwt_axis.h"
 class QwtPlot;
 class QwtFigureGrid;
+class QwtFigureGridSplitter;
 
 /**
  * @class QwtFigure
@@ -107,6 +108,12 @@ public:
 
     // Remove a widget from the figure without deleting it
     void removeWidget(QWidget* widget);
+
+    // Enable/disable dragging the dividers of the retained grid
+    void setGridEditable(bool on);
+
+    // Check whether the grid dividers can be dragged
+    bool isGridEditable() const;
 
     // Change the normalized position of an added widget
     void setWidgetNormPos(QWidget* widget, const QRectF& rect);

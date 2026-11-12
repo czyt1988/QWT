@@ -18,6 +18,7 @@
 // qwt
 #include "qwt_figure_layout.h"
 #include "qwt_figure_grid.h"
+#include "qwt_figure_grid_splitter.h"
 #include "qwt_scale_engine.h"
 #include "qwt_scale_widget.h"
 #include "qwt_plot_layout.h"
@@ -49,6 +50,8 @@ public:
     PrivateData(QwtFigure* p);
     // Called when a plot is about to be removed
     void plotWillRemove(QwtPlot* p);
+    // Let a running grid splitter pick up added/removed children
+    void updateGridSplitter();
     // Structure for storing alignment configuration
     struct AlignmentConfig
     {
@@ -63,6 +66,9 @@ public:
     QPointer< QwtPlot > currentAxes;            ///< Current active axes
     QPointer< QwtFigureGrid > grid;             ///< Retained grid layout (created on demand)
     QList< AlignmentConfig > alignmentConfigs;  // All alignment configurations
+
+    // Divider interaction (created on demand)
+    QPointer< QwtFigureGridSplitter > gridSplitter;
 };
 
 QwtFigure::PrivateData::PrivateData(QwtFigure* p) : q_ptr(p)
@@ -73,6 +79,14 @@ void QwtFigure::PrivateData::plotWillRemove(QwtPlot* p)
 {
     for (auto& alCfg : alignmentConfigs) {
         alCfg.plots.removeAll(p);
+    }
+}
+
+void QwtFigure::PrivateData::updateGridSplitter()
+{
+    if (gridSplitter && gridSplitter->isEnabled()) {
+        // Enabling an enabled splitter is idempotent and re-scans the widgets
+        gridSplitter->setEnabled(true);
     }
 }
 
@@ -93,6 +107,13 @@ QwtFigure::QwtFigure(QWidget* parent, Qt::WindowFlags f) : QFrame(parent, f), QW
 
 QwtFigure::~QwtFigure()
 {
+    // Tear the splitter down while the figure and its children are still alive:
+    // it has to release the keyboard grab, the cursor and the event filters.
+    if (m_data->gridSplitter) {
+        m_data->gridSplitter->setEnabled(false);
+        delete m_data->gridSplitter;
+        m_data->gridSplitter = nullptr;
+    }
 }
 
 /**
@@ -118,6 +139,7 @@ void QwtFigure::addWidget(QWidget* widget, qreal left, qreal top, qreal width, q
         widget->installEventFilter(this);
     }
     lay->addAxes(widget, left, top, width, height);
+    m_data->updateGridSplitter();
 }
 
 /**
@@ -144,6 +166,7 @@ void QwtFigure::addWidget(QWidget* widget, int rowCnt, int colCnt, int row, int 
         widget->setParent(this);
     }
     lay->addGridAxes(widget, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
+    m_data->updateGridSplitter();
 }
 
 /**
@@ -370,6 +393,51 @@ void QwtFigure::removeWidget(QWidget* widget)
         widget->hide();
         widget->setParent(nullptr);
     }
+    m_data->updateGridSplitter();
+}
+
+/**
+ * @brief Enable or disable dragging the dividers of the retained grid
+ * @details The grid splitter is created on the first enable and stays owned by the
+ *          figure afterwards. Enabling requires a retained grid, otherwise the call is
+ *          ignored with a warning and isGridEditable() keeps returning false.
+ *
+ *          While editing is enabled the mouse events in a narrow band around the grid
+ *          dividers are consumed to resize the adjacent tracks; all other events are
+ *          passed through unchanged.
+ * @param on True to make the dividers draggable
+ * @note Disable the FunResizePlot mode of QwtFigureWidgetOverlay (or make the overlay
+ *       transparent for mouse events) while the grid is editable: the overlay covers
+ *       the whole figure and would swallow the events of the plots.
+ * @sa isGridEditable(), enableGrid(), QwtFigureGridSplitter
+ */
+void QwtFigure::setGridEditable(bool on)
+{
+    if (on && !isGridEnabled()) {
+        qWarning() << "QwtFigure::setGridEditable: enableGrid() must be called before editing the grid";
+        return;
+    }
+
+    if (on) {
+        if (!m_data->gridSplitter) {
+            m_data->gridSplitter = new QwtFigureGridSplitter(this);
+        }
+        m_data->gridSplitter->setEnabled(true);
+        return;
+    }
+
+    if (m_data->gridSplitter) {
+        m_data->gridSplitter->setEnabled(false);
+    }
+}
+
+/**
+ * @brief Check whether the grid dividers can be dragged
+ * @return True when grid editing is enabled
+ */
+bool QwtFigure::isGridEditable() const
+{
+    return m_data->gridSplitter && m_data->gridSplitter->isEnabled();
 }
 
 /**
@@ -563,6 +631,7 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
         }
         Q_EMIT axesRemoved(plot);
     }
+    m_data->updateGridSplitter();
     return isRemove;
 }
 
@@ -612,6 +681,7 @@ void QwtFigure::clear()
     if (removeCnt > 0) {
         Q_EMIT figureCleared();
     }
+    m_data->updateGridSplitter();
 }
 
 /**
@@ -768,6 +838,7 @@ QwtPlot* QwtFigure::createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enab
     if (parasitePlot) {
         // A press on the parasite axes activates its host plot.
         parasitePlot->installEventFilter(this);
+        m_data->updateGridSplitter();
     }
 
     return parasitePlot;
