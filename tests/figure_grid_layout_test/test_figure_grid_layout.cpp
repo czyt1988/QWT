@@ -231,7 +231,7 @@ void TestFigureGridLayout::testRemoveWidget()
 }
 
 /**
- * @brief A press on a grid member makes it the current axes without consuming the event
+ * @brief A press on a grid member - delivered to its canvas like a real click - makes it the current axes
  */
 void TestFigureGridLayout::testClickActivatesCurrentAxes()
 {
@@ -248,34 +248,79 @@ void TestFigureGridLayout::testClickActivatesCurrentAxes()
     qRegisterMetaType< QwtPlot* >("QwtPlot*");
     QSignalSpy currentSpy(&figure, &QwtFigure::currentAxesChanged);
     QVERIFY(currentSpy.isValid());
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+
+    // Real presses are delivered to the canvas of the plot, not to the plot itself
+    QWidget* firstCanvas  = first->canvas();
+    QWidget* secondCanvas = second->canvas();
+    QVERIFY(firstCanvas != nullptr);
+    QVERIFY(secondCanvas != nullptr);
+
     QMouseEvent press(QEvent::MouseButtonPress,
+                      QPointF(10, 10),
                       QPointF(10, 10),
                       Qt::LeftButton,
                       Qt::LeftButton,
                       Qt::NoModifier);
-#else
-    QMouseEvent press(QEvent::MouseButtonPress,
-                      QPointF(10, 10),
-                      QPointF(10, 10),
-                      Qt::LeftButton,
-                      Qt::LeftButton,
-                      Qt::NoModifier);
-#endif
-    QApplication::sendEvent(first, &press);
+    QApplication::sendEvent(firstCanvas, &press);
     QCOMPARE(figure.currentAxes(), first);
     QCOMPARE(currentSpy.count(), 1);
 
     // Pressing the already active plot does not emit again
-    QApplication::sendEvent(first, &press);
+    QApplication::sendEvent(firstCanvas, &press);
     QCOMPARE(currentSpy.count(), 1);
 
-    QApplication::sendEvent(second, &press);
+    QApplication::sendEvent(secondCanvas, &press);
     QCOMPARE(figure.currentAxes(), second);
     QCOMPARE(currentSpy.count(), 2);
 
+    // A press delivered to the plot itself still activates it
+    QApplication::sendEvent(first, &press);
+    QCOMPARE(figure.currentAxes(), first);
+    QCOMPARE(currentSpy.count(), 3);
+
     figure.removeWidget(first);
     figure.removeWidget(second);
+    delete first;
+    delete second;
+}
+
+/**
+ * @brief Members added through the legacy addWidget() grid overload activate on a canvas press,
+ *        and the activation ends with removeWidget()
+ */
+void TestFigureGridLayout::testClickActivatesAxesFromLegacyAddWidget()
+{
+    QwtFigure figure;
+    QwtPlot* first  = new QwtPlot;
+    QwtPlot* second = new QwtPlot;
+    figure.addWidget(first, 2, 1, 0, 0);
+    figure.addWidget(second, 2, 1, 1, 0);
+    figure.setCurrentAxes(first);
+
+    qRegisterMetaType< QwtPlot* >("QwtPlot*");
+    QSignalSpy currentSpy(&figure, &QwtFigure::currentAxesChanged);
+    QVERIFY(currentSpy.isValid());
+
+    QWidget* canvas = second->canvas();
+    QVERIFY(canvas != nullptr);
+    QMouseEvent press(QEvent::MouseButtonPress,
+                      QPointF(10, 10),
+                      QPointF(10, 10),
+                      Qt::LeftButton,
+                      Qt::LeftButton,
+                      Qt::NoModifier);
+    QApplication::sendEvent(canvas, &press);
+    QCOMPARE(figure.currentAxes(), second);
+    QCOMPARE(currentSpy.count(), 1);
+
+    // A removed member no longer reacts to presses on its canvas
+    figure.removeWidget(second);
+    QCOMPARE(currentSpy.count(), 2);  // removing the current axes activates the remaining one
+    QApplication::sendEvent(canvas, &press);
+    QCOMPARE(figure.currentAxes(), first);
+    QCOMPARE(currentSpy.count(), 2);
+
+    figure.removeWidget(first);
     delete first;
     delete second;
 }

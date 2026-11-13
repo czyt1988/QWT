@@ -103,6 +103,13 @@ bool TestFigureGridSplitter::escape()
     return event.isAccepted();
 }
 
+bool TestFigureGridSplitter::sendSimpleEvent(QWidget* receiver, QEvent::Type type)
+{
+    QEvent event(type);
+    QApplication::sendEvent(receiver, &event);
+    return event.isAccepted();
+}
+
 double TestFigureGridSplitter::columnAt(int index) const
 {
     const QVector< qreal > sizes = m_grid->columnSizes();
@@ -182,6 +189,49 @@ void TestFigureGridSplitter::testHoverSignalShapes()
     QVERIFY(!sendMouseEvent(m_figure, QEvent::MouseMove, QPoint(midX, midY), Qt::NoButton, Qt::NoButton));
     QCOMPARE(shapes.size(), 4);
     QCOMPARE(shapes.last(), Qt::ArrowCursor);
+}
+
+/**
+ * @brief The split cursor is applied to the widget under the mouse, not to the cell widget
+ *
+ * A canvas with an explicitly set cursor (DAChartCanvas sets Qt::ArrowCursor)
+ * overrides the cursor inherited from the plot, so the split cursor must be
+ * applied to the canvas itself and restored when the band is left.
+ */
+void TestFigureGridSplitter::testCursorAppliedToCanvasNotCell()
+{
+    QWidget* canvas = m_topPlot->canvas();
+    QVERIFY(canvas != nullptr);
+
+    // Simulate a host canvas that sets its own cursor explicitly
+    canvas->setCursor(Qt::ArrowCursor);
+    QVERIFY(canvas->testAttribute(Qt::WA_SetCursor));
+
+    const int dividerX        = qRound(0.5 * m_figure->width());
+    const QPoint figureCenter = m_figure->mapFromGlobal(canvas->mapToGlobal(canvas->rect().center()));
+    const QPoint canvasPos    = canvas->mapFrom(m_figure, QPoint(dividerX, figureCenter.y()));
+    QVERIFY2(canvas->rect().contains(canvasPos), "the test point must be inside the canvas");
+    const QPoint outsidePos = canvas->mapFrom(m_figure, QPoint(dividerX / 2, figureCenter.y()));
+    QVERIFY2(canvas->rect().contains(outsidePos), "the outside test point must be inside the canvas");
+
+    // Hover in the band: the canvas itself shows the split cursor
+    QVERIFY(sendMouseEvent(canvas, QEvent::MouseMove, canvasPos, Qt::NoButton, Qt::NoButton));
+    QCOMPARE(canvas->cursor().shape(), Qt::SplitHCursor);
+    QVERIFY(canvas->testAttribute(Qt::WA_SetCursor));
+    QCOMPARE(m_topPlot->cursor().shape(), Qt::ArrowCursor);  // the cell keeps its own cursor
+
+    // Hover out of the band: the original canvas cursor is restored
+    QVERIFY(!sendMouseEvent(canvas, QEvent::MouseMove, outsidePos, Qt::NoButton, Qt::NoButton));
+    QCOMPARE(canvas->cursor().shape(), Qt::ArrowCursor);
+    QVERIFY(canvas->testAttribute(Qt::WA_SetCursor));
+
+    // A canvas without an explicit cursor gets unsetCursor() back
+    canvas->unsetCursor();
+    QVERIFY(!canvas->testAttribute(Qt::WA_SetCursor));
+    QVERIFY(sendMouseEvent(canvas, QEvent::MouseMove, canvasPos, Qt::NoButton, Qt::NoButton));
+    QCOMPARE(canvas->cursor().shape(), Qt::SplitHCursor);
+    QVERIFY(!sendMouseEvent(canvas, QEvent::MouseMove, outsidePos, Qt::NoButton, Qt::NoButton));
+    QVERIFY(!canvas->testAttribute(Qt::WA_SetCursor));
 }
 
 /**
@@ -342,6 +392,178 @@ void TestFigureGridSplitter::testUpdatesDisabledWhileDragging()
     QVERIFY(m_topPlot->updatesEnabled());
     QVERIFY(m_bottomLeftPlot->updatesEnabled());
     QVERIFY(m_bottomRightPlot->updatesEnabled());
+}
+
+/**
+ * @brief A WindowDeactivate during the drag cancels it and restores the member repaints
+ *
+ * The release will never arrive when the window loses activation (a modal dialog
+ * opened, the user switched tasks): the drag must end as cancelled, the original
+ * ratios must be restored and later moves must not change the ratios anymore.
+ */
+void TestFigureGridSplitter::testWindowDeactivateCancelsDrag()
+{
+    QSignalSpy finishedSpy(m_grid, &QwtFigureGrid::sizesChangeFinished);
+
+    const int dividerX = qRound(0.5 * m_figure->width());
+    const int midY     = qRound(0.5 * m_figure->height()) / 2;
+
+    QVERIFY(pressAt(QPoint(dividerX, midY)));
+    QVERIFY(m_splitter->isDragging());
+    QVERIFY(QWidget::mouseGrabber() == m_figure);  // the drag owns the mouse
+    QVERIFY(dragTo(QPoint(dividerX + 30, midY)));
+    QVERIFY(qAbs(columnAt(0) - 0.5) > RATIO_EPSILON);
+    QVERIFY(!m_topPlot->updatesEnabled());
+
+    // The window loses activation while the divider is dragged
+    sendSimpleEvent(m_figure, QEvent::WindowDeactivate);
+
+    QVERIFY(!m_splitter->isDragging());
+    QVERIFY(m_topPlot->updatesEnabled());
+    QVERIFY(m_bottomLeftPlot->updatesEnabled());
+    QVERIFY(m_bottomRightPlot->updatesEnabled());
+    QVERIFY(qAbs(columnAt(0) - 0.5) < RATIO_EPSILON);  // cancelled: original ratios
+    QVERIFY(qAbs(columnAt(1) - 0.5) < RATIO_EPSILON);
+    QCOMPARE(finishedSpy.count(), 0);
+    QVERIFY(QWidget::mouseGrabber() == nullptr);
+    QVERIFY(QWidget::keyboardGrabber() == nullptr);
+
+    // A later move does not change the ratios anymore
+    QVERIFY(!dragTo(QPoint(dividerX + 40, midY)));
+    QVERIFY(qAbs(columnAt(0) - 0.5) < RATIO_EPSILON);
+}
+
+/**
+ * @brief An UngrabMouse during the drag cancels it as well
+ *
+ * The mouse grab is lost when a popup opens or another widget grabs the mouse;
+ * the drag must end as cancelled instead of staying stuck.
+ */
+void TestFigureGridSplitter::testUngrabMouseCancelsDrag()
+{
+    QSignalSpy finishedSpy(m_grid, &QwtFigureGrid::sizesChangeFinished);
+
+    const int dividerX = qRound(0.5 * m_figure->width());
+    const int midY     = qRound(0.5 * m_figure->height()) / 2;
+
+    QVERIFY(pressAt(QPoint(dividerX, midY)));
+    QVERIFY(m_splitter->isDragging());
+    QVERIFY(dragTo(QPoint(dividerX + 30, midY)));
+    QVERIFY(!m_topPlot->updatesEnabled());
+
+    // The mouse grab is lost while the divider is dragged
+    sendSimpleEvent(m_figure, QEvent::UngrabMouse);
+
+    QVERIFY(!m_splitter->isDragging());
+    QVERIFY(m_topPlot->updatesEnabled());
+    QVERIFY(m_bottomLeftPlot->updatesEnabled());
+    QVERIFY(qAbs(columnAt(0) - 0.5) < RATIO_EPSILON);
+    QCOMPARE(finishedSpy.count(), 0);
+    QVERIFY(QWidget::mouseGrabber() == nullptr);
+    QVERIFY(QWidget::keyboardGrabber() == nullptr);
+}
+
+/**
+ * @brief A canvas filter installed after the splitter cannot stall the drag
+ *
+ * The host installs a filter that consumes the move and release events of the
+ * canvas (like the STFT rectangle drag of the signal analysis page). The
+ * splitter grabs the mouse on the figure when the drag starts, so the events
+ * are routed to the figure - where the hostile filter is not installed - and
+ * the drag still finishes.
+ */
+void TestFigureGridSplitter::testDragSurvivesConsumingCanvasFilter()
+{
+    QWidget* canvas = m_topPlot->canvas();
+    QVERIFY(canvas != nullptr);
+
+    struct ConsumingFilter : QObject
+    {
+        int presses { 0 };
+        int moves { 0 };
+        int releases { 0 };
+        bool eventFilter(QObject*, QEvent* event) override
+        {
+            if (event->type() == QEvent::MouseButtonPress) {
+                ++presses;  // the press passes through, like the STFT handler
+                return false;
+            }
+            if (event->type() == QEvent::MouseMove) {
+                ++moves;
+                return true;
+            }
+            if (event->type() == QEvent::MouseButtonRelease) {
+                ++releases;
+                return true;
+            }
+            return false;
+        }
+    };
+    // Installed after the splitter filters, so it runs ahead of them
+    ConsumingFilter consumer;
+    canvas->installEventFilter(&consumer);
+
+    QSignalSpy finishedSpy(m_grid, &QwtFigureGrid::sizesChangeFinished);
+
+    const int dividerX        = qRound(0.5 * m_figure->width());
+    const QPoint figureCenter = m_figure->mapFromGlobal(canvas->mapToGlobal(canvas->rect().center()));
+    const QPoint canvasPos    = canvas->mapFrom(m_figure, QPoint(dividerX, figureCenter.y()));
+    QVERIFY2(canvas->rect().contains(canvasPos), "the test point must be inside the canvas");
+
+    // The press passes the hostile filter and starts the drag
+    QMouseEvent press(QEvent::MouseButtonPress,
+                      QPointF(canvasPos),
+                      QPointF(canvas->mapToGlobal(canvasPos)),
+                      Qt::LeftButton,
+                      Qt::LeftButton,
+                      Qt::NoModifier);
+    QApplication::sendEvent(canvas, &press);
+    QVERIFY(press.isAccepted());
+    QCOMPARE(consumer.presses, 1);
+    QVERIFY(m_splitter->isDragging());
+    // The drag owns the mouse: the release is routed to the figure
+    QVERIFY(QWidget::mouseGrabber() == m_figure);
+    QVERIFY(!m_topPlot->updatesEnabled());
+
+    // A move delivered to the canvas is consumed by the hostile filter and
+    // never reaches the splitter - the situation that used to stall the drag
+    QMouseEvent consumedMove(QEvent::MouseMove,
+                             QPointF(canvasPos),
+                             QPointF(canvas->mapToGlobal(canvasPos)),
+                             Qt::NoButton,
+                             Qt::LeftButton,
+                             Qt::NoModifier);
+    QApplication::sendEvent(canvas, &consumedMove);
+    QVERIFY(consumedMove.isAccepted());
+    QCOMPARE(consumer.moves, 1);
+    QVERIFY(m_splitter->isDragging());
+
+    // The events routed to the figure (where the mouse grab delivers them)
+    // still drive and finish the drag
+    const QPoint figurePos = QPoint(dividerX + 20, figureCenter.y());
+    QMouseEvent move(QEvent::MouseMove,
+                     QPointF(figurePos),
+                     QPointF(m_figure->mapToGlobal(figurePos)),
+                     Qt::NoButton,
+                     Qt::LeftButton,
+                     Qt::NoModifier);
+    QApplication::sendEvent(m_figure, &move);
+    QVERIFY(move.isAccepted());
+    QVERIFY(qAbs(columnAt(0) - 0.5) > RATIO_EPSILON);
+
+    QMouseEvent release(QEvent::MouseButtonRelease,
+                        QPointF(figurePos),
+                        QPointF(m_figure->mapToGlobal(figurePos)),
+                        Qt::LeftButton,
+                        Qt::NoButton,
+                        Qt::NoModifier);
+    QApplication::sendEvent(m_figure, &release);
+    QVERIFY(release.isAccepted());
+    QVERIFY(!m_splitter->isDragging());
+    QVERIFY(m_topPlot->updatesEnabled());
+    QCOMPARE(finishedSpy.count(), 1);
+    QVERIFY(QWidget::mouseGrabber() == nullptr);
+    QCOMPARE(consumer.releases, 0);  // the release never reached the canvas
 }
 
 /**

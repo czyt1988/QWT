@@ -52,6 +52,10 @@ public:
     void plotWillRemove(QwtPlot* p);
     // Let a running grid splitter pick up added/removed children
     void updateGridSplitter();
+    // Install the press-activation filter on a widget and, for plots, on its canvas
+    void watchWidget(QWidget* widget);
+    // Remove the press-activation filter from a widget and, for plots, from its canvas
+    void unwatchWidget(QWidget* widget);
     // Structure for storing alignment configuration
     struct AlignmentConfig
     {
@@ -87,6 +91,34 @@ void QwtFigure::PrivateData::updateGridSplitter()
     if (gridSplitter && gridSplitter->isEnabled()) {
         // Enabling an enabled splitter is idempotent and re-scans the widgets
         gridSplitter->setEnabled(true);
+    }
+}
+
+void QwtFigure::PrivateData::watchWidget(QWidget* widget)
+{
+    if (!widget) {
+        return;
+    }
+    // Real mouse presses are delivered to the canvas of the plot, not to the
+    // plot itself, so the canvas needs the filter as well.
+    widget->installEventFilter(q_ptr);
+    if (QwtPlot* plot = qobject_cast< QwtPlot* >(widget)) {
+        if (QWidget* canvas = plot->canvas()) {
+            canvas->installEventFilter(q_ptr);
+        }
+    }
+}
+
+void QwtFigure::PrivateData::unwatchWidget(QWidget* widget)
+{
+    if (!widget) {
+        return;
+    }
+    widget->removeEventFilter(q_ptr);
+    if (QwtPlot* plot = qobject_cast< QwtPlot* >(widget)) {
+        if (QWidget* canvas = plot->canvas()) {
+            canvas->removeEventFilter(q_ptr);
+        }
     }
 }
 
@@ -136,7 +168,8 @@ void QwtFigure::addWidget(QWidget* widget, qreal left, qreal top, qreal width, q
     }
     if (widget) {
         // Track mouse presses to make the clicked sub plot the current one.
-        widget->installEventFilter(this);
+        // Real presses are delivered to the canvas, so it is watched as well.
+        m_data->watchWidget(widget);
     }
     lay->addAxes(widget, left, top, width, height);
     m_data->updateGridSplitter();
@@ -165,6 +198,8 @@ void QwtFigure::addWidget(QWidget* widget, int rowCnt, int colCnt, int row, int 
     if (widget && widget->parentWidget() != this) {
         widget->setParent(this);
     }
+    // Track mouse presses like the normalized coordinate overload does
+    m_data->watchWidget(widget);
     lay->addGridAxes(widget, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
     m_data->updateGridSplitter();
 }
@@ -375,7 +410,7 @@ void QwtFigure::removeWidget(QWidget* widget)
     if (m_data->grid) {
         m_data->grid->removeItem(widget);
     }
-    widget->removeEventFilter(this);
+    m_data->unwatchWidget(widget);
 
     QLayout* lay = layout();
     if (lay) {
@@ -409,6 +444,13 @@ void QwtFigure::removeWidget(QWidget* widget)
  * @note Disable the FunResizePlot mode of QwtFigureWidgetOverlay (or make the overlay
  *       transparent for mouse events) while the grid is editable: the overlay covers
  *       the whole figure and would swallow the events of the plots.
+ * @note Qt invokes the event filters of a widget in reverse installation order: the
+ *       filter installed last runs first. The splitter filters must therefore be
+ *       installed last - install the filters of the host (canvas pickers, drag
+ *       handlers, ...) before calling setGridEditable(true). When the host installs
+ *       a filter on a canvas afterwards, call setGridEditable(true) again: enabling
+ *       an already enabled splitter re-scans and re-installs its filters, which puts
+ *       them back in front of the host filters.
  * @sa isGridEditable(), enableGrid(), QwtFigureGridSplitter
  */
 void QwtFigure::setGridEditable(bool on)
@@ -577,7 +619,7 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
     // Check if the plot to remove is the current axes
     bool removingCurrent = (plot == currentAxes());
     m_data->plotWillRemove(plot);
-    plot->removeEventFilter(this);
+    m_data->unwatchWidget(plot);
     if (m_data->grid) {
         m_data->grid->removeItem(plot);
     }
@@ -622,7 +664,7 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
         // Handle parasite axes
         const QList< QwtPlot* > parasites = plot->parasitePlots();
         for (QwtPlot* para : parasites) {
-            para->removeEventFilter(this);
+            m_data->unwatchWidget(para);
             para->setParent(nullptr);
             para->hide();
         }
@@ -660,7 +702,7 @@ void QwtFigure::clear()
                     Q_EMIT axesRemoved(plot);
                 }
                 if (QWidget* w = item->widget()) {
-                    w->removeEventFilter(this);
+                    m_data->unwatchWidget(w);
                     if (m_data->grid) {
                         m_data->grid->removeItem(w);
                     }
@@ -837,7 +879,7 @@ QwtPlot* QwtFigure::createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enab
     QwtPlot* parasitePlot = hostPlot->createParasitePlot(enableAxis);
     if (parasitePlot) {
         // A press on the parasite axes activates its host plot.
-        parasitePlot->installEventFilter(this);
+        m_data->watchWidget(parasitePlot);
         m_data->updateGridSplitter();
     }
 
@@ -1338,18 +1380,31 @@ void QwtFigure::resizeEvent(QResizeEvent* event)
 
 /**
  * @brief Handle mouse presses on the sub widgets of the figure
- * @details A mouse press on a plot makes it the current axes. Presses on a parasite axes
- *          are mapped to the host plot. The event is never consumed, so zooming, panning,
- *          picking and the plot editors keep working unchanged.
+ * @details A mouse press on a plot makes it the current axes. Real presses are
+ *          delivered to the canvas of the plot, so the filter is installed on
+ *          the canvas as well and mapped back to its parent plot here. Presses
+ *          on a parasite axes are mapped to the host plot. The event is never
+ *          consumed, so zooming, panning, picking and the plot editors keep
+ *          working unchanged.
  * @param watched Object the event was delivered to
  * @param event Event to process
  * @return Always false, the event is not consumed
  * @note 3D widgets are not handled here; the figure owner is responsible for them.
+ * @note Replacing the canvas of an added plot (QwtPlot::setCanvas()) removes the
+ *       activation for the new canvas; presses on the plot frame still work.
  */
 bool QwtFigure::eventFilter(QObject* watched, QEvent* event)
 {
     if (event->type() == QEvent::MouseButtonPress) {
-        if (QwtPlot* plot = qobject_cast< QwtPlot* >(watched)) {
+        QwtPlot* plot = qobject_cast< QwtPlot* >(watched);
+        if (!plot) {
+            // The press was delivered to the canvas: map it back to the plot
+            QWidget* widget = qobject_cast< QWidget* >(watched);
+            if (widget) {
+                plot = qobject_cast< QwtPlot* >(widget->parentWidget());
+            }
+        }
+        if (plot) {
             QwtPlot* target = plot->isParasitePlot() ? plot->hostPlot() : plot;
             if (target && currentAxes() != target) {
                 setCurrentAxes(target);

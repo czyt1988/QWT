@@ -5,9 +5,10 @@
 - **`QwtFigure` 支持保留式网格布局与可拖拽分隔条**
     - `QwtFigureGrid` 是保留式网格模型：保存行/列轨道比例、间距（`setSpacing()`）以及成员的 `(行, 列, 行跨度, 列跨度)` 登记，按需计算归一化单元格矩形，窗口缩放后比例保持不变
     - `QwtFigure::enableGrid()` 创建并启用模型，`addAxes(plot, row, col, rowSpan, colSpan)` 与 `addGridItem()` 登记成员，`removeWidget()` 取消登记；原有的归一化坐标成员可与网格成员共存
-    - `QwtFigureGridSplitter` 让分隔条可拖拽：`QwtFigure::setGridEditable(true)` 启用，它只拦截分隔条 ±4 像素窄带内的事件（`setHitWidth()` 可调），不使用覆盖整窗的蒙版，因此缩放、平移、拾取、悬停不受影响；光标切换为 `SplitHCursor`/`SplitVCursor`，拖动只改变相邻两条轨道比例并受 `minimumTrackPixels()`（默认 40 像素）约束，拖动中暂停成员重绘，`Esc` 取消并恢复原比例
+    - `QwtFigureGridSplitter` 让分隔条可拖拽：`QwtFigure::setGridEditable(true)` 启用，它只拦截分隔条 ±4 像素窄带内的事件（`setHitWidth()` 可调），不使用覆盖整窗的蒙版，因此缩放、平移、拾取、悬停不受影响；光标切换为 `SplitHCursor`/`SplitVCursor` 并设置在鼠标实际所在的控件上（通常是画布），画布自身带有显式光标时也能正确显示；拖动只改变相邻两条轨道比例并受 `minimumTrackPixels()`（默认 40 像素）约束，拖动中暂停成员重绘，`Esc` 取消并恢复原比例。拖动期间 figure 抓取鼠标，松手事件总会回到分隔条——即使宿主之后在 canvas 上安装的过滤器消费了 move/release；鼠标抓取丢失（`UngrabMouse`）或窗口失活时按同样方式取消
     - `gridSizesChanged()` 汇报拖动中的比例；`gridSizesChangeFinished()` 只在松手且比例确实变化时发出一次，DA 层可据此为整次拖动压入一条撤销命令。3D（`QOpenGLWidget`）成员不会被拦截：3D 单元格的边界由相邻的 2D 绘图一侧负责命中
-    - `tests/figure_grid_test`、`tests/figure_grid_layout_test`、`tests/figure_grid_splitter_test` 覆盖轨道数学、布局集成与交互行为（命中带、只改目标方向、最小轨道 clamp、完成信号次数、Esc、重绘开关、带外放行）
+    - 在子绘图上按下鼠标（真实点击投递给其 canvas）即把它设为当前激活子图（`currentAxesChanged()`），且不消费事件。Qt 事件过滤器按安装的相反顺序调用（后装先调）：宿主自己的 canvas 过滤器应在 `setGridEditable(true)` 之前安装，或之后再次调用 `setGridEditable(true)`——对已启用的分隔条再次启用会重扫并重装其过滤器，排在宿主过滤器之前
+    - `tests/figure_grid_test`、`tests/figure_grid_layout_test`、`tests/figure_grid_splitter_test` 覆盖轨道数学、布局集成与交互行为（命中带、只改目标方向、最小轨道 clamp、完成信号次数、Esc、重绘开关、带外放行、canvas 投递激活、画布光标、松手丢失兜底）
 - **`examples/2D/figure`：可拖拽网格演示**
     - 工具栏新增「Grid layout (draggable)」动作，切换到 2x2 保留式网格（波形占顶行，下方两个分析图）并可拖动分隔条；切回时重建经典演示。网格可编辑期间禁用子图蒙版，避免它吞掉分隔条事件
 - **文档**：figure 使用指南（中英）新增「保留式网格布局与可拖拽分隔条」章节

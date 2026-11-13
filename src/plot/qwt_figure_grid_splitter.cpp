@@ -100,6 +100,9 @@ public:
     Hit hitTest(const QPoint& figurePos) const;
     // Direct child of the figure that contains the position (or the figure itself)
     QWidget* cellWidgetAt(const QPoint& figurePos) const;
+    // Widget that owns the cursor at the position: the deepest child under
+    // the mouse, skipping transparent children (or the figure itself)
+    QWidget* cursorTargetAt(const QPoint& figurePos) const;
 
     // Updates the cursor and the hover signal for a position outside a drag
     bool handleHover(const QPoint& figurePos);
@@ -135,6 +138,7 @@ public:
     QVector< qreal > originalColumnSizes;
     QList< QPointer< QWidget > > updateDisabledWidgets;
     bool keyboardGrabbed { false };
+    bool mouseGrabbed { false };
 
     QPointer< QWidget > cursorWidget;
     QCursor originalCursor { Qt::ArrowCursor };
@@ -322,6 +326,22 @@ QWidget* QwtFigureGridSplitter::PrivateData::cellWidgetAt(const QPoint& figurePo
     return widget ? widget : figure.data();
 }
 
+QWidget* QwtFigureGridSplitter::PrivateData::cursorTargetAt(const QPoint& figurePos) const
+{
+    if (!figure) {
+        return nullptr;
+    }
+    // The cursor must be set on the widget the mouse is really over: an
+    // explicitly set cursor of a child (DA sets Qt::ArrowCursor on its canvas)
+    // overrides the cursor inherited from the cell widget, so the split
+    // cursor applied to the cell would never be visible on the canvas.
+    QWidget* widget = figure->childAt(figurePos);
+    while (widget && widget != figure.data() && widget->testAttribute(Qt::WA_TransparentForMouseEvents)) {
+        widget = widget->parentWidget();
+    }
+    return (widget && widget != figure.data()) ? widget : figure.data();
+}
+
 void QwtFigureGridSplitter::PrivateData::applyCursor(Qt::CursorShape shape, QWidget* target)
 {
     if (!target) {
@@ -380,7 +400,7 @@ bool QwtFigureGridSplitter::PrivateData::handleHover(const QPoint& figurePos)
     }
 
     const Qt::CursorShape shape = (hit.orientation == Qt::Horizontal) ? Qt::SplitHCursor : Qt::SplitVCursor;
-    applyCursor(shape, cellWidgetAt(figurePos));
+    applyCursor(shape, cursorTargetAt(figurePos));
     return true;
 }
 
@@ -432,7 +452,15 @@ void QwtFigureGridSplitter::PrivateData::startDrag(const Hit& hit, const QPoint&
     setMembersUpdatesEnabled(false);
 
     const Qt::CursorShape shape = (hit.orientation == Qt::Horizontal) ? Qt::SplitHCursor : Qt::SplitVCursor;
-    applyCursor(shape, cellWidgetAt(figurePos));
+    applyCursor(shape, cursorTargetAt(figurePos));
+
+    // Grab the mouse so the release always comes back to the figure: a filter
+    // installed after this one (Qt invokes the filters in reverse installation
+    // order) may consume the move/release of the canvas, which would leave the
+    // drag session stuck. The grab redirects the events to the figure, whose
+    // filter chain is not shared with the canvas.
+    figure->grabMouse();
+    mouseGrabbed = (QWidget::mouseGrabber() == figure.data());
 
     figure->grabKeyboard();
     keyboardGrabbed = (QWidget::keyboardGrabber() == figure.data());
@@ -485,7 +513,7 @@ void QwtFigureGridSplitter::PrivateData::dragTo(const QPoint& figurePos)
     }
 
     // Keep the split cursor while the mouse is captured far away from the start
-    QWidget* target = cellWidgetAt(figurePos);
+    QWidget* target = cursorTargetAt(figurePos);
     if (!isOpenGLWidget(target)) {
         applyCursor(horizontal ? Qt::SplitHCursor : Qt::SplitVCursor, target);
     }
@@ -518,6 +546,16 @@ void QwtFigureGridSplitter::PrivateData::endDrag(bool cancelled)
         figure->releaseKeyboard();
     }
     keyboardGrabbed = false;
+
+    // Release the mouse grab of the drag session. The grab may already be gone
+    // (a popup opened, the window was deactivated), so check the grabber before
+    // releasing; releasing without holding the grab is a harmless no-op anyway.
+    if (figure && mouseGrabbed) {
+        if (QWidget::mouseGrabber() == figure.data()) {
+            figure->releaseMouse();
+        }
+        mouseGrabbed = false;
+    }
     restoreCursor();
 
     bool sizesDiffer = false;
@@ -610,9 +648,16 @@ QwtFigure* QwtFigureGridSplitter::figure() const
  * which is how new members are picked up without re-creating the splitter.
  *
  * Disabling releases a running drag (the original ratios are restored), the
- * keyboard grab, all event filters and the split cursor.
+ * mouse and the keyboard grab, all event filters and the split cursor.
  *
  * @param on True to enable the interaction
+ * @note Qt invokes the event filters of a widget in reverse installation order:
+ *       the filter installed last runs first. Install the filters of the host
+ *       (canvas pickers, drag handlers, ...) before enabling the grid editing;
+ *       a filter installed on a canvas afterwards runs ahead of the splitter and
+ *       can consume the events of the divider bands. Enabling an already enabled
+ *       splitter re-scans and re-installs its filters, so calling
+ *       setEnabled(true) once more puts the splitter back in front.
  */
 void QwtFigureGridSplitter::setEnabled(bool on)
 {
@@ -756,10 +801,25 @@ bool QwtFigureGridSplitter::eventFilter(QObject* watched, QEvent* event)
     }
     case QEvent::Leave:
     case QEvent::HoverLeave: {
-        // Restore only when the left widget owned the cursor; leaving a child of
-        // a cell (for example the canvas) keeps the cursor of the cell widget
-        if (!d->dragging && d->cursorWidget == widget) {
+        // The cursor target is the widget under the mouse (typically the
+        // canvas); leaving it does not mean the mouse left the figure - it may
+        // just have moved to a sibling child of the same cell, and the next
+        // move event re-applies or clears the cursor. Only the leave of the
+        // figure itself ends the hover for good.
+        if (!d->dragging && widget == d->figure.data()) {
             d->restoreCursor();
+        }
+        break;
+    }
+    case QEvent::UngrabMouse:
+    case QEvent::WindowDeactivate:
+    case QEvent::ApplicationDeactivate: {
+        // The release will never arrive: the mouse grab was lost or the window
+        // was deactivated (a modal dialog opened, the user switched tasks).
+        // End the drag as cancelled so the members repaint again instead of
+        // staying stuck with their repaints disabled.
+        if (d->dragging) {
+            d->endDrag(true);
         }
         break;
     }
