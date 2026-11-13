@@ -33,6 +33,7 @@ private Q_SLOTS:
 
     void testBandHitRange();
     void testHoverSignalShapes();
+    void testCursorAppliedToCanvasNotCell();
     void testPressOutsideBandDoesNotStartDrag();
     void testDragChangesOnlyColumnTracks();
     void testMinimumTrackClamp();

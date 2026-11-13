@@ -36,6 +36,12 @@ class QwtFigure;
  * once, but only when the ratios really changed. Pressing Esc cancels the drag:
  * the original ratios are restored and no finished signal is emitted.
  *
+ * The split cursor is applied to the widget the mouse is really over (the
+ * canvas of a plot, not the plot itself), together with its original
+ * WA_SetCursor state, so it stays visible even when the canvas has a cursor
+ * of its own (an explicitly set child cursor overrides the inherited one) and
+ * the original cursor is restored when the band is left.
+ *
  * QOpenGLWidget members (for example a 3D plot) never get an event filter, so
  * their events are not intercepted. The boundary of a 3D cell is served by the
  * adjacent 2D plot.

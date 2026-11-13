@@ -185,6 +185,49 @@ void TestFigureGridSplitter::testHoverSignalShapes()
 }
 
 /**
+ * @brief The split cursor is applied to the widget under the mouse, not to the cell widget
+ *
+ * A canvas with an explicitly set cursor (DAChartCanvas sets Qt::ArrowCursor)
+ * overrides the cursor inherited from the plot, so the split cursor must be
+ * applied to the canvas itself and restored when the band is left.
+ */
+void TestFigureGridSplitter::testCursorAppliedToCanvasNotCell()
+{
+    QWidget* canvas = m_topPlot->canvas();
+    QVERIFY(canvas != nullptr);
+
+    // Simulate a host canvas that sets its own cursor explicitly
+    canvas->setCursor(Qt::ArrowCursor);
+    QVERIFY(canvas->testAttribute(Qt::WA_SetCursor));
+
+    const int dividerX        = qRound(0.5 * m_figure->width());
+    const QPoint figureCenter = m_figure->mapFromGlobal(canvas->mapToGlobal(canvas->rect().center()));
+    const QPoint canvasPos    = canvas->mapFrom(m_figure, QPoint(dividerX, figureCenter.y()));
+    QVERIFY2(canvas->rect().contains(canvasPos), "the test point must be inside the canvas");
+    const QPoint outsidePos = canvas->mapFrom(m_figure, QPoint(dividerX / 2, figureCenter.y()));
+    QVERIFY2(canvas->rect().contains(outsidePos), "the outside test point must be inside the canvas");
+
+    // Hover in the band: the canvas itself shows the split cursor
+    QVERIFY(sendMouseEvent(canvas, QEvent::MouseMove, canvasPos, Qt::NoButton, Qt::NoButton));
+    QCOMPARE(canvas->cursor().shape(), Qt::SplitHCursor);
+    QVERIFY(canvas->testAttribute(Qt::WA_SetCursor));
+    QCOMPARE(m_topPlot->cursor().shape(), Qt::ArrowCursor);  // the cell keeps its own cursor
+
+    // Hover out of the band: the original canvas cursor is restored
+    QVERIFY(!sendMouseEvent(canvas, QEvent::MouseMove, outsidePos, Qt::NoButton, Qt::NoButton));
+    QCOMPARE(canvas->cursor().shape(), Qt::ArrowCursor);
+    QVERIFY(canvas->testAttribute(Qt::WA_SetCursor));
+
+    // A canvas without an explicit cursor gets unsetCursor() back
+    canvas->unsetCursor();
+    QVERIFY(!canvas->testAttribute(Qt::WA_SetCursor));
+    QVERIFY(sendMouseEvent(canvas, QEvent::MouseMove, canvasPos, Qt::NoButton, Qt::NoButton));
+    QCOMPARE(canvas->cursor().shape(), Qt::SplitHCursor);
+    QVERIFY(!sendMouseEvent(canvas, QEvent::MouseMove, outsidePos, Qt::NoButton, Qt::NoButton));
+    QVERIFY(!canvas->testAttribute(Qt::WA_SetCursor));
+}
+
+/**
  * @brief A press outside the divider bands must not start a drag
  */
 void TestFigureGridSplitter::testPressOutsideBandDoesNotStartDrag()

@@ -100,6 +100,9 @@ public:
     Hit hitTest(const QPoint& figurePos) const;
     // Direct child of the figure that contains the position (or the figure itself)
     QWidget* cellWidgetAt(const QPoint& figurePos) const;
+    // Widget that owns the cursor at the position: the deepest child under
+    // the mouse, skipping transparent children (or the figure itself)
+    QWidget* cursorTargetAt(const QPoint& figurePos) const;
 
     // Updates the cursor and the hover signal for a position outside a drag
     bool handleHover(const QPoint& figurePos);
@@ -322,6 +325,22 @@ QWidget* QwtFigureGridSplitter::PrivateData::cellWidgetAt(const QPoint& figurePo
     return widget ? widget : figure.data();
 }
 
+QWidget* QwtFigureGridSplitter::PrivateData::cursorTargetAt(const QPoint& figurePos) const
+{
+    if (!figure) {
+        return nullptr;
+    }
+    // The cursor must be set on the widget the mouse is really over: an
+    // explicitly set cursor of a child (DA sets Qt::ArrowCursor on its canvas)
+    // overrides the cursor inherited from the cell widget, so the split
+    // cursor applied to the cell would never be visible on the canvas.
+    QWidget* widget = figure->childAt(figurePos);
+    while (widget && widget != figure.data() && widget->testAttribute(Qt::WA_TransparentForMouseEvents)) {
+        widget = widget->parentWidget();
+    }
+    return (widget && widget != figure.data()) ? widget : figure.data();
+}
+
 void QwtFigureGridSplitter::PrivateData::applyCursor(Qt::CursorShape shape, QWidget* target)
 {
     if (!target) {
@@ -380,7 +399,7 @@ bool QwtFigureGridSplitter::PrivateData::handleHover(const QPoint& figurePos)
     }
 
     const Qt::CursorShape shape = (hit.orientation == Qt::Horizontal) ? Qt::SplitHCursor : Qt::SplitVCursor;
-    applyCursor(shape, cellWidgetAt(figurePos));
+    applyCursor(shape, cursorTargetAt(figurePos));
     return true;
 }
 
@@ -432,7 +451,7 @@ void QwtFigureGridSplitter::PrivateData::startDrag(const Hit& hit, const QPoint&
     setMembersUpdatesEnabled(false);
 
     const Qt::CursorShape shape = (hit.orientation == Qt::Horizontal) ? Qt::SplitHCursor : Qt::SplitVCursor;
-    applyCursor(shape, cellWidgetAt(figurePos));
+    applyCursor(shape, cursorTargetAt(figurePos));
 
     figure->grabKeyboard();
     keyboardGrabbed = (QWidget::keyboardGrabber() == figure.data());
@@ -485,7 +504,7 @@ void QwtFigureGridSplitter::PrivateData::dragTo(const QPoint& figurePos)
     }
 
     // Keep the split cursor while the mouse is captured far away from the start
-    QWidget* target = cellWidgetAt(figurePos);
+    QWidget* target = cursorTargetAt(figurePos);
     if (!isOpenGLWidget(target)) {
         applyCursor(horizontal ? Qt::SplitHCursor : Qt::SplitVCursor, target);
     }
@@ -756,9 +775,12 @@ bool QwtFigureGridSplitter::eventFilter(QObject* watched, QEvent* event)
     }
     case QEvent::Leave:
     case QEvent::HoverLeave: {
-        // Restore only when the left widget owned the cursor; leaving a child of
-        // a cell (for example the canvas) keeps the cursor of the cell widget
-        if (!d->dragging && d->cursorWidget == widget) {
+        // The cursor target is the widget under the mouse (typically the
+        // canvas); leaving it does not mean the mouse left the figure - it may
+        // just have moved to a sibling child of the same cell, and the next
+        // move event re-applies or clears the cursor. Only the leave of the
+        // figure itself ends the hover for good.
+        if (!d->dragging && widget == d->figure.data()) {
             d->restoreCursor();
         }
         break;
