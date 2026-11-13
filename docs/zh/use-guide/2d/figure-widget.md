@@ -88,15 +88,24 @@ figure->setGridEditable(true);
 
 启用网格编辑后，`QwtFigureGridSplitter` 会在 figure 以及覆盖单元格的控件上安装事件过滤器：只有落在分隔条附近窄带内的事件会被拦截，其余事件原样放行，因此缩放、平移、拾取、悬停等交互不受影响：
 
-- 鼠标距分隔条中心不超过 `QwtFigureGridSplitter::setHitWidth()` 像素（默认 4）时命中；两列之间的竖直分隔条显示 `Qt::SplitHCursor`，两行之间的水平分隔条显示 `Qt::SplitVCursor`
+- 鼠标距分隔条中心不超过 `QwtFigureGridSplitter::setHitWidth()` 像素（默认 4）时命中；两列之间的竖直分隔条显示 `Qt::SplitHCursor`，两行之间的水平分隔条显示 `Qt::SplitVCursor`。光标设置在鼠标实际所在的控件上（通常是画布），画布自身带有显式光标（如 `DAChartCanvas` 设置的 `ArrowCursor`）时也能正确显示；离开分隔带时还原该控件的原有光标
 - 拖动只改变相邻两条轨道的比例：两条轨道的比例和保持不变，并同时受 `QwtFigureGrid::minimumTrackPixels()`（默认 40 像素）约束，因此轨道不会被压到 0，也不会互相重叠
 - 拖动过程中成员控件停止重绘，松手后恢复重绘并重绘整个 figure
 - 拖动过程中连续发出 `QwtFigureGrid::sizesChanged()`（转发为 `QwtFigure::gridSizesChanged()`），可用于实时预览；松手时且比例确实发生变化才发出一次 `QwtFigureGrid::sizesChangeFinished()`（转发为 `QwtFigure::gridSizesChangeFinished()`），把它接到撤销栈即可为整次拖动压入一条撤销命令
-- 拖动中按 `Esc` 会恢复原始比例，且不发出完成信号
+- 拖动中按 `Esc` 会恢复原始比例，且不发出完成信号。鼠标抓取丢失（`QEvent::UngrabMouse`，例如弹出菜单）或窗口失活时，拖动按同样方式取消：拖动期间 figure 会抓取鼠标（grabMouse），因此松手事件总会回到分隔条——即使宿主之后在 canvas 上安装的过滤器消费了 move/release 事件
+- Qt 事件过滤器按安装的相反顺序调用（后装的先调用）：宿主自己的 canvas 过滤器（拾取器、拖动处理器等）应在 `setGridEditable(true)` 之前安装；若之后才安装，可再调用一次 `setGridEditable(true)`——对已启用的分隔条再次启用会重新扫描并重装其过滤器，使其重新排在宿主过滤器之前
 - `QOpenGLWidget` 成员（3D 绘图）不会被拦截：3D 单元格的边界由相邻的 2D 绘图一侧负责命中。寄生绘图本身对鼠标事件透明，其边界同样由宿主绘图负责
 - 网格分隔条与 `QwtFigureWidgetOverlay` 不能同时启用：蒙版覆盖整个 figure，会吞掉子绘图的事件，所以网格可编辑时应关闭蒙版的 `FunResizePlot` 模式（或把蒙版设为对鼠标事件透明）
 
 `setGridEditable(true)` 要求已经启用网格，否则只打印警告，`isGridEditable()` 保持 false。`examples/2D/figure` 的工具栏新增了「Grid layout (draggable)」动作，可切换到 2x2 保留式网格演示。
+
+### 当前激活子图
+
+在子绘图上按下鼠标即把该绘图设为 figure 的当前激活子图：`currentAxes()` 返回它并发出 `currentAxesChanged()`。真实的点击投递给绘图的 canvas，因此点击画布（以及绘图边框区域）都能激活。按下事件不会被消费，缩放、平移、拾取照常工作；再次点击已激活的绘图不会重复发信号。点击寄生绘图会激活其宿主绘图。
+
+> **注意 — 画布替换**
+>
+> 激活过滤器装在添加绘图时该绘图所使用的画布上。之后替换画布（`QwtPlot::setCanvas()`）会使点击画布不再激活，仅点击绘图边框仍有效；重新添加绘图可恢复画布激活。
 
 ### 设置图形外观
 
