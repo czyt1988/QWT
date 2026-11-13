@@ -22,6 +22,7 @@ private Q_SLOTS:
     void testTrackSizesRelayout();
     void testRemoveWidget();
     void testClickActivatesCurrentAxes();
+    void testClickActivatesAxesFromLegacyAddWidget();
     void testGridSizeSignals();
     void testOldAddGridAxesUnchanged();
 
