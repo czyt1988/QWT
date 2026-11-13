@@ -444,6 +444,13 @@ void QwtFigure::removeWidget(QWidget* widget)
  * @note Disable the FunResizePlot mode of QwtFigureWidgetOverlay (or make the overlay
  *       transparent for mouse events) while the grid is editable: the overlay covers
  *       the whole figure and would swallow the events of the plots.
+ * @note Qt invokes the event filters of a widget in reverse installation order: the
+ *       filter installed last runs first. The splitter filters must therefore be
+ *       installed last - install the filters of the host (canvas pickers, drag
+ *       handlers, ...) before calling setGridEditable(true). When the host installs
+ *       a filter on a canvas afterwards, call setGridEditable(true) again: enabling
+ *       an already enabled splitter re-scans and re-installs its filters, which puts
+ *       them back in front of the host filters.
  * @sa isGridEditable(), enableGrid(), QwtFigureGridSplitter
  */
 void QwtFigure::setGridEditable(bool on)

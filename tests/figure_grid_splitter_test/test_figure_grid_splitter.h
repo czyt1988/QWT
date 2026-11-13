@@ -40,6 +40,9 @@ private Q_SLOTS:
     void testFinishedEmittedExactlyOnceAndOnlyWhenChanged();
     void testEscapeRestoresOriginalSizes();
     void testUpdatesDisabledWhileDragging();
+    void testWindowDeactivateCancelsDrag();
+    void testUngrabMouseCancelsDrag();
+    void testDragSurvivesConsumingCanvasFilter();
     void testEventsOutsideBandAreNotConsumed();
     void testCanvasEventsInBandAreConsumed();
     void testDisabledSplitterPassesEverything();
@@ -60,6 +63,8 @@ private:
     bool releaseAt(const QPoint& pos);
     // Sends a synthetic Esc key press to receiver
     bool escape();
+    // Sends a plain event of the given type to receiver
+    bool sendSimpleEvent(QWidget* receiver, QEvent::Type type);
 
     double columnAt(int index) const;
     double rowAt(int index) const;

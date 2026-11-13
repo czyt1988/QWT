@@ -36,6 +36,12 @@ class QwtFigure;
  * once, but only when the ratios really changed. Pressing Esc cancels the drag:
  * the original ratios are restored and no finished signal is emitted.
  *
+ * The drag grabs the mouse on the figure, so the release always returns to the
+ * splitter even when a filter installed after this one (Qt invokes the event
+ * filters in reverse installation order) consumes the move/release of the
+ * canvas. When the grab is lost (QEvent::UngrabMouse) or the window is
+ * deactivated, the drag ends as if Esc was pressed.
+ *
  * The split cursor is applied to the widget the mouse is really over (the
  * canvas of a plot, not the plot itself), together with its original
  * WA_SetCursor state, so it stays visible even when the canvas has a cursor
