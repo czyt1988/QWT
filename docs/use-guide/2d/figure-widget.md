@@ -63,6 +63,41 @@ QwtPlot* bottomLeftPlot = new QwtPlot;
 figure->addAxes(bottomLeftPlot, 2, 2, 1, 0);
 ```
 
+#### Retained Grid Layout with Draggable Dividers
+
+The grid form above converts a cell to a fixed normalized rectangle once, so the ratios cannot be changed later. The retained grid keeps the row/column track ratios and the member registrations instead, and it is the layout model behind interactive resizing:
+
+```cpp
+// Enable a 2x2 retained grid and register the members by grid position
+figure->enableGrid(2, 2);
+
+figure->grid()->setRowSizes({ 0.56, 0.44 });     // normalized row ratios
+figure->grid()->setColumnSizes({ 0.50, 0.50 });  // normalized column ratios
+figure->grid()->setSpacing(0.01, 0.01);          // optional gap between the cells
+
+figure->addAxes(wavePlot, 0, 0, 1, 2);  // row 0, columns 0-1
+figure->addAxes(specPlot, 1, 0);
+figure->addAxes(heatmapPlot, 1, 1);
+
+// A non-plot member (for example a 3D plot widget) is registered the same way
+figure->addGridItem(waterfall3D, 1, 1);
+
+// Make the dividers between the tracks draggable
+figure->setGridEditable(true);
+```
+
+With grid editing enabled `QwtFigureGridSplitter` installs event filters on the figure and on the widgets that cover the cells. Only the events inside a narrow band around a divider are consumed; everything else is passed through unchanged, so zooming, panning, picking and hovering keep working:
+
+- a divider is hit within `QwtFigureGridSplitter::setHitWidth()` pixels (4 by default). The cursor becomes `Qt::SplitHCursor` for a vertical divider line between two columns and `Qt::SplitVCursor` for a horizontal divider line between two rows
+- dragging changes only the ratio of the two adjacent tracks. The pair sum is preserved and both tracks are clamped by `QwtFigureGrid::minimumTrackPixels()` (40 pixels by default), so no track collapses and the tracks never overlap
+- while dragging, the member widgets stop repainting; on release they repaint again and the figure is replotted
+- `QwtFigureGrid::sizesChanged()` (forwarded as `QwtFigure::gridSizesChanged()`) is emitted continuously during the drag for previews. `QwtFigureGrid::sizesChangeFinished()` (forwarded as `QwtFigure::gridSizesChangeFinished()`) is emitted exactly once on release and only when the ratios really changed; connect it to push a single undo command for the whole drag
+- pressing `Esc` while dragging restores the original ratios and emits no finished signal
+- `QOpenGLWidget` members (3D plots) are never intercepted: the boundary of a 3D cell is served by the adjacent 2D plot. Parasite axes are transparent for mouse events, so their boundary is served by the host plot
+- the grid splitter and `QwtFigureWidgetOverlay` must not be active at the same time. The overlay covers the whole figure and swallows the mouse events of the plots, so disable its `FunResizePlot` mode (or make the overlay transparent for mouse events) while the grid is editable
+
+`setGridEditable(true)` requires an enabled grid; otherwise it logs a warning and `isGridEditable()` stays false. The toolbar of `examples/2D/figure` has a "Grid layout (draggable)" action that switches the demo to a 2x2 retained grid.
+
 ### Setting Figure Appearance
 
 The overall look of a figure is controlled by four `QwtFigure` methods: `setFaceColor()` fills the background with a solid color, `setFaceBrush()` accepts any `QBrush` (for example a `QLinearGradient` for a gradient background), and `setEdgeColor()` together with `setEdgeLineWidth()` draws the border:

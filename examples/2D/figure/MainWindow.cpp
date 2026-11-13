@@ -12,6 +12,7 @@
 #include "qwt_plot_grid.h"
 #include "qwt_scale_widget.h"
 #include "qwt_figure.h"
+#include "qwt_figure_grid.h"
 #include "qwt_figure_widget_overlay.h"
 #include "qwt_scale_engine.h"
 #include "qwt_plot_series_data_picker.h"
@@ -177,19 +178,125 @@ void MainWindow::initFigure(QwtFigure* figure)
     connect(m_pickerLinker, &QwtPlotSeriesDataPickerGroup::clicked,
             this, &MainWindow::onPickerGroupClicked);
 
-    // Create info label at the bottom
-    m_clickInfoLabel = new QLabel("Click on a curve to see data");
-    m_clickInfoLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    m_clickInfoLabel->setStyleSheet("QLabel { background-color: #f0f0f0; padding: 4px; border: 1px solid #ccc; }");
-    m_clickInfoLabel->setMinimumHeight(30);
+    // Create info label at the bottom (created once, the figure can be rebuilt)
+    if (!m_clickInfoLabel) {
+        m_clickInfoLabel = new QLabel("Click on a curve to see data");
+        m_clickInfoLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        m_clickInfoLabel->setStyleSheet("QLabel { background-color: #f0f0f0; padding: 4px; border: 1px solid #ccc; }");
+        m_clickInfoLabel->setMinimumHeight(30);
 
-    // Add the info label to the main layout (after figure)
-    // Find the parent layout that contains the figure
-    if (QWidget* central = this->centralWidget()) {
-        if (QVBoxLayout* mainLayout = qobject_cast<QVBoxLayout*>(central->layout())) {
-            mainLayout->addWidget(m_clickInfoLabel);
+        // Add the info label to the main layout (after figure)
+        // Find the parent layout that contains the figure
+        if (QWidget* central = this->centralWidget()) {
+            if (QVBoxLayout* mainLayout = qobject_cast< QVBoxLayout* >(central->layout())) {
+                mainLayout->addWidget(m_clickInfoLabel);
+            }
         }
+    } else {
+        m_clickInfoLabel->setText("Click on a curve to see data");
     }
+}
+
+/**
+ * @brief Build the 2x2 retained grid demo with draggable dividers
+ * @details The layout mirrors the default signal analysis layout: one plot spanning
+ *          the top row and two analysis plots below. The dividers between the tracks
+ *          can be dragged once setGridEditable(true) has been called.
+ */
+void MainWindow::initGridDemoFigure(QwtFigure* figure)
+{
+    figure->setFaceColor(Qt::white);
+
+    if (!figure->enableGrid(2, 2)) {
+        return;
+    }
+
+    QwtFigureGrid* grid = figure->grid();
+    // Tall waveform on top, two analysis plots below
+    grid->setRowSizes(QVector< qreal >() << 0.56 << 0.44);
+    grid->setColumnSizes(QVector< qreal >() << 0.50 << 0.50);
+    // A visible gap between the cells makes the divider band easy to grab
+    grid->setSpacing(0.01, 0.01);
+
+    // Top row: one plot spanning both columns
+    QwtPlot* wavePlot       = new QwtPlot();
+    QwtPlotCurve* waveCurve = new QwtPlotCurve("Waveform");
+    waveCurve->setSamples(generateSampleData(400, 1.0, 1.0));
+    waveCurve->setRenderHint(QwtPlotItem::RenderAntialiased, true);
+    waveCurve->attach(wavePlot);
+    setupPlotStyle(wavePlot, "Draggable grid: waveform (row 0, columns 0-1)", QColor(52, 152, 219));
+    figure->addAxes(wavePlot, 0, 0, 1, 2);
+
+    // Bottom-left: log X sample data
+    QwtPlot* logPlot       = new QwtPlot();
+    QwtPlotCurve* logCurve = new QwtPlotCurve("Log X");
+    logCurve->setSamples(generateLogXSampleData(200, 2.0));
+    logCurve->setRenderHint(QwtPlotItem::RenderAntialiased, true);
+    logCurve->attach(logPlot);
+    setupPlotStyle(logPlot, "Draggable grid: log X (row 1, column 0)", QColor(46, 204, 113));
+    figure->addAxes(logPlot, 1, 0);
+
+    // Bottom-right: exponential sample data
+    QwtPlot* expPlot       = new QwtPlot();
+    QwtPlotCurve* expCurve = new QwtPlotCurve("Exponential");
+    expCurve->setSamples(generateExponentialData(200, 1.0));
+    expCurve->setRenderHint(QwtPlotItem::RenderAntialiased, true);
+    expCurve->attach(expPlot);
+    setupPlotStyle(expPlot, "Draggable grid: exponential (row 1, column 1)", QColor(231, 76, 60));
+    figure->addAxes(expPlot, 1, 1);
+
+    figure->replotAll();
+
+    // The splitter is owned by the figure; it only works while the overlay does not
+    // swallow the mouse events (see onActionGridDemoTriggered)
+    figure->setGridEditable(true);
+
+    if (m_clickInfoLabel) {
+        m_clickInfoLabel->setText(tr("Drag the divider between the plots to resize the cells; press Esc to cancel"));
+    }
+}
+
+/**
+ * @brief Replace the current figure with a freshly built demo
+ * @details The grid demo and the classic demo use different layout models (retained
+ *          grid tracks vs. fixed normalized rectangles), so switching rebuilds the
+ *          whole figure instead of re-registering the members on a used model.
+ * @param gridDemo True for the 2x2 draggable grid demo, false for the classic demo
+ */
+void MainWindow::rebuildFigure(bool gridDemo)
+{
+    // The overlay is a child of the figure: drop the pointer before the figure goes away
+    if (m_figureOverlay) {
+        m_figureOverlay->hide();
+        m_figureOverlay = nullptr;
+    }
+    if (m_pickerLinker) {
+        delete m_pickerLinker;
+        m_pickerLinker = nullptr;
+    }
+
+    QwtFigure* oldFigure = m_figure;
+    m_figure             = new QwtFigure(ui->centralwidget);
+    m_gridDemo           = gridDemo;
+
+    if (gridDemo) {
+        initGridDemoFigure(m_figure);
+    } else {
+        initFigure(m_figure);
+    }
+
+    if (QVBoxLayout* mainLayout = qobject_cast< QVBoxLayout* >(ui->centralwidget->layout())) {
+        mainLayout->insertWidget(0, m_figure);
+    }
+
+    // The overlay is the editor of the normalized rectangle layout, it must not be
+    // used while the retained grid tracks drive the layout
+    if (m_actionResize) {
+        m_actionResize->setEnabled(!gridDemo);
+    }
+
+    oldFigure->hide();
+    oldFigure->deleteLater();
 }
 
 void MainWindow::setupPlotStyle(QwtPlot* plot, const QString& title, const QColor& color)
@@ -354,6 +461,22 @@ void MainWindow::onActionResizeTriggered(bool on)
              << ",isVisible:" << m_figureOverlay->isVisible() << ",isEnable:" << m_figureOverlay->isEnabled();
 }
 
+void MainWindow::onActionGridDemoTriggered(bool on)
+{
+    if (on) {
+        // The overlay covers the whole figure and would swallow the events of the
+        // plots, so the grid splitter could never see the divider bands
+        if (m_actionResize && m_actionResize->isChecked()) {
+            m_actionResize->setChecked(false);
+            onActionResizeTriggered(false);
+        }
+        if (m_figureOverlay) {
+            m_figureOverlay->setTransparentForMouseEvents(true);
+        }
+    }
+    rebuildFigure(on);
+}
+
 void MainWindow::createToolBar()
 {
     QAction* actionSave = new QAction(tr("Save"), this);
@@ -368,13 +491,18 @@ void MainWindow::createToolBar()
         qDebug() << "All plots cleared";
     });
 
-    QAction* actionResize = new QAction(tr("Resize"), this);
-    actionResize->setCheckable(true);
-    connect(actionResize, &QAction::triggered, this, &MainWindow::onActionResizeTriggered);
+    m_actionResize = new QAction(tr("Resize"), this);
+    m_actionResize->setCheckable(true);
+    connect(m_actionResize, &QAction::triggered, this, &MainWindow::onActionResizeTriggered);
+
+    m_actionGridDemo = new QAction(tr("Grid layout (draggable)"), this);
+    m_actionGridDemo->setCheckable(true);
+    connect(m_actionGridDemo, &QAction::triggered, this, &MainWindow::onActionGridDemoTriggered);
 
     ui->toolBar->addAction(actionSave);
     ui->toolBar->addAction(actionClear);
-    ui->toolBar->addAction(actionResize);
+    ui->toolBar->addAction(m_actionResize);
+    ui->toolBar->addAction(m_actionGridDemo);
 }
 
 QVector< QPointF > MainWindow::generateSampleData(int count, double amplitude, double frequency)

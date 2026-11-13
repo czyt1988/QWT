@@ -1,5 +1,17 @@
 ## Unreleased
 
+### 新功能
+
+- **`QwtFigure` 支持保留式网格布局与可拖拽分隔条**
+    - `QwtFigureGrid` 是保留式网格模型：保存行/列轨道比例、间距（`setSpacing()`）以及成员的 `(行, 列, 行跨度, 列跨度)` 登记，按需计算归一化单元格矩形，窗口缩放后比例保持不变
+    - `QwtFigure::enableGrid()` 创建并启用模型，`addAxes(plot, row, col, rowSpan, colSpan)` 与 `addGridItem()` 登记成员，`removeWidget()` 取消登记；原有的归一化坐标成员可与网格成员共存
+    - `QwtFigureGridSplitter` 让分隔条可拖拽：`QwtFigure::setGridEditable(true)` 启用，它只拦截分隔条 ±4 像素窄带内的事件（`setHitWidth()` 可调），不使用覆盖整窗的蒙版，因此缩放、平移、拾取、悬停不受影响；光标切换为 `SplitHCursor`/`SplitVCursor`，拖动只改变相邻两条轨道比例并受 `minimumTrackPixels()`（默认 40 像素）约束，拖动中暂停成员重绘，`Esc` 取消并恢复原比例
+    - `gridSizesChanged()` 汇报拖动中的比例；`gridSizesChangeFinished()` 只在松手且比例确实变化时发出一次，DA 层可据此为整次拖动压入一条撤销命令。3D（`QOpenGLWidget`）成员不会被拦截：3D 单元格的边界由相邻的 2D 绘图一侧负责命中
+    - `tests/figure_grid_test`、`tests/figure_grid_layout_test`、`tests/figure_grid_splitter_test` 覆盖轨道数学、布局集成与交互行为（命中带、只改目标方向、最小轨道 clamp、完成信号次数、Esc、重绘开关、带外放行）
+- **`examples/2D/figure`：可拖拽网格演示**
+    - 工具栏新增「Grid layout (draggable)」动作，切换到 2x2 保留式网格（波形占顶行，下方两个分析图）并可拖动分隔条；切回时重建经典演示。网格可编辑期间禁用子图蒙版，避免它吞掉分隔条事件
+- **文档**：figure 使用指南（中英）新增「保留式网格布局与可拖拽分隔条」章节
+
 ### Bug 修复
 
 - 修复非整数显示缩放（125%、150%、175%）下调整窗口宽度时，右侧轴线宽度在笔宽与两倍笔宽之间跳变的问题（例如笔宽 2 时在 2 与 4 个设备像素之间变化）：`QwtPlotCanvas` 的 backing store 尺寸为 `qRound( size * ratio )` 个设备像素，并在逻辑原点绘制；而 Qt 对绘制区域的两条边分别取整，画布覆盖的设备像素数取决于其位置，可能比 pixmap 多出一列/一行。画布是不透明的，没有任何绘制会覆盖这一列，它保留的是窗口的旧内容——通常就是缩放前紧贴画布的右侧轴线，于是轴线看起来变宽一倍。现在只要 painter 的设备变换是纯粹的等比缩放，backing store 就按画布实际覆盖的设备像素区域分配，并在设备坐标下 1:1 贴图；其他变换保持原有路径。整数缩放不受影响

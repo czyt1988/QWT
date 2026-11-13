@@ -1,5 +1,17 @@
 ## Unreleased
 
+### New Features
+
+- **Retained grid layout and draggable dividers in `QwtFigure`**
+    - `QwtFigureGrid` is a retained grid model: it owns the row/column track ratios, the gap (`setSpacing()`) and the `(row, column, rowSpan, columnSpan)` registration of its members, and computes the normalized cell rectangles on demand, so the proportions survive resizes
+    - `QwtFigure::enableGrid()` creates/enables the model, `addAxes(plot, row, col, rowSpan, colSpan)` and `addGridItem(widget, ...)` register members, `removeWidget()` unregisters them, and the existing normalized-coordinate members keep working next to grid members
+    - `QwtFigureGridSplitter` makes the dividers draggable: `QwtFigure::setGridEditable(true)` installs it, and it only consumes the mouse events inside a ± 4 pixel band around a divider (`setHitWidth()`) instead of covering the figure with an overlay, so zooming, panning, picking and hovering keep working. The cursor switches to `SplitHCursor`/`SplitVCursor`, a drag changes only the two adjacent tracks, clamped by `minimumTrackPixels()` (40 pixels by default), the member repaints are suspended while dragging, and `Esc` cancels the drag and restores the ratios
+    - `gridSizesChanged()` reports the intermediate ratios, `gridSizesChangeFinished()` is emitted exactly once on release and only when the ratios really changed, so the DA layer can push one undo command per drag. 3D (`QOpenGLWidget`) members are never intercepted: the boundary of a 3D cell is served by the adjacent 2D plot
+    - `tests/figure_grid_test`, `tests/figure_grid_layout_test` and `tests/figure_grid_splitter_test` cover the track math, the layout integration and the interaction (hit band, column-only drag, minimum track clamp, finished signal count, Esc, disabled repaints, pass-through outside the band)
+- **`examples/2D/figure`: draggable grid demo**
+    - A new "Grid layout (draggable)" toolbar action switches the demo to a 2x2 retained grid (waveform spanning the top row, two analysis plots below) with editable dividers; switching back rebuilds the classic demo. The sub plot overlay is disabled while the grid is editable so it does not swallow the divider events
+- **Documentation**: "Retained Grid Layout with Draggable Dividers" section in the figure widget use guide (EN/CN)
+
 ### Bug Fixes
 
 - Fixed the right axis backbone flickering between its pen width and twice that width while resizing the window at fractional display scaling ( 125 %, 150 %, 175 % ), f.e. 2 and 4 device pixels at a pen width of 2: the backing store of `QwtPlotCanvas` was `qRound( size * ratio )` device pixels and was drawn at the logical origin, but Qt rounds both edges of the paint region independently, so the device footprint of the canvas depends on its position and can be one column/row larger than the pixmap. The canvas is opaque, so nothing painted the uncovered column - it kept stale window content, typically the backbone of the right axis from before the resize, which sits right beside the canvas and doubled its visible width. The backing store is now sized to the device footprint of the canvas and blitted 1:1 in device coordinates whenever the painter maps by a pure uniform scale; other transformations keep the previous path. Integer scaling is unaffected
