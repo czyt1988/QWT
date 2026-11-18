@@ -36,6 +36,7 @@ private Q_SLOTS:
     void testCursorAppliedToCanvasNotCell();
     void testPressOutsideBandDoesNotStartDrag();
     void testDragChangesOnlyColumnTracks();
+    void testDragRelayoutsImmediately();
     void testMinimumTrackClamp();
     void testFinishedEmittedExactlyOnceAndOnlyWhenChanged();
     void testEscapeRestoresOriginalSizes();

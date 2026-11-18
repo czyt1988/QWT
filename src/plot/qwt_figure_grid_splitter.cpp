@@ -506,11 +506,11 @@ void QwtFigureGridSplitter::PrivateData::dragTo(const QPoint& figurePos)
         figureGrid->setRowSizes(originalSizes);
     }
 
-    // Re-apply the geometries immediately: the member widgets have their
-    // repaints disabled, so the layout must not wait for an update request.
-    if (QLayout* lay = figure->layout()) {
-        lay->setGeometry(figure->rect());
-    }
+    // No explicit relayout here: QwtFigure connects QwtFigureGrid::sizesChanged
+    // to a synchronous layout pass, so the members already have their new
+    // geometry when setColumnSizes()/setRowSizes() returns. Re-applying the
+    // layout here would run the whole figure layout twice per mouse move, which
+    // is what made drags of large figures feel sluggish.
 
     // Keep the split cursor while the mouse is captured far away from the start
     QWidget* target = cursorTargetAt(figurePos);

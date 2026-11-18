@@ -280,6 +280,36 @@ void TestFigureGridSplitter::testDragChangesOnlyColumnTracks()
 }
 
 /**
+ * @brief The members follow the new ratios immediately, within the move event
+ *
+ * The splitter relies on the synchronous layout pass of QwtFigure that is driven
+ * by QwtFigureGrid::sizesChanged(); it must not need a second explicit layout or
+ * another event loop iteration to preview the drag.
+ */
+void TestFigureGridSplitter::testDragRelayoutsImmediately()
+{
+    const int dividerX    = qRound(0.5 * m_figure->width());
+    const int midY        = qRound(0.5 * m_figure->height()) / 2;
+    const int deltaPixels = 40;
+    const int width       = m_figure->width();
+
+    // Equal columns before the drag
+    QCOMPARE(m_bottomLeftPlot->geometry().width(), qRound(0.5 * width));
+    QCOMPARE(m_bottomRightPlot->geometry().left(), qRound(0.5 * width));
+
+    QVERIFY(pressAt(QPoint(dividerX, midY)));
+    QVERIFY(dragTo(QPoint(dividerX + deltaPixels, midY)));
+
+    // Done inside the move: no release, no processEvents() in between
+    QCOMPARE(m_bottomLeftPlot->geometry().width(), qRound(columnAt(0) * width));
+    QCOMPARE(m_bottomLeftPlot->geometry().right() + 1, m_bottomRightPlot->geometry().left());
+    QCOMPARE(m_bottomRightPlot->geometry().right() + 1, width);
+
+    QVERIFY(releaseAt(QPoint(dividerX + deltaPixels, midY)));
+    QVERIFY(!m_splitter->isDragging());
+}
+
+/**
  * @brief A drag cannot collapse a track below grid()->minimumTrackPixels()
  */
 void TestFigureGridSplitter::testMinimumTrackClamp()
