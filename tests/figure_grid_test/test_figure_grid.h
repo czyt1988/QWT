@@ -16,6 +16,7 @@ private Q_SLOTS:
     void testNormRectSingleCells();
     void testNormRectSpans();
     void testNormRectSpacing();
+    void testSpacingGetters();
     void testNormRectInvalid();
     void testAddRemoveItems();
     void testItemDestroyed();

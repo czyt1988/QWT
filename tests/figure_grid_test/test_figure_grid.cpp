@@ -218,6 +218,38 @@ void TestFigureGrid::testNormRectSpacing()
     QVERIFY(fuzzyRectEqual(grid.normRectFor(0, 1), QRectF(0.35, 0.0, 0.65, 0.5)));
 }
 
+/**
+ * @brief The spacing getters report the retained gap values
+ */
+void TestFigureGrid::testSpacingGetters()
+{
+    QwtFigureGrid grid;
+
+    // No gap by default, on a disabled and on an enabled grid
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.0));
+    QVERIFY(fuzzyEqual(grid.hspace(), 0.0));
+    grid.setup(2, 2);
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.0));
+    QVERIFY(fuzzyEqual(grid.hspace(), 0.0));
+
+    // Values set through setSpacing() come back unchanged
+    grid.setSpacing(0.125, 0.25);
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.125));
+    QVERIFY(fuzzyEqual(grid.hspace(), 0.25));
+
+    // The getters report the state the geometry is computed from
+    QVERIFY(fuzzyRectEqual(grid.normRectFor(0, 1), QRectF(0.625, 0.0, 0.375, 0.5)));
+    QVERIFY(fuzzyRectEqual(grid.normRectFor(1, 0), QRectF(0.0, 0.75, 0.5, 0.25)));
+
+    // A rejected request leaves the getters on the previous values
+    grid.setSpacing(-0.1, 0.5);
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.125));
+    QVERIFY(fuzzyEqual(grid.hspace(), 0.25));
+    grid.setSpacing(0.5, qInf());
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.125));
+    QVERIFY(fuzzyEqual(grid.hspace(), 0.25));
+}
+
 void TestFigureGrid::testNormRectInvalid()
 {
     QwtFigureGrid grid;

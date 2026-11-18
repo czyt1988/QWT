@@ -319,6 +319,26 @@ void QwtFigureGrid::setSpacing(qreal wspace, qreal hspace)
 }
 
 /**
+ * @brief Horizontal gap between adjacent columns
+ * @return The normalized gap set by setSpacing(), 0 by default
+ */
+qreal QwtFigureGrid::wspace() const
+{
+    QWT_DC(d);
+    return d->m_wspace;
+}
+
+/**
+ * @brief Vertical gap between adjacent rows
+ * @return The normalized gap set by setSpacing(), 0 by default
+ */
+qreal QwtFigureGrid::hspace() const
+{
+    QWT_DC(d);
+    return d->m_hspace;
+}
+
+/**
  * @brief Set the minimum extent of a track in pixels
  *
  * Used by the splitter to clamp a drag so that no track collapses completely.

@@ -57,6 +57,8 @@ public:
     void setRowSizes(const QVector< qreal >& sizes);     // Set the row ratios (normalized on input)
     void setColumnSizes(const QVector< qreal >& sizes);  // Set the column ratios (normalized on input)
     void setSpacing(qreal wspace, qreal hspace);         // Gap between tracks, normalized
+    qreal wspace() const;                                // Horizontal gap between columns, normalized
+    qreal hspace() const;                                // Vertical gap between rows, normalized
     void setMinimumTrackPixels(int px);                  // Minimum track extent while dragging
     int minimumTrackPixels() const;                      // Minimum track extent while dragging
 
