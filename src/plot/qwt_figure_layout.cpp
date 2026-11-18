@@ -454,24 +454,35 @@ QRectF QwtFigureLayout::calcNormRect(const QRect& parentRect, const QRect& rect)
  * @if ENGLISH
  * @brief Calculate actual rectangle from normalized coordinates
  *
+ * Both edges are rounded from the accumulated normalized position
+ * ( left and left + width ), and the pixel extent is derived from the two
+ * rounded edges instead of being rounded on its own. Neighbouring cells that
+ * share an edge therefore land on exactly the same pixel: the right edge of a
+ * cell equals the left edge of the next one and no one pixel seam appears
+ * between them.
+ *
  * @param parentRect Parent window size
  * @param normRect Normalized rectangle
- * @return Actual rectangle in pixel coordinates
+ * @return Actual rectangle in pixel coordinates, always inside parentRect
  */
 QRect QwtFigureLayout::calcActualRect(const QRect& parentRect, const QRectF& normRect)
 {
-    const qreal availableWidth  = parentRect.width();
-    const qreal availableHeight = parentRect.height();
-    const qreal actualLeft      = qRound(normRect.left() * availableWidth);
-    const qreal actualTop       = qRound(normRect.top() * availableHeight);
-    const qreal actualWidth     = qRound(normRect.width() * availableWidth);
-    const qreal actualHeight    = qRound(normRect.height() * availableHeight);
+    const int availableWidth  = parentRect.width();
+    const int availableHeight = parentRect.height();
+
+    // Cumulative sum rounding: round the two edges of the interval, not the
+    // normalized origin and extent independently
+    const int left   = qRound(normRect.left() * availableWidth);
+    const int top    = qRound(normRect.top() * availableHeight);
+    const int right  = qRound((normRect.left() + normRect.width()) * availableWidth);
+    const int bottom = qRound((normRect.top() + normRect.height()) * availableHeight);
 
     // Ensure the rect is within valid bounds
-    return QRect(qMax(0.0, actualLeft),
-                 qMax(0.0, actualTop),
-                 qMin(actualWidth, availableWidth - actualLeft),
-                 qMin(actualHeight, availableHeight - actualTop));
+    const int x      = qMax(0, left);
+    const int y      = qMax(0, top);
+    const int width  = qMax(0, qMin(right, availableWidth) - x);
+    const int height = qMax(0, qMin(bottom, availableHeight) - y);
+    return QRect(x, y, width, height);
 }
 
 /**

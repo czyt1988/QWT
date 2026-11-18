@@ -15,6 +15,7 @@
 // Qwt
 #include "qwt_figure.h"
 #include "qwt_figure_grid.h"
+#include "qwt_figure_layout.h"
 #include "qwt_plot.h"
 
 /**
@@ -141,6 +142,66 @@ void TestFigureGridLayout::testResizeKeepsRatios()
 
     figure.removeWidget(plot);
     delete plot;
+}
+
+/**
+ * @brief Neighbouring cells share their rounded edges, so no 1 pixel seam appears
+ *
+ * The pixel extents are derived from the rounded accumulated edges instead of
+ * being rounded independently: the right edge of a cell is the left edge of the
+ * next one and the extents add up to the available width/height.
+ */
+void TestFigureGridLayout::testCumulativeEdgeRounding()
+{
+    QwtFigure figure;
+    QVERIFY(figure.enableGrid(1, 3));
+
+    QwtPlot* first  = new QwtPlot;
+    QwtPlot* second = new QwtPlot;
+    QwtPlot* third  = new QwtPlot;
+    figure.addAxes(first, 0, 0);
+    figure.addAxes(second, 0, 1);
+    figure.addAxes(third, 0, 2);
+
+    // Equal 1/3 tracks over a width that is not divisible by 3
+    layoutFigure(&figure, 400, 300);
+    QCOMPARE(first->geometry().left(), 0);
+    QCOMPARE(first->geometry().right() + 1, second->geometry().left());
+    QCOMPARE(second->geometry().right() + 1, third->geometry().left());
+    QCOMPARE(third->geometry().right() + 1, 400);
+    QCOMPARE(first->geometry().width() + second->geometry().width() + third->geometry().width(), 400);
+
+    // Custom non-integral ratios: the edges are still shared and the widths add up
+    figure.grid()->setColumnSizes({ 0.2, 0.3, 0.5 });
+    layoutFigure(&figure, 333, 300);
+    QCOMPARE(first->geometry().left(), 0);
+    QCOMPARE(first->geometry().right() + 1, second->geometry().left());
+    QCOMPARE(second->geometry().right() + 1, third->geometry().left());
+    QCOMPARE(third->geometry().right() + 1, 333);
+    QCOMPARE(first->geometry().width() + second->geometry().width() + third->geometry().width(), 333);
+
+    // The same cumulative rule applies to the Y axis
+    QwtFigureLayout* lay = qobject_cast< QwtFigureLayout* >(figure.layout());
+    QVERIFY(lay);
+    const QRect parent(0, 0, 400, 301);
+    const QRect topCell    = lay->calcActualRect(parent, QRectF(0.0, 0.0, 1.0, 1.0 / 3.0));
+    const QRect middleCell = lay->calcActualRect(parent, QRectF(0.0, 1.0 / 3.0, 1.0, 1.0 / 3.0));
+    const QRect bottomCell = lay->calcActualRect(parent, QRectF(0.0, 2.0 / 3.0, 1.0, 1.0 / 3.0));
+    QCOMPARE(topCell.top(), 0);
+    QCOMPARE(topCell.bottom() + 1, middleCell.top());
+    QCOMPARE(middleCell.bottom() + 1, bottomCell.top());
+    QCOMPARE(bottomCell.bottom() + 1, 301);
+    // The resulting rects stay inside the parent rect
+    QCOMPARE(topCell, QRect(0, 0, 400, 100));
+    QCOMPARE(middleCell, QRect(0, 100, 400, 101));
+    QCOMPARE(bottomCell, QRect(0, 201, 400, 100));
+
+    figure.removeWidget(first);
+    figure.removeWidget(second);
+    figure.removeWidget(third);
+    delete first;
+    delete second;
+    delete third;
 }
 
 /**

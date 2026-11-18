@@ -18,6 +18,7 @@ private Q_SLOTS:
     void testEnableGrid();
     void testGridGeometry();
     void testResizeKeepsRatios();
+    void testCumulativeEdgeRounding();
     void testGridAndFreeMembers();
     void testTrackSizesRelayout();
     void testRemoveWidget();
