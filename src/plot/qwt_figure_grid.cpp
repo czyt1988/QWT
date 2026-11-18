@@ -299,6 +299,12 @@ void QwtFigureGrid::setColumnSizes(const QVector< qreal >& sizes)
  * Both values are normalized (the same unit as the track ratios). Negative or
  * non-finite values are rejected with a warning and the state is left unchanged.
  *
+ * The gaps must also leave room for the tracks themselves: a request with
+ * (trackCount - 1) * gap >= 1 leaves no space for the last track, which would be
+ * clamped to a zero extent and silently collapse the layout. Such a request is
+ * rejected (with a warning and unchanged state) instead of being clamped, so a
+ * misbehaving caller stays visible in the log.
+ *
  * @param wspace Horizontal gap between columns
  * @param hspace Vertical gap between rows
  */
@@ -307,6 +313,17 @@ void QwtFigureGrid::setSpacing(qreal wspace, qreal hspace)
     QWT_D(d);
     if (!std::isfinite(wspace) || !std::isfinite(hspace) || wspace < 0.0 || hspace < 0.0) {
         qWarning() << "QwtFigureGrid::setSpacing: spacing must be finite and non-negative, got" << wspace << hspace;
+        return;
+    }
+    // A single track has no gap, so the bound only applies from two tracks on
+    if (d->m_columnCount > 1 && wspace * (d->m_columnCount - 1) >= 1.0) {
+        qWarning() << "QwtFigureGrid::setSpacing: wspace" << wspace << "leaves no room for" << d->m_columnCount
+                   << "column tracks";
+        return;
+    }
+    if (d->m_rowCount > 1 && hspace * (d->m_rowCount - 1) >= 1.0) {
+        qWarning() << "QwtFigureGrid::setSpacing: hspace" << hspace << "leaves no room for" << d->m_rowCount
+                   << "row tracks";
         return;
     }
 
@@ -548,6 +565,10 @@ QRectF QwtFigureGrid::normRectFor(int row, int col, int rowSpan, int colSpan) co
  * divider per row gap (positions along Y). The position is the normalized
  * center of the gap: sum(sizes[0..i]) + i * spacing + spacing / 2.
  *
+ * A large (but still accepted) spacing can push the center of a trailing gap
+ * past the right/bottom edge; the position is clamped to [0, 1] so the hit band
+ * of the splitter always stays inside the figure.
+ *
  * @return Dividers, empty when the grid is disabled or has a single track
  */
 QList< QwtFigureGrid::Divider > QwtFigureGrid::dividers() const
@@ -562,14 +583,16 @@ QList< QwtFigureGrid::Divider > QwtFigureGrid::dividers() const
         Divider divider;
         divider.orientation = Qt::Horizontal;
         divider.index       = i;
-        divider.position    = sumSizes(d->m_columnSizes, 0, i + 1) + i * d->m_wspace + d->m_wspace / 2.0;
+        const qreal centre  = sumSizes(d->m_columnSizes, 0, i + 1) + i * d->m_wspace + d->m_wspace / 2.0;
+        divider.position    = qBound(0.0, centre, 1.0);
         result.append(divider);
     }
     for (int i = 0; i < d->m_rowCount - 1; ++i) {
         Divider divider;
         divider.orientation = Qt::Vertical;
         divider.index       = i;
-        divider.position    = sumSizes(d->m_rowSizes, 0, i + 1) + i * d->m_hspace + d->m_hspace / 2.0;
+        const qreal centre  = sumSizes(d->m_rowSizes, 0, i + 1) + i * d->m_hspace + d->m_hspace / 2.0;
+        divider.position    = qBound(0.0, centre, 1.0);
         result.append(divider);
     }
     return result;

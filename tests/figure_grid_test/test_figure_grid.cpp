@@ -422,6 +422,80 @@ void TestFigureGrid::testDividersDisabled()
     QCOMPARE(grid.dividers().size(), 2);
 }
 
+/**
+ * @brief A gap that leaves no room for the tracks is rejected as a whole
+ */
+void TestFigureGrid::testSpacingUpperBoundRejected()
+{
+    QwtFigureGrid grid;
+    grid.setup(2, 2);
+
+    // (2 - 1) * 1.0 >= 1: no room left at all, the request is rejected
+    grid.setSpacing(1.0, 0.0);
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.0));
+    QVERIFY(fuzzyEqual(grid.hspace(), 0.0));
+    QVERIFY(fuzzyRectEqual(grid.normRectFor(0, 1), QRectF(0.5, 0.0, 0.5, 0.5)));
+
+    // Just below the bound is accepted; the trailing cell is narrowed by the
+    // clamp of normRectFor(), which is the documented behavior
+    grid.setSpacing(0.999, 0.0);
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.999));
+    QVERIFY(fuzzyRectEqual(grid.normRectFor(0, 0), QRectF(0.0, 0.0, 0.5, 0.5)));
+
+    // A moderate gap leaves every cell usable
+    grid.setSpacing(0.2, 0.0);
+    QVERIFY(fuzzyRectEqual(grid.normRectFor(0, 1), QRectF(0.7, 0.0, 0.3, 0.5)));
+
+    // A rejected request keeps the previous value, a later legal request applies
+    grid.setSpacing(1.5, 0.0);
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.2));
+    grid.setSpacing(0.05, 0.05);
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.05));
+    QVERIFY(fuzzyEqual(grid.hspace(), 0.05));
+
+    // With three tracks the bound is 0.5: both values are validated before any
+    // assignment, so a rejected wspace must not apply the valid hspace either
+    grid.setup(3, 3);
+    grid.setSpacing(0.5, 0.1);
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.05));
+    QVERIFY(fuzzyEqual(grid.hspace(), 0.05));
+    grid.setSpacing(0.49, 0.1);
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.49));
+    QVERIFY(fuzzyEqual(grid.hspace(), 0.1));
+
+    // A single track has no gap, so the bound does not apply there
+    grid.setup(1, 2);
+    grid.setSpacing(0.9, 0.9);
+    QVERIFY(fuzzyEqual(grid.wspace(), 0.9));
+    QVERIFY(fuzzyEqual(grid.hspace(), 0.9));
+}
+
+/**
+ * @brief Divider positions stay inside [0, 1] even for a large accepted gap
+ */
+void TestFigureGrid::testDividersWithinUnitRange()
+{
+    QwtFigureGrid grid;
+    grid.setup(3, 3);
+    // Accepted (2 * 0.49 < 1), but the trailing gap centre is past the edge
+    grid.setSpacing(0.49, 0.49);
+
+    const QList< QwtFigureGrid::Divider > dividers = grid.dividers();
+    QCOMPARE(dividers.size(), 4);
+    for (const QwtFigureGrid::Divider& divider : qwt_as_const(dividers)) {
+        QVERIFY2(divider.position >= 0.0 && divider.position <= 1.0,
+                 qPrintable(QStringLiteral("divider %1 position %2 out of [0, 1]")
+                                .arg(divider.index)
+                                .arg(divider.position)));
+    }
+
+    // Only the overflow is clamped: the leading gaps keep the track math value
+    QVERIFY(fuzzyEqual(dividers.at(0).position, 1.0 / 3.0 + 0.49 / 2.0));
+    QVERIFY(fuzzyEqual(dividers.at(1).position, 1.0));
+    QVERIFY(fuzzyEqual(dividers.at(2).position, 1.0 / 3.0 + 0.49 / 2.0));
+    QVERIFY(fuzzyEqual(dividers.at(3).position, 1.0));
+}
+
 void TestFigureGrid::testSizesChangedSignal()
 {
     QwtFigureGrid grid;

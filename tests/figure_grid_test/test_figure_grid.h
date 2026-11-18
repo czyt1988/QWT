@@ -17,12 +17,14 @@ private Q_SLOTS:
     void testNormRectSpans();
     void testNormRectSpacing();
     void testSpacingGetters();
+    void testSpacingUpperBoundRejected();
     void testNormRectInvalid();
     void testAddRemoveItems();
     void testItemDestroyed();
     void testDividers();
     void testDividersWithSpacing();
     void testDividersDisabled();
+    void testDividersWithinUnitRange();
     void testSizesChangedSignal();
     void testFinishChange();
 };
