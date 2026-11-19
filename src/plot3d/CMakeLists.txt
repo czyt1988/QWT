@@ -33,6 +33,7 @@ set(QWTPLOT3D_HEADER_PLOT_3D
     qwt3d_helper.h
     qwt3d_label.h
     qwt3d_colorlegend.h
+    qwt3d_textbatch.h
     qwt3d_plot.h
     qwt3d_plotitem.h
     qwt3d_surface.h
@@ -73,6 +74,7 @@ set(QWTPLOT3D_SOURCE_PLOT_3D
     qwt3d_line3d.cpp
     qwt3d_waterfall.cpp
     qwt3d_label.cpp
+    qwt3d_textbatch.cpp
     qwt3d_types.cpp
     qwt3d_enrichment_std.cpp
     qwt3d_autoscaler.cpp

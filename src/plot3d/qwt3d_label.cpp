@@ -1,6 +1,7 @@
 #include "qwt3d_label.h"
 
 #include "qwt3d_io_gl2ps.h"
+#include "qwt3d_textbatch.h"
 
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
@@ -83,6 +84,7 @@ public:
     bool m_flagForUpdate;
     float m_ndcZ                     = 0.0f;
     qreal m_fontDpi                  = 0.0;
+    quint64 m_stamp                  = 0;
     QOpenGLTexture* m_texture        = nullptr;
     QOpenGLContext* m_textureContext = nullptr;
     bool m_textureDirty              = true;
@@ -296,6 +298,7 @@ void Qwt3DLabel::update()
 
     d->m_fontDpi      = labelFontDpi();
     d->m_textureDirty = true;
+    ++d->m_stamp;
 
     if (d->m_text.isEmpty()) {
         d->m_buf = QImage();
@@ -438,29 +441,6 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
         return;
     }
 
-    auto* shader = ctx.textShader;
-    if (!shader)
-        return;
-
-    auto* context = QOpenGLContext::currentContext();
-    auto* f       = context->functions();
-
-    // The texture is only rebuilt when the text image or the GL context
-    // changed: creating and uploading a texture for every label on every
-    // frame was the dominant cost of the 3D text rendering.
-    if (d->m_texture == nullptr || d->m_textureContext != context || d->m_textureDirty) {
-        destroyTexture(d->m_texture, d->m_textureContext);
-
-        d->m_texture = new QOpenGLTexture(d->m_tex);
-        d->m_texture->setMinificationFilter(QOpenGLTexture::Linear);
-        d->m_texture->setMagnificationFilter(QOpenGLTexture::Linear);
-        d->m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
-
-        d->m_textureContext = context;
-        d->m_textureDirty   = false;
-    }
-    QOpenGLTexture* texture = d->m_texture;
-
     // Compute all four quad corners via screen-to-world conversion.
     // m_beg and m_end are two diagonal corners (BL, TR) in world space,
     // but the other two corners cannot be synthesized by mixing x/y/z
@@ -487,10 +467,47 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
     const QPointF begScreen(std::round(begWorld.x()), std::round(begWorld.y()));
     const QPointF endScreen = begScreen + QPointF(width(), height());
 
-    Triple bl = screenToWorldZ(begScreen);
-    Triple tr = screenToWorldZ(endScreen);
-    Triple tl = screenToWorldZ(QPointF(begScreen.x(), endScreen.y()));
-    Triple br = screenToWorldZ(QPointF(endScreen.x(), begScreen.y()));
+    const Triple bl = screenToWorldZ(begScreen);
+    const Triple tr = screenToWorldZ(endScreen);
+    const Triple tl = screenToWorldZ(QPointF(begScreen.x(), endScreen.y()));
+    const Triple br = screenToWorldZ(QPointF(endScreen.x(), begScreen.y()));
+
+    // Batched path: the quad is collected by the plot and drawn together with
+    // all other labels in one call. Falls back to the per label path when the
+    // atlas has no room left - it grows for the next frame then.
+    if (ctx.textBatch != nullptr) {
+        QRectF uv;
+        if (ctx.textBatch->addLabel(this, d->m_tex, d->m_stamp, uv)) {
+            ctx.textBatch->addQuad(bl, tl, br, tr, uv, m_color);
+            return;
+        }
+    }
+
+    auto* shader = ctx.textShader;
+    if (!shader)
+        return;
+
+    auto* context = QOpenGLContext::currentContext();
+    if (context == nullptr)
+        return;
+
+    auto* f = context->functions();
+
+    // The texture is only rebuilt when the text image or the GL context
+    // changed: creating and uploading a texture for every label on every
+    // frame was the dominant cost of the 3D text rendering.
+    if (d->m_texture == nullptr || d->m_textureContext != context || d->m_textureDirty) {
+        destroyTexture(d->m_texture, d->m_textureContext);
+
+        d->m_texture = new QOpenGLTexture(d->m_tex);
+        d->m_texture->setMinificationFilter(QOpenGLTexture::Linear);
+        d->m_texture->setMagnificationFilter(QOpenGLTexture::Linear);
+        d->m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
+
+        d->m_textureContext = context;
+        d->m_textureDirty   = false;
+    }
+    QOpenGLTexture* texture = d->m_texture;
 
     // Build quad vertices: position(3) + texcoord(2) = 5 floats per vertex
     // Triangle strip order: BL, TL, BR, TR
@@ -513,11 +530,15 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
     shader->setUniformValue("uModelView", ctx.modelView);
     shader->setUniformValue("uProjection", ctx.projection);
     shader->setUniformValue("uTextTexture", 0);
-    shader->setUniformValue("uTextColor",
-                            QVector4D(static_cast< float >(m_color.r),
-                                      static_cast< float >(m_color.g),
-                                      static_cast< float >(m_color.b),
-                                      static_cast< float >(m_color.a)));
+
+    // the color is a vertex attribute; a single label has the same color for
+    // all of its vertices, so a generic attribute value is enough
+    shader->disableAttributeArray(2);
+    shader->setAttributeValue(2,
+                              QVector4D(static_cast< float >(m_color.r),
+                                        static_cast< float >(m_color.g),
+                                        static_cast< float >(m_color.b),
+                                        static_cast< float >(m_color.a)));
 
     texture->bind(0);
 
