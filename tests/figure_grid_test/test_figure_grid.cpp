@@ -94,6 +94,48 @@ void TestFigureGrid::testSetupInvalidCounts()
     QCOMPARE(spy.count(), 2);
 }
 
+void TestFigureGrid::testDisableGrid()
+{
+    QwtFigureGrid grid;
+    QWidget first;
+    QWidget second;
+    grid.setup(2, 2);
+    grid.setColumnSizes({ 1.0, 3.0 });
+    grid.setSpacing(0.02, 0.04);
+    QVERIFY(grid.addItem(&first, 0, 0));
+    QVERIFY(grid.addItem(&second, 1, 1));
+    QSignalSpy spy(&grid, &QwtFigureGrid::sizesChanged);
+
+    grid.disable();
+    QVERIFY(!grid.isEnabled());
+    QCOMPARE(grid.rowCount(), 0);
+    QCOMPARE(grid.columnCount(), 0);
+    QVERIFY(grid.rowSizes().isEmpty());
+    QVERIFY(grid.columnSizes().isEmpty());
+    QCOMPARE(grid.items().size(), 0);
+    QVERIFY(grid.dividers().isEmpty());
+    // Disabling does not pretend the tracks changed: the caller relayouts with the
+    // geometry it froze, so no sizesChanged() may reach the undo/slow-log path.
+    QCOMPARE(spy.count(), 0);
+
+    // Queries and mutations are rejected on a disabled model instead of crashing
+    QVERIFY(!grid.addItem(&first, 0, 0));
+    QVERIFY(!grid.removeItem(&first));
+    QVERIFY(!grid.gridPosition(&first, nullptr, nullptr, nullptr, nullptr));
+    QVERIFY(!grid.normRectFor(0, 0).isValid());
+
+    // Repeated calls are no-ops
+    grid.disable();
+    QVERIFY(!grid.isEnabled());
+
+    // Enabling again starts from equal tracks and no members
+    grid.setup(2, 2);
+    QVERIFY(grid.isEnabled());
+    QCOMPARE(grid.rowSizes().size(), 2);
+    QVERIFY(fuzzyEqual(grid.rowSizes().at(0), 0.5));
+    QCOMPARE(grid.items().size(), 0);
+}
+
 void TestFigureGrid::testMinimumTrackPixels()
 {
     QwtFigureGrid grid;

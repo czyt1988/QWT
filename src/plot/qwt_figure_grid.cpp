@@ -195,6 +195,35 @@ void QwtFigureGrid::setup(int rowCount, int columnCount)
 }
 
 /**
+ * @brief Disable the grid and drop all member registrations
+ *
+ * The model returns to the state it had before setup(): no tracks and no members.
+ * The track ratios and the spacing are discarded, a later setup() starts again
+ * from equal tracks. Calling this on a disabled model is a no-op.
+ *
+ * The member widgets themselves are not touched: the caller (QwtFigure) is
+ * responsible for turning their current geometry into free positions before the
+ * registrations disappear.
+ *
+ * @note sizesChanged() is not emitted: nothing is left to lay out, and the
+ *       caller relayouts the figure with the frozen geometry.
+ */
+void QwtFigureGrid::disable()
+{
+    QWT_D(d);
+    if (!d->m_enabled) {
+        return;
+    }
+
+    d->clearItems();
+    d->m_enabled     = false;
+    d->m_rowCount    = 0;
+    d->m_columnCount = 0;
+    d->m_rowSizes.clear();
+    d->m_columnSizes.clear();
+}
+
+/**
  * @brief Number of row tracks
  * @return Row count, 0 when the grid is disabled
  */

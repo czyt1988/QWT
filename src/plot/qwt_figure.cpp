@@ -1,4 +1,4 @@
-﻿/******************************************************************************
+/******************************************************************************
  * Qwt Widget Library
  * Copyright (C) 2024   ChenZongYan <czy.t@163.com>
  *****************************************************************************/
@@ -293,6 +293,77 @@ bool QwtFigure::enableGrid(int rowCount, int columnCount)
         lay->invalidate();
         lay->activate();
     }
+    return true;
+}
+
+/**
+ * @brief Leave the retained grid layout
+ *
+ * Every member registered in the grid is turned into a free member whose normalized
+ * rectangle is derived from the geometry the layout actually assigned to it, so the
+ * sub plots keep their current position and size and nothing jumps. Members that are
+ * hidden at that moment are converted from their grid cell instead, because their last
+ * pixel geometry may predate a resize of the figure.
+ *
+ * Free members that were never part of the grid are left untouched, so a figure that
+ * mixes both kinds ends up with free members only.
+ *
+ * @return true when a grid was enabled and has been disabled, false when no grid was
+ *         enabled (repeated calls therefore do nothing and report false)
+ *
+ * @note The track ratios and the grid spacing are dropped and the grid member
+ *       registrations are cleared: this is not reversible. Enabling the grid again
+ *       requires the row/column counts and the desired ratios to be supplied again
+ *       (see enableGrid()).
+ * @note The divider interaction is switched off; call setGridEditable(true) again
+ *       after re-enabling the grid.
+ * @sa enableGrid(), QwtFigureGrid::disable()
+ */
+bool QwtFigure::disableGrid()
+{
+    if (!isGridEnabled()) {
+        return false;
+    }
+
+    QwtFigureGrid* g                = m_data->grid.data();
+    QwtFigureLayout* lay            = qobject_cast< QwtFigureLayout* >(layout());
+    const QRect figureRect          = rect();
+    const QList< QWidget* > members = g->items();
+    for (QWidget* w : qwt_as_const(members)) {
+        if (!w) {
+            continue;
+        }
+        // Prefer the geometry currently on screen: freezing the very same pixels keeps
+        // the layout stable when the grid disappears.
+        QRectF normRect;
+        if (lay && w->isVisibleTo(this)) {
+            normRect = QwtFigureLayout::calcNormRect(figureRect, w->geometry());
+        }
+        if (!normRect.isValid()) {
+            // Hidden member, unlaid figure or empty geometry: fall back to its grid cell,
+            // which is the normalized rectangle the layout would produce anyway.
+            int row = 0, col = 0, rowSpan = 0, colSpan = 0;
+            if (g->gridPosition(w, &row, &col, &rowSpan, &colSpan)) {
+                normRect = g->normRectFor(row, col, rowSpan, colSpan);
+            }
+        }
+        if (lay && normRect.isValid()) {
+            lay->setAxesNormPos(w, normRect);
+        }
+    }
+
+    // Stop the divider interaction before the tracks disappear: the splitter holds
+    // event filters and mouse grabs on the members.
+    if (m_data->gridSplitter) {
+        m_data->gridSplitter->setEnabled(false);
+    }
+    g->disable();
+
+    if (lay) {
+        lay->invalidate();
+        lay->setGeometry(figureRect);
+    }
+    update();
     return true;
 }
 

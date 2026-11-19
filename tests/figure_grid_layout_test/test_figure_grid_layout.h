@@ -26,6 +26,9 @@ private Q_SLOTS:
     void testClickActivatesAxesFromLegacyAddWidget();
     void testGridSizeSignals();
     void testOldAddGridAxesUnchanged();
+    void testDisableGridKeepsGeometry();
+    void testDisableGridMixedMembers();
+    void testDisableGridIdempotent();
 
 private:
     // Apply a fixed pixel geometry to the figure and run its layout.

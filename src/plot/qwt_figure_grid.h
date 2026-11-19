@@ -49,6 +49,7 @@ public:
 
     bool isEnabled() const;                     // True once setup() succeeded
     void setup(int rowCount, int columnCount);  // Enable the grid and init equal tracks
+    void disable();                             // Disable the grid and drop the member registrations
     int rowCount() const;                       // Number of row tracks (0 when disabled)
     int columnCount() const;                    // Number of column tracks (0 when disabled)
 

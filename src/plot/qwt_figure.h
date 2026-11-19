@@ -92,6 +92,10 @@ public:
     // Enable the retained grid layout with equal tracks (returns false for invalid counts)
     bool enableGrid(int rowCount, int columnCount);
 
+    // Leave the retained grid layout: members keep their current geometry as free members
+    // (returns false when no grid is enabled; the ratios are dropped and cannot be undone)
+    bool disableGrid();
+
     // Get the retained grid model (nullptr until enableGrid() was called)
     QwtFigureGrid* grid() const;
 

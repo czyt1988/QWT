@@ -10,6 +10,7 @@ class TestFigureGrid : public QObject
 private Q_SLOTS:
     void testSetupEqualTracks();
     void testSetupInvalidCounts();
+    void testDisableGrid();
     void testMinimumTrackPixels();
     void testCustomRatiosAreNormalized();
     void testInvalidSizesRejected();

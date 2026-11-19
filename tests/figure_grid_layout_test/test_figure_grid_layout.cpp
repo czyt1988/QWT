@@ -434,4 +434,160 @@ void TestFigureGridLayout::testOldAddGridAxesUnchanged()
     delete plot;
 }
 
+/**
+ * @brief Leaving the grid keeps the current member geometry
+ *
+ * The normalized rectangles are frozen from the geometry the layout produced, so the
+ * sub plots neither move nor shrink when the tracks disappear. Afterwards they behave
+ * like any free member: a resize of the figure scales them by their frozen ratio.
+ */
+void TestFigureGridLayout::testDisableGridKeepsGeometry()
+{
+    QwtFigure figure;
+    QVERIFY(figure.enableGrid(2, 2));
+
+    QwtPlot* spanning    = new QwtPlot;
+    QwtPlot* bottomLeft  = new QwtPlot;
+    QwtPlot* bottomRight = new QwtPlot;
+    figure.addAxes(spanning, 0, 0, 1, 2);
+    figure.addAxes(bottomLeft, 1, 0);
+    figure.addAxes(bottomRight, 1, 1);
+
+    // Non-integral ratios: the frozen geometry has to come from the tracks actually
+    // used by the layout, not from equal cells.
+    figure.grid()->setColumnSizes({ 0.3, 0.7 });
+    layoutFigure(&figure, 400, 300);
+
+    const QRect spanningGeo    = spanning->geometry();
+    const QRect bottomLeftGeo  = bottomLeft->geometry();
+    const QRect bottomRightGeo = bottomRight->geometry();
+    QCOMPARE(spanningGeo, QRect(0, 0, 400, 150));
+    QCOMPARE(bottomLeftGeo, QRect(0, 150, 120, 150));
+    QCOMPARE(bottomRightGeo, QRect(120, 150, 280, 150));
+
+    QVERIFY(figure.disableGrid());
+    QVERIFY(!figure.isGridEnabled());
+    QVERIFY(figure.grid() != nullptr);  // the model object survives, it is just disabled
+    QVERIFY(!figure.grid()->isEnabled());
+
+    // No jump right after the conversion
+    layoutFigure(&figure, 400, 300);
+    QCOMPARE(spanning->geometry(), spanningGeo);
+    QCOMPARE(bottomLeft->geometry(), bottomLeftGeo);
+    QCOMPARE(bottomRight->geometry(), bottomRightGeo);
+
+    // Free members: the frozen ratios are what the figure scales now
+    layoutFigure(&figure, 800, 600);
+    QCOMPARE(spanning->geometry(), QRect(0, 0, 800, 300));
+    QCOMPARE(bottomLeft->geometry(), QRect(0, 300, 240, 300));
+    QCOMPARE(bottomRight->geometry(), QRect(240, 300, 560, 300));
+
+    const QRectF leftNorm = figure.axesNormRect(bottomLeft);
+    QVERIFY(qAbs(leftNorm.left() - 0.0) < 1e-6);
+    QVERIFY(qAbs(leftNorm.top() - 0.5) < 1e-6);
+    QVERIFY(qAbs(leftNorm.width() - 0.3) < 1e-6);
+    QVERIFY(qAbs(leftNorm.height() - 0.5) < 1e-6);
+
+    figure.removeWidget(spanning);
+    figure.removeWidget(bottomLeft);
+    figure.removeWidget(bottomRight);
+    delete spanning;
+    delete bottomLeft;
+    delete bottomRight;
+}
+
+/**
+ * @brief A figure mixing grid and free members ends up with free members only
+ */
+void TestFigureGridLayout::testDisableGridMixedMembers()
+{
+    QwtFigure figure;
+    QVERIFY(figure.enableGrid(2, 2));
+
+    QwtPlot* gridPlot = new QwtPlot;
+    QwtPlot* freePlot = new QwtPlot;
+    figure.addAxes(gridPlot, 0, 0);
+    figure.addAxes(freePlot, QRectF(0.5, 0.0, 0.5, 1.0));
+
+    figure.setGridEditable(true);
+    QVERIFY(figure.isGridEditable());
+
+    layoutFigure(&figure, 400, 300);
+    const QRect gridGeo = gridPlot->geometry();
+    const QRect freeGeo = freePlot->geometry();
+    QCOMPARE(gridGeo, QRect(0, 0, 200, 150));
+    QCOMPARE(freeGeo, QRect(200, 0, 200, 300));
+
+    QVERIFY(figure.disableGrid());
+    // The divider interaction has to be stopped as well: the splitter grabs the mouse
+    // and filters the member events.
+    QVERIFY(!figure.isGridEditable());
+
+    layoutFigure(&figure, 400, 300);
+    QCOMPARE(gridPlot->geometry(), gridGeo);
+    QCOMPARE(freePlot->geometry(), freeGeo);
+
+    // Both members are free now: the track ratios no longer drive any geometry
+    figure.grid()->setColumnSizes({ 1.0, 3.0 });
+    layoutFigure(&figure, 400, 300);
+    QCOMPARE(gridPlot->geometry(), gridGeo);
+    QCOMPARE(freePlot->geometry(), freeGeo);
+
+    // A former grid member can be moved through its normalized rectangle again
+    figure.setWidgetNormPos(gridPlot, QRectF(0.5, 0.0, 0.5, 1.0));
+    layoutFigure(&figure, 400, 300);
+    QCOMPARE(gridPlot->geometry(), freeGeo);
+
+    figure.removeWidget(gridPlot);
+    figure.removeWidget(freePlot);
+    delete gridPlot;
+    delete freePlot;
+}
+
+/**
+ * @brief Leaving the grid twice is a no-op, and grid members are rejected afterwards
+ */
+void TestFigureGridLayout::testDisableGridIdempotent()
+{
+    QwtFigure figure;
+    QVERIFY(!figure.disableGrid());  // nothing to leave
+
+    QVERIFY(figure.enableGrid(1, 2));
+    QwtPlot* left  = new QwtPlot;
+    QwtPlot* right = new QwtPlot;
+    figure.addAxes(left, 0, 0);
+    figure.addAxes(right, 0, 1);
+    layoutFigure(&figure, 200, 100);
+
+    const QRect leftGeo  = left->geometry();
+    const QRect rightGeo = right->geometry();
+    QCOMPARE(leftGeo, QRect(0, 0, 100, 100));
+    QCOMPARE(rightGeo, QRect(100, 0, 100, 100));
+
+    QVERIFY(figure.disableGrid());
+    QVERIFY(!figure.disableGrid());  // repeated call reports nothing to do
+
+    layoutFigure(&figure, 200, 100);
+    QCOMPARE(left->geometry(), leftGeo);
+    QCOMPARE(right->geometry(), rightGeo);
+
+    // The grid overloads reject new members instead of silently creating bogus cells
+    QwtPlot* extra = new QwtPlot;
+    figure.addAxes(extra, 0, 0);
+    QVERIFY(!figure.hasAxes(extra));
+    QCOMPARE(figure.layout()->count(), 2);
+    delete extra;
+
+    // Enabling the grid again starts from equal tracks and no registrations
+    QVERIFY(figure.enableGrid(2, 2));
+    QVERIFY(figure.grid()->isEnabled());
+    QCOMPARE(figure.grid()->rowSizes().size(), 2);
+    QCOMPARE(figure.grid()->items().size(), 0);
+
+    figure.removeWidget(left);
+    figure.removeWidget(right);
+    delete left;
+    delete right;
+}
+
 QTEST_MAIN(TestFigureGridLayout)
