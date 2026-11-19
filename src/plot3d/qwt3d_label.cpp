@@ -1,4 +1,3 @@
-#include <qbitmap.h>
 #include "qwt3d_label.h"
 
 #include "qwt3d_io_gl2ps.h"
@@ -7,6 +6,9 @@
 #include <QOpenGLBuffer>
 #include <QOpenGLTexture>
 #include <QOpenGLShaderProgram>
+
+#include <algorithm>
+#include <cmath>
 
 namespace
 {
@@ -23,7 +25,6 @@ public:
         , m_beg(0.0, 0.0, 0.0)
         , m_end(0.0, 0.0, 0.0)
         , m_pos(0.0, 0.0, 0.0)
-        , m_pm(0, 0)
         , m_font()
         , m_anchor(BottomLeft)
         , m_gap(0)
@@ -34,7 +35,6 @@ public:
     Triple m_beg;
     Triple m_end;
     Triple m_pos;
-    QPixmap m_pm;
     QImage m_buf;
     QImage m_tex;
     QFont m_font;
@@ -64,7 +64,6 @@ Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CON
     d->m_beg              = od->m_beg;
     d->m_end              = od->m_end;
     d->m_pos              = od->m_pos;
-    d->m_pm               = od->m_pm;
     d->m_buf              = od->m_buf;
     d->m_tex              = od->m_tex;
     d->m_font             = od->m_font;
@@ -87,7 +86,6 @@ Qwt3DLabel& Qwt3DLabel::operator=(const Qwt3DLabel& other)
         d->m_beg              = od->m_beg;
         d->m_end              = od->m_end;
         d->m_pos              = od->m_pos;
-        d->m_pm               = od->m_pm;
         d->m_buf              = od->m_buf;
         d->m_tex              = od->m_tex;
         d->m_font             = od->m_font;
@@ -123,7 +121,6 @@ void Qwt3DLabel::init()
     d->m_end = d->m_beg;
     d->m_pos = d->m_beg;
     setColor(0, 0, 0);
-    d->m_pm            = QPixmap(0, 0);
     d->m_font          = QFont();
     d->m_anchor        = BottomLeft;
     d->m_gap           = 0;
@@ -188,45 +185,47 @@ void Qwt3DLabel::setRelPosition(Tuple rpos, ANCHOR a, const Qwt3DRenderContext& 
     setPosition(d->m_beg, a);
 }
 
+/**
+ * @brief Renders the label text into the internal texture image
+ * @details The text is painted with antialiasing into a transparent image.
+ *          The alpha channel of that image is what the text shader samples,
+ *          so no 1 bit mask is involved: a mask rasterizes the glyphs in
+ *          monochrome, which does not match the antialiased text and made the
+ *          labels look doubled and aliased.
+ */
 void Qwt3DLabel::update()
 {
     QWT_D(d);
-    QPainter p;
-    QFontMetrics fm(d->m_font);
 
-    QFontInfo info(d->m_font);
-
-    QRect r = QRect(QPoint(0, 0), fm.size(SingleLine, d->m_text));
-
-    r.translate(0, -r.top());
-
-    d->m_pm = QPixmap(r.width(), r.bottom());
-
-    if (d->m_pm.isNull())
-    {
-        r = QRect(QPoint(0, 0), fm.size(SingleLine, QString(" ")));
-        r.translate(0, -r.top());
-        d->m_pm = QPixmap(r.width(), r.bottom());
+    if (d->m_text.isEmpty()) {
+        d->m_buf = QImage();
+        d->m_tex = QImage();
+        return;
     }
 
-    QBitmap bm(d->m_pm.width(), d->m_pm.height());
-    bm.fill(Qt::color0);
-    p.begin(&bm);
-    p.setPen(Qt::color1);
-    p.setFont(d->m_font);
-    p.drawText(0, r.height() - fm.descent() - 1, d->m_text);
-    p.end();
+    QFontMetrics fm(d->m_font);
 
-    d->m_pm.setMask(bm);
+    QRect r = QRect(QPoint(0, 0), fm.size(SingleLine, d->m_text));
+    r.translate(0, -r.top());
 
-    p.begin(&d->m_pm);
+    const int w = std::max(1, r.width());
+    const int h = std::max(1, r.height());
+
+    QImage canvas(w, h, QImage::Format_ARGB32_Premultiplied);
+    canvas.fill(Qt::transparent);
+
+    // QPixmap keeps the font metrics / DPI behavior of the label, the
+    // transparent base image gives it the alpha channel.
+    QPixmap pm = QPixmap::fromImage(canvas);
+
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::TextAntialiasing, true);
     p.setFont(d->m_font);
-    p.setPen(Qt::SolidLine);
     p.setPen(GL2Qt(m_color.r, m_color.g, m_color.b));
-
     p.drawText(0, r.height() - fm.descent() - 1, d->m_text);
     p.end();
-    d->m_buf = d->m_pm.toImage();
+
+    d->m_buf = pm.toImage();
     d->m_tex = d->m_buf.mirrored();
 }
 
@@ -240,7 +239,7 @@ void Qwt3DLabel::convert2screen(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
-    QMatrix4x4 mvp = ctx.projection * ctx.modelView;
+    const QMatrix4x4 mvp = ctx.projection * ctx.modelView;
 
     // Compute NDC z of the label position
     QVector4D posVec(static_cast< float >(d->m_pos.x),
@@ -255,56 +254,63 @@ void Qwt3DLabel::convert2screen(const Qwt3DRenderContext& ctx)
     if (ctx.viewport.width() <= 0 || ctx.viewport.height() <= 0)
         return;
 
+    const QMatrix4x4 invMvp = mvp.inverted();
+
     // Helper to convert screen + NDC z back to world
     auto screenToWorldZ = [&](const QPointF& s) -> Triple {
         float ndcX = 2.0f * static_cast< float >(s.x()) / ctx.viewport.width() - 1.0f;
         float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / ctx.viewport.height();
         QVector4D ndc(ndcX, ndcY, d->m_ndcZ, 1.0f);
-        QVector4D world = mvp.inverted().map(ndc);
+        QVector4D world = invMvp.map(ndc);
         if (world.w() != 0.0f)
             return Triple(world.x() / world.w(), world.y() / world.w(), world.z() / world.w());
         return Triple(0, 0, 0);
     };
 
-    QPointF screen = ctx.worldToScreen(d->m_pos);
+    const double w = width();
+    const double h = height();
 
-    double w = width();
-    double h = height();
+    QPointF beg = ctx.worldToScreen(d->m_pos);
 
     switch (d->m_anchor) {
     case BottomLeft:
-        d->m_beg = d->m_pos;
         break;
     case BottomRight:
-        d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, 0));
+        beg -= QPointF(w + d->m_gap, 0);
         break;
     case BottomCenter:
-        d->m_beg = screenToWorldZ(screen - QPointF(w / 2, -d->m_gap));
+        beg -= QPointF(w / 2, -d->m_gap);
         break;
     case TopRight:
-        d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, h));
+        beg -= QPointF(w + d->m_gap, h);
         break;
     case TopLeft:
-        d->m_beg = screenToWorldZ(screen - QPointF(-d->m_gap, h));
+        beg -= QPointF(-d->m_gap, h);
         break;
     case TopCenter:
-        d->m_beg = screenToWorldZ(screen - QPointF(w / 2, h + d->m_gap));
+        beg -= QPointF(w / 2, h + d->m_gap);
         break;
     case CenterLeft:
-        d->m_beg = screenToWorldZ(screen - QPointF(-d->m_gap, h / 2));
+        beg -= QPointF(-d->m_gap, h / 2);
         break;
     case CenterRight:
-        d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, h / 2));
+        beg -= QPointF(w + d->m_gap, h / 2);
         break;
     case Center:
-        d->m_beg = screenToWorldZ(screen - QPointF(w / 2, h / 2));
+        beg -= QPointF(w / 2, h / 2);
         break;
     default:
         break;
     }
 
-    QPointF begScreen = ctx.worldToScreen(d->m_beg);
-    d->m_end = screenToWorldZ(begScreen + QPointF(w, h));
+    // The label is a screen aligned textured quad drawn 1:1 in device pixels.
+    // Take the label rectangle as integral pixel rectangle, otherwise the
+    // bilinear texture filter spreads every glyph edge over two pixels, which
+    // reads as blurred, doubled text.
+    beg = QPointF(std::round(beg.x()), std::round(beg.y()));
+
+    d->m_beg = screenToWorldZ(beg);
+    d->m_end = screenToWorldZ(beg + QPointF(w, h));
 }
 
 /**
@@ -350,12 +356,12 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
     // Compute all four quad corners via screen-to-world conversion.
     // m_beg and m_end are two diagonal corners (BL, TR) in world space,
     // but the other two corners cannot be synthesized by mixing x/y/z
-    // components — they must be computed independently from screen space.
-    QMatrix4x4 mvp = ctx.projection * ctx.modelView;
-    QSize vp = ctx.viewport;
-
-    QPointF begScreen = ctx.worldToScreen(d->m_beg);
-    QPointF endScreen = ctx.worldToScreen(d->m_end);
+    // components - they must be computed independently from screen space.
+    // The rectangle is rebuilt from the pixel snapped origin of m_beg, so the
+    // quad always covers exactly width() x height() device pixels.
+    const QMatrix4x4 mvp    = ctx.projection * ctx.modelView;
+    const QMatrix4x4 invMvp = mvp.inverted();
+    const QSize vp          = ctx.viewport;
 
     auto screenToWorldZ = [&](const QPointF& s) -> Triple {
         if (vp.width() <= 0 || vp.height() <= 0)
@@ -363,32 +369,32 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
         float ndcX = 2.0f * static_cast< float >(s.x()) / vp.width() - 1.0f;
         float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / vp.height();
         QVector4D ndc(ndcX, ndcY, d->m_ndcZ, 1.0f);
-        QVector4D world = mvp.inverted().map(ndc);
+        QVector4D world = invMvp.map(ndc);
         if (world.w() != 0.0f)
             return Triple(world.x() / world.w(), world.y() / world.w(), world.z() / world.w());
         return Triple(0, 0, 0);
     };
 
-    Triple bl = d->m_beg;
-    Triple tr = d->m_end;
+    const QPointF begWorld = ctx.worldToScreen(d->m_beg);
+    const QPointF begScreen(std::round(begWorld.x()), std::round(begWorld.y()));
+    const QPointF endScreen = begScreen + QPointF(width(), height());
+
+    Triple bl = screenToWorldZ(begScreen);
+    Triple tr = screenToWorldZ(endScreen);
     Triple tl = screenToWorldZ(QPointF(begScreen.x(), endScreen.y()));
     Triple br = screenToWorldZ(QPointF(endScreen.x(), begScreen.y()));
 
     // Build quad vertices: position(3) + texcoord(2) = 5 floats per vertex
     // Triangle strip order: BL, TL, BR, TR
-    QVector<float> verts;
+    QVector< float > verts;
     // Bottom-left
-    verts << static_cast< float >(bl.x) << static_cast< float >(bl.y) << static_cast< float >(bl.z)
-          << 0.0f << 1.0f;
+    verts << static_cast< float >(bl.x) << static_cast< float >(bl.y) << static_cast< float >(bl.z) << 0.0f << 1.0f;
     // Top-left
-    verts << static_cast< float >(tl.x) << static_cast< float >(tl.y) << static_cast< float >(tl.z)
-          << 0.0f << 0.0f;
+    verts << static_cast< float >(tl.x) << static_cast< float >(tl.y) << static_cast< float >(tl.z) << 0.0f << 0.0f;
     // Bottom-right
-    verts << static_cast< float >(br.x) << static_cast< float >(br.y) << static_cast< float >(br.z)
-          << 1.0f << 1.0f;
+    verts << static_cast< float >(br.x) << static_cast< float >(br.y) << static_cast< float >(br.z) << 1.0f << 1.0f;
     // Top-right
-    verts << static_cast< float >(tr.x) << static_cast< float >(tr.y) << static_cast< float >(tr.z)
-          << 1.0f << 0.0f;
+    verts << static_cast< float >(tr.x) << static_cast< float >(tr.y) << static_cast< float >(tr.z) << 1.0f << 0.0f;
 
     QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
     vbo.create();
@@ -430,13 +436,13 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 double Qwt3DLabel::width() const
 {
     QWT_DC(d);
-    return d->m_pm.width();
+    return d->m_buf.width();
 }
 
 double Qwt3DLabel::height() const
 {
     QWT_DC(d);
-    return d->m_pm.height();
+    return d->m_buf.height();
 }
 
 double Qwt3DLabel::gap() const
