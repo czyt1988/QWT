@@ -9,6 +9,8 @@
 #include <QPointF>
 #include <QSize>
 
+class Qwt3DTextBatch;
+
 /**
  * @brief Bundles all widget resources that drawables need during rendering
  * @details A value struct constructed per-call-site in Qwt3DPlot::paintGL()
@@ -52,6 +54,11 @@ struct QWT3D_EXPORT Qwt3DRenderContext
     QOpenGLShaderProgram* lineShader = nullptr;
     QOpenGLShaderProgram* polygonShader = nullptr;
     QOpenGLShaderProgram* textShader = nullptr;
+
+    // Frame wide collection of the label quads, flushed once per draw phase by
+    // Qwt3DPlot::paintGL(). Null while no text batching is active (e.g. during
+    // the gl2ps vector export, where labels emit device text immediately).
+    Qwt3DTextBatch* textBatch = nullptr;
 
     // Projects a world-space point to screen (viewport) pixel coordinates
     QPointF worldToScreen(const Triple& world) const;

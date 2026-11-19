@@ -381,6 +381,9 @@ void Qwt3DPlot::initializeGL()
     d->m_polygonShader = compileShader(":/shaders/polygon.vert", ":/shaders/polygon.frag");
     d->m_textShader = compileShader(":/shaders/text.vert", ":/shaders/text.frag");
 
+    // a (re)created context invalidates the GL objects of the text batch
+    d->m_textBatch.invalidate();
+
     d->m_initializedGL = true;
     if (d->m_renderPixmapRequest) {
         update();
@@ -483,6 +486,7 @@ void Qwt3DPlot::paintGL()
     ctx.lineShader = d->m_lineShader.get();
     ctx.polygonShader = d->m_polygonShader.get();
     ctx.textShader = d->m_textShader.get();
+    ctx.textBatch = &d->m_textBatch;
     ctx.vectorExport = d->m_vectorExport;
 
     // Render all attached items (sorted by z-order)
@@ -493,6 +497,12 @@ void Qwt3DPlot::paintGL()
 
     // Draw coordinate system
     d->m_coordinates.draw(ctx);
+
+    // All labels of this phase were collected by the batch, draw them at once.
+    // During the gl2ps capture the scene is replayed in GL_FEEDBACK mode, where a
+    // shader based draw is not defined - the vector writer emits the labels itself.
+    if (!d->m_vectorExport)
+        d->m_textBatch.flush(d->m_textShader.get(), ctx.modelView, ctx.projection);
 
     // Draw legend and title with a FIXED modelview (no user rotation)
     // so they stay anchored to the screen regardless of 3D scene rotation.
@@ -514,6 +524,9 @@ void Qwt3DPlot::paintGL()
 
     d->m_title.setRelPosition(d->m_titleRel, d->m_titleAnchor, ctxFixed);
     d->m_title.draw(ctxFixed);
+
+    if (!d->m_vectorExport)
+        d->m_textBatch.flush(d->m_textShader.get(), ctxFixed.modelView, ctxFixed.projection);
 
     // Restore user modelview for subsequent operations (mouse picking, etc.)
     d->m_modelView = savedModelView;

@@ -3,6 +3,7 @@
 
 #include "qwt3d_plot.h"
 #include "qwt3d_portability.h"
+#include "qwt3d_textbatch.h"
 
 #include <QPoint>
 #include <QMatrix4x4>
@@ -130,6 +131,9 @@ public:
     std::unique_ptr< QOpenGLShaderProgram > m_pointShader;
     std::unique_ptr< QOpenGLShaderProgram > m_polygonShader;
     std::unique_ptr< QOpenGLShaderProgram > m_textShader;
+
+    // Atlas batch for the label quads (one draw call per draw phase)
+    Qwt3DTextBatch m_textBatch;
 
     // Attached items list (sorted by z-order)
     QList< Qwt3DPlotItem* > m_items;
