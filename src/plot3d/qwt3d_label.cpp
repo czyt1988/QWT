@@ -6,6 +6,8 @@
 #include <QOpenGLBuffer>
 #include <QOpenGLTexture>
 #include <QOpenGLShaderProgram>
+#include <QGuiApplication>
+#include <QScreen>
 
 #include <algorithm>
 #include <cmath>
@@ -13,6 +15,43 @@
 namespace
 {
 bool deviceFonts = false;
+
+//! DPI the rasterized label text currently depends on
+/*!
+  The text is rasterized into an offscreen QPixmap, whose paint device
+  resolves a point sized font against the primary screen - the widget the
+  label is finally drawn on does not take part in it. A screen change can
+  therefore change the pixel size of the glyphs without touching the font,
+  the string or the color of the label.
+ */
+qreal labelFontDpi()
+{
+    const QScreen* screen = QGuiApplication::primaryScreen();
+    return screen != nullptr ? screen->logicalDotsPerInch() : 96.0;
+}
+
+bool sameColor(const RGBA& lhs, const RGBA& rhs)
+{
+    return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b && lhs.a == rhs.a;
+}
+
+//! Releases a label texture
+/*!
+  The GL name can only be deleted while the context that created it is
+  current. When that context is already gone the name died with it, so
+  dropping the handle is enough - and avoids Qt's warnings about textures
+  that are not valid in the current context.
+ */
+void destroyTexture(QOpenGLTexture*& texture, QOpenGLContext* ownerContext)
+{
+    if (texture == nullptr)
+        return;
+
+    if (ownerContext != nullptr && QOpenGLContext::currentContext() == ownerContext)
+        delete texture;
+
+    texture = nullptr;
+}
 }
 
 class Qwt3DLabel::PrivateData
@@ -42,7 +81,11 @@ public:
     ANCHOR m_anchor;
     int m_gap;
     bool m_flagForUpdate;
-    float m_ndcZ = 0.0f;
+    float m_ndcZ                     = 0.0f;
+    qreal m_fontDpi                  = 0.0;
+    QOpenGLTexture* m_texture        = nullptr;
+    QOpenGLContext* m_textureContext = nullptr;
+    bool m_textureDirty              = true;
 };
 
 Qwt3DLabel::Qwt3DLabel() : QWT_PIMPL_CONSTRUCT
@@ -55,7 +98,15 @@ Qwt3DLabel::Qwt3DLabel(const QString& family, int pointSize, int weight, bool it
     init(family, pointSize, weight, italic);
 }
 
-Qwt3DLabel::~Qwt3DLabel() = default;
+Qwt3DLabel::~Qwt3DLabel()
+{
+    // A moved-from label has no PrivateData left (see Qwt3DDrawable::attach)
+    if (!m_data)
+        return;
+
+    QWT_D(d);
+    destroyTexture(d->m_texture, d->m_textureContext);
+}
 
 Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CONSTRUCT
 {
@@ -71,7 +122,13 @@ Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CON
     d->m_anchor           = od->m_anchor;
     d->m_gap              = od->m_gap;
     d->m_flagForUpdate    = od->m_flagForUpdate;
+    d->m_fontDpi          = od->m_fontDpi;
     m_color               = other.m_color;
+
+    // the GL texture belongs to the source label, this one builds its own
+    d->m_texture        = nullptr;
+    d->m_textureContext = nullptr;
+    d->m_textureDirty   = true;
 }
 
 Qwt3DLabel::Qwt3DLabel(Qwt3DLabel&& other) noexcept : Qwt3DDrawable(std::move(other)), m_data(std::move(other.m_data))
@@ -93,7 +150,13 @@ Qwt3DLabel& Qwt3DLabel::operator=(const Qwt3DLabel& other)
         d->m_anchor           = od->m_anchor;
         d->m_gap              = od->m_gap;
         d->m_flagForUpdate    = od->m_flagForUpdate;
+        d->m_fontDpi          = od->m_fontDpi;
         m_color               = other.m_color;
+
+        // the GL texture belongs to the source label, this one builds its own
+        destroyTexture(d->m_texture, d->m_textureContext);
+        d->m_textureContext = nullptr;
+        d->m_textureDirty   = true;
     }
     return *this;
 }
@@ -132,16 +195,36 @@ void Qwt3DLabel::useDeviceFonts(bool val)
     deviceFonts = val;
 }
 
+/**
+ * @brief Sets the label font
+ * @details Assigning the font that is already active is a no-op: the axis
+ *          redraw path reapplies font, color and text of every tic label on
+ *          each frame, and re-rasterizing the text for unchanged properties
+ *          is pure overhead (Qwt3DAxis::drawTicLabel()).
+ */
 void Qwt3DLabel::setFont(const QString& family, int pointSize, int weight, bool italic)
 {
     QWT_D(d);
-    d->m_font          = QFont(family, pointSize, weight, italic);
+
+    const QFont font(family, pointSize, weight, italic);
+    if (d->m_font == font)
+        return;
+
+    d->m_font          = font;
     d->m_flagForUpdate = true;
 }
 
+/**
+ * @brief Sets the label text
+ * @details Setting the string that is already active is a no-op, see setFont().
+ */
 void Qwt3DLabel::setString(QString const& s)
 {
     QWT_D(d);
+
+    if (d->m_text == s)
+        return;
+
     d->m_text          = s;
     d->m_flagForUpdate = true;
 }
@@ -156,15 +239,29 @@ QString Qwt3DLabel::string() const
     return d->m_text;
 }
 
+/**
+ * @brief Sets the label color
+ * @details Setting the color that is already active is a no-op, see setFont().
+ */
 void Qwt3DLabel::setColor(double r, double g, double b, double a)
 {
+    if (sameColor(m_color, RGBA(r, g, b, a)))
+        return;
+
     Qwt3DDrawable::setColor(r, g, b, a);
     QWT_D(d);
     d->m_flagForUpdate = true;
 }
 
+/**
+ * @brief Sets the label color
+ * @details Setting the color that is already active is a no-op, see setFont().
+ */
 void Qwt3DLabel::setColor(RGBA rgba)
 {
+    if (sameColor(m_color, rgba))
+        return;
+
     Qwt3DDrawable::setColor(rgba);
     QWT_D(d);
     d->m_flagForUpdate = true;
@@ -181,7 +278,7 @@ void Qwt3DLabel::setRelPosition(Tuple rpos, ANCHOR a, const Qwt3DRenderContext& 
 {
     QWT_D(d);
     d->m_anchor = a;
-    d->m_beg = ctx.relativePosition(Triple(rpos.x, rpos.y, 0.99));
+    d->m_beg    = ctx.relativePosition(Triple(rpos.x, rpos.y, 0.99));
     setPosition(d->m_beg, a);
 }
 
@@ -196,6 +293,9 @@ void Qwt3DLabel::setRelPosition(Tuple rpos, ANCHOR a, const Qwt3DRenderContext& 
 void Qwt3DLabel::update()
 {
     QWT_D(d);
+
+    d->m_fontDpi      = labelFontDpi();
+    d->m_textureDirty = true;
 
     if (d->m_text.isEmpty()) {
         d->m_buf = QImage();
@@ -242,12 +342,10 @@ void Qwt3DLabel::convert2screen(const Qwt3DRenderContext& ctx)
     const QMatrix4x4 mvp = ctx.projection * ctx.modelView;
 
     // Compute NDC z of the label position
-    QVector4D posVec(static_cast< float >(d->m_pos.x),
-                     static_cast< float >(d->m_pos.y),
-                     static_cast< float >(d->m_pos.z),
-                     1.0f);
+    QVector4D posVec(
+        static_cast< float >(d->m_pos.x), static_cast< float >(d->m_pos.y), static_cast< float >(d->m_pos.z), 1.0f);
     QVector4D clip = mvp.map(posVec);
-    d->m_ndcZ = 0.0f;
+    d->m_ndcZ      = 0.0f;
     if (clip.w() != 0.0f)
         d->m_ndcZ = clip.z() / clip.w();
 
@@ -257,7 +355,7 @@ void Qwt3DLabel::convert2screen(const Qwt3DRenderContext& ctx)
     const QMatrix4x4 invMvp = mvp.inverted();
 
     // Helper to convert screen + NDC z back to world
-    auto screenToWorldZ = [&](const QPointF& s) -> Triple {
+    auto screenToWorldZ = [ & ](const QPointF& s) -> Triple {
         float ndcX = 2.0f * static_cast< float >(s.x()) / ctx.viewport.width() - 1.0f;
         float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / ctx.viewport.height();
         QVector4D ndc(ndcX, ndcY, d->m_ndcZ, 1.0f);
@@ -324,7 +422,7 @@ void Qwt3DLabel::convert2screen(const Qwt3DRenderContext& ctx)
 void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
-    if (d->m_flagForUpdate) {
+    if (d->m_flagForUpdate || d->m_fontDpi != labelFontDpi()) {
         update();
         d->m_flagForUpdate = false;
     }
@@ -336,8 +434,7 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 
     // gl2ps vector export path: use device text for vector output
     if (deviceFonts) {
-        drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(),
-                       d->m_pos, m_color, d->m_anchor, d->m_gap);
+        drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(), d->m_pos, m_color, d->m_anchor, d->m_gap);
         return;
     }
 
@@ -345,13 +442,24 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
     if (!shader)
         return;
 
-    auto* f = QOpenGLContext::currentContext()->functions();
+    auto* context = QOpenGLContext::currentContext();
+    auto* f       = context->functions();
 
-    // Create texture from the text image (alpha channel is used by shader)
-    QOpenGLTexture texture(d->m_tex);
-    texture.setMinificationFilter(QOpenGLTexture::Linear);
-    texture.setMagnificationFilter(QOpenGLTexture::Linear);
-    texture.setWrapMode(QOpenGLTexture::ClampToEdge);
+    // The texture is only rebuilt when the text image or the GL context
+    // changed: creating and uploading a texture for every label on every
+    // frame was the dominant cost of the 3D text rendering.
+    if (d->m_texture == nullptr || d->m_textureContext != context || d->m_textureDirty) {
+        destroyTexture(d->m_texture, d->m_textureContext);
+
+        d->m_texture = new QOpenGLTexture(d->m_tex);
+        d->m_texture->setMinificationFilter(QOpenGLTexture::Linear);
+        d->m_texture->setMagnificationFilter(QOpenGLTexture::Linear);
+        d->m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
+
+        d->m_textureContext = context;
+        d->m_textureDirty   = false;
+    }
+    QOpenGLTexture* texture = d->m_texture;
 
     // Compute all four quad corners via screen-to-world conversion.
     // m_beg and m_end are two diagonal corners (BL, TR) in world space,
@@ -363,7 +471,7 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
     const QMatrix4x4 invMvp = mvp.inverted();
     const QSize vp          = ctx.viewport;
 
-    auto screenToWorldZ = [&](const QPointF& s) -> Triple {
+    auto screenToWorldZ = [ & ](const QPointF& s) -> Triple {
         if (vp.width() <= 0 || vp.height() <= 0)
             return Triple(0, 0, 0);
         float ndcX = 2.0f * static_cast< float >(s.x()) / vp.width() - 1.0f;
@@ -411,7 +519,7 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
                                       static_cast< float >(m_color.b),
                                       static_cast< float >(m_color.a)));
 
-    texture.bind(0);
+    texture->bind(0);
 
     int stride = 5 * sizeof(float);
     shader->enableAttributeArray(0);
@@ -428,7 +536,7 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
     shader->disableAttributeArray(0);
     shader->disableAttributeArray(1);
     shader->release();
-    texture.release();
+    texture->release();
     vbo.release();
     vbo.destroy();
 }
