@@ -7,9 +7,43 @@
 #include <QDebug>
 #include <QWidget>
 
+#include "qwt_figure.h"
+#include "qwt_figure_grid.h"
+
 #ifndef QWTFIGURELAYOUT_DEBUG_PRINT
 #define QWTFIGURELAYOUT_DEBUG_PRINT 0
 #endif
+
+// Returns the retained grid of the figure owning this layout (nullptr if none).
+static QwtFigureGrid* figureGridOfLayout(const QLayout* lay)
+{
+    if (!lay) {
+        return nullptr;
+    }
+    QwtFigure* figure = qobject_cast< QwtFigure* >(lay->parentWidget());
+    return figure ? figure->grid() : nullptr;
+}
+
+// Returns true if the widget is registered as a member of the retained grid.
+static bool gridPositionOf(const QwtFigureGrid* grid, QWidget* widget, QRectF* normRect)
+{
+    if (!grid || !grid->isEnabled()) {
+        return false;
+    }
+    int row = 0, col = 0, rowSpan = 0, colSpan = 0;
+    if (!grid->gridPosition(widget, &row, &col, &rowSpan, &colSpan)) {
+        return false;
+    }
+    const QRectF rect = grid->normRectFor(row, col, rowSpan, colSpan);
+    if (!rect.isValid()) {
+        return false;
+    }
+    if (normRect) {
+        *normRect = rect;
+    }
+    return true;
+}
+
 class QwtFigureLayout::PrivateData
 {
     QWT_DECLARE_PUBLIC(QwtFigureLayout)
@@ -111,18 +145,24 @@ void QwtFigureLayout::setGeometry(const QRect& rect)
     qDebug() << "QwtFigureLayout setGeometry(rect=" << rect << "),left=" << m_data->m_left
              << ",right=" << m_data->m_right << ",bottom=" << m_data->m_bottom << ",top=" << m_data->m_top;
 #endif
+    QwtFigureGrid* figureGrid = figureGridOfLayout(this);
     for (const auto& item : qwt_as_const(m_data->m_items)) {
-        if (!item.item || !item.item->widget() || !item.item->widget()->isVisibleTo(item.item->widget()->parentWidget())) {
+        QWidget* widget = item.item ? item.item->widget() : nullptr;
+        if (!widget || !widget->isVisibleTo(widget->parentWidget())) {
             continue;
         }
         // Convert normalized coordinates to actual pixels using Qt's top-left coordinate system.
         // Apply margins to both grid-based and normalized coordinate-based items.
+        // Members of the retained grid are laid out from the current track sizes,
+        // free members keep the normalized rectangle they were added with.
+        QRectF normRect = item.normRect;
+        gridPositionOf(figureGrid, widget, &normRect);
 
-        QRect actualRect = calcActualRect(rect, item.normRect);
+        QRect actualRect = calcActualRect(rect, normRect);
         item.item->setGeometry(actualRect);
 
 #if QWTFIGURELAYOUT_DEBUG_PRINT && QWT_DEBUG_DRAW
-        qDebug() << "normRect=" << item.normRect << ",actualRect=" << actualRect;
+        qDebug() << "normRect=" << normRect << ",actualRect=" << actualRect;
 #endif
     }
 }
@@ -359,6 +399,11 @@ QRectF QwtFigureLayout::widgetNormRect(QWidget* widget) const
         return QRectF();
     }
 
+    QRectF gridRect;
+    if (gridPositionOf(figureGridOfLayout(this), widget, &gridRect)) {
+        return gridRect;
+    }
+
     for (const auto& item : qwt_as_const(m_data->m_items)) {
         if (item.item && item.item->widget() == widget) {
             return item.normRect;
@@ -409,24 +454,35 @@ QRectF QwtFigureLayout::calcNormRect(const QRect& parentRect, const QRect& rect)
  * @if ENGLISH
  * @brief Calculate actual rectangle from normalized coordinates
  *
+ * Both edges are rounded from the accumulated normalized position
+ * ( left and left + width ), and the pixel extent is derived from the two
+ * rounded edges instead of being rounded on its own. Neighbouring cells that
+ * share an edge therefore land on exactly the same pixel: the right edge of a
+ * cell equals the left edge of the next one and no one pixel seam appears
+ * between them.
+ *
  * @param parentRect Parent window size
  * @param normRect Normalized rectangle
- * @return Actual rectangle in pixel coordinates
+ * @return Actual rectangle in pixel coordinates, always inside parentRect
  */
 QRect QwtFigureLayout::calcActualRect(const QRect& parentRect, const QRectF& normRect)
 {
-    const qreal availableWidth  = parentRect.width();
-    const qreal availableHeight = parentRect.height();
-    const qreal actualLeft      = qRound(normRect.left() * availableWidth);
-    const qreal actualTop       = qRound(normRect.top() * availableHeight);
-    const qreal actualWidth     = qRound(normRect.width() * availableWidth);
-    const qreal actualHeight    = qRound(normRect.height() * availableHeight);
+    const int availableWidth  = parentRect.width();
+    const int availableHeight = parentRect.height();
+
+    // Cumulative sum rounding: round the two edges of the interval, not the
+    // normalized origin and extent independently
+    const int left   = qRound(normRect.left() * availableWidth);
+    const int top    = qRound(normRect.top() * availableHeight);
+    const int right  = qRound((normRect.left() + normRect.width()) * availableWidth);
+    const int bottom = qRound((normRect.top() + normRect.height()) * availableHeight);
 
     // Ensure the rect is within valid bounds
-    return QRect(qMax(0.0, actualLeft),
-                 qMax(0.0, actualTop),
-                 qMin(actualWidth, availableWidth - actualLeft),
-                 qMin(actualHeight, availableHeight - actualTop));
+    const int x      = qMax(0, left);
+    const int y      = qMax(0, top);
+    const int width  = qMax(0, qMin(right, availableWidth) - x);
+    const int height = qMax(0, qMin(bottom, availableHeight) - y);
+    return QRect(x, y, width, height);
 }
 
 /**

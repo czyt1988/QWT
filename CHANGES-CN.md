@@ -1,7 +1,25 @@
 ## Unreleased
 
+### 新功能
+
+- **`QwtFigure` 支持保留式网格布局与可拖拽分隔条**
+    - `QwtFigureGrid` 是保留式网格模型：保存行/列轨道比例、间距（`setSpacing()`）以及成员的 `(行, 列, 行跨度, 列跨度)` 登记，按需计算归一化单元格矩形，窗口缩放后比例保持不变；`wspace()`/`hspace()` 返回保留的间距，宿主可据此持久化 `setSpacing()` 写入的值
+    - `QwtFigure::enableGrid()` 创建并启用模型，`addAxes(plot, row, col, rowSpan, colSpan)` 与 `addGridItem()` 登记成员，`removeWidget()` 取消登记；原有的归一化坐标成员可与网格成员共存
+    - `QwtFigureGridSplitter` 让分隔条可拖拽：`QwtFigure::setGridEditable(true)` 启用，它只拦截分隔条 ±4 像素窄带内的事件（`setHitWidth()` 可调），不使用覆盖整窗的蒙版，因此缩放、平移、拾取、悬停不受影响；光标切换为 `SplitHCursor`/`SplitVCursor` 并设置在鼠标实际所在的控件上（通常是画布），画布自身带有显式光标时也能正确显示；拖动只改变相邻两条轨道比例并受 `minimumTrackPixels()`（默认 40 像素）约束，拖动中暂停成员重绘，`Esc` 取消并恢复原比例。拖动期间 figure 抓取鼠标，松手事件总会回到分隔条——即使宿主之后在 canvas 上安装的过滤器消费了 move/release；鼠标抓取丢失（`UngrabMouse`）或窗口失活时按同样方式取消
+    - `gridSizesChanged()` 汇报拖动中的比例；`gridSizesChangeFinished()` 只在松手且比例确实变化时发出一次，DA 层可据此为整次拖动压入一条撤销命令。3D（`QOpenGLWidget`）成员不会被拦截：3D 单元格的边界由相邻的 2D 绘图一侧负责命中
+    - 在子绘图上按下鼠标（真实点击投递给其 canvas）即把它设为当前激活子图（`currentAxesChanged()`），且不消费事件。Qt 事件过滤器按安装的相反顺序调用（后装先调）：宿主自己的 canvas 过滤器应在 `setGridEditable(true)` 之前安装，或之后再次调用 `setGridEditable(true)`——对已启用的分隔条再次启用会重扫并重装其过滤器，排在宿主过滤器之前
+    - `tests/figure_grid_test`、`tests/figure_grid_layout_test`、`tests/figure_grid_splitter_test` 覆盖轨道数学、布局集成与交互行为（命中带、只改目标方向、最小轨道 clamp、完成信号次数、Esc、重绘开关、带外放行、canvas 投递激活、画布光标、松手丢失兜底）
+- **`examples/2D/figure`：可拖拽网格演示**
+    - 工具栏新增「Grid layout (draggable)」动作，切换到 2x2 保留式网格（波形占顶行，下方两个分析图）并可拖动分隔条；切回时重建经典演示。网格可编辑期间禁用子图蒙版，避免它吞掉分隔条事件
+- **文档**：figure 使用指南（中英）新增「保留式网格布局与可拖拽分隔条」章节
+
 ### Bug 修复
 
+- **保留式网格加固**
+    - `QwtFigureGrid::setSpacing()` 现在拒绝 `(轨道数 - 1) * gap >= 1` 的间距（qWarning、保持原值、整条请求一起拒绝），不再让最后一个轨道被压成零尺寸；`dividers()` 把分隔条位置 clamp 到 `[0, 1]`，分隔条命中带不会跑到图外
+    - `QwtFigureLayout` 改为对累计归一化位置的两个边分别取整，再由两条边求像素宽度，相邻单元的右边缘与下一单元左边缘落在同一像素，不再出现 1 像素缝（Y 方向同一规则）
+    - 拖动分隔条时不再每次鼠标移动都整图布局两遍：分隔条直接依赖 `QwtFigure` 由 `QwtFigureGrid::sizesChanged()` 驱动的同步布局通道
+    - 回归测试：`tests/figure_grid_test`（`testSpacingGetters`、`testSpacingUpperBoundRejected`、`testDividersWithinUnitRange`）、`tests/figure_grid_layout_test`（`testCumulativeEdgeRounding`）、`tests/figure_grid_splitter_test`（`testDragRelayoutsImmediately`）
 - 修复非整数显示缩放（125%、150%、175%）下调整窗口宽度时，右侧轴线宽度在笔宽与两倍笔宽之间跳变的问题（例如笔宽 2 时在 2 与 4 个设备像素之间变化）：`QwtPlotCanvas` 的 backing store 尺寸为 `qRound( size * ratio )` 个设备像素，并在逻辑原点绘制；而 Qt 对绘制区域的两条边分别取整，画布覆盖的设备像素数取决于其位置，可能比 pixmap 多出一列/一行。画布是不透明的，没有任何绘制会覆盖这一列，它保留的是窗口的旧内容——通常就是缩放前紧贴画布的右侧轴线，于是轴线看起来变宽一倍。现在只要 painter 的设备变换是纯粹的等比缩放，backing store 就按画布实际覆盖的设备像素区域分配，并在设备坐标下 1:1 贴图；其他变换保持原有路径。整数缩放不受影响
 - 回归测试：`tests/axis_corner_test` 新增 `testCanvasCoversDeviceFootprint()`，在 8 个亚像素偏移下渲染画布，检查覆盖区域内每个设备像素都被绘制、区域外不被绘制；CTest 额外以设备像素比 1.75 运行该套件
 - 修复非整数显示缩放下、画布背景由样式表或圆角边框绘制时，backing store 右侧和底部边界出现透明条带的问题：pixmap 按画布的设备足迹分配，可能比控件逻辑矩形宽出不到一个设备像素，而样式表背景只覆盖逻辑矩形。该条带保持透明，1:1 贴图时按混合模式与窗口旧内容叠加——通常正是缩放前紧贴画布的右侧轴线，导致轴线看起来最多变宽两个设备像素，关闭右轴时则留下一条时隐时现的竖线。现在 pixmap 逻辑矩形之外的剩余列/行会用画布背景填充
