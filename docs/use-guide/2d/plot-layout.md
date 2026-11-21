@@ -269,3 +269,4 @@ plot->setMinimumSize(minSize);
 >
 > - Basic layout: All examples under `examples/2D/`
 > - Multi-plot layout: `examples/2D/figure` (using QwtFigure)
+> - Retained grid layout with draggable dividers: `examples/2D/figureGrid`

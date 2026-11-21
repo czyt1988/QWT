@@ -113,6 +113,14 @@
             ]
         },
         {
+            "name": "figureGrid",
+            "shots": [
+                { "output": "screenshots/figure-grid.png", "size": "1280x820", "delay": 2500 },
+                { "output": "screenshots/figure-grid-drag.png", "size": "1280x820", "delay": 2500, "variant": "drag" },
+                { "output": "screenshots/figure-grid-spacing.png", "size": "1280x820", "delay": 2500, "variant": "spacing" }
+            ]
+        },
+        {
             "name": "friedberg",
             "shots": [
                 { "output": "screenshots/friedberg-bar.png", "size": "600x409", "variant": "bar" },

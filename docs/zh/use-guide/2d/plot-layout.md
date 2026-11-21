@@ -227,3 +227,4 @@ plot->setMinimumSize(minSize);
 >
 > - 基础布局：所有 `examples/2D/` 下的示例
 > - 多绘图布局：`examples/2D/figure`（使用 QwtFigure）
+> - 保留式网格布局与可拖拽分隔条：`examples/2D/figureGrid`

@@ -1,6 +1,6 @@
 # QwtFigure绘图容器窗口
 
-`QwtFigure`是一个类似 `matplotlib` 的 `Figure` 类的容器，用于组织和管理多个 `QwtPlot` 绘图组件。它提供归一化坐标定位和网格布局两种布局方式，支持创建寄生绘图（任意多个x轴和y轴）。
+`QwtFigure`是一个类似 `matplotlib` 的 `Figure` 类的容器，用于组织和管理多个 `QwtPlot` 绘图组件。它提供归一化坐标定位、网格布局和保留式网格布局三种布局方式，支持创建寄生绘图（任意多个x轴和y轴）。
 
 ## 主要功能特性
 
@@ -8,6 +8,7 @@
 
 - 归一化坐标布局：使用 `[0,1]` 范围内的坐标系统进行相对位置控制
 - 网格布局：行列式的网格排列方式，方便创建多图组合
+- 保留式网格布局：行列比例以轨道数据保存，可以设置、拖拽分隔条调整、持久化和撤销，缩放窗口后比例不变
 
 ### 2. 寄生绘图支持
 
@@ -63,41 +64,222 @@ QwtPlot* bottomLeftPlot = new QwtPlot;
 figure->addAxes(bottomLeftPlot, 2, 2, 1, 0);
 ```
 
-#### 保留式网格布局与可拖拽分隔条
+> **说明 — 网格坐标只换算一次**
+>
+> 这个重载在添加时就把单元格换算成固定的归一化矩形，之后窗口缩放只会按比例缩放这些矩形，行、列的比例无法再改变。需要交互式调整比例时使用下面的保留式网格布局。
 
-上面网格形式的 `addAxes` 只在添加时把单元格换算成固定的归一化矩形，之后无法再调整比例。保留式网格（retained grid）则把行列轨道比例和成员登记作为唯一数据源保留下来，交互式调整比例正是建立在这个模型上：
+### 保留式网格布局
+
+保留式网格（retained grid）把行列轨道比例和成员登记保存为布局的唯一数据源，figure 的每次几何变化都重新从轨道比例算出成员的矩形，而不是在添加时算一次。比例因此成为可以在运行时修改、拖拽、保存和撤销的数据，窗口缩放后依然保持。
+
+这一功能面向需要交互调整布局的多子图界面。信号分析页把时域、频域和瀑布图放在同一套网格里，用户拖动分隔条就能放大某个子图；应用也可以把用户调整后的比例写入配置文件，下次启动时恢复。布局比例、成员登记和交互分属三个类：
+
+| 类 | 职责 |
+|----|------|
+| `QwtFigure` | 对外入口：启用和退出网格、注册成员、开关分隔条交互、转发模型信号 |
+| `QwtFigureGrid` | 轨道模型：行列比例、间隙、最小轨道像素、成员的 `(row, column, rowSpan, columnSpan)` 登记、单元格归一化矩形、分隔条位置 |
+| `QwtFigureGridSplitter` | 交互：在分隔条附近的窄带内拦截鼠标事件，只修改相邻两条轨道的比例 |
+| `QwtFigureLayout` | 消费方：布局时向模型查询成员的归一化矩形，再换算成像素矩形 |
+
+```mermaid
+classDiagram
+    class QwtFigure {
+        +enableGrid()
+        +disableGrid()
+        +addGridItem()
+        +setGridEditable()
+        +gridSizesChangeFinished()
+    }
+    class QwtFigureGrid {
+        +setRowSizes()
+        +setColumnSizes()
+        +setSpacing()
+        +normRectFor()
+        +dividers()
+    }
+    class QwtFigureGridSplitter {
+        +setEnabled()
+        +setHitWidth()
+        +isDragging()
+        +hoverChanged()
+    }
+    QwtFigure *-- QwtFigureGrid
+    QwtFigure *-- QwtFigureGridSplitter
+    QwtFigureGridSplitter ..> QwtFigureGrid
+```
+
+模型只依赖 Qt，不引用 `QwtFigure` 和 `QwtFigureLayout`，所以轨道计算和 `normRectFor()` 可以脱离界面单独测试。`tests/figure_grid_test`、`tests/figure_grid_layout_test` 和 `tests/figure_grid_splitter_test` 分别覆盖模型、布局集成与交互。
+
+#### 基本用法
+
+启用网格要在添加成员之前完成，`addAxes()` 和非绘图成员用的 `addGridItem()` 都要求网格已经存在：
 
 ```cpp
-// 启用 2x2 保留式网格，并按网格坐标登记成员
-figure->enableGrid(2, 2);
+QwtFigure* figure = new QwtFigure;
+figure->enableGrid(2, 3);                       // 2 行 3 列，初始比例均等
 
-figure->grid()->setRowSizes({ 0.56, 0.44 });     // 行轨道比例（归一化）
-figure->grid()->setColumnSizes({ 0.50, 0.50 });  // 列轨道比例（归一化）
-figure->grid()->setSpacing(0.01, 0.01);          // 可选：单元格之间的间隙
+QwtFigureGrid* grid = figure->grid();           // 轨道模型，enableGrid() 之后有效
+grid->setRowSizes(QVector<qreal>() << 0.6 << 0.4);       // 输入会被归一化到和为 1
+grid->setColumnSizes(QVector<qreal>() << 0.4 << 0.3 << 0.3);
+grid->setSpacing(0.01, 0.01);                   // 单元格之间的间隙，同样是归一化值
 
-figure->addAxes(wavePlot, 0, 0, 1, 2);  // 第0行，跨第0-1列
-figure->addAxes(specPlot, 1, 0);
+figure->addAxes(wavePlot, 0, 0, 1, 2);          // 第 0 行，跨第 0-1 列
+figure->addAxes(spectrumPlot, 1, 0);
 figure->addAxes(heatmapPlot, 1, 1);
 
-// 非绘图成员（例如 3D 绘图控件）用同样的方式登记
-figure->addGridItem(waterfall3D, 1, 1);
+// 任何 QWidget 都可以作为成员，例如 3D 绘图控件或统计面板
+figure->addGridItem(statsPanel, 0, 2, 2, 1);    // 第 2 列，跨两行
 
-// 让轨道之间的分隔条可以拖拽
+figure->setGridEditable(true);                  // 分隔条可拖动
+```
+
+`addAxes()` 会依次发出 `axesAdded()` 和 `currentAxesChanged()`，`addGridItem()` 不涉及坐标轴信号。再次调用 `enableGrid()` 会按新的行列数重建轨道、把比例复位为均等并清空成员登记，成员需要重新添加。
+
+完整的演示位于 `examples/2D/figureGrid`：3×3 网格上有六个成员，包括一个跨三列的频谱图、三个单格绘图、一个跨两列的趋势图和一个用 `addGridItem()` 登记的普通控件；窗口右侧的面板集中了比例预设、间隙、最小轨道像素、命中宽度、撤销和成员增删，截图如下：
+
+![保留式网格布局](../../../assets/screenshots/figure-grid.png)
+
+截图中的子图标题标注了各自的单元格位置。右侧的 wspace、hspace 与底部状态栏显示的是模型当前的归一化比例，拖动分隔条后这些数值同步更新。
+
+#### 轨道比例、间隙与最小轨道
+
+轨道是行、列各自独立的一维比例数组。所有输入都会按数组内的比例归一化到和为 1，调用方传入的数组不会被修改。
+
+| 方法 | 说明 |
+|------|------|
+| `setup(int rowCount, int columnCount)` | 建立轨道，比例复位为 `1/rowCount` 和 `1/columnCount` |
+| `rowCount()` / `columnCount()` | 轨道数量，网格禁用时为 0 |
+| `rowSizes()` / `columnSizes()` | 当前归一化比例，和恒为 1 |
+| `setRowSizes(sizes)` / `setColumnSizes(sizes)` | 设置比例。向量长度必须等于轨道数、元素必须为有限正数，否则打印警告并保持原值 |
+| `setSpacing(wspace, hspace)` | 轨道间隙，归一化。`(trackCount - 1) * gap >= 1` 的请求会被拒绝，避免最后一条轨道被压成 0 |
+| `wspace()` / `hspace()` | 读取当前间隙，用于持久化 |
+| `setMinimumTrackPixels(px)` | 拖动时一条轨道的最小像素宽度，默认 40 |
+| `normRectFor(row, col, rowSpan, colSpan)` | 单元格的归一化矩形 |
+| `dividers()` | 当前可拖动的分隔条列表，包含方向、轨道索引和归一化位置 |
+
+`normRectFor()` 按累计和计算矩形：left 是第 0 列到第 col-1 列的比例之和再加 col 个间隙，width 是第 col 列到第 col+colSpan-1 列的比例之和再加 colSpan-1 个间隙；行方向同理。结果会被夹到 `[0,1]`，因此间隙较大时最后一条轨道会被收窄，这是把矩形限制在 figure 内部的必然结果。
+
+需要保存布局时直接读取模型，恢复时把间隙和比例分开设置，输入会被重新归一化：
+
+```cpp
+// 读取：比例与间隙都是归一化值
+QVector<qreal> rows = grid->rowSizes();
+QVector<qreal> columns = grid->columnSizes();
+saveGridSettings(rows, columns, grid->wspace(), grid->hspace());   // 应用自己实现
+
+// 恢复：先间隙、再比例，最后登记成员
+grid->setSpacing(loadWSpace(), loadHSpace());
+grid->setRowSizes(loadRows());
+grid->setColumnSizes(loadColumns());
+```
+
+#### 拖动分隔条调整比例
+
+`setGridEditable(true)` 会创建 `QwtFigureGridSplitter`（挂在 figure 下，由 figure 销毁），并在 figure 和覆盖单元格的控件上安装事件过滤器。只有落在分隔条附近窄带内的事件会被拦截，其余事件原样放行，缩放、平移、拾取和悬停照常工作：
+
+- 鼠标距分隔条中心不超过 `QwtFigureGridSplitter::setHitWidth()` 像素（默认 4）时命中。两列之间的分隔条是竖线，光标为 `Qt::SplitHCursor`；两行之间的分隔条是横线，光标为 `Qt::SplitVCursor`。光标设置在鼠标实际所在的控件上（通常是画布），画布自身带有显式光标时也能显示，离开分隔带时还原该控件原来的光标
+- 拖动只改变相邻两条轨道的比例，两条轨道的比例和保持不变，并受 `minimumTrackPixels()` 约束，任何一条轨道都不会被压到 0，轨道之间也不会重叠
+- 拖动期间成员控件停止重绘，松手后恢复重绘并重绘整个 figure。每次鼠标移动只做一次同步布局，不会重复整图布局
+- 拖动中按 `Esc` 恢复原始比例，且不发出完成信号。鼠标抓取丢失（`QEvent::UngrabMouse`，例如弹出菜单）或窗口失活时按同样方式取消，成员的重绘随即恢复
+- 拖动开始时 figure 会抓取鼠标和键盘，松手事件总能回到分隔条，即使宿主在 canvas 上后装的过滤器消费了 move、release 事件
+- Qt 按安装的相反顺序调用事件过滤器（后装的先调用）。宿主自己的 canvas 过滤器（拾取器、拖动处理器等）应在 `setGridEditable(true)` 之前安装；若之后才安装，再调用一次 `setGridEditable(true)` 即可，对已启用的分隔条再次启用会重新扫描并重装过滤器
+- `QOpenGLWidget` 成员（3D 绘图）不会被拦截，3D 单元格的边界由相邻的 2D 绘图一侧负责命中。寄生绘图对鼠标事件透明，边界同样由宿主绘图负责
+
+下面是 `examples/2D/figureGrid` 中拖动列分隔条和行分隔条之后的截图。第一列与第一行被放大，状态栏显示新的比例和两次撤销步骤：
+
+![拖动分隔条后的比例](../../../assets/screenshots/figure-grid-drag.png)
+
+`setGridEditable(true)` 要求网格已经启用，否则只打印警告，`isGridEditable()` 保持 false。`QwtFigure` 不提供取分隔条指针的接口；需要调整命中宽度或连接 `hoverChanged()` 时，在首次 `setGridEditable(true)` 之后用 `figure->findChild<QwtFigureGridSplitter*>()` 取得。
+
+#### 撤销与实时预览
+
+拖动过程中的中间状态通过 `sizesChanged()` 连续发出，适合做实时预览；一次交互结束时 `sizesChangeFinished()` 只发出一次，且只在比例确实变化时发出。接到 `QUndoStack` 上，整次拖动对应一条撤销命令：
+
+```cpp
+// 一条命令保存拖动前后的比例
+class GridRatiosCommand : public QUndoCommand
+{
+public:
+    GridRatiosCommand(QwtFigureGrid* grid, const QVector<qreal>& rows, const QVector<qreal>& columns,
+                      const QVector<qreal>& oldRows, const QVector<qreal>& oldColumns)
+        : m_grid(grid), m_rows(rows), m_columns(columns), m_oldRows(oldRows), m_oldColumns(oldColumns)
+    {
+    }
+
+    void redo() override { m_grid->setRowSizes(m_rows); m_grid->setColumnSizes(m_columns); }
+    void undo() override { m_grid->setRowSizes(m_oldRows); m_grid->setColumnSizes(m_oldColumns); }
+
+private:
+    QwtFigureGrid* m_grid;
+    QVector<qreal> m_rows, m_columns, m_oldRows, m_oldColumns;
+};
+
+// 连接：一次拖动只压入一条命令
+QObject::connect(grid, &QwtFigureGrid::sizesChangeFinished, figure,
+                 [grid, undoStack, committedRows, committedColumns]() mutable {
+                     const QVector<qreal> rows = grid->rowSizes();
+                     const QVector<qreal> columns = grid->columnSizes();
+                     if (rows == committedRows && columns == committedColumns) {
+                         return;                  // 比例没有变化，不产生撤销步骤
+                     }
+                     undoStack->push(new GridRatiosCommand(grid, rows, columns, committedRows, committedColumns));
+                     committedRows = rows;
+                     committedColumns = columns;
+                 });
+```
+
+`QwtFigure` 把两个信号转发为 `gridSizesChanged()` 和 `gridSizesChangeFinished()`，宿主也可以直接连接 figure 上的这两个信号，不必持有 `QwtFigureGrid` 指针。
+
+#### 退出网格并保留几何
+
+`disableGrid()` 把网格成员按当前屏幕上的几何换算成独立的归一化矩形，然后清空轨道和成员登记，子图停在原位置、尺寸不变。隐藏的成员按其单元格换算，避免使用过期的像素几何：
+
+```cpp
+// 退出网格：成员停在当前几何，成为普通归一化坐标成员
+if (figure->disableGrid()) {
+    // 之后可以继续用 setWidgetNormPos() 或操作蒙版调整
+}
+
+// 重新启用：轨道从均等开始，成员需要重新登记
+figure->enableGrid(3, 3);
+figure->grid()->setRowSizes(savedRows);          // 比例要自己保存
+figure->addAxes(wavePlot, 0, 0, 1, 3);
+figure->setGridEditable(true);                   // 分隔条交互同样要重新开启
+```
+
+退出网格不可逆：轨道比例、间隙和成员登记都会被丢弃，`isGridEnabled()` 随即返回 false，分隔条交互被关闭。重新启用网格后要再次调用 `setGridEditable(true)`，并重新登记成员。`examples/2D/figureGrid` 的「Leave grid (keep geometry)」按钮演示了退出与重新登记的完整流程。
+
+#### 示例程序
+
+`examples/2D/figureGrid` 是保留式网格的完整示例，核心代码如下：
+
+```cpp
+figure->enableGrid(3, 3);
+figure->grid()->setSpacing(0.006, 0.006);
+
+figure->addAxes(spectrumPlot, 0, 0, 1, 3);       // 第 0 行，跨三列
+figure->addAxes(wavePlot, 1, 0);
+figure->addAxes(scatterPlot, 1, 1);
+figure->addAxes(barPlot, 1, 2);
+figure->addAxes(trendPlot, 2, 0, 1, 2);          // 第 2 行，跨两列
+figure->addGridItem(notesPanel, 2, 2);           // 普通控件成员
+
 figure->setGridEditable(true);
 ```
 
-启用网格编辑后，`QwtFigureGridSplitter` 会在 figure 以及覆盖单元格的控件上安装事件过滤器：只有落在分隔条附近窄带内的事件会被拦截，其余事件原样放行，因此缩放、平移、拾取、悬停等交互不受影响：
+工具栏提供 Equal、Focus top、Golden 三组比例预设和撤销、重做动作，右侧面板可以修改间隙、最小轨道像素与分隔条命中宽度，可以移除或重新添加成员，也可以退出或重新进入网格。下面是把间隙调大后的截图，单元格之间露出 figure 的背景色：
 
-- 鼠标距分隔条中心不超过 `QwtFigureGridSplitter::setHitWidth()` 像素（默认 4）时命中；两列之间的竖直分隔条显示 `Qt::SplitHCursor`，两行之间的水平分隔条显示 `Qt::SplitVCursor`。光标设置在鼠标实际所在的控件上（通常是画布），画布自身带有显式光标（如 `DAChartCanvas` 设置的 `ArrowCursor`）时也能正确显示；离开分隔带时还原该控件的原有光标
-- 拖动只改变相邻两条轨道的比例：两条轨道的比例和保持不变，并同时受 `QwtFigureGrid::minimumTrackPixels()`（默认 40 像素）约束，因此轨道不会被压到 0，也不会互相重叠
-- 拖动过程中成员控件停止重绘，松手后恢复重绘并重绘整个 figure
-- 拖动过程中连续发出 `QwtFigureGrid::sizesChanged()`（转发为 `QwtFigure::gridSizesChanged()`），可用于实时预览；松手时且比例确实发生变化才发出一次 `QwtFigureGrid::sizesChangeFinished()`（转发为 `QwtFigure::gridSizesChangeFinished()`），把它接到撤销栈即可为整次拖动压入一条撤销命令
-- 拖动中按 `Esc` 会恢复原始比例，且不发出完成信号。鼠标抓取丢失（`QEvent::UngrabMouse`，例如弹出菜单）或窗口失活时，拖动按同样方式取消：拖动期间 figure 会抓取鼠标（grabMouse），因此松手事件总会回到分隔条——即使宿主之后在 canvas 上安装的过滤器消费了 move/release 事件
-- Qt 事件过滤器按安装的相反顺序调用（后装的先调用）：宿主自己的 canvas 过滤器（拾取器、拖动处理器等）应在 `setGridEditable(true)` 之前安装；若之后才安装，可再调用一次 `setGridEditable(true)`——对已启用的分隔条再次启用会重新扫描并重装其过滤器，使其重新排在宿主过滤器之前
-- `QOpenGLWidget` 成员（3D 绘图）不会被拦截：3D 单元格的边界由相邻的 2D 绘图一侧负责命中。寄生绘图本身对鼠标事件透明，其边界同样由宿主绘图负责
-- 网格分隔条与 `QwtFigureWidgetOverlay` 不能同时启用：蒙版覆盖整个 figure，会吞掉子绘图的事件，所以网格可编辑时应关闭蒙版的 `FunResizePlot` 模式（或把蒙版设为对鼠标事件透明）
+![加宽网格间隙](../../../assets/screenshots/figure-grid-spacing.png)
 
-`setGridEditable(true)` 要求已经启用网格，否则只打印警告，`isGridEditable()` 保持 false。`examples/2D/figure` 的工具栏新增了「Grid layout (draggable)」动作，可切换到 2x2 保留式网格演示。
+例子支持文档截图协议：`--variant drag` 用合成鼠标事件拖动两条分隔条，`--variant spacing` 切换到大间隙状态，对应 `examples/screenshots-manifest.json` 中的三条记录。重新生成截图的方式见 `examples/SCREENSHOTS.md`。
+
+> **警告 — 分隔条与操作蒙版互斥**
+>
+> `QwtFigureGridSplitter` 依赖鼠标事件到达子绘图，`QwtFigureWidgetOverlay` 覆盖整个 figure 并吃掉子控件的事件，两者同时启用时分隔条收不到事件。网格可编辑时应关闭蒙版的 `FunResizePlot` 模式，或把蒙版设为对鼠标事件透明。
+
+> **警告 — 成员控件的生命周期由调用方负责**
+>
+> `removeWidget()` 和 `disableGrid()` 都不会删除成员。移除的控件会被隐藏并解除父子关系（`setParent(nullptr)`），调用方要保证它的生命周期，重新添加时再交回 figure。
 
 ### 当前激活子图
 
