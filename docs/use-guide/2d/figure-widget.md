@@ -137,7 +137,7 @@ figure->setGridEditable(true);                  // make the dividers draggable
 
 The complete demo is `examples/2D/figureGrid`: six members on a 3 x 3 grid, a spectrum spanning three columns, three single cell plots, a trend plot spanning two columns and a plain widget registered with `addGridItem()`. The panel on the right collects the ratio presets, the gaps, the minimum track pixels, the hit width, undo/redo and adding/removing members:
 
-![Retained grid layout](../../../assets/screenshots/figure-grid.png)
+![Retained grid layout](../../assets/screenshots/figure-grid.png)
 
 The plot titles in the screenshot name the cell of each member. The `wspace`/`hspace` fields on the right and the status bar at the bottom show the normalized values of the model; they follow a divider drag.
 
@@ -187,7 +187,7 @@ grid->setColumnSizes(loadColumns());
 
 The screenshot below shows `examples/2D/figureGrid` after the column divider and the row divider were dragged. The first column and the first row grew, and the status bar reports the new ratios and two undo steps:
 
-![Ratios after a divider drag](../../../assets/screenshots/figure-grid-drag.png)
+![Ratios after a divider drag](../../assets/screenshots/figure-grid-drag.png)
 
 `setGridEditable(true)` requires an enabled grid; otherwise it logs a warning and `isGridEditable()` stays false. `QwtFigure` does not expose the splitter pointer; use `figure->findChild<QwtFigureGridSplitter*>()` after the first `setGridEditable(true)` when the hit width has to be changed or `hoverChanged()` has to be connected.
 
@@ -269,7 +269,7 @@ figure->setGridEditable(true);
 
 The toolbar has the Equal, Focus top and Golden ratio presets plus undo and redo. The panel on the right changes the gaps, the minimum track pixels and the hit width of the dividers, removes and adds a member back, and leaves or re-enters the grid. The screenshot below uses wider gaps, so the figure background shows between the cells:
 
-![Wider grid gaps](../../../assets/screenshots/figure-grid-spacing.png)
+![Wider grid gaps](../../assets/screenshots/figure-grid-spacing.png)
 
 The example implements the screenshot protocol: `--variant drag` drags two dividers with synthetic mouse events and `--variant spacing` switches to the wide gaps, which matches the three entries in `examples/screenshots-manifest.json`. See `examples/SCREENSHOTS.md` for regenerating the images.
 
