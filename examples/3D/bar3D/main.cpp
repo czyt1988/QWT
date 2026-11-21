@@ -11,6 +11,7 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QComboBox>
+#include <QIcon>
 #include <QLabel>
 #include <QMainWindow>
 #include <QMenu>
@@ -97,6 +98,8 @@ private:
     {
         auto* tb = addToolBar("Controls");
         tb->setMovable(false);
+        tb->setIconSize(QSize(20, 20));
+        tb->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
         // Coord style menu (Box / Frame / None)
         auto* coordGroup = new QActionGroup(this);
@@ -111,6 +114,7 @@ private:
         addCoord(QStringLiteral("Frame"), FRAME);
         addCoord(QStringLiteral("None"), NOCOORD);
         auto* coordAction = tb->addAction(QStringLiteral("Coord Style"));
+        coordAction->setIcon(QIcon(QStringLiteral(":/icons/coord-style.svg")));
         coordAction->setMenu(new QMenu(tb));
         for (auto* a : coordGroup->actions())
             coordAction->menu()->addAction(a);
@@ -136,6 +140,7 @@ private:
         tb->addSeparator();
 
         auto* lightAction = tb->addAction(QStringLiteral("Lighting"));
+        lightAction->setIcon(QIcon(QStringLiteral(":/icons/lighting.svg")));
         lightAction->setCheckable(true);
         lightAction->setChecked(true);
         connect(lightAction, &QAction::toggled, this, [this](bool on) {
@@ -144,6 +149,7 @@ private:
         });
 
         auto* legendAction = tb->addAction(QStringLiteral("Color Legend"));
+        legendAction->setIcon(QIcon(QStringLiteral(":/icons/legend.svg")));
         legendAction->setCheckable(true);
         legendAction->setChecked(true);
         connect(legendAction, &QAction::toggled, this, [this](bool on) {
@@ -153,7 +159,8 @@ private:
 
         tb->addSeparator();
 
-        tb->addAction(QStringLiteral("Reset View"), this, [this] { resetView(); });
+        auto* resetAction = tb->addAction(QStringLiteral("Reset View"), this, [this] { resetView(); });
+        resetAction->setIcon(QIcon(QStringLiteral(":/icons/reset-view.svg")));
     }
 
     Qwt3DPlot* m_plot = nullptr;

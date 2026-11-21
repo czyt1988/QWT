@@ -5,6 +5,7 @@
 #include <QComboBox>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QIcon>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
@@ -172,6 +173,8 @@ void MainWindow::createToolBar()
 {
     auto* toolbar = addToolBar(QStringLiteral("Controls"));
     toolbar->setMovable(false);
+    toolbar->setIconSize(QSize(20, 20));
+    toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
     // --- Data source ---
     toolbar->addWidget(new QLabel(QStringLiteral("Data: ")));
@@ -185,8 +188,13 @@ void MainWindow::createToolBar()
 
     // Animate toggle
     m_animateAction = toolbar->addAction(QStringLiteral("Animate"));
+    m_animateAction->setIcon(QIcon(QStringLiteral(":/icons/play.svg")));
     m_animateAction->setCheckable(true);
     connect(m_animateAction, &QAction::toggled, this, &MainWindow::onAnimateToggled);
+    connect(m_animateAction, &QAction::toggled, this, [this](bool on) {
+        m_animateAction->setIcon(QIcon(on ? QStringLiteral(":/icons/pause.svg")
+                                          : QStringLiteral(":/icons/play.svg")));
+    });
 
     toolbar->addSeparator();
 
@@ -195,15 +203,18 @@ void MainWindow::createToolBar()
     coordGroup->setExclusive(true);
 
     auto* boxAction = coordGroup->addAction(QStringLiteral("Box"));
+    boxAction->setIcon(QIcon(QStringLiteral(":/icons/coord-box.svg")));
     boxAction->setCheckable(true);
     boxAction->setChecked(true);
     boxAction->setData(int(BOX));
 
     auto* frameAction = coordGroup->addAction(QStringLiteral("Frame"));
+    frameAction->setIcon(QIcon(QStringLiteral(":/icons/coord-frame.svg")));
     frameAction->setCheckable(true);
     frameAction->setData(int(FRAME));
 
     auto* noneAction = coordGroup->addAction(QStringLiteral("None"));
+    noneAction->setIcon(QIcon(QStringLiteral(":/icons/coord-none.svg")));
     noneAction->setCheckable(true);
     noneAction->setData(int(NOCOORD));
 
@@ -226,28 +237,34 @@ void MainWindow::createToolBar()
 
     // --- Toggles ---
     auto* lightAction = toolbar->addAction(QStringLiteral("Lighting"));
+    lightAction->setIcon(QIcon(QStringLiteral(":/icons/lighting.svg")));
     lightAction->setCheckable(true);
     lightAction->setChecked(true);
     connect(lightAction, &QAction::toggled, this, &MainWindow::onLightingToggled);
 
     auto* legendAction = toolbar->addAction(QStringLiteral("Legend"));
+    legendAction->setIcon(QIcon(QStringLiteral(":/icons/legend.svg")));
     legendAction->setCheckable(true);
     legendAction->setChecked(true);
     connect(legendAction, &QAction::toggled, this, &MainWindow::onLegendToggled);
 
     auto* orthoAction = toolbar->addAction(QStringLiteral("Ortho"));
+    orthoAction->setIcon(QIcon(QStringLiteral(":/icons/ortho.svg")));
     orthoAction->setCheckable(true);
     connect(orthoAction, &QAction::toggled, this, &MainWindow::onOrthoToggled);
 
     auto* gridAction = toolbar->addAction(QStringLiteral("Grid"));
+    gridAction->setIcon(QIcon(QStringLiteral(":/icons/grid.svg")));
     gridAction->setCheckable(true);
     connect(gridAction, &QAction::toggled, this, &MainWindow::onGridToggled);
 
     toolbar->addSeparator();
 
     // --- Actions ---
-    toolbar->addAction(QStringLiteral("Reset View"), this, &MainWindow::onResetView);
-    toolbar->addAction(QStringLiteral("Save..."), this, &MainWindow::onSavePixmap);
+    auto* resetAction = toolbar->addAction(QStringLiteral("Reset View"), this, &MainWindow::onResetView);
+    resetAction->setIcon(QIcon(QStringLiteral(":/icons/reset-view.svg")));
+    auto* saveAction = toolbar->addAction(QStringLiteral("Save..."), this, &MainWindow::onSavePixmap);
+    saveAction->setIcon(QIcon(QStringLiteral(":/icons/save.svg")));
 }
 
 // ---------------------------------------------------------------------------
