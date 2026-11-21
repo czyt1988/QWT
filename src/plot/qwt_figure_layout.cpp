@@ -165,6 +165,15 @@ void QwtFigureLayout::setGeometry(const QRect& rect)
         qDebug() << "normRect=" << normRect << ",actualRect=" << actualRect;
 #endif
     }
+
+    /*
+       The members have their new geometry now: refresh the plot area alignment
+       of the figure. The pass measures the natural insets of the plots from the
+       current member size, so it has to run after the geometries were applied.
+     */
+    if (QwtFigure* figure = qobject_cast< QwtFigure* >(parentWidget())) {
+        figure->applyAllAxisAlignments(false);
+    }
 }
 
 /**

@@ -26,6 +26,11 @@ class QwtFigureGridSplitter;
  * supporting both normalized coordinate positioning and grid layouts for Qwt plots.
  * It uses Qt's standard top-left coordinate system for intuitive positioning.
  *
+ * The plot areas of the members can be aligned (see addAxisAlignment() and
+ * setGridAxisAlignment()): the axis backbones and the plotted data of plots that
+ * share a grid column or row line up even when their tick labels, titles,
+ * legends or parasite axes have very different sizes.
+ *
  * @par Example:
  * @code
  * // Example usage:
@@ -213,7 +218,12 @@ public:
     // Clear all axis alignment configurations
     void clearAxisAlignment();
 
-    // Apply all axis alignment configurations
+    // Enable the automatic alignment of the plot areas of the retained grid members
+    void setGridAxisAlignment(bool on);
+    // Check whether the retained grid members are aligned automatically
+    bool isGridAxisAlignment() const;
+
+    // Recompute and apply the axis alignment of the figure
     void applyAllAxisAlignments(bool replot = true);
 
     // Apply all alignment configurations for a specific axis ID
@@ -267,6 +277,14 @@ Q_SIGNALS:
      * @note Forwarded from QwtFigureGrid::sizesChangeFinished()
      */
     void gridSizesChangeFinished();
+
+private:
+    // Recompute the insets of the grid groups and of the manual configurations
+    void recomputeAxisAlignment(bool replot);
+    // Check whether a plot participates in any active alignment
+    bool isAxisAlignmentParticipant(const QwtPlot* plot) const;
+    // Queue one merged alignment pass for the next event loop iteration
+    void scheduleAxisAlignment();
 
 protected:
     void paintEvent(QPaintEvent* event) override;

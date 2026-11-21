@@ -4,6 +4,7 @@
  *****************************************************************************/
 #include "qwt_figure.h"
 // Qt
+#include <QHash>
 #include <QPainter>
 #include <QPointer>
 #include <QPaintEvent>
@@ -11,6 +12,7 @@
 #include <QEvent>
 #include <QApplication>
 #include <QGuiApplication>
+#include <QTimer>
 #include <QScreen>
 #include <QWidgetItem>
 #include <QMap>
@@ -43,6 +45,150 @@
     }
 #endif
 
+namespace
+{
+/**
+ * @brief Check whether a plot can take part in the alignment
+ * @details Parasite plots share the canvas of their host and are laid out by it,
+ *          they are never aligned on their own.
+ */
+bool isAlignablePlot(const QwtPlot* plot)
+{
+    return plot && !plot->isParasitePlot();
+}
+
+/**
+ * @brief Measure the natural canvas inset of one side of a plot
+ * @details The natural inset is the distance between the plot contents rect and
+ *          the canvas edge the content asks for, before any figure alignment is
+ *          applied. It contains everything that consumes space on that side:
+ *          the axis band of the host and of its parasite layers, the tick labels,
+ *          titles, a legend in that band, and so on.
+ * @param[in] plot Plot to measure
+ * @param[in] axisPos Side of the canvas (QwtAxis::Position)
+ * @param[out] inset Natural inset in pixels
+ * @return true when the inset could be measured
+ */
+bool naturalCanvasInset(QwtPlot* plot, int axisPos, qreal* inset)
+{
+    if (!isAlignablePlot(plot) || !inset)
+        return false;
+
+    QwtPlotLayout* layout = plot->plotLayout();
+    if (!layout)
+        return false;
+
+    const QRectF plotRect = plot->contentsRect();
+    if (plotRect.width() <= 0.0 || plotRect.height() <= 0.0)
+        return false;
+
+    /*
+       A host plot reserves the bands of its parasite layers in the dimensions
+       of its own axes. updateAllAxisEdgeMargin() maintains those offsets after a
+       layout pass, so settle them before the natural rect is read.
+     */
+    if (!plot->parasitePlots().isEmpty()) {
+        layout->activate(plot, plotRect);
+        plot->updateAllAxisEdgeMargin();
+    }
+    layout->activate(plot, plotRect);
+
+    const QRectF canvas = layout->naturalCanvasRect();
+    if (!canvas.isValid())
+        return false;
+
+    switch (axisPos) {
+    case QwtAxis::YLeft:
+        *inset = qMax(qreal(0.0), canvas.left() - plotRect.left());
+        break;
+    case QwtAxis::YRight:
+        *inset = qMax(qreal(0.0), plotRect.right() - canvas.right());
+        break;
+    case QwtAxis::XTop:
+        *inset = qMax(qreal(0.0), canvas.top() - plotRect.top());
+        break;
+    case QwtAxis::XBottom:
+        *inset = qMax(qreal(0.0), plotRect.bottom() - canvas.bottom());
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
+//! Canvas inset targets of a plot, indexed by QwtAxis::Position
+typedef QVector< qreal > CanvasInsets;
+
+/**
+ * @brief Measure the natural canvas insets of all four sides of a plot
+ * @return True when every side could be measured
+ */
+bool naturalCanvasInsets(QwtPlot* plot, CanvasInsets* insets)
+{
+    if (!insets)
+        return false;
+    CanvasInsets values;
+    values.reserve(QwtAxis::AxisPositions);
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+        qreal inset = 0.0;
+        if (!naturalCanvasInset(plot, axisPos, &inset))
+            return false;
+        values.append(inset);
+    }
+    *insets = values;
+    return true;
+}
+
+//! Apply the minimum canvas insets of a plot
+void applyCanvasInsets(QwtPlot* plot, const CanvasInsets& insets)
+{
+    QwtPlotLayout* layout = plot ? plot->plotLayout() : nullptr;
+    if (!layout || insets.size() != QwtAxis::AxisPositions)
+        return;
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++)
+        layout->setMinCanvasInset(axisPos, insets.at(axisPos));
+}
+
+//! Return a plot to the insets its own content asks for
+void resetCanvasInsets(QwtPlot* plot)
+{
+    if (QwtPlotLayout* layout = plot ? plot->plotLayout() : nullptr)
+        layout->resetMinCanvasInsets();
+}
+
+/**
+ * @brief Compare two inset sets
+ * @details Measured insets are pixel values that may jitter by a fraction of a
+ *          pixel between passes; a small tolerance avoids relayouts for nothing.
+ */
+bool sameCanvasInsets(const CanvasInsets& lhs, const CanvasInsets& rhs)
+{
+    if (lhs.size() != rhs.size())
+        return false;
+    for (int i = 0; i < lhs.size(); i++) {
+        if (qAbs(lhs.at(i) - rhs.at(i)) > 0.01)
+            return false;
+    }
+    return true;
+}
+
+//! Raise the inset target of a group of plots on one side to the largest value
+void raiseGroupInset(const QList< QwtPlot* >& group, int axisPos, QHash< QwtPlot*, CanvasInsets >& targets)
+{
+    if (group.size() < 2)
+        return;
+
+    qreal maxInset = 0.0;
+    for (QwtPlot* plot : qwt_as_const(group)) {
+        const auto it = targets.constFind(plot);
+        if (it != targets.constEnd())
+            maxInset = qMax(maxInset, it.value().at(axisPos));
+    }
+    for (QwtPlot* plot : qwt_as_const(group))
+        targets[ plot ][ axisPos ] = maxInset;
+}
+}  // namespace
+
 class QwtFigure::PrivateData
 {
     QWT_DECLARE_PUBLIC(QwtFigure)
@@ -56,6 +202,12 @@ public:
     void watchWidget(QWidget* widget);
     // Remove the press-activation filter from a widget and, for plots, from its canvas
     void unwatchWidget(QWidget* widget);
+    // Recompute and apply the plot area alignment of the figure
+    void applyAxisAlignment(QwtFigure* figure, bool replot);
+    // Check whether a plot takes part in the automatic or in a manual alignment
+    bool isAlignmentParticipant(const QwtFigure* figure, const QwtPlot* plot) const;
+    // Restore the natural plot area of a plot that leaves the figure
+    void releaseAxisAlignment(QwtPlot* plot);
     // Structure for storing alignment configuration
     struct AlignmentConfig
     {
@@ -70,6 +222,10 @@ public:
     QPointer< QwtPlot > currentAxes;            ///< Current active axes
     QPointer< QwtFigureGrid > grid;             ///< Retained grid layout (created on demand)
     QList< AlignmentConfig > alignmentConfigs;  // All alignment configurations
+
+    bool gridAxisAlignment { true };                ///< Align the members of the retained grid automatically
+    bool alignmentPending { false };                ///< A merged alignment pass is queued
+    QHash< QwtPlot*, CanvasInsets > appliedInsets;  ///< Insets currently forced on the figure plots
 
     // Divider interaction (created on demand)
     QPointer< QwtFigureGridSplitter > gridSplitter;
@@ -120,6 +276,205 @@ void QwtFigure::PrivateData::unwatchWidget(QWidget* widget)
             canvas->removeEventFilter(q_ptr);
         }
     }
+}
+
+/**
+ * @brief Recompute the canvas inset targets and apply them to the plots
+ * @details The pass has three stages:
+ *          1. measure the natural canvas inset of every plot that takes part
+ *          2. raise the inset of a plot to the largest inset of its alignment
+ *             group (the grid rows/columns and the manual configurations)
+ *          3. set the resulting minimum insets and relayout the changed plots
+ *
+ *          The grid groups are derived from the cell registrations: the members
+ *          of a column share the left and right canvas edges, the members of a
+ *          row share the top and bottom ones. A member spanning several tracks
+ *          belongs to the group of the first and of the last track it covers.
+ *
+ *          Manual configurations are merged per side into connected components,
+ *          so overlapping configurations cannot leave a plot out of an equality
+ *          chain. Their targets start from the grid targets: a manual group never
+ *          undoes the automatic alignment.
+ * @param figure Figure the alignment belongs to
+ * @param replot True to replot the participants after the pass
+ */
+void QwtFigure::PrivateData::applyAxisAlignment(QwtFigure* figure, bool replot)
+{
+    if (!figure)
+        return;
+
+    QList< QwtPlot* > participants;
+    QHash< QwtPlot*, CanvasInsets > targets;
+
+    const auto addParticipant = [ & ](QwtPlot* plot) -> bool {
+        if (!isAlignablePlot(plot))
+            return false;
+        if (targets.contains(plot))
+            return true;
+
+        CanvasInsets insets;
+        if (!naturalCanvasInsets(plot, &insets))
+            return false;
+
+        targets.insert(plot, insets);
+        participants.append(plot);
+        return true;
+    };
+
+    // ---- 1. automatic groups of the retained grid ----
+    if (gridAxisAlignment && grid && grid->isEnabled()) {
+        QHash< int, QList< QwtPlot* > > leftGroups, rightGroups, topGroups, bottomGroups;
+
+        const QList< QWidget* > members = grid->items();
+        for (QWidget* member : qwt_as_const(members)) {
+            QwtPlot* plot = qobject_cast< QwtPlot* >(member);
+            if (!plot || !plot->isVisibleTo(figure))
+                continue;
+
+            int row = 0, column = 0, rowSpan = 0, columnSpan = 0;
+            if (!grid->gridPosition(plot, &row, &column, &rowSpan, &columnSpan))
+                continue;
+            if (!addParticipant(plot))
+                continue;
+
+            leftGroups[ column ].append(plot);
+            rightGroups[ column + columnSpan ].append(plot);
+            topGroups[ row ].append(plot);
+            bottomGroups[ row + rowSpan ].append(plot);
+        }
+
+        for (auto it = leftGroups.constBegin(); it != leftGroups.constEnd(); ++it)
+            raiseGroupInset(it.value(), QwtAxis::YLeft, targets);
+        for (auto it = rightGroups.constBegin(); it != rightGroups.constEnd(); ++it)
+            raiseGroupInset(it.value(), QwtAxis::YRight, targets);
+        for (auto it = topGroups.constBegin(); it != topGroups.constEnd(); ++it)
+            raiseGroupInset(it.value(), QwtAxis::XTop, targets);
+        for (auto it = bottomGroups.constBegin(); it != bottomGroups.constEnd(); ++it)
+            raiseGroupInset(it.value(), QwtAxis::XBottom, targets);
+    }
+
+    // ---- 2. manual configurations ----
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
+        QList< QList< QwtPlot* > > groups;
+        for (const AlignmentConfig& config : qwt_as_const(alignmentConfigs)) {
+            if (config.axisId != axisPos)
+                continue;
+
+            QList< QwtPlot* > group;
+            for (QwtPlot* plot : qwt_as_const(config.plots)) {
+                if (plot && figure->hasAxes(plot) && addParticipant(plot))
+                    group.append(plot);
+            }
+            if (group.size() > 1)
+                groups.append(group);
+        }
+        if (groups.isEmpty())
+            continue;
+
+        // Merge the overlapping groups of this side with a union-find: all
+        // plots of one component have to end up with the same inset.
+        QHash< QwtPlot*, QwtPlot* > parent;
+        const auto findRoot = [ &parent ](QwtPlot* plot) {
+            QwtPlot* root = plot;
+            while (parent.contains(root) && parent.value(root) != root)
+                root = parent.value(root);
+            return root;
+        };
+
+        for (const QList< QwtPlot* >& group : qwt_as_const(groups)) {
+            QwtPlot* head = group.first();
+            if (!parent.contains(head))
+                parent.insert(head, head);
+
+            for (int i = 1; i < group.size(); i++) {
+                QwtPlot* plot = group.at(i);
+                if (!parent.contains(plot))
+                    parent.insert(plot, plot);
+
+                QwtPlot* rootHead = findRoot(head);
+                QwtPlot* rootPlot = findRoot(plot);
+                if (rootHead != rootPlot)
+                    parent[ rootPlot ] = rootHead;
+            }
+        }
+
+        QHash< QwtPlot*, qreal > componentInset;
+        for (auto it = parent.constBegin(); it != parent.constEnd(); ++it) {
+            QwtPlot* plot          = it.key();
+            QwtPlot* root          = findRoot(plot);
+            const qreal inset      = targets.value(plot).at(axisPos);
+            componentInset[ root ] = qMax(componentInset.value(root, 0.0), inset);
+        }
+        for (auto it = parent.constBegin(); it != parent.constEnd(); ++it) {
+            QwtPlot* plot              = it.key();
+            targets[ plot ][ axisPos ] = componentInset.value(findRoot(plot));
+        }
+    }
+
+    // ---- 3. apply ----
+    // Plots that left every alignment group go back to their natural layout.
+    const QList< QwtPlot* > previouslyAligned = appliedInsets.keys();
+    for (QwtPlot* plot : qwt_as_const(previouslyAligned)) {
+        if (targets.contains(plot))
+            continue;
+
+        appliedInsets.remove(plot);
+
+        // A plot that is not part of the figure anymore has already been
+        // released when it was removed: do not touch a possibly stale pointer.
+        if (!figure->hasAxes(plot))
+            continue;
+
+        resetCanvasInsets(plot);
+        plot->updateLayout();
+    }
+
+    // Only the plots whose insets really changed need another layout pass.
+    for (QwtPlot* plot : qwt_as_const(participants)) {
+        const CanvasInsets target = targets.value(plot);
+        if (sameCanvasInsets(appliedInsets.value(plot), target))
+            continue;
+
+        applyCanvasInsets(plot, target);
+        plot->updateLayout();
+    }
+    appliedInsets = targets;
+
+    if (replot) {
+        for (QwtPlot* plot : qwt_as_const(participants))
+            plot->replot();
+    }
+}
+
+bool QwtFigure::PrivateData::isAlignmentParticipant(const QwtFigure* figure, const QwtPlot* plot) const
+{
+    Q_UNUSED(figure);
+    if (!isAlignablePlot(plot))
+        return false;
+
+    QwtPlot* nonConstPlot = const_cast< QwtPlot* >(plot);
+
+    if (gridAxisAlignment && grid && grid->isEnabled()) {
+        int row = 0, column = 0, rowSpan = 0, columnSpan = 0;
+        if (grid->gridPosition(nonConstPlot, &row, &column, &rowSpan, &columnSpan))
+            return true;
+    }
+
+    for (const AlignmentConfig& config : qwt_as_const(alignmentConfigs)) {
+        if (config.plots.contains(nonConstPlot))
+            return true;
+    }
+    return false;
+}
+
+void QwtFigure::PrivateData::releaseAxisAlignment(QwtPlot* plot)
+{
+    if (!plot || !appliedInsets.contains(plot))
+        return;
+
+    appliedInsets.remove(plot);
+    resetCanvasInsets(plot);
+    plot->updateLayout();
 }
 
 //----------------------------------------------------
@@ -293,6 +648,7 @@ bool QwtFigure::enableGrid(int rowCount, int columnCount)
         lay->invalidate();
         lay->activate();
     }
+    recomputeAxisAlignment(false);
     return true;
 }
 
@@ -363,6 +719,9 @@ bool QwtFigure::disableGrid()
         lay->invalidate();
         lay->setGeometry(figureRect);
     }
+    // The members are free members now: the automatic grid alignment is gone,
+    // only manual configurations keep their plot areas aligned.
+    recomputeAxisAlignment(false);
     update();
     return true;
 }
@@ -417,6 +776,7 @@ void QwtFigure::addAxes(QwtPlot* plot, int row, int col, int rowSpan, int colSpa
     }
     const QRectF rect = m_data->grid->normRectFor(row, col, rowSpan, colSpan);
     addWidget(plot, rect.x(), rect.y(), rect.width(), rect.height());
+    recomputeAxisAlignment(false);
 
     Q_EMIT axesAdded(plot);
     setCurrentAxes(plot);
@@ -742,6 +1102,10 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
         if (lay) {
             lay->invalidate();
         }
+        // The plot keeps its own content but leaves the alignment groups of the
+        // figure; the remaining members may get smaller shared insets.
+        m_data->releaseAxisAlignment(plot);
+        recomputeAxisAlignment(false);
         Q_EMIT axesRemoved(plot);
     }
     m_data->updateGridSplitter();
@@ -791,6 +1155,9 @@ void QwtFigure::clear()
         }
     }
     setCurrentAxes(nullptr);
+    // The members are deleted with deleteLater(): drop the alignment bookkeeping
+    // without touching them again.
+    m_data->appliedInsets.clear();
     if (removeCnt > 0) {
         Q_EMIT figureCleared();
     }
@@ -999,6 +1366,11 @@ QPixmap QwtFigure::saveFig(int dpi) const
     // Use const_cast to call non-const methods
     QwtFigure* nonConstThis = const_cast< QwtFigure* >(this);
 
+    // The exported image must show the aligned plot areas, even when the
+    // alignment was not applied since the last content change (f.e. a plot
+    // that was never shown/relaid out before the export).
+    nonConstThis->recomputeAxisAlignment(false);
+
     if (dpi <= 0) {
         // No scaling needed, just grab the current state
         return nonConstThis->grab();
@@ -1051,6 +1423,9 @@ QPixmap QwtFigure::saveFig(QSizeF& inchesSize) const
 
     // Use const_cast to call non-const methods
     QwtFigure* nonConstThis = const_cast< QwtFigure* >(this);
+
+    // Align the plot areas before the figure is rendered (see saveFig(int))
+    nonConstThis->recomputeAxisAlignment(false);
 
     // Create pixmap with target size
     QPixmap pixmap(targetSize);
@@ -1219,13 +1594,84 @@ void QwtFigure::replotAll()
     for (QwtPlot* plot : plots) {
         plot->replotAll();
     }
+    // A replot may have changed the tick label dimensions: refresh the aligned
+    // plot areas. No replot is needed here, the canvas maps are read live from
+    // the widget geometries.
+    recomputeAxisAlignment(false);
+}
+
+/**
+ * @brief Recompute the plot area alignment of the figure
+ * @details The pass measures the natural canvas insets of the plots that take
+ *          part in the alignment (the members of the retained grid and the plots
+ *          of the manual configurations) and raises them to the largest inset of
+ *          their group. An inset is the distance between the plot widget and the
+ *          plot area: aligning it aligns the axis backbones, the tick marks and
+ *          the plotted data of the sub plots, independent of the width of their
+ *          tick labels, titles, legends or parasite axes.
+ *
+ *          The pass is idempotent and only relayouts the plots whose insets
+ *          changed, so it can be called on every figure layout.
+ * @param replot True to replot the plots after the alignment was applied
+ * @sa setGridAxisAlignment(), addAxisAlignment()
+ */
+void QwtFigure::applyAllAxisAlignments(bool replot)
+{
+    recomputeAxisAlignment(replot);
+}
+
+void QwtFigure::recomputeAxisAlignment(bool replot)
+{
+    m_data->applyAxisAlignment(this, replot);
+}
+
+/**
+ * @brief Enable or disable the automatic plot area alignment of the grid
+ * @details When enabled (the default), the members of the retained grid share
+ *          the canvas insets of their column (left and right edge) and of their
+ *          row (top and bottom edge): the axis backbones of the sub plots line
+ *          up even when their tick labels have very different widths. The insets
+ *          take all decorations of a plot area into account, including parasite
+ *          axes and legends.
+ *
+ *          Disabling the alignment restores the natural plot area of the
+ *          members. Manual configurations (addAxisAlignment()) are not affected.
+ * @param on True to align the retained grid members automatically
+ * @sa isGridAxisAlignment(), enableGrid()
+ */
+void QwtFigure::setGridAxisAlignment(bool on)
+{
+    if (m_data->gridAxisAlignment == on) {
+        return;
+    }
+    m_data->gridAxisAlignment = on;
+    recomputeAxisAlignment(false);
+}
+
+/**
+ * @brief Check whether the retained grid members are aligned automatically
+ * @return True when the automatic grid alignment is enabled (the default)
+ * @sa setGridAxisAlignment()
+ */
+bool QwtFigure::isGridAxisAlignment() const
+{
+    return m_data->gridAxisAlignment;
 }
 
 /**
  * @brief Add axis alignment configuration
- * @details This method adds an alignment configuration for the specified plots and axis.
+ * @details The plots of one configuration get the same canvas inset on the
+ *          given side, using the largest inset its content asks for. This aligns
+ *          the axis backbone (the plot area edge) of the plots, which is useful
+ *          for figures whose members are not part of a retained grid.
+ *
+ *          Overlapping configurations of the same side are merged, all their
+ *          plots end up with the same inset.
  * @param plots List of plots to align
- * @param axisId Axis ID to align (QwtAxis::XTop/XBottom/YLeft/YRight)
+ * @param axisId Side to align (QwtAxis::XTop/XBottom/YLeft/YRight)
+ * @note The members of the retained grid are aligned automatically already,
+ *       unless setGridAxisAlignment() is switched off.
+ * @sa removeAxisAlignment(), clearAxisAlignment(), alignAxes()
  */
 void QwtFigure::addAxisAlignment(const QList< QwtPlot* >& plots, int axisId)
 {
@@ -1233,10 +1679,11 @@ void QwtFigure::addAxisAlignment(const QList< QwtPlot* >& plots, int axisId)
         return;
     }
 
-    // Filter out plots not in the current figure
+    // Filter out plots not in the current figure (parasite plots share the
+    // canvas of their host, which is aligned instead)
     QList< QwtPlot* > validPlots;
-    for (QwtPlot* plot : plots) {
-        if (plot && hasAxes(plot)) {
+    for (QwtPlot* plot : qwt_as_const(plots)) {
+        if (isAlignablePlot(plot) && hasAxes(plot)) {
             validPlots.append(plot);
         }
     }
@@ -1245,11 +1692,21 @@ void QwtFigure::addAxisAlignment(const QList< QwtPlot* >& plots, int axisId)
         return;
     }
 
+    // Adding the same configuration twice (f.e. a layout helper that is called
+    // on every replot) must not accumulate redundant groups.
+    for (const PrivateData::AlignmentConfig& existing : qwt_as_const(m_data->alignmentConfigs)) {
+        if (existing.axisId == axisId && existing.plots == validPlots) {
+            return;
+        }
+    }
+
     // Add to configuration list
     PrivateData::AlignmentConfig config;
     config.plots  = validPlots;
     config.axisId = axisId;
     m_data->alignmentConfigs.append(config);
+
+    recomputeAxisAlignment(false);
 }
 
 /**
@@ -1275,32 +1732,34 @@ bool QwtFigure::removeAxisAlignment(const QList< QwtPlot* >& plots, int axisId)
             ++it;
         }
     }
+
+    if (removed) {
+        recomputeAxisAlignment(false);
+    }
     return removed;
-}
-/**
- * @brief Clear all axis alignment configurations
- * @details This method removes all alignment configurations from the figure.
- */
-void QwtFigure::clearAxisAlignment()
-{
-    m_data->alignmentConfigs.clear();
 }
 
 /**
- * @brief Apply all axis alignment configurations
- * @details This method applies all recorded alignment configurations to the plots.
- * @param replot If true, replot all affected plots after alignment
+ * @brief Clear all axis alignment configurations
+ * @details This method removes all alignment configurations from the figure.
+ *          The plots that were only aligned by a configuration return to their
+ *          natural plot area; the automatic alignment of the retained grid
+ *          members stays active.
  */
-void QwtFigure::applyAllAxisAlignments(bool replot)
+void QwtFigure::clearAxisAlignment()
 {
-    for (const auto& config : qwt_as_const(m_data->alignmentConfigs)) {
-        alignAxes(config.plots, config.axisId, replot);
+    if (m_data->alignmentConfigs.isEmpty()) {
+        return;
     }
+    m_data->alignmentConfigs.clear();
+    recomputeAxisAlignment(false);
 }
 
 /**
  * @brief Apply alignment configurations for a specific axis
  * @details This method applies all alignment configurations for the specified axis ID.
+ *          The alignment pass works on all sides at once, so the configurations
+ *          of the other axes are refreshed as well.
  * @param axisId Axis ID to apply alignments for
  */
 void QwtFigure::applyAlignmentsForAxis(int axisId)
@@ -1308,12 +1767,7 @@ void QwtFigure::applyAlignmentsForAxis(int axisId)
     if (!QwtAxis::isValid(axisId)) {
         return;
     }
-
-    for (const auto& config : qwt_as_const(m_data->alignmentConfigs)) {
-        if (config.axisId == axisId) {
-            alignAxes(config.plots, config.axisId);
-        }
-    }
+    recomputeAxisAlignment(false);
 }
 
 /**
@@ -1342,84 +1796,51 @@ QPair< QList< QwtPlot* >, int > QwtFigure::axisAligmentInfo(int index) const
 }
 
 /**
- * @brief Align axes of multiple plots
- * @details This function unifies the minimumExtent and minBorderDist of the specified axis
- *          to ensure visual alignment of axes.
+ * @brief Align the plot area of multiple plots on one side
+ * @details The canvas inset of the given side is measured for every plot and
+ *          the largest one is applied to all of them, which puts the axis
+ *          backbones on one line. Compared to manipulating the scale widgets
+ *          this also covers the space taken by titles, legends and parasite
+ *          axes and works for hidden axes as well.
  * @param plots List of QwtPlot to align (must be non-empty)
- * @param axisId Axis ID to align (QwtAxis::XTop/XBottom/YLeft/YRight)
- * @param replot If true, update layout and replot after alignment
- * @note This function should be called after widget initialization (e.g., in showEvent/resizeEvent).
- * @note Supports any number of plots and any valid axis type, adapting to horizontal/vertical layouts.
- * @note Do not pass parasite axes, currently only supports host axes.
+ * @param axisId Side to align (QwtAxis::XTop/XBottom/YLeft/YRight)
+ * @param update If true, update the layout and replot after the alignment
+ * @note Parasite axes are shared with their host and do not need to be passed.
  */
 void QwtFigure::alignAxes(QList< QwtPlot* > plots, int axisId, bool update)
 {
-    // ========== Step 1: Parameter validation ==========
-    if (plots.isEmpty()) {
+    if (plots.isEmpty() || !QwtAxis::isValid(axisId)) {
         return;
     }
 
-    if (!QwtAxis::isValid(axisId)) {
-        return;
-    }
-
-    // Filter out null pointer plots
-    plots.erase(std::remove_if(plots.begin(), plots.end(), [](QwtPlot* p) { return p == nullptr; }), plots.end());
-    if (plots.isEmpty()) {
-        return;
-    }
-
-    // ========== Step 2: Unify axis minimumExtent (ensure consistent axis width/height) and EdgeMargin (ensure consistent plot area offset from boundary) ==========
-    double maxExtent  = 0.0;
-    int maxEdgeMargin = 0;
-    int maxStartDist = 0, maxEndDist = 0;
-    // Calculate the maximum extent (actual extension size), edgeMargin, BorderDistHint for all plots on the specified axis
+    qreal maxInset = 0.0;
+    QList< QwtPlot* > validPlots;
     for (QwtPlot* plot : qwt_as_const(plots)) {
-        QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
-        if (!scaleWidget) {
+        if (!isAlignablePlot(plot) || !plot->plotLayout()) {
             continue;
         }
 
-        QwtScaleDraw* scaleDraw = scaleWidget->scaleDraw();
-        if (!scaleDraw)
+        qreal inset = 0.0;
+        if (!naturalCanvasInset(plot, axisId, &inset)) {
             continue;
-
-        // Reset minimum extent to calculate the actual extent
-        scaleDraw->setMinimumExtent(0.0);
-        // Calculate the current axis extent (including tick labels, tick marks, axis title)
-        double extent = scaleDraw->extent(scaleWidget->font());
-        if (extent > maxExtent) {
-            maxExtent = extent;
         }
-        // Query edgeMargin and record the maximum edgeMargin
-        int em = scaleWidget->edgeMargin();
-        if (em > maxEdgeMargin) {
-            maxEdgeMargin = em;
-        }
-        // Unify axis minBorderDist (ensure consistent plot area offset)
-        int startDist = 0, endDist = 0;
-        scaleWidget->getBorderDistHint(startDist, endDist);
 
-        // Update maximum values
-        maxStartDist = qMax(maxStartDist, startDist);
-        maxEndDist   = qMax(maxEndDist, endDist);
+        // Keep a larger inset that is already in effect (f.e. from the figure
+        // alignment of a grid column) so an external group never undoes it.
+        maxInset = qMax(maxInset, inset);
+        maxInset = qMax(maxInset, plot->plotLayout()->minCanvasInset(axisId));
+        validPlots.append(plot);
     }
 
-    // Update data for all plots
-    for (QwtPlot* plot : qwt_as_const(plots)) {
-        QwtScaleWidget* scaleWidget = plot->axisWidget(axisId);
-        if (!scaleWidget) {
-            continue;
-        }
-        scaleWidget->scaleDraw()->setMinimumExtent(maxExtent);
-        scaleWidget->setEdgeMargin(maxEdgeMargin);
-        scaleWidget->setMinBorderDist(maxStartDist, maxEndDist);
+    if (validPlots.size() < 2) {
+        return;
     }
-    // ========== Step 4: Force axis update and replot to ensure settings take effect ==========
-    if (update) {
-        for (QwtPlot* plot : qwt_as_const(plots)) {
+
+    for (QwtPlot* plot : qwt_as_const(validPlots)) {
+        plot->plotLayout()->setMinCanvasInset(axisId, maxInset);
+        if (update) {
             plot->updateLayout();
-            plot->replot();  // Replot
+            plot->replot();
         }
     }
 }
@@ -1445,8 +1866,39 @@ void QwtFigure::paintEvent(QPaintEvent* event)
 
 void QwtFigure::resizeEvent(QResizeEvent* event)
 {
-    applyAllAxisAlignments(false);  // Realign when window size changes
+    // The alignment itself is refreshed at the end of QwtFigureLayout::setGeometry(),
+    // where the members already have their new geometry.
     QFrame::resizeEvent(event);
+}
+
+/**
+ * @brief Queue one merged alignment pass
+ * @details A plot requests a new layout whenever its axis labels, fonts or
+ *          legend change. Several requests can arrive in one event loop
+ *          iteration (f.e. from a replot of every member); the queued pass
+ *          merges them and runs after the plots finished their own layout.
+ */
+void QwtFigure::scheduleAxisAlignment()
+{
+    if (m_data->alignmentPending) {
+        return;
+    }
+
+    m_data->alignmentPending = true;
+    QTimer::singleShot(0, this, [ this ]() {
+        m_data->alignmentPending = false;
+        recomputeAxisAlignment(false);
+    });
+}
+
+/**
+ * @brief Check whether a plot takes part in any active alignment
+ * @param plot Plot to check
+ * @return True when the plot is a grid member or in a manual configuration
+ */
+bool QwtFigure::isAxisAlignmentParticipant(const QwtPlot* plot) const
+{
+    return m_data->isAlignmentParticipant(this, plot);
 }
 
 /**
@@ -1457,6 +1909,12 @@ void QwtFigure::resizeEvent(QResizeEvent* event)
  *          on a parasite axes are mapped to the host plot. The event is never
  *          consumed, so zooming, panning, picking and the plot editors keep
  *          working unchanged.
+ *
+ *          A layout request of a member marks the alignment as dirty: the label
+ *          dimensions may have changed and the plot areas have to be realigned
+ *          after the member settled its own layout. Showing or hiding a member
+ *          changes the membership of the alignment groups, so those events
+ *          schedule the pass as well.
  * @param watched Object the event was delivered to
  * @param event Event to process
  * @return Always false, the event is not consumed
@@ -1479,6 +1937,27 @@ bool QwtFigure::eventFilter(QObject* watched, QEvent* event)
             QwtPlot* target = plot->isParasitePlot() ? plot->hostPlot() : plot;
             if (target && currentAxes() != target) {
                 setCurrentAxes(target);
+            }
+        }
+    } else if (event->type() == QEvent::LayoutRequest || event->type() == QEvent::Show || event->type() == QEvent::Hide) {
+        // A plot that re-laid its axes may have changed its label dimensions; a
+        // member that is shown or hidden enters or leaves the grid groups.
+        QwtPlot* plot = qobject_cast< QwtPlot* >(watched);
+        if (!plot) {
+            if (QWidget* widget = qobject_cast< QWidget* >(watched)) {
+                plot = qobject_cast< QwtPlot* >(widget->parentWidget());
+            }
+        }
+        if (plot && isAxisAlignmentParticipant(plot)) {
+            scheduleAxisAlignment();
+        }
+    } else if (event->type() == QEvent::Destroy) {
+        // A plot deleted without removeWidget() must not leave a dangling entry
+        QwtPlot* plot = qobject_cast< QwtPlot* >(watched);
+        if (plot) {
+            m_data->appliedInsets.remove(plot);
+            for (auto& config : m_data->alignmentConfigs) {
+                config.plots.removeAll(plot);
             }
         }
     }

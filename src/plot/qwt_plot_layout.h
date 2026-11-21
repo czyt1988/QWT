@@ -110,6 +110,21 @@ public:
     // change the enabled state of each axis direction.
     void resetFixedCanvasSize();
 
+    // Minimum distance the canvas keeps from the plot contents rect on one side.
+    // The natural layout stays authoritative: an inset that is smaller than the
+    // space the content asks for on that side has no effect. QwtFigure uses it
+    // to align the plot areas of several sub plots.
+    void setMinCanvasInset(int axisPos, qreal inset);
+    // Get the minimum canvas inset of one side (see setMinCanvasInset)
+    qreal minCanvasInset(int axisPos) const;
+    // Reset all minimum canvas insets to 0
+    void resetMinCanvasInsets();
+
+    // Canvas rectangle the current content asks for, before the fixed canvas
+    // pinning and the minimum canvas insets are applied. The sub plot alignment
+    // of QwtFigure measures the plot areas with it.
+    QRectF naturalCanvasRect() const;
+
     void setSpacing(int);
     int spacing() const;
 
@@ -164,6 +179,10 @@ private:
     // Pin the canvas rect to its locked dimension(s) after the natural layout
     // (innerRect) has been computed. Captures the offsets on first use.
     void applyFixedCanvas(QRectF& canvasRect, const QRectF& rect);
+
+    // Grow the canvas rect inward until every side keeps its minimum inset,
+    // measured from the plot contents rect.
+    void applyMinCanvasInsets(QRectF& canvasRect, const QRectF& plotRect);
 
     QWT_DECLARE_PRIVATE(QwtPlotLayout)
 };

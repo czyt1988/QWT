@@ -26,6 +26,7 @@ add_subdirectory(nan_curve_test)
 add_subdirectory(figure_grid_test)
 add_subdirectory(figure_grid_layout_test)
 add_subdirectory(figure_grid_splitter_test)
+add_subdirectory(figure_axis_align_test)
 
 # The 3D tests require the OpenGLWidgets CMake component, that
 # exists as a separate package since Qt 6 only

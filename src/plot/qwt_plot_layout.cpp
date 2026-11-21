@@ -214,6 +214,15 @@ public:
     QRectF scaleCaptionRects[ QwtAxis::AxisPositions ];
     QRectF canvasRect;
 
+    // Canvas rect the content asks for, before the fixed canvas pinning and the
+    // minimum canvas insets are applied. Measured by the QwtFigure alignment.
+    QRectF naturalCanvasRect;
+
+    // Minimum distance of the canvas from the plot contents rect. Applied after
+    // the natural layout, so a value smaller than what the axes need is no-op.
+    // [YLeft]=left, [YRight]=right, [XTop]=top, [XBottom]=bottom.
+    qreal m_minCanvasInset[ QwtAxis::AxisPositions ] = { 0.0, 0.0, 0.0, 0.0 };
+
     // Captured canvas edge offsets (relative to the post-title/footer rect)
     // used to pin the canvas dimension(s) in auto fixed-canvas mode.
     // [YLeft]=canvasRect.left()-rect.left(), [YRight]=rect.right()-canvasRect.right(),
@@ -403,6 +412,71 @@ void QwtPlotLayout::resetFixedCanvasSize()
 }
 
 /**
+ * @brief Set the minimum distance of the canvas from the plot contents rect
+ * @details The value is a lower bound for the canvas inset on the given side:
+ *          the natural layout stays authoritative, an inset that is smaller
+ *          than what the content (axis, labels, title, legend, ...) asks for
+ *          has no effect. The inset is applied on the next activate().
+ *
+ *          QwtFigure sets the inset of every sub plot to the largest natural
+ *          inset of its grid column/row through this method, which aligns the
+ *          plot areas (the axis backbones) of the sub plots.
+ * @param axisPos Side of the canvas (QwtAxis::Position)
+ * @param inset Minimum inset in pixels, negative values are treated as 0
+ * @sa minCanvasInset(), resetMinCanvasInsets(), naturalCanvasRect()
+ */
+void QwtPlotLayout::setMinCanvasInset(int axisPos, qreal inset)
+{
+    if (!QwtAxis::isValid(axisPos))
+        return;
+
+    QWT_D(d);
+    inset = qMax(qreal(0.0), inset);
+    if (!qFuzzyCompare(d->m_minCanvasInset[ axisPos ] + 1.0, inset + 1.0))
+        d->m_minCanvasInset[ axisPos ] = inset;
+}
+
+/**
+ * @brief Get the minimum canvas inset of a side
+ * @param axisPos Side of the canvas (QwtAxis::Position)
+ * @return Minimum inset in pixels
+ * @sa setMinCanvasInset()
+ */
+qreal QwtPlotLayout::minCanvasInset(int axisPos) const
+{
+    if (!QwtAxis::isValid(axisPos))
+        return 0.0;
+
+    QWT_DC(d);
+    return d->m_minCanvasInset[ axisPos ];
+}
+
+/**
+ * @brief Reset all minimum canvas insets to 0
+ * @sa setMinCanvasInset()
+ */
+void QwtPlotLayout::resetMinCanvasInsets()
+{
+    QWT_D(d);
+    for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++)
+        d->m_minCanvasInset[ axisPos ] = 0.0;
+}
+
+/**
+ * @brief Get the natural canvas rectangle
+ * @details This is the canvas rectangle the current content asks for, before
+ *          the fixed canvas pinning and the minimum canvas insets are applied.
+ *          QwtFigure measures the plot areas with it to align the sub plots.
+ * @return Natural canvas rectangle, empty before the first activate()
+ * @sa activate(), canvasRect(), setMinCanvasInset()
+ */
+QRectF QwtPlotLayout::naturalCanvasRect() const
+{
+    QWT_DC(d);
+    return d->naturalCanvasRect;
+}
+
+/**
  * @brief Pin the canvas rect to its locked dimension(s)
  * @param canvasRect The canvas rect produced by innerRect() (modified in place)
  * @param rect The available rect (after title/footer have been subtracted)
@@ -428,7 +502,7 @@ void QwtPlotLayout::applyFixedCanvas(QRectF& canvasRect, const QRectF& rect)
         } else {
             // Auto: pin edge offsets (capture on first layout).
             if (d->m_lockedOffset[ YLeft ] < 0.0) {
-                d->m_lockedOffset[ YLeft ] = qMax(0.0, canvasRect.left() - rect.left());
+                d->m_lockedOffset[ YLeft ]  = qMax(0.0, canvasRect.left() - rect.left());
                 d->m_lockedOffset[ YRight ] = qMax(0.0, rect.right() - canvasRect.right());
             }
             canvasRect.setLeft(rect.left() + d->m_lockedOffset[ YLeft ]);
@@ -446,12 +520,46 @@ void QwtPlotLayout::applyFixedCanvas(QRectF& canvasRect, const QRectF& rect)
             canvasRect.setBottom(cy + fh / 2.0);
         } else {
             if (d->m_lockedOffset[ XTop ] < 0.0) {
-                d->m_lockedOffset[ XTop ] = qMax(0.0, canvasRect.top() - rect.top());
+                d->m_lockedOffset[ XTop ]    = qMax(0.0, canvasRect.top() - rect.top());
                 d->m_lockedOffset[ XBottom ] = qMax(0.0, rect.bottom() - canvasRect.bottom());
             }
             canvasRect.setTop(rect.top() + d->m_lockedOffset[ XTop ]);
             canvasRect.setBottom(rect.bottom() - d->m_lockedOffset[ XBottom ]);
         }
+    }
+}
+
+/**
+ * @brief Grow the canvas rect inward to keep the minimum canvas insets
+ * @param canvasRect Canvas rect produced by innerRect() (modified in place)
+ * @param plotRect Rectangle the insets are measured from (the plot contents rect)
+ * @details Only sides whose inset is larger than what the natural layout produced
+ *          are changed, so a minimum inset never shrinks the canvas. The
+ *          adjustments are skipped when both insets of a direction would not
+ *          leave a canvas, which happens only for a figure that is far too small.
+ */
+void QwtPlotLayout::applyMinCanvasInsets(QRectF& canvasRect, const QRectF& plotRect)
+{
+    QWT_D(d);
+    using namespace QwtAxis;
+
+    const qreal left   = d->m_minCanvasInset[ YLeft ];
+    const qreal right  = d->m_minCanvasInset[ YRight ];
+    const qreal top    = d->m_minCanvasInset[ XTop ];
+    const qreal bottom = d->m_minCanvasInset[ XBottom ];
+
+    if ((left > 0.0 || right > 0.0) && (left + right) < plotRect.width() - 1.0) {
+        if (left > 0.0)
+            canvasRect.setLeft(qMax(canvasRect.left(), plotRect.left() + left));
+        if (right > 0.0)
+            canvasRect.setRight(qMin(canvasRect.right(), plotRect.right() - right));
+    }
+
+    if ((top > 0.0 || bottom > 0.0) && (top + bottom) < plotRect.height() - 1.0) {
+        if (top > 0.0)
+            canvasRect.setTop(qMax(canvasRect.top(), plotRect.top() + top));
+        if (bottom > 0.0)
+            canvasRect.setBottom(qMin(canvasRect.bottom(), plotRect.bottom() - bottom));
     }
 }
 
@@ -755,12 +863,14 @@ void QwtPlotLayout::updateScaleCaptionRects(const QwtPlot* plot)
         switch (axisPos) {
         case QwtAxis::XBottom: {
             const int capH = scaleWidget->titleHeightForWidth(qwtFloor(scaleRect.width()));
-            d->scaleCaptionRects[ axisPos ] = QRectF(scaleRect.left(), scaleRect.bottom() + spacing, scaleRect.width(), capH);
+            d->scaleCaptionRects[ axisPos ] =
+                QRectF(scaleRect.left(), scaleRect.bottom() + spacing, scaleRect.width(), capH);
             break;
         }
         case QwtAxis::XTop: {
             const int capH = scaleWidget->titleHeightForWidth(qwtFloor(scaleRect.width()));
-            d->scaleCaptionRects[ axisPos ] = QRectF(scaleRect.left(), scaleRect.top() - spacing - capH, scaleRect.width(), capH);
+            d->scaleCaptionRects[ axisPos ] =
+                QRectF(scaleRect.left(), scaleRect.top() - spacing - capH, scaleRect.width(), capH);
             break;
         }
         case QwtAxis::YLeft:
@@ -822,8 +932,8 @@ void QwtPlotLayout::updateScaleCaptionRects(const QwtPlot* plot)
                 right                  = (center + nextCenter) / 2.0;
             }
 
-            const qreal w    = qMax(qreal(1.0), right - left);
-            const int capH   = scaleWidget->titleHeightForWidth(qwtFloor(w));
+            const qreal w                   = qMax(qreal(1.0), right - left);
+            const int capH                  = scaleWidget->titleHeightForWidth(qwtFloor(w));
             d->scaleCaptionRects[ axisPos ] = QRectF(left, scaleRect.bottom() + spacing, w, capH);
             break;
         }
@@ -874,6 +984,7 @@ void QwtPlotLayout::invalidate()
 {
     QWT_D(d);
     d->titleRect = d->footerRect = d->legendRect = d->canvasRect = QRectF();
+    d->naturalCanvasRect                                         = QRectF();
 
     for (int axisPos = 0; axisPos < QwtAxis::AxisPositions; axisPos++) {
         d->scaleRects[ axisPos ]        = QRect();
@@ -1146,10 +1257,18 @@ void QwtPlotLayout::doActivate(const QwtPlot* plot, const QRectF& plotRect, Opti
 
     d->canvasRect = dimensions.innerRect(rect);
 
+    // The rect the content asks for: QwtFigure measures the plot area with it
+    // to align the sub plots, so it must stay free of the pinning and the
+    // minimum insets applied below.
+    d->naturalCanvasRect = d->canvasRect;
+
     // Pin the canvas to its locked dimension(s) if fixed-canvas mode is on.
     // Real axis extents are kept (not clamped), so scale rects placed below may
     // extend beyond the plot rect and be clipped at paint time.
     applyFixedCanvas(d->canvasRect, rect);
+
+    // Grow the canvas inward until it keeps the minimum insets on every side.
+    applyMinCanvasInsets(d->canvasRect, plotRect);
 
     for (int axisPos = 0; axisPos < AxisPositions; axisPos++) {
         // set the rects for the axes
