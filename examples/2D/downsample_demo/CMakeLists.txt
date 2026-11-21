@@ -28,6 +28,7 @@ target_link_libraries(${QWT_APP_NAME} PUBLIC qwt::plot)
 
 set_target_properties(${QWT_APP_NAME} PROPERTIES
     AUTOMOC ON
+    AUTORCC ON
     CXX_EXTENSIONS OFF
     DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX}
     EXPORT_NAME ${QWT_APP_NAME}
