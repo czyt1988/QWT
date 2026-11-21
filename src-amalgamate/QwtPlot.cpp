@@ -77019,112 +77019,6 @@ bool QwtPolarRenderer::exportTo(QwtPolarPlot* plot, const QString& documentName,
 #include <QDebug>
 #include <QWidget>
 
-
-/*** Start of inlined file: qwt_figure_grid.h ***/
-#ifndef QWT_FIGURE_GRID_H
-#define QWT_FIGURE_GRID_H
-
-#include <QList>
-#include <QObject>
-#include <QRectF>
-#include <QVector>
-
-class QWidget;
-
-/**
- * @class QwtFigureGrid
- *
- * @brief Retained grid track model for a figure with several members
- *
- * QwtFigureGrid owns the authoritative track ratios of the columns/rows and
- * the (row, column, rowSpan, columnSpan) registration of every member widget.
- * Normalized rectangles are computed on demand from the retained tracks, so
- * the grid can be resized interactively without touching the registrations.
- *
- * The model only depends on Qt (QObject/QWidget) and never references
- * QwtFigure or QwtFigureLayout, which keeps the geometry math testable in
- * isolation.
- *
- * @code
- * QwtFigureGrid* grid = new QwtFigureGrid(figure);
- * grid->setup(2, 2);                           // enable a 2x2 grid
- * grid->setColumnSizes({ 0.6, 0.4 });          // column ratios
- * grid->addItem(plot, 0, 0, 1, 2);             // plot spans the top row
- * const QRectF cell = grid->normRectFor(1, 0); // normalized geometry of a cell
- * @endcode
- */
-class QWT_EXPORT QwtFigureGrid : public QObject
-{
-	Q_OBJECT
-	QWT_DECLARE_PRIVATE(QwtFigureGrid)
-
-public:
-	/// Constructor
-	explicit QwtFigureGrid(QObject* parent = nullptr);
-	/// Destructor
-	~QwtFigureGrid() override;
-
-	bool isEnabled() const;                     // True once setup() succeeded
-	void setup(int rowCount, int columnCount);  // Enable the grid and init equal tracks
-	void disable();                             // Disable the grid and drop the member registrations
-	int rowCount() const;                       // Number of row tracks (0 when disabled)
-	int columnCount() const;                    // Number of column tracks (0 when disabled)
-
-	QVector< qreal > rowSizes() const;                   // Normalized row ratios, sum == 1
-	QVector< qreal > columnSizes() const;                // Normalized column ratios, sum == 1
-	void setRowSizes(const QVector< qreal >& sizes);     // Set the row ratios (normalized on input)
-	void setColumnSizes(const QVector< qreal >& sizes);  // Set the column ratios (normalized on input)
-	void setSpacing(qreal wspace, qreal hspace);         // Gap between tracks, normalized
-	qreal wspace() const;                                // Horizontal gap between columns, normalized
-	qreal hspace() const;                                // Vertical gap between rows, normalized
-	void setMinimumTrackPixels(int px);                  // Minimum track extent while dragging
-	int minimumTrackPixels() const;                      // Minimum track extent while dragging
-
-	bool addItem(QWidget* w, int row, int col, int rowSpan = 1, int colSpan = 1);         // Register a member
-	bool removeItem(QWidget* w);                                                          // Unregister a member
-	bool gridPosition(QWidget* w, int* row, int* col, int* rowSpan, int* colSpan) const;  // Query a member
-	QList< QWidget* > items() const;                                                      // Registered members
-
-	QRectF normRectFor(int row, int col, int rowSpan = 1, int colSpan = 1) const;  // Normalized cell rect
-
-	/**
-	 * @brief A draggable divider between two adjacent tracks
-	 *
-	 * A Horizontal divider is the vertical line between two columns (it changes
-	 * the column sizes and stores a normalized X position). A Vertical divider
-	 * is the horizontal line between two rows (it changes the row sizes and
-	 * stores a normalized Y position).
-	 */
-	struct Divider
-	{
-		Qt::Orientation orientation;  ///< Horizontal = column divider, Vertical = row divider
-		int index;                    ///< Left/top track index (0 .. count - 2)
-		qreal position;               ///< Normalized position of the gap center
-	};
-	QList< Divider > dividers() const;  // Divider list for the current tracks
-
-	void finishChange();  // Emit sizesChangeFinished() when an interactive change session ends
-
-Q_SIGNALS:
-	/**
-	 * @brief Emitted whenever the track ratios or the spacing change
-	 *
-	 * Also emitted repeatedly while a divider is being dragged.
-	 */
-	void sizesChanged();
-
-	/**
-	 * @brief Emitted once when an interactive change session ends
-	 *
-	 * The splitter calls finishChange() on mouse release.
-	 */
-	void sizesChangeFinished();
-};
-
-#endif  // QWT_FIGURE_GRID_H
-
-/*** End of inlined file: qwt_figure_grid.h ***/
-
 #ifndef QWTFIGURELAYOUT_DEBUG_PRINT
 #define QWTFIGURELAYOUT_DEBUG_PRINT 0
 #endif
@@ -77682,111 +77576,6 @@ QwtFigureLayout::calcGridRect(int rowCnt, int colCnt, int row, int col, int rowS
 #include <QMap>
 #include <QDebug>
 // qwt
-
-
-/*** Start of inlined file: qwt_figure_grid_splitter.h ***/
-#ifndef QWT_FIGURE_GRID_SPLITTER_H
-#define QWT_FIGURE_GRID_SPLITTER_H
-
-// Qt
-#include <QObject>
-
-// qwt
-
-class QEvent;
-class QwtFigure;
-
-/**
- * @class QwtFigureGridSplitter
- *
- * @brief Interactive divider of the retained grid layout of a QwtFigure
- *
- * @details
- * The splitter installs event filters on the figure and on the widgets that can
- * receive the mouse over the grid cells. Only events inside a narrow band around
- * a divider are consumed, every other event is passed through unchanged so
- * zooming, panning, picking and hovering of the plots keep working.
- *
- * Dragging a divider changes the ratio of the two adjacent tracks only: a
- * Horizontal divider sits between two columns (the mouse moves along X), a
- * Vertical divider sits between two rows (the mouse moves along Y). The track
- * ratios are clamped by QwtFigureGrid::minimumTrackPixels(), so no track can
- * collapse and the tracks can never overlap.
- *
- * While a divider is dragged the member widgets stop repainting; releasing the
- * mouse restores the repaints and emits QwtFigureGrid::sizesChangeFinished()
- * once, but only when the ratios really changed. Pressing Esc cancels the drag:
- * the original ratios are restored and no finished signal is emitted.
- *
- * The drag grabs the mouse on the figure, so the release always returns to the
- * splitter even when a filter installed after this one (Qt invokes the event
- * filters in reverse installation order) consumes the move/release of the
- * canvas. When the grab is lost (QEvent::UngrabMouse) or the window is
- * deactivated, the drag ends as if Esc was pressed.
- *
- * The split cursor is applied to the widget the mouse is really over (the
- * canvas of a plot, not the plot itself), together with its original
- * WA_SetCursor state, so it stays visible even when the canvas has a cursor
- * of its own (an explicitly set child cursor overrides the inherited one) and
- * the original cursor is restored when the band is left.
- *
- * QOpenGLWidget members (for example a 3D plot) never get an event filter, so
- * their events are not intercepted. The boundary of a 3D cell is served by the
- * adjacent 2D plot.
- *
- * @par Example:
- * @code
- * QwtFigure* figure = new QwtFigure;
- * figure->enableGrid(2, 2);
- * figure->addAxes(wavePlot, 0, 0, 1, 2);
- * figure->addAxes(spectrumPlot, 1, 0);
- * figure->addAxes(heatmapPlot, 1, 1);
- *
- * // The splitter is owned by the figure, enableGrid() must be called first
- * figure->setGridEditable(true);
- * @endcode
- *
- * @sa QwtFigure::setGridEditable(), QwtFigureGrid
- */
-class QWT_EXPORT QwtFigureGridSplitter : public QObject
-{
-	Q_OBJECT
-	QWT_DECLARE_PRIVATE(QwtFigureGridSplitter)
-
-public:
-	// Constructor, the figure must not be null and becomes the parent
-	explicit QwtFigureGridSplitter(QwtFigure* figure);
-	~QwtFigureGridSplitter() override;
-
-	// The figure the splitter works on
-	QwtFigure* figure() const;
-
-	// Enable or disable the divider interaction
-	void setEnabled(bool on);
-	bool isEnabled() const;
-
-	// Set the half width of the hit band around a divider in pixels
-	void setHitWidth(int px);
-	int hitWidth() const;
-
-	// True while a divider is dragged
-	bool isDragging() const;
-
-Q_SIGNALS:
-	/**
-	 * @brief Emitted when the cursor shape over the divider bands changes
-	 * @param shape SplitHCursor/SplitVCursor inside a band, ArrowCursor when
-	 *              the mouse left the band
-	 */
-	void hoverChanged(Qt::CursorShape shape);
-
-protected:
-	bool eventFilter(QObject* watched, QEvent* event) override;
-};
-
-#endif  // QWT_FIGURE_GRID_SPLITTER_H
-
-/*** End of inlined file: qwt_figure_grid_splitter.h ***/
 
 #ifndef QWTFIGURE_SAFEGET_LAY
 #define QWTFIGURE_SAFEGET_LAY(lay)                                                                                     \
@@ -80109,6 +79898,1484 @@ void QwtFigureWidgetOverlay::onAxesRemove(QwtPlot* removedAxes)
 }
 
 /*** End of inlined file: qwt_figure_widget_overlay.cpp ***/
+
+
+/*** Start of inlined file: qwt_figure_grid.cpp ***/
+#include <QDebug>
+#include <QPointer>
+#include <QWidget>
+
+#include <cmath>
+
+namespace
+{
+// Absolute tolerance used for normalized track comparisons
+const qreal SIZE_EPSILON = 1e-12;
+
+// Sum of 'count' track sizes starting at 'first'
+qreal sumSizes(const QVector< qreal >& sizes, int first, int count)
+{
+	qreal sum = 0.0;
+	for (int i = 0; i < count; ++i) {
+		sum += sizes.at(first + i);
+	}
+	return sum;
+}
+
+// A valid track vector needs exactly 'trackCount' finite, strictly positive values
+bool isValidSizeVector(const QVector< qreal >& sizes, int trackCount)
+{
+	if (trackCount <= 0 || sizes.size() != trackCount) {
+		return false;
+	}
+	for (qreal size : sizes) {
+		if (!std::isfinite(size) || size <= 0.0) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// Scale the ratios so that they sum up to 1, preserving the caller's intent
+QVector< qreal > normalizedSizes(const QVector< qreal >& sizes)
+{
+	qreal sum = 0.0;
+	for (qreal size : sizes) {
+		sum += size;
+	}
+
+	QVector< qreal > normalized;
+	normalized.reserve(sizes.size());
+	for (qreal size : sizes) {
+		normalized.append(size / sum);
+	}
+	return normalized;
+}
+
+bool sameSizes(const QVector< qreal >& lhs, const QVector< qreal >& rhs)
+{
+	if (lhs.size() != rhs.size()) {
+		return false;
+	}
+	for (int i = 0; i < lhs.size(); ++i) {
+		if (qAbs(lhs.at(i) - rhs.at(i)) > SIZE_EPSILON) {
+			return false;
+		}
+	}
+	return true;
+}
+}  // namespace
+
+class QwtFigureGrid::PrivateData
+{
+	QWT_DECLARE_PUBLIC(QwtFigureGrid)
+public:
+	PrivateData(QwtFigureGrid* p) : q_ptr(p)
+	{
+	}
+
+	// Registration of one member widget
+	struct Item
+	{
+		QPointer< QWidget > widget;
+		int row { 0 };
+		int col { 0 };
+		int rowSpan { 1 };
+		int colSpan { 1 };
+	};
+
+	// Index of the registration for w, -1 when not registered
+	int indexOf(const QWidget* w) const;
+	// Drop all registrations, including their destroyed() connections
+	void clearItems();
+	// True when the position fits the current track counts
+	bool containsPosition(int row, int col, int rowSpan, int colSpan) const;
+
+public:
+	bool m_enabled { false };
+	int m_rowCount { 0 };
+	int m_columnCount { 0 };
+	QVector< qreal > m_rowSizes;
+	QVector< qreal > m_columnSizes;
+	qreal m_wspace { 0.0 };
+	qreal m_hspace { 0.0 };
+	int m_minimumTrackPixels { 40 };
+	QList< Item > m_items;
+};
+
+int QwtFigureGrid::PrivateData::indexOf(const QWidget* w) const
+{
+	if (!w) {
+		return -1;
+	}
+	for (int i = 0; i < m_items.size(); ++i) {
+		if (m_items.at(i).widget.data() == w) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void QwtFigureGrid::PrivateData::clearItems()
+{
+	for (const Item& item : qwt_as_const(m_items)) {
+		if (item.widget) {
+			QObject::disconnect(item.widget.data(), nullptr, q_func(), nullptr);
+		}
+	}
+	m_items.clear();
+}
+
+bool QwtFigureGrid::PrivateData::containsPosition(int row, int col, int rowSpan, int colSpan) const
+{
+	if (!m_enabled || row < 0 || col < 0 || rowSpan <= 0 || colSpan <= 0) {
+		return false;
+	}
+	return (row + rowSpan <= m_rowCount) && (col + colSpan <= m_columnCount);
+}
+
+/**
+ * @brief Constructor
+ * @param parent Parent object
+ */
+QwtFigureGrid::QwtFigureGrid(QObject* parent) : QObject(parent), QWT_PIMPL_CONSTRUCT
+{
+}
+
+/**
+ * @brief Destructor
+ *
+ * Disconnects the destroyed() connections of all registered widgets.
+ */
+QwtFigureGrid::~QwtFigureGrid()
+{
+	QWT_D(d);
+	d->clearItems();
+}
+
+/**
+ * @brief Test if the grid is enabled
+ * @return True after a successful setup()
+ */
+bool QwtFigureGrid::isEnabled() const
+{
+	QWT_DC(d);
+	return d->m_enabled;
+}
+
+/**
+ * @brief Enable the grid and initialize equal tracks
+ *
+ * All existing member registrations are dropped and the track ratios are reset
+ * to 1/n. Calling setup() again re-initializes the model.
+ *
+ * @param rowCount Number of rows, must be positive
+ * @param columnCount Number of columns, must be positive
+ */
+void QwtFigureGrid::setup(int rowCount, int columnCount)
+{
+	if (rowCount <= 0 || columnCount <= 0) {
+		qWarning() << "QwtFigureGrid::setup: row and column counts must be positive, got" << rowCount << columnCount;
+		return;
+	}
+
+	QWT_D(d);
+	d->clearItems();
+
+	d->m_enabled     = true;
+	d->m_rowCount    = rowCount;
+	d->m_columnCount = columnCount;
+	d->m_rowSizes    = QVector< qreal >(rowCount, 1.0 / rowCount);
+	d->m_columnSizes = QVector< qreal >(columnCount, 1.0 / columnCount);
+
+	Q_EMIT sizesChanged();
+}
+
+/**
+ * @brief Disable the grid and drop all member registrations
+ *
+ * The model returns to the state it had before setup(): no tracks and no members.
+ * The track ratios and the spacing are discarded, a later setup() starts again
+ * from equal tracks. Calling this on a disabled model is a no-op.
+ *
+ * The member widgets themselves are not touched: the caller (QwtFigure) is
+ * responsible for turning their current geometry into free positions before the
+ * registrations disappear.
+ *
+ * @note sizesChanged() is not emitted: nothing is left to lay out, and the
+ *       caller relayouts the figure with the frozen geometry.
+ */
+void QwtFigureGrid::disable()
+{
+	QWT_D(d);
+	if (!d->m_enabled) {
+		return;
+	}
+
+	d->clearItems();
+	d->m_enabled     = false;
+	d->m_rowCount    = 0;
+	d->m_columnCount = 0;
+	d->m_rowSizes.clear();
+	d->m_columnSizes.clear();
+}
+
+/**
+ * @brief Number of row tracks
+ * @return Row count, 0 when the grid is disabled
+ */
+int QwtFigureGrid::rowCount() const
+{
+	QWT_DC(d);
+	return d->m_rowCount;
+}
+
+/**
+ * @brief Number of column tracks
+ * @return Column count, 0 when the grid is disabled
+ */
+int QwtFigureGrid::columnCount() const
+{
+	QWT_DC(d);
+	return d->m_columnCount;
+}
+
+/**
+ * @brief Row track ratios
+ * @return Normalized ratios, summing up to 1, empty when disabled
+ */
+QVector< qreal > QwtFigureGrid::rowSizes() const
+{
+	QWT_DC(d);
+	return d->m_rowSizes;
+}
+
+/**
+ * @brief Column track ratios
+ * @return Normalized ratios, summing up to 1, empty when disabled
+ */
+QVector< qreal > QwtFigureGrid::columnSizes() const
+{
+	QWT_DC(d);
+	return d->m_columnSizes;
+}
+
+/**
+ * @brief Set the row track ratios
+ *
+ * The values are normalized to sum 1, preserving the caller's proportions. The
+ * request is rejected (with a warning and unchanged state) unless the vector
+ * holds one finite, strictly positive value per row track.
+ *
+ * @param sizes Row ratios, one value per track
+ */
+void QwtFigureGrid::setRowSizes(const QVector< qreal >& sizes)
+{
+	QWT_D(d);
+	if (!d->m_enabled) {
+		qWarning() << "QwtFigureGrid::setRowSizes: grid is not enabled";
+		return;
+	}
+	if (!isValidSizeVector(sizes, d->m_rowCount)) {
+		qWarning() << "QwtFigureGrid::setRowSizes: expected" << d->m_rowCount << "finite and positive values, got" << sizes;
+		return;
+	}
+
+	const QVector< qreal > normalized = normalizedSizes(sizes);
+	if (sameSizes(normalized, d->m_rowSizes)) {
+		return;
+	}
+	d->m_rowSizes = normalized;
+	Q_EMIT sizesChanged();
+}
+
+/**
+ * @brief Set the column track ratios
+ *
+ * The values are normalized to sum 1, preserving the caller's proportions. The
+ * request is rejected (with a warning and unchanged state) unless the vector
+ * holds one finite, strictly positive value per column track.
+ *
+ * @param sizes Column ratios, one value per track
+ */
+void QwtFigureGrid::setColumnSizes(const QVector< qreal >& sizes)
+{
+	QWT_D(d);
+	if (!d->m_enabled) {
+		qWarning() << "QwtFigureGrid::setColumnSizes: grid is not enabled";
+		return;
+	}
+	if (!isValidSizeVector(sizes, d->m_columnCount)) {
+		qWarning() << "QwtFigureGrid::setColumnSizes: expected" << d->m_columnCount << "finite and positive values, got"
+				   << sizes;
+		return;
+	}
+
+	const QVector< qreal > normalized = normalizedSizes(sizes);
+	if (sameSizes(normalized, d->m_columnSizes)) {
+		return;
+	}
+	d->m_columnSizes = normalized;
+	Q_EMIT sizesChanged();
+}
+
+/**
+ * @brief Set the gap between adjacent tracks
+ *
+ * Both values are normalized (the same unit as the track ratios). Negative or
+ * non-finite values are rejected with a warning and the state is left unchanged.
+ *
+ * The gaps must also leave room for the tracks themselves: a request with
+ * (trackCount - 1) * gap >= 1 leaves no space for the last track, which would be
+ * clamped to a zero extent and silently collapse the layout. Such a request is
+ * rejected (with a warning and unchanged state) instead of being clamped, so a
+ * misbehaving caller stays visible in the log.
+ *
+ * @param wspace Horizontal gap between columns
+ * @param hspace Vertical gap between rows
+ */
+void QwtFigureGrid::setSpacing(qreal wspace, qreal hspace)
+{
+	QWT_D(d);
+	if (!std::isfinite(wspace) || !std::isfinite(hspace) || wspace < 0.0 || hspace < 0.0) {
+		qWarning() << "QwtFigureGrid::setSpacing: spacing must be finite and non-negative, got" << wspace << hspace;
+		return;
+	}
+	// A single track has no gap, so the bound only applies from two tracks on
+	if (d->m_columnCount > 1 && wspace * (d->m_columnCount - 1) >= 1.0) {
+		qWarning() << "QwtFigureGrid::setSpacing: wspace" << wspace << "leaves no room for" << d->m_columnCount
+				   << "column tracks";
+		return;
+	}
+	if (d->m_rowCount > 1 && hspace * (d->m_rowCount - 1) >= 1.0) {
+		qWarning() << "QwtFigureGrid::setSpacing: hspace" << hspace << "leaves no room for" << d->m_rowCount
+				   << "row tracks";
+		return;
+	}
+
+	if (qAbs(d->m_wspace - wspace) <= SIZE_EPSILON && qAbs(d->m_hspace - hspace) <= SIZE_EPSILON) {
+		return;
+	}
+	d->m_wspace = wspace;
+	d->m_hspace = hspace;
+	Q_EMIT sizesChanged();
+}
+
+/**
+ * @brief Horizontal gap between adjacent columns
+ * @return The normalized gap set by setSpacing(), 0 by default
+ */
+qreal QwtFigureGrid::wspace() const
+{
+	QWT_DC(d);
+	return d->m_wspace;
+}
+
+/**
+ * @brief Vertical gap between adjacent rows
+ * @return The normalized gap set by setSpacing(), 0 by default
+ */
+qreal QwtFigureGrid::hspace() const
+{
+	QWT_DC(d);
+	return d->m_hspace;
+}
+
+/**
+ * @brief Set the minimum extent of a track in pixels
+ *
+ * Used by the splitter to clamp a drag so that no track collapses completely.
+ *
+ * @param px Minimum extent in pixels, negative values are ignored
+ */
+void QwtFigureGrid::setMinimumTrackPixels(int px)
+{
+	if (px < 0) {
+		qWarning() << "QwtFigureGrid::setMinimumTrackPixels: the minimum must be non-negative, got" << px;
+		return;
+	}
+	QWT_D(d);
+	d->m_minimumTrackPixels = px;
+}
+
+/**
+ * @brief Minimum extent of a track in pixels
+ * @return Minimum track extent, 40 by default
+ */
+int QwtFigureGrid::minimumTrackPixels() const
+{
+	QWT_DC(d);
+	return d->m_minimumTrackPixels;
+}
+
+/**
+ * @brief Register a member widget with its grid position
+ *
+ * The registration is dropped automatically when the widget is destroyed. A
+ * widget can only be registered once.
+ *
+ * @param w Member widget
+ * @param row Grid row of the top-left cell (0-based)
+ * @param col Grid column of the top-left cell (0-based)
+ * @param rowSpan Number of rows covered by the member
+ * @param colSpan Number of columns covered by the member
+ * @return True when the widget was registered
+ */
+bool QwtFigureGrid::addItem(QWidget* w, int row, int col, int rowSpan, int colSpan)
+{
+	QWT_D(d);
+	if (!w) {
+		qWarning() << "QwtFigureGrid::addItem: null widget";
+		return false;
+	}
+	if (!d->m_enabled) {
+		qWarning() << "QwtFigureGrid::addItem: grid is not enabled";
+		return false;
+	}
+	if (!d->containsPosition(row, col, rowSpan, colSpan)) {
+		qWarning() << "QwtFigureGrid::addItem: position" << row << col << rowSpan << colSpan << "does not fit the grid"
+				   << d->m_rowCount << "x" << d->m_columnCount;
+		return false;
+	}
+	if (d->indexOf(w) >= 0) {
+		qWarning() << "QwtFigureGrid::addItem: widget is already registered";
+		return false;
+	}
+
+	PrivateData::Item item;
+	item.widget  = w;
+	item.row     = row;
+	item.col     = col;
+	item.rowSpan = rowSpan;
+	item.colSpan = colSpan;
+	d->m_items.append(item);
+
+	// Drop the registration when the widget dies
+	QObject::connect(w, &QObject::destroyed, this, [ this ](QObject* obj) {
+		QWT_D(d);
+		for (int i = d->m_items.size() - 1; i >= 0; --i) {
+			QWidget* registered = d->m_items.at(i).widget.data();
+			if (!registered || registered == obj) {
+				d->m_items.removeAt(i);
+			}
+		}
+	});
+
+	return true;
+}
+
+/**
+ * @brief Unregister a member widget
+ * @param w Member widget
+ * @return True when the widget was registered and has been removed
+ */
+bool QwtFigureGrid::removeItem(QWidget* w)
+{
+	if (!w) {
+		return false;
+	}
+
+	QWT_D(d);
+	const int index = d->indexOf(w);
+	if (index < 0) {
+		return false;
+	}
+
+	QObject::disconnect(w, nullptr, this, nullptr);
+	d->m_items.removeAt(index);
+	return true;
+}
+
+/**
+ * @brief Query the grid position of a registered member
+ *
+ * The output pointers are only written when the widget is registered, and may
+ * be nullptr when a value is not needed.
+ *
+ * @param w Member widget
+ * @param[out] row Grid row of the top-left cell
+ * @param[out] col Grid column of the top-left cell
+ * @param[out] rowSpan Number of rows covered by the member
+ * @param[out] colSpan Number of columns covered by the member
+ * @return True when the widget is registered
+ */
+bool QwtFigureGrid::gridPosition(QWidget* w, int* row, int* col, int* rowSpan, int* colSpan) const
+{
+	if (!w) {
+		return false;
+	}
+
+	QWT_DC(d);
+	const int index = d->indexOf(w);
+	if (index < 0) {
+		return false;
+	}
+
+	const PrivateData::Item& item = d->m_items.at(index);
+	if (row) {
+		*row = item.row;
+	}
+	if (col) {
+		*col = item.col;
+	}
+	if (rowSpan) {
+		*rowSpan = item.rowSpan;
+	}
+	if (colSpan) {
+		*colSpan = item.colSpan;
+	}
+	return true;
+}
+
+/**
+ * @brief List the registered member widgets
+ * @return Registered widgets, dangling pointers are skipped
+ */
+QList< QWidget* > QwtFigureGrid::items() const
+{
+	QWT_DC(d);
+	QList< QWidget* > result;
+	result.reserve(d->m_items.size());
+	for (const PrivateData::Item& item : qwt_as_const(d->m_items)) {
+		if (item.widget) {
+			result.append(item.widget.data());
+		}
+	}
+	return result;
+}
+
+/**
+ * @brief Calculate the normalized rectangle of a grid area
+ *
+ * @details
+ * left = sum(columnSizes[0..col-1]) + col * wspace
+ * width = sum(columnSizes[col..col+colSpan-1]) + (colSpan - 1) * wspace
+ *
+ * The row direction is computed the same way with hspace. Left/top are clamped
+ * to [0,1] and width/height so that the right/bottom edge stays within 1; a
+ * positive spacing therefore narrows the last track after clamping, which is
+ * expected.
+ *
+ * @param row Grid row of the top-left cell (0-based)
+ * @param col Grid column of the top-left cell (0-based)
+ * @param rowSpan Number of rows covered
+ * @param colSpan Number of columns covered
+ * @return Normalized rectangle in [0,1], an invalid rectangle on bad input
+ */
+QRectF QwtFigureGrid::normRectFor(int row, int col, int rowSpan, int colSpan) const
+{
+	QWT_DC(d);
+	if (!d->containsPosition(row, col, rowSpan, colSpan)) {
+		qWarning() << "QwtFigureGrid::normRectFor: invalid grid position" << row << col << rowSpan << colSpan;
+		return QRectF();
+	}
+
+	qreal left         = sumSizes(d->m_columnSizes, 0, col) + col * d->m_wspace;
+	const qreal width  = sumSizes(d->m_columnSizes, col, colSpan) + (colSpan - 1) * d->m_wspace;
+	qreal top          = sumSizes(d->m_rowSizes, 0, row) + row * d->m_hspace;
+	const qreal height = sumSizes(d->m_rowSizes, row, rowSpan) + (rowSpan - 1) * d->m_hspace;
+
+	left = qBound(0.0, left, 1.0);
+	top  = qBound(0.0, top, 1.0);
+
+	const qreal clampedWidth  = qBound(0.0, width, 1.0 - left);
+	const qreal clampedHeight = qBound(0.0, height, 1.0 - top);
+
+	return QRectF(left, top, clampedWidth, clampedHeight);
+}
+
+/**
+ * @brief List the draggable dividers between adjacent tracks
+ *
+ * One Horizontal divider per column gap (positions along X) and one Vertical
+ * divider per row gap (positions along Y). The position is the normalized
+ * center of the gap: sum(sizes[0..i]) + i * spacing + spacing / 2.
+ *
+ * A large (but still accepted) spacing can push the center of a trailing gap
+ * past the right/bottom edge; the position is clamped to [0, 1] so the hit band
+ * of the splitter always stays inside the figure.
+ *
+ * @return Dividers, empty when the grid is disabled or has a single track
+ */
+QList< QwtFigureGrid::Divider > QwtFigureGrid::dividers() const
+{
+	QWT_DC(d);
+	QList< Divider > result;
+	if (!d->m_enabled) {
+		return result;
+	}
+
+	for (int i = 0; i < d->m_columnCount - 1; ++i) {
+		Divider divider;
+		divider.orientation = Qt::Horizontal;
+		divider.index       = i;
+		const qreal centre  = sumSizes(d->m_columnSizes, 0, i + 1) + i * d->m_wspace + d->m_wspace / 2.0;
+		divider.position    = qBound(0.0, centre, 1.0);
+		result.append(divider);
+	}
+	for (int i = 0; i < d->m_rowCount - 1; ++i) {
+		Divider divider;
+		divider.orientation = Qt::Vertical;
+		divider.index       = i;
+		const qreal centre  = sumSizes(d->m_rowSizes, 0, i + 1) + i * d->m_hspace + d->m_hspace / 2.0;
+		divider.position    = qBound(0.0, centre, 1.0);
+		result.append(divider);
+	}
+	return result;
+}
+
+/**
+ * @brief Emit sizesChangeFinished() when an interactive change session ends
+ *
+ * The splitter calls this on mouse release, so undo logic in the DA layer can
+ * push a single command for the whole drag.
+ */
+void QwtFigureGrid::finishChange()
+{
+	Q_EMIT sizesChangeFinished();
+}
+
+/*** End of inlined file: qwt_figure_grid.cpp ***/
+
+
+/*** Start of inlined file: qwt_figure_grid_splitter.cpp ***/
+// Qt
+#include <QCursor>
+#include <QDebug>
+#include <QEvent>
+#include <QHoverEvent>
+#include <QKeyEvent>
+#include <QLayout>
+#include <QMouseEvent>
+#include <QPointer>
+#include <QVector>
+#include <QWidget>
+
+// qwt
+
+namespace
+{
+// Absolute tolerance used to compare track ratio vectors. The symbols in this
+// anonymous namespace are prefixed with SPLITTER_ / sameSplitter to stay
+// unique: the amalgamated single-file build concatenates this file with
+// qwt_figure_grid.cpp, which has its own SIZE_EPSILON / sameSizes().
+const qreal SPLITTER_SIZE_EPSILON = 1e-9;
+
+// Returns true for widgets that render through OpenGL; their events are never intercepted
+bool isOpenGLWidget(const QWidget* widget)
+{
+	return widget && (widget->inherits("QOpenGLWidget") || widget->inherits("QGLWidget"));
+}
+
+// Compares two track ratio vectors
+bool sameSplitterSizes(const QVector< qreal >& lhs, const QVector< qreal >& rhs)
+{
+	if (lhs.size() != rhs.size()) {
+		return false;
+	}
+	for (int i = 0; i < lhs.size(); ++i) {
+		if (qAbs(lhs.at(i) - rhs.at(i)) > SPLITTER_SIZE_EPSILON) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// Converts the position of a mouse or hover event to figure-local coordinates
+QPoint figureLocalPos(QwtFigure* figure, QWidget* watched, QEvent* event)
+{
+	QPoint pos;
+	if (event->type() == QEvent::HoverMove || event->type() == QEvent::HoverEnter || event->type() == QEvent::HoverLeave) {
+		pos = qwt::compat::eventPos(static_cast< QHoverEvent* >(event));
+	} else {
+		pos = qwt::compat::eventPos(static_cast< QMouseEvent* >(event));
+	}
+	if (figure && watched && watched != figure) {
+		pos = watched->mapTo(figure, pos);
+	}
+	return pos;
+}
+}  // namespace
+
+class QwtFigureGridSplitter::PrivateData
+{
+	QWT_DECLARE_PUBLIC(QwtFigureGridSplitter)
+public:
+	// Result of a hit test against the divider bands
+	struct Hit
+	{
+		bool valid { false };
+		Qt::Orientation orientation { Qt::Horizontal };
+		int index { -1 };
+		int distance { 0 };
+	};
+
+	// A widget whose mouse tracking was changed while the splitter is enabled
+	struct TrackingEntry
+	{
+		QPointer< QWidget > widget;
+		bool wasEnabled { false };
+	};
+
+	explicit PrivateData(QwtFigureGridSplitter* p) : q_ptr(p)
+	{
+	}
+
+	// The retained grid of the figure (nullptr when no grid is enabled)
+	QwtFigureGrid* grid() const;
+	// Collect the widgets whose events are filtered and prepare mouse tracking
+	void refreshWatchedWidgets();
+	// Remove the event filters and restore the mouse tracking states
+	void clearWatchedWidgets();
+	// Filter one widget (and optionally its descendants) and track its mouse
+	void addWatchedWidget(QWidget* widget, bool includeDescendants);
+
+	// Nearest divider whose hit band contains the figure-local position
+	Hit hitTest(const QPoint& figurePos) const;
+	// Direct child of the figure that contains the position (or the figure itself)
+	QWidget* cellWidgetAt(const QPoint& figurePos) const;
+	// Widget that owns the cursor at the position: the deepest child under
+	// the mouse, skipping transparent children (or the figure itself)
+	QWidget* cursorTargetAt(const QPoint& figurePos) const;
+
+	// Updates the cursor and the hover signal for a position outside a drag
+	bool handleHover(const QPoint& figurePos);
+	// Applies the split cursor on a widget, saving its previous cursor
+	void applyCursor(Qt::CursorShape shape, QWidget* target);
+	// Restores the cursor of the last cursor target without emitting hoverChanged()
+	void restoreCursorInternal();
+	// Restores the cursor of the last cursor target and emits hoverChanged(ArrowCursor)
+	void restoreCursor();
+
+	// Starts a drag session on the given divider
+	void startDrag(const Hit& hit, const QPoint& figurePos);
+	// Applies the current ratios while dragging
+	void dragTo(const QPoint& figurePos);
+	// Ends the drag; cancelled restores the original ratios
+	void endDrag(bool cancelled);
+	// Disables or restores the repaints of all grid members
+	void setMembersUpdatesEnabled(bool on);
+	// Resets the drag session state without touching the grid
+	void clearDragState();
+
+public:
+	QPointer< QwtFigure > figure;
+	bool enabled { false };
+	int hitWidth { 4 };
+
+	bool dragging { false };
+	bool pressConsumed { false };
+	Qt::Orientation dragOrientation { Qt::Horizontal };
+	int dragIndex { -1 };
+	int dragStartAxisPos { 0 };
+	QVector< qreal > originalRowSizes;
+	QVector< qreal > originalColumnSizes;
+	QList< QPointer< QWidget > > updateDisabledWidgets;
+	bool keyboardGrabbed { false };
+	bool mouseGrabbed { false };
+
+	QPointer< QWidget > cursorWidget;
+	QCursor originalCursor { Qt::ArrowCursor };
+	bool cursorWidgetHadSetCursor { false };
+	Qt::CursorShape currentCursor { Qt::ArrowCursor };
+
+	QList< QPointer< QWidget > > watchedWidgets;
+	QList< TrackingEntry > trackingEntries;
+};
+
+//----------------------------------------------------
+// QwtFigureGridSplitter::PrivateData
+//----------------------------------------------------
+
+QwtFigureGrid* QwtFigureGridSplitter::PrivateData::grid() const
+{
+	return figure ? figure->grid() : nullptr;
+}
+
+void QwtFigureGridSplitter::PrivateData::refreshWatchedWidgets()
+{
+	clearWatchedWidgets();
+	if (!figure || !enabled) {
+		return;
+	}
+
+	// Events over the gaps between the cells are delivered to the figure itself,
+	// the plots and their children cover the cells.
+	addWatchedWidget(figure.data(), false);
+
+	const QList< QWidget* > children = figure->findChildren< QWidget* >(QString(), Qt::FindDirectChildrenOnly);
+	for (QWidget* child : qwt_as_const(children)) {
+		if (!child) {
+			continue;
+		}
+		if (child->testAttribute(Qt::WA_TransparentForMouseEvents)) {
+			continue;
+		}
+		if (isOpenGLWidget(child)) {
+			continue;  // 3D plots must not be intercepted
+		}
+
+		if (QwtPlot* plot = qobject_cast< QwtPlot* >(child)) {
+			addWatchedWidget(plot, true);
+			const QList< QwtPlot* > parasites = plot->parasitePlots();
+			for (QwtPlot* parasite : qwt_as_const(parasites)) {
+				if (!parasite) {
+					continue;
+				}
+				// Parasite plots are usually not alone: they share the host area
+				if (parasite->testAttribute(Qt::WA_TransparentForMouseEvents)) {
+					continue;
+				}
+				if (isOpenGLWidget(parasite)) {
+					continue;
+				}
+				addWatchedWidget(parasite, true);
+			}
+			continue;
+		}
+
+		// Non-plot grid members (custom widgets) get the same treatment
+		QwtFigureGrid* figureGrid = grid();
+		int row = 0, col = 0, rowSpan = 0, colSpan = 0;
+		if (figureGrid && figureGrid->gridPosition(child, &row, &col, &rowSpan, &colSpan)) {
+			addWatchedWidget(child, true);
+		}
+	}
+}
+
+void QwtFigureGridSplitter::PrivateData::addWatchedWidget(QWidget* widget, bool includeDescendants)
+{
+	if (!widget || !q_ptr) {
+		return;
+	}
+
+	// Filters are installed on the widget itself and, for the plots, on the
+	// interactive children (canvas, axis widgets). The children are needed to
+	// consume the press before the picker/axis handlers of the plot start a
+	// selection; the plot then never sees the in-band events.
+	const auto addOne = [ this ](QWidget* w) {
+		if (!w) {
+			return;
+		}
+		w->installEventFilter(q_ptr);
+		watchedWidgets.append(w);
+		if (!w->hasMouseTracking()) {
+			TrackingEntry entry;
+			entry.widget     = w;
+			entry.wasEnabled = false;
+			trackingEntries.append(entry);
+			w->setMouseTracking(true);
+		}
+	};
+
+	addOne(widget);
+	if (!includeDescendants) {
+		return;
+	}
+
+	const QList< QWidget* > descendants = widget->findChildren< QWidget* >();
+	for (QWidget* descendant : qwt_as_const(descendants)) {
+		if (!descendant) {
+			continue;
+		}
+		if (descendant->testAttribute(Qt::WA_TransparentForMouseEvents)) {
+			continue;
+		}
+		if (isOpenGLWidget(descendant)) {
+			continue;
+		}
+		addOne(descendant);
+	}
+}
+
+void QwtFigureGridSplitter::PrivateData::clearWatchedWidgets()
+{
+	for (const QPointer< QWidget >& widget : qwt_as_const(watchedWidgets)) {
+		if (widget) {
+			widget->removeEventFilter(q_ptr);
+		}
+	}
+	watchedWidgets.clear();
+
+	for (const TrackingEntry& entry : qwt_as_const(trackingEntries)) {
+		if (entry.widget) {
+			entry.widget->setMouseTracking(entry.wasEnabled);
+		}
+	}
+	trackingEntries.clear();
+}
+
+QwtFigureGridSplitter::PrivateData::Hit QwtFigureGridSplitter::PrivateData::hitTest(const QPoint& figurePos) const
+{
+	Hit hit;
+	if (!figure) {
+		return hit;
+	}
+	if (!figure->rect().contains(figurePos)) {
+		return hit;
+	}
+
+	// A 3D cell never serves a divider, the boundary is hit on the 2D side
+	if (isOpenGLWidget(cellWidgetAt(figurePos))) {
+		return hit;
+	}
+
+	QwtFigureGrid* figureGrid = grid();
+	if (!figureGrid || !figureGrid->isEnabled()) {
+		return hit;
+	}
+
+	const QList< QwtFigureGrid::Divider > dividers = figureGrid->dividers();
+	for (const QwtFigureGrid::Divider& divider : qwt_as_const(dividers)) {
+		const bool horizontal = (divider.orientation == Qt::Horizontal);
+		const int dimension   = horizontal ? figure->width() : figure->height();
+		if (dimension <= 0) {
+			continue;
+		}
+		const int dividerPos = qRound(divider.position * dimension);
+		const int mousePos   = horizontal ? figurePos.x() : figurePos.y();
+		const int distance   = qAbs(mousePos - dividerPos);
+		if (distance > hitWidth) {
+			continue;
+		}
+		if (!hit.valid || distance < hit.distance) {
+			hit.valid       = true;
+			hit.orientation = divider.orientation;
+			hit.index       = divider.index;
+			hit.distance    = distance;
+		}
+	}
+	return hit;
+}
+
+QWidget* QwtFigureGridSplitter::PrivateData::cellWidgetAt(const QPoint& figurePos) const
+{
+	if (!figure) {
+		return nullptr;
+	}
+	QWidget* widget = figure->childAt(figurePos);
+	while (widget && widget->parentWidget() != figure.data()) {
+		widget = widget->parentWidget();
+	}
+	return widget ? widget : figure.data();
+}
+
+QWidget* QwtFigureGridSplitter::PrivateData::cursorTargetAt(const QPoint& figurePos) const
+{
+	if (!figure) {
+		return nullptr;
+	}
+	// The cursor must be set on the widget the mouse is really over: an
+	// explicitly set cursor of a child (DA sets Qt::ArrowCursor on its canvas)
+	// overrides the cursor inherited from the cell widget, so the split
+	// cursor applied to the cell would never be visible on the canvas.
+	QWidget* widget = figure->childAt(figurePos);
+	while (widget && widget != figure.data() && widget->testAttribute(Qt::WA_TransparentForMouseEvents)) {
+		widget = widget->parentWidget();
+	}
+	return (widget && widget != figure.data()) ? widget : figure.data();
+}
+
+void QwtFigureGridSplitter::PrivateData::applyCursor(Qt::CursorShape shape, QWidget* target)
+{
+	if (!target) {
+		target = figure.data();
+	}
+	if (!target) {
+		return;
+	}
+
+	if (cursorWidget == target) {
+		if (currentCursor == shape) {
+			return;
+		}
+	} else {
+		restoreCursorInternal();
+		cursorWidget             = target;
+		cursorWidgetHadSetCursor = target->testAttribute(Qt::WA_SetCursor);
+		originalCursor           = target->cursor();
+	}
+
+	target->setCursor(shape);
+	if (currentCursor != shape) {
+		currentCursor = shape;
+		Q_EMIT q_func()->hoverChanged(shape);
+	}
+}
+
+void QwtFigureGridSplitter::PrivateData::restoreCursorInternal()
+{
+	if (!cursorWidget) {
+		return;
+	}
+	if (cursorWidgetHadSetCursor) {
+		cursorWidget->setCursor(originalCursor);
+	} else {
+		cursorWidget->unsetCursor();
+	}
+	cursorWidget = nullptr;
+}
+
+void QwtFigureGridSplitter::PrivateData::restoreCursor()
+{
+	restoreCursorInternal();
+	if (currentCursor != Qt::ArrowCursor) {
+		currentCursor = Qt::ArrowCursor;
+		Q_EMIT q_func()->hoverChanged(currentCursor);
+	}
+}
+
+bool QwtFigureGridSplitter::PrivateData::handleHover(const QPoint& figurePos)
+{
+	const Hit hit = hitTest(figurePos);
+	if (!hit.valid) {
+		restoreCursor();
+		return false;
+	}
+
+	const Qt::CursorShape shape = (hit.orientation == Qt::Horizontal) ? Qt::SplitHCursor : Qt::SplitVCursor;
+	applyCursor(shape, cursorTargetAt(figurePos));
+	return true;
+}
+
+void QwtFigureGridSplitter::PrivateData::setMembersUpdatesEnabled(bool on)
+{
+	if (on) {
+		for (const QPointer< QWidget >& widget : qwt_as_const(updateDisabledWidgets)) {
+			if (!widget) {
+				continue;
+			}
+			widget->setUpdatesEnabled(true);
+			widget->update();
+		}
+		updateDisabledWidgets.clear();
+		return;
+	}
+
+	QwtFigureGrid* figureGrid = grid();
+	if (!figureGrid) {
+		return;
+	}
+	const QList< QWidget* > members = figureGrid->items();
+	for (QWidget* member : qwt_as_const(members)) {
+		if (!member || !member->updatesEnabled()) {
+			continue;
+		}
+		member->setUpdatesEnabled(false);
+		updateDisabledWidgets.append(member);
+	}
+}
+
+void QwtFigureGridSplitter::PrivateData::startDrag(const Hit& hit, const QPoint& figurePos)
+{
+	if (!figure || dragging) {
+		return;
+	}
+	QwtFigureGrid* figureGrid = grid();
+	if (!figureGrid || !figureGrid->isEnabled()) {
+		return;
+	}
+
+	dragging            = true;
+	dragOrientation     = hit.orientation;
+	dragIndex           = hit.index;
+	dragStartAxisPos    = (hit.orientation == Qt::Horizontal) ? figurePos.x() : figurePos.y();
+	originalRowSizes    = figureGrid->rowSizes();
+	originalColumnSizes = figureGrid->columnSizes();
+
+	setMembersUpdatesEnabled(false);
+
+	const Qt::CursorShape shape = (hit.orientation == Qt::Horizontal) ? Qt::SplitHCursor : Qt::SplitVCursor;
+	applyCursor(shape, cursorTargetAt(figurePos));
+
+	// Grab the mouse so the release always comes back to the figure: a filter
+	// installed after this one (Qt invokes the filters in reverse installation
+	// order) may consume the move/release of the canvas, which would leave the
+	// drag session stuck. The grab redirects the events to the figure, whose
+	// filter chain is not shared with the canvas.
+	figure->grabMouse();
+	mouseGrabbed = (QWidget::mouseGrabber() == figure.data());
+
+	figure->grabKeyboard();
+	keyboardGrabbed = (QWidget::keyboardGrabber() == figure.data());
+}
+
+void QwtFigureGridSplitter::PrivateData::dragTo(const QPoint& figurePos)
+{
+	if (!dragging || !figure) {
+		return;
+	}
+	QwtFigureGrid* figureGrid = grid();
+	if (!figureGrid || !figureGrid->isEnabled()) {
+		return;
+	}
+
+	const bool horizontal = (dragOrientation == Qt::Horizontal);
+	const int dimension   = horizontal ? figure->width() : figure->height();
+	if (dimension <= 0) {
+		return;
+	}
+
+	QVector< qreal > originalSizes = horizontal ? originalColumnSizes : originalRowSizes;
+	if (dragIndex < 0 || dragIndex + 1 >= originalSizes.size()) {
+		return;
+	}
+
+	const qreal pairSum = originalSizes.at(dragIndex) + originalSizes.at(dragIndex + 1);
+	const qreal minNorm = static_cast< qreal >(figureGrid->minimumTrackPixels()) / dimension;
+	if (pairSum <= 0.0 || pairSum < 2.0 * minNorm) {
+		return;  // there is no room to move without collapsing a track
+	}
+
+	const int axisPos = horizontal ? figurePos.x() : figurePos.y();
+	const qreal delta = static_cast< qreal >(axisPos - dragStartAxisPos) / dimension;
+	const qreal newA  = qBound(minNorm, originalSizes.at(dragIndex) + delta, pairSum - minNorm);
+
+	originalSizes[ dragIndex ]     = newA;
+	originalSizes[ dragIndex + 1 ] = pairSum - newA;
+
+	if (horizontal) {
+		figureGrid->setColumnSizes(originalSizes);
+	} else {
+		figureGrid->setRowSizes(originalSizes);
+	}
+
+	// No explicit relayout here: QwtFigure connects QwtFigureGrid::sizesChanged
+	// to a synchronous layout pass, so the members already have their new
+	// geometry when setColumnSizes()/setRowSizes() returns. Re-applying the
+	// layout here would run the whole figure layout twice per mouse move, which
+	// is what made drags of large figures feel sluggish.
+
+	// Keep the split cursor while the mouse is captured far away from the start
+	QWidget* target = cursorTargetAt(figurePos);
+	if (!isOpenGLWidget(target)) {
+		applyCursor(horizontal ? Qt::SplitHCursor : Qt::SplitVCursor, target);
+	}
+}
+
+void QwtFigureGridSplitter::PrivateData::endDrag(bool cancelled)
+{
+	if (!dragging) {
+		return;
+	}
+	dragging      = false;
+	pressConsumed = false;
+
+	QwtFigureGrid* figureGrid         = grid();
+	const Qt::Orientation orientation = dragOrientation;
+
+	if (cancelled && figureGrid) {
+		// Restore the snapshot before the repaints are enabled again, so the
+		// plots never paint an intermediate state
+		if (orientation == Qt::Horizontal) {
+			figureGrid->setColumnSizes(originalColumnSizes);
+		} else {
+			figureGrid->setRowSizes(originalRowSizes);
+		}
+	}
+
+	setMembersUpdatesEnabled(true);
+
+	if (figure && keyboardGrabbed) {
+		figure->releaseKeyboard();
+	}
+	keyboardGrabbed = false;
+
+	// Release the mouse grab of the drag session. The grab may already be gone
+	// (a popup opened, the window was deactivated), so check the grabber before
+	// releasing; releasing without holding the grab is a harmless no-op anyway.
+	if (figure && mouseGrabbed) {
+		if (QWidget::mouseGrabber() == figure.data()) {
+			figure->releaseMouse();
+		}
+		mouseGrabbed = false;
+	}
+	restoreCursor();
+
+	bool sizesDiffer = false;
+	if (figureGrid) {
+		sizesDiffer = !sameSplitterSizes(figureGrid->rowSizes(), originalRowSizes)
+					  || !sameSplitterSizes(figureGrid->columnSizes(), originalColumnSizes);
+	}
+
+	if (figure) {
+		if (QLayout* lay = figure->layout()) {
+			lay->setGeometry(figure->rect());
+		}
+		if (!cancelled && sizesDiffer) {
+			// The only place the finished signal is emitted: exactly once per drag
+			figureGrid->finishChange();
+		}
+		if (sizesDiffer) {
+			figure->replotAll();
+		}
+	} else if (!cancelled && sizesDiffer && figureGrid) {
+		figureGrid->finishChange();
+	}
+
+	clearDragState();
+}
+
+void QwtFigureGridSplitter::PrivateData::clearDragState()
+{
+	dragOrientation  = Qt::Horizontal;
+	dragIndex        = -1;
+	dragStartAxisPos = 0;
+	originalRowSizes.clear();
+	originalColumnSizes.clear();
+	updateDisabledWidgets.clear();
+}
+
+//----------------------------------------------------
+// QwtFigureGridSplitter
+//----------------------------------------------------
+
+/**
+ * @brief Constructor
+ * @param figure Figure whose retained grid is edited, must not be null
+ * @note The splitter becomes a child of the figure, the interaction stays
+ *       disabled until setEnabled(true) is called
+ */
+QwtFigureGridSplitter::QwtFigureGridSplitter(QwtFigure* figure) : QObject(figure), QWT_PIMPL_CONSTRUCT
+{
+	QWT_D(d);
+	if (!figure) {
+		qWarning() << "QwtFigureGridSplitter: a non-null QwtFigure is required";
+		return;
+	}
+	d->figure = figure;
+}
+
+/**
+ * @brief Destructor
+ *
+ * Ends a running drag, removes all event filters, restores the mouse tracking
+ * states and the cursor of the widget that received the split cursor.
+ */
+QwtFigureGridSplitter::~QwtFigureGridSplitter()
+{
+	QWT_D(d);
+	if (d->dragging) {
+		d->endDrag(true);
+	}
+	d->clearWatchedWidgets();
+	d->restoreCursor();
+	d->enabled = false;
+}
+
+/**
+ * @brief The figure the splitter works on
+ * @return The figure, nullptr when the splitter was created with a null pointer
+ */
+QwtFigure* QwtFigureGridSplitter::figure() const
+{
+	QWT_DC(d);
+	return d->figure.data();
+}
+
+/**
+ * @brief Enable or disable the divider interaction
+ *
+ * Enabling installs event filters on the figure and on the widgets that cover
+ * the grid cells and prepares the mouse tracking needed to receive the hover
+ * moves. Calling setEnabled(true) while already enabled re-scans the widgets,
+ * which is how new members are picked up without re-creating the splitter.
+ *
+ * Disabling releases a running drag (the original ratios are restored), the
+ * mouse and the keyboard grab, all event filters and the split cursor.
+ *
+ * @param on True to enable the interaction
+ * @note Qt invokes the event filters of a widget in reverse installation order:
+ *       the filter installed last runs first. Install the filters of the host
+ *       (canvas pickers, drag handlers, ...) before enabling the grid editing;
+ *       a filter installed on a canvas afterwards runs ahead of the splitter and
+ *       can consume the events of the divider bands. Enabling an already enabled
+ *       splitter re-scans and re-installs its filters, so calling
+ *       setEnabled(true) once more puts the splitter back in front.
+ */
+void QwtFigureGridSplitter::setEnabled(bool on)
+{
+	QWT_D(d);
+	if (!d->figure) {
+		return;
+	}
+
+	if (on) {
+		d->enabled = true;
+		d->refreshWatchedWidgets();
+		return;
+	}
+
+	if (!d->enabled) {
+		return;
+	}
+	if (d->dragging) {
+		d->endDrag(true);
+	}
+	d->clearWatchedWidgets();
+	d->enabled = false;
+	d->restoreCursor();
+}
+
+/**
+ * @brief Test whether the divider interaction is enabled
+ * @return True when the splitter is enabled
+ */
+bool QwtFigureGridSplitter::isEnabled() const
+{
+	QWT_DC(d);
+	return d->enabled;
+}
+
+/**
+ * @brief Set the half width of the hit band around a divider
+ *
+ * A divider is hit when the mouse is at most @p px pixels away from the center
+ * of the gap. The default is 4 pixels.
+ *
+ * @param px Half width in pixels, negative values are ignored
+ */
+void QwtFigureGridSplitter::setHitWidth(int px)
+{
+	if (px < 0) {
+		qWarning() << "QwtFigureGridSplitter::setHitWidth: the hit width must be non-negative, got" << px;
+		return;
+	}
+	QWT_D(d);
+	d->hitWidth = px;
+}
+
+/**
+ * @brief The half width of the hit band around a divider
+ * @return Half width in pixels, 4 by default
+ */
+int QwtFigureGridSplitter::hitWidth() const
+{
+	QWT_DC(d);
+	return d->hitWidth;
+}
+
+/**
+ * @brief Test whether a divider is currently dragged
+ * @return True while a drag session is active
+ */
+bool QwtFigureGridSplitter::isDragging() const
+{
+	QWT_DC(d);
+	return d->dragging;
+}
+
+bool QwtFigureGridSplitter::eventFilter(QObject* watched, QEvent* event)
+{
+	QWT_D(d);
+	QWidget* widget = qobject_cast< QWidget* >(watched);
+	if (!d->enabled || !d->figure || !widget) {
+		return QObject::eventFilter(watched, event);
+	}
+
+	switch (event->type()) {
+	case QEvent::MouseButtonPress: {
+		QMouseEvent* mouseEvent = static_cast< QMouseEvent* >(event);
+		if (mouseEvent->button() != Qt::LeftButton) {
+			d->pressConsumed = false;
+			break;
+		}
+		if (d->dragging) {
+			break;
+		}
+		const QPoint pos           = figureLocalPos(d->figure.data(), widget, event);
+		const PrivateData::Hit hit = d->hitTest(pos);
+		if (!hit.valid) {
+			d->pressConsumed = false;
+			break;
+		}
+		d->pressConsumed = true;
+		d->startDrag(hit, pos);
+		return true;
+	}
+	case QEvent::MouseButtonDblClick: {
+		if (d->dragging) {
+			return true;
+		}
+		const QPoint pos = figureLocalPos(d->figure.data(), widget, event);
+		if (!d->hitTest(pos).valid) {
+			break;
+		}
+		d->pressConsumed = true;
+		return true;
+	}
+	case QEvent::MouseMove: {
+		const QPoint pos = figureLocalPos(d->figure.data(), widget, event);
+		if (d->dragging) {
+			d->dragTo(pos);
+			return true;
+		}
+		if (static_cast< QMouseEvent* >(event)->buttons() != Qt::NoButton) {
+			break;  // another button is held: the event belongs to the plot
+		}
+		return d->handleHover(pos);
+	}
+	case QEvent::HoverMove: {
+		if (d->dragging) {
+			return true;
+		}
+		const QPoint pos = figureLocalPos(d->figure.data(), widget, event);
+		return d->handleHover(pos);
+	}
+	case QEvent::MouseButtonRelease: {
+		if (d->dragging) {
+			d->endDrag(false);
+			return true;
+		}
+		if (d->pressConsumed) {
+			d->pressConsumed = false;
+			return true;
+		}
+		break;
+	}
+	case QEvent::Leave:
+	case QEvent::HoverLeave: {
+		// The cursor target is the widget under the mouse (typically the
+		// canvas); leaving it does not mean the mouse left the figure - it may
+		// just have moved to a sibling child of the same cell, and the next
+		// move event re-applies or clears the cursor. Only the leave of the
+		// figure itself ends the hover for good.
+		if (!d->dragging && widget == d->figure.data()) {
+			d->restoreCursor();
+		}
+		break;
+	}
+	case QEvent::UngrabMouse:
+	case QEvent::WindowDeactivate:
+	case QEvent::ApplicationDeactivate: {
+		// The release will never arrive: the mouse grab was lost or the window
+		// was deactivated (a modal dialog opened, the user switched tasks).
+		// End the drag as cancelled so the members repaint again instead of
+		// staying stuck with their repaints disabled.
+		if (d->dragging) {
+			d->endDrag(true);
+		}
+		break;
+	}
+	case QEvent::KeyPress: {
+		if (!d->dragging) {
+			break;
+		}
+		QKeyEvent* keyEvent = static_cast< QKeyEvent* >(event);
+		if (keyEvent->key() == Qt::Key_Escape) {
+			d->endDrag(true);  // cancel: no finished signal
+			return true;
+		}
+		break;
+	}
+	default:
+		break;
+	}
+
+	return QObject::eventFilter(watched, event);
+}
+
+/*** End of inlined file: qwt_figure_grid_splitter.cpp ***/
 
 // control
 
@@ -94747,6 +96014,316 @@ void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
 }
 
 /*** End of inlined file: qwt3d_plot.cpp ***/
+
+
+/*** Start of inlined file: qwt3d_textbatch.cpp ***/
+#include <QMatrix4x4>
+#include <QOpenGLBuffer>
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLTexture>
+#include <QPainter>
+
+namespace
+{
+//! Interleaved vertex layout: position(3) + texcoord(2) + color(4)
+const int VERTEX_FLOATS = 9;
+
+const int ATLAS_MAX_HEIGHT = 2048;
+
+//! Deletes a GL object, but only while the context that owns it is current
+/*!
+  When the owning context is already gone the GL name died with it, so
+  dropping the handle is enough - and avoids Qt's warnings about objects
+  that are not valid in the current context.
+ */
+template< typename T >
+void releaseGLObject(T*& object, QOpenGLContext* owner)
+{
+	if (object == nullptr)
+		return;
+
+	if (owner != nullptr && QOpenGLContext::currentContext() == owner)
+		delete object;
+
+	object = nullptr;
+}
+}
+
+Qwt3DTextBatch::Qwt3DTextBatch() = default;
+
+Qwt3DTextBatch::~Qwt3DTextBatch()
+{
+	releaseGL();
+}
+
+/*!
+  Drops the GL resources after the context was recreated. The atlas image and
+  the packed cells are kept: the labels do not need to be rasterized or packed
+  again, only the texture is uploaded anew on the next flush.
+ */
+void Qwt3DTextBatch::invalidate()
+{
+	releaseGL();
+}
+
+/*!
+  Copies \a image into the atlas and returns its normalized texture rectangle.
+  The image is only repacked/composited when \a stamp differs from the stamp of
+  the previous call, so calling this for every label on every frame is cheap.
+
+  @return false when the image does not fit into the atlas (yet); the caller
+		  should draw the label directly for this frame.
+ */
+bool Qwt3DTextBatch::addLabel(const void* key, const QImage& image, quint64 stamp, QRectF& uv)
+{
+	if (key == nullptr || image.isNull())
+		return false;
+
+	if (image.width() > m_size.width() || image.height() > m_size.height())
+		return false;
+
+	Entry& entry = m_entries[ key ];
+
+	if (!entry.cell.isNull() && entry.cell.width() >= image.width() && entry.cell.height() >= image.height()) {
+		// the cell is large enough, also after the label text became shorter
+		if (entry.stamp != stamp || entry.size != image.size()) {
+			entry.stamp = stamp;
+			entry.size  = image.size();
+			composite(QRect(entry.cell.topLeft(), entry.size), image);
+		}
+	} else {
+		QRect cell;
+		if (!pack(image.size(), cell)) {
+			m_entries.remove(key);
+			m_growPending = true;
+			return false;
+		}
+
+		entry.cell  = cell;
+		entry.size  = image.size();
+		entry.stamp = stamp;
+		composite(QRect(cell.topLeft(), entry.size), image);
+	}
+
+	const QRect used(entry.cell.topLeft(), entry.size);
+	uv = QRectF(double(used.x()) / m_size.width(),
+				double(used.y()) / m_size.height(),
+				double(used.width()) / m_size.width(),
+				double(used.height()) / m_size.height());
+	return true;
+}
+
+/*!
+  Appends one screen aligned quad as two triangles.
+ */
+void Qwt3DTextBatch::addQuad(const Triple& bl,
+							 const Triple& tl,
+							 const Triple& br,
+							 const Triple& tr,
+							 const QRectF& uv,
+							 const RGBA& color)
+{
+	const float u0 = static_cast< float >(uv.left());
+	const float v0 = static_cast< float >(uv.top());
+	const float u1 = static_cast< float >(uv.right());
+	const float v1 = static_cast< float >(uv.bottom());
+
+	const float r = static_cast< float >(color.r);
+	const float g = static_cast< float >(color.g);
+	const float b = static_cast< float >(color.b);
+	const float a = static_cast< float >(color.a);
+
+	// vertex order and texture coordinates match the per label path:
+	// BL -> (u0, v1), TL -> (u0, v0), BR -> (u1, v1), TR -> (u1, v0)
+	auto vertex = [ & ](const Triple& p, float u, float v) {
+		m_vertices << static_cast< float >(p.x) << static_cast< float >(p.y) << static_cast< float >(p.z) << u << v << r
+				   << g << b << a;
+	};
+
+	vertex(bl, u0, v1);
+	vertex(tl, u0, v0);
+	vertex(br, u1, v1);
+
+	vertex(tl, u0, v0);
+	vertex(tr, u1, v0);
+	vertex(br, u1, v1);
+}
+
+bool Qwt3DTextBatch::isEmpty() const
+{
+	return m_vertices.isEmpty();
+}
+
+/*!
+  Draws all submitted quads with one draw call and clears the batch.
+ */
+void Qwt3DTextBatch::flush(QOpenGLShaderProgram* shader, const QMatrix4x4& modelView, const QMatrix4x4& projection)
+{
+	if (m_vertices.isEmpty()) {
+		if (m_growPending)
+			grow();
+
+		return;
+	}
+
+	QOpenGLContext* context = QOpenGLContext::currentContext();
+	if (context == nullptr || shader == nullptr) {
+		m_vertices.clear();
+		return;
+	}
+
+	if (m_context != context) {
+		releaseGL();
+		m_context = context;
+	}
+
+	if (!ensureTexture()) {
+		m_vertices.clear();
+		return;
+	}
+
+	if (m_vbo == nullptr) {
+		m_vbo = new QOpenGLBuffer(QOpenGLBuffer::VertexBuffer);
+		m_vbo->create();
+	}
+
+	auto* f = context->functions();
+
+	m_vbo->bind();
+	m_vbo->allocate(m_vertices.constData(), static_cast< int >(m_vertices.size() * sizeof(float)));
+
+	shader->bind();
+	shader->setUniformValue("uModelView", modelView);
+	shader->setUniformValue("uProjection", projection);
+	shader->setUniformValue("uTextTexture", 0);
+
+	m_texture->bind(0);
+
+	const int stride = VERTEX_FLOATS * sizeof(float);
+	shader->enableAttributeArray(0);
+	shader->setAttributeBuffer(0, GL_FLOAT, 0, 3, stride);
+	shader->enableAttributeArray(1);
+	shader->setAttributeBuffer(1, GL_FLOAT, 3 * sizeof(float), 2, stride);
+	shader->enableAttributeArray(2);
+	shader->setAttributeBuffer(2, GL_FLOAT, 5 * sizeof(float), 4, stride);
+
+	f->glEnable(GL_BLEND);
+	f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	f->glDisable(GL_DEPTH_TEST);
+	f->glDrawArrays(GL_TRIANGLES, 0, static_cast< int >(m_vertices.size() / VERTEX_FLOATS));
+	f->glEnable(GL_DEPTH_TEST);
+
+	shader->disableAttributeArray(0);
+	shader->disableAttributeArray(1);
+	shader->disableAttributeArray(2);
+	shader->release();
+	m_texture->release();
+	m_vbo->release();
+
+	m_vertices.clear();
+
+	// the atlas was full: grow it for the next frame, the labels that did not
+	// fit were drawn directly and are packed again then
+	if (m_growPending)
+		grow();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// atlas internals
+////////////////////////////////////////////////////////////////////////////////
+
+bool Qwt3DTextBatch::pack(const QSize& size, QRect& rect)
+{
+	for (int i = 0; i < m_shelves.size(); ++i) {
+		Shelf& shelf = m_shelves[ i ];
+		if (shelf.height >= size.height() && shelf.used + size.width() <= m_size.width()) {
+			rect = QRect(shelf.used, shelf.y, size.width(), size.height());
+			shelf.used += size.width();
+			return true;
+		}
+	}
+
+	if (m_usedHeight + size.height() > m_size.height())
+		return false;
+
+	Shelf shelf;
+	shelf.y      = m_usedHeight;
+	shelf.height = size.height();
+	shelf.used   = size.width();
+	m_shelves.append(shelf);
+	m_usedHeight += size.height();
+
+	rect = QRect(0, shelf.y, size.width(), size.height());
+	return true;
+}
+
+void Qwt3DTextBatch::grow()
+{
+	m_growPending = false;
+
+	if (m_size.height() >= ATLAS_MAX_HEIGHT)
+		return;
+
+	m_size.setHeight(qMin(ATLAS_MAX_HEIGHT, m_size.height() * 2));
+
+	// cells are re-packed from the label images of the next frame
+	m_entries.clear();
+	m_shelves.clear();
+	m_usedHeight = 0;
+
+	m_image = QImage(m_size, QImage::Format_ARGB32_Premultiplied);
+	m_image.fill(Qt::transparent);
+	m_imageDirty = true;
+}
+
+void Qwt3DTextBatch::composite(const QRect& rect, const QImage& image)
+{
+	if (m_image.size() != m_size) {
+		m_image = QImage(m_size, QImage::Format_ARGB32_Premultiplied);
+		m_image.fill(Qt::transparent);
+	}
+
+	QPainter painter(&m_image);
+	painter.setCompositionMode(QPainter::CompositionMode_Source);
+	painter.drawImage(rect.topLeft(), image);
+	painter.end();
+
+	m_imageDirty = true;
+}
+
+bool Qwt3DTextBatch::ensureTexture()
+{
+	if (m_image.size() != m_size) {
+		m_image = QImage(m_size, QImage::Format_ARGB32_Premultiplied);
+		m_image.fill(Qt::transparent);
+		m_imageDirty = true;
+	}
+
+	const bool sizeChanged = m_texture != nullptr
+							 && (m_texture->width() != m_size.width() || m_texture->height() != m_size.height());
+
+	if (m_texture == nullptr || sizeChanged || m_imageDirty) {
+		delete m_texture;
+		m_texture = new QOpenGLTexture(m_image);
+		m_texture->setMinificationFilter(QOpenGLTexture::Linear);
+		m_texture->setMagnificationFilter(QOpenGLTexture::Linear);
+		m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
+		m_imageDirty = false;
+	}
+
+	return m_texture != nullptr && m_texture->isCreated();
+}
+
+void Qwt3DTextBatch::releaseGL()
+{
+	releaseGLObject(m_texture, m_context);
+	releaseGLObject(m_vbo, m_context);
+	m_context = nullptr;
+}
+
+/*** End of inlined file: qwt3d_textbatch.cpp ***/
 
 
 /*** Start of inlined file: qwt3d_label.cpp ***/

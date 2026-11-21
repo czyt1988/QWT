@@ -24218,6 +24218,217 @@ private Q_SLOTS:
 #endif  // QWTFIGUREWIDGETOVERLAY_H
 /*** End of inlined file: qwt_figure_widget_overlay.h ***/
 
+
+/*** Start of inlined file: qwt_figure_grid.h ***/
+#ifndef QWT_FIGURE_GRID_H
+#define QWT_FIGURE_GRID_H
+
+#include <QList>
+#include <QObject>
+#include <QRectF>
+#include <QVector>
+
+class QWidget;
+
+/**
+ * @class QwtFigureGrid
+ *
+ * @brief Retained grid track model for a figure with several members
+ *
+ * QwtFigureGrid owns the authoritative track ratios of the columns/rows and
+ * the (row, column, rowSpan, columnSpan) registration of every member widget.
+ * Normalized rectangles are computed on demand from the retained tracks, so
+ * the grid can be resized interactively without touching the registrations.
+ *
+ * The model only depends on Qt (QObject/QWidget) and never references
+ * QwtFigure or QwtFigureLayout, which keeps the geometry math testable in
+ * isolation.
+ *
+ * @code
+ * QwtFigureGrid* grid = new QwtFigureGrid(figure);
+ * grid->setup(2, 2);                           // enable a 2x2 grid
+ * grid->setColumnSizes({ 0.6, 0.4 });          // column ratios
+ * grid->addItem(plot, 0, 0, 1, 2);             // plot spans the top row
+ * const QRectF cell = grid->normRectFor(1, 0); // normalized geometry of a cell
+ * @endcode
+ */
+class QWT_EXPORT QwtFigureGrid : public QObject
+{
+	Q_OBJECT
+	QWT_DECLARE_PRIVATE(QwtFigureGrid)
+
+public:
+	/// Constructor
+	explicit QwtFigureGrid(QObject* parent = nullptr);
+	/// Destructor
+	~QwtFigureGrid() override;
+
+	bool isEnabled() const;                     // True once setup() succeeded
+	void setup(int rowCount, int columnCount);  // Enable the grid and init equal tracks
+	void disable();                             // Disable the grid and drop the member registrations
+	int rowCount() const;                       // Number of row tracks (0 when disabled)
+	int columnCount() const;                    // Number of column tracks (0 when disabled)
+
+	QVector< qreal > rowSizes() const;                   // Normalized row ratios, sum == 1
+	QVector< qreal > columnSizes() const;                // Normalized column ratios, sum == 1
+	void setRowSizes(const QVector< qreal >& sizes);     // Set the row ratios (normalized on input)
+	void setColumnSizes(const QVector< qreal >& sizes);  // Set the column ratios (normalized on input)
+	void setSpacing(qreal wspace, qreal hspace);         // Gap between tracks, normalized
+	qreal wspace() const;                                // Horizontal gap between columns, normalized
+	qreal hspace() const;                                // Vertical gap between rows, normalized
+	void setMinimumTrackPixels(int px);                  // Minimum track extent while dragging
+	int minimumTrackPixels() const;                      // Minimum track extent while dragging
+
+	bool addItem(QWidget* w, int row, int col, int rowSpan = 1, int colSpan = 1);         // Register a member
+	bool removeItem(QWidget* w);                                                          // Unregister a member
+	bool gridPosition(QWidget* w, int* row, int* col, int* rowSpan, int* colSpan) const;  // Query a member
+	QList< QWidget* > items() const;                                                      // Registered members
+
+	QRectF normRectFor(int row, int col, int rowSpan = 1, int colSpan = 1) const;  // Normalized cell rect
+
+	/**
+	 * @brief A draggable divider between two adjacent tracks
+	 *
+	 * A Horizontal divider is the vertical line between two columns (it changes
+	 * the column sizes and stores a normalized X position). A Vertical divider
+	 * is the horizontal line between two rows (it changes the row sizes and
+	 * stores a normalized Y position).
+	 */
+	struct Divider
+	{
+		Qt::Orientation orientation;  ///< Horizontal = column divider, Vertical = row divider
+		int index;                    ///< Left/top track index (0 .. count - 2)
+		qreal position;               ///< Normalized position of the gap center
+	};
+	QList< Divider > dividers() const;  // Divider list for the current tracks
+
+	void finishChange();  // Emit sizesChangeFinished() when an interactive change session ends
+
+Q_SIGNALS:
+	/**
+	 * @brief Emitted whenever the track ratios or the spacing change
+	 *
+	 * Also emitted repeatedly while a divider is being dragged.
+	 */
+	void sizesChanged();
+
+	/**
+	 * @brief Emitted once when an interactive change session ends
+	 *
+	 * The splitter calls finishChange() on mouse release.
+	 */
+	void sizesChangeFinished();
+};
+
+#endif  // QWT_FIGURE_GRID_H
+
+/*** End of inlined file: qwt_figure_grid.h ***/
+
+
+/*** Start of inlined file: qwt_figure_grid_splitter.h ***/
+#ifndef QWT_FIGURE_GRID_SPLITTER_H
+#define QWT_FIGURE_GRID_SPLITTER_H
+
+// Qt
+#include <QObject>
+
+// qwt
+
+class QEvent;
+class QwtFigure;
+
+/**
+ * @class QwtFigureGridSplitter
+ *
+ * @brief Interactive divider of the retained grid layout of a QwtFigure
+ *
+ * @details
+ * The splitter installs event filters on the figure and on the widgets that can
+ * receive the mouse over the grid cells. Only events inside a narrow band around
+ * a divider are consumed, every other event is passed through unchanged so
+ * zooming, panning, picking and hovering of the plots keep working.
+ *
+ * Dragging a divider changes the ratio of the two adjacent tracks only: a
+ * Horizontal divider sits between two columns (the mouse moves along X), a
+ * Vertical divider sits between two rows (the mouse moves along Y). The track
+ * ratios are clamped by QwtFigureGrid::minimumTrackPixels(), so no track can
+ * collapse and the tracks can never overlap.
+ *
+ * While a divider is dragged the member widgets stop repainting; releasing the
+ * mouse restores the repaints and emits QwtFigureGrid::sizesChangeFinished()
+ * once, but only when the ratios really changed. Pressing Esc cancels the drag:
+ * the original ratios are restored and no finished signal is emitted.
+ *
+ * The drag grabs the mouse on the figure, so the release always returns to the
+ * splitter even when a filter installed after this one (Qt invokes the event
+ * filters in reverse installation order) consumes the move/release of the
+ * canvas. When the grab is lost (QEvent::UngrabMouse) or the window is
+ * deactivated, the drag ends as if Esc was pressed.
+ *
+ * The split cursor is applied to the widget the mouse is really over (the
+ * canvas of a plot, not the plot itself), together with its original
+ * WA_SetCursor state, so it stays visible even when the canvas has a cursor
+ * of its own (an explicitly set child cursor overrides the inherited one) and
+ * the original cursor is restored when the band is left.
+ *
+ * QOpenGLWidget members (for example a 3D plot) never get an event filter, so
+ * their events are not intercepted. The boundary of a 3D cell is served by the
+ * adjacent 2D plot.
+ *
+ * @par Example:
+ * @code
+ * QwtFigure* figure = new QwtFigure;
+ * figure->enableGrid(2, 2);
+ * figure->addAxes(wavePlot, 0, 0, 1, 2);
+ * figure->addAxes(spectrumPlot, 1, 0);
+ * figure->addAxes(heatmapPlot, 1, 1);
+ *
+ * // The splitter is owned by the figure, enableGrid() must be called first
+ * figure->setGridEditable(true);
+ * @endcode
+ *
+ * @sa QwtFigure::setGridEditable(), QwtFigureGrid
+ */
+class QWT_EXPORT QwtFigureGridSplitter : public QObject
+{
+	Q_OBJECT
+	QWT_DECLARE_PRIVATE(QwtFigureGridSplitter)
+
+public:
+	// Constructor, the figure must not be null and becomes the parent
+	explicit QwtFigureGridSplitter(QwtFigure* figure);
+	~QwtFigureGridSplitter() override;
+
+	// The figure the splitter works on
+	QwtFigure* figure() const;
+
+	// Enable or disable the divider interaction
+	void setEnabled(bool on);
+	bool isEnabled() const;
+
+	// Set the half width of the hit band around a divider in pixels
+	void setHitWidth(int px);
+	int hitWidth() const;
+
+	// True while a divider is dragged
+	bool isDragging() const;
+
+Q_SIGNALS:
+	/**
+	 * @brief Emitted when the cursor shape over the divider bands changes
+	 * @param shape SplitHCursor/SplitVCursor inside a band, ArrowCursor when
+	 *              the mouse left the band
+	 */
+	void hoverChanged(Qt::CursorShape shape);
+
+protected:
+	bool eventFilter(QObject* watched, QEvent* event) override;
+};
+
+#endif  // QWT_FIGURE_GRID_SPLITTER_H
+
+/*** End of inlined file: qwt_figure_grid_splitter.h ***/
+
 // plot3D
 
 /*** Start of inlined file: qwt3d_global.h ***/

@@ -170,6 +170,8 @@
 #include "../../src/plot/qwt_figure_layout.h"
 #include "../../src/plot/qwt_figure.h"
 #include "../../src/plot/qwt_figure_widget_overlay.h"
+#include "../../src/plot/qwt_figure_grid.h"
+#include "../../src/plot/qwt_figure_grid_splitter.h"
 // plot3D
 #include "../../src/plot3d/qwt3d_global.h"
 #include "../../src/plot3d/qwt3d_types.h"

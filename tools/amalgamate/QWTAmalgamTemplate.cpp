@@ -168,6 +168,8 @@
 #include "../../src/plot/qwt_figure_layout.cpp"
 #include "../../src/plot/qwt_figure.cpp"
 #include "../../src/plot/qwt_figure_widget_overlay.cpp"
+#include "../../src/plot/qwt_figure_grid.cpp"
+#include "../../src/plot/qwt_figure_grid_splitter.cpp"
 // control
 #include "../../src/plot/qwt_dial_needle.cpp"
 #include "../../src/plot/qwt_dial.cpp"
@@ -188,6 +190,7 @@
 #include "../../src/plot3d/qwt3d_lighting.cpp"
 #include "../../src/plot3d/qwt3d_colorlegend.cpp"
 #include "../../src/plot3d/qwt3d_plot.cpp"
+#include "../../src/plot3d/qwt3d_textbatch.cpp"
 #include "../../src/plot3d/qwt3d_label.cpp"
 #include "../../src/plot3d/qwt3d_types.cpp"
 #include "../../src/plot3d/qwt3d_enrichment_std.cpp"

@@ -24,8 +24,11 @@
 
 namespace
 {
-// Absolute tolerance used to compare track ratio vectors
-const qreal SIZE_EPSILON = 1e-9;
+// Absolute tolerance used to compare track ratio vectors. The symbols in this
+// anonymous namespace are prefixed with SPLITTER_ / sameSplitter to stay
+// unique: the amalgamated single-file build concatenates this file with
+// qwt_figure_grid.cpp, which has its own SIZE_EPSILON / sameSizes().
+const qreal SPLITTER_SIZE_EPSILON = 1e-9;
 
 // Returns true for widgets that render through OpenGL; their events are never intercepted
 bool isOpenGLWidget(const QWidget* widget)
@@ -34,13 +37,13 @@ bool isOpenGLWidget(const QWidget* widget)
 }
 
 // Compares two track ratio vectors
-bool sameSizes(const QVector< qreal >& lhs, const QVector< qreal >& rhs)
+bool sameSplitterSizes(const QVector< qreal >& lhs, const QVector< qreal >& rhs)
 {
     if (lhs.size() != rhs.size()) {
         return false;
     }
     for (int i = 0; i < lhs.size(); ++i) {
-        if (qAbs(lhs.at(i) - rhs.at(i)) > SIZE_EPSILON) {
+        if (qAbs(lhs.at(i) - rhs.at(i)) > SPLITTER_SIZE_EPSILON) {
             return false;
         }
     }
@@ -560,8 +563,8 @@ void QwtFigureGridSplitter::PrivateData::endDrag(bool cancelled)
 
     bool sizesDiffer = false;
     if (figureGrid) {
-        sizesDiffer = !sameSizes(figureGrid->rowSizes(), originalRowSizes)
-                      || !sameSizes(figureGrid->columnSizes(), originalColumnSizes);
+        sizesDiffer = !sameSplitterSizes(figureGrid->rowSizes(), originalRowSizes)
+                      || !sameSplitterSizes(figureGrid->columnSizes(), originalColumnSizes);
     }
 
     if (figure) {
