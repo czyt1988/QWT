@@ -358,7 +358,7 @@ void Qwt3DPlot::initializeGL()
 
     // Compile shared generic shaders
     auto compileShader = [](const QString& vertPath, const QString& fragPath) -> std::unique_ptr< QOpenGLShaderProgram > {
-        auto program = std::make_unique< QOpenGLShaderProgram >();
+        auto program = qwt_make_unique< QOpenGLShaderProgram >();
         if (!program->addShaderFromSourceFile(QOpenGLShader::Vertex, vertPath)) {
             qWarning("Failed to compile vertex shader %s: %s", vertPath.toLatin1().constData(),
                      program->log().toLatin1().constData());
@@ -680,6 +680,10 @@ void Qwt3DPlot::setTitleFont(const QString& family, int pointSize, int weight, b
  */
 QPixmap Qwt3DPlot::renderPixmap(int w, int h, bool useContext)
 {
+    // the pixmap always has the size of the current framebuffer
+    Q_UNUSED(w);
+    Q_UNUSED(h);
+
     QWT_D(d);
     if (useContext && d->m_initializedGL) {
         return QPixmap::fromImage(grabFramebuffer());

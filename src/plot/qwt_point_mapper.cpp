@@ -1374,7 +1374,15 @@ struct QwtRoundI
 // rounding to the device pixel grid: integers for a ratio of 1.0
 struct QwtRoundF
 {
-    qreal ratio = 1.0;
+    // A constructor is required instead of a default member initializer:
+    // in C++11 (the standard used for the Qt5 build) a class with a default
+    // member initializer is not an aggregate, so `QwtRoundF roundF{ratio}`
+    // would not compile.
+    explicit QwtRoundF(qreal devicePixelRatio = 1.0) : ratio(devicePixelRatio)
+    {
+    }
+
+    qreal ratio;
 
     inline double operator()(double value) const
     {
