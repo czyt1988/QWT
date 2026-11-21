@@ -105,8 +105,6 @@ public:
  */
 QwtPolarLayout::QwtPolarLayout() : QWT_PIMPL_CONSTRUCT
 {
-    QWT_D(d);
-
     setLegendPosition(QwtPolarPlot::BottomLegend);
     invalidate();
 }

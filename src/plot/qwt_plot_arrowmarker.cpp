@@ -870,6 +870,8 @@ QPainterPath QwtPlotArrowMarker::tailCustomPath() const
  */
 void QwtPlotArrowMarker::draw(QPainter* painter, const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QRectF& canvasRect) const
 {
+    Q_UNUSED(canvasRect);
+
     QWT_DC(d);
     if (!painter || !painter->isActive())
         return;

@@ -31,22 +31,6 @@ double floorExt(int& exponent, double x, std::vector< double >& sortedmantissi)
     return sign * fr;
 }
 
-/*
-  @brief Find the largest value out of {1,2,5}*10^n with an integer number n
-  which is smaller than or equal to x
-  @param exponent n
-  @param x Input value
-  @return Mantissa
-*/
-double floor125(int& exponent, double x)
-{
-    std::vector< double > m(2);
-    m[ 0 ] = 1;
-    m[ 1 ] = 2;
-    m[ 2 ] = 5;
-    return floorExt(exponent, x, m);
-}
-
 }  // anon ns
 
 /****************************

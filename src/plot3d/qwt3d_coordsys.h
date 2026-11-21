@@ -141,7 +141,7 @@ private:
     void recalculateAxesTics();
     // Applies the current tic-length model (auto per-axis, or explicit manual) to all axes
     void applyTicLengths();
-    void drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth, const RGBA& color);
+    void drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth);
 };
 
 

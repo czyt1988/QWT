@@ -126,7 +126,11 @@ static inline int qwtStepCount(int intervalSize, int maxSteps, const int limits[
     return 0;
 }
 
-static int qwtStepSize(int intervalSize, int maxSteps, uint base)
+// Binds the step size of a date interval to the given base. Note the name
+// prefix: the amalgamated single-file build puts this function next to
+// QwtScaleArithmetic's own qwtStepSize(), and an unqualified overload could
+// silently resolve to that one instead.
+static int qwtDateStepSize(int intervalSize, int maxSteps, uint base)
 {
     if (maxSteps <= 0)
         return 0;
@@ -230,7 +234,7 @@ static double qwtDivideMajorStep(double stepSize, int maxMinSteps, QwtDate::Inte
 
     switch (intervalType) {
     case QwtDate::Second: {
-        minStepSize = qwtStepSize(stepSize, maxMinSteps, 10);
+        minStepSize = qwtDateStepSize(stepSize, maxMinSteps, 10);
         if (minStepSize == 0.0)
             minStepSize = 0.5 * stepSize;
 

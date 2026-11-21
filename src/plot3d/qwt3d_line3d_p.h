@@ -108,10 +108,10 @@ inline Qwt3DLine::PrivateData::PrivateData(Qwt3DLine* q)
     , m_pointsDirty(true)
     , m_tubeShaderInitialized(false)
     , m_markersDirty(true)
+    , m_markerIndexCount(0)
     , m_vertexCount(0)
     , m_indexCount(0)
     , m_pointCount(0)
-    , m_markerIndexCount(0)
     , m_hull(Triple(0, 0, 0), Triple(0, 0, 0))
 {
     m_indexBuffer = QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);

@@ -223,8 +223,6 @@ void Qwt3DBar::setSamples(const QVector<QwtPoint3D>& samples)
 
 void Qwt3DBar::setSamples(const QVector<double>& x, const QVector<double>& heights)
 {
-    QWT_D(d);
-
     const int n = std::min(x.size(), heights.size());
     QVector<QwtPoint3D> samples;
     samples.reserve(n);

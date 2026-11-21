@@ -155,7 +155,7 @@ void Qwt3DCoordinateSystem::init(Triple first, Triple second)
  * @brief Helper: draws a set of line segments using VBO + line shader
  * @param ctx Render context providing shader and matrices
  */
-void Qwt3DCoordinateSystem::drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth, const RGBA& lineColor)
+void Qwt3DCoordinateSystem::drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth)
 {
     if (vertices.isEmpty())
         return;
@@ -261,7 +261,7 @@ void Qwt3DCoordinateSystem::chooseAxes(const Qwt3DRenderContext& ctx)
     int rem_y = -1;
     int rem_z = -1;
 
-    bool left;
+    bool left = false;
 
     int choice_x = -1;
     int choice_y = -1;
@@ -668,11 +668,6 @@ void Qwt3DCoordinateSystem::drawMajorGridLines(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
 
-    float r = static_cast< float >(d->m_gridlinecolor.r);
-    float g = static_cast< float >(d->m_gridlinecolor.g);
-    float b = static_cast< float >(d->m_gridlinecolor.b);
-    float a = static_cast< float >(d->m_gridlinecolor.a);
-
     QVector<float> verts;
 
     if (d->m_sides & FLOOR) {
@@ -700,17 +695,12 @@ void Qwt3DCoordinateSystem::drawMajorGridLines(const Qwt3DRenderContext& ctx)
         drawMajorGridLines(axes[ Z4 ], axes[ Z1 ], verts);
     }
 
-    drawGridLines(ctx, verts, axes[ X1 ].majLineWidth(), d->m_gridlinecolor);
+    drawGridLines(ctx, verts, axes[ X1 ].majLineWidth());
 }
 
 void Qwt3DCoordinateSystem::drawMinorGridLines(const Qwt3DRenderContext& ctx)
 {
     QWT_D(d);
-
-    float r = static_cast< float >(d->m_gridlinecolor.r);
-    float g = static_cast< float >(d->m_gridlinecolor.g);
-    float b = static_cast< float >(d->m_gridlinecolor.b);
-    float a = static_cast< float >(d->m_gridlinecolor.a);
 
     QVector<float> verts;
 
@@ -739,7 +729,7 @@ void Qwt3DCoordinateSystem::drawMinorGridLines(const Qwt3DRenderContext& ctx)
         drawMinorGridLines(axes[ Z4 ], axes[ Z1 ], verts);
     }
 
-    drawGridLines(ctx, verts, axes[ X1 ].minLineWidth(), d->m_gridlinecolor);
+    drawGridLines(ctx, verts, axes[ X1 ].minLineWidth());
 }
 
 void Qwt3DCoordinateSystem::drawMajorGridLines(Qwt3DAxis& a0, Qwt3DAxis& a1, QVector<float>& verts)
@@ -790,7 +780,7 @@ void Qwt3DCoordinateSystem::drawInteriorMajorGridLines(const Qwt3DRenderContext&
         drawInteriorGridLines(axes[ X1 ], axes[ Z2 ], 1, true, verts);
     }
 
-    drawGridLines(ctx, verts, d->m_interiorMajWidth, d->m_interiorGridColor);
+    drawGridLines(ctx, verts, d->m_interiorMajWidth);
 }
 
 void Qwt3DCoordinateSystem::drawInteriorMinorGridLines(const Qwt3DRenderContext& ctx)
@@ -809,7 +799,7 @@ void Qwt3DCoordinateSystem::drawInteriorMinorGridLines(const Qwt3DRenderContext&
         drawInteriorGridLines(axes[ X1 ], axes[ Z2 ], 1, false, verts);
     }
 
-    drawGridLines(ctx, verts, d->m_interiorMinWidth, d->m_interiorGridColor);
+    drawGridLines(ctx, verts, d->m_interiorMinWidth);
 }
 
 void Qwt3DCoordinateSystem::drawInteriorGridLines(

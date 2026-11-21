@@ -911,6 +911,11 @@ void QwtPlotBoxChart::drawOutliers(QPainter* painter,
                                    int from,
                                    int to) const
 {
+    // The outliers are stored separately from the box samples, so the range
+    // given by from/to does not apply to them: all stored outliers are drawn.
+    Q_UNUSED(from);
+    Q_UNUSED(to);
+
     QWT_DC(d);
 
     if (!m_outlierData || m_outlierData->size() == 0)

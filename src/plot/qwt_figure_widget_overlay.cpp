@@ -834,7 +834,9 @@ void QwtFigureWidgetOverlay::keyPressEvent(QKeyEvent* ke)
     case Qt::Key_Down: {
         selectNextWidget(false);
         ke->accept();
-    case Qt::Key_Escape:
+    } break;
+
+    case Qt::Key_Escape: {
         if (cancel()) {
             hide();
         }

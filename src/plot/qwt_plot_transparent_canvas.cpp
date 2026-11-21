@@ -55,6 +55,9 @@ void QwtPlotTransparentCanvas::replot()
 
 void QwtPlotTransparentCanvas::paintEvent(QPaintEvent* event)
 {
+    // only used by the debug drawing below
+    Q_UNUSED(event);
+
     QPainter painter(this);
 #if QWTPLOTTRANSPARENTCANVAS_DEBUG_DRAW
     painter.setPen(QPen(Qt::red, 1, Qt::DashLine));

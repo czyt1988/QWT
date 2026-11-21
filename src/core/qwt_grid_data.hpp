@@ -120,7 +120,7 @@ public:
      * Initializes an empty QwtGridData object.
      */
     QwtGridData()
-        : m_mode(NearestNeighbour), m_xMin(0.0), m_xMax(0.0), m_yMin(0.0), m_yMax(0.0), m_dataMax(0.0), m_dataMin(0.0)
+        : m_mode(NearestNeighbour), m_xMin(0.0), m_xMax(0.0), m_yMin(0.0), m_yMax(0.0), m_dataMin(0.0), m_dataMax(0.0)
     {
     }
 
