@@ -10,9 +10,12 @@ find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} 5.8 COMPONENTS Core Gui Widgets PrintSupport REQUIRED)
 file(GLOB APP_HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 file(GLOB APP_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+# Shared flat SVG toolbar icons, see examples/common/icons/README.md
+set(APP_ICON_RESOURCES "${CMAKE_CURRENT_LIST_DIR}/../../common/icons/icons.qrc")
 add_executable(${QWT_APP_NAME} 
     ${APP_HEADER_FILES}
     ${APP_SOURCE_FILES}
+    ${APP_ICON_RESOURCES}
 )
 
 if(NOT TARGET qwt::plot)

@@ -4,6 +4,7 @@
 #include <QActionGroup>
 #include <QComboBox>
 #include <QFileDialog>
+#include <QIcon>
 #include <QLabel>
 #include <QMenu>
 #include <QStatusBar>
@@ -133,15 +134,22 @@ void MainWindow::createToolBar()
 {
     auto* toolbar = addToolBar("Controls");
     toolbar->setMovable(false);
+    toolbar->setIconSize(QSize(20, 20));
+    toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
     // Animation toggle (auto-start deferred until event loop runs, after GL context is ready)
     auto* animAction = toolbar->addAction("Animate Surface");
+    animAction->setIcon(QIcon(":/icons/play.svg"));
     animAction->setCheckable(true);
     connect(animAction, &QAction::toggled, this, &MainWindow::onAnimationToggled);
+    connect(animAction, &QAction::toggled, this, [animAction](bool on) {
+        animAction->setIcon(QIcon(on ? ":/icons/pause.svg" : ":/icons/play.svg"));
+    });
     QTimer::singleShot(0, animAction, [animAction]() { animAction->setChecked(true); });
 
     // Auto-rotate toggle
     auto* rotateAction = toolbar->addAction("Auto Rotate");
+    rotateAction->setIcon(QIcon(":/icons/auto-rotate.svg"));
     rotateAction->setCheckable(true);
     connect(rotateAction, &QAction::toggled, this, &MainWindow::onAutoRotateToggled);
 
@@ -161,6 +169,7 @@ void MainWindow::createToolBar()
     // Plot style group
     auto* plotStyleGroup = createPlotStyleGroup();
     auto* plotStyleMenu = toolbar->addAction("Plot Style");
+    plotStyleMenu->setIcon(QIcon(":/icons/plot-style.svg"));
     plotStyleMenu->setMenu(new QMenu(toolbar));
     for (auto* action : plotStyleGroup->actions())
         plotStyleMenu->menu()->addAction(action);
@@ -170,6 +179,7 @@ void MainWindow::createToolBar()
     // Floor style group
     auto* floorStyleGroup = createFloorStyleGroup();
     auto* floorStyleMenu = toolbar->addAction("Floor Style");
+    floorStyleMenu->setIcon(QIcon(":/icons/floor-style.svg"));
     floorStyleMenu->setMenu(new QMenu(toolbar));
     for (auto* action : floorStyleGroup->actions())
         floorStyleMenu->menu()->addAction(action);
@@ -179,6 +189,7 @@ void MainWindow::createToolBar()
     // Coordinate style group
     auto* coordStyleGroup = createCoordStyleGroup();
     auto* coordStyleMenu = toolbar->addAction("Coord Style");
+    coordStyleMenu->setIcon(QIcon(":/icons/coord-style.svg"));
     coordStyleMenu->setMenu(new QMenu(toolbar));
     for (auto* action : coordStyleGroup->actions())
         coordStyleMenu->menu()->addAction(action);
@@ -189,18 +200,21 @@ void MainWindow::createToolBar()
 
     // Lighting toggle
     auto* lightAction = toolbar->addAction("Lighting");
+    lightAction->setIcon(QIcon(":/icons/lighting.svg"));
     lightAction->setCheckable(true);
     lightAction->setChecked(true);
     connect(lightAction, &QAction::toggled, this, &MainWindow::onLightingToggled);
 
     // Legend toggle
     auto* legendAction = toolbar->addAction("Color Legend");
+    legendAction->setIcon(QIcon(":/icons/legend.svg"));
     legendAction->setCheckable(true);
     legendAction->setChecked(true);
     connect(legendAction, &QAction::toggled, this, &MainWindow::onLegendToggled);
 
     // Ortho/Perspective toggle
     auto* orthoAction = toolbar->addAction("Orthographic");
+    orthoAction->setIcon(QIcon(":/icons/ortho.svg"));
     orthoAction->setCheckable(true);
     orthoAction->setChecked(false);
     connect(orthoAction, &QAction::toggled, this, &MainWindow::onOrthoToggled);
@@ -208,10 +222,12 @@ void MainWindow::createToolBar()
     toolbar->addSeparator();
 
     // Reset view
-    toolbar->addAction("Reset View", this, &MainWindow::onResetView);
+    auto* resetAction = toolbar->addAction("Reset View", this, &MainWindow::onResetView);
+    resetAction->setIcon(QIcon(":/icons/reset-view.svg"));
 
     // Save figure
-    toolbar->addAction("Save Figure", this, &MainWindow::onSaveFigure);
+    auto* saveAction = toolbar->addAction("Save Figure", this, &MainWindow::onSaveFigure);
+    saveAction->setIcon(QIcon(":/icons/save.svg"));
 }
 
 QActionGroup* MainWindow::createPlotStyleGroup()

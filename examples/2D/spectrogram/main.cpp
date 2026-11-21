@@ -11,6 +11,7 @@
 #include <QStatusBar>
 #include <QToolButton>
 #include <QComboBox>
+#include <QIcon>
 #include <QSlider>
 #include <QLabel>
 #include <QCheckBox>
@@ -39,6 +40,8 @@ MainWindow::MainWindow( QWidget* parent )
 #ifndef QT_NO_PRINTER
     QToolButton* btnPrint = new QToolButton();
     btnPrint->setText( "Print" );
+    btnPrint->setIcon( QIcon( ":/icons/print.svg" ) );
+    btnPrint->setIconSize( QSize( 20, 20 ) );
     btnPrint->setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
     connect( btnPrint, SIGNAL(clicked()), plot, SLOT(printPlot()) );
 #endif

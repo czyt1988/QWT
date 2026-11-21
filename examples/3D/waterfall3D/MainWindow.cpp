@@ -5,6 +5,7 @@
 #include <QComboBox>
 #include <QDateTime>
 #include <QElapsedTimer>
+#include <QIcon>
 #include <QLabel>
 #include <QQueue>
 #include <QPixmap>
@@ -186,14 +187,21 @@ void MainWindow::createToolbar()
 {
     auto* tb = addToolBar("Controls");
     tb->setMovable(false);
+    tb->setIconSize(QSize(20, 20));
+    tb->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
     // Run / pause
     auto* runAction = tb->addAction("Pause");
+    runAction->setIcon(QIcon(":/icons/pause.svg"));
     runAction->setCheckable(true);
     runAction->setChecked(true);
     connect(runAction, &QAction::toggled, this, &MainWindow::onRunToggled);
+    connect(runAction, &QAction::toggled, this, [runAction](bool running) {
+        runAction->setIcon(QIcon(running ? ":/icons/pause.svg" : ":/icons/play.svg"));
+    });
 
-    tb->addAction("Reset", this, &MainWindow::onReset);
+    auto* resetAction = tb->addAction("Reset", this, &MainWindow::onReset);
+    resetAction->setIcon(QIcon(":/icons/reset-data.svg"));
     tb->addSeparator();
 
     // Window size
@@ -252,13 +260,15 @@ void MainWindow::createToolbar()
     tb->addSeparator();
 
     // View
-    tb->addAction("Reset view", this, &MainWindow::onResetView);
-    tb->addAction("Screenshot", this, [this]() {
+    auto* resetViewAction = tb->addAction("Reset view", this, &MainWindow::onResetView);
+    resetViewAction->setIcon(QIcon(":/icons/reset-view.svg"));
+    auto* screenshotAction = tb->addAction("Screenshot", this, [this]() {
         const QString name = QString("waterfall3D_%1.png")
             .arg(QDateTime::currentDateTime().toString("hhmmss"));
         if (m_plot3d->grab().save(name))
             m_statusLabel->setText(QString("Saved %1").arg(name));
     });
+    screenshotAction->setIcon(QIcon(":/icons/camera.svg"));
 }
 
 void MainWindow::createStatusBar()

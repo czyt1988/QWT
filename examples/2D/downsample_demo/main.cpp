@@ -52,6 +52,7 @@
 #include <QElapsedTimer>
 #include <QFileDialog>
 #include <QFontDatabase>
+#include <QIcon>
 #include <QImage>
 #include <QLabel>
 #include <QMainWindow>
@@ -668,6 +669,8 @@ class DemoWindow : public QMainWindow
         bar->addWidget(m_timeLabel);
 
         QPushButton* saveButton = new QPushButton(QStringLiteral("save PNG"));
+        saveButton->setIcon(QIcon(QStringLiteral(":/icons/save.svg")));
+        saveButton->setIconSize(QSize(18, 18));
         bar->addWidget(saveButton);
 
         connect(m_dataCombo, qOverload< int >(&QComboBox::currentIndexChanged), this, &DemoWindow::updatePlot);

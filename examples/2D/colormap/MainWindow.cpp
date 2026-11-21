@@ -132,7 +132,9 @@ MainWindow::MainWindow(QWidget* parent)
 
     QToolButton* screenshotButton = new QToolButton();
     screenshotButton->setText(tr("Save Screenshots..."));
-    screenshotButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    screenshotButton->setIcon(QIcon(":/icons/camera.svg"));
+    screenshotButton->setIconSize(QSize(20, 20));
+    screenshotButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 
     QToolBar* toolBar = new QToolBar();
     toolBar->setMovable(false);

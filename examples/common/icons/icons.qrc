@@ -1,0 +1,42 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>auto-rotate.svg</file>
+        <file>camera.svg</file>
+        <file>clear.svg</file>
+        <file>closed.svg</file>
+        <file>coord-box.svg</file>
+        <file>coord-frame.svg</file>
+        <file>coord-none.svg</file>
+        <file>coord-style.svg</file>
+        <file>equal.svg</file>
+        <file>export.svg</file>
+        <file>export-png.svg</file>
+        <file>export-svg.svg</file>
+        <file>floor-style.svg</file>
+        <file>focus-top.svg</file>
+        <file>golden.svg</file>
+        <file>grid.svg</file>
+        <file>grid-layout.svg</file>
+        <file>help.svg</file>
+        <file>legend.svg</file>
+        <file>lighting.svg</file>
+        <file>log.svg</file>
+        <file>mirror.svg</file>
+        <file>ortho.svg</file>
+        <file>overlay.svg</file>
+        <file>pause.svg</file>
+        <file>play.svg</file>
+        <file>plot-style.svg</file>
+        <file>print.svg</file>
+        <file>redo.svg</file>
+        <file>reset-data.svg</file>
+        <file>reset-view.svg</file>
+        <file>resize.svg</file>
+        <file>rotate.svg</file>
+        <file>save.svg</file>
+        <file>title-x-outside.svg</file>
+        <file>title-y-outside.svg</file>
+        <file>undo.svg</file>
+        <file>zoom.svg</file>
+    </qresource>
+</RCC>

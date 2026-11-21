@@ -4,9 +4,9 @@
  *****************************************************************************/
 
 #include "PlotBox.h"
-#include "Pixmaps.h"
 
 #include <QApplication>
+#include <QIcon>
 #include <QToolBar>
 #include <QToolButton>
 #include "../../common/qwt_example_screenshot.h"
@@ -29,7 +29,8 @@ namespace
                 "use the left mouse button to move it.";
 
             btnZoom->setText( "Zoom" );
-            btnZoom->setIcon( QPixmap( zoom_xpm ) );
+            btnZoom->setIcon( QIcon( ":/icons/zoom.svg" ) );
+            btnZoom->setIconSize( QSize( 20, 20 ) );
             btnZoom->setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
             btnZoom->setToolTip( zoomHelp );
             btnZoom->setCheckable( true );
@@ -38,14 +39,16 @@ namespace
 
             QToolButton* btnPrint = new QToolButton();
             btnPrint->setText( "Print" );
-            btnPrint->setIcon( QPixmap( print_xpm ) );
+            btnPrint->setIcon( QIcon( ":/icons/print.svg" ) );
+            btnPrint->setIconSize( QSize( 20, 20 ) );
             btnPrint->setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
             connect( btnPrint, SIGNAL(clicked()),
                 plotBox, SLOT(printDocument()) );
 
             QToolButton* btnExport = new QToolButton();
             btnExport->setText( "Export" );
-            btnExport->setIcon( QPixmap( print_xpm ) );
+            btnExport->setIcon( QIcon( ":/icons/export.svg" ) );
+            btnExport->setIconSize( QSize( 20, 20 ) );
             btnExport->setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
 
             QToolBar* toolBar = new QToolBar();

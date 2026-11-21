@@ -13,6 +13,7 @@
 #include <QDebug>
 #include <QFile>
 #include <QFileDialog>
+#include <QIcon>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTextStream>
@@ -56,22 +57,24 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), m_singlePlot(null
 
     QToolBar* toolBar = addToolBar("Tools");
     toolBar->setObjectName("ToolsToolBar");
+    toolBar->setIconSize(QSize(20, 20));
+    toolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 
-    QAction* actOutsideY = toolBar->addAction("Y Titles Outside");
+    QAction* actOutsideY = toolBar->addAction(QIcon(":/icons/title-y-outside.svg"), "Y Titles Outside");
     actOutsideY->setCheckable(true);
     actOutsideY->setChecked(true);
     connect(actOutsideY, &QAction::toggled, this, &MainWindow::applyOutsideYTitles);
 
-    QAction* actOutsideX = toolBar->addAction("X Titles Outside");
+    QAction* actOutsideX = toolBar->addAction(QIcon(":/icons/title-x-outside.svg"), "X Titles Outside");
     actOutsideX->setCheckable(true);
     connect(actOutsideX, &QAction::toggled, this, &MainWindow::applyOutsideXTitles);
 
     toolBar->addSeparator();
 
-    QAction* actPng = toolBar->addAction("Export PNG");
+    QAction* actPng = toolBar->addAction(QIcon(":/icons/export-png.svg"), "Export PNG");
     connect(actPng, &QAction::triggered, this, [this]() { exportPlot("png"); });
 
-    QAction* actSvg = toolBar->addAction("Export SVG");
+    QAction* actSvg = toolBar->addAction(QIcon(":/icons/export-svg.svg"), "Export SVG");
     connect(actSvg, &QAction::triggered, this, [this]() { exportPlot("svg"); });
 
     // Apply the initial toolbar state

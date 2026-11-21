@@ -11,6 +11,7 @@
 
 #include <QToolBar>
 #include <QToolButton>
+#include <QIcon>
 #include <QLayout>
 
 MainWindow::MainWindow( QWidget* parent )
@@ -45,6 +46,9 @@ MainWindow::MainWindow( QWidget* parent )
 
     QToolButton* btnExport = new QToolButton( toolBar );
     btnExport->setText( "Export" );
+    btnExport->setIcon( QIcon( ":/icons/export.svg" ) );
+    btnExport->setIconSize( QSize( 20, 20 ) );
+    btnExport->setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
     toolBar->addWidget( btnExport );
 
     addToolBar( toolBar );
