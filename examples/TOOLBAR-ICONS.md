@@ -35,7 +35,7 @@ carry a label, so they are not iconified.
 | `controls` | no | - | - |
 | `cpuplot` | no | - | - |
 | `curvedemo` | no | - | - |
-| `curvesmoothing` | no | benchmark/undo buttons live in the side panel | - |
+| `curvesmoothing` | no | buttons sit in the control panel below the plots | - |
 | `dials` | no | - | - |
 | `distrowatch` | yes | Export, Screenshot | `export`, `camera` |
 | `downsample_demo` | yes | save PNG | `save` |
@@ -44,10 +44,10 @@ carry a label, so they are not iconified.
 | `friedberg` | yes | Export | `export` |
 | `itemeditor` | yes | Export | `export` |
 | `legends` | yes | Export | `export` |
-| `nanperf` | no | action buttons live in the dock | - |
+| `nanperf` | no | three action buttons in a row in the central widget | - |
 | `oscilloscope` | no | - | - |
 | `outsideTitle` | yes | Y Titles Outside, X Titles Outside, Export PNG, Export SVG | `title-y-outside`, `title-x-outside`, `export-png`, `export-svg` |
-| `parasitePlot` | yes | 18 actions (pickers, zoomer, panner, magnifier, axis wheel, title axis/position/alignment, fixed canvas, long labels) | already had a flat SVG set ( `icons/` of that example ), kept as the reference |
+| `parasitePlot` | yes | 19 actions (pickers, zoomer, panner, magnifier, axis wheel, title axis/position/alignment, fixed canvas, long labels) | already had a flat SVG set ( 19 icons in the `icons/` directory of that example ), kept as the reference |
 | `polardemo` | yes | Zoom, Print, Export | `zoom`, `print`, `export` |
 | `polarspectrogram` | yes | Export, Grid, Rotate, Mirror | `export`, `grid`, `rotate`, `mirror` |
 | `pyplot` | no | - | - |
@@ -91,7 +91,7 @@ The animation/run toggles swap their icon with the checked state
 
 | Target | Toolbar | Note |
 |--------|---------|------|
-| `staticExample` | no | Save / Clear / Replot are plain buttons in a side panel, outside this change |
+| `staticExample` | no | Save / Clear / Replot are plain buttons in a row below the figure, outside this change |
 | `qmakeExample` | no | single-file qmake integration demo without a toolbar |
 | `bench/renderbench` | no | benchmark control panel only |
 | `bench/chartbench` | - | embeds the third-party QIM application, whose toolbar is not part of the Qwt examples |
