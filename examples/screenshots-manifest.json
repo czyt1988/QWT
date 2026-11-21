@@ -117,7 +117,8 @@
             "shots": [
                 { "output": "screenshots/figure-grid.png", "size": "1280x820", "delay": 2500 },
                 { "output": "screenshots/figure-grid-drag.png", "size": "1280x820", "delay": 2500, "variant": "drag" },
-                { "output": "screenshots/figure-grid-spacing.png", "size": "1280x820", "delay": 2500, "variant": "spacing" }
+                { "output": "screenshots/figure-grid-spacing.png", "size": "1280x820", "delay": 2500, "variant": "spacing" },
+                { "output": "screenshots/figure-grid-noalign.png", "size": "1280x820", "delay": 2500, "variant": "noalign" }
             ]
         },
         {

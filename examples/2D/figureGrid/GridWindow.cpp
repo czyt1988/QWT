@@ -16,6 +16,9 @@
  *   - members can be removed and added back at runtime
  *   - leaving the grid ( QwtFigure::disableGrid() ) keeps the geometry of the
  *     members, re-entering it registers them again on their original cells
+ *   - the plot areas of the members are aligned automatically
+ *     ( QwtFigure::setGridAxisAlignment() ): the plots of a column share the
+ *     left/right canvas edges, the plots of a row share the top/bottom ones
  *   - a real mouse press on a sub plot makes it the current axes
  *     ( QwtFigure::currentAxesChanged() )
  *
@@ -25,8 +28,8 @@
  *                                   examples/update-screenshots.ps1
  *
  * Screenshot variants: default, drag (synthetic divider drags), spacing (wide
- * gaps plus a preset) and reenter (leave and re-enter the grid, then change the
- * ratios).
+ * gaps plus a preset), reenter (leave and re-enter the grid, then change the
+ * ratios) and noalign (alignment switched off, the natural plot areas).
  *****************************************************************************/
 
 #include "GridWindow.h"
@@ -73,6 +76,7 @@
 #include "qwt_plot_barchart.h"
 #include "qwt_plot_curve.h"
 #include "qwt_plot_grid.h"
+#include "qwt_plot_layout.h"
 #include "qwt_plot_spectrogram.h"
 #include "qwt_symbol.h"
 #include "qwt_text.h"
@@ -341,7 +345,8 @@ void GridWindow::createFigure()
     header->setTextFormat(Qt::RichText);
     header->setText(tr("<span style='font-size:11pt;color:%1'><b>QwtFigure retained grid layout</b></span><br/>"
                        "<span style='color:%2'>3 &times; 3 tracks &middot; members registered with addAxes() and "
-                       "addGridItem() &middot; drag a divider to resize the adjacent tracks (Esc cancels)</span>")
+                       "addGridItem() &middot; drag a divider to resize the adjacent tracks (Esc cancels) "
+                       "&middot; the plot areas of the members are aligned automatically</span>")
                          .arg(INK, MUTED));
     centralLayout->addWidget(header);
 
@@ -464,7 +469,7 @@ QwtPlot* GridWindow::createSpectrumPlot()
     QwtMatrixRasterData* rasterData = new QwtMatrixRasterData();
     rasterData->setValueMatrix(makeSpectrogram(rows, columns), columns);
     rasterData->setInterval(Qt::XAxis, QwtInterval(-3.0, 3.0));
-    rasterData->setInterval(Qt::YAxis, QwtInterval(-1.5, 1.5));
+    rasterData->setInterval(Qt::YAxis, QwtInterval(-1500.0, 1500.0));
     rasterData->setInterval(Qt::ZAxis, QwtInterval(0.0, 1.2));
     rasterData->setResampleMode(QwtMatrixRasterData::BilinearInterpolation);
 
@@ -481,9 +486,9 @@ QwtPlot* GridWindow::createSpectrumPlot()
     spectrogram->attach(plot);
 
     plot->setAxisScale(QwtAxis::XBottom, -3.0, 3.0);
-    plot->setAxisScale(QwtAxis::YLeft, -1.5, 1.5);
+    plot->setAxisScale(QwtAxis::YLeft, -1500.0, 1500.0);
     setAxisTitle(plot, QwtAxis::XBottom, tr("time [s]"));
-    setAxisTitle(plot, QwtAxis::YLeft, tr("freq [kHz]"));
+    setAxisTitle(plot, QwtAxis::YLeft, tr("freq [Hz]"));
     return plot;
 }
 
@@ -511,12 +516,15 @@ QwtPlot* GridWindow::createWaveFormPlot()
 
 /**
  * @brief Scatter cloud in the middle row
+ * @details The two line title demonstrates the row alignment of the grid: the
+ *          plot areas of the other members of the row are shifted down until
+ *          their top edges line up with this one.
  * @return The plot, not yet registered in the grid
  */
 QwtPlot* GridWindow::createScatterPlot()
 {
     QwtPlot* plot = new QwtPlot();
-    setupPlot(plot, tr("Scatter - row 1, column 1"));
+    setupPlot(plot, tr("Scatter - row 1, column 1\n1500 samples"));
 
     QwtPlotCurve* dots = new QwtPlotCurve(tr("samples"));
     dots->setSamples(makeScatter(1500));
@@ -535,6 +543,9 @@ QwtPlot* GridWindow::createScatterPlot()
 
 /**
  * @brief Bar chart in the middle row
+ * @details The additional right axis and the rotated category labels demonstrate
+ *          the right edge and bottom edge alignment of the grid: the wide bands
+ *          of this member are reserved in the other members of the column/row.
  * @return The plot, not yet registered in the grid
  */
 QwtPlot* GridWindow::createBandPlot()
@@ -558,11 +569,26 @@ QwtPlot* GridWindow::createBandPlot()
     plot->setAxisScale(QwtAxis::YLeft, 0.0, 1.0);
     setAxisTitle(plot, QwtAxis::XBottom, tr("band"));
     setAxisTitle(plot, QwtAxis::YLeft, tr("level"));
+
+    // Rotated category labels need a taller bottom band than the neighbours of
+    // the row; the row alignment raises their plot areas to the same inset.
+    plot->setAxisLabelRotation(QwtAxis::XBottom, 45.0);
+
+    // A second, independent scale on the right: its band is wide because of the
+    // percentage labels, so it drives the right edge alignment of the column.
+    plot->enableAxis(QwtAxis::YRight, true);
+    plot->setAxisScale(QwtAxis::YRight, 0.0, 100.0);
+    plot->setAxisFont(QwtAxis::YRight, pointFont(plot, 8.0));
+    setAxisTitle(plot, QwtAxis::YRight, tr("%"));
     return plot;
 }
 
 /**
  * @brief Two curves and a legend, spanning two columns of the last row
+ * @details The legend sits in the left band of the plot, so it needs a much
+ *          wider left inset than the plots above. The column alignment reserves
+ *          the same band for all of them, which keeps the left edges lined up
+ *          even for members that carry a legend.
  * @return The plot, not yet registered in the grid
  */
 QwtPlot* GridWindow::createTrendPlot()
@@ -584,7 +610,7 @@ QwtPlot* GridWindow::createTrendPlot()
 
     QwtLegend* legend = new QwtLegend();
     legend->setFont(pointFont(plot, 8.0));
-    plot->insertLegend(legend, QwtPlot::TopLegend);
+    plot->insertLegend(legend, QwtPlot::LeftLegend);
 
     plot->setAxisScale(QwtAxis::XBottom, 0.0, 24.0);
     plot->setAxisScale(QwtAxis::YLeft, 0.4, 2.6);
@@ -708,6 +734,25 @@ void GridWindow::createControlPanel()
 
     layout->addWidget(interaction);
 
+    // Plot area alignment
+    QGroupBox* alignment = new QGroupBox(tr("Plot area alignment"), panel);
+    QVBoxLayout* alignmentLayout = new QVBoxLayout(alignment);
+
+    m_alignBox = new QCheckBox(tr("Align (setGridAxisAlignment)"), alignment);
+    m_alignBox->setChecked(true);
+    m_alignBox->setToolTip(tr("The members of a grid column share the left/right canvas edges, "
+                              "the members of a row share the top/bottom ones"));
+    alignmentLayout->addWidget(m_alignBox);
+
+    QLabel* alignmentHint = new QLabel(alignment);
+    alignmentHint->setWordWrap(true);
+    alignmentHint->setFont(pointFont(alignmentHint, 8.0));
+    alignmentHint->setText(tr("The insets of a column/row are raised to the widest content of the group, "
+                              "so the axis backbones and the data areas line up."));
+    alignmentLayout->addWidget(alignmentHint);
+
+    layout->addWidget(alignment);
+
     // Gaps between the cells
     QGroupBox* gaps = new QGroupBox(tr("Gaps (normalized)"), panel);
     QFormLayout* gapsForm = new QFormLayout(gaps);
@@ -811,6 +856,26 @@ void GridWindow::createControlPanel()
     connect(m_leaveGridButton, &QPushButton::clicked, this, [ this ]() {
         setGridActive(!m_figure->isGridEnabled());
     });
+
+    connect(m_alignBox, &QCheckBox::toggled, this, [ this ](bool on) {
+        setAxisAlignment(on);
+    });
+}
+
+/**
+ * @brief Enable or disable the automatic plot area alignment of the grid
+ * @param on True to align the plot areas of the members
+ */
+void GridWindow::setAxisAlignment(bool on)
+{
+    if (m_alignBox && m_alignBox->isChecked() != on) {
+        m_alignBox->setChecked(on);
+    }
+    if (m_figure) {
+        m_figure->setGridAxisAlignment(on);
+    }
+    updateStatus();
+    updateNotesPanel();
 }
 
 /**
@@ -937,6 +1002,7 @@ void GridWindow::setGridActive(bool active)
 
         registerMembers();
 
+        m_figure->setGridAxisAlignment(m_alignBox ? m_alignBox->isChecked() : true);
         m_figure->setGridEditable(m_editableBox && m_editableBox->isChecked());
         m_splitter = m_figure->findChild< QwtFigureGridSplitter* >();
         if (m_splitter && m_hitWidthBox) {
@@ -968,6 +1034,9 @@ void GridWindow::setGridActive(bool active)
     }
     if (m_hspaceBox) {
         m_hspaceBox->setEnabled(gridEnabled);
+    }
+    if (m_alignBox) {
+        m_alignBox->setEnabled(gridEnabled);
     }
     if (m_activeCellsButton) {
         m_activeCellsButton->setEnabled(gridEnabled);
@@ -1049,6 +1118,7 @@ void GridWindow::updateStatus()
                  .arg(QString::number(m_grid->wspace(), 'f', 3), QString::number(m_grid->hspace(), 'f', 3));
     parts << tr("min track %1 px").arg(m_grid->minimumTrackPixels());
     parts << tr("dividers %1 + %2").arg(columnDividers).arg(rowDividers);
+    parts << tr("align %1").arg(m_figure->isGridAxisAlignment() ? tr("on") : tr("off"));
     parts << tr("active: %1").arg(active);
     parts << tr("undo %1").arg(m_undoStack ? m_undoStack->count() : 0);
 
@@ -1141,6 +1211,14 @@ void GridWindow::logLayout()
         qDebug() << "  member" << (qobject_cast< QwtPlot* >(member) ? "plot" : "widget") << row << column << rowSpan
                  << columnSpan << "normRect" << m_grid->normRectFor(row, column, rowSpan, columnSpan) << "geometry"
                  << member->geometry();
+
+        QwtPlot* plot = qobject_cast< QwtPlot* >(member);
+        QwtPlotLayout* plotLayout = plot ? plot->plotLayout() : nullptr;
+        if (plotLayout) {
+            qDebug() << "    canvas" << plotLayout->canvasRect() << "insets L/R/T/B"
+                     << plotLayout->minCanvasInset(QwtAxis::YLeft) << plotLayout->minCanvasInset(QwtAxis::YRight)
+                     << plotLayout->minCanvasInset(QwtAxis::XTop) << plotLayout->minCanvasInset(QwtAxis::XBottom);
+        }
     }
 }
 

@@ -34,6 +34,9 @@ class QwtPlot;
  *  - one undo command per drag, built from QwtFigure::gridSizesChangeFinished()
  *  - members added/removed at runtime ( QwtFigureGrid::addItem()/removeItem() through
  *    QwtFigure::addAxes()/addGridItem()/removeWidget() )
+ *  - the automatic plot area alignment of the grid members
+ *    ( QwtFigure::setGridAxisAlignment() ): the plots of a column share the
+ *    left and right canvas edges, the plots of a row share the top and bottom ones
  *  - leaving the grid while the members keep their geometry ( QwtFigure::disableGrid() )
  *  - the current axes tracked from real mouse presses ( QwtFigure::currentAxesChanged() )
  *
@@ -60,6 +63,9 @@ public:
     // Leave the retained grid (the members keep their geometry) and re-enter it
     void leaveGrid();
     void reenterGrid();
+
+    // Enable/disable the automatic plot area alignment and sync the control panel
+    void setAxisAlignment(bool on);
 
 private:
     // Cell of one member of the retained grid
@@ -124,6 +130,7 @@ private:
     QPointer< QLabel > m_statusLabel;
     QPointer< QLabel > m_notesLabel;
     QCheckBox* m_editableBox { nullptr };
+    QCheckBox* m_alignBox { nullptr };
     QSpinBox* m_hitWidthBox { nullptr };
     QSpinBox* m_minTrackBox { nullptr };
     QDoubleSpinBox* m_wspaceBox { nullptr };

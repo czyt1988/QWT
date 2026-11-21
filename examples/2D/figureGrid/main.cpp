@@ -41,6 +41,12 @@ int main(int argc, char* argv[])
         window.applyPreset(QStringLiteral("golden"));
         window.dragDivider(0, -60);
     });
+    QwtExampleScreenshot::addVariant(QStringLiteral("noalign"), [ &window ]() {
+        // Switches the automatic plot area alignment off: every plot keeps the
+        // insets its own labels/titles ask for, so the axis backbones no longer
+        // line up with the neighbours of the same column/row
+        window.setAxisAlignment(false);
+    });
 
     window.show();
 
