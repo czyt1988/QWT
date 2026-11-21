@@ -22673,6 +22673,21 @@ public:
 	// change the enabled state of each axis direction.
 	void resetFixedCanvasSize();
 
+	// Minimum distance the canvas keeps from the plot contents rect on one side.
+	// The natural layout stays authoritative: an inset that is smaller than the
+	// space the content asks for on that side has no effect. QwtFigure uses it
+	// to align the plot areas of several sub plots.
+	void setMinCanvasInset(int axisPos, qreal inset);
+	// Get the minimum canvas inset of one side (see setMinCanvasInset)
+	qreal minCanvasInset(int axisPos) const;
+	// Reset all minimum canvas insets to 0
+	void resetMinCanvasInsets();
+
+	// Canvas rectangle the current content asks for, before the fixed canvas
+	// pinning and the minimum canvas insets are applied. The sub plot alignment
+	// of QwtFigure measures the plot areas with it.
+	QRectF naturalCanvasRect() const;
+
 	void setSpacing(int);
 	int spacing() const;
 
@@ -22727,6 +22742,10 @@ private:
 	// Pin the canvas rect to its locked dimension(s) after the natural layout
 	// (innerRect) has been computed. Captures the offsets on first use.
 	void applyFixedCanvas(QRectF& canvasRect, const QRectF& rect);
+
+	// Grow the canvas rect inward until every side keeps its minimum inset,
+	// measured from the plot contents rect.
+	void applyMinCanvasInsets(QRectF& canvasRect, const QRectF& plotRect);
 
 	QWT_DECLARE_PRIVATE(QwtPlotLayout)
 };
@@ -23808,6 +23827,11 @@ class QwtFigureGridSplitter;
  * supporting both normalized coordinate positioning and grid layouts for Qwt plots.
  * It uses Qt's standard top-left coordinate system for intuitive positioning.
  *
+ * The plot areas of the members can be aligned (see addAxisAlignment() and
+ * setGridAxisAlignment()): the axis backbones and the plotted data of plots that
+ * share a grid column or row line up even when their tick labels, titles,
+ * legends or parasite axes have very different sizes.
+ *
  * @par Example:
  * @code
  * // Example usage:
@@ -23995,7 +24019,12 @@ public:
 	// Clear all axis alignment configurations
 	void clearAxisAlignment();
 
-	// Apply all axis alignment configurations
+	// Enable the automatic alignment of the plot areas of the retained grid members
+	void setGridAxisAlignment(bool on);
+	// Check whether the retained grid members are aligned automatically
+	bool isGridAxisAlignment() const;
+
+	// Recompute and apply the axis alignment of the figure
 	void applyAllAxisAlignments(bool replot = true);
 
 	// Apply all alignment configurations for a specific axis ID
@@ -24049,6 +24078,14 @@ Q_SIGNALS:
 	 * @note Forwarded from QwtFigureGrid::sizesChangeFinished()
 	 */
 	void gridSizesChangeFinished();
+
+private:
+	// Recompute the insets of the grid groups and of the manual configurations
+	void recomputeAxisAlignment(bool replot);
+	// Check whether a plot participates in any active alignment
+	bool isAxisAlignmentParticipant(const QwtPlot* plot) const;
+	// Queue one merged alignment pass for the next event loop iteration
+	void scheduleAxisAlignment();
 
 protected:
 	void paintEvent(QPaintEvent* event) override;
