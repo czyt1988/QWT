@@ -131,7 +131,10 @@ Qwt3DGridData::Qwt3DGridData(unsigned int columns, unsigned int rows) : QWT_PIMP
 
 Qwt3DGridData::~Qwt3DGridData()
 {
-    clear();
+    // Direct (non virtual) call: the virtual dispatch is bypassed during
+    // destruction anyway, and calling clear() here is flagged by the clang
+    // analyzer (VirtualCall).
+    releaseData();
 }
 
 int Qwt3DGridData::columns() const
@@ -171,6 +174,11 @@ bool Qwt3DGridData::vperiodic() const
 void Qwt3DGridData::clear()
 {
     setHull(ParallelEpiped());
+    releaseData();
+}
+
+void Qwt3DGridData::releaseData()
+{
     {
         for (unsigned i = 0; i != vertices.size(); ++i) {
             for (unsigned j = 0; j != vertices[ i ].size(); ++j) {
@@ -196,7 +204,12 @@ void Qwt3DGridData::clear()
 
 void Qwt3DGridData::setSize(unsigned int columns, unsigned int rows)
 {
-    this->clear();
+    // Same as clear() but without the virtual dispatch: setSize() is also
+    // called from the constructor, where a virtual call would bypass the
+    // dispatch (flagged by the clang analyzer as VirtualCall).
+    setHull(ParallelEpiped());
+    releaseData();
+
     // matrix[row][column]: the outer dimension is the y direction (rows)
     vertices = std::vector< DataRow >(rows);
     {

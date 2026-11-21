@@ -476,6 +476,12 @@ public:
     void setPeriodic(bool u, bool v);
     bool uperiodic() const;
     bool vperiodic() const;
+
+private:
+    // Releases the raw vertex/normal arrays without going through the virtual
+    // clear(): calling a virtual function from a destructor bypasses the
+    // virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+    void releaseData();
 };
 
 /**
@@ -490,10 +496,10 @@ public:
     {
         datatype = POLYGON;
     }
-    ~Qwt3DCellData()
-    {
-        clear();
-    }
+    // The cell vectors release their own storage, so the destructor must not
+    // call the virtual clear(): a virtual call during destruction bypasses the
+    // virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+    ~Qwt3DCellData() override = default;
 
     // Destroy content
     void clear();

@@ -1225,7 +1225,8 @@ void Qwt3DSurface::draw()
         lightTransform.rotate(static_cast< float >(plot()->xLightRotation()), 1.0f, 0.0f, 0.0f);
         lightTransform.rotate(static_cast< float >(plot()->yLightRotation()), 0.0f, 1.0f, 0.0f);
         lightTransform.rotate(static_cast< float >(plot()->zLightRotation()), 0.0f, 0.0f, 1.0f);
-        const QVector3D lightPos = lightTransform * QVector3D(0.0f, 0.0f, 10.0f);
+        // map() replaces operator*(), which is deprecated since Qt 6.1
+        const QVector3D lightPos = lightTransform.map(QVector3D(0.0f, 0.0f, 10.0f));
         d->m_shader.setUniformValue("uLightPos", lightPos);
 
         const RGBA lightAmbient = plot()->lightComponent(GL_AMBIENT);

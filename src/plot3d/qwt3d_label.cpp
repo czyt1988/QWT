@@ -329,7 +329,13 @@ void Qwt3DLabel::update()
     p.end();
 
     d->m_buf = pm.toImage();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+    // QImage::mirrored() is deprecated since Qt 6.9 in favor of flipped();
+    // the vertical flip matches the OpenGL texture origin.
+    d->m_tex = d->m_buf.flipped(Qt::Vertical);
+#else
     d->m_tex = d->m_buf.mirrored();
+#endif
 }
 
 void Qwt3DLabel::adjust(int gap)
