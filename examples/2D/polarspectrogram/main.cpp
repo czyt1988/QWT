@@ -11,6 +11,7 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QComboBox>
+#include <QIcon>
 #include <QLabel>
 
 #include <QwtColorMapPreset>
@@ -25,6 +26,7 @@ namespace
             : QToolButton( parent )
         {
             setText( text );
+            setIconSize( QSize( 20, 20 ) );
             setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
         };
     };
@@ -43,12 +45,16 @@ MainWindow::MainWindow( QWidget* parent )
     setCentralWidget( plotWindow );
 
     ToolButton* btnGrid = new ToolButton( "Grid" );
+    btnGrid->setIcon( QIcon( ":/icons/grid.svg" ) );
     btnGrid->setCheckable( true );
     btnGrid->setChecked( true );
 
     ToolButton* btnExport = new ToolButton( "Export" );
+    btnExport->setIcon( QIcon( ":/icons/export.svg" ) );
     ToolButton* btnRotate = new ToolButton( "Rotate" );
+    btnRotate->setIcon( QIcon( ":/icons/rotate.svg" ) );
     ToolButton* btnMirror = new ToolButton( "Mirror" );
+    btnMirror->setIcon( QIcon( ":/icons/mirror.svg" ) );
 
     QComboBox* themeBox = new QComboBox();
     for ( const QString& name : QwtColorMapPreset::availablePresets() )

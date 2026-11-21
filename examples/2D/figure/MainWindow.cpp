@@ -5,6 +5,8 @@
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QDebug>
+#include <QIcon>
+#include <QSize>
 // qwt
 #include "qwt_math.h"
 #include "qwt_plot.h"
@@ -479,23 +481,26 @@ void MainWindow::onActionGridDemoTriggered(bool on)
 
 void MainWindow::createToolBar()
 {
-    QAction* actionSave = new QAction(tr("Save"), this);
+    ui->toolBar->setIconSize( QSize( 20, 20 ) );
+    ui->toolBar->setToolButtonStyle( Qt::ToolButtonTextBesideIcon );
+
+    QAction* actionSave = new QAction( QIcon( ":/icons/save.svg" ), tr("Save"), this);
     connect(actionSave, &QAction::triggered, this, [ this ]() {
         m_figure->saveFig("qwt_figure_log_example.png", 300);
         qDebug() << "Figure saved as 'qwt_figure_log_example.png' with 300 DPI";
     });
 
-    QAction* actionClear = new QAction(tr("Clear All"), this);
+    QAction* actionClear = new QAction( QIcon( ":/icons/clear.svg" ), tr("Clear All"), this);
     connect(actionClear, &QAction::triggered, this, [ this ]() {
         m_figure->clear();
         qDebug() << "All plots cleared";
     });
 
-    m_actionResize = new QAction(tr("Resize"), this);
+    m_actionResize = new QAction( QIcon( ":/icons/resize.svg" ), tr("Resize"), this);
     m_actionResize->setCheckable(true);
     connect(m_actionResize, &QAction::triggered, this, &MainWindow::onActionResizeTriggered);
 
-    m_actionGridDemo = new QAction(tr("Grid layout (draggable)"), this);
+    m_actionGridDemo = new QAction( QIcon( ":/icons/grid-layout.svg" ), tr("Grid layout (draggable)"), this);
     m_actionGridDemo->setCheckable(true);
     connect(m_actionGridDemo, &QAction::triggered, this, &MainWindow::onActionGridDemoTriggered);
 

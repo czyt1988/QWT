@@ -10,6 +10,7 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QComboBox>
+#include <QIcon>
 #include "../../common/qwt_example_screenshot.h"
 
 namespace
@@ -37,11 +38,15 @@ MainWindow::MainWindow( QWidget* parent )
 
     QToolButton* btnExport = new QToolButton( toolBar );
     btnExport->setText( "Export" );
+    btnExport->setIcon( QIcon( ":/icons/export.svg" ) );
+    btnExport->setIconSize( QSize( 20, 20 ) );
     btnExport->setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
     connect( btnExport, SIGNAL(clicked()), chart, SLOT(exportChart()) );
 
     QToolButton* btnScreenshot = new QToolButton( toolBar );
     btnScreenshot->setText( "Screenshot" );
+    btnScreenshot->setIcon( QIcon( ":/icons/camera.svg" ) );
+    btnScreenshot->setIconSize( QSize( 20, 20 ) );
     btnScreenshot->setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
     connect( btnScreenshot, SIGNAL(clicked()), chart, SLOT(doScreenShot()) );
 

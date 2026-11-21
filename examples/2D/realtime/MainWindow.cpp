@@ -5,10 +5,9 @@
 
 #include "RandomPlot.h"
 #include "MainWindow.h"
-#include "start.xpm"
-#include "clear.xpm"
 
 #include <QAction>
+#include <QIcon>
 #include <QLabel>
 #include <QLayout>
 #include <QStatusBar>
@@ -16,7 +15,6 @@
 #include <QSpinBox>
 #include <QCheckBox>
 #include <QWhatsThis>
-#include <QPixmap>
 
 namespace
 {
@@ -94,15 +92,13 @@ MainWindow::MainWindow()
 
 QToolBar* MainWindow::toolBar()
 {
-    setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
-    setIconSize( QSize( 22, 22 ) );
-
-    m_startAction = new QAction( QPixmap( start_xpm ), "Start", this );
+    m_startAction = new QAction( QIcon( ":/icons/play.svg" ), "Start", this );
     m_startAction->setCheckable( true );
-    m_clearAction = new QAction( QPixmap( clear_xpm ), "Clear", this );
+    m_clearAction = new QAction( QIcon( ":/icons/clear.svg" ), "Clear", this );
 
     QAction* whatsThisAction = QWhatsThis::createAction();
     whatsThisAction->setText( "Help" );
+    whatsThisAction->setIcon( QIcon( ":/icons/help.svg" ) );
 
     QWidget* hBox = new QWidget();
 
@@ -130,6 +126,8 @@ QToolBar* MainWindow::toolBar()
 
     ToolBar* toolBar = new ToolBar( this );
     toolBar->setAllowedAreas( Qt::TopToolBarArea | Qt::BottomToolBarArea );
+    toolBar->setIconSize( QSize( 22, 22 ) );
+    toolBar->setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
     toolBar->addAction( m_startAction );
     toolBar->addAction( m_clearAction );
     toolBar->addAction( whatsThisAction );
@@ -157,6 +155,7 @@ void MainWindow::showRunning( bool running )
     m_timerCount->setEnabled( !running );
     m_startAction->setChecked( running );
     m_startAction->setText( running ? "Stop" : "Start" );
+    m_startAction->setIcon( QIcon( running ? ":/icons/pause.svg" : ":/icons/play.svg" ) );
 }
 
 void MainWindow::showElapsed( int ms )

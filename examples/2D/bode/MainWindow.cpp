@@ -9,7 +9,6 @@
 
 #include "MainWindow.h"
 #include "Plot.h"
-#include "Pixmaps.h"
 
 #include <QwtCounter>
 #include <QwtPickerMachine>
@@ -20,6 +19,7 @@
 
 #include <QToolBar>
 #include <QToolButton>
+#include <QIcon>
 #include <QLabel>
 #include <QLayout>
 #include <QStatusBar>
@@ -80,7 +80,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
 
     QToolButton* btnZoom = new QToolButton(toolBar);
     btnZoom->setText("Zoom");
-    btnZoom->setIcon(QPixmap(zoom_xpm));
+    btnZoom->setIcon(QIcon(":/icons/zoom.svg"));
+    btnZoom->setIconSize(QSize(20, 20));
     btnZoom->setCheckable(true);
     btnZoom->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     toolBar->addWidget(btnZoom);
@@ -89,7 +90,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
 #ifndef QT_NO_PRINTER
     QToolButton* btnPrint = new QToolButton(toolBar);
     btnPrint->setText("Print");
-    btnPrint->setIcon(QPixmap(print_xpm));
+    btnPrint->setIcon(QIcon(":/icons/print.svg"));
+    btnPrint->setIconSize(QSize(20, 20));
     btnPrint->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     toolBar->addWidget(btnPrint);
     connect(btnPrint, SIGNAL(clicked()), SLOT(print()));
@@ -97,7 +99,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
 
     QToolButton* btnExport = new QToolButton(toolBar);
     btnExport->setText("Export");
-    btnExport->setIcon(QPixmap(print_xpm));
+    btnExport->setIcon(QIcon(":/icons/export.svg"));
+    btnExport->setIconSize(QSize(20, 20));
     btnExport->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     toolBar->addWidget(btnExport);
     connect(btnExport, SIGNAL(clicked()), SLOT(exportDocument()));

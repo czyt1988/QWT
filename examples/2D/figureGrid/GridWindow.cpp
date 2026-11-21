@@ -43,6 +43,7 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QKeySequence>
 #include <QLabel>
 #include <QLayout>
@@ -625,9 +626,10 @@ QWidget* GridWindow::createNotesPanel()
 void GridWindow::createToolBar()
 {
     QToolBar* toolbar = addToolBar(tr("Figure"));
-    toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    toolbar->setIconSize(QSize(20, 20));
+    toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 
-    QAction* saveAction = toolbar->addAction(tr("Save PNG..."));
+    QAction* saveAction = toolbar->addAction(QIcon(":/icons/save.svg"), tr("Save PNG..."));
     connect(saveAction, &QAction::triggered, this, [ this ]() {
         const QString file = QFileDialog::getSaveFileName(this, tr("Save figure"), QStringLiteral("figure_grid.png"),
                                                           tr("PNG image (*.png)"));
@@ -640,29 +642,31 @@ void GridWindow::createToolBar()
     });
 
     toolbar->addSeparator();
-    QAction* equalAction = toolbar->addAction(tr("Equal"));
+    QAction* equalAction = toolbar->addAction(QIcon(":/icons/equal.svg"), tr("Equal"));
     connect(equalAction, &QAction::triggered, this, [ this ]() {
         applyPreset(QStringLiteral("equal"));
     });
-    QAction* focusAction = toolbar->addAction(tr("Focus top"));
+    QAction* focusAction = toolbar->addAction(QIcon(":/icons/focus-top.svg"), tr("Focus top"));
     connect(focusAction, &QAction::triggered, this, [ this ]() {
         applyPreset(QStringLiteral("focus-top"));
     });
-    QAction* goldenAction = toolbar->addAction(tr("Golden"));
+    QAction* goldenAction = toolbar->addAction(QIcon(":/icons/golden.svg"), tr("Golden"));
     connect(goldenAction, &QAction::triggered, this, [ this ]() {
         applyPreset(QStringLiteral("golden"));
     });
 
     toolbar->addSeparator();
     QAction* undoAction = m_undoStack->createUndoAction(this, tr("Undo"));
+    undoAction->setIcon(QIcon(":/icons/undo.svg"));
     undoAction->setShortcut(QKeySequence::Undo);
     toolbar->addAction(undoAction);
     QAction* redoAction = m_undoStack->createRedoAction(this, tr("Redo"));
+    redoAction->setIcon(QIcon(":/icons/redo.svg"));
     redoAction->setShortcut(QKeySequence::Redo);
     toolbar->addAction(redoAction);
 
     toolbar->addSeparator();
-    QAction* logAction = toolbar->addAction(tr("Log layout"));
+    QAction* logAction = toolbar->addAction(QIcon(":/icons/log.svg"), tr("Log layout"));
     connect(logAction, &QAction::triggered, this, &GridWindow::logLayout);
 }
 

@@ -10,6 +10,7 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QComboBox>
+#include <QIcon>
 #include <QTabWidget>
 #include "../../common/qwt_example_screenshot.h"
 
@@ -18,9 +19,11 @@ namespace
     class ToolButton : public QToolButton
     {
       public:
-        ToolButton( const char* text )
+        ToolButton( const char* text, const char* iconPath )
         {
             setText( text );
+            setIcon( QIcon( iconPath ) );
+            setIconSize( QSize( 20, 20 ) );
             setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
         }
     };
@@ -37,13 +40,13 @@ namespace
             QToolBar* toolBar = new QToolBar();
 
 #ifndef QT_NO_PRINTER
-            ToolButton* btnPrint = new ToolButton( "Print" );
+            ToolButton* btnPrint = new ToolButton( "Print", ":/icons/print.svg" );
             toolBar->addWidget( btnPrint );
             QObject::connect( btnPrint, SIGNAL(clicked()),
                 plot, SLOT(printPlot()) );
 #endif
 
-            ToolButton* btnOverlay = new ToolButton( "Overlay" );
+            ToolButton* btnOverlay = new ToolButton( "Overlay", ":/icons/overlay.svg" );
             btnOverlay->setCheckable( true );
             toolBar->addWidget( btnOverlay );
             QObject::connect( btnOverlay, SIGNAL(toggled(bool)),
@@ -69,7 +72,7 @@ namespace
                 parameterBox->setCurrentIndex( 2 ); // chordal
                 plot->setParametric( parameterBox->currentText() );
 
-                ToolButton* btnClosed = new ToolButton( "Closed" );
+                ToolButton* btnClosed = new ToolButton( "Closed", ":/icons/closed.svg" );
                 btnClosed->setCheckable( true );
                 toolBar->addWidget( btnClosed );
                 QObject::connect( btnClosed, SIGNAL(toggled(bool)),

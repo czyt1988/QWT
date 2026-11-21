@@ -10,6 +10,7 @@
 #include <QComboBox>
 #include <QToolBar>
 #include <QToolButton>
+#include <QIcon>
 #include "../../common/qwt_example_screenshot.h"
 
 namespace
@@ -31,6 +32,8 @@ namespace
 
             QToolButton* btnExport = new QToolButton();
             btnExport->setText( "Export" );
+            btnExport->setIcon( QIcon( ":/icons/export.svg" ) );
+            btnExport->setIconSize( QSize( 20, 20 ) );
             btnExport->setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
             connect( btnExport, SIGNAL(clicked()), plot, SLOT(exportPlot()) );
 
