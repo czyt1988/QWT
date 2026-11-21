@@ -191,6 +191,14 @@ grid->setColumnSizes(loadColumns());
 
 `setGridEditable(true)` 要求网格已经启用，否则只打印警告，`isGridEditable()` 保持 false。`QwtFigure` 不提供取分隔条指针的接口；需要调整命中宽度或连接 `hoverChanged()` 时，在首次 `setGridEditable(true)` 之后用 `figure->findChild<QwtFigureGridSplitter*>()` 取得。
 
+#### 坐标轴对齐（自动）
+
+网格成员的绘图区默认自动对齐：同一列的成员共享左右边缘，同一行的成员共享上下边缘，跨多个轨道的成员参与其首、末轨道的分组。对齐量取组内最大的「画布内缩」，其中包含刻度标签、轴标题、图例、颜色条和寄生坐标轴占用的全部空间，因此即使各成员的刻度宽度、图例位置差异很大，坐标轴和网格线也会落在同一条直线上。
+
+`setGridAxisAlignment(false)` 关闭自动对齐、让每个成员回到自身内容需要的自然布局，`isGridAxisAlignment()` 查询当前状态；关闭后仍可用下面的 `addAxisAlignment()` 手动指定分组。这一机制也支持运行时增删成员和改变网格比例：组内最宽成员被移除后，其余成员共享的内缩会随之收缩。
+
+细节与对照组截图见下方「坐标轴对齐」一节。
+
 #### 撤销与实时预览
 
 拖动过程中的中间状态通过 `sizesChanged()` 连续发出，适合做实时预览；一次交互结束时 `sizesChangeFinished()` 只发出一次，且只在比例确实变化时发出。接到 `QUndoStack` 上，整次拖动对应一条撤销命令：
@@ -392,28 +400,40 @@ QPixmap pixmap = figure->saveFig(300);
 
 ### 坐标轴对齐
 
-figure绘图窗口提供坐标轴对齐功能，子绘图刻度值如果差异较大，刻度是不对齐的，如下图所示：
+子绘图的刻度值宽度如果差异较大，绘图区（画布）的左右/上下边界就会错开，坐标轴和网格线看起来不在一条直线上，如下图所示：
 
 ![qwt_figure_align](../../../assets/picture/figure-scale-not-aligment.png)
 
-这时，可以通过`QwtFigure::addAxisAlignment`函数指定坐标轴对齐
+对齐的本质是让一组子绘图的**绘图区边缘**落在同一条线上。`QwtFigure` 通过统一子绘图的「画布内缩」来实现：每个子绘图记录自身的画布相对控件边缘需要多少像素（包含刻度标签、轴标题、图例、颜色条以及寄生坐标轴的整条轴带），同一组内取最大值，再把结果作为所有成员的最小内缩。这样既不会压缩其它成员本已需要的空间，也不会只对齐刻度而忽略图例、寄生轴等其它装饰。
 
-例如上面的例子，通过下面进行坐标轴对齐
+保留式网格的成员默认自动对齐：同一列的成员共享左右边缘，同一行的成员共享上下边缘，跨越多个轨道的成员参与其首、末轨道的组。无需任何额外配置，`figureGrid` 示例就是自动对齐的；`setGridAxisAlignment(false)` 可以关闭：
 
 ```cpp
+// 关闭/重新开启网格成员的自动对齐（默认开启）
+figure->setGridAxisAlignment(false);
+figure->setGridAxisAlignment(true);
+```
+
+![figure-grid-aligned](../../../assets/screenshots/figure-grid.png)
+![figure-grid-noalign](../../../assets/screenshots/figure-grid-noalign.png)
+
+上图为自动对齐后的 `examples/2D/figureGrid`，下图为关闭对齐后的同一布局：左列的趋势图带有左图例，右列的柱状图带有右坐标轴，中间行的散点图使用两行标题——这些都会改变各自绘图区的边界，自动对齐后整幅图的坐标轴重新落在同一条线上。
+
+对于**没有使用保留式网格**的 figure（归一化坐标布局，或添加时只转换一次的旧 `addGridAxes()`），用 `addAxisAlignment()` 显式指定分组：
+
+```cpp
+// plot1、plot3、hostPlot 的绘图区左边缘对齐，plot2、plot4 的绘图区左边缘对齐
 figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
 figure->addAxisAlignment({ plot2, plot4 }, QwtAxis::YLeft);
 ```
 
-上面的代码代表`plot1`, `plot3`, `hostPlot`这三个绘图的左坐标轴对齐。`plot2`, `plot4`这两个绘图的左坐标轴对齐
+`axisId` 取 `QwtAxis::YLeft`、`YRight`、`XBottom`、`XTop`，分别表示对齐该侧的绘图区边缘。相同一侧的多个分组如果互相重叠（例如 `{A,B}` 与 `{B,C}`），会自动合并成一个传递闭包，`{A,B,C}` 使用同一个内缩。`removeAxisAlignment()` 移除单个分组、`clearAxisAlignment()` 清空全部手动分组后，只被这些分组对齐的绘图会回到各自的自然布局；网格的自动对齐不受影响。
 
-运行结果如下图：
+对齐结果由 `applyAllAxisAlignments()` 重新计算（`replot` 参数控制是否顺带重绘），figure 的布局、成员增删、网格比例变化以及子绘图的布局请求（刻度范围改变、字体或图例变化等）都会自动触发这一次计算，因此一般不需要手动调用。
 
-![qwt_figure_align](../../../assets/picture/figure-scale-aligment.png)
-
-> **警告 — 坐标轴对齐注意事项**
+> **说明 — 对齐覆盖的内容**
 >
-> 只有可显示的坐标轴才可以对齐，如果坐标轴不显示，是无法对齐的，例如上面例子的`plot2`, `plot4`和`hostPlot`的右坐标轴就无法对齐，因为`plot2`, `plot4`的坐标轴窗口不可见
+> 对齐基于子绘图的真实绘图区边缘，因此刻度标签宽度、轴标题、图例、颜色条、寄生坐标轴，甚至隐藏的坐标轴都会参与计算，不再有「只有可显示的坐标轴才能对齐」的限制。`QwtPlotLayout` 提供的 `setMinCanvasInset()`/`naturalCanvasRect()` 是这套机制的公开底层原语，需要自定义布局时也可以单独使用。
 
 ## figure操作蒙版
 

@@ -2,6 +2,11 @@
 
 ### 新功能
 
+- **`QwtFigure` 保留式网格的自动绘图区（坐标轴）对齐**
+    - 网格同一列的成员共享画布的左右边缘，同一行的成员共享上下边缘，因此即使各成员的刻度标签、轴标题、图例或寄生坐标轴尺寸差异很大，坐标轴轴线、刻度、网格线和数据区也会落在同一条线上；跨多个轨道的成员参与其首、末轨道的分组。对齐会跟随成员的增删、轨道比例变化和坐标轴范围变化自动更新，可用 `QwtFigure::setGridAxisAlignment()` 开关（`isGridAxisAlignment()` 查询，默认开启）
+    - 对齐基于真实的绘图区边缘，而不是单一坐标轴的刻度 extent：对齐通道测量每个参与者自身的「画布内缩」（包含刻度标签、轴标题、图例、颜色条以及寄生绘图的整条轴带），取组内最大值，再通过 `QwtPlotLayout` 新增的 `setMinCanvasInset()`/`minCanvasInset()`/`resetMinCanvasInsets()` 作为最小内缩应用，自然画布矩形由 `naturalCanvasRect()` 暴露。自然布局始终优先，因此对齐不会挤压成员真正需要的空间，也不会裁剪标签，隐藏的坐标轴同样参与对齐
+    - `QwtFigure::addAxisAlignment()`/`alignAxes()` 改为基于该机制实现：手动分组指定要对齐的边（`QwtAxis::YLeft/YRight/XBottom/XTop`），同一侧重叠的分组按传递闭包合并，`removeAxisAlignment()`/`clearAxisAlignment()` 会把相关绘图恢复到自然布局，重复添加相同分组会被忽略。对齐由 figure 布局、`replotAll()`、`saveFig()` 以及成员的布局请求自动触发，一般无需手动调用
+    - 回归测试：`tests/figure_axis_align_test` 覆盖列/行分组、跨轨道成员、手动分组及其传递闭包、成员移除与重新添加、`disableGrid()`、寄生坐标轴、坐标轴范围变化、隐藏成员以及 `QwtPlotLayout` 的内缩原语
 - **`QwtFigure` 支持保留式网格布局与可拖拽分隔条**
     - `QwtFigureGrid` 是保留式网格模型：保存行/列轨道比例、间距（`setSpacing()`）以及成员的 `(行, 列, 行跨度, 列跨度)` 登记，按需计算归一化单元格矩形，窗口缩放后比例保持不变；`wspace()`/`hspace()` 返回保留的间距，宿主可据此持久化 `setSpacing()` 写入的值
     - `QwtFigure::enableGrid()` 创建并启用模型，`addAxes(plot, row, col, rowSpan, colSpan)` 与 `addGridItem()` 登记成员，`removeWidget()` 取消登记；原有的归一化坐标成员可与网格成员共存
@@ -13,11 +18,14 @@
     - 工具栏新增「Grid layout (draggable)」动作，切换到 2x2 保留式网格（波形占顶行，下方两个分析图）并可拖动分隔条；切回时重建经典演示。网格可编辑期间禁用子图蒙版，避免它吞掉分隔条事件
 - **`examples/2D/figureGrid`：保留式网格布局示例**
     - 专门的 3×3 演示，覆盖了模型的大部分能力：六个成员（四个单格绘图、一个跨两列的绘图、一个用 `addGridItem()` 登记的普通控件）、比例预设、`wspace`/`hspace` 与 `minimumTrackPixels` 实时控制、可调的分隔条命中宽度、由 `gridSizesChangeFinished()` 驱动的「一次拖动一条撤销命令」（撤销/重做动作与快捷键）、运行时移除并重新添加成员、用 `disableGrid()` 退出网格并重新进入。例子用 `findChild<>()` 取得分隔条，演示了不扩展 `QwtFigure` 公开接口也能调用 `setHitWidth()` 和 `hoverChanged()`
-    - 支持无界面截图协议，`drag`（两次经分隔条的合成拖动）与 `spacing` 两个变体用于生成 `docs/assets/screenshots/figure-grid{,-drag,-spacing}.png`
+    - 成员默认自动对齐，dock 里的「Plot area alignment」分组可在运行时切换 `setGridAxisAlignment()`。示例数据刻意让效果可见：频谱图使用 Hz 刻度标签、趋势图带左图例、柱状图带右侧百分比坐标轴、散点图使用两行标题，不开启对齐时各成员绘图区的起点会明显不同
+    - 支持无界面截图协议，`drag`（两次经分隔条的合成拖动）、`spacing` 与 `noalign`（关闭对齐）三个变体用于生成 `docs/assets/screenshots/figure-grid{,-drag,-spacing,-noalign}.png`
 - **文档**：figure 使用指南（中英）重写「保留式网格布局」章节：说明该功能的作用与适用场景，`QwtFigure`、`QwtFigureGrid`、`QwtFigureGridSplitter`、`QwtFigureLayout` 的职责划分（含类图），完整的模型 API 与归一化、间隙校验规则，分隔条交互，撤销实现，用 `disableGrid()` 退出网格，以及新示例与三张截图。7.x 新特性页、`plot-layout.md` 与展示页也补充了这个功能
+    - 使用指南的「坐标轴对齐」一节（中英）改为介绍新机制（基于真实绘图区边缘而非刻度 extent，覆盖图例、寄生轴和隐藏坐标轴，网格自动对齐及其开关，手动分组的传递合并，生命周期触发点），并展示关闭对齐前后的 `figureGrid` 截图
 
 ### Bug 修复
 
+- 旧的 `QwtFigure` 对齐内核（统一刻度 minimumExtent、edgeMargin 与 borderDist）被上述绘图区对齐取代：它会覆盖 `QwtPlot::updateAxisEdgeMargin()` 为寄生坐标轴维护的 edgeMargin；无法对齐由图例、颜色条或隐藏坐标轴造成的差异；成员离开分组后无法把内缩收缩回去（仍保留旧的最小 extent）；而且要求坐标轴可见。现在 `removeAxisAlignment()`/`clearAxisAlignment()` 会恢复自然绘图区，对齐在窗口缩放、成员变化和坐标轴范围变化后都能保持
 - **保留式网格加固**
     - `QwtFigureGrid::setSpacing()` 现在拒绝 `(轨道数 - 1) * gap >= 1` 的间距（qWarning、保持原值、整条请求一起拒绝），不再让最后一个轨道被压成零尺寸；`dividers()` 把分隔条位置 clamp 到 `[0, 1]`，分隔条命中带不会跑到图外
     - `QwtFigureLayout` 改为对累计归一化位置的两个边分别取整，再由两条边求像素宽度，相邻单元的右边缘与下一单元左边缘落在同一像素，不再出现 1 像素缝（Y 方向同一规则）

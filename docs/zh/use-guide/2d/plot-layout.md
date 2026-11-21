@@ -110,6 +110,24 @@ bool aligned = layout->alignCanvasToScale(QwtAxis::YRight);
 > - 对齐模式：画布边界与坐标轴刻度线精确对齐，刻度标签可能延伸到画布外
 > - 不对齐模式：画布保持固定大小，坐标轴区域独立计算，刻度标签完整显示
 
+### 最小画布内缩
+
+`setMinCanvasInset()` 用于让多个绘图对齐绘图区：它为画布与控件内容矩形之间某一侧的距离设置下限，而自然布局始终优先——内缩小于内容（刻度标签、轴标题、图例、颜色条、寄生坐标轴轴带）实际需要的空间时不产生任何效果，因此既不会压缩画布，也不会裁剪标签。`naturalCanvasRect()` 返回内容实际需要的画布矩形（在固定画布尺寸与最小内缩生效之前），`QwtFigure` 正是用它测量并对齐网格成员的绘图区：
+
+```cpp
+QwtPlotLayout* layout = plot->plotLayout();
+
+// 左侧画布至少距控件左边缘 80 像素
+layout->setMinCanvasInset(QwtAxis::YLeft, 80.0);
+qreal inset = layout->minCanvasInset(QwtAxis::YLeft);
+
+// 当前内容需要的画布矩形（未应用固定尺寸与最小内缩）
+const QRectF natural = layout->naturalCanvasRect();
+
+// 清除全部最小内缩
+layout->resetMinCanvasInsets();
+```
+
 ### 图例位置配置
 
 QwtPlotLayout 支持将图例放置在四个边界位置：

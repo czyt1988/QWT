@@ -249,6 +249,14 @@ figure->setGridEditable(true);                   // the divider interaction is o
 
 Leaving the grid is not reversible: the track ratios, the gaps and the member registrations are discarded, `isGridEnabled()` returns false, and the divider interaction is switched off. Enabling the grid again requires `setGridEditable(true)` and registering the members once more. The "Leave grid (keep geometry)" button of `examples/2D/figureGrid` demonstrates the whole cycle.
 
+#### Axis Alignment (Automatic)
+
+The plot areas of the grid members are aligned by default: the members of a column share the left and right edges, the members of a row share the top and bottom edges, and a member spanning several tracks joins the groups of the first and the last track it covers. The shared inset is the largest "canvas inset" of the group and contains everything that consumes space on that side (tick labels, axis titles, legends, color bars and parasite axes), so the axes and grid lines stay on one line even when the members carry very different decorations.
+
+`setGridAxisAlignment(false)` restores the natural plot area of every member and `isGridAxisAlignment()` reports the current state; a group can still be aligned by hand with `addAxisAlignment()` while the automatic alignment is off. The pass also follows runtime changes: when the widest member leaves a group, the inset shared by the remaining members shrinks again.
+
+See the "Axis Alignment" section below for the details and for the comparison screenshots.
+
 #### The Example
 
 `examples/2D/figureGrid` is the complete example of the retained grid. The essential part builds the 3 x 3 layout:
@@ -392,28 +400,41 @@ QPixmap pixmap = figure->saveFig(300);
 
 ### Axis Alignment
 
-The figure window provides axis alignment functionality. If the tick values of sub-plots differ significantly, the ticks will not be aligned, as shown below:
+If the tick labels of sub-plots differ significantly in size, the plot areas (the canvases) no longer start at the same position and the axes, tick marks and grid lines of the figures look shifted against each other:
 
 ![qwt_figure_align](../../assets/picture/figure-scale-not-aligment.png)
 
-In this case, you can specify axis alignment using the `QwtFigure::addAxisAlignment` function.
+Aligning axes means putting the **plot area edges** of a group of sub-plots on one line. `QwtFigure` does this by unifying the "canvas inset" of the members: every sub-plot knows how many pixels its canvas has to stay away from the widget edge (tick labels, axis titles, legends, color bars and the whole axis band of parasite plots included), the largest inset of a group is taken and applied to every member as a minimum inset. The natural layout stays authoritative, so aligning never shrinks the space a member needs and never clips its labels.
 
-For the example above, axis alignment can be achieved with:
+The members of a retained grid are aligned automatically: the members of a column share the left and right edges, the members of a row share the top and bottom edges, and a member spanning several tracks joins the groups of the first and the last track it covers. No configuration is needed, the `figureGrid` example is aligned out of the box. `setGridAxisAlignment(false)` switches it off:
 
 ```cpp
+// Switch the automatic alignment of the grid members off/on (on by default)
+figure->setGridAxisAlignment(false);
+figure->setGridAxisAlignment(true);
+```
+
+![figure-grid-aligned](../../assets/screenshots/figure-grid.png)
+![figure-grid-noalign](../../assets/screenshots/figure-grid-noalign.png)
+
+The first screenshot shows `examples/2D/figureGrid` with the alignment applied, the second the same layout with it switched off: the trend plot of the left column carries a left legend, the bar chart of the right column has a right axis and the scatter plot of the middle row uses a two line title - all of them change the plot area of their member, and with the alignment the axes of the figure share a line again.
+
+For a figure that does **not** use the retained grid (normalized coordinate layout, or the legacy `addGridAxes()` that converts the cell once), name the groups explicitly with `addAxisAlignment()`:
+
+```cpp
+// The left plot area edges of plot1, plot3 and hostPlot are aligned, so are the
+// left plot area edges of plot2 and plot4
 figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
 figure->addAxisAlignment({ plot2, plot4 }, QwtAxis::YLeft);
 ```
 
-The code above means the left Y-axes of `plot1`, `plot3`, and `hostPlot` are aligned with each other. The left Y-axes of `plot2` and `plot4` are aligned with each other.
+`axisId` is `QwtAxis::YLeft`, `YRight`, `XBottom` or `XTop` and names the edge that is aligned. Overlapping groups of the same side (for example `{A,B}` and `{B,C}`) are merged into one connected component, so `{A,B,C}` share a single inset. `removeAxisAlignment()` drops one group and `clearAxisAlignment()` drops all manual groups: the plots that were only aligned by them return to their natural plot area, while the automatic grid alignment is unaffected.
 
-The result is shown below:
+The pass is recomputed by `applyAllAxisAlignments()` (the `replot` argument also replots the members); the layout of the figure, adding/removing members, grid ratio changes and the layout requests of the sub-plots (new axis ranges, fonts or legends) trigger it automatically, so it rarely has to be called by hand.
 
-![qwt_figure_align](../../assets/picture/figure-scale-aligment.png)
-
-> **Warning — Axis Alignment Notes**
+> **Note — What the alignment covers**
 >
-> Only visible axes can be aligned. If an axis is not visible, it cannot be aligned. For example, in the above case, the right Y-axes of `plot2`, `plot4`, and `hostPlot` cannot be aligned because the axis widgets of `plot2` and `plot4` are not visible.
+> The alignment is based on the real plot area edges, so tick label widths, axis titles, legends, color bars, parasite axes and even hidden axes take part in the calculation. The former restriction "only visible axes can be aligned" no longer applies. `QwtPlotLayout::setMinCanvasInset()` and `QwtPlotLayout::naturalCanvasRect()` expose the two primitives of the mechanism for custom layouts.
 
 ## Figure Overlay
 

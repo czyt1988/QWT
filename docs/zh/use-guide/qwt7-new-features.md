@@ -168,11 +168,11 @@ figure->addGridAxes(plot2, 2, 2, 0, 1);  // 2x2网格，第0行第1列
 
 ### 坐标轴对齐功能
 
-当多个子绘图的刻度范围不同时，刻度线可能不对齐，影响视觉效果。QwtFigure 提供了坐标轴对齐功能：
+当多个子绘图的刻度范围不同时，刻度标签宽度不同，绘图区的边缘（坐标轴轴线、网格线）就会错开，影响视觉效果。QwtFigure 提供了坐标轴对齐功能：
 
 ![figure-scale-not-aligment](../../assets/picture/figure-scale-not-aligment.png)
 
-通过 `addAxisAlignment` 函数可以指定子绘图的坐标轴进行对齐：
+对齐的原理是统一子绘图的「画布内缩」：每个子绘图记录自身画布相对控件边缘所需的像素（包含刻度标签、轴标题、图例、颜色条和寄生坐标轴的整条轴带），同一分组取最大值后应用到所有成员，因此绘图区边缘落在同一条线上。保留式网格的成员默认自动对齐（同列共享左右边缘、同行共享上下边缘），也可以用手动分组：
 
 ```cpp
 figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
@@ -181,6 +181,10 @@ figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
 对齐后的效果：
 
 ![figure-scale-aligment](../../assets/picture/figure-scale-aligment.png)
+
+> **说明**
+>
+> 对齐基于真实绘图区边缘，图例、颜色条、寄生坐标轴和隐藏坐标轴都会参与计算，不存在「只有可显示的坐标轴才能对齐」的限制；`QwtPlotLayout` 的 `setMinCanvasInset()`/`naturalCanvasRect()` 是这套机制的公开原语。
 
 ### 保留式网格布局与可拖拽分隔条
 
@@ -192,6 +196,7 @@ figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
 - 拖动只在分隔条附近的窄带内消费事件，缩放、平移、拾取和悬停照常工作
 - `gridSizesChanged()` 用于实时预览，`gridSizesChangeFinished()` 每次拖动只发出一次，便于为整次拖动压入一条撤销命令
 - `disableGrid()` 退出网格，成员停在当前几何
+- 网格成员的绘图区默认自动对齐（`setGridAxisAlignment()`，见 `examples/2D/figureGrid` 的对齐开关）
 
 > **示例 — 完整示例**
 >

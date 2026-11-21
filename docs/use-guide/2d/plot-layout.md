@@ -152,6 +152,24 @@ layout->setFixedCanvasSize(QwtAxis::YLeft, false);
 > - Axis thickness is not clamped, so a scale widget whose labels grew past
 > the available space extends beyond the plot rect and its overflow is clipped. This is the intended trade-off for a stable canvas.
 
+### Minimum Canvas Insets
+
+`setMinCanvasInset()` is the counterpart of the fixed canvas for aligning several plots: it sets a lower bound for the distance between the canvas and the plot contents rect on one side, while the natural layout stays authoritative. An inset that is smaller than what the content (axis labels, axis title, legend, color bar, parasite axis bands) asks for has no effect, so it never shrinks a canvas and never clips a label. `naturalCanvasRect()` reports the canvas rect the content asks for, before the fixed-canvas pinning and the insets are applied; this is the value `QwtFigure` measures to align the plot areas of its grid members.
+
+```cpp
+QwtPlotLayout* layout = plot->plotLayout();
+
+// Keep the canvas at least 80 pixels away from the left plot edge
+layout->setMinCanvasInset(QwtAxis::YLeft, 80.0);
+qreal inset = layout->minCanvasInset(QwtAxis::YLeft);
+
+// The canvas rect the current content asks for (before pinning and insets)
+const QRectF natural = layout->naturalCanvasRect();
+
+// Drop the minimum insets again
+layout->resetMinCanvasInsets();
+```
+
 ### Legend Position Configuration
 
 QwtPlotLayout supports placing the legend at four boundary positions:

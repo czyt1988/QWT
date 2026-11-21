@@ -168,11 +168,11 @@ figure->addGridAxes(plot2, 2, 2, 0, 1);  // 2x2 grid, row 0, column 1
 
 ### Axis Alignment Feature
 
-When multiple sub-plots have different scale ranges, tick marks may not align, affecting visual appearance. QwtFigure provides axis alignment functionality:
+When multiple sub-plots have different scale ranges, their tick labels have different widths and the plot area edges (axis backbones, grid lines) no longer line up, affecting the visual appearance. QwtFigure provides axis alignment:
 
 ![figure-scale-not-aligment](../assets/picture/figure-scale-not-aligment.png)
 
-The `addAxisAlignment` function can be used to specify which sub-plot axes should be aligned:
+The alignment unifies the "canvas inset" of the sub-plots: every plot measures the space its canvas keeps from the widget edge (tick labels, axis titles, legends, color bars and whole parasite axis bands included), the largest inset of a group is applied to all of its members, and the plot area edges end up on one line. The members of a retained grid are aligned automatically (the members of a column share the left/right edges, the members of a row the top/bottom ones); free layouts can name the groups explicitly:
 
 ```cpp
 figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
@@ -181,6 +181,10 @@ figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
 Result after alignment:
 
 ![figure-scale-aligment](../assets/picture/figure-scale-aligment.png)
+
+> **Note**
+>
+> The alignment works on the real plot area edges, so tick label widths, legends, color bars, parasite axes and hidden axes take part in the calculation - the former "only visible axes can be aligned" restriction is gone. `QwtPlotLayout::setMinCanvasInset()` and `naturalCanvasRect()` are the public primitives of the mechanism.
 
 ### Retained Grid Layout with Draggable Dividers
 
@@ -192,6 +196,7 @@ Result after alignment:
 - A drag only consumes the events inside a narrow band around a divider, so zooming, panning, picking and hovering keep working
 - `gridSizesChanged()` drives live previews, `gridSizesChangeFinished()` is emitted once per drag for a single undo command
 - `disableGrid()` leaves the grid and keeps the current geometry of the members
+- The plot areas of the members are aligned automatically (`setGridAxisAlignment()`, the alignment switch of `examples/2D/figureGrid`)
 
 > **Example — Complete Example**
 >
