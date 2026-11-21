@@ -32334,7 +32334,11 @@ static inline int qwtStepCount(int intervalSize, int maxSteps, const int limits[
 	return 0;
 }
 
-static int qwtStepSize(int intervalSize, int maxSteps, uint base)
+// Binds the step size of a date interval to the given base. Note the name
+// prefix: the amalgamated single-file build puts this function next to
+// QwtScaleArithmetic's own qwtStepSize(), and an unqualified overload could
+// silently resolve to that one instead.
+static int qwtDateStepSize(int intervalSize, int maxSteps, uint base)
 {
 	if (maxSteps <= 0)
 		return 0;
@@ -32438,7 +32442,7 @@ static double qwtDivideMajorStep(double stepSize, int maxMinSteps, QwtDate::Inte
 
 	switch (intervalType) {
 	case QwtDate::Second: {
-		minStepSize = qwtStepSize(stepSize, maxMinSteps, 10);
+		minStepSize = qwtDateStepSize(stepSize, maxMinSteps, 10);
 		if (minStepSize == 0.0)
 			minStepSize = 0.5 * stepSize;
 
@@ -35063,7 +35067,15 @@ struct QwtRoundI
 // rounding to the device pixel grid: integers for a ratio of 1.0
 struct QwtRoundF
 {
-	qreal ratio = 1.0;
+	// A constructor is required instead of a default member initializer:
+	// in C++11 (the standard used for the Qt5 build) a class with a default
+	// member initializer is not an aggregate, so `QwtRoundF roundF{ratio}`
+	// would not compile.
+	explicit QwtRoundF(qreal devicePixelRatio = 1.0) : ratio(devicePixelRatio)
+	{
+	}
+
+	qreal ratio;
 
 	inline double operator()(double value) const
 	{
@@ -42705,6 +42717,9 @@ void QwtPlotTransparentCanvas::replot()
 
 void QwtPlotTransparentCanvas::paintEvent(QPaintEvent* event)
 {
+	// only used by the debug drawing below
+	Q_UNUSED(event);
+
 	QPainter painter(this);
 #if QWTPLOTTRANSPARENTCANVAS_DEBUG_DRAW
 	painter.setPen(QPen(Qt::red, 1, Qt::DashLine));
@@ -51338,6 +51353,8 @@ QPainterPath QwtPlotArrowMarker::tailCustomPath() const
  */
 void QwtPlotArrowMarker::draw(QPainter* painter, const QwtScaleMap& xMap, const QwtScaleMap& yMap, const QRectF& canvasRect) const
 {
+	Q_UNUSED(canvasRect);
+
 	QWT_DC(d);
 	if (!painter || !painter->isActive())
 		return;
@@ -61727,6 +61744,11 @@ void QwtPlotBoxChart::drawOutliers(QPainter* painter,
 								   int from,
 								   int to) const
 {
+	// The outliers are stored separately from the box samples, so the range
+	// given by from/to does not apply to them: all stored outliers are drawn.
+	Q_UNUSED(from);
+	Q_UNUSED(to);
+
 	QWT_DC(d);
 
 	if (!m_outlierData || m_outlierData->size() == 0)
@@ -76279,8 +76301,6 @@ public:
  */
 QwtPolarLayout::QwtPolarLayout() : QWT_PIMPL_CONSTRUCT
 {
-	QWT_D(d);
-
 	setLegendPosition(QwtPolarPlot::BottomLegend);
 	invalidate();
 }
@@ -76999,9 +77019,146 @@ bool QwtPolarRenderer::exportTo(QwtPolarPlot* plot, const QString& documentName,
 #include <QDebug>
 #include <QWidget>
 
+
+/*** Start of inlined file: qwt_figure_grid.h ***/
+#ifndef QWT_FIGURE_GRID_H
+#define QWT_FIGURE_GRID_H
+
+#include <QList>
+#include <QObject>
+#include <QRectF>
+#include <QVector>
+
+class QWidget;
+
+/**
+ * @class QwtFigureGrid
+ *
+ * @brief Retained grid track model for a figure with several members
+ *
+ * QwtFigureGrid owns the authoritative track ratios of the columns/rows and
+ * the (row, column, rowSpan, columnSpan) registration of every member widget.
+ * Normalized rectangles are computed on demand from the retained tracks, so
+ * the grid can be resized interactively without touching the registrations.
+ *
+ * The model only depends on Qt (QObject/QWidget) and never references
+ * QwtFigure or QwtFigureLayout, which keeps the geometry math testable in
+ * isolation.
+ *
+ * @code
+ * QwtFigureGrid* grid = new QwtFigureGrid(figure);
+ * grid->setup(2, 2);                           // enable a 2x2 grid
+ * grid->setColumnSizes({ 0.6, 0.4 });          // column ratios
+ * grid->addItem(plot, 0, 0, 1, 2);             // plot spans the top row
+ * const QRectF cell = grid->normRectFor(1, 0); // normalized geometry of a cell
+ * @endcode
+ */
+class QWT_EXPORT QwtFigureGrid : public QObject
+{
+	Q_OBJECT
+	QWT_DECLARE_PRIVATE(QwtFigureGrid)
+
+public:
+	/// Constructor
+	explicit QwtFigureGrid(QObject* parent = nullptr);
+	/// Destructor
+	~QwtFigureGrid() override;
+
+	bool isEnabled() const;                     // True once setup() succeeded
+	void setup(int rowCount, int columnCount);  // Enable the grid and init equal tracks
+	void disable();                             // Disable the grid and drop the member registrations
+	int rowCount() const;                       // Number of row tracks (0 when disabled)
+	int columnCount() const;                    // Number of column tracks (0 when disabled)
+
+	QVector< qreal > rowSizes() const;                   // Normalized row ratios, sum == 1
+	QVector< qreal > columnSizes() const;                // Normalized column ratios, sum == 1
+	void setRowSizes(const QVector< qreal >& sizes);     // Set the row ratios (normalized on input)
+	void setColumnSizes(const QVector< qreal >& sizes);  // Set the column ratios (normalized on input)
+	void setSpacing(qreal wspace, qreal hspace);         // Gap between tracks, normalized
+	qreal wspace() const;                                // Horizontal gap between columns, normalized
+	qreal hspace() const;                                // Vertical gap between rows, normalized
+	void setMinimumTrackPixels(int px);                  // Minimum track extent while dragging
+	int minimumTrackPixels() const;                      // Minimum track extent while dragging
+
+	bool addItem(QWidget* w, int row, int col, int rowSpan = 1, int colSpan = 1);         // Register a member
+	bool removeItem(QWidget* w);                                                          // Unregister a member
+	bool gridPosition(QWidget* w, int* row, int* col, int* rowSpan, int* colSpan) const;  // Query a member
+	QList< QWidget* > items() const;                                                      // Registered members
+
+	QRectF normRectFor(int row, int col, int rowSpan = 1, int colSpan = 1) const;  // Normalized cell rect
+
+	/**
+	 * @brief A draggable divider between two adjacent tracks
+	 *
+	 * A Horizontal divider is the vertical line between two columns (it changes
+	 * the column sizes and stores a normalized X position). A Vertical divider
+	 * is the horizontal line between two rows (it changes the row sizes and
+	 * stores a normalized Y position).
+	 */
+	struct Divider
+	{
+		Qt::Orientation orientation;  ///< Horizontal = column divider, Vertical = row divider
+		int index;                    ///< Left/top track index (0 .. count - 2)
+		qreal position;               ///< Normalized position of the gap center
+	};
+	QList< Divider > dividers() const;  // Divider list for the current tracks
+
+	void finishChange();  // Emit sizesChangeFinished() when an interactive change session ends
+
+Q_SIGNALS:
+	/**
+	 * @brief Emitted whenever the track ratios or the spacing change
+	 *
+	 * Also emitted repeatedly while a divider is being dragged.
+	 */
+	void sizesChanged();
+
+	/**
+	 * @brief Emitted once when an interactive change session ends
+	 *
+	 * The splitter calls finishChange() on mouse release.
+	 */
+	void sizesChangeFinished();
+};
+
+#endif  // QWT_FIGURE_GRID_H
+
+/*** End of inlined file: qwt_figure_grid.h ***/
+
 #ifndef QWTFIGURELAYOUT_DEBUG_PRINT
 #define QWTFIGURELAYOUT_DEBUG_PRINT 0
 #endif
+
+// Returns the retained grid of the figure owning this layout (nullptr if none).
+static QwtFigureGrid* figureGridOfLayout(const QLayout* lay)
+{
+	if (!lay) {
+		return nullptr;
+	}
+	QwtFigure* figure = qobject_cast< QwtFigure* >(lay->parentWidget());
+	return figure ? figure->grid() : nullptr;
+}
+
+// Returns true if the widget is registered as a member of the retained grid.
+static bool gridPositionOf(const QwtFigureGrid* grid, QWidget* widget, QRectF* normRect)
+{
+	if (!grid || !grid->isEnabled()) {
+		return false;
+	}
+	int row = 0, col = 0, rowSpan = 0, colSpan = 0;
+	if (!grid->gridPosition(widget, &row, &col, &rowSpan, &colSpan)) {
+		return false;
+	}
+	const QRectF rect = grid->normRectFor(row, col, rowSpan, colSpan);
+	if (!rect.isValid()) {
+		return false;
+	}
+	if (normRect) {
+		*normRect = rect;
+	}
+	return true;
+}
+
 class QwtFigureLayout::PrivateData
 {
 	QWT_DECLARE_PUBLIC(QwtFigureLayout)
@@ -77103,18 +77260,24 @@ void QwtFigureLayout::setGeometry(const QRect& rect)
 	qDebug() << "QwtFigureLayout setGeometry(rect=" << rect << "),left=" << m_data->m_left
 			 << ",right=" << m_data->m_right << ",bottom=" << m_data->m_bottom << ",top=" << m_data->m_top;
 #endif
+	QwtFigureGrid* figureGrid = figureGridOfLayout(this);
 	for (const auto& item : qwt_as_const(m_data->m_items)) {
-		if (!item.item || !item.item->widget() || !item.item->widget()->isVisibleTo(item.item->widget()->parentWidget())) {
+		QWidget* widget = item.item ? item.item->widget() : nullptr;
+		if (!widget || !widget->isVisibleTo(widget->parentWidget())) {
 			continue;
 		}
 		// Convert normalized coordinates to actual pixels using Qt's top-left coordinate system.
 		// Apply margins to both grid-based and normalized coordinate-based items.
+		// Members of the retained grid are laid out from the current track sizes,
+		// free members keep the normalized rectangle they were added with.
+		QRectF normRect = item.normRect;
+		gridPositionOf(figureGrid, widget, &normRect);
 
-		QRect actualRect = calcActualRect(rect, item.normRect);
+		QRect actualRect = calcActualRect(rect, normRect);
 		item.item->setGeometry(actualRect);
 
 #if QWTFIGURELAYOUT_DEBUG_PRINT && QWT_DEBUG_DRAW
-		qDebug() << "normRect=" << item.normRect << ",actualRect=" << actualRect;
+		qDebug() << "normRect=" << normRect << ",actualRect=" << actualRect;
 #endif
 	}
 }
@@ -77351,6 +77514,11 @@ QRectF QwtFigureLayout::widgetNormRect(QWidget* widget) const
 		return QRectF();
 	}
 
+	QRectF gridRect;
+	if (gridPositionOf(figureGridOfLayout(this), widget, &gridRect)) {
+		return gridRect;
+	}
+
 	for (const auto& item : qwt_as_const(m_data->m_items)) {
 		if (item.item && item.item->widget() == widget) {
 			return item.normRect;
@@ -77401,24 +77569,35 @@ QRectF QwtFigureLayout::calcNormRect(const QRect& parentRect, const QRect& rect)
  * @if ENGLISH
  * @brief Calculate actual rectangle from normalized coordinates
  *
+ * Both edges are rounded from the accumulated normalized position
+ * ( left and left + width ), and the pixel extent is derived from the two
+ * rounded edges instead of being rounded on its own. Neighbouring cells that
+ * share an edge therefore land on exactly the same pixel: the right edge of a
+ * cell equals the left edge of the next one and no one pixel seam appears
+ * between them.
+ *
  * @param parentRect Parent window size
  * @param normRect Normalized rectangle
- * @return Actual rectangle in pixel coordinates
+ * @return Actual rectangle in pixel coordinates, always inside parentRect
  */
 QRect QwtFigureLayout::calcActualRect(const QRect& parentRect, const QRectF& normRect)
 {
-	const qreal availableWidth  = parentRect.width();
-	const qreal availableHeight = parentRect.height();
-	const qreal actualLeft      = qRound(normRect.left() * availableWidth);
-	const qreal actualTop       = qRound(normRect.top() * availableHeight);
-	const qreal actualWidth     = qRound(normRect.width() * availableWidth);
-	const qreal actualHeight    = qRound(normRect.height() * availableHeight);
+	const int availableWidth  = parentRect.width();
+	const int availableHeight = parentRect.height();
+
+	// Cumulative sum rounding: round the two edges of the interval, not the
+	// normalized origin and extent independently
+	const int left   = qRound(normRect.left() * availableWidth);
+	const int top    = qRound(normRect.top() * availableHeight);
+	const int right  = qRound((normRect.left() + normRect.width()) * availableWidth);
+	const int bottom = qRound((normRect.top() + normRect.height()) * availableHeight);
 
 	// Ensure the rect is within valid bounds
-	return QRect(qMax(0.0, actualLeft),
-				 qMax(0.0, actualTop),
-				 qMin(actualWidth, availableWidth - actualLeft),
-				 qMin(actualHeight, availableHeight - actualTop));
+	const int x      = qMax(0, left);
+	const int y      = qMax(0, top);
+	const int width  = qMax(0, qMin(right, availableWidth) - x);
+	const int height = qMax(0, qMin(bottom, availableHeight) - y);
+	return QRect(x, y, width, height);
 }
 
 /**
@@ -77495,6 +77674,7 @@ QwtFigureLayout::calcGridRect(int rowCnt, int colCnt, int row, int col, int rowS
 #include <QPointer>
 #include <QPaintEvent>
 #include <QResizeEvent>
+#include <QEvent>
 #include <QApplication>
 #include <QGuiApplication>
 #include <QScreen>
@@ -77502,6 +77682,111 @@ QwtFigureLayout::calcGridRect(int rowCnt, int colCnt, int row, int col, int rowS
 #include <QMap>
 #include <QDebug>
 // qwt
+
+
+/*** Start of inlined file: qwt_figure_grid_splitter.h ***/
+#ifndef QWT_FIGURE_GRID_SPLITTER_H
+#define QWT_FIGURE_GRID_SPLITTER_H
+
+// Qt
+#include <QObject>
+
+// qwt
+
+class QEvent;
+class QwtFigure;
+
+/**
+ * @class QwtFigureGridSplitter
+ *
+ * @brief Interactive divider of the retained grid layout of a QwtFigure
+ *
+ * @details
+ * The splitter installs event filters on the figure and on the widgets that can
+ * receive the mouse over the grid cells. Only events inside a narrow band around
+ * a divider are consumed, every other event is passed through unchanged so
+ * zooming, panning, picking and hovering of the plots keep working.
+ *
+ * Dragging a divider changes the ratio of the two adjacent tracks only: a
+ * Horizontal divider sits between two columns (the mouse moves along X), a
+ * Vertical divider sits between two rows (the mouse moves along Y). The track
+ * ratios are clamped by QwtFigureGrid::minimumTrackPixels(), so no track can
+ * collapse and the tracks can never overlap.
+ *
+ * While a divider is dragged the member widgets stop repainting; releasing the
+ * mouse restores the repaints and emits QwtFigureGrid::sizesChangeFinished()
+ * once, but only when the ratios really changed. Pressing Esc cancels the drag:
+ * the original ratios are restored and no finished signal is emitted.
+ *
+ * The drag grabs the mouse on the figure, so the release always returns to the
+ * splitter even when a filter installed after this one (Qt invokes the event
+ * filters in reverse installation order) consumes the move/release of the
+ * canvas. When the grab is lost (QEvent::UngrabMouse) or the window is
+ * deactivated, the drag ends as if Esc was pressed.
+ *
+ * The split cursor is applied to the widget the mouse is really over (the
+ * canvas of a plot, not the plot itself), together with its original
+ * WA_SetCursor state, so it stays visible even when the canvas has a cursor
+ * of its own (an explicitly set child cursor overrides the inherited one) and
+ * the original cursor is restored when the band is left.
+ *
+ * QOpenGLWidget members (for example a 3D plot) never get an event filter, so
+ * their events are not intercepted. The boundary of a 3D cell is served by the
+ * adjacent 2D plot.
+ *
+ * @par Example:
+ * @code
+ * QwtFigure* figure = new QwtFigure;
+ * figure->enableGrid(2, 2);
+ * figure->addAxes(wavePlot, 0, 0, 1, 2);
+ * figure->addAxes(spectrumPlot, 1, 0);
+ * figure->addAxes(heatmapPlot, 1, 1);
+ *
+ * // The splitter is owned by the figure, enableGrid() must be called first
+ * figure->setGridEditable(true);
+ * @endcode
+ *
+ * @sa QwtFigure::setGridEditable(), QwtFigureGrid
+ */
+class QWT_EXPORT QwtFigureGridSplitter : public QObject
+{
+	Q_OBJECT
+	QWT_DECLARE_PRIVATE(QwtFigureGridSplitter)
+
+public:
+	// Constructor, the figure must not be null and becomes the parent
+	explicit QwtFigureGridSplitter(QwtFigure* figure);
+	~QwtFigureGridSplitter() override;
+
+	// The figure the splitter works on
+	QwtFigure* figure() const;
+
+	// Enable or disable the divider interaction
+	void setEnabled(bool on);
+	bool isEnabled() const;
+
+	// Set the half width of the hit band around a divider in pixels
+	void setHitWidth(int px);
+	int hitWidth() const;
+
+	// True while a divider is dragged
+	bool isDragging() const;
+
+Q_SIGNALS:
+	/**
+	 * @brief Emitted when the cursor shape over the divider bands changes
+	 * @param shape SplitHCursor/SplitVCursor inside a band, ArrowCursor when
+	 *              the mouse left the band
+	 */
+	void hoverChanged(Qt::CursorShape shape);
+
+protected:
+	bool eventFilter(QObject* watched, QEvent* event) override;
+};
+
+#endif  // QWT_FIGURE_GRID_SPLITTER_H
+
+/*** End of inlined file: qwt_figure_grid_splitter.h ***/
 
 #ifndef QWTFIGURE_SAFEGET_LAY
 #define QWTFIGURE_SAFEGET_LAY(lay)                                                                                     \
@@ -77526,6 +77811,12 @@ public:
 	PrivateData(QwtFigure* p);
 	// Called when a plot is about to be removed
 	void plotWillRemove(QwtPlot* p);
+	// Let a running grid splitter pick up added/removed children
+	void updateGridSplitter();
+	// Install the press-activation filter on a widget and, for plots, on its canvas
+	void watchWidget(QWidget* widget);
+	// Remove the press-activation filter from a widget and, for plots, from its canvas
+	void unwatchWidget(QWidget* widget);
 	// Structure for storing alignment configuration
 	struct AlignmentConfig
 	{
@@ -77538,7 +77829,11 @@ public:
 	QColor edgeColor { Qt::black };             ///< Border color of the figure
 	int edgeLineWidth { 0 };                    ///< Border line width
 	QPointer< QwtPlot > currentAxes;            ///< Current active axes
+	QPointer< QwtFigureGrid > grid;             ///< Retained grid layout (created on demand)
 	QList< AlignmentConfig > alignmentConfigs;  // All alignment configurations
+
+	// Divider interaction (created on demand)
+	QPointer< QwtFigureGridSplitter > gridSplitter;
 };
 
 QwtFigure::PrivateData::PrivateData(QwtFigure* p) : q_ptr(p)
@@ -77549,6 +77844,42 @@ void QwtFigure::PrivateData::plotWillRemove(QwtPlot* p)
 {
 	for (auto& alCfg : alignmentConfigs) {
 		alCfg.plots.removeAll(p);
+	}
+}
+
+void QwtFigure::PrivateData::updateGridSplitter()
+{
+	if (gridSplitter && gridSplitter->isEnabled()) {
+		// Enabling an enabled splitter is idempotent and re-scans the widgets
+		gridSplitter->setEnabled(true);
+	}
+}
+
+void QwtFigure::PrivateData::watchWidget(QWidget* widget)
+{
+	if (!widget) {
+		return;
+	}
+	// Real mouse presses are delivered to the canvas of the plot, not to the
+	// plot itself, so the canvas needs the filter as well.
+	widget->installEventFilter(q_ptr);
+	if (QwtPlot* plot = qobject_cast< QwtPlot* >(widget)) {
+		if (QWidget* canvas = plot->canvas()) {
+			canvas->installEventFilter(q_ptr);
+		}
+	}
+}
+
+void QwtFigure::PrivateData::unwatchWidget(QWidget* widget)
+{
+	if (!widget) {
+		return;
+	}
+	widget->removeEventFilter(q_ptr);
+	if (QwtPlot* plot = qobject_cast< QwtPlot* >(widget)) {
+		if (QWidget* canvas = plot->canvas()) {
+			canvas->removeEventFilter(q_ptr);
+		}
 	}
 }
 
@@ -77569,6 +77900,13 @@ QwtFigure::QwtFigure(QWidget* parent, Qt::WindowFlags f) : QFrame(parent, f), QW
 
 QwtFigure::~QwtFigure()
 {
+	// Tear the splitter down while the figure and its children are still alive:
+	// it has to release the keyboard grab, the cursor and the event filters.
+	if (m_data->gridSplitter) {
+		m_data->gridSplitter->setEnabled(false);
+		delete m_data->gridSplitter;
+		m_data->gridSplitter = nullptr;
+	}
 }
 
 /**
@@ -77589,7 +77927,13 @@ void QwtFigure::addWidget(QWidget* widget, qreal left, qreal top, qreal width, q
 	if (widget && widget->parentWidget() != this) {
 		widget->setParent(this);
 	}
+	if (widget) {
+		// Track mouse presses to make the clicked sub plot the current one.
+		// Real presses are delivered to the canvas, so it is watched as well.
+		m_data->watchWidget(widget);
+	}
 	lay->addAxes(widget, left, top, width, height);
+	m_data->updateGridSplitter();
 }
 
 /**
@@ -77615,7 +77959,10 @@ void QwtFigure::addWidget(QWidget* widget, int rowCnt, int colCnt, int row, int 
 	if (widget && widget->parentWidget() != this) {
 		widget->setParent(this);
 	}
+	// Track mouse presses like the normalized coordinate overload does
+	m_data->watchWidget(widget);
 	lay->addGridAxes(widget, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
+	m_data->updateGridSplitter();
 }
 
 /**
@@ -77669,6 +78016,302 @@ void QwtFigure::addGridAxes(QwtPlot* plot, int rowCnt, int colCnt, int row, int 
 	addWidget(plot, rowCnt, colCnt, row, col, rowSpan, colSpan, wspace, hspace);
 	Q_EMIT axesAdded(plot);
 	setCurrentAxes(plot);
+}
+
+/**
+ * @brief Enable the retained grid layout
+ * @details The retained grid keeps the row/column track sizes and the member positions
+ *          as the single source of truth. The layout asks the grid for the normalized
+ *          rectangle of every member whenever the figure geometry changes, so the track
+ *          proportions survive resizes. Calling this again re-initializes the tracks with
+ *          equal sizes and drops the previous member registrations.
+ * @param rowCount Number of rows (must be positive)
+ * @param columnCount Number of columns (must be positive)
+ * @return true if the grid was enabled, false for invalid counts
+ * @note Old addGridAxes() is unaffected and still converts the grid coordinates once.
+ * @sa addAxes(QwtPlot*, int, int, int, int), addGridItem(QWidget*, int, int, int, int)
+ */
+bool QwtFigure::enableGrid(int rowCount, int columnCount)
+{
+	if (rowCount <= 0 || columnCount <= 0) {
+		qWarning() << "QwtFigure::enableGrid: row and column count must be positive";
+		return false;
+	}
+
+	if (!m_data->grid) {
+		m_data->grid = new QwtFigureGrid(this);
+		connect(m_data->grid.data(), &QwtFigureGrid::sizesChanged, this, &QwtFigure::gridSizesChanged);
+		connect(m_data->grid.data(), &QwtFigureGrid::sizesChangeFinished, this, &QwtFigure::gridSizesChangeFinished);
+		connect(m_data->grid.data(), &QwtFigureGrid::sizesChanged, this, [ this ]() {
+			if (QLayout* lay = layout()) {
+				lay->setGeometry(rect());
+			}
+		});
+	}
+	m_data->grid->setup(rowCount, columnCount);
+
+	if (QLayout* lay = layout()) {
+		lay->invalidate();
+		lay->activate();
+	}
+	return true;
+}
+
+/**
+ * @brief Leave the retained grid layout
+ *
+ * Every member registered in the grid is turned into a free member whose normalized
+ * rectangle is derived from the geometry the layout actually assigned to it, so the
+ * sub plots keep their current position and size and nothing jumps. Members that are
+ * hidden at that moment are converted from their grid cell instead, because their last
+ * pixel geometry may predate a resize of the figure.
+ *
+ * Free members that were never part of the grid are left untouched, so a figure that
+ * mixes both kinds ends up with free members only.
+ *
+ * @return true when a grid was enabled and has been disabled, false when no grid was
+ *         enabled (repeated calls therefore do nothing and report false)
+ *
+ * @note The track ratios and the grid spacing are dropped and the grid member
+ *       registrations are cleared: this is not reversible. Enabling the grid again
+ *       requires the row/column counts and the desired ratios to be supplied again
+ *       (see enableGrid()).
+ * @note The divider interaction is switched off; call setGridEditable(true) again
+ *       after re-enabling the grid.
+ * @sa enableGrid(), QwtFigureGrid::disable()
+ */
+bool QwtFigure::disableGrid()
+{
+	if (!isGridEnabled()) {
+		return false;
+	}
+
+	QwtFigureGrid* g                = m_data->grid.data();
+	QwtFigureLayout* lay            = qobject_cast< QwtFigureLayout* >(layout());
+	const QRect figureRect          = rect();
+	const QList< QWidget* > members = g->items();
+	for (QWidget* w : qwt_as_const(members)) {
+		if (!w) {
+			continue;
+		}
+		// Prefer the geometry currently on screen: freezing the very same pixels keeps
+		// the layout stable when the grid disappears.
+		QRectF normRect;
+		if (lay && w->isVisibleTo(this)) {
+			normRect = QwtFigureLayout::calcNormRect(figureRect, w->geometry());
+		}
+		if (!normRect.isValid()) {
+			// Hidden member, unlaid figure or empty geometry: fall back to its grid cell,
+			// which is the normalized rectangle the layout would produce anyway.
+			int row = 0, col = 0, rowSpan = 0, colSpan = 0;
+			if (g->gridPosition(w, &row, &col, &rowSpan, &colSpan)) {
+				normRect = g->normRectFor(row, col, rowSpan, colSpan);
+			}
+		}
+		if (lay && normRect.isValid()) {
+			lay->setAxesNormPos(w, normRect);
+		}
+	}
+
+	// Stop the divider interaction before the tracks disappear: the splitter holds
+	// event filters and mouse grabs on the members.
+	if (m_data->gridSplitter) {
+		m_data->gridSplitter->setEnabled(false);
+	}
+	g->disable();
+
+	if (lay) {
+		lay->invalidate();
+		lay->setGeometry(figureRect);
+	}
+	update();
+	return true;
+}
+
+/**
+ * @brief Get the retained grid model
+ * @return Pointer to the grid, or nullptr if enableGrid() was never called
+ */
+QwtFigureGrid* QwtFigure::grid() const
+{
+	return m_data->grid.data();
+}
+
+/**
+ * @brief Check whether the retained grid layout is enabled
+ * @return true if a grid was set up and is enabled
+ */
+bool QwtFigure::isGridEnabled() const
+{
+	return m_data->grid && m_data->grid->isEnabled();
+}
+
+/**
+ * @brief Add a plot as a member of the retained grid layout
+ * @details The plot keeps its grid cell when the figure is resized. The free normalized
+ *          rectangle stored for it is only a snapshot used if the grid is unavailable.
+ * @param plot QwtPlot to add
+ * @param row Grid row (0-based)
+ * @param col Grid column (0-based)
+ * @param rowSpan Number of rows to span (default 1)
+ * @param colSpan Number of columns to span (default 1)
+ * @note enableGrid() must be called before adding grid members.
+ * @note This function emits axesAdded, followed by currentAxesChanged.
+ * @sa addGridAxes, addGridItem(QWidget*, int, int, int, int)
+ */
+void QwtFigure::addAxes(QwtPlot* plot, int row, int col, int rowSpan, int colSpan)
+{
+	if (!plot) {
+		qWarning() << "QwtFigure::addAxes: null plot";
+		return;
+	}
+	if (!isGridEnabled()) {
+		qWarning() << "QwtFigure::addAxes: enableGrid() must be called before adding grid members";
+		return;
+	}
+	if (hasAxes(plot)) {
+		qWarning() << "QwtFigure::addAxes: plot is already part of the figure";
+		return;
+	}
+	if (!m_data->grid->addItem(plot, row, col, rowSpan, colSpan)) {
+		return;  // QwtFigureGrid already reported the invalid position/span
+	}
+	const QRectF rect = m_data->grid->normRectFor(row, col, rowSpan, colSpan);
+	addWidget(plot, rect.x(), rect.y(), rect.width(), rect.height());
+
+	Q_EMIT axesAdded(plot);
+	setCurrentAxes(plot);
+}
+
+/**
+ * @brief Add a non-plot widget as a member of the retained grid layout
+ * @details Typical usage is a 3D plot widget or any custom widget that should share the
+ *          grid tracks with the plots. No axes signals are emitted.
+ * @param widget Widget to add
+ * @param row Grid row (0-based)
+ * @param col Grid column (0-based)
+ * @param rowSpan Number of rows to span (default 1)
+ * @param colSpan Number of columns to span (default 1)
+ * @return true if the widget was registered, false for invalid arguments
+ * @note enableGrid() must be called before adding grid members.
+ * @note This is not an addWidget() overload on purpose: a 5 argument addWidget() call
+ *       would be ambiguous with the legacy addWidget(widget, rowCnt, colCnt, row, col).
+ */
+bool QwtFigure::addGridItem(QWidget* widget, int row, int col, int rowSpan, int colSpan)
+{
+	if (!widget) {
+		qWarning() << "QwtFigure::addGridItem: null widget";
+		return false;
+	}
+	if (!isGridEnabled()) {
+		qWarning() << "QwtFigure::addGridItem: enableGrid() must be called before adding grid members";
+		return false;
+	}
+	if (!m_data->grid->addItem(widget, row, col, rowSpan, colSpan)) {
+		return false;  // QwtFigureGrid already reported the invalid position/span
+	}
+	const QRectF rect = m_data->grid->normRectFor(row, col, rowSpan, colSpan);
+	addWidget(widget, rect.x(), rect.y(), rect.width(), rect.height());
+	return true;
+}
+
+/**
+ * @brief Remove a widget from the figure without deleting it
+ * @details Plots are removed through takeAxes(), which also updates the current axes and
+ *          the parasite axes. Other widgets are unregistered from the layout and the grid,
+ *          hidden and re-parented to nullptr.
+ * @param widget Widget to remove
+ * @note The caller keeps ownership of the widget.
+ */
+void QwtFigure::removeWidget(QWidget* widget)
+{
+	if (!widget) {
+		qWarning() << "QwtFigure::removeWidget: null widget";
+		return;
+	}
+
+	if (QwtPlot* plot = qobject_cast< QwtPlot* >(widget)) {
+		if (hasAxes(plot)) {
+			takeAxes(plot);
+			plot->hide();
+			plot->setParent(nullptr);
+			return;
+		}
+	}
+
+	if (m_data->grid) {
+		m_data->grid->removeItem(widget);
+	}
+	m_data->unwatchWidget(widget);
+
+	QLayout* lay = layout();
+	if (lay) {
+		for (int i = 0; i < lay->count(); ++i) {
+			QLayoutItem* item = lay->itemAt(i);
+			if (item && item->widget() == widget) {
+				lay->removeItem(item);
+				delete item;
+				break;
+			}
+		}
+		lay->invalidate();
+	}
+	if (widget->parentWidget() == this) {
+		widget->hide();
+		widget->setParent(nullptr);
+	}
+	m_data->updateGridSplitter();
+}
+
+/**
+ * @brief Enable or disable dragging the dividers of the retained grid
+ * @details The grid splitter is created on the first enable and stays owned by the
+ *          figure afterwards. Enabling requires a retained grid, otherwise the call is
+ *          ignored with a warning and isGridEditable() keeps returning false.
+ *
+ *          While editing is enabled the mouse events in a narrow band around the grid
+ *          dividers are consumed to resize the adjacent tracks; all other events are
+ *          passed through unchanged.
+ * @param on True to make the dividers draggable
+ * @note Disable the FunResizePlot mode of QwtFigureWidgetOverlay (or make the overlay
+ *       transparent for mouse events) while the grid is editable: the overlay covers
+ *       the whole figure and would swallow the events of the plots.
+ * @note Qt invokes the event filters of a widget in reverse installation order: the
+ *       filter installed last runs first. The splitter filters must therefore be
+ *       installed last - install the filters of the host (canvas pickers, drag
+ *       handlers, ...) before calling setGridEditable(true). When the host installs
+ *       a filter on a canvas afterwards, call setGridEditable(true) again: enabling
+ *       an already enabled splitter re-scans and re-installs its filters, which puts
+ *       them back in front of the host filters.
+ * @sa isGridEditable(), enableGrid(), QwtFigureGridSplitter
+ */
+void QwtFigure::setGridEditable(bool on)
+{
+	if (on && !isGridEnabled()) {
+		qWarning() << "QwtFigure::setGridEditable: enableGrid() must be called before editing the grid";
+		return;
+	}
+
+	if (on) {
+		if (!m_data->gridSplitter) {
+			m_data->gridSplitter = new QwtFigureGridSplitter(this);
+		}
+		m_data->gridSplitter->setEnabled(true);
+		return;
+	}
+
+	if (m_data->gridSplitter) {
+		m_data->gridSplitter->setEnabled(false);
+	}
+}
+
+/**
+ * @brief Check whether the grid dividers can be dragged
+ * @return True when grid editing is enabled
+ */
+bool QwtFigure::isGridEditable() const
+{
+	return m_data->gridSplitter && m_data->gridSplitter->isEnabled();
 }
 
 /**
@@ -77808,6 +78451,10 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
 	// Check if the plot to remove is the current axes
 	bool removingCurrent = (plot == currentAxes());
 	m_data->plotWillRemove(plot);
+	m_data->unwatchWidget(plot);
+	if (m_data->grid) {
+		m_data->grid->removeItem(plot);
+	}
 	QLayout* lay = layout();
 	if (lay) {
 		for (int i = 0; i < lay->count(); ++i) {
@@ -77849,11 +78496,16 @@ bool QwtFigure::takeAxes(QwtPlot* plot)
 		// Handle parasite axes
 		const QList< QwtPlot* > parasites = plot->parasitePlots();
 		for (QwtPlot* para : parasites) {
+			m_data->unwatchWidget(para);
 			para->setParent(nullptr);
 			para->hide();
 		}
+		if (lay) {
+			lay->invalidate();
+		}
 		Q_EMIT axesRemoved(plot);
 	}
+	m_data->updateGridSplitter();
 	return isRemove;
 }
 
@@ -77882,6 +78534,10 @@ void QwtFigure::clear()
 					Q_EMIT axesRemoved(plot);
 				}
 				if (QWidget* w = item->widget()) {
+					m_data->unwatchWidget(w);
+					if (m_data->grid) {
+						m_data->grid->removeItem(w);
+					}
 					w->hide();
 					w->deleteLater();
 				}
@@ -77899,6 +78555,7 @@ void QwtFigure::clear()
 	if (removeCnt > 0) {
 		Q_EMIT figureCleared();
 	}
+	m_data->updateGridSplitter();
 }
 
 /**
@@ -78052,6 +78709,11 @@ QwtPlot* QwtFigure::createParasiteAxes(QwtPlot* hostPlot, QwtAxis::Position enab
 	}
 	// Create parasite axes
 	QwtPlot* parasitePlot = hostPlot->createParasitePlot(enableAxis);
+	if (parasitePlot) {
+		// A press on the parasite axes activates its host plot.
+		m_data->watchWidget(parasitePlot);
+		m_data->updateGridSplitter();
+	}
 
 	return parasitePlot;
 }
@@ -78546,6 +79208,42 @@ void QwtFigure::resizeEvent(QResizeEvent* event)
 {
 	applyAllAxisAlignments(false);  // Realign when window size changes
 	QFrame::resizeEvent(event);
+}
+
+/**
+ * @brief Handle mouse presses on the sub widgets of the figure
+ * @details A mouse press on a plot makes it the current axes. Real presses are
+ *          delivered to the canvas of the plot, so the filter is installed on
+ *          the canvas as well and mapped back to its parent plot here. Presses
+ *          on a parasite axes are mapped to the host plot. The event is never
+ *          consumed, so zooming, panning, picking and the plot editors keep
+ *          working unchanged.
+ * @param watched Object the event was delivered to
+ * @param event Event to process
+ * @return Always false, the event is not consumed
+ * @note 3D widgets are not handled here; the figure owner is responsible for them.
+ * @note Replacing the canvas of an added plot (QwtPlot::setCanvas()) removes the
+ *       activation for the new canvas; presses on the plot frame still work.
+ */
+bool QwtFigure::eventFilter(QObject* watched, QEvent* event)
+{
+	if (event->type() == QEvent::MouseButtonPress) {
+		QwtPlot* plot = qobject_cast< QwtPlot* >(watched);
+		if (!plot) {
+			// The press was delivered to the canvas: map it back to the plot
+			QWidget* widget = qobject_cast< QWidget* >(watched);
+			if (widget) {
+				plot = qobject_cast< QwtPlot* >(widget->parentWidget());
+			}
+		}
+		if (plot) {
+			QwtPlot* target = plot->isParasitePlot() ? plot->hostPlot() : plot;
+			if (target && currentAxes() != target) {
+				setCurrentAxes(target);
+			}
+		}
+	}
+	return QFrame::eventFilter(watched, event);
 }
 
 /*** End of inlined file: qwt_figure.cpp ***/
@@ -79388,7 +80086,9 @@ void QwtFigureWidgetOverlay::keyPressEvent(QKeyEvent* ke)
 	case Qt::Key_Down: {
 		selectNextWidget(false);
 		ke->accept();
-	case Qt::Key_Escape:
+	} break;
+
+	case Qt::Key_Escape: {
 		if (cancel()) {
 			hide();
 		}
@@ -90520,7 +91220,7 @@ void Qwt3DCoordinateSystem::init(Triple first, Triple second)
  * @brief Helper: draws a set of line segments using VBO + line shader
  * @param ctx Render context providing shader and matrices
  */
-void Qwt3DCoordinateSystem::drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth, const RGBA& lineColor)
+void Qwt3DCoordinateSystem::drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth)
 {
 	if (vertices.isEmpty())
 		return;
@@ -90626,7 +91326,7 @@ void Qwt3DCoordinateSystem::chooseAxes(const Qwt3DRenderContext& ctx)
 	int rem_y = -1;
 	int rem_z = -1;
 
-	bool left;
+	bool left = false;
 
 	int choice_x = -1;
 	int choice_y = -1;
@@ -91033,11 +91733,6 @@ void Qwt3DCoordinateSystem::drawMajorGridLines(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 
-	float r = static_cast< float >(d->m_gridlinecolor.r);
-	float g = static_cast< float >(d->m_gridlinecolor.g);
-	float b = static_cast< float >(d->m_gridlinecolor.b);
-	float a = static_cast< float >(d->m_gridlinecolor.a);
-
 	QVector<float> verts;
 
 	if (d->m_sides & FLOOR) {
@@ -91065,17 +91760,12 @@ void Qwt3DCoordinateSystem::drawMajorGridLines(const Qwt3DRenderContext& ctx)
 		drawMajorGridLines(axes[ Z4 ], axes[ Z1 ], verts);
 	}
 
-	drawGridLines(ctx, verts, axes[ X1 ].majLineWidth(), d->m_gridlinecolor);
+	drawGridLines(ctx, verts, axes[ X1 ].majLineWidth());
 }
 
 void Qwt3DCoordinateSystem::drawMinorGridLines(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
-
-	float r = static_cast< float >(d->m_gridlinecolor.r);
-	float g = static_cast< float >(d->m_gridlinecolor.g);
-	float b = static_cast< float >(d->m_gridlinecolor.b);
-	float a = static_cast< float >(d->m_gridlinecolor.a);
 
 	QVector<float> verts;
 
@@ -91104,7 +91794,7 @@ void Qwt3DCoordinateSystem::drawMinorGridLines(const Qwt3DRenderContext& ctx)
 		drawMinorGridLines(axes[ Z4 ], axes[ Z1 ], verts);
 	}
 
-	drawGridLines(ctx, verts, axes[ X1 ].minLineWidth(), d->m_gridlinecolor);
+	drawGridLines(ctx, verts, axes[ X1 ].minLineWidth());
 }
 
 void Qwt3DCoordinateSystem::drawMajorGridLines(Qwt3DAxis& a0, Qwt3DAxis& a1, QVector<float>& verts)
@@ -91155,7 +91845,7 @@ void Qwt3DCoordinateSystem::drawInteriorMajorGridLines(const Qwt3DRenderContext&
 		drawInteriorGridLines(axes[ X1 ], axes[ Z2 ], 1, true, verts);
 	}
 
-	drawGridLines(ctx, verts, d->m_interiorMajWidth, d->m_interiorGridColor);
+	drawGridLines(ctx, verts, d->m_interiorMajWidth);
 }
 
 void Qwt3DCoordinateSystem::drawInteriorMinorGridLines(const Qwt3DRenderContext& ctx)
@@ -91174,7 +91864,7 @@ void Qwt3DCoordinateSystem::drawInteriorMinorGridLines(const Qwt3DRenderContext&
 		drawInteriorGridLines(axes[ X1 ], axes[ Z2 ], 1, false, verts);
 	}
 
-	drawGridLines(ctx, verts, d->m_interiorMinWidth, d->m_interiorGridColor);
+	drawGridLines(ctx, verts, d->m_interiorMinWidth);
 }
 
 void Qwt3DCoordinateSystem::drawInteriorGridLines(
@@ -91468,6 +92158,111 @@ RGBA Qwt3DDrawable::color() const
 #ifndef QWT3D_PLOT_P_H
 #define QWT3D_PLOT_P_H
 
+
+/*** Start of inlined file: qwt3d_textbatch.h ***/
+#ifndef QWT3D_TEXTBATCH_H
+#define QWT3D_TEXTBATCH_H
+
+#include <QHash>
+#include <QImage>
+#include <QRect>
+#include <QRectF>
+#include <QSize>
+#include <QVector>
+
+class QMatrix4x4;
+class QOpenGLBuffer;
+class QOpenGLContext;
+class QOpenGLShaderProgram;
+class QOpenGLTexture;
+
+/**
+ * @brief Collects the screen aligned label quads of one frame into a single draw call
+ * @details Every 3D label is a screen aligned textured quad. Drawing them one by
+ *          one costs a vertex buffer upload, a texture bind and a draw call per
+ *          label, which dominates the frame time of text heavy plots.
+ *
+ *          The batch packs all label images into one atlas texture and collects
+ *          the quads while the drawables are traversed, so Qwt3DPlot can flush
+ *          them with a single draw call per draw phase.
+ *
+ *          Labels own their image and rasterize it themselves; the batch only
+ *          takes a copy of the pixels into the atlas. Images are cached by key
+ *          (the label) together with a stamp: the expensive repack/composite
+ *          only happens when the label reports a new stamp, i.e. when its text
+ *          was rasterized again.
+ *
+ * @code
+ * // in Qwt3DPlot::paintGL()
+ * ctx.textBatch = &d->m_textBatch;
+ * d->m_coordinates.draw(ctx);
+ * d->m_textBatch.flush(d->m_textShader.get(), ctx.modelView, ctx.projection);
+ * @endcode
+ */
+class QWT3D_EXPORT Qwt3DTextBatch
+{
+public:
+	Qwt3DTextBatch();
+	~Qwt3DTextBatch();
+
+	Qwt3DTextBatch(const Qwt3DTextBatch&)            = delete;
+	Qwt3DTextBatch& operator=(const Qwt3DTextBatch&) = delete;
+
+	// Drops all GL resources; call when the GL context was (re)created
+	void invalidate();
+
+	// Copies the label image into the atlas and returns its normalized texture rect
+	bool addLabel(const void* key, const QImage& image, quint64 stamp, QRectF& uv);
+
+	// Appends one screen aligned quad (triangle list) to the batch
+	void addQuad(const Triple& bl, const Triple& tl, const Triple& br, const Triple& tr, const QRectF& uv, const RGBA& color);
+
+	// True while no quad has been submitted since the last flush
+	bool isEmpty() const;
+
+	// Draws all submitted quads in one call and clears the batch
+	void flush(QOpenGLShaderProgram* shader, const QMatrix4x4& modelView, const QMatrix4x4& projection);
+
+private:
+	struct Entry
+	{
+		QRect cell;  //!< allocated area in the atlas (pixels)
+		QSize size;  //!< area the label image actually uses
+		quint64 stamp = 0;
+	};
+
+	struct Shelf
+	{
+		int y      = 0;
+		int height = 0;
+		int used   = 0;
+	};
+
+	bool pack(const QSize& size, QRect& rect);
+	void grow();
+	void composite(const QRect& rect, const QImage& image);
+	bool ensureTexture();
+	void releaseGL();
+
+	QImage m_image;
+	QSize m_size = QSize(1024, 256);
+	QHash< const void*, Entry > m_entries;
+	QVector< Shelf > m_shelves;
+	int m_usedHeight = 0;
+
+	QVector< float > m_vertices;
+	bool m_imageDirty  = false;
+	bool m_growPending = false;
+
+	QOpenGLTexture* m_texture = nullptr;
+	QOpenGLBuffer* m_vbo      = nullptr;
+	QOpenGLContext* m_context = nullptr;
+};
+
+#endif  // QWT3D_TEXTBATCH_H
+
+/*** End of inlined file: qwt3d_textbatch.h ***/
+
 #include <QPoint>
 #include <QMatrix4x4>
 #include <QList>
@@ -91593,6 +92388,9 @@ public:
 	std::unique_ptr< QOpenGLShaderProgram > m_pointShader;
 	std::unique_ptr< QOpenGLShaderProgram > m_polygonShader;
 	std::unique_ptr< QOpenGLShaderProgram > m_textShader;
+
+	// Atlas batch for the label quads (one draw call per draw phase)
+	Qwt3DTextBatch m_textBatch;
 
 	// Attached items list (sorted by z-order)
 	QList< Qwt3DPlotItem* > m_items;
@@ -93406,7 +94204,7 @@ void Qwt3DPlot::initializeGL()
 
 	// Compile shared generic shaders
 	auto compileShader = [](const QString& vertPath, const QString& fragPath) -> std::unique_ptr< QOpenGLShaderProgram > {
-		auto program = std::make_unique< QOpenGLShaderProgram >();
+		auto program = qwt_make_unique< QOpenGLShaderProgram >();
 		if (!program->addShaderFromSourceFile(QOpenGLShader::Vertex, vertPath)) {
 			qWarning("Failed to compile vertex shader %s: %s", vertPath.toLatin1().constData(),
 					 program->log().toLatin1().constData());
@@ -93428,6 +94226,9 @@ void Qwt3DPlot::initializeGL()
 	d->m_pointShader = compileShader(":/shaders/point.vert", ":/shaders/point.frag");
 	d->m_polygonShader = compileShader(":/shaders/polygon.vert", ":/shaders/polygon.frag");
 	d->m_textShader = compileShader(":/shaders/text.vert", ":/shaders/text.frag");
+
+	// a (re)created context invalidates the GL objects of the text batch
+	d->m_textBatch.invalidate();
 
 	d->m_initializedGL = true;
 	if (d->m_renderPixmapRequest) {
@@ -93531,6 +94332,7 @@ void Qwt3DPlot::paintGL()
 	ctx.lineShader = d->m_lineShader.get();
 	ctx.polygonShader = d->m_polygonShader.get();
 	ctx.textShader = d->m_textShader.get();
+	ctx.textBatch = &d->m_textBatch;
 	ctx.vectorExport = d->m_vectorExport;
 
 	// Render all attached items (sorted by z-order)
@@ -93541,6 +94343,12 @@ void Qwt3DPlot::paintGL()
 
 	// Draw coordinate system
 	d->m_coordinates.draw(ctx);
+
+	// All labels of this phase were collected by the batch, draw them at once.
+	// During the gl2ps capture the scene is replayed in GL_FEEDBACK mode, where a
+	// shader based draw is not defined - the vector writer emits the labels itself.
+	if (!d->m_vectorExport)
+		d->m_textBatch.flush(d->m_textShader.get(), ctx.modelView, ctx.projection);
 
 	// Draw legend and title with a FIXED modelview (no user rotation)
 	// so they stay anchored to the screen regardless of 3D scene rotation.
@@ -93562,6 +94370,9 @@ void Qwt3DPlot::paintGL()
 
 	d->m_title.setRelPosition(d->m_titleRel, d->m_titleAnchor, ctxFixed);
 	d->m_title.draw(ctxFixed);
+
+	if (!d->m_vectorExport)
+		d->m_textBatch.flush(d->m_textShader.get(), ctxFixed.modelView, ctxFixed.projection);
 
 	// Restore user modelview for subsequent operations (mouse picking, etc.)
 	d->m_modelView = savedModelView;
@@ -93715,6 +94526,10 @@ void Qwt3DPlot::setTitleFont(const QString& family, int pointSize, int weight, b
  */
 QPixmap Qwt3DPlot::renderPixmap(int w, int h, bool useContext)
 {
+	// the pixmap always has the size of the current framebuffer
+	Q_UNUSED(w);
+	Q_UNUSED(h);
+
 	QWT_D(d);
 	if (useContext && d->m_initializedGL) {
 		return QPixmap::fromImage(grabFramebuffer());
@@ -93935,16 +94750,56 @@ void Qwt3DPlot::itemChanged(Qwt3DPlotItem*)
 
 
 /*** Start of inlined file: qwt3d_label.cpp ***/
-#include <qbitmap.h>
-
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
 #include <QOpenGLTexture>
 #include <QOpenGLShaderProgram>
+#include <QGuiApplication>
+#include <QScreen>
+
+#include <algorithm>
+#include <cmath>
 
 namespace
 {
 bool deviceFonts = false;
+
+//! DPI the rasterized label text currently depends on
+/*!
+  The text is rasterized into an offscreen QPixmap, whose paint device
+  resolves a point sized font against the primary screen - the widget the
+  label is finally drawn on does not take part in it. A screen change can
+  therefore change the pixel size of the glyphs without touching the font,
+  the string or the color of the label.
+ */
+qreal labelFontDpi()
+{
+	const QScreen* screen = QGuiApplication::primaryScreen();
+	return screen != nullptr ? screen->logicalDotsPerInch() : 96.0;
+}
+
+bool sameColor(const RGBA& lhs, const RGBA& rhs)
+{
+	return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b && lhs.a == rhs.a;
+}
+
+//! Releases a label texture
+/*!
+  The GL name can only be deleted while the context that created it is
+  current. When that context is already gone the name died with it, so
+  dropping the handle is enough - and avoids Qt's warnings about textures
+  that are not valid in the current context.
+ */
+void destroyTexture(QOpenGLTexture*& texture, QOpenGLContext* ownerContext)
+{
+	if (texture == nullptr)
+		return;
+
+	if (ownerContext != nullptr && QOpenGLContext::currentContext() == ownerContext)
+		delete texture;
+
+	texture = nullptr;
+}
 }
 
 class Qwt3DLabel::PrivateData
@@ -93957,7 +94812,6 @@ public:
 		, m_beg(0.0, 0.0, 0.0)
 		, m_end(0.0, 0.0, 0.0)
 		, m_pos(0.0, 0.0, 0.0)
-		, m_pm(0, 0)
 		, m_font()
 		, m_anchor(BottomLeft)
 		, m_gap(0)
@@ -93968,7 +94822,6 @@ public:
 	Triple m_beg;
 	Triple m_end;
 	Triple m_pos;
-	QPixmap m_pm;
 	QImage m_buf;
 	QImage m_tex;
 	QFont m_font;
@@ -93976,7 +94829,12 @@ public:
 	ANCHOR m_anchor;
 	int m_gap;
 	bool m_flagForUpdate;
-	float m_ndcZ = 0.0f;
+	float m_ndcZ                     = 0.0f;
+	qreal m_fontDpi                  = 0.0;
+	quint64 m_stamp                  = 0;
+	QOpenGLTexture* m_texture        = nullptr;
+	QOpenGLContext* m_textureContext = nullptr;
+	bool m_textureDirty              = true;
 };
 
 Qwt3DLabel::Qwt3DLabel() : QWT_PIMPL_CONSTRUCT
@@ -93989,7 +94847,15 @@ Qwt3DLabel::Qwt3DLabel(const QString& family, int pointSize, int weight, bool it
 	init(family, pointSize, weight, italic);
 }
 
-Qwt3DLabel::~Qwt3DLabel() = default;
+Qwt3DLabel::~Qwt3DLabel()
+{
+	// A moved-from label has no PrivateData left (see Qwt3DDrawable::attach)
+	if (!m_data)
+		return;
+
+	QWT_D(d);
+	destroyTexture(d->m_texture, d->m_textureContext);
+}
 
 Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CONSTRUCT
 {
@@ -93998,7 +94864,6 @@ Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CON
 	d->m_beg              = od->m_beg;
 	d->m_end              = od->m_end;
 	d->m_pos              = od->m_pos;
-	d->m_pm               = od->m_pm;
 	d->m_buf              = od->m_buf;
 	d->m_tex              = od->m_tex;
 	d->m_font             = od->m_font;
@@ -94006,7 +94871,13 @@ Qwt3DLabel::Qwt3DLabel(const Qwt3DLabel& other) : Qwt3DDrawable(), QWT_PIMPL_CON
 	d->m_anchor           = od->m_anchor;
 	d->m_gap              = od->m_gap;
 	d->m_flagForUpdate    = od->m_flagForUpdate;
+	d->m_fontDpi          = od->m_fontDpi;
 	m_color               = other.m_color;
+
+	// the GL texture belongs to the source label, this one builds its own
+	d->m_texture        = nullptr;
+	d->m_textureContext = nullptr;
+	d->m_textureDirty   = true;
 }
 
 Qwt3DLabel::Qwt3DLabel(Qwt3DLabel&& other) noexcept : Qwt3DDrawable(std::move(other)), m_data(std::move(other.m_data))
@@ -94021,7 +94892,6 @@ Qwt3DLabel& Qwt3DLabel::operator=(const Qwt3DLabel& other)
 		d->m_beg              = od->m_beg;
 		d->m_end              = od->m_end;
 		d->m_pos              = od->m_pos;
-		d->m_pm               = od->m_pm;
 		d->m_buf              = od->m_buf;
 		d->m_tex              = od->m_tex;
 		d->m_font             = od->m_font;
@@ -94029,7 +94899,13 @@ Qwt3DLabel& Qwt3DLabel::operator=(const Qwt3DLabel& other)
 		d->m_anchor           = od->m_anchor;
 		d->m_gap              = od->m_gap;
 		d->m_flagForUpdate    = od->m_flagForUpdate;
+		d->m_fontDpi          = od->m_fontDpi;
 		m_color               = other.m_color;
+
+		// the GL texture belongs to the source label, this one builds its own
+		destroyTexture(d->m_texture, d->m_textureContext);
+		d->m_textureContext = nullptr;
+		d->m_textureDirty   = true;
 	}
 	return *this;
 }
@@ -94057,7 +94933,6 @@ void Qwt3DLabel::init()
 	d->m_end = d->m_beg;
 	d->m_pos = d->m_beg;
 	setColor(0, 0, 0);
-	d->m_pm            = QPixmap(0, 0);
 	d->m_font          = QFont();
 	d->m_anchor        = BottomLeft;
 	d->m_gap           = 0;
@@ -94069,16 +94944,36 @@ void Qwt3DLabel::useDeviceFonts(bool val)
 	deviceFonts = val;
 }
 
+/**
+ * @brief Sets the label font
+ * @details Assigning the font that is already active is a no-op: the axis
+ *          redraw path reapplies font, color and text of every tic label on
+ *          each frame, and re-rasterizing the text for unchanged properties
+ *          is pure overhead (Qwt3DAxis::drawTicLabel()).
+ */
 void Qwt3DLabel::setFont(const QString& family, int pointSize, int weight, bool italic)
 {
 	QWT_D(d);
-	d->m_font          = QFont(family, pointSize, weight, italic);
+
+	const QFont font(family, pointSize, weight, italic);
+	if (d->m_font == font)
+		return;
+
+	d->m_font          = font;
 	d->m_flagForUpdate = true;
 }
 
+/**
+ * @brief Sets the label text
+ * @details Setting the string that is already active is a no-op, see setFont().
+ */
 void Qwt3DLabel::setString(QString const& s)
 {
 	QWT_D(d);
+
+	if (d->m_text == s)
+		return;
+
 	d->m_text          = s;
 	d->m_flagForUpdate = true;
 }
@@ -94093,15 +94988,29 @@ QString Qwt3DLabel::string() const
 	return d->m_text;
 }
 
+/**
+ * @brief Sets the label color
+ * @details Setting the color that is already active is a no-op, see setFont().
+ */
 void Qwt3DLabel::setColor(double r, double g, double b, double a)
 {
+	if (sameColor(m_color, RGBA(r, g, b, a)))
+		return;
+
 	Qwt3DDrawable::setColor(r, g, b, a);
 	QWT_D(d);
 	d->m_flagForUpdate = true;
 }
 
+/**
+ * @brief Sets the label color
+ * @details Setting the color that is already active is a no-op, see setFont().
+ */
 void Qwt3DLabel::setColor(RGBA rgba)
 {
+	if (sameColor(m_color, rgba))
+		return;
+
 	Qwt3DDrawable::setColor(rgba);
 	QWT_D(d);
 	d->m_flagForUpdate = true;
@@ -94118,50 +95027,62 @@ void Qwt3DLabel::setRelPosition(Tuple rpos, ANCHOR a, const Qwt3DRenderContext& 
 {
 	QWT_D(d);
 	d->m_anchor = a;
-	d->m_beg = ctx.relativePosition(Triple(rpos.x, rpos.y, 0.99));
+	d->m_beg    = ctx.relativePosition(Triple(rpos.x, rpos.y, 0.99));
 	setPosition(d->m_beg, a);
 }
 
+/**
+ * @brief Renders the label text into the internal texture image
+ * @details The text is painted with antialiasing into a transparent image.
+ *          The alpha channel of that image is what the text shader samples,
+ *          so no 1 bit mask is involved: a mask rasterizes the glyphs in
+ *          monochrome, which does not match the antialiased text and made the
+ *          labels look doubled and aliased.
+ */
 void Qwt3DLabel::update()
 {
 	QWT_D(d);
-	QPainter p;
-	QFontMetrics fm(d->m_font);
 
-	QFontInfo info(d->m_font);
+	d->m_fontDpi      = labelFontDpi();
+	d->m_textureDirty = true;
+	++d->m_stamp;
 
-	QRect r = QRect(QPoint(0, 0), fm.size(SingleLine, d->m_text));
-
-	r.translate(0, -r.top());
-
-	d->m_pm = QPixmap(r.width(), r.bottom());
-
-	if (d->m_pm.isNull())
-	{
-		r = QRect(QPoint(0, 0), fm.size(SingleLine, QString(" ")));
-		r.translate(0, -r.top());
-		d->m_pm = QPixmap(r.width(), r.bottom());
+	if (d->m_text.isEmpty()) {
+		d->m_buf = QImage();
+		d->m_tex = QImage();
+		return;
 	}
 
-	QBitmap bm(d->m_pm.width(), d->m_pm.height());
-	bm.fill(Qt::color0);
-	p.begin(&bm);
-	p.setPen(Qt::color1);
-	p.setFont(d->m_font);
-	p.drawText(0, r.height() - fm.descent() - 1, d->m_text);
-	p.end();
+	QFontMetrics fm(d->m_font);
 
-	d->m_pm.setMask(bm);
+	QRect r = QRect(QPoint(0, 0), fm.size(SingleLine, d->m_text));
+	r.translate(0, -r.top());
 
-	p.begin(&d->m_pm);
+	const int w = std::max(1, r.width());
+	const int h = std::max(1, r.height());
+
+	QImage canvas(w, h, QImage::Format_ARGB32_Premultiplied);
+	canvas.fill(Qt::transparent);
+
+	// QPixmap keeps the font metrics / DPI behavior of the label, the
+	// transparent base image gives it the alpha channel.
+	QPixmap pm = QPixmap::fromImage(canvas);
+
+	QPainter p(&pm);
+	p.setRenderHint(QPainter::TextAntialiasing, true);
 	p.setFont(d->m_font);
-	p.setPen(Qt::SolidLine);
 	p.setPen(GL2Qt(m_color.r, m_color.g, m_color.b));
-
 	p.drawText(0, r.height() - fm.descent() - 1, d->m_text);
 	p.end();
-	d->m_buf = d->m_pm.toImage();
+
+	d->m_buf = pm.toImage();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+	// QImage::mirrored() is deprecated since Qt 6.9 in favor of flipped();
+	// the vertical flip matches the OpenGL texture origin.
+	d->m_tex = d->m_buf.flipped(Qt::Vertical);
+#else
 	d->m_tex = d->m_buf.mirrored();
+#endif
 }
 
 void Qwt3DLabel::adjust(int gap)
@@ -94174,71 +95095,76 @@ void Qwt3DLabel::convert2screen(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
 
-	QMatrix4x4 mvp = ctx.projection * ctx.modelView;
+	const QMatrix4x4 mvp = ctx.projection * ctx.modelView;
 
 	// Compute NDC z of the label position
-	QVector4D posVec(static_cast< float >(d->m_pos.x),
-					 static_cast< float >(d->m_pos.y),
-					 static_cast< float >(d->m_pos.z),
-					 1.0f);
+	QVector4D posVec(
+		static_cast< float >(d->m_pos.x), static_cast< float >(d->m_pos.y), static_cast< float >(d->m_pos.z), 1.0f);
 	QVector4D clip = mvp.map(posVec);
-	d->m_ndcZ = 0.0f;
+	d->m_ndcZ      = 0.0f;
 	if (clip.w() != 0.0f)
 		d->m_ndcZ = clip.z() / clip.w();
 
 	if (ctx.viewport.width() <= 0 || ctx.viewport.height() <= 0)
 		return;
 
+	const QMatrix4x4 invMvp = mvp.inverted();
+
 	// Helper to convert screen + NDC z back to world
-	auto screenToWorldZ = [&](const QPointF& s) -> Triple {
+	auto screenToWorldZ = [ & ](const QPointF& s) -> Triple {
 		float ndcX = 2.0f * static_cast< float >(s.x()) / ctx.viewport.width() - 1.0f;
 		float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / ctx.viewport.height();
 		QVector4D ndc(ndcX, ndcY, d->m_ndcZ, 1.0f);
-		QVector4D world = mvp.inverted().map(ndc);
+		QVector4D world = invMvp.map(ndc);
 		if (world.w() != 0.0f)
 			return Triple(world.x() / world.w(), world.y() / world.w(), world.z() / world.w());
 		return Triple(0, 0, 0);
 	};
 
-	QPointF screen = ctx.worldToScreen(d->m_pos);
+	const double w = width();
+	const double h = height();
 
-	double w = width();
-	double h = height();
+	QPointF beg = ctx.worldToScreen(d->m_pos);
 
 	switch (d->m_anchor) {
 	case BottomLeft:
-		d->m_beg = d->m_pos;
 		break;
 	case BottomRight:
-		d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, 0));
+		beg -= QPointF(w + d->m_gap, 0);
 		break;
 	case BottomCenter:
-		d->m_beg = screenToWorldZ(screen - QPointF(w / 2, -d->m_gap));
+		beg -= QPointF(w / 2, -d->m_gap);
 		break;
 	case TopRight:
-		d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, h));
+		beg -= QPointF(w + d->m_gap, h);
 		break;
 	case TopLeft:
-		d->m_beg = screenToWorldZ(screen - QPointF(-d->m_gap, h));
+		beg -= QPointF(-d->m_gap, h);
 		break;
 	case TopCenter:
-		d->m_beg = screenToWorldZ(screen - QPointF(w / 2, h + d->m_gap));
+		beg -= QPointF(w / 2, h + d->m_gap);
 		break;
 	case CenterLeft:
-		d->m_beg = screenToWorldZ(screen - QPointF(-d->m_gap, h / 2));
+		beg -= QPointF(-d->m_gap, h / 2);
 		break;
 	case CenterRight:
-		d->m_beg = screenToWorldZ(screen - QPointF(w + d->m_gap, h / 2));
+		beg -= QPointF(w + d->m_gap, h / 2);
 		break;
 	case Center:
-		d->m_beg = screenToWorldZ(screen - QPointF(w / 2, h / 2));
+		beg -= QPointF(w / 2, h / 2);
 		break;
 	default:
 		break;
 	}
 
-	QPointF begScreen = ctx.worldToScreen(d->m_beg);
-	d->m_end = screenToWorldZ(begScreen + QPointF(w, h));
+	// The label is a screen aligned textured quad drawn 1:1 in device pixels.
+	// Take the label rectangle as integral pixel rectangle, otherwise the
+	// bilinear texture filter spreads every glyph edge over two pixels, which
+	// reads as blurred, doubled text.
+	beg = QPointF(std::round(beg.x()), std::round(beg.y()));
+
+	d->m_beg = screenToWorldZ(beg);
+	d->m_end = screenToWorldZ(beg + QPointF(w, h));
 }
 
 /**
@@ -94252,7 +95178,7 @@ void Qwt3DLabel::convert2screen(const Qwt3DRenderContext& ctx)
 void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 {
 	QWT_D(d);
-	if (d->m_flagForUpdate) {
+	if (d->m_flagForUpdate || d->m_fontDpi != labelFontDpi()) {
 		update();
 		d->m_flagForUpdate = false;
 	}
@@ -94264,65 +95190,89 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 
 	// gl2ps vector export path: use device text for vector output
 	if (deviceFonts) {
-		drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(),
-					   d->m_pos, m_color, d->m_anchor, d->m_gap);
+		drawDeviceText(QWT3DLOCAL8BIT(d->m_text), "Courier", d->m_font.pointSize(), d->m_pos, m_color, d->m_anchor, d->m_gap);
 		return;
+	}
+
+	// Compute all four quad corners via screen-to-world conversion.
+	// m_beg and m_end are two diagonal corners (BL, TR) in world space,
+	// but the other two corners cannot be synthesized by mixing x/y/z
+	// components - they must be computed independently from screen space.
+	// The rectangle is rebuilt from the pixel snapped origin of m_beg, so the
+	// quad always covers exactly width() x height() device pixels.
+	const QMatrix4x4 mvp    = ctx.projection * ctx.modelView;
+	const QMatrix4x4 invMvp = mvp.inverted();
+	const QSize vp          = ctx.viewport;
+
+	auto screenToWorldZ = [ & ](const QPointF& s) -> Triple {
+		if (vp.width() <= 0 || vp.height() <= 0)
+			return Triple(0, 0, 0);
+		float ndcX = 2.0f * static_cast< float >(s.x()) / vp.width() - 1.0f;
+		float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / vp.height();
+		QVector4D ndc(ndcX, ndcY, d->m_ndcZ, 1.0f);
+		QVector4D world = invMvp.map(ndc);
+		if (world.w() != 0.0f)
+			return Triple(world.x() / world.w(), world.y() / world.w(), world.z() / world.w());
+		return Triple(0, 0, 0);
+	};
+
+	const QPointF begWorld = ctx.worldToScreen(d->m_beg);
+	const QPointF begScreen(std::round(begWorld.x()), std::round(begWorld.y()));
+	const QPointF endScreen = begScreen + QPointF(width(), height());
+
+	const Triple bl = screenToWorldZ(begScreen);
+	const Triple tr = screenToWorldZ(endScreen);
+	const Triple tl = screenToWorldZ(QPointF(begScreen.x(), endScreen.y()));
+	const Triple br = screenToWorldZ(QPointF(endScreen.x(), begScreen.y()));
+
+	// Batched path: the quad is collected by the plot and drawn together with
+	// all other labels in one call. Falls back to the per label path when the
+	// atlas has no room left - it grows for the next frame then.
+	if (ctx.textBatch != nullptr) {
+		QRectF uv;
+		if (ctx.textBatch->addLabel(this, d->m_tex, d->m_stamp, uv)) {
+			ctx.textBatch->addQuad(bl, tl, br, tr, uv, m_color);
+			return;
+		}
 	}
 
 	auto* shader = ctx.textShader;
 	if (!shader)
 		return;
 
-	auto* f = QOpenGLContext::currentContext()->functions();
+	auto* context = QOpenGLContext::currentContext();
+	if (context == nullptr)
+		return;
 
-	// Create texture from the text image (alpha channel is used by shader)
-	QOpenGLTexture texture(d->m_tex);
-	texture.setMinificationFilter(QOpenGLTexture::Linear);
-	texture.setMagnificationFilter(QOpenGLTexture::Linear);
-	texture.setWrapMode(QOpenGLTexture::ClampToEdge);
+	auto* f = context->functions();
 
-	// Compute all four quad corners via screen-to-world conversion.
-	// m_beg and m_end are two diagonal corners (BL, TR) in world space,
-	// but the other two corners cannot be synthesized by mixing x/y/z
-	// components — they must be computed independently from screen space.
-	QMatrix4x4 mvp = ctx.projection * ctx.modelView;
-	QSize vp = ctx.viewport;
+	// The texture is only rebuilt when the text image or the GL context
+	// changed: creating and uploading a texture for every label on every
+	// frame was the dominant cost of the 3D text rendering.
+	if (d->m_texture == nullptr || d->m_textureContext != context || d->m_textureDirty) {
+		destroyTexture(d->m_texture, d->m_textureContext);
 
-	QPointF begScreen = ctx.worldToScreen(d->m_beg);
-	QPointF endScreen = ctx.worldToScreen(d->m_end);
+		d->m_texture = new QOpenGLTexture(d->m_tex);
+		d->m_texture->setMinificationFilter(QOpenGLTexture::Linear);
+		d->m_texture->setMagnificationFilter(QOpenGLTexture::Linear);
+		d->m_texture->setWrapMode(QOpenGLTexture::ClampToEdge);
 
-	auto screenToWorldZ = [&](const QPointF& s) -> Triple {
-		if (vp.width() <= 0 || vp.height() <= 0)
-			return Triple(0, 0, 0);
-		float ndcX = 2.0f * static_cast< float >(s.x()) / vp.width() - 1.0f;
-		float ndcY = 1.0f - 2.0f * static_cast< float >(s.y()) / vp.height();
-		QVector4D ndc(ndcX, ndcY, d->m_ndcZ, 1.0f);
-		QVector4D world = mvp.inverted().map(ndc);
-		if (world.w() != 0.0f)
-			return Triple(world.x() / world.w(), world.y() / world.w(), world.z() / world.w());
-		return Triple(0, 0, 0);
-	};
-
-	Triple bl = d->m_beg;
-	Triple tr = d->m_end;
-	Triple tl = screenToWorldZ(QPointF(begScreen.x(), endScreen.y()));
-	Triple br = screenToWorldZ(QPointF(endScreen.x(), begScreen.y()));
+		d->m_textureContext = context;
+		d->m_textureDirty   = false;
+	}
+	QOpenGLTexture* texture = d->m_texture;
 
 	// Build quad vertices: position(3) + texcoord(2) = 5 floats per vertex
 	// Triangle strip order: BL, TL, BR, TR
-	QVector<float> verts;
+	QVector< float > verts;
 	// Bottom-left
-	verts << static_cast< float >(bl.x) << static_cast< float >(bl.y) << static_cast< float >(bl.z)
-		  << 0.0f << 1.0f;
+	verts << static_cast< float >(bl.x) << static_cast< float >(bl.y) << static_cast< float >(bl.z) << 0.0f << 1.0f;
 	// Top-left
-	verts << static_cast< float >(tl.x) << static_cast< float >(tl.y) << static_cast< float >(tl.z)
-		  << 0.0f << 0.0f;
+	verts << static_cast< float >(tl.x) << static_cast< float >(tl.y) << static_cast< float >(tl.z) << 0.0f << 0.0f;
 	// Bottom-right
-	verts << static_cast< float >(br.x) << static_cast< float >(br.y) << static_cast< float >(br.z)
-		  << 1.0f << 1.0f;
+	verts << static_cast< float >(br.x) << static_cast< float >(br.y) << static_cast< float >(br.z) << 1.0f << 1.0f;
 	// Top-right
-	verts << static_cast< float >(tr.x) << static_cast< float >(tr.y) << static_cast< float >(tr.z)
-		  << 1.0f << 0.0f;
+	verts << static_cast< float >(tr.x) << static_cast< float >(tr.y) << static_cast< float >(tr.z) << 1.0f << 0.0f;
 
 	QOpenGLBuffer vbo(QOpenGLBuffer::VertexBuffer);
 	vbo.create();
@@ -94333,13 +95283,17 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 	shader->setUniformValue("uModelView", ctx.modelView);
 	shader->setUniformValue("uProjection", ctx.projection);
 	shader->setUniformValue("uTextTexture", 0);
-	shader->setUniformValue("uTextColor",
-							QVector4D(static_cast< float >(m_color.r),
-									  static_cast< float >(m_color.g),
-									  static_cast< float >(m_color.b),
-									  static_cast< float >(m_color.a)));
 
-	texture.bind(0);
+	// the color is a vertex attribute; a single label has the same color for
+	// all of its vertices, so a generic attribute value is enough
+	shader->disableAttributeArray(2);
+	shader->setAttributeValue(2,
+							  QVector4D(static_cast< float >(m_color.r),
+										static_cast< float >(m_color.g),
+										static_cast< float >(m_color.b),
+										static_cast< float >(m_color.a)));
+
+	texture->bind(0);
 
 	int stride = 5 * sizeof(float);
 	shader->enableAttributeArray(0);
@@ -94356,7 +95310,7 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 	shader->disableAttributeArray(0);
 	shader->disableAttributeArray(1);
 	shader->release();
-	texture.release();
+	texture->release();
 	vbo.release();
 	vbo.destroy();
 }
@@ -94364,13 +95318,13 @@ void Qwt3DLabel::draw(const Qwt3DRenderContext& ctx)
 double Qwt3DLabel::width() const
 {
 	QWT_DC(d);
-	return d->m_pm.width();
+	return d->m_buf.width();
 }
 
 double Qwt3DLabel::height() const
 {
 	QWT_DC(d);
-	return d->m_pm.height();
+	return d->m_buf.height();
 }
 
 double Qwt3DLabel::gap() const
@@ -94532,7 +95486,10 @@ Qwt3DGridData::Qwt3DGridData(unsigned int columns, unsigned int rows) : QWT_PIMP
 
 Qwt3DGridData::~Qwt3DGridData()
 {
-	clear();
+	// Direct (non virtual) call: the virtual dispatch is bypassed during
+	// destruction anyway, and calling clear() here is flagged by the clang
+	// analyzer (VirtualCall).
+	releaseData();
 }
 
 int Qwt3DGridData::columns() const
@@ -94572,6 +95529,11 @@ bool Qwt3DGridData::vperiodic() const
 void Qwt3DGridData::clear()
 {
 	setHull(ParallelEpiped());
+	releaseData();
+}
+
+void Qwt3DGridData::releaseData()
+{
 	{
 		for (unsigned i = 0; i != vertices.size(); ++i) {
 			for (unsigned j = 0; j != vertices[ i ].size(); ++j) {
@@ -94597,7 +95559,12 @@ void Qwt3DGridData::clear()
 
 void Qwt3DGridData::setSize(unsigned int columns, unsigned int rows)
 {
-	this->clear();
+	// Same as clear() but without the virtual dispatch: setSize() is also
+	// called from the constructor, where a virtual call would bypass the
+	// dispatch (flagged by the clang analyzer as VirtualCall).
+	setHull(ParallelEpiped());
+	releaseData();
+
 	// matrix[row][column]: the outer dimension is the y direction (rows)
 	vertices = std::vector< DataRow >(rows);
 	{
@@ -95020,22 +95987,6 @@ double floorExt(int& exponent, double x, std::vector< double >& sortedmantissi)
 		}
 	}
 	return sign * fr;
-}
-
-/*
-  @brief Find the largest value out of {1,2,5}*10^n with an integer number n
-  which is smaller than or equal to x
-  @param exponent n
-  @param x Input value
-  @return Mantissa
-*/
-double floor125(int& exponent, double x)
-{
-	std::vector< double > m(2);
-	m[ 0 ] = 1;
-	m[ 1 ] = 2;
-	m[ 2 ] = 5;
-	return floorExt(exponent, x, m);
 }
 
 }  // anon ns
@@ -98466,7 +99417,8 @@ void Qwt3DSurface::draw()
 		lightTransform.rotate(static_cast< float >(plot()->xLightRotation()), 1.0f, 0.0f, 0.0f);
 		lightTransform.rotate(static_cast< float >(plot()->yLightRotation()), 0.0f, 1.0f, 0.0f);
 		lightTransform.rotate(static_cast< float >(plot()->zLightRotation()), 0.0f, 0.0f, 1.0f);
-		const QVector3D lightPos = lightTransform * QVector3D(0.0f, 0.0f, 10.0f);
+		// map() replaces operator*(), which is deprecated since Qt 6.1
+		const QVector3D lightPos = lightTransform.map(QVector3D(0.0f, 0.0f, 10.0f));
 		d->m_shader.setUniformValue("uLightPos", lightPos);
 
 		const RGBA lightAmbient = plot()->lightComponent(GL_AMBIENT);
@@ -98962,8 +99914,6 @@ void Qwt3DBar::setSamples(const QVector<QwtPoint3D>& samples)
 
 void Qwt3DBar::setSamples(const QVector<double>& x, const QVector<double>& heights)
 {
-	QWT_D(d);
-
 	const int n = std::min(x.size(), heights.size());
 	QVector<QwtPoint3D> samples;
 	samples.reserve(n);
@@ -99545,10 +100495,10 @@ inline Qwt3DLine::PrivateData::PrivateData(Qwt3DLine* q)
 	, m_pointsDirty(true)
 	, m_tubeShaderInitialized(false)
 	, m_markersDirty(true)
+	, m_markerIndexCount(0)
 	, m_vertexCount(0)
 	, m_indexCount(0)
 	, m_pointCount(0)
-	, m_markerIndexCount(0)
 	, m_hull(Triple(0, 0, 0), Triple(0, 0, 0))
 {
 	m_indexBuffer = QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);

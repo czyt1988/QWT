@@ -3400,7 +3400,7 @@ public:
 	 * Initializes an empty QwtGridData object.
 	 */
 	QwtGridData()
-		: m_mode(NearestNeighbour), m_xMin(0.0), m_xMax(0.0), m_yMin(0.0), m_yMax(0.0), m_dataMax(0.0), m_dataMin(0.0)
+		: m_mode(NearestNeighbour), m_xMin(0.0), m_xMax(0.0), m_yMin(0.0), m_yMax(0.0), m_dataMin(0.0), m_dataMax(0.0)
 	{
 	}
 
@@ -23790,10 +23790,13 @@ protected:
 #include <QFrame>
 class QResizeEvent;
 class QPaintEvent;
+class QEvent;
 
 // qwt
 
 class QwtPlot;
+class QwtFigureGrid;
+class QwtFigureGridSplitter;
 
 /**
  * @class QwtFigure
@@ -23814,12 +23817,18 @@ class QwtPlot;
  * QwtPlot* plot1 = new QwtPlot;
  * figure.addAxes(plot1, QRectF(0.1, 0.1, 0.8, 0.4));
  *
- * // Add plots using grid layout - Create a 2x2 grid
+ * // Add plots to a retained grid layout: the track sizes are kept and the plots
+ * // follow them when the figure is resized.
+ * figure.enableGrid(2, 2);
+ *
  * QwtPlot* plot2 = new QwtPlot;
- * figure.addAxes(plot2, 2, 2, 0, 1); // 2x2 grid, row 0, column 1
+ * figure.addAxes(plot2, 0, 1); // row 0, column 1
  *
  * QwtPlot* plot3 = new QwtPlot;
- * figure.addAxes(plot3, 2, 2, 1, 0, 1, 2); // row 1, columns 0-1 (span 2 columns)
+ * figure.addAxes(plot3, 1, 0, 1, 2); // row 1, columns 0-1 (span 2 columns)
+ *
+ * // Add a non-plot widget (for example a 3D plot) to the grid
+ * figure.addGridItem(customWidget, 0, 0);
  *
  * // Save the figure
  * figure.saveFig("output.png", 300);
@@ -23861,6 +23870,36 @@ public:
 					 int colSpan  = 1,
 					 qreal wspace = 0.0,
 					 qreal hspace = 0.0);
+
+	// Enable the retained grid layout with equal tracks (returns false for invalid counts)
+	bool enableGrid(int rowCount, int columnCount);
+
+	// Leave the retained grid layout: members keep their current geometry as free members
+	// (returns false when no grid is enabled; the ratios are dropped and cannot be undone)
+	bool disableGrid();
+
+	// Get the retained grid model (nullptr until enableGrid() was called)
+	QwtFigureGrid* grid() const;
+
+	// Check whether a retained grid layout is enabled
+	bool isGridEnabled() const;
+
+	// Add a plot as a member of the retained grid layout
+	void addAxes(QwtPlot* plot, int row, int col, int rowSpan = 1, int colSpan = 1);
+
+	// Add a non-plot widget (e.g. a 3D plot) as a member of the retained grid layout
+	// (not named addWidget() on purpose: a 5 argument addWidget() call would be
+	// ambiguous with the legacy addWidget(widget, rowCnt, colCnt, row, col) overload)
+	bool addGridItem(QWidget* widget, int row, int col, int rowSpan = 1, int colSpan = 1);
+
+	// Remove a widget from the figure without deleting it
+	void removeWidget(QWidget* widget);
+
+	// Enable/disable dragging the dividers of the retained grid
+	void setGridEditable(bool on);
+
+	// Check whether the grid dividers can be dragged
+	bool isGridEditable() const;
 
 	// Change the normalized position of an added widget
 	void setWidgetNormPos(QWidget* widget, const QRectF& rect);
@@ -23998,9 +24037,23 @@ Q_SIGNALS:
 	 */
 	void currentAxesChanged(QwtPlot* current);
 
+	/**
+	 * @brief Signal emitted when the retained grid track sizes/spacing change
+	 * @note Forwarded from QwtFigureGrid::sizesChanged(), also emitted while
+	 *       the user drags a grid divider
+	 */
+	void gridSizesChanged();
+
+	/**
+	 * @brief Signal emitted once when an interactive grid size change finished
+	 * @note Forwarded from QwtFigureGrid::sizesChangeFinished()
+	 */
+	void gridSizesChangeFinished();
+
 protected:
 	void paintEvent(QPaintEvent* event) override;
 	void resizeEvent(QResizeEvent* event) override;
+	bool eventFilter(QObject* watched, QEvent* event) override;
 };
 
 #endif  // QWT_FIGURE_H
@@ -24802,6 +24855,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -24816,10 +24875,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -25411,6 +25470,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -25425,10 +25490,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -26193,6 +26258,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -26207,10 +26278,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -27040,6 +27111,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -27054,10 +27131,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -27173,6 +27250,8 @@ enum Rtti3DValues
 #include <QPointF>
 #include <QSize>
 
+class Qwt3DTextBatch;
+
 /**
  * @brief Bundles all widget resources that drawables need during rendering
  * @details A value struct constructed per-call-site in Qwt3DPlot::paintGL()
@@ -27216,6 +27295,11 @@ struct QWT3D_EXPORT Qwt3DRenderContext
 	QOpenGLShaderProgram* lineShader = nullptr;
 	QOpenGLShaderProgram* polygonShader = nullptr;
 	QOpenGLShaderProgram* textShader = nullptr;
+
+	// Frame wide collection of the label quads, flushed once per draw phase by
+	// Qwt3DPlot::paintGL(). Null while no text batching is active (e.g. during
+	// the gl2ps vector export, where labels emit device text immediately).
+	Qwt3DTextBatch* textBatch = nullptr;
 
 	// Projects a world-space point to screen (viewport) pixel coordinates
 	QPointF worldToScreen(const Triple& world) const;
@@ -27705,6 +27789,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -27719,10 +27809,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -28354,6 +28444,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -28368,10 +28464,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -29301,6 +29397,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -29315,10 +29417,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -30030,7 +30132,7 @@ private:
 	void recalculateAxesTics();
 	// Applies the current tic-length model (auto per-axis, or explicit manual) to all axes
 	void applyTicLengths();
-	void drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth, const RGBA& color);
+	void drawGridLines(const Qwt3DRenderContext& ctx, const QVector<float>& vertices, double lineWidth);
 };
 
 #endif
@@ -30528,6 +30630,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -30542,10 +30650,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -31188,6 +31296,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -31202,10 +31316,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -31841,6 +31955,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -31855,10 +31975,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -32646,6 +32766,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -32660,10 +32786,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -33301,6 +33427,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -33315,10 +33447,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -34393,6 +34525,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -34407,10 +34545,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -35172,6 +35310,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -35186,10 +35330,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -35944,6 +36088,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -35958,10 +36108,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -36698,6 +36848,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -36712,10 +36868,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
@@ -37449,6 +37605,12 @@ public:
 	void setPeriodic(bool u, bool v);
 	bool uperiodic() const;
 	bool vperiodic() const;
+
+private:
+	// Releases the raw vertex/normal arrays without going through the virtual
+	// clear(): calling a virtual function from a destructor bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	void releaseData();
 };
 
 /**
@@ -37463,10 +37625,10 @@ public:
 	{
 		datatype = POLYGON;
 	}
-	~Qwt3DCellData()
-	{
-		clear();
-	}
+	// The cell vectors release their own storage, so the destructor must not
+	// call the virtual clear(): a virtual call during destruction bypasses the
+	// virtual dispatch and is flagged by the clang analyzer (VirtualCall).
+	~Qwt3DCellData() override = default;
 
 	// Destroy content
 	void clear();
