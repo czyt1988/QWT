@@ -75,6 +75,9 @@ auto* curve = new QwtPlotCurve("Data");
 - ![Figure Widget](assets/screenshots/qwt_figure.png)
   `examples/2D/figure`
 
+- ![Retained Grid](assets/screenshots/figure-grid.png)
+  `examples/2D/figureGrid`
+
 - ![Simple Plot](assets/screenshots/simpleplot.png)
   `examples/2D/simpleplot`
 

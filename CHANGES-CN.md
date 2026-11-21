@@ -11,7 +11,10 @@
     - `tests/figure_grid_test`、`tests/figure_grid_layout_test`、`tests/figure_grid_splitter_test` 覆盖轨道数学、布局集成与交互行为（命中带、只改目标方向、最小轨道 clamp、完成信号次数、Esc、重绘开关、带外放行、canvas 投递激活、画布光标、松手丢失兜底）
 - **`examples/2D/figure`：可拖拽网格演示**
     - 工具栏新增「Grid layout (draggable)」动作，切换到 2x2 保留式网格（波形占顶行，下方两个分析图）并可拖动分隔条；切回时重建经典演示。网格可编辑期间禁用子图蒙版，避免它吞掉分隔条事件
-- **文档**：figure 使用指南（中英）新增「保留式网格布局与可拖拽分隔条」章节
+- **`examples/2D/figureGrid`：保留式网格布局示例**
+    - 专门的 3×3 演示，覆盖了模型的大部分能力：六个成员（四个单格绘图、一个跨两列的绘图、一个用 `addGridItem()` 登记的普通控件）、比例预设、`wspace`/`hspace` 与 `minimumTrackPixels` 实时控制、可调的分隔条命中宽度、由 `gridSizesChangeFinished()` 驱动的「一次拖动一条撤销命令」（撤销/重做动作与快捷键）、运行时移除并重新添加成员、用 `disableGrid()` 退出网格并重新进入。例子用 `findChild<>()` 取得分隔条，演示了不扩展 `QwtFigure` 公开接口也能调用 `setHitWidth()` 和 `hoverChanged()`
+    - 支持无界面截图协议，`drag`（两次经分隔条的合成拖动）与 `spacing` 两个变体用于生成 `docs/assets/screenshots/figure-grid{,-drag,-spacing}.png`
+- **文档**：figure 使用指南（中英）重写「保留式网格布局」章节：说明该功能的作用与适用场景，`QwtFigure`、`QwtFigureGrid`、`QwtFigureGridSplitter`、`QwtFigureLayout` 的职责划分（含类图），完整的模型 API 与归一化、间隙校验规则，分隔条交互，撤销实现，用 `disableGrid()` 退出网格，以及新示例与三张截图。7.x 新特性页、`plot-layout.md` 与展示页也补充了这个功能
 
 ### Bug 修复
 

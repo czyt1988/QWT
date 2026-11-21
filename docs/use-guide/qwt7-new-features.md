@@ -182,6 +182,21 @@ Result after alignment:
 
 ![figure-scale-aligment](../assets/picture/figure-scale-aligment.png)
 
+### Retained Grid Layout with Draggable Dividers
+
+`QwtFigureGrid` keeps the row/column ratios of a `QwtFigure` as track data. The grid can be enabled with `figure->enableGrid(3, 3)`, the members are registered per cell with `addAxes()` and `addGridItem()`, and `setGridEditable(true)` makes the dividers draggable, so a sub plot can be enlarged with the mouse:
+
+![figure-grid](../assets/screenshots/figure-grid.png)
+
+- The track ratios, the gaps and the minimum track extent are read and written through `QwtFigureGrid`, so a layout survives a resize and can be stored by the application
+- A drag only consumes the events inside a narrow band around a divider, so zooming, panning, picking and hovering keep working
+- `gridSizesChanged()` drives live previews, `gridSizesChangeFinished()` is emitted once per drag for a single undo command
+- `disableGrid()` leaves the grid and keeps the current geometry of the members
+
+> **Example — Complete Example**
+>
+> The usage guide section [QwtFigure Plot Container Window](2d/figure-widget.md) explains the model and the interaction under "Retained Grid Layout", the example is located in `examples/2D/figureGrid`.
+
 ### Interactive Operation Overlay
 
 `QwtFigureWidgetOverlay` adds interactive operations to `QwtFigure`:

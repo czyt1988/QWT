@@ -182,6 +182,21 @@ figure->addAxisAlignment({ plot1, plot3, hostPlot }, QwtAxis::YLeft);
 
 ![figure-scale-aligment](../../assets/picture/figure-scale-aligment.png)
 
+### 保留式网格布局与可拖拽分隔条
+
+`QwtFigureGrid` 把 `QwtFigure` 的行列比例保存为轨道数据。调用 `figure->enableGrid(3, 3)` 启用网格，用 `addAxes()` 和 `addGridItem()` 按单元格登记成员，再调用 `setGridEditable(true)` 即可用鼠标拖动分隔条放大某个子图：
+
+![figure-grid](../../assets/screenshots/figure-grid.png)
+
+- 轨道比例、间隙和最小轨道宽度都通过 `QwtFigureGrid` 读写，布局在窗口缩放后保持，应用可以自行保存
+- 拖动只在分隔条附近的窄带内消费事件，缩放、平移、拾取和悬停照常工作
+- `gridSizesChanged()` 用于实时预览，`gridSizesChangeFinished()` 每次拖动只发出一次，便于为整次拖动压入一条撤销命令
+- `disableGrid()` 退出网格，成员停在当前几何
+
+> **示例 — 完整示例**
+>
+> 使用指南中的[QwtFigure绘图容器窗口](2d/figure-widget.md)「保留式网格布局」一节解释了模型与交互，示例代码位于 `examples/2D/figureGrid`
+
 ### 交互式操作蒙版
 
 `QwtFigureWidgetOverlay` 为 `QwtFigure` 增加交互操作：
