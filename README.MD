@@ -269,6 +269,8 @@ Similar to Python's matplotlib, Qwt provides a `QwtFigure` plotting container th
 
 New in 7.6, the **retained grid layout** keeps the row/column track ratios as data: `QwtFigureGrid` owns the tracks and members, `QwtFigureGridSplitter` makes the dividers draggable (with an undo-friendly `gridSizesChangeFinished()` signal), and `QwtFigure::setGridAxisAlignment()` aligns the plot areas of a column/row so axis backbones and data areas line up even when tick labels, legends or parasite axes differ in size.
 
+Dragging a divider previews the split with a thin boundary line and applies the new track ratios once, on release, so heavy members are neither relaid out nor repainted mid-drag; call `setDragPreviewMode(QwtFigureGridSplitter::Live)` if the plots should follow the divider live instead (new in 7.6.1).
+
 ![QwtFigure retained grid layout with draggable dividers](./docs/assets/screenshots/figure-grid.png)
 
 See the tutorial: [Figure plotting container](https://czyt1988.github.io/QWT/use-guide/2d/figure-widget/), and the [`figureGrid`](./examples/2D/figureGrid) example.

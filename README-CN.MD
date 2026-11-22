@@ -269,6 +269,8 @@ Qwt 7：
 
 7.6 新增**保留式网格布局（retained grid layout）**：`QwtFigureGrid` 将行/列轨道比例作为数据保存，`QwtFigureGridSplitter` 让分隔线可拖拽（`gridSizesChangeFinished()` 信号便于实现撤销），`QwtFigure::setGridAxisAlignment()` 还会自动对齐同一列/行的绘图区，即使各子图的刻度标签、图例或寄生轴宽度不同，坐标轴与数据区也能对齐。
 
+拖动分隔线时默认只显示一条边界线预览，松手时才应用新的轨道比例，因此重负载的子图在拖动过程中既不重排也不重绘；如需子图实时跟随，可调用 `setDragPreviewMode(QwtFigureGridSplitter::Live)` 切换（7.6.1 新增）。
+
 ![QwtFigure 保留式网格布局与可拖拽分隔线](./docs/assets/screenshots/figure-grid.png)
 
 具体可参见教程：[Figure 绘图容器](https://czyt1988.github.io/QWT/zh/use-guide/2d/figure-widget/)，以及 [`figureGrid`](./examples/2D/figureGrid) 示例。
