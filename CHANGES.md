@@ -1,4 +1,4 @@
-## Unreleased
+## tag:v7.6.1 (2026-11-22)
 
 ### New Features
 
@@ -23,6 +23,12 @@
 ### Documentation
 
 - The retained grid section of the `QwtFigure` use guide (EN/ZH) describes the two drag preview modes, the boundary line pen and the `findChild<>()` snippet to switch the mode; the `figureGrid` documentation now uses the static `figure-grid.png` and a `figure-grid-drag.gif` recording of a real drag instead of the per-variant screenshots
+- **Both READMEs were rebuilt around a hero section and a documentation map**
+    - The English and the Chinese README open with a brand banner (`docs/assets/brand/qwt-hero-en.png`, `qwt-hero-zh.png`), the language switch, the release / documentation build / license / stars / Qt / C++ / documentation badges, a one line claim and a navigation row (documentation, getting started, quick start, features, gallery, changelog)
+    - The "Why Qwt 7?" prose was condensed into a license / rendering / strengths / limitations table of QCustomPlot, Qwt, Qt Charts and KDChart, followed by the repository, mirror and documentation links
+    - A "Documentation" section maps the use guide to the English and Chinese GitHub Pages (topic table) and folds the local documentation build into a collapsible block, so the quick start, the gallery and the changelog follow it
+    - The gallery gained the `figureGrid` tile (`docs/assets/screenshots/figure-grid.png`, `examples/2D/figureGrid`) in the advanced charts section of both files
+    - The retained grid paragraph of both files names the two drag preview modes and the `setDragPreviewMode(QwtFigureGridSplitter::Live)` call that switches to the live preview
 
 ## tag:v7.6.0 (2026-11-22)
 

@@ -1,4 +1,4 @@
-## Unreleased
+## tag:v7.6.1 (2026-11-22)
 
 ### 新功能
 
@@ -23,6 +23,12 @@
 ### 文档
 
 - `QwtFigure` 使用指南的保留式网格一节（中/英）说明了两种拖动预览模式、边界线画笔以及用 `findChild<>()` 切换模式的代码；`figureGrid` 文档改为使用静态截图 `figure-grid.png` 加一段真实拖动录屏 `figure-grid-drag.gif`，不再保留逐变体截图
+- **两份 README 围绕首屏横幅与文档索引重做**
+    - 中英文 README 开头改为品牌横幅（`docs/assets/brand/qwt-hero-en.png`、`qwt-hero-zh.png`），加上语言切换、发布/文档构建/许可证/星标/Qt/C++/文档徽章、一句话定位，以及导航行（文档、快速开始、简介、特性、展示、更新日志）
+    - 「为什么选择 Qwt 7」的大段文字压缩为 QCustomPlot、Qwt、Qt Charts、KDChart 四者的许可证/渲染方式/优点/局限对照表，其后是仓库、镜像与文档链接
+    - 新增「文档」一节，用主题表格把使用指南对应到中英文 GitHub Pages，并把本地构建文档的步骤收进可折叠块，其后才是快速开始、示例展示与更新日志
+    - 示例展示的「进阶图表」部分补上 `figureGrid` 一栏（`docs/assets/screenshots/figure-grid.png`，`examples/2D/figureGrid`），中英文一致
+    - 保留式网格一节（中/英）补充说明两种拖动预览模式，以及切换到实时预览的 `setDragPreviewMode(QwtFigureGridSplitter::Live)` 调用
 
 ## tag:v7.6.0 (2026-11-22)
 
