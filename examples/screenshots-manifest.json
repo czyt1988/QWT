@@ -115,12 +115,7 @@
         {
             "name": "figureGrid",
             "shots": [
-                { "output": "screenshots/figure-grid.png", "size": "1280x820", "delay": 2500 },
-                { "output": "screenshots/figure-grid-drag.png", "size": "1280x820", "delay": 2500, "variant": "drag" },
-                { "output": "screenshots/figure-grid-preview.png", "size": "1280x820", "delay": 2500, "variant": "preview" },
-                { "output": "screenshots/figure-grid-live.png", "size": "1280x820", "delay": 2500, "variant": "live" },
-                { "output": "screenshots/figure-grid-spacing.png", "size": "1280x820", "delay": 2500, "variant": "spacing" },
-                { "output": "screenshots/figure-grid-noalign.png", "size": "1280x820", "delay": 2500, "variant": "noalign" }
+                { "output": "screenshots/figure-grid.png", "size": "1280x820", "delay": 2500 }
             ]
         },
         {

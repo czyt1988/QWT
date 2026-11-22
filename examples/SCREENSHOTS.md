@@ -90,7 +90,7 @@ QwtExampleScreenshot::addVariant( "stacked", [typeBox]() { typeBox->setCurrentIn
 | `friedberg` | `bar` / `tube` |
 | `rasterview` | `nearest` / `bilinear` / `bicubic`（重采样模式） |
 | `spectrogram` | `contour`（勾选等高线） |
-| `figureGrid` | `drag`（用合成鼠标事件拖动两条分隔条）/ `spacing`（加宽轨道间隙）/ `reenter`（退出并重新进入网格，仅用于手动验证） |
+| `figureGrid` | `drag`（用合成鼠标事件拖动两条分隔条）/ `preview`（拖动进行中，显示虚拟边界线）/ `live`（拖动进行中改为实时刷新）/ `spacing`（加宽轨道间隙）/ `reenter`（退出并重新进入网格）/ `noalign`（关闭自动对齐），均只用于手动截图 |
 | `waterfall3D` | 不用 variant，直接用已有的 `--style N` / `--capacity N` 参数 |
 
 特例：`colormap` 例子保留自己的 headless 批量导出模式

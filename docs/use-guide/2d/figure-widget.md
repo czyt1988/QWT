@@ -187,15 +187,9 @@ grid->setColumnSizes(loadColumns());
 - Qt invokes event filters in reverse installation order (the filter installed last runs first). Install the filters of the host (canvas pickers, drag handlers, ...) before `setGridEditable(true)`; when a filter was installed on a canvas afterwards, call `setGridEditable(true)` once more: enabling an already enabled splitter re-scans and re-installs its filters
 - `QOpenGLWidget` members (3D plots) are never intercepted: the boundary of a 3D cell is served by the adjacent 2D plot. Parasite axes are transparent for mouse events, so their boundary is served by the host plot
 
-The screenshots below capture a column divider drag that is still in progress. With the default `BoundaryLine` preview the members keep the geometry they had before the drag and only the dashed virtual boundary line follows the pointer; with `Live` the members are already resized and replotted before the mouse is released:
+The animation below is a real drag in `examples/2D/figureGrid`. With the default `BoundaryLine` preview the members keep the geometry they had before the drag and only the dashed virtual boundary line follows the pointer; releasing the divider applies the new ratios in one layout pass, and the status bar reports the ratios and the undo history. Selecting `Live` in the dock instead resizes and replots the members while the divider is still moving:
 
-![Boundary line preview during a divider drag](../../assets/screenshots/figure-grid-preview.png)
-
-![Live refresh preview during a divider drag](../../assets/screenshots/figure-grid-live.png)
-
-The next screenshot shows `examples/2D/figureGrid` after the column divider and the row divider were dragged. The first column and the first row grew, and the status bar reports the new ratios and two undo steps:
-
-![Ratios after a divider drag](../../assets/screenshots/figure-grid-drag.png)
+![Dragging the dividers of the retained grid](../../assets/screenshots/figure-grid-drag.gif)
 
 `setGridEditable(true)` requires an enabled grid; otherwise it logs a warning and `isGridEditable()` stays false. `QwtFigure` does not expose the splitter pointer; use `figure->findChild<QwtFigureGridSplitter*>()` after the first `setGridEditable(true)` when the hit width has to be changed, the drag preview mode selected or `hoverChanged()` connected:
 
@@ -271,7 +265,7 @@ The plot areas of the grid members are aligned by default: the members of a colu
 
 `setGridAxisAlignment(false)` restores the natural plot area of every member and `isGridAxisAlignment()` reports the current state; a group can still be aligned by hand with `addAxisAlignment()` while the automatic alignment is off. The pass also follows runtime changes: when the widest member leaves a group, the inset shared by the remaining members shrinks again.
 
-See the "Axis Alignment" section below for the details and for the comparison screenshots.
+See the "Axis Alignment" section below for the details.
 
 #### The Example
 
@@ -291,11 +285,9 @@ figure->addGridItem(notesPanel, 2, 2);           // a plain widget member
 figure->setGridEditable(true);
 ```
 
-The toolbar has the Equal, Focus top and Golden ratio presets plus undo and redo. The panel on the right changes the gaps, the minimum track pixels and the hit width of the dividers, removes and adds a member back, and leaves or re-enters the grid. The screenshot below uses wider gaps, so the figure background shows between the cells:
+The toolbar has the Equal, Focus top and Golden ratio presets plus undo and redo. The panel on the right changes the gaps (the normalized `wspace`/`hspace` fields), the minimum track pixels and the hit width of the dividers, selects the drag preview mode, removes and adds a member back, and leaves or re-enters the grid.
 
-![Wider grid gaps](../../assets/screenshots/figure-grid-spacing.png)
-
-The example implements the screenshot protocol: `--variant drag` drags two dividers with synthetic mouse events and `--variant spacing` switches to the wide gaps, which matches the three entries in `examples/screenshots-manifest.json`. See `examples/SCREENSHOTS.md` for regenerating the images.
+The example implements the unattended screenshot protocol; `examples/screenshots-manifest.json` captures the static `figure-grid.png` and keeps the example variants (`drag`, `preview`, `live`, `spacing`, `reenter`, `noalign`) available for manual captures. See `examples/SCREENSHOTS.md` for regenerating the images.
 
 > **Warning — Dividers and the Edit Overlay Are Exclusive**
 >
@@ -431,9 +423,8 @@ figure->setGridAxisAlignment(true);
 ```
 
 ![figure-grid-aligned](../../assets/screenshots/figure-grid.png)
-![figure-grid-noalign](../../assets/screenshots/figure-grid-noalign.png)
 
-The first screenshot shows `examples/2D/figureGrid` with the alignment applied, the second the same layout with it switched off: the trend plot of the left column carries a left legend, the bar chart of the right column has a right axis and the scatter plot of the middle row uses a two line title - all of them change the plot area of their member, and with the alignment the axes of the figure share a line again.
+The screenshot shows `examples/2D/figureGrid` with the alignment applied: the trend plot of the left column carries a left legend, the bar chart of the right column has a right axis and the scatter plot of the middle row uses a two line title - all of them change the plot area of their member, and with the alignment the axes of the figure share a line again. With `setGridAxisAlignment(false)` the same layout returns every member to the plot area its own content asks for, so the axis backbones no longer line up.
 
 For a figure that does **not** use the retained grid (normalized coordinate layout, or the legacy `addGridAxes()` that converts the cell once), name the groups explicitly with `addAxisAlignment()`:
 

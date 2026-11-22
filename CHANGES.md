@@ -6,7 +6,7 @@
     - `QwtFigureGridSplitter::setDragPreviewMode()` selects how the members follow a divider while it is dragged. `BoundaryLine` (the default) only moves a virtual boundary line while the mouse is down and applies the new track ratios once, on release: the members are neither relaid out nor repainted during the drag and a whole drag costs a single layout pass. `Live` applies the ratios on every mouse move, runs the synchronous layout pass and replots the members, so the plots really follow the divider at the cost of a layout and replot per move. `dragPreviewMode()` reports the mode; changing it cancels a running drag
     - The line of the default mode is a thin strip above the members (`setBoundaryLinePen()` / `boundaryLinePen()`, a two pixel dashed blue line by default) that follows the clamped divider position, spans the whole figure and stays aligned when the figure is resized mid-drag. `Qt::NoPen` hides the line and keeps the commit-on-release behaviour
     - The boundary line overlay is created on the first boundary drag and destroyed when the drag ends, so a figure without a running drag has no extra child widget; its object name (`QwtFigureGridBoundaryLine`) is stable for tests and host introspection
-    - `examples/2D/figureGrid` gained a "Drag preview" selector in the dock, the `preview` (a boundary drag that is still in progress) and `live` (the same drag with the live refresh) screenshot variants and the `figure-grid-preview.png` / `figure-grid-live.png` documentation screenshots. The use guide (EN/ZH) documents both modes
+    - `examples/2D/figureGrid` gained a "Drag preview" selector in the dock, and the use guide (EN/ZH) demonstrates the drag with a new screen recording (`figure-grid-drag.gif`) next to the static `figure-grid.png` screenshot
     - Regression tests: `tests/figure_grid_splitter_test` covers the boundary preview (ratios untouched until release, line geometry/clamping, figure resize while dragging, Esc, pen), the adapted live preview and the fact that neither mode suspends the member repaints
 
 ### Bug Fixes
@@ -17,7 +17,7 @@
 
 ### Documentation
 
-- The retained grid section of the `QwtFigure` use guide (EN/ZH) describes the two drag preview modes, the boundary line pen and the `findChild<>()` snippet to switch the mode; the `figureGrid` screenshots were regenerated and the two in-progress drag screenshots were added
+- The retained grid section of the `QwtFigure` use guide (EN/ZH) describes the two drag preview modes, the boundary line pen and the `findChild<>()` snippet to switch the mode; the `figureGrid` documentation now uses the static `figure-grid.png` and a `figure-grid-drag.gif` recording of a real drag instead of the per-variant screenshots
 
 ## tag:v7.6.0 (2026-11-22)
 

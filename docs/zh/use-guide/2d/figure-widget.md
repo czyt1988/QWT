@@ -187,15 +187,9 @@ grid->setColumnSizes(loadColumns());
 - Qt 按安装的相反顺序调用事件过滤器（后装的先调用）。宿主自己的 canvas 过滤器（拾取器、拖动处理器等）应在 `setGridEditable(true)` 之前安装；若之后才安装，再调用一次 `setGridEditable(true)` 即可，对已启用的分隔条再次启用会重新扫描并重装过滤器
 - `QOpenGLWidget` 成员（3D 绘图）不会被拦截，3D 单元格的边界由相邻的 2D 绘图一侧负责命中。寄生绘图对鼠标事件透明，边界同样由宿主绘图负责
 
-下面两张截图都截取自一次尚未松手的列分隔条拖动。默认的 `BoundaryLine` 预览下成员保持拖动前的几何，只有蓝色虚线跟随指针；`Live` 预览下成员在松手之前就已经完成重排和重绘：
+下面的动图是 `examples/2D/figureGrid` 中真实拖动的录屏。默认的 `BoundaryLine` 预览下成员保持拖动前的几何，只有蓝色虚线跟随指针；松手时新比例一次性生效，状态栏同步显示比例和撤销历史。在下拉框中选择 `Live` 后，成员在拖动过程中就完成重排和重绘：
 
-![拖动中的虚拟边界线预览](../../../assets/screenshots/figure-grid-preview.png)
-
-![拖动中的实时刷新预览](../../../assets/screenshots/figure-grid-live.png)
-
-接下来是 `examples/2D/figureGrid` 中拖动列分隔条和行分隔条之后的截图。第一列与第一行被放大，状态栏显示新的比例和两次撤销步骤：
-
-![拖动分隔条后的比例](../../../assets/screenshots/figure-grid-drag.png)
+![拖动保留式网格的分隔条](../../../assets/screenshots/figure-grid-drag.gif)
 
 `setGridEditable(true)` 要求网格已经启用，否则只打印警告，`isGridEditable()` 保持 false。`QwtFigure` 不提供取分隔条指针的接口；需要调整命中宽度、选择拖动预览模式或连接 `hoverChanged()` 时，在首次 `setGridEditable(true)` 之后用 `figure->findChild<QwtFigureGridSplitter*>()` 取得：
 
@@ -213,7 +207,7 @@ if (QwtFigureGridSplitter* splitter = figure->findChild<QwtFigureGridSplitter*>(
 
 `setGridAxisAlignment(false)` 关闭自动对齐、让每个成员回到自身内容需要的自然布局，`isGridAxisAlignment()` 查询当前状态；关闭后仍可用下面的 `addAxisAlignment()` 手动指定分组。这一机制也支持运行时增删成员和改变网格比例：组内最宽成员被移除后，其余成员共享的内缩会随之收缩。
 
-细节与对照组截图见下方「坐标轴对齐」一节。
+细节见下方「坐标轴对齐」一节。
 
 #### 撤销与预览模式
 
@@ -291,11 +285,9 @@ figure->addGridItem(notesPanel, 2, 2);           // 普通控件成员
 figure->setGridEditable(true);
 ```
 
-工具栏提供 Equal、Focus top、Golden 三组比例预设和撤销、重做动作，右侧面板可以修改间隙、最小轨道像素与分隔条命中宽度，可以移除或重新添加成员，也可以退出或重新进入网格。下面是把间隙调大后的截图，单元格之间露出 figure 的背景色：
+工具栏提供 Equal、Focus top、Golden 三组比例预设和撤销、重做动作，右侧面板可以修改间隙（归一化的 `wspace`/`hspace`）、最小轨道像素与分隔条命中宽度，可以选择拖动预览模式，可以移除或重新添加成员，也可以退出或重新进入网格。
 
-![加宽网格间隙](../../../assets/screenshots/figure-grid-spacing.png)
-
-例子支持文档截图协议：`--variant drag` 用合成鼠标事件拖动两条分隔条，`--variant spacing` 切换到大间隙状态，对应 `examples/screenshots-manifest.json` 中的三条记录。重新生成截图的方式见 `examples/SCREENSHOTS.md`。
+例子支持无交互截图协议；`examples/screenshots-manifest.json` 只生成静态的 `figure-grid.png`，例子中注册的变体（`drag`、`preview`、`live`、`spacing`、`reenter`、`noalign`）保留下来供手动截图使用。重新生成截图的方式见 `examples/SCREENSHOTS.md`。
 
 > **警告 — 分隔条与操作蒙版互斥**
 >
@@ -431,9 +423,8 @@ figure->setGridAxisAlignment(true);
 ```
 
 ![figure-grid-aligned](../../../assets/screenshots/figure-grid.png)
-![figure-grid-noalign](../../../assets/screenshots/figure-grid-noalign.png)
 
-上图为自动对齐后的 `examples/2D/figureGrid`，下图为关闭对齐后的同一布局：左列的趋势图带有左图例，右列的柱状图带有右坐标轴，中间行的散点图使用两行标题——这些都会改变各自绘图区的边界，自动对齐后整幅图的坐标轴重新落在同一条线上。
+上图为自动对齐后的 `examples/2D/figureGrid`：左列的趋势图带有左图例，右列的柱状图带有右坐标轴，中间行的散点图使用两行标题——这些都会改变各自绘图区的边界，自动对齐后整幅图的坐标轴重新落在同一条线上。调用 `setGridAxisAlignment(false)` 后，同一布局中的每个成员会回到自身内容需要的绘图区，坐标轴轴线不再对齐。
 
 对于**没有使用保留式网格**的 figure（归一化坐标布局，或添加时只转换一次的旧 `addGridAxes()`），用 `addAxisAlignment()` 显式指定分组：
 

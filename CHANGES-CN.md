@@ -6,7 +6,7 @@
     - `QwtFigureGridSplitter::setDragPreviewMode()` 选择拖动分隔条时成员如何跟随。`BoundaryLine`（默认）在鼠标按下期间只移动一条虚拟边界线，新比例在松手时一次性生效：拖动过程中成员既不重排也不重绘，整次拖动只花一次布局。`Live` 在每次鼠标移动时应用比例、执行同步布局并重绘，绘图真正跟随分隔条，代价是每次移动都要做一次布局和重绘。`dragPreviewMode()` 查询当前模式；拖动过程中切换模式会取消当前拖动
     - 默认模式的线条是成员上方的一条窄条（`setBoundaryLinePen()` / `boundaryLinePen()`，默认为两像素蓝色虚线），跟随被夹取的分隔条位置、贯穿整个 figure，并在拖动中 figure 尺寸变化时保持对齐；把画笔设为 `Qt::NoPen` 只会隐藏线条，松手生效的行为不变
     - 虚拟边界线覆盖层在第一次边界线拖动时创建、拖动结束时销毁，因此没有拖动中的 figure 不会多出子控件；它的对象名（`QwtFigureGridBoundaryLine`）固定，便于测试和宿主检查
-    - `examples/2D/figureGrid` 的右侧面板新增「Drag preview」选择框，并新增 `preview`（一次仍在进行中的边界线拖动）和 `live`（同一次拖动改用实时刷新）两个截图变体，以及对应的 `figure-grid-preview.png` / `figure-grid-live.png` 文档截图；使用指南（中/英）说明了两种模式
+    - `examples/2D/figureGrid` 的右侧面板新增「Drag preview」选择框；使用指南（中/英）在静态截图 `figure-grid.png` 之外，新增一段真实拖动的录屏（`figure-grid-drag.gif`）来演示拖动布局
     - 回归测试：`tests/figure_grid_splitter_test` 覆盖边界线预览（松手前比例不变、线条位置与夹取、拖动中 figure 缩放、Esc、画笔）、调整后的实时预览，以及两种模式都不会暂停成员重绘
 
 ### Bug 修复
@@ -17,7 +17,7 @@
 
 ### 文档
 
-- `QwtFigure` 使用指南的保留式网格一节（中/英）说明了两种拖动预览模式、边界线画笔以及用 `findChild<>()` 切换模式的代码；`figureGrid` 的文档截图已重新生成，并新增两张拖动进行中的截图
+- `QwtFigure` 使用指南的保留式网格一节（中/英）说明了两种拖动预览模式、边界线画笔以及用 `findChild<>()` 切换模式的代码；`figureGrid` 文档改为使用静态截图 `figure-grid.png` 加一段真实拖动录屏 `figure-grid-drag.gif`，不再保留逐变体截图
 
 ## tag:v7.6.0 (2026-11-22)
 
