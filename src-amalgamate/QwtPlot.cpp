@@ -78550,6 +78550,10 @@ void QwtFigure::removeWidget(QWidget* widget)
  *          dividers are consumed to resize the adjacent tracks; all other events are
  *          passed through unchanged.
  * @param on True to make the dividers draggable
+ * @note A divider drag previews with a virtual boundary line by default, without
+ *       relaying out or repainting the members; the splitter returned by
+ *       findChild<QwtFigureGridSplitter*>() selects the live relayout/replot with
+ *       QwtFigureGridSplitter::setDragPreviewMode().
  * @note Disable the FunResizePlot mode of QwtFigureWidgetOverlay (or make the overlay
  *       transparent for mouse events) while the grid is editable: the overlay covers
  *       the whole figure and would swallow the events of the plots.
@@ -81147,6 +81151,7 @@ void QwtFigureGrid::finishChange()
 
 /*** Start of inlined file: qwt_figure_grid_splitter.cpp ***/
 // Qt
+#include <QColor>
 #include <QCursor>
 #include <QDebug>
 #include <QEvent>
@@ -81154,9 +81159,11 @@ void QwtFigureGrid::finishChange()
 #include <QKeyEvent>
 #include <QLayout>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QPointer>
 #include <QVector>
 #include <QWidget>
+#include <QtMath>
 
 // qwt
 
@@ -81202,6 +81209,89 @@ QPoint figureLocalPos(QwtFigure* figure, QWidget* watched, QEvent* event)
 	}
 	return pos;
 }
+
+/**
+ * @brief Overlay that draws the virtual boundary line of a divider drag
+ *
+ * The strip is as thick as the boundary pen and spans the whole figure. It is
+ * transparent for mouse events and paints only the line, so the members below
+ * stay visible. The splitter moves the strip instead of relayouting the grid
+ * while a divider is dragged, which is what makes the boundary preview cheap.
+ *
+ * The strip is created on the first boundary drag and destroyed when the drag
+ * ends, so a figure without a running drag has no extra child widget.
+ */
+class QwtFigureGridBoundaryLine : public QWidget
+{
+public:
+	explicit QwtFigureGridBoundaryLine(QWidget* parent) : QWidget(parent)
+	{
+		setObjectName(QStringLiteral("QwtFigureGridBoundaryLine"));
+		setAttribute(Qt::WA_TransparentForMouseEvents);
+		setAttribute(Qt::WA_NoSystemBackground);
+		setAttribute(Qt::WA_ShowWithoutActivating);
+		setFocusPolicy(Qt::NoFocus);
+		hide();
+	}
+
+	// Pen of the line, the thickness of the strip follows its width
+	void setLinePen(const QPen& pen)
+	{
+		if (m_pen == pen) {
+			return;
+		}
+		m_pen = pen;
+		if (isVisible()) {
+			update();
+		}
+	}
+
+	QPen linePen() const
+	{
+		return m_pen;
+	}
+
+	// Place the strip at a pixel position along the axis of the divider
+	void placeLine(Qt::Orientation dividerOrientation, int axisPos, const QSize& area)
+	{
+		m_orientation = dividerOrientation;
+
+		const int thickness = qMax(1, qCeil(m_pen.widthF()));
+		if (dividerOrientation == Qt::Horizontal) {
+			// A divider between two columns is a vertical line
+			const int left = qBound(0, axisPos - thickness / 2, qMax(0, area.width() - thickness));
+			setGeometry(left, 0, thickness, area.height());
+		} else {
+			// A divider between two rows is a horizontal line
+			const int top = qBound(0, axisPos - thickness / 2, qMax(0, area.height() - thickness));
+			setGeometry(0, top, area.width(), thickness);
+		}
+	}
+
+protected:
+	void paintEvent(QPaintEvent*) override
+	{
+		if (m_pen.style() == Qt::NoPen) {
+			return;
+		}
+
+		QPainter painter(this);
+		painter.setRenderHint(QPainter::Antialiasing, false);
+		painter.setPen(m_pen);
+
+		if (m_orientation == Qt::Horizontal) {
+			const qreal x = width() / 2.0;
+			painter.drawLine(QPointF(x, 0.0), QPointF(x, height()));
+		} else {
+			const qreal y = height() / 2.0;
+			painter.drawLine(QPointF(0.0, y), QPointF(width(), y));
+		}
+	}
+
+private:
+	Qt::Orientation m_orientation { Qt::Horizontal };
+	QPen m_pen { QColor(0, 122, 204), 2, Qt::DashLine };
+};
 }  // namespace
 
 class QwtFigureGridSplitter::PrivateData
@@ -81260,15 +81350,29 @@ public:
 	void dragTo(const QPoint& figurePos);
 	// Ends the drag; cancelled restores the original ratios
 	void endDrag(bool cancelled);
-	// Disables or restores the repaints of all grid members
-	void setMembersUpdatesEnabled(bool on);
 	// Resets the drag session state without touching the grid
 	void clearDragState();
+
+	// True when the running drag previews with a virtual boundary line
+	bool usesBoundaryLine() const;
+	// Pixel position of the center of the dragged divider for the given ratios
+	int dividerPixelPosition(const QVector< qreal >& trackSizes, qreal spacing, int dimension) const;
+	// Shows or moves the boundary line of a boundary drag
+	void updateBoundaryLine(Qt::Orientation orientation, int axisPos);
+	// Hides and destroys the boundary line overlay
+	void removeBoundaryLine();
+	// Applies the ratios a boundary drag previewed (on release)
+	void applyPendingSizes();
 
 public:
 	QPointer< QwtFigure > figure;
 	bool enabled { false };
 	int hitWidth { 4 };
+
+	DragPreviewMode dragMode { BoundaryLine };
+	QPen boundaryLinePen { QColor(0, 122, 204), 2, Qt::DashLine };
+	QPointer< QwtFigureGridBoundaryLine > boundaryLine;
+	int boundaryAxisPos { 0 };
 
 	bool dragging { false };
 	bool pressConsumed { false };
@@ -81277,7 +81381,8 @@ public:
 	int dragStartAxisPos { 0 };
 	QVector< qreal > originalRowSizes;
 	QVector< qreal > originalColumnSizes;
-	QList< QPointer< QWidget > > updateDisabledWidgets;
+	QVector< qreal > pendingRowSizes;
+	QVector< qreal > pendingColumnSizes;
 	bool keyboardGrabbed { false };
 	bool mouseGrabbed { false };
 
@@ -81545,31 +81650,71 @@ bool QwtFigureGridSplitter::PrivateData::handleHover(const QPoint& figurePos)
 	return true;
 }
 
-void QwtFigureGridSplitter::PrivateData::setMembersUpdatesEnabled(bool on)
+bool QwtFigureGridSplitter::PrivateData::usesBoundaryLine() const
 {
-	if (on) {
-		for (const QPointer< QWidget >& widget : qwt_as_const(updateDisabledWidgets)) {
-			if (!widget) {
-				continue;
-			}
-			widget->setUpdatesEnabled(true);
-			widget->update();
-		}
-		updateDisabledWidgets.clear();
+	return dragMode == BoundaryLine;
+}
+
+int QwtFigureGridSplitter::PrivateData::dividerPixelPosition(const QVector< qreal >& trackSizes, qreal spacing, int dimension) const
+{
+	if (dragIndex < 0 || dragIndex >= trackSizes.size() || dimension <= 0) {
+		return 0;
+	}
+
+	// The divider sits in the center of the gap behind the dragged track
+	qreal centre = 0.0;
+	for (int i = 0; i <= dragIndex; ++i) {
+		centre += trackSizes.at(i);
+	}
+	centre += dragIndex * spacing + spacing / 2.0;
+	centre = qBound(0.0, centre, 1.0);
+
+	return qBound(0, qRound(centre * dimension), dimension - 1);
+}
+
+void QwtFigureGridSplitter::PrivateData::updateBoundaryLine(Qt::Orientation orientation, int axisPos)
+{
+	if (!figure) {
 		return;
 	}
 
-	QwtFigureGrid* figureGrid = grid();
-	if (!figureGrid) {
+	if (!boundaryLine) {
+		boundaryLine = new QwtFigureGridBoundaryLine(figure.data());
+	}
+
+	boundaryLine->setLinePen(boundaryLinePen);
+	boundaryLine->placeLine(orientation, axisPos, figure->size());
+	if (!boundaryLine->isVisible()) {
+		boundaryLine->show();
+	}
+	boundaryLine->raise();
+	boundaryAxisPos = axisPos;
+}
+
+void QwtFigureGridSplitter::PrivateData::removeBoundaryLine()
+{
+	if (!boundaryLine) {
 		return;
 	}
-	const QList< QWidget* > members = figureGrid->items();
-	for (QWidget* member : qwt_as_const(members)) {
-		if (!member || !member->updatesEnabled()) {
-			continue;
+	boundaryLine->hide();
+	delete boundaryLine.data();
+	boundaryLine    = nullptr;
+	boundaryAxisPos = 0;
+}
+
+void QwtFigureGridSplitter::PrivateData::applyPendingSizes()
+{
+	QwtFigureGrid* figureGrid = grid();
+	if (!figureGrid || !figureGrid->isEnabled()) {
+		return;
+	}
+
+	if (dragOrientation == Qt::Horizontal) {
+		if (!pendingColumnSizes.isEmpty()) {
+			figureGrid->setColumnSizes(pendingColumnSizes);
 		}
-		member->setUpdatesEnabled(false);
-		updateDisabledWidgets.append(member);
+	} else if (!pendingRowSizes.isEmpty()) {
+		figureGrid->setRowSizes(pendingRowSizes);
 	}
 }
 
@@ -81589,8 +81734,18 @@ void QwtFigureGridSplitter::PrivateData::startDrag(const Hit& hit, const QPoint&
 	dragStartAxisPos    = (hit.orientation == Qt::Horizontal) ? figurePos.x() : figurePos.y();
 	originalRowSizes    = figureGrid->rowSizes();
 	originalColumnSizes = figureGrid->columnSizes();
+	pendingRowSizes     = originalRowSizes;
+	pendingColumnSizes  = originalColumnSizes;
 
-	setMembersUpdatesEnabled(false);
+	if (usesBoundaryLine()) {
+		// Show the virtual boundary at the current gap center; the grid is not
+		// touched until the mouse is released
+		const bool horizontal         = (dragOrientation == Qt::Horizontal);
+		const int dimension           = horizontal ? figure->width() : figure->height();
+		const QVector< qreal >& sizes = horizontal ? originalColumnSizes : originalRowSizes;
+		const qreal spacing           = horizontal ? figureGrid->wspace() : figureGrid->hspace();
+		updateBoundaryLine(dragOrientation, dividerPixelPosition(sizes, spacing, dimension));
+	}
 
 	const Qt::CursorShape shape = (hit.orientation == Qt::Horizontal) ? Qt::SplitHCursor : Qt::SplitVCursor;
 	applyCursor(shape, cursorTargetAt(figurePos));
@@ -81623,12 +81778,12 @@ void QwtFigureGridSplitter::PrivateData::dragTo(const QPoint& figurePos)
 		return;
 	}
 
-	QVector< qreal > originalSizes = horizontal ? originalColumnSizes : originalRowSizes;
-	if (dragIndex < 0 || dragIndex + 1 >= originalSizes.size()) {
+	QVector< qreal > trackSizes = horizontal ? originalColumnSizes : originalRowSizes;
+	if (dragIndex < 0 || dragIndex + 1 >= trackSizes.size()) {
 		return;
 	}
 
-	const qreal pairSum = originalSizes.at(dragIndex) + originalSizes.at(dragIndex + 1);
+	const qreal pairSum = trackSizes.at(dragIndex) + trackSizes.at(dragIndex + 1);
 	const qreal minNorm = static_cast< qreal >(figureGrid->minimumTrackPixels()) / dimension;
 	if (pairSum <= 0.0 || pairSum < 2.0 * minNorm) {
 		return;  // there is no room to move without collapsing a track
@@ -81636,22 +81791,38 @@ void QwtFigureGridSplitter::PrivateData::dragTo(const QPoint& figurePos)
 
 	const int axisPos = horizontal ? figurePos.x() : figurePos.y();
 	const qreal delta = static_cast< qreal >(axisPos - dragStartAxisPos) / dimension;
-	const qreal newA  = qBound(minNorm, originalSizes.at(dragIndex) + delta, pairSum - minNorm);
+	const qreal newA  = qBound(minNorm, trackSizes.at(dragIndex) + delta, pairSum - minNorm);
 
-	originalSizes[ dragIndex ]     = newA;
-	originalSizes[ dragIndex + 1 ] = pairSum - newA;
+	trackSizes[ dragIndex ]     = newA;
+	trackSizes[ dragIndex + 1 ] = pairSum - newA;
 
-	if (horizontal) {
-		figureGrid->setColumnSizes(originalSizes);
+	if (usesBoundaryLine()) {
+		// Keep the preview only: the line follows the divider, the model stays
+		// untouched, so the members never relayout or repaint during the drag
+		QVector< qreal >& pendingSizes = horizontal ? pendingColumnSizes : pendingRowSizes;
+		if (!sameSplitterSizes(pendingSizes, trackSizes)) {
+			pendingSizes        = trackSizes;
+			const qreal spacing = horizontal ? figureGrid->wspace() : figureGrid->hspace();
+			updateBoundaryLine(dragOrientation, dividerPixelPosition(pendingSizes, spacing, dimension));
+		}
 	} else {
-		figureGrid->setRowSizes(originalSizes);
-	}
+		// Live preview: apply the ratios and replot now. The synchronous layout
+		// pass of QwtFigure runs inside setColumnSizes()/setRowSizes(); the
+		// explicit replot keeps the axis scales and the canvas maps in sync, so
+		// a live drag never shows a stale image. A boundary drag never pays for
+		// this: that is the whole point of the default preview mode.
+		const QVector< qreal > previous = horizontal ? figureGrid->columnSizes() : figureGrid->rowSizes();
+		if (horizontal) {
+			figureGrid->setColumnSizes(trackSizes);
+		} else {
+			figureGrid->setRowSizes(trackSizes);
+		}
 
-	// No explicit relayout here: QwtFigure connects QwtFigureGrid::sizesChanged
-	// to a synchronous layout pass, so the members already have their new
-	// geometry when setColumnSizes()/setRowSizes() returns. Re-applying the
-	// layout here would run the whole figure layout twice per mouse move, which
-	// is what made drags of large figures feel sluggish.
+		const QVector< qreal >& applied = horizontal ? figureGrid->columnSizes() : figureGrid->rowSizes();
+		if (!sameSplitterSizes(previous, applied)) {
+			figure->replotAll();
+		}
+	}
 
 	// Keep the split cursor while the mouse is captured far away from the start
 	QWidget* target = cursorTargetAt(figurePos);
@@ -81665,23 +81836,41 @@ void QwtFigureGridSplitter::PrivateData::endDrag(bool cancelled)
 	if (!dragging) {
 		return;
 	}
+
 	dragging      = false;
 	pressConsumed = false;
 
 	QwtFigureGrid* figureGrid         = grid();
 	const Qt::Orientation orientation = dragOrientation;
+	const bool boundaryPreview        = usesBoundaryLine();
 
-	if (cancelled && figureGrid) {
-		// Restore the snapshot before the repaints are enabled again, so the
-		// plots never paint an intermediate state
-		if (orientation == Qt::Horizontal) {
-			figureGrid->setColumnSizes(originalColumnSizes);
+	// The boundary line is a preview only: it must never survive the drag
+	removeBoundaryLine();
+
+	bool sizesDiffer = false;
+	if (figureGrid) {
+		if (cancelled) {
+			if (!boundaryPreview) {
+				// Restore the snapshot of a live drag; the members are visible
+				// again, so the restored sizes have to be painted below
+				sizesDiffer = !sameSplitterSizes(figureGrid->rowSizes(), originalRowSizes)
+							  || !sameSplitterSizes(figureGrid->columnSizes(), originalColumnSizes);
+				if (orientation == Qt::Horizontal) {
+					figureGrid->setColumnSizes(originalColumnSizes);
+				} else {
+					figureGrid->setRowSizes(originalRowSizes);
+				}
+			}
+			// A boundary preview leaves the grid untouched: nothing to restore
 		} else {
-			figureGrid->setRowSizes(originalRowSizes);
+			if (boundaryPreview) {
+				// The only model update of a boundary drag: apply the preview
+				applyPendingSizes();
+			}
+			sizesDiffer = !sameSplitterSizes(figureGrid->rowSizes(), originalRowSizes)
+						  || !sameSplitterSizes(figureGrid->columnSizes(), originalColumnSizes);
 		}
 	}
-
-	setMembersUpdatesEnabled(true);
 
 	if (figure && keyboardGrabbed) {
 		figure->releaseKeyboard();
@@ -81699,17 +81888,11 @@ void QwtFigureGridSplitter::PrivateData::endDrag(bool cancelled)
 	}
 	restoreCursor();
 
-	bool sizesDiffer = false;
-	if (figureGrid) {
-		sizesDiffer = !sameSplitterSizes(figureGrid->rowSizes(), originalRowSizes)
-					  || !sameSplitterSizes(figureGrid->columnSizes(), originalColumnSizes);
-	}
-
 	if (figure) {
 		if (QLayout* lay = figure->layout()) {
 			lay->setGeometry(figure->rect());
 		}
-		if (!cancelled && sizesDiffer) {
+		if (!cancelled && sizesDiffer && figureGrid) {
 			// The only place the finished signal is emitted: exactly once per drag
 			figureGrid->finishChange();
 		}
@@ -81730,7 +81913,8 @@ void QwtFigureGridSplitter::PrivateData::clearDragState()
 	dragStartAxisPos = 0;
 	originalRowSizes.clear();
 	originalColumnSizes.clear();
-	updateDisabledWidgets.clear();
+	pendingRowSizes.clear();
+	pendingColumnSizes.clear();
 }
 
 //----------------------------------------------------
@@ -81765,6 +81949,7 @@ QwtFigureGridSplitter::~QwtFigureGridSplitter()
 	if (d->dragging) {
 		d->endDrag(true);
 	}
+	d->removeBoundaryLine();
 	d->clearWatchedWidgets();
 	d->restoreCursor();
 	d->enabled = false;
@@ -81819,6 +82004,7 @@ void QwtFigureGridSplitter::setEnabled(bool on)
 	if (d->dragging) {
 		d->endDrag(true);
 	}
+	d->removeBoundaryLine();
 	d->clearWatchedWidgets();
 	d->enabled = false;
 	d->restoreCursor();
@@ -81870,6 +82056,83 @@ bool QwtFigureGridSplitter::isDragging() const
 {
 	QWT_DC(d);
 	return d->dragging;
+}
+
+/**
+ * @brief Set how the members follow a divider while it is dragged
+ *
+ * BoundaryLine (the default) only moves a virtual boundary line while the
+ * mouse is down: the tracks keep their size and the new ratios are applied
+ * once, on release. The members are neither relaid out nor repainted during
+ * the drag, which is the cheapest option for figures with expensive members.
+ *
+ * Live resizes the adjacent tracks on every mouse move, runs the synchronous
+ * figure layout and replots the members, so the plots really follow the
+ * divider. It costs a full layout and replot per mouse move.
+ *
+ * Changing the mode while a divider is dragged cancels the running drag: a
+ * half-applied live drag must not be left behind.
+ *
+ * @param mode Preview mode of the drag
+ * @sa dragPreviewMode(), setBoundaryLinePen()
+ */
+void QwtFigureGridSplitter::setDragPreviewMode(DragPreviewMode mode)
+{
+	QWT_D(d);
+	if (d->dragMode == mode) {
+		return;
+	}
+	if (d->dragging) {
+		d->endDrag(true);
+	}
+	d->dragMode = mode;
+}
+
+/**
+ * @brief How the members follow a divider while it is dragged
+ * @return The preview mode, BoundaryLine by default
+ * @sa setDragPreviewMode()
+ */
+QwtFigureGridSplitter::DragPreviewMode QwtFigureGridSplitter::dragPreviewMode() const
+{
+	QWT_DC(d);
+	return d->dragMode;
+}
+
+/**
+ * @brief Set the pen of the virtual boundary line
+ *
+ * The line is drawn in BoundaryLine mode only. Its width defines the thickness
+ * of the line strip; the default is a two pixel dashed blue line. Set a pen
+ * with Qt::NoPen to hide the line while the members still keep their size
+ * until the release.
+ *
+ * @param pen Pen of the boundary line
+ * @sa boundaryLinePen(), setDragPreviewMode()
+ */
+void QwtFigureGridSplitter::setBoundaryLinePen(const QPen& pen)
+{
+	QWT_D(d);
+	if (d->boundaryLinePen == pen) {
+		return;
+	}
+	d->boundaryLinePen = pen;
+
+	if (d->boundaryLine) {
+		// The strip thickness follows the pen width: place it again
+		d->updateBoundaryLine(d->dragOrientation, d->boundaryAxisPos);
+	}
+}
+
+/**
+ * @brief The pen of the virtual boundary line
+ * @return Pen of the boundary line
+ * @sa setBoundaryLinePen()
+ */
+QPen QwtFigureGridSplitter::boundaryLinePen() const
+{
+	QWT_DC(d);
+	return d->boundaryLinePen;
 }
 
 bool QwtFigureGridSplitter::eventFilter(QObject* watched, QEvent* event)
@@ -81929,6 +82192,19 @@ bool QwtFigureGridSplitter::eventFilter(QObject* watched, QEvent* event)
 		const QPoint pos = figureLocalPos(d->figure.data(), widget, event);
 		return d->handleHover(pos);
 	}
+	case QEvent::Resize: {
+		// Keep the virtual boundary line aligned when the figure is resized
+		// while a divider is dragged (a live drag is relaid out anyway)
+		if (d->dragging && d->usesBoundaryLine() && widget == d->figure.data()) {
+			const bool horizontal           = (d->dragOrientation == Qt::Horizontal);
+			const int dimension             = horizontal ? d->figure->width() : d->figure->height();
+			const QVector< qreal >& sizes   = horizontal ? d->pendingColumnSizes : d->pendingRowSizes;
+			const QwtFigureGrid* figureGrid = d->grid();
+			const qreal spacing = figureGrid ? (horizontal ? figureGrid->wspace() : figureGrid->hspace()) : 0.0;
+			d->updateBoundaryLine(d->dragOrientation, d->dividerPixelPosition(sizes, spacing, dimension));
+		}
+		break;
+	}
 	case QEvent::MouseButtonRelease: {
 		if (d->dragging) {
 			d->endDrag(false);
@@ -81957,8 +82233,8 @@ bool QwtFigureGridSplitter::eventFilter(QObject* watched, QEvent* event)
 	case QEvent::ApplicationDeactivate: {
 		// The release will never arrive: the mouse grab was lost or the window
 		// was deactivated (a modal dialog opened, the user switched tasks).
-		// End the drag as cancelled so the members repaint again instead of
-		// staying stuck with their repaints disabled.
+		// End the drag as cancelled so a preview is removed or a live drag is
+		// rolled back instead of leaving the figure in a half-dragged state.
 		if (d->dragging) {
 			d->endDrag(true);
 		}

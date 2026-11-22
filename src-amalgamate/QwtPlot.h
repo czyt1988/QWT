@@ -32,14 +32,14 @@
  * @def Qwt numeric version MAJ.MIN.{PAT}
  */
 #ifndef QWT_VERSION_PAT
-#define QWT_VERSION_PAT 0
+#define QWT_VERSION_PAT 1
 #endif
 
 /**
  * @def Version string
  */
 #ifndef QWT_VERSION_STR
-#define QWT_VERSION_STR "7.6.0"
+#define QWT_VERSION_STR "7.6.1"
 #endif
 
 #endif // QWT_VERSION_INFO_H
@@ -24368,6 +24368,7 @@ Q_SIGNALS:
 
 // Qt
 #include <QObject>
+#include <QPen>
 
 // qwt
 
@@ -24391,10 +24392,22 @@ class QwtFigure;
  * ratios are clamped by QwtFigureGrid::minimumTrackPixels(), so no track can
  * collapse and the tracks can never overlap.
  *
- * While a divider is dragged the member widgets stop repainting; releasing the
- * mouse restores the repaints and emits QwtFigureGrid::sizesChangeFinished()
- * once, but only when the ratios really changed. Pressing Esc cancels the drag:
- * the original ratios are restored and no finished signal is emitted.
+ * A drag can be previewed in two ways ( DragPreviewMode ):
+ *  - BoundaryLine ( default ): the tracks keep their size while the mouse is
+ *    down. A virtual boundary line follows the divider and the new ratios are
+ *    applied exactly once, when the mouse is released. The members are not
+ *    relaid out or repainted during the drag, which is the cheapest option for
+ *    figures with expensive members ( rasters, spectrograms, OpenGL ).
+ *  - Live: the ratios are applied on every mouse move, the figure is relaid
+ *    out synchronously and the members are replotted, so the plots really
+ *    follow the divider. This costs a full layout and replot per mouse move.
+ *
+ * The boundary line is a thin strip above the members; its pen is
+ * configurable with setBoundaryLinePen(). Releasing the mouse emits
+ * QwtFigureGrid::sizesChangeFinished() once, but only when the ratios really
+ * changed. Pressing Esc cancels the drag: the original ratios are restored
+ * (Live) or simply never applied (BoundaryLine) and no finished signal is
+ * emitted.
  *
  * The drag grabs the mouse on the figure, so the release always returns to the
  * splitter even when a filter installed after this one (Qt invokes the event
@@ -24422,6 +24435,11 @@ class QwtFigure;
  *
  * // The splitter is owned by the figure, enableGrid() must be called first
  * figure->setGridEditable(true);
+ *
+ * // Optional: show the plots live while the divider is dragged instead of
+ * // the default virtual boundary line
+ * if (QwtFigureGridSplitter* splitter = figure->findChild< QwtFigureGridSplitter* >())
+ *     splitter->setDragPreviewMode(QwtFigureGridSplitter::Live);
  * @endcode
  *
  * @sa QwtFigure::setGridEditable(), QwtFigureGrid
@@ -24430,6 +24448,20 @@ class QWT_EXPORT QwtFigureGridSplitter : public QObject
 {
 	Q_OBJECT
 	QWT_DECLARE_PRIVATE(QwtFigureGridSplitter)
+
+public:
+	/**
+	 * @brief How the members follow a divider while it is dragged
+	 */
+	enum DragPreviewMode
+	{
+		/// Only a virtual boundary line follows the divider; the tracks are resized on release (default)
+		BoundaryLine = 0,
+
+		/// The tracks are resized, relaid out and replotted on every mouse move
+		Live = 1
+	};
+	Q_ENUM(DragPreviewMode)
 
 public:
 	// Constructor, the figure must not be null and becomes the parent
@@ -24449,6 +24481,14 @@ public:
 
 	// True while a divider is dragged
 	bool isDragging() const;
+
+	// Set how a drag is previewed, a running drag is cancelled first
+	void setDragPreviewMode(DragPreviewMode mode);
+	DragPreviewMode dragPreviewMode() const;
+
+	// Set the pen of the virtual boundary line (BoundaryLine mode)
+	void setBoundaryLinePen(const QPen& pen);
+	QPen boundaryLinePen() const;
 
 Q_SIGNALS:
 	/**
