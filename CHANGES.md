@@ -1,3 +1,20 @@
+## Unreleased
+
+### Bug Fixes
+
+- **`examples/bench/chartbench` builds with MSVC and Qt 5 again**
+    - The benchmark used `M_PI` without a fallback definition. MSVC only declares it when `_USE_MATH_DEFINES` is defined before `<cmath>` and Qt 5 does not do that, so a Qt 5 Visual Studio build of the example failed with `C2065: 'M_PI': undeclared identifier`. The data generators now use `chartbench::PI`
+    - Qt 5 declares the Qt Charts classes in the `QtCharts` namespace while Qt 6 moved them to the global namespace, so `QtChartsAdapter` did not compile against Qt 5 (`C2027: use of undefined type 'QChart'`). The adapter opens the namespace around its forward declarations for Qt 5 and brings the classes into scope with `QT_CHARTS_USE_NAMESPACE`. The adapter is only compiled when Qt Charts is installed, which is why the failure only appeared in a local build with the Charts module present
+- **`tests/flat_style_test` expects the flat frame of the GL canvas**
+    - The case still asserted a one pixel border, but `QwtPlotOpenGLCanvas` - like `QwtPlotCanvas` - selects a box frame without a visible line (`setLineWidth(0)`) since the flat style rework, so the suite failed on every platform. It asserts a `QFrame::Box` / `QFrame::Plain` frame with line width 0 now
+- **`tests/figure_grid_splitter_test` no longer assumes a fixed figure geometry**
+    - A top-level `QwtFigure` grows to the minimum size of its layout and the platform decides when that layout request is flushed: the offscreen plugin answers synchronously, a window system defers it. The fixture measured the divider against the requested 400 px while the figure already was 440 px wide, so the press, the boundary line preview and the applied ratios disagreed. The fixture adopts `minimumSizeHint()` and settles the geometry before the tests measure it
+
+### Build
+
+- **The Linux job installs Qt with `install-qt-action@v4`**
+    - v3 pins aqtinstall 3.1.x, which can no longer resolve Qt 6.8 from the online repository (`ERROR: The packages ['qt_base'] were not found while parsing XML of package information`), so the job died in the install step before the configure. v4 bundles aqtinstall 3.3 and installs Qt 6.8 again; `actions/checkout` moves to v4 as well
+
 ## tag:v7.6.1 (2026-11-22)
 
 ### New Features

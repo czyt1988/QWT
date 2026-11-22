@@ -1,3 +1,20 @@
+## Unreleased
+
+### Bug 修复
+
+- **`examples/bench/chartbench` 恢复 MSVC 与 Qt 5 编译**
+    - 该基准程序直接使用 `M_PI` 而没有兜底定义。MSVC 只有在 `<cmath>` 之前定义 `_USE_MATH_DEFINES` 时才会声明它，而 Qt 5 不会做这件事，因此用 Qt 5 的 Visual Studio 配置编译该示例会报 `C2065: “M_PI”: 未声明的标识符`。数据生成器改用 `chartbench::PI`
+    - Qt 5 把 Qt Charts 的类放在 `QtCharts` 命名空间，Qt 6 则移到了全局命名空间，导致 `QtChartsAdapter` 无法在 Qt 5 下编译（`C2027: 使用了未定义类型“QChart”`）。现在该适配器在 Qt 5 下把前向声明放进该命名空间，并用 `QT_CHARTS_USE_NAMESPACE` 引入这些类。该适配器只在安装了 Qt Charts 时才参与编译，这也是问题只在本地装了 Charts 模块的构建里暴露的原因
+- **`tests/flat_style_test` 改为断言 GL 画布的扁平边框**
+    - 该用例仍在断言一像素边框，但 `QwtPlotOpenGLCanvas`（与 `QwtPlotCanvas` 一样）在扁平化改造后选择了无可见线条的 Box 边框（`setLineWidth(0)`），因此在所有平台都会失败。现在断言的是 `QFrame::Box` / `QFrame::Plain` 边框且线宽为 0
+- **`tests/figure_grid_splitter_test` 不再假定固定的 figure 尺寸**
+    - 顶层 `QwtFigure` 会被布局的最小尺寸撑大，而该布局请求何时刷新取决于平台：offscreen 插件会同步处理，窗口系统则可能延后。夹具按请求的 400 像素计算分隔条位置，而 figure 实际已是 440 像素宽，于是按下位置、边界线预览与实际应用的比例互相矛盾。夹具现在先采纳 `minimumSizeHint()` 把几何确定下来，再让用例测量
+
+### 构建
+
+- **Linux 任务改用 `install-qt-action@v4` 安装 Qt**
+    - v3 固定使用 aqtinstall 3.1.x，已无法从在线仓库解析 Qt 6.8（`ERROR: The packages ['qt_base'] were not found while parsing XML of package information`），任务在 configure 之前的安装步骤就失败。v4 内置 aqtinstall 3.3，可正常安装 Qt 6.8；`actions/checkout` 一并升到 v4
+
 ## tag:v7.6.1 (2026-11-22)
 
 ### 新功能
