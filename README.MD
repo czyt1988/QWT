@@ -568,6 +568,11 @@ target_link_libraries(${YOUR_APP_TARGET} PUBLIC qwt::core)
 |![Raster View 2](./docs/assets/screenshots/rasterview-2.png)|![SVG Map](./docs/assets/screenshots/svgmap.png)|![Item Editor](./docs/assets/screenshots/itemeditor.png)|
 |`examples/2D/rasterview`|`playground/svgmap`|`examples/2D/itemeditor`|
 
+||||
+|:---:|:---:|:---:|
+|![Retained Grid Layout](./docs/assets/screenshots/figure-grid.png)|||
+|`examples/2D/figureGrid`|||
+
 ### 3D visualization
 
 ||||
