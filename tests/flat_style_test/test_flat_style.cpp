@@ -94,12 +94,14 @@ void TestFlatStyle::testCompassRoseSetFlatStyle()
 
 void TestFlatStyle::testGLCanvasDefaultFrameStyle()
 {
-    // Verify QwtPlotOpenGLCanvas defaults
+    // Verify QwtPlotOpenGLCanvas defaults. The canvas draws its own flat border:
+    // a box frame without a visible line, the same default as QwtPlotCanvas
+    // (both call setLineWidth(0) and select QFrame::Box|QFrame::Plain).
     {
         QwtPlotOpenGLCanvas canvas;
         QCOMPARE( canvas.frameShape(), QFrame::Box );
         QCOMPARE( canvas.frameShadow(), QFrame::Plain );
-        QCOMPARE( canvas.lineWidth(), 1 );
+        QCOMPARE( canvas.lineWidth(), 0 );
     }
 }
 

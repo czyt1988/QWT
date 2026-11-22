@@ -58,8 +58,16 @@ void TestFigureGridSplitter::init()
     QCOMPARE(m_splitter->dragPreviewMode(), QwtFigureGridSplitter::BoundaryLine);
     QCOMPARE(boundaryLineWidget(), nullptr);
 
-    // The geometry of the cells is needed for the hit test and the cursor target
+    // The geometry of the cells is needed for the hit test and the cursor target.
+    // A top-level QwtFigure grows to the minimum size of its layout and the
+    // platform decides when that layout request is flushed (the offscreen plugin
+    // of a headless CI answers synchronously, a window system may defer it). Settle
+    // the geometry here, so a deferred request cannot resize the figure in the
+    // middle of a gesture - that would make the hit test and the boundary line
+    // disagree about where the divider is.
     m_figure->show();
+    QApplication::processEvents();
+    m_figure->resize(m_figure->size().expandedTo(m_figure->minimumSizeHint()));
     QApplication::processEvents();
 }
 
