@@ -1,4 +1,4 @@
-## Unreleased
+## tag:v7.6.0 (2026-11-22)
 
 ### 新功能
 
@@ -14,14 +14,26 @@
     - `gridSizesChanged()` 汇报拖动中的比例；`gridSizesChangeFinished()` 只在松手且比例确实变化时发出一次，DA 层可据此为整次拖动压入一条撤销命令。3D（`QOpenGLWidget`）成员不会被拦截：3D 单元格的边界由相邻的 2D 绘图一侧负责命中
     - 在子绘图上按下鼠标（真实点击投递给其 canvas）即把它设为当前激活子图（`currentAxesChanged()`），且不消费事件。Qt 事件过滤器按安装的相反顺序调用（后装先调）：宿主自己的 canvas 过滤器应在 `setGridEditable(true)` 之前安装，或之后再次调用 `setGridEditable(true)`——对已启用的分隔条再次启用会重扫并重装其过滤器，排在宿主过滤器之前
     - `tests/figure_grid_test`、`tests/figure_grid_layout_test`、`tests/figure_grid_splitter_test` 覆盖轨道数学、布局集成与交互行为（命中带、只改目标方向、最小轨道 clamp、完成信号次数、Esc、重绘开关、带外放行、canvas 投递激活、画布光标、松手丢失兜底）
+- **`QwtFigure::disableGrid()` 退出网格并保持成员的当前几何**
+    - 退出保留式网格会把每个网格成员转成自由成员，其归一化矩形取自布局实际分配给它的几何，因此子绘图保持当前的位置和大小，不会跳动。当时处于隐藏状态的成员改为按其网格单元换算，因为它最后的像素几何可能早于窗口缩放；从未属于网格的自由成员不受影响，混合两类成员的 figure 退出后只剩自由成员
+    - 轨道比例与间距会被丢弃、分隔条交互会关闭，因此退出网格不可逆：再次调用 `enableGrid()` 需要重新给出行列数，`setGridEditable(true)` 也要重新调用一次。没有网格的 figure 返回 `false` 且不做任何改动。回归测试：`tests/figure_grid_layout_test`（`testDisableGridKeepsGeometry`、`testDisableGridMixedMembers`、`testDisableGridIdempotent`）与 `tests/figure_grid_test`（`testDisableGrid`）
 - **`examples/2D/figure`：可拖拽网格演示**
     - 工具栏新增「Grid layout (draggable)」动作，切换到 2x2 保留式网格（波形占顶行，下方两个分析图）并可拖动分隔条；切回时重建经典演示。网格可编辑期间禁用子图蒙版，避免它吞掉分隔条事件
 - **`examples/2D/figureGrid`：保留式网格布局示例**
     - 专门的 3×3 演示，覆盖了模型的大部分能力：六个成员（四个单格绘图、一个跨两列的绘图、一个用 `addGridItem()` 登记的普通控件）、比例预设、`wspace`/`hspace` 与 `minimumTrackPixels` 实时控制、可调的分隔条命中宽度、由 `gridSizesChangeFinished()` 驱动的「一次拖动一条撤销命令」（撤销/重做动作与快捷键）、运行时移除并重新添加成员、用 `disableGrid()` 退出网格并重新进入。例子用 `findChild<>()` 取得分隔条，演示了不扩展 `QwtFigure` 公开接口也能调用 `setHitWidth()` 和 `hoverChanged()`
     - 成员默认自动对齐，dock 里的「Plot area alignment」分组可在运行时切换 `setGridAxisAlignment()`。示例数据刻意让效果可见：频谱图使用 Hz 刻度标签、趋势图带左图例、柱状图带右侧百分比坐标轴、散点图使用两行标题，不开启对齐时各成员绘图区的起点会明显不同
     - 支持无界面截图协议，`drag`（两次经分隔条的合成拖动）、`spacing` 与 `noalign`（关闭对齐）三个变体用于生成 `docs/assets/screenshots/figure-grid{,-drag,-spacing,-noalign}.png`
-- **文档**：figure 使用指南（中英）重写「保留式网格布局」章节：说明该功能的作用与适用场景，`QwtFigure`、`QwtFigureGrid`、`QwtFigureGridSplitter`、`QwtFigureLayout` 的职责划分（含类图），完整的模型 API 与归一化、间隙校验规则，分隔条交互，撤销实现，用 `disableGrid()` 退出网格，以及新示例与三张截图。7.x 新特性页、`plot-layout.md` 与展示页也补充了这个功能
-    - 使用指南的「坐标轴对齐」一节（中英）改为介绍新机制（基于真实绘图区边缘而非刻度 extent，覆盖图例、寄生轴和隐藏坐标轴，网格自动对齐及其开关，手动分组的传递合并，生命周期触发点），并展示关闭对齐前后的 `figureGrid` 截图
+- **示例工具栏统一改用扁平 SVG 图标**
+    - `examples/common/icons` 收录 24×24 描边线条图标，配色为两色（中性灰加强调蓝，与 `parasitePlot` 示例原有的图标一致），并提供可编入每个示例的 `icons.qrc`；设计规则、文件命名与用法记录在 `examples/common/icons/README.md`
+    - 所有 2D 示例工具栏改用这套共享图标（导出、打印、缩放、保存、截图、清空、帮助、网格/旋转/镜像、样条叠加/闭合、figure 布局以及撤销/重做）；原先只有文字按钮的工具栏改为图标加文字（图标 20 像素），`bode`、`polardemo`、`realtime` 三个示例过时的 XPM 位图连同 `Pixmaps.h`/`*.xpm` 一并移除
+    - 3D 示例工具栏保留纯图标按钮（工具栏已被下拉框占满），动作文字用作 tooltip；动画与运行开关按选中状态在播放/暂停图标之间切换。`figureGrid` 与 `downsample_demo` 也补上了其他图标化目标已有的 target 级 `AUTORCC` 属性
+
+### 破坏性变更
+
+- **3D 网格数据改为 `data[row][column]` 索引**
+    - `Qwt3DSurface::loadFromData()`、`Qwt3DBar::setSamples()` 以及其他所有网格入口此前使用 `z[column][row]`（第一个下标是 x），这是 `QwtPlot3D` 的历史约定：持有行主序矩阵（`DataFrame`、NumPy、MATLAB、matplotlib 的 `plot_surface`）的调用者必须先转置，而未转置直接传入时只要列数与行数不等就会越界读取，导致调用方崩溃
+    - 现在所有入口统一使用矩阵布局：`Qwt3DSurface::loadFromData()`（`double**` 与 `Triple**`）、`Qwt3DBar::setSamples()`（`double**` 与 `Qwt3DFunctionData`）、`Qwt3DFunctionData::z`、`Qwt3DParametricData::vertices`、`Qwt3DGridData`（`rows()` 为外层维度、`columns()` 为内层维度，顶点与法线均为 `[row][column]`）、`Qwt3DFunction::create()`/`Qwt3DParametricSurface::create()` 输出的行主序矩阵、`Qwt3DNativeReader` 以及曲面几何索引（`row * columns + column`）
+    - 法线与周期缝合计算的物理量与此前一致——只有存储下标改变——因此为旧约定做过转置的代码现在直接传入矩阵即可。示例、测试（现在刻意使用非方阵）、基准程序与 3D 使用指南均已更新
 
 ### Bug 修复
 
@@ -38,10 +50,30 @@
 - 修复混合 DPI 桌面上 OpenGL 画布被放大并裁切的问题：`QwtPlotOpenGLCanvas::paintGL()` 用 `QwtPainter::devicePixelRatio( nullptr )` 决定 FBO 尺寸，而该函数返回所有屏幕中最大的设备像素比，不是画布所在屏幕的像素比。在 100% + 150% 的桌面上，位于 100% 屏幕的画布会按 1.5 倍创建 FBO，1:1 blit 到 `QOpenGLWidget` 帧缓冲后只剩绘图区左上部分并按 1.5 倍放大；现在改用画布的 `devicePixelRatioF()`。统一 DPI 的环境不受影响
 - `QwtPlotOpenGLCanvas` 现在与 `QwtPlotCanvas` 使用相同的默认边框宽度（0，无可见边框）：`init()` 强制了 1 像素的 `QFrame::Box`，给 GL 画布增加了一圈光栅画布没有的内边框
 - 修复非整数显示缩放下 OpenGL 画布 backing store 没有覆盖完整设备足迹的问题：FBO 为 `round( size * ratio )` 个设备像素，而画布背景只覆盖逻辑矩形，最后一列/行保留未初始化内容。Qt 6.12 的合成器在控件设备足迹比纹理窄 1 个设备像素时会重复纹理最后一列，于是该列表现为右侧时隐时现的 1-2 像素竖条。现在剩余列/行会用画布背景填充，与 `QwtPlotCanvas` 的 backing store 一致
+- 修复 3D 标签文字出现重影的问题：每个标签此前会把文字在 pixmap 上绘制两遍，一遍画进作为 mask 的 1 位 `QBitmap`，一遍画彩色文字，而抗锯齿字形的单色 mask 栅格化结果与之不匹配，于是每个笔画都出现一个偏移 1 像素的重影（中文标题、刻度数字与轴标题都会出现）。现在改为把文字绘制一次到透明图像，由文字着色器采样其 alpha 通道，字形保留抗锯齿且不再需要 mask。标签四边形此前还落在非整数设备像素位置，双线性过滤会把每条字形边扩散到两个像素——这是重影的第二个来源；`convert2screen()` 现在把四边形吸附到设备像素网格，`draw()` 由吸附后的矩形重建四个角点，四边形始终正好覆盖 `width() × height()` 个设备像素。字母的下伸部分也不再被裁掉（此前 pixmap 高度取的是 `r.bottom()` 而不是 `r.height()`）
+- 修复 `QwtFigureWidgetOverlay` 的方向键会取消遮罩的问题：`Qt::Key_Right`/`Key_Down` 落进了 `Qt::Key_Escape` 分支，用方向键移动选择时同时调用了 `cancel()` 并隐藏了遮罩。该缺陷由下面的 GCC `-Wall -Wextra` 检查发现
+- 修复 3D 源码在 Qt 6.12 MinGW Release 构建中的三个警告：`QImage::mirrored()` 自 Qt 6.9 起废弃（Qt >= 6.9 用 `flipped(Qt::Vertical)`，更早版本仍用 `mirrored()`，因为 `flipped()` 在 6.9 之前不存在）；`operator*(const QMatrix4x4&, const QVector3D&)` 自 Qt 6.1 起废弃（`QMatrix4x4::map()` 在 Qt 5 同样可用）；`Qwt3DCellData`/`Qwt3DGridData` 的析构函数调用了虚函数 `clear()`（`clang-analyzer-optin.cplusplus.VirtualCall`）：`CellData` 只持有 vector，析构函数直接默认实现，`GridData` 改由新增的非虚 `releaseData()` 释放裸数组，构造函数中调用的 `setSize()` 也走这条路径
+
+### 性能优化
+
+- **未变化的 3D 标签不再重复栅格化**
+    - `Qwt3DAxis::drawTicLabel()` 每帧都会重新设置每个刻度标签的字体、颜色与文本，`Qwt3DLabel::draw()` 每帧为每个标签创建并上传一次纹理，因此 3×21 个刻度标签的绘图大部分帧时间都花在完全没有变化的文字上。现在值未改变时 `setFont()`/`setString()`/`setColor()` 直接返回，`m_flagForUpdate` 只由真正的改动置位；文字纹理缓存在标签内，仅在文字图像、GL 上下文或屏幕 DPI 变化时重建。光栅化所用的 DPI 被记录并在 `draw()` 中比较，因为离屏 pixmap 会按主屏解析点值字体；GL 名字在其上下文不是当前上下文时丢弃。在 900×700 绘图、关闭 VSync 逐帧重绘下实测：每轴 21 个刻度标签 23.6 ms -> 8.4 ms，每轴 2 个 8.1 ms -> 4.2 ms，渲染结果逐像素一致
+- **所有 3D 标签合并为一次图集绘制调用**
+    - 每个标签此前仍要上传自己的四边形并发起自己的绘制调用，文字密集的绘图帧时间被逐标签的 GL 开销主导（900×700、每轴 101 个刻度标签的场景每帧 70 ms）。新增的 `Qwt3DTextBatch` 把标签图像打包进一张图集纹理，并在遍历 drawable 时收集屏幕对齐的四边形；`Qwt3DPlot` 在每个绘制阶段（场景与固定叠加层）末尾以一次绘制调用刷出批次，放不进图集的图像仍走逐标签纹理路径。图集按货架算法打包，保留每个标签的图章以免重复合成未变化的标签，装满后扩容并在下一帧重新打包；文字着色器改用逐顶点颜色取代 `uTextColor` uniform，颜色不同的标签也能共用一次调用，批次由 `Qwt3DRenderContext` 携带。矢量导出跳过刷出（`GL_FEEDBACK` 与着色器绘制混用属未定义行为，文字由 gl2ps 自行输出）。实测：303 个标签 70.1 ms -> 2.6 ms，63 个 21.3 ms -> 2.2 ms，6 个 7.7 ms -> 2.1 ms。输出仅在 14 个像素上不同——文字现在绘制在其重叠的轴线之上（批次在坐标系之后刷出）——矢量导出也不再包含逐标签纹理四边形产生的 NaN 多边形
 
 ### 构建
 
 - `examples/bench/chartbench` 在 `qim/` 为空时于 configure 阶段自动拉取可选的 QIm 子模块：优先检出子模块固定的提交，发布包没有 `.git` 目录时退回浅克隆；下载失败（无网络、未安装 git）只会禁用 QIm 适配器，不会让 configure 失败。拉取过程不交互、带超时，且每个构建目录只尝试一次；可用 `CHARTBENCH_QIM_AUTOFETCH`、`CHARTBENCH_QIM_DIR`、`CHARTBENCH_QIM_URL`、`CHARTBENCH_QIM_FETCH_TIMEOUT`、`CHARTBENCH_QIM_FETCH_ATTEMPTED` 控制
+- 修复 Qt 5 / MinGW 构建：两个 C++14 构造在 `CMAKE_CXX_STANDARD 11` 下编译失败。`QwtRoundF` 带有默认成员初始化器，在 C++11 中不再是聚合类型，改为显式构造函数而不是花括号初始化列表；`qwt3d_plot.cpp` 使用了 `std::make_unique`，改用项目的 C++11 回退 `qwt_make_unique`。`Qwt3DPlot::renderPixmap()` 未使用的 `w`/`h` 参数加了标记，开启 `-Wall` 后会报告这两个参数
+- 修复 GCC 7.3 在 `-Wall -Wextra` 下报出的 28 个警告，除内置 gl2ps 代码中的两个之外全部处理：除上面提到的遮罩方向键缺陷外，`qwt3d_coordsys.cpp` 的 `left` 可能被未初始化读取（网格线颜色已烘焙进顶点缓冲，未使用的局部变量与 `lineColor` 参数一并移除），`qwt3d_autoscaler.cpp` 移除未使用且会写出两元素 vector 末尾的 `floor125()`，日期刻度引擎的静态函数 `qwtStepSize()` 改名为 `qwtDateStepSize()`——在合成后的单一翻译单元中它与 `QwtScaleArithmetic::qwtStepSize()` 同处一个 TU，调用会解析到错误的重载。其余为未使用变量/函数、成员初始化顺序，以及为刻意不用的参数加 `Q_UNUSED`
+- `src-amalgamate/QwtPlot.{h,cpp}` 已为新增的 `QwtPlotLayout` 最小画布内缩 API、重写的 `QwtFigure` 坐标轴对齐、`QwtFigure::disableGrid()`、3D 标签批量绘制与 3D 网格索引变更重新生成，并以 `/bigobj` 按单一翻译单元编译验证
+
+### 文档
+
+- **figure 使用指南（中英）**：「保留式网格布局」章节重写——说明该功能的作用与适用场景，`QwtFigure`、`QwtFigureGrid`、`QwtFigureGridSplitter`、`QwtFigureLayout` 的职责划分（含类图），完整的模型 API 与归一化、间隙校验规则，分隔条交互，撤销实现，用 `disableGrid()` 退出网格，以及新示例与三张截图。7.x 新特性页、`plot-layout.md` 与展示页也补充了这个功能
+    - 使用指南的「坐标轴对齐」一节（中英）改为介绍新机制（基于真实绘图区边缘而非刻度 extent，覆盖图例、寄生轴和隐藏坐标轴，网格自动对齐及其开关，手动分组的传递合并，生命周期触发点），并展示关闭对齐前后的 `figureGrid` 截图
+- **示例工具栏梳理（`examples/TOOLBAR-ICONS.md`）**：记录哪些示例程序带工具栏、工具栏包含哪些按钮、每个按钮使用哪个图标，并指向图标集的设计规则与文档截图的重新生成方式；图标化工具栏的截图已刷新（`docs/assets/screenshots` 下 30 张）
+- **3D 使用指南（中英）**：在各 `loadFromData()`/`setSamples()` 入口说明网格数据按 `data[row][column]` 索引（行对应 y 方向，列对应 x 方向），与 3D 曲面管线技术报告中的矩阵布局一致
 
 ## tag:v7.5.2 (2026-10-23)
 
