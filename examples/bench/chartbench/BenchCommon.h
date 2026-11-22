@@ -21,6 +21,11 @@
 namespace chartbench
 {
 
+//! Pi for the deterministic signal generators.
+//! MSVC only exposes M_PI when _USE_MATH_DEFINES is defined before <cmath> and
+//! Qt 5 does not do that for us, so the benchmarks carry their own constant.
+constexpr double PI = 3.14159265358979323846;
+
 //! Rendering backend a plot is drawn with.
 enum class Backend
 {

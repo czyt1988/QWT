@@ -226,7 +226,7 @@ void DataGenerator::generate(int curveCount, int pointsPerCurve,
     x.assign(curveCount, std::vector<double>());
     y.assign(curveCount, std::vector<double>());
 
-    const double step = 20.0 * M_PI / qMax(1, pointsPerCurve - 1);
+    const double step = 20.0 * PI / qMax(1, pointsPerCurve - 1);
 
     for (int c = 0; c < curveCount; ++c) {
         x[c].resize(pointsPerCurve);
@@ -247,7 +247,7 @@ void DataGenerator::generatePeakySignal(int pointsPerCurve, double spikeProbabil
 {
     x.resize(pointsPerCurve);
     y.resize(pointsPerCurve);
-    const double step = 20.0 * M_PI / qMax(1, pointsPerCurve - 1);
+    const double step = 20.0 * PI / qMax(1, pointsPerCurve - 1);
     for (int i = 0; i < pointsPerCurve; ++i) {
         const double xi = i * step;
         x[i] = xi;

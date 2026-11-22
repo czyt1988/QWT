@@ -38,7 +38,7 @@ struct PlotSpec
     bool antialiasing = true;
     AxisMode axisMode = AxisMode::Fixed;
     double xMin = 0.0;
-    double xMax = 2.0 * M_PI * 10.0;
+    double xMax = 2.0 * PI * 10.0;
     double yMin = -1.8;
     double yMax = 1.8;
     QString label = QStringLiteral("series");

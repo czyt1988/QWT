@@ -7,12 +7,24 @@
 
 #include "PlotAdapter.h"
 
+#include <QtGlobal>
+
 #include <vector>
 
+// Qt 5 keeps the Charts classes in the QtCharts namespace while Qt 6 moved them
+// to the global namespace, so the forward declarations have to follow suit.
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+#include <QtCharts/QChartGlobal>
+QT_CHARTS_BEGIN_NAMESPACE
+#endif
 class QChart;
 class QChartView;
 class QValueAxis;
 class QLineSeries;
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+QT_CHARTS_END_NAMESPACE
+QT_CHARTS_USE_NAMESPACE
+#endif
 
 namespace chartbench
 {
