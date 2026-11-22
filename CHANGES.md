@@ -1,3 +1,24 @@
+## Unreleased
+
+### New Features
+
+- **Two drag preview modes for the retained grid of `QwtFigure`**
+    - `QwtFigureGridSplitter::setDragPreviewMode()` selects how the members follow a divider while it is dragged. `BoundaryLine` (the default) only moves a virtual boundary line while the mouse is down and applies the new track ratios once, on release: the members are neither relaid out nor repainted during the drag and a whole drag costs a single layout pass. `Live` applies the ratios on every mouse move, runs the synchronous layout pass and replots the members, so the plots really follow the divider at the cost of a layout and replot per move. `dragPreviewMode()` reports the mode; changing it cancels a running drag
+    - The line of the default mode is a thin strip above the members (`setBoundaryLinePen()` / `boundaryLinePen()`, a two pixel dashed blue line by default) that follows the clamped divider position, spans the whole figure and stays aligned when the figure is resized mid-drag. `Qt::NoPen` hides the line and keeps the commit-on-release behaviour
+    - The boundary line overlay is created on the first boundary drag and destroyed when the drag ends, so a figure without a running drag has no extra child widget; its object name (`QwtFigureGridBoundaryLine`) is stable for tests and host introspection
+    - `examples/2D/figureGrid` gained a "Drag preview" selector in the dock, the `preview` (a boundary drag that is still in progress) and `live` (the same drag with the live refresh) screenshot variants and the `figure-grid-preview.png` / `figure-grid-live.png` documentation screenshots. The use guide (EN/ZH) documents both modes
+    - Regression tests: `tests/figure_grid_splitter_test` covers the boundary preview (ratios untouched until release, line geometry/clamping, figure resize while dragging, Esc, pen), the adapted live preview and the fact that neither mode suspends the member repaints
+
+### Bug Fixes
+
+- **Dragging a divider of the retained grid no longer leaves ghosting artifacts**
+    - The splitter suspended the repaints of every grid member (`setUpdatesEnabled(false)`) while it resized the tracks on every mouse move. Qt then kept showing stale pixels of the moved members - the ghosting and tearing of heavy members such as a spectrogram. The repaint suspension is gone: the default `BoundaryLine` preview does not touch the member geometry during the drag at all, and the `Live` preview keeps the members painting and replots them on every move. The behavior is covered by `testMemberRepaintsStayEnabledWhileDragging()`
+    - The old in-between behavior (layout changes without repaints) is gone, so `sizesChanged()` is only continuous in `Live` mode; hosts that need a live preview must select `QwtFigureGridSplitter::Live`, the default boundary preview emits it once on release
+
+### Documentation
+
+- The retained grid section of the `QwtFigure` use guide (EN/ZH) describes the two drag preview modes, the boundary line pen and the `findChild<>()` snippet to switch the mode; the `figureGrid` screenshots were regenerated and the two in-progress drag screenshots were added
+
 ## tag:v7.6.0 (2026-11-22)
 
 ### New Features

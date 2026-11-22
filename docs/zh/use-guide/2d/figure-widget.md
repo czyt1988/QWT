@@ -78,7 +78,7 @@ figure->addAxes(bottomLeftPlot, 2, 2, 1, 0);
 |----|------|
 | `QwtFigure` | 对外入口：启用和退出网格、注册成员、开关分隔条交互、转发模型信号 |
 | `QwtFigureGrid` | 轨道模型：行列比例、间隙、最小轨道像素、成员的 `(row, column, rowSpan, columnSpan)` 登记、单元格归一化矩形、分隔条位置 |
-| `QwtFigureGridSplitter` | 交互：在分隔条附近的窄带内拦截鼠标事件，只修改相邻两条轨道的比例 |
+| `QwtFigureGridSplitter` | 交互：在分隔条附近的窄带内拦截鼠标事件，只修改相邻两条轨道的比例；拖动预览可选用虚拟边界线，也可实时重排并重绘 |
 | `QwtFigureLayout` | 消费方：布局时向模型查询成员的归一化矩形，再换算成像素矩形 |
 
 ```mermaid
@@ -100,6 +100,8 @@ classDiagram
     class QwtFigureGridSplitter {
         +setEnabled()
         +setHitWidth()
+        +setDragPreviewMode()
+        +setBoundaryLinePen()
         +isDragging()
         +hoverChanged()
     }
@@ -135,7 +137,7 @@ figure->setGridEditable(true);                  // 分隔条可拖动
 
 `addAxes()` 会依次发出 `axesAdded()` 和 `currentAxesChanged()`，`addGridItem()` 不涉及坐标轴信号。再次调用 `enableGrid()` 会按新的行列数重建轨道、把比例复位为均等并清空成员登记，成员需要重新添加。
 
-完整的演示位于 `examples/2D/figureGrid`：3×3 网格上有六个成员，包括一个跨三列的频谱图、三个单格绘图、一个跨两列的趋势图和一个用 `addGridItem()` 登记的普通控件；窗口右侧的面板集中了比例预设、间隙、最小轨道像素、命中宽度、撤销和成员增删，截图如下：
+完整的演示位于 `examples/2D/figureGrid`：3×3 网格上有六个成员，包括一个跨三列的频谱图、三个单格绘图、一个跨两列的趋势图和一个用 `addGridItem()` 登记的普通控件；窗口右侧的面板集中了比例预设、间隙、最小轨道像素、命中宽度、拖动预览模式、撤销和成员增删，截图如下：
 
 ![保留式网格布局](../../../assets/screenshots/figure-grid.png)
 
@@ -179,17 +181,31 @@ grid->setColumnSizes(loadColumns());
 
 - 鼠标距分隔条中心不超过 `QwtFigureGridSplitter::setHitWidth()` 像素（默认 4）时命中。两列之间的分隔条是竖线，光标为 `Qt::SplitHCursor`；两行之间的分隔条是横线，光标为 `Qt::SplitVCursor`。光标设置在鼠标实际所在的控件上（通常是画布），画布自身带有显式光标时也能显示，离开分隔带时还原该控件原来的光标
 - 拖动只改变相邻两条轨道的比例，两条轨道的比例和保持不变，并受 `minimumTrackPixels()` 约束，任何一条轨道都不会被压到 0，轨道之间也不会重叠
-- 拖动期间成员控件停止重绘，松手后恢复重绘并重绘整个 figure。每次鼠标移动只做一次同步布局，不会重复整图布局
-- 拖动中按 `Esc` 恢复原始比例，且不发出完成信号。鼠标抓取丢失（`QEvent::UngrabMouse`，例如弹出菜单）或窗口失活时按同样方式取消，成员的重绘随即恢复
+- 拖动有两种预览模式（`setDragPreviewMode()` / `dragPreviewMode()`）。默认的 `BoundaryLine` 在鼠标按下期间保持轨道尺寸不变，只让一条虚拟边界线跟随分隔条，新比例在松手时一次性生效：整个拖动过程成员既不重排也不重绘，一次拖动只花一次布局。`Live` 在每次鼠标移动时应用比例、执行同步布局并重绘，绘图真正跟着分隔条实时变化，代价是每次移动都要做一次布局和重绘。默认模式的线条样式由 `setBoundaryLinePen()` 控制（默认两像素蓝色虚线）；把画笔设为 `Qt::NoPen` 只会隐藏线条，松手生效的行为不变
+- 拖动中按 `Esc` 取消拖动且不发出完成信号：`Live` 模式恢复原始比例，`BoundaryLine` 模式从未应用预览，两种模式下虚拟边界线都会消失。鼠标抓取丢失（`QEvent::UngrabMouse`，例如弹出菜单）或窗口失活时按同样方式取消
 - 拖动开始时 figure 会抓取鼠标和键盘，松手事件总能回到分隔条，即使宿主在 canvas 上后装的过滤器消费了 move、release 事件
 - Qt 按安装的相反顺序调用事件过滤器（后装的先调用）。宿主自己的 canvas 过滤器（拾取器、拖动处理器等）应在 `setGridEditable(true)` 之前安装；若之后才安装，再调用一次 `setGridEditable(true)` 即可，对已启用的分隔条再次启用会重新扫描并重装过滤器
 - `QOpenGLWidget` 成员（3D 绘图）不会被拦截，3D 单元格的边界由相邻的 2D 绘图一侧负责命中。寄生绘图对鼠标事件透明，边界同样由宿主绘图负责
 
-下面是 `examples/2D/figureGrid` 中拖动列分隔条和行分隔条之后的截图。第一列与第一行被放大，状态栏显示新的比例和两次撤销步骤：
+下面两张截图都截取自一次尚未松手的列分隔条拖动。默认的 `BoundaryLine` 预览下成员保持拖动前的几何，只有蓝色虚线跟随指针；`Live` 预览下成员在松手之前就已经完成重排和重绘：
+
+![拖动中的虚拟边界线预览](../../../assets/screenshots/figure-grid-preview.png)
+
+![拖动中的实时刷新预览](../../../assets/screenshots/figure-grid-live.png)
+
+接下来是 `examples/2D/figureGrid` 中拖动列分隔条和行分隔条之后的截图。第一列与第一行被放大，状态栏显示新的比例和两次撤销步骤：
 
 ![拖动分隔条后的比例](../../../assets/screenshots/figure-grid-drag.png)
 
-`setGridEditable(true)` 要求网格已经启用，否则只打印警告，`isGridEditable()` 保持 false。`QwtFigure` 不提供取分隔条指针的接口；需要调整命中宽度或连接 `hoverChanged()` 时，在首次 `setGridEditable(true)` 之后用 `figure->findChild<QwtFigureGridSplitter*>()` 取得。
+`setGridEditable(true)` 要求网格已经启用，否则只打印警告，`isGridEditable()` 保持 false。`QwtFigure` 不提供取分隔条指针的接口；需要调整命中宽度、选择拖动预览模式或连接 `hoverChanged()` 时，在首次 `setGridEditable(true)` 之后用 `figure->findChild<QwtFigureGridSplitter*>()` 取得：
+
+```cpp
+// 默认是虚拟边界线预览；需要实时重排和重绘时显式切换
+if (QwtFigureGridSplitter* splitter = figure->findChild<QwtFigureGridSplitter*>()) {
+    splitter->setDragPreviewMode(QwtFigureGridSplitter::Live);
+    splitter->setBoundaryLinePen(QPen(QColor(0, 122, 204), 2, Qt::DashLine));  // 默认画笔
+}
+```
 
 #### 坐标轴对齐（自动）
 
@@ -199,9 +215,9 @@ grid->setColumnSizes(loadColumns());
 
 细节与对照组截图见下方「坐标轴对齐」一节。
 
-#### 撤销与实时预览
+#### 撤销与预览模式
 
-拖动过程中的中间状态通过 `sizesChanged()` 连续发出，适合做实时预览；一次交互结束时 `sizesChangeFinished()` 只发出一次，且只在比例确实变化时发出。接到 `QUndoStack` 上，整次拖动对应一条撤销命令：
+`Live` 模式下拖动过程中的中间状态通过 `sizesChanged()` 连续发出，适合做实时预览；默认的 `BoundaryLine` 模式只在松手、预览被提交时发出一次。一次交互结束时 `sizesChangeFinished()` 只发出一次，且只在比例确实变化时发出。接到 `QUndoStack` 上，整次拖动对应一条撤销命令：
 
 ```cpp
 // 一条命令保存拖动前后的比例

@@ -7,6 +7,7 @@
 #include <QVector>
 
 class QCheckBox;
+class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
 class QPushButton;
@@ -28,6 +29,9 @@ class QwtPlot;
  * controls of the window:
  *
  *  - track ratios: the "Equal / Focus top / Golden" presets and the divider drag
+ *  - the drag preview mode: the virtual boundary line ( QwtFigureGridSplitter::BoundaryLine,
+ *    the default, one layout pass per drag ) or the live refresh
+ *    ( QwtFigureGridSplitter::Live, a layout and replot per mouse move )
  *  - gaps: the column/row gap spin boxes ( QwtFigureGrid::setSpacing() )
  *  - the minimum track extent that clamps a drag ( QwtFigureGrid::setMinimumTrackPixels() )
  *  - the divider hit band ( QwtFigureGridSplitter::setHitWidth() )
@@ -59,6 +63,13 @@ public:
 
     // Drag a divider by a number of pixels, using synthetic mouse events
     void dragDivider(int dividerIndex, int deltaPixels);
+
+    // Press a divider and move it without releasing: the window keeps the drag
+    // preview on screen, used by the "preview" and "live" screenshot variants
+    void holdDividerDrag(int dividerIndex, int deltaPixels);
+
+    // Switch between the virtual boundary line (false) and the live refresh (true)
+    void setLiveDragPreview(bool on);
 
     // Leave the retained grid (the members keep their geometry) and re-enter it
     void leaveGrid();
@@ -110,6 +121,9 @@ private:
     void updateNotesPanel();
     void logLayout();
 
+    // Press a divider, move it and optionally release it (synthetic events)
+    void sendDividerDrag(int dividerIndex, int deltaPixels, bool release);
+
     QString ratiosText(const QVector< qreal >& ratios) const;
 
 private:
@@ -131,6 +145,7 @@ private:
     QPointer< QLabel > m_notesLabel;
     QCheckBox* m_editableBox { nullptr };
     QCheckBox* m_alignBox { nullptr };
+    QComboBox* m_dragPreviewBox { nullptr };
     QSpinBox* m_hitWidthBox { nullptr };
     QSpinBox* m_minTrackBox { nullptr };
     QDoubleSpinBox* m_wspaceBox { nullptr };

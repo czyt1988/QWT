@@ -78,7 +78,7 @@ The feature is meant for multi plot dashboards whose layout is adjusted interact
 |-------|----------------|
 | `QwtFigure` | Public entry point: enable and leave the grid, register members, switch the divider interaction, forward the model signals |
 | `QwtFigureGrid` | Track model: row/column ratios, gaps, minimum track pixels, the `(row, column, rowSpan, columnSpan)` registration of the members, normalized cell rectangles, divider positions |
-| `QwtFigureGridSplitter` | Interaction: consumes the mouse events inside a narrow band around a divider and changes the ratio of the two adjacent tracks |
+| `QwtFigureGridSplitter` | Interaction: consumes the mouse events inside a narrow band around a divider and changes the ratio of the two adjacent tracks; previews a drag with a virtual boundary line or with a live relayout/replot |
 | `QwtFigureLayout` | Consumer: asks the model for the normalized rectangle of a member during a layout pass and converts it into a pixel rectangle |
 
 ```mermaid
@@ -100,6 +100,8 @@ classDiagram
     class QwtFigureGridSplitter {
         +setEnabled()
         +setHitWidth()
+        +setDragPreviewMode()
+        +setBoundaryLinePen()
         +isDragging()
         +hoverChanged()
     }
@@ -135,7 +137,7 @@ figure->setGridEditable(true);                  // make the dividers draggable
 
 `addAxes()` emits `axesAdded()` followed by `currentAxesChanged()`, `addGridItem()` emits no axes signal. Calling `enableGrid()` again rebuilds the tracks with the new counts, resets the ratios to equal tracks and drops the member registrations, so the members have to be added again.
 
-The complete demo is `examples/2D/figureGrid`: six members on a 3 x 3 grid, a spectrum spanning three columns, three single cell plots, a trend plot spanning two columns and a plain widget registered with `addGridItem()`. The panel on the right collects the ratio presets, the gaps, the minimum track pixels, the hit width, undo/redo and adding/removing members:
+The complete demo is `examples/2D/figureGrid`: six members on a 3 x 3 grid, a spectrum spanning three columns, three single cell plots, a trend plot spanning two columns and a plain widget registered with `addGridItem()`. The panel on the right collects the ratio presets, the gaps, the minimum track pixels, the hit width, the drag preview mode, undo/redo and adding/removing members:
 
 ![Retained grid layout](../../assets/screenshots/figure-grid.png)
 
@@ -179,21 +181,35 @@ grid->setColumnSizes(loadColumns());
 
 - a divider is hit within `setHitWidth()` pixels (4 by default). The line between two columns is horizontal and shows `Qt::SplitHCursor`, the line between two rows is vertical and shows `Qt::SplitVCursor`. The cursor is applied to the widget the mouse is really over (typically the canvas), so it stays visible even when the canvas has a cursor of its own; the original cursor of that widget is restored when the band is left
 - a drag changes the ratio of the two adjacent tracks only. The pair sum is preserved and both tracks are clamped by `minimumTrackPixels()`, so no track collapses and the tracks never overlap
-- while a divider is dragged the member widgets stop repainting. On release they repaint again and the figure is replotted, and each mouse move runs a single synchronous layout pass instead of a second full layout
-- pressing `Esc` during a drag restores the original ratios and emits no finished signal. A lost mouse grab (`QEvent::UngrabMouse`, for example a popup opened) or a deactivated window ends the drag the same way, and the members start repainting immediately
+- the drag has two preview modes (`setDragPreviewMode()`, `dragPreviewMode()`). `BoundaryLine` is the default: while the mouse is down the tracks keep their size and only a virtual boundary line follows the divider; the new ratios are applied exactly once, on release, so the members are neither relaid out nor repainted during the drag and a whole drag costs a single layout pass. `Live` applies the ratios on every mouse move and runs the synchronous figure layout plus a replot, so the plots really follow the divider at the cost of a layout and replot per move. The line of the default mode is styled with `setBoundaryLinePen()` (a two pixel dashed blue line by default); `Qt::NoPen` hides the line without changing the commit-on-release behaviour
+- pressing `Esc` during a drag cancels it and emits no finished signal: `Live` restores the original ratios, `BoundaryLine` never applied the preview, and the boundary line disappears in both modes. A lost mouse grab (`QEvent::UngrabMouse`, for example a popup opened) or a deactivated window ends the drag the same way
 - the figure grabs the mouse and the keyboard when a drag starts, so the release always returns to the splitter even when a filter installed on a canvas afterwards consumes the move/release events
 - Qt invokes event filters in reverse installation order (the filter installed last runs first). Install the filters of the host (canvas pickers, drag handlers, ...) before `setGridEditable(true)`; when a filter was installed on a canvas afterwards, call `setGridEditable(true)` once more: enabling an already enabled splitter re-scans and re-installs its filters
 - `QOpenGLWidget` members (3D plots) are never intercepted: the boundary of a 3D cell is served by the adjacent 2D plot. Parasite axes are transparent for mouse events, so their boundary is served by the host plot
 
-The screenshot below shows `examples/2D/figureGrid` after the column divider and the row divider were dragged. The first column and the first row grew, and the status bar reports the new ratios and two undo steps:
+The screenshots below capture a column divider drag that is still in progress. With the default `BoundaryLine` preview the members keep the geometry they had before the drag and only the dashed virtual boundary line follows the pointer; with `Live` the members are already resized and replotted before the mouse is released:
+
+![Boundary line preview during a divider drag](../../assets/screenshots/figure-grid-preview.png)
+
+![Live refresh preview during a divider drag](../../assets/screenshots/figure-grid-live.png)
+
+The next screenshot shows `examples/2D/figureGrid` after the column divider and the row divider were dragged. The first column and the first row grew, and the status bar reports the new ratios and two undo steps:
 
 ![Ratios after a divider drag](../../assets/screenshots/figure-grid-drag.png)
 
-`setGridEditable(true)` requires an enabled grid; otherwise it logs a warning and `isGridEditable()` stays false. `QwtFigure` does not expose the splitter pointer; use `figure->findChild<QwtFigureGridSplitter*>()` after the first `setGridEditable(true)` when the hit width has to be changed or `hoverChanged()` has to be connected.
+`setGridEditable(true)` requires an enabled grid; otherwise it logs a warning and `isGridEditable()` stays false. `QwtFigure` does not expose the splitter pointer; use `figure->findChild<QwtFigureGridSplitter*>()` after the first `setGridEditable(true)` when the hit width has to be changed, the drag preview mode selected or `hoverChanged()` connected:
 
-#### Undo and Live Previews
+```cpp
+// The virtual boundary line is the default; opt into the live relayout/replot
+if (QwtFigureGridSplitter* splitter = figure->findChild<QwtFigureGridSplitter*>()) {
+    splitter->setDragPreviewMode(QwtFigureGridSplitter::Live);
+    splitter->setBoundaryLinePen(QPen(QColor(0, 122, 204), 2, Qt::DashLine));  // default pen
+}
+```
 
-`sizesChanged()` is emitted continuously during a drag, which is what a live preview needs. `sizesChangeFinished()` is emitted exactly once when an interaction ends, and only when the ratios really changed. Connected to a `QUndoStack` it turns a whole drag into one undo command:
+#### Undo and Preview Modes
+
+In `Live` mode `sizesChanged()` is emitted continuously during a drag, which is what a live preview needs; the default `BoundaryLine` mode emits it once, when the preview is committed on release. `sizesChangeFinished()` is emitted exactly once when an interaction ends, and only when the ratios really changed. Connected to a `QUndoStack` it turns a whole drag into one undo command:
 
 ```cpp
 // One command stores the ratios before and after the drag

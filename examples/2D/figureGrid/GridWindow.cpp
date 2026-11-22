@@ -13,6 +13,10 @@
  *     ( QwtFigureGrid::setMinimumTrackPixels() ) are exposed by the dock
  *   - one undo command per drag, pushed when
  *     QwtFigure::gridSizesChangeFinished() arrives
+ *   - the drag preview is switchable: the default virtual boundary line
+ *     ( QwtFigureGridSplitter::BoundaryLine ) only draws a line while the mouse
+ *     is down and resizes the tracks on release, the live refresh
+ *     ( QwtFigureGridSplitter::Live ) relayouts and replots on every mouse move
  *   - members can be removed and added back at runtime
  *   - leaving the grid ( QwtFigure::disableGrid() ) keeps the geometry of the
  *     members, re-entering it registers them again on their original cells
@@ -27,9 +31,11 @@
  *   figureGrid --screenshot <png>   unattended capture used by
  *                                   examples/update-screenshots.ps1
  *
- * Screenshot variants: default, drag (synthetic divider drags), spacing (wide
- * gaps plus a preset), reenter (leave and re-enter the grid, then change the
- * ratios) and noalign (alignment switched off, the natural plot areas).
+ * Screenshot variants: default, drag (synthetic divider drags), preview (a drag
+ * still in progress, showing the virtual boundary line), live (the same drag
+ * with the live refresh preview), spacing (wide gaps plus a preset), reenter
+ * (leave and re-enter the grid, then change the ratios) and noalign (alignment
+ * switched off, the natural plot areas).
  *****************************************************************************/
 
 #include "GridWindow.h"
@@ -38,6 +44,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDebug>
 #include <QDockWidget>
 #include <QDoubleSpinBox>
@@ -721,6 +728,16 @@ void GridWindow::createControlPanel()
     m_editableBox->setChecked(true);
     interactionForm->addRow(m_editableBox);
 
+    m_dragPreviewBox = new QComboBox(interaction);
+    m_dragPreviewBox->addItem(tr("Boundary line"), static_cast< int >(QwtFigureGridSplitter::BoundaryLine));
+    m_dragPreviewBox->addItem(tr("Live refresh"), static_cast< int >(QwtFigureGridSplitter::Live));
+    // Keep the dock as narrow as before: the popup may show the full items
+    m_dragPreviewBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    m_dragPreviewBox->setMinimumContentsLength(10);
+    m_dragPreviewBox->setToolTip(tr("Boundary line: the tracks are resized once, on release. "
+                                    "Live refresh: the tracks are resized and replotted on every mouse move."));
+    interactionForm->addRow(tr("Drag preview"), m_dragPreviewBox);
+
     m_hitWidthBox = new QSpinBox(interaction);
     m_hitWidthBox->setRange(1, 20);
     m_hitWidthBox->setValue(4);
@@ -837,6 +854,17 @@ void GridWindow::createControlPanel()
         if (m_splitter) {
             m_splitter->setHitWidth(px);
         }
+    });
+
+    connect(m_dragPreviewBox, QOverload< int >::of(&QComboBox::currentIndexChanged), this, [ this ](int index) {
+        if (!m_splitter || !m_dragPreviewBox) {
+            return;
+        }
+        const auto mode = static_cast< QwtFigureGridSplitter::DragPreviewMode >(
+            m_dragPreviewBox->itemData(index).toInt());
+        m_splitter->setDragPreviewMode(mode);
+        updateStatus();
+        updateNotesPanel();
     });
 
     connect(m_minTrackBox, QOverload< int >::of(&QSpinBox::valueChanged), this, [ this ](int px) {
@@ -1012,6 +1040,11 @@ void GridWindow::setGridActive(bool active)
         if (m_splitter && m_hitWidthBox) {
             m_splitter->setHitWidth(m_hitWidthBox->value());
         }
+        if (m_splitter && m_dragPreviewBox) {
+            const auto mode = static_cast< QwtFigureGridSplitter::DragPreviewMode >(
+                m_dragPreviewBox->itemData(m_dragPreviewBox->currentIndex()).toInt());
+            m_splitter->setDragPreviewMode(mode);
+        }
 
         m_committedRows = m_grid->rowSizes();
         m_committedColumns = m_grid->columnSizes();
@@ -1183,6 +1216,11 @@ void GridWindow::updateNotesPanel()
                 .arg(mutedStyle)
                 .arg(columnDividers)
                 .arg(rowDividers);
+    html += QStringLiteral("<tr><td style='%1'>drag preview</td><td>%2</td></tr>")
+                .arg(mutedStyle,
+                     m_splitter && m_splitter->dragPreviewMode() == QwtFigureGridSplitter::Live
+                         ? tr("live refresh")
+                         : tr("boundary line"));
     html += QStringLiteral("<tr><td style='%1'>active axes</td><td>%2</td></tr>").arg(mutedStyle, active);
     html += QStringLiteral("</table>");
 
@@ -1227,15 +1265,18 @@ void GridWindow::logLayout()
 }
 
 /**
- * @brief Drag a divider with synthetic mouse events
- * @details Used by the "drag" screenshot variant. The events go through the same
- *          path as real input: they are delivered to the widget under the
- *          divider (the canvas of a plot) and the splitter consumes the band.
+ * @brief Press a divider and move it, optionally followed by the release
+ * @details Used by the "drag", "preview" and "live" screenshot variants. The
+ *          events go through the same path as real input: they are delivered to
+ *          the widget under the divider (the canvas of a plot) and the splitter
+ *          consumes the band. A drag that is not released stays active, so the
+ *          screenshot of the "preview" variant shows the virtual boundary line.
  * @param dividerIndex Index in QwtFigureGrid::dividers(): the column dividers come
  *                     first, the row dividers follow
  * @param deltaPixels Signed offset along the axis of the divider
+ * @param release True to finish the drag with a release event
  */
-void GridWindow::dragDivider(int dividerIndex, int deltaPixels)
+void GridWindow::sendDividerDrag(int dividerIndex, int deltaPixels, bool release)
 {
     if (!m_grid || !m_grid->isEnabled() || !m_figure) {
         return;
@@ -1276,7 +1317,49 @@ void GridWindow::dragDivider(int dividerIndex, int deltaPixels)
 
     sendMouse(QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
     sendMouse(QEvent::MouseMove, end, Qt::NoButton, Qt::LeftButton);
-    sendMouse(QEvent::MouseButtonRelease, end, Qt::LeftButton, Qt::NoButton);
+    if (release) {
+        sendMouse(QEvent::MouseButtonRelease, end, Qt::LeftButton, Qt::NoButton);
+    }
 
     QCoreApplication::processEvents();
+}
+
+/**
+ * @brief Drag a divider by a number of pixels, using synthetic mouse events
+ * @details Used by the "drag" screenshot variant: one complete drag session.
+ * @param dividerIndex Index in QwtFigureGrid::dividers(), column dividers first
+ * @param deltaPixels Signed offset along the axis of the divider
+ */
+void GridWindow::dragDivider(int dividerIndex, int deltaPixels)
+{
+    sendDividerDrag(dividerIndex, deltaPixels, true);
+}
+
+/**
+ * @brief Press a divider and move it without releasing
+ * @details Used by the "preview" and "live" screenshot variants: the screenshot
+ *          captures a drag that is still in progress.
+ * @param dividerIndex Index in QwtFigureGrid::dividers(), column dividers first
+ * @param deltaPixels Signed offset along the axis of the divider
+ */
+void GridWindow::holdDividerDrag(int dividerIndex, int deltaPixels)
+{
+    sendDividerDrag(dividerIndex, deltaPixels, false);
+}
+
+/**
+ * @brief Switch between the virtual boundary line and the live refresh preview
+ * @param on True selects QwtFigureGridSplitter::Live, false the default
+ *           QwtFigureGridSplitter::BoundaryLine
+ */
+void GridWindow::setLiveDragPreview(bool on)
+{
+    if (m_dragPreviewBox) {
+        m_dragPreviewBox->setCurrentIndex(on ? 1 : 0);
+    }
+    if (m_splitter) {
+        m_splitter->setDragPreviewMode(on ? QwtFigureGridSplitter::Live : QwtFigureGridSplitter::BoundaryLine);
+    }
+    updateStatus();
+    updateNotesPanel();
 }

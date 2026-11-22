@@ -26,6 +26,18 @@ int main(int argc, char* argv[])
         window.dragDivider(0, 120);
         window.dragDivider(2, 26);
     });
+    QwtExampleScreenshot::addVariant(QStringLiteral("preview"), [ &window ]() {
+        // A column divider drag that is still in progress: the screenshot shows
+        // the virtual boundary line of the default preview mode, the members keep
+        // the geometry they had before the drag
+        window.holdDividerDrag(0, 120);
+    });
+    QwtExampleScreenshot::addVariant(QStringLiteral("live"), [ &window ]() {
+        // The same drag with the live refresh preview: the tracks are already
+        // resized and the members are replotted while the mouse is still down
+        window.setLiveDragPreview(true);
+        window.holdDividerDrag(0, 120);
+    });
     QwtExampleScreenshot::addVariant(QStringLiteral("spacing"), [ &window ]() {
         // Wide gaps make the space between the tracks visible; the tracks stay
         // equal so every cell keeps enough room for its titles
