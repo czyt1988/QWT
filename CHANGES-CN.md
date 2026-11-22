@@ -9,11 +9,14 @@
     - 该用例仍在断言一像素边框，但 `QwtPlotOpenGLCanvas`（与 `QwtPlotCanvas` 一样）在扁平化改造后选择了无可见线条的 Box 边框（`setLineWidth(0)`），因此在所有平台都会失败。现在断言的是 `QFrame::Box` / `QFrame::Plain` 边框且线宽为 0
 - **`tests/figure_grid_splitter_test` 不再假定固定的 figure 尺寸**
     - 顶层 `QwtFigure` 会被布局的最小尺寸撑大，而该布局请求何时刷新取决于平台：offscreen 插件会同步处理，窗口系统则可能延后。夹具按请求的 400 像素计算分隔条位置，而 figure 实际已是 440 像素宽，于是按下位置、边界线预览与实际应用的比例互相矛盾。夹具现在先采纳 `minimumSizeHint()` 把几何确定下来，再让用例测量
+- **`examples/2D/downsample_demo` 恢复 Qt 5 编译**
+    - 该示例使用 `qFloor` 却没有包含 `<QtMath>`，并且把 `QFontDatabase::families()` 当作静态函数调用；Qt 5 中它是成员函数，只有 Qt 6 才改成静态。现在由一个 `availableFontFamilies()` 小辅助函数按版本选择调用方式，两个 Qt 版本都能编译
 
 ### 构建
 
 - **Linux 任务改用 `install-qt-action@v4` 安装 Qt**
     - v3 固定使用 aqtinstall 3.1.x，已无法从在线仓库解析 Qt 6.8（`ERROR: The packages ['qt_base'] were not found while parsing XML of package information`），任务在 configure 之前的安装步骤就失败。v4 内置 aqtinstall 3.3，可正常安装 Qt 6.8；`actions/checkout` 一并升到 v4
+    - 依赖安装步骤在原有包之外补装 `libglu1-mesa-dev`：Ubuntu 26.04 镜像不再自带 GLU，`find_package(OpenGL)` 因而不再提供 `OpenGL::GLU` 目标，`qwt::plot3d` 的 configure 会失败
 
 ## tag:v7.6.1 (2026-11-22)
 

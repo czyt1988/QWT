@@ -9,11 +9,14 @@
     - The case still asserted a one pixel border, but `QwtPlotOpenGLCanvas` - like `QwtPlotCanvas` - selects a box frame without a visible line (`setLineWidth(0)`) since the flat style rework, so the suite failed on every platform. It asserts a `QFrame::Box` / `QFrame::Plain` frame with line width 0 now
 - **`tests/figure_grid_splitter_test` no longer assumes a fixed figure geometry**
     - A top-level `QwtFigure` grows to the minimum size of its layout and the platform decides when that layout request is flushed: the offscreen plugin answers synchronously, a window system defers it. The fixture measured the divider against the requested 400 px while the figure already was 440 px wide, so the press, the boundary line preview and the applied ratios disagreed. The fixture adopts `minimumSizeHint()` and settles the geometry before the tests measure it
+- **`examples/2D/downsample_demo` builds with Qt 5 again**
+    - The example used `qFloor` without including `<QtMath>` and called `QFontDatabase::families()` as a static function; Qt 5 declares it as a member function and only Qt 6 made it static. A small `availableFontFamilies()` helper picks the right call, so the example compiles with both Qt versions again
 
 ### Build
 
 - **The Linux job installs Qt with `install-qt-action@v4`**
     - v3 pins aqtinstall 3.1.x, which can no longer resolve Qt 6.8 from the online repository (`ERROR: The packages ['qt_base'] were not found while parsing XML of package information`), so the job died in the install step before the configure. v4 bundles aqtinstall 3.3 and installs Qt 6.8 again; `actions/checkout` moves to v4 as well
+    - The dependency step installs `libglu1-mesa-dev` on top of the previous packages: the Ubuntu 26.04 image no longer ships GLU, so `find_package(OpenGL)` provided no `OpenGL::GLU` target and the configure of `qwt::plot3d` failed
 
 ## tag:v7.6.1 (2026-11-22)
 
