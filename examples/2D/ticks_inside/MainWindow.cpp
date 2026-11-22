@@ -59,6 +59,13 @@ void MainWindow::setupPlot()
     m_plot->setAxisVisible(QwtAxis::XTop, true);
     m_plot->setAxisVisible(QwtAxis::XBottom, true);
 
+    // Default: every axis draws its ticks inward. This example is the visual
+    // reference of the feature in the README and the documentation, so the
+    // window ( and its screenshots ) show inside ticks without user input.
+    const QwtAxisId axes[] = { QwtAxis::XBottom, QwtAxis::XTop, QwtAxis::YLeft, QwtAxis::YRight };
+    for ( QwtAxisId axisId : axes )
+        m_plot->setAxisTickDirection( axisId, QwtPlot::TickInside );
+
     // YLeft: Inverted scale (100 -> 0, values decrease upward)
     m_plot->setAxisScale(QwtAxis::YLeft, 100.0, 0.0);
     m_plot->setAxisTitle(QwtAxis::YLeft, "YLeft (Inverted 100->0)");
@@ -142,6 +149,13 @@ QWidget* MainWindow::createControlPanel()
     m_chkXTop    = new QCheckBox("XTop Inside", this);
     m_chkXBottom = new QCheckBox("XBottom Inside", this);
 
+    // setupPlot() starts all axes with inside ticks; the boxes are set before
+    // the signals are connected, so this only reflects the initial state
+    m_chkYLeft->setChecked(true);
+    m_chkYRight->setChecked(true);
+    m_chkXTop->setChecked(true);
+    m_chkXBottom->setChecked(true);
+
     tickLayout->addWidget(m_chkYLeft);
     tickLayout->addWidget(m_chkYRight);
     tickLayout->addWidget(m_chkXTop);
@@ -176,8 +190,8 @@ QWidget* MainWindow::createControlPanel()
         "YLeft: Inverted axis (100 at bottom, 0 at top)\n"
         "YRight: Logarithmic scale (0.1 to 1000)\n"
         "\n"
-        "Test: Enable 'Inside' for each axis and verify\n"
-        "ticks are correctly positioned.", this);
+        "All axes start with inward ticks.\n"
+        "Uncheck a box to compare with outward ticks.", this);
     infoLabel->setWordWrap(true);
     infoLabel->setStyleSheet("QLabel { color: gray; font-size: 10px; }");
     axisLayout->addWidget(infoLabel);
@@ -188,7 +202,7 @@ QWidget* MainWindow::createControlPanel()
     QGroupBox* penGroup = new QGroupBox("Backbone Pen Width", this);
     QHBoxLayout* penLayout = new QHBoxLayout(penGroup);
 
-    penLayout->addWidget(new QLabel("Axis pen width (device pixels)", this));
+    penLayout->addWidget(new QLabel("Axis pen width (px)", this));
 
     m_spinPenWidth = new QDoubleSpinBox(this);
     m_spinPenWidth->setRange(0.5, 3.0);
@@ -210,7 +224,8 @@ QWidget* MainWindow::createControlPanel()
     connect(btnAllOutside, &QPushButton::clicked, this, &MainWindow::onAllOutsideClicked);
     connect(m_chkLogYRight, &QCheckBox::toggled, this, &MainWindow::onLogYRightToggled);
     connect(m_chkInvertedYLeft, &QCheckBox::toggled, this, &MainWindow::onInvertedYLeftToggled);
-    connect(m_spinPenWidth, &QDoubleSpinBox::valueChanged, this, &MainWindow::onPenWidthChanged);
+    connect(m_spinPenWidth, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MainWindow::onPenWidthChanged);
 
     return panel;
 }

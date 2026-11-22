@@ -2,6 +2,9 @@
 
 ### New Features
 
+- **`examples/2D/ticks_inside`: all axes start with inward ticks**
+    - `XBottom`, `XTop`, `YLeft` and `YRight` are set to `QwtPlot::TickInside` when the example opens, so the window - and the documentation screenshot regenerated from it - shows the feature right away instead of the library default `TickOutside`. The four checkboxes start checked; unchecking one, or pressing `All Outside`, still switches it back for comparison
+    - `docs/assets/screenshots/ticks_inside.png` regenerated from the new default
 - **Two drag preview modes for the retained grid of `QwtFigure`**
     - `QwtFigureGridSplitter::setDragPreviewMode()` selects how the members follow a divider while it is dragged. `BoundaryLine` (the default) only moves a virtual boundary line while the mouse is down and applies the new track ratios once, on release: the members are neither relaid out nor repainted during the drag and a whole drag costs a single layout pass. `Live` applies the ratios on every mouse move, runs the synchronous layout pass and replots the members, so the plots really follow the divider at the cost of a layout and replot per move. `dragPreviewMode()` reports the mode; changing it cancels a running drag
     - The line of the default mode is a thin strip above the members (`setBoundaryLinePen()` / `boundaryLinePen()`, a two pixel dashed blue line by default) that follows the clamped divider position, spans the whole figure and stays aligned when the figure is resized mid-drag. `Qt::NoPen` hides the line and keeps the commit-on-release behaviour
@@ -11,6 +14,8 @@
 
 ### Bug Fixes
 
+- **`examples/2D/ticks_inside` builds with Qt 5**
+    - `QDoubleSpinBox::valueChanged` is overloaded in Qt 5 (`double` and `QString`), so the unqualified pointer-to-member connection of the backbone pen width control did not compile with the Qt 5 versions the project supports. The connection now uses `QOverload<double>::of()`
 - **Dragging a divider of the retained grid no longer leaves ghosting artifacts**
     - The splitter suspended the repaints of every grid member (`setUpdatesEnabled(false)`) while it resized the tracks on every mouse move. Qt then kept showing stale pixels of the moved members - the ghosting and tearing of heavy members such as a spectrogram. The repaint suspension is gone: the default `BoundaryLine` preview does not touch the member geometry during the drag at all, and the `Live` preview keeps the members painting and replots them on every move. The behavior is covered by `testMemberRepaintsStayEnabledWhileDragging()`
     - The old in-between behavior (layout changes without repaints) is gone, so `sizesChanged()` is only continuous in `Live` mode; hosts that need a live preview must select `QwtFigureGridSplitter::Live`, the default boundary preview emits it once on release

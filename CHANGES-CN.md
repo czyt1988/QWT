@@ -2,6 +2,9 @@
 
 ### 新功能
 
+- **`examples/2D/ticks_inside`：打开时所有坐标轴默认刻度朝内**
+    - 示例打开时把 `XBottom`、`XTop`、`YLeft`、`YRight` 设为 `QwtPlot::TickInside`，因此窗口以及由它重新生成的文档截图能直接展示该特性，而不是库默认的 `TickOutside`。四个复选框默认为勾选；取消勾选或点击 `All Outside` 仍可切回朝外做对比
+    - 重新生成了 `docs/assets/screenshots/ticks_inside.png`
 - **`QwtFigure` 保留式网格的两种拖动预览模式**
     - `QwtFigureGridSplitter::setDragPreviewMode()` 选择拖动分隔条时成员如何跟随。`BoundaryLine`（默认）在鼠标按下期间只移动一条虚拟边界线，新比例在松手时一次性生效：拖动过程中成员既不重排也不重绘，整次拖动只花一次布局。`Live` 在每次鼠标移动时应用比例、执行同步布局并重绘，绘图真正跟随分隔条，代价是每次移动都要做一次布局和重绘。`dragPreviewMode()` 查询当前模式；拖动过程中切换模式会取消当前拖动
     - 默认模式的线条是成员上方的一条窄条（`setBoundaryLinePen()` / `boundaryLinePen()`，默认为两像素蓝色虚线），跟随被夹取的分隔条位置、贯穿整个 figure，并在拖动中 figure 尺寸变化时保持对齐；把画笔设为 `Qt::NoPen` 只会隐藏线条，松手生效的行为不变
@@ -11,6 +14,8 @@
 
 ### Bug 修复
 
+- **`examples/2D/ticks_inside` 重新支持 Qt 5 编译**
+    - Qt 5 的 `QDoubleSpinBox::valueChanged` 是重载信号（`double` 和 `QString`），轴线笔宽控件原先使用未消歧的成员函数指针连接，在项目支持的 Qt 5 版本下无法编译。现改用 `QOverload<double>::of()`
 - **拖动保留式网格的分隔条不再产生重影**
     - 分隔条在每次鼠标移动重排轨道的同时，用 `setUpdatesEnabled(false)` 暂停了所有网格成员的重绘。Qt 因此持续显示被移动成员的旧像素——这就是频谱图等重成员出现重影和撕裂的原因。重绘暂停已移除：默认的 `BoundaryLine` 预览在拖动期间完全不碰成员的几何，`Live` 预览则让成员持续重绘并在每次移动后重绘整幅图。该行为由 `testMemberRepaintsStayEnabledWhileDragging()` 覆盖
     - 原先「只改布局不重绘」的中间状态不复存在，因此 `sizesChanged()` 只在 `Live` 模式下连续发出；需要实时预览的宿主应显式选择 `QwtFigureGridSplitter::Live`，默认的边界线预览只在松手时发出一次
