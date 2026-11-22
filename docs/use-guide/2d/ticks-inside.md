@@ -145,6 +145,7 @@ plot->replot();
 > - Independent control of four axes
 > - Real-time tick direction switching
 > - Batch setting functionality
+> - All four axes already set to inward ticks when the window opens
 
 ## References
 
