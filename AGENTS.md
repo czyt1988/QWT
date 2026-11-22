@@ -328,7 +328,7 @@ theme.apply(plot);  // plot 是 Qwt3DPlot* 指针
 
 - 每完成一个完整任务就提交一次，不要只改不提交；
 - 提交信息使用英文 **Conventional Commits**（`feat` / `fix` / `docs` / `style` / `refactor` / `perf` / `test` / `build` / `ci` / `chore` / `revert`）。
-- 版本遵循 **SemVer**，每次发版更新 `CHANGELOG.md`，同步修改`CHANGELOG-zh.md`。
+- 版本遵循 **SemVer**，每次发版更新 `CHANGES.md`，同步修改 `CHANGES-CN.md`（详见下方「发布流程」）。
 
 在进行代码提交时，应避免将一个大任务的全部改动积压到最后一次性提交。每个提交应尽量保持原子性，并尽可能保证可独立构建、测试通过、审查和回滚。这样可以缩小变更范围，降低合并时产生大量冲突的概率。
 
@@ -343,3 +343,39 @@ theme.apply(plot);  // plot 是 Qwt3DPlot* 指针
    此后改动、构建、提交只在 `.worktree/<任务名>` 内进行。
 2. **合并回源分支**：任务完成后，任务分支必须合并回当初拉取它的源分支——从哪个分支拉取，就合并回哪个分支，禁止合并到其他分支。源分支在主工作树时，切到源分支执行 `git merge <任务分支>`。
 3. **完成标准**：合并必须干净成功、无冲突并通过构建/测试验证后才算完成；冲突必须当场解决，不得把冲突、半合并或未验证状态留给用户。收尾：确认 worktree 内改动已全部提交并合并后，用 `git worktree remove --force .worktree/<任务名>` 清理现场（含 submodule 的 worktree 不加 `--force` 会被 git 拒绝删除），再删除任务分支。
+
+### 发布流程（Release）
+
+版本号遵循 SemVer：功能变更较大用 MINOR，仅修 bug 用 PATCH。发版按下面顺序执行，全部完成才算发布：
+
+1. **改版本号**：`CMakeLists.txt` 的 `QWT_VERSION_MINOR`/`QWT_VERSION_PATCH`，以及 `src/qwt_version_info.h` 的 `QWT_VERSION_MIN`/`QWT_VERSION_PAT`/`QWT_VERSION_STR`（三个数值加一个字符串，共四处）。
+2. **定稿 changelog**：把 `CHANGES.md` 与 `CHANGES-CN.md` 顶部的 `## Unreleased` 改成 `## tag:vX.Y.Z (YYYY-MM-DD)`，并补齐自上一个 tag 以来的所有提交（用 `git log --oneline --no-merges <上一个tag>..HEAD` 逐条核对），按 `### New Features` / `### Breaking Changes` / `### Bug Fixes` / `### Performance` / `### Build` / `### Documentation`（中文为 `新功能` / `破坏性变更` / `Bug 修复` / `性能优化` / `构建` / `文档`）分节，两份文件的分节一一对应。
+3. **重新生成合成文件**：进入 `tools/` 按 `Amalgamate.sh` 里的两条命令生成 `src-amalgamate/QwtPlot.h` 与 `QwtPlot.cpp`，再删掉 `QwtPlot.cpp` 中的 `#include "gl2ps.h"` 行。这两个文件只由工具生成，不手工编辑。
+4. **验证**：编译通过（`.\build.ps1 build`）；改动了 `src-amalgamate` 时要确认合成文件能按单一翻译单元编译（`/bigobj`）。
+5. **打标签与推送**：发布提交合并进 `dev` 后把 `master` 快进到它，在该提交上打 `vX.Y.Z` 标签，把 `master`、`dev` 和标签推到 `github`（GitHub）与 `origin`（Gitee）两个远端。
+6. **发布**：创建 GitHub Release，标题 `QwtPlot vX.Y.Z`，`target_commitish` 用 `master`，正文按下面的格式。Gitee 侧由 `.github/workflows/sync-gitee.yml` 在 release 事件后自动同步分支、标签、Release 与合成文件，不用手工操作。
+
+#### 发布说明格式
+
+发布说明一律**中英混合、英文在前**：英文部分是 `CHANGES.md` 中该版本的完整内容，中文部分是 `CHANGES-CN.md` 中同一版本的完整内容，整块中文放在最底部的一个可折叠 `<details>` 里，摘要文字用 `中文说明（点击展开）`。中文块与 `<summary>` 之间必须留一个空行，否则 GitHub 不会渲染其中的 Markdown：
+
+```markdown
+## New Features
+...（英文内容，来自 CHANGES.md）...
+
+## Documentation
+...
+
+<details>
+<summary>中文说明（点击展开）</summary>
+
+## 新功能
+...（中文内容，来自 CHANGES-CN.md）...
+
+## 文档
+...
+
+</details>
+```
+
+发布说明里的分节标题用二级标题（`##`），因为发布页没有 `## tag:vX.Y.Z` 这一层；changelog 文件里对应的是三级标题（`###`）。
