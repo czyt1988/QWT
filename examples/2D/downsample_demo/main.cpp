@@ -62,6 +62,7 @@
 #include <QTimer>
 #include <QToolBar>
 #include <QVector>
+#include <QtMath>
 
 #include <cmath>
 #include <functional>
@@ -790,6 +791,16 @@ class DemoWindow : public QMainWindow
     QLabel* m_timeLabel = nullptr;
 };
 
+// Qt 5 declares QFontDatabase::families() as a member function, Qt 6 made it static
+QStringList availableFontFamilies()
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    return QFontDatabase::families();
+#else
+    return QFontDatabase().families();
+#endif
+}
+
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -840,7 +851,7 @@ int main(int argc, char* argv[])
     // the offscreen platform uses the generic font database, which ships
     // without fonts - register system fonts, so that titles and scale
     // labels are rendered as text instead of as empty boxes
-    if (QFontDatabase::families().isEmpty()) {
+    if (availableFontFamilies().isEmpty()) {
         const QDir fontDir(QStringLiteral("C:/Windows/Fonts"));
         const QStringList candidates {
             QStringLiteral("msyh.ttc"), QStringLiteral("simhei.ttf"), QStringLiteral("arial.ttf")
@@ -852,7 +863,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        const QStringList families = QFontDatabase::families();
+        const QStringList families = availableFontFamilies();
         if (!families.isEmpty())
             app.setFont(QFont(families.first()));
     }
