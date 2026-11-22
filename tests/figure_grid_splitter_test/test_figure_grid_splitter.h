@@ -35,12 +35,18 @@ private Q_SLOTS:
     void testHoverSignalShapes();
     void testCursorAppliedToCanvasNotCell();
     void testPressOutsideBandDoesNotStartDrag();
-    void testDragChangesOnlyColumnTracks();
-    void testDragRelayoutsImmediately();
+    void testBoundaryLineIsDefault();
+    void testBoundaryDragKeepsRatiosUntilRelease();
+    void testBoundaryLineFollowsPointerAndClamps();
+    void testBoundaryLineStaysAlignedOnFigureResize();
+    void testBoundaryEscapeCancelsWithoutChange();
+    void testBoundaryLinePen();
+    void testLiveDragChangesOnlyColumnTracks();
+    void testLiveDragRelayoutsImmediately();
     void testMinimumTrackClamp();
     void testFinishedEmittedExactlyOnceAndOnlyWhenChanged();
-    void testEscapeRestoresOriginalSizes();
-    void testUpdatesDisabledWhileDragging();
+    void testLiveEscapeRestoresOriginalSizes();
+    void testMemberRepaintsStayEnabledWhileDragging();
     void testWindowDeactivateCancelsDrag();
     void testUngrabMouseCancelsDrag();
     void testDragSurvivesConsumingCanvasFilter();
@@ -69,6 +75,8 @@ private:
 
     double columnAt(int index) const;
     double rowAt(int index) const;
+    // The virtual boundary line overlay of a running boundary drag, nullptr otherwise
+    QWidget* boundaryLineWidget() const;
 
 private:
     QwtFigure* m_figure { nullptr };

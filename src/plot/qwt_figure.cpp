@@ -872,6 +872,10 @@ void QwtFigure::removeWidget(QWidget* widget)
  *          dividers are consumed to resize the adjacent tracks; all other events are
  *          passed through unchanged.
  * @param on True to make the dividers draggable
+ * @note A divider drag previews with a virtual boundary line by default, without
+ *       relaying out or repainting the members; the splitter returned by
+ *       findChild<QwtFigureGridSplitter*>() selects the live relayout/replot with
+ *       QwtFigureGridSplitter::setDragPreviewMode().
  * @note Disable the FunResizePlot mode of QwtFigureWidgetOverlay (or make the overlay
  *       transparent for mouse events) while the grid is editable: the overlay covers
  *       the whole figure and would swallow the events of the plots.

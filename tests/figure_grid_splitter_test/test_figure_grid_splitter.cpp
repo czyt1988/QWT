@@ -9,7 +9,9 @@
 #include <QEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QPen>
 #include <QSignalSpy>
+#include <QWidget>
 #include <QtGlobal>
 
 // qwt
@@ -52,6 +54,9 @@ void TestFigureGridSplitter::init()
     m_splitter = m_figure->findChild< QwtFigureGridSplitter* >();
     QVERIFY(m_splitter != nullptr);
     QCOMPARE(m_splitter->hitWidth(), 4);
+    // The cheap virtual boundary line is the default preview
+    QCOMPARE(m_splitter->dragPreviewMode(), QwtFigureGridSplitter::BoundaryLine);
+    QCOMPARE(boundaryLineWidget(), nullptr);
 
     // The geometry of the cells is needed for the hit test and the cursor target
     m_figure->show();
@@ -120,6 +125,14 @@ double TestFigureGridSplitter::rowAt(int index) const
 {
     const QVector< qreal > sizes = m_grid->rowSizes();
     return (index >= 0 && index < sizes.size()) ? sizes.at(index) : -1.0;
+}
+
+QWidget* TestFigureGridSplitter::boundaryLineWidget() const
+{
+    if (!m_figure) {
+        return nullptr;
+    }
+    return m_figure->findChild< QWidget* >(QStringLiteral("QwtFigureGridBoundaryLine"));
 }
 
 /**
@@ -250,11 +263,172 @@ void TestFigureGridSplitter::testPressOutsideBandDoesNotStartDrag()
 }
 
 /**
- * @brief Dragging the column divider only changes the column ratios
+ * @brief BoundaryLine is the default preview and does not create an overlay yet
  */
-void TestFigureGridSplitter::testDragChangesOnlyColumnTracks()
+void TestFigureGridSplitter::testBoundaryLineIsDefault()
+{
+    QCOMPARE(m_splitter->dragPreviewMode(), QwtFigureGridSplitter::BoundaryLine);
+    QVERIFY(!m_splitter->isDragging());
+    QCOMPARE(boundaryLineWidget(), nullptr);
+}
+
+/**
+ * @brief A boundary drag leaves the tracks untouched until the mouse is released
+ */
+void TestFigureGridSplitter::testBoundaryDragKeepsRatiosUntilRelease()
+{
+    QSignalSpy changedSpy(m_grid, &QwtFigureGrid::sizesChanged);
+    QSignalSpy finishedSpy(m_grid, &QwtFigureGrid::sizesChangeFinished);
+
+    const int dividerX         = qRound(0.5 * m_figure->width());
+    const int midY             = qRound(0.5 * m_figure->height()) / 2;
+    const int deltaPixels      = 40;
+    const double expectedFirst = 0.5 + static_cast< double >(deltaPixels) / m_figure->width();
+
+    QVERIFY(pressAt(QPoint(dividerX, midY)));
+    QVERIFY(m_splitter->isDragging());
+    QWidget* line = boundaryLineWidget();
+    QVERIFY2(line != nullptr, "a boundary drag must show the virtual boundary line");
+    QVERIFY(line->isVisible());
+
+    QVERIFY(dragTo(QPoint(dividerX + deltaPixels, midY)));
+    // The model is untouched while the mouse is down
+    QVERIFY(qAbs(columnAt(0) - 0.5) < RATIO_EPSILON);
+    QVERIFY(qAbs(columnAt(1) - 0.5) < RATIO_EPSILON);
+    QCOMPARE(changedSpy.count(), 0);
+    QCOMPARE(finishedSpy.count(), 0);
+
+    QVERIFY(releaseAt(QPoint(dividerX + deltaPixels, midY)));
+    QVERIFY(!m_splitter->isDragging());
+    // The previewed ratios are applied exactly once, on release
+    QVERIFY(qAbs(columnAt(0) - expectedFirst) < RATIO_EPSILON);
+    QVERIFY(qAbs(columnAt(1) - (1.0 - expectedFirst)) < RATIO_EPSILON);
+    QCOMPARE(changedSpy.count(), 1);
+    QCOMPARE(finishedSpy.count(), 1);
+    QCOMPARE(boundaryLineWidget(), nullptr);
+}
+
+/**
+ * @brief The boundary line follows the pointer, spans the figure and is clamped
+ */
+void TestFigureGridSplitter::testBoundaryLineFollowsPointerAndClamps()
+{
+    const int dividerX = qRound(0.5 * m_figure->width());
+    const int dividerY = qRound(0.5 * m_figure->height());
+    const int midY     = dividerY / 2;
+    const int midX     = dividerX / 2;
+    const int minTrack = m_grid->minimumTrackPixels();
+
+    // Column divider: a vertical strip spanning the whole figure
+    QVERIFY(pressAt(QPoint(dividerX, midY)));
+    QWidget* line = boundaryLineWidget();
+    QVERIFY(line != nullptr);
+    QCOMPARE(line->height(), m_figure->height());
+
+    // Dragging far to the left clamps the line at the minimum track extent
+    QVERIFY(dragTo(QPoint(0, midY)));
+    QVERIFY(qAbs(line->geometry().center().x() - minTrack) <= 1);
+
+    // Dragging far to the right clamps the second track instead
+    QVERIFY(dragTo(QPoint(m_figure->width() - 1, midY)));
+    QVERIFY(qAbs(line->geometry().center().x() - (m_figure->width() - minTrack)) <= 1);
+    QVERIFY(releaseAt(QPoint(m_figure->width() - 1, midY)));
+
+    // Row divider: a horizontal strip spanning the figure width
+    QVERIFY(pressAt(QPoint(midX, dividerY)));
+    line = boundaryLineWidget();
+    QVERIFY(line != nullptr);
+    QCOMPARE(line->width(), m_figure->width());
+
+    QVERIFY(dragTo(QPoint(midX, m_figure->height() - 1)));
+    QVERIFY(qAbs(line->geometry().center().y() - (m_figure->height() - minTrack)) <= 1);
+    QVERIFY(escape());
+    QVERIFY(!m_splitter->isDragging());
+}
+
+/**
+ * @brief The boundary line keeps its ratio when the figure is resized mid-drag
+ */
+void TestFigureGridSplitter::testBoundaryLineStaysAlignedOnFigureResize()
+{
+    const int dividerX = qRound(0.5 * m_figure->width());
+    const int midY     = qRound(0.5 * m_figure->height()) / 2;
+    const int delta    = 40;
+    const int oldWidth = m_figure->width();
+
+    QVERIFY(pressAt(QPoint(dividerX, midY)));
+    QVERIFY(dragTo(QPoint(dividerX + delta, midY)));
+    const qreal pendingRatio = 0.5 + static_cast< qreal >(delta) / oldWidth;
+
+    m_figure->resize(oldWidth + 100, m_figure->height());
+    QWidget* line = boundaryLineWidget();
+    QVERIFY(line != nullptr);
+    QVERIFY(qAbs(line->geometry().center().x() - qRound(pendingRatio * m_figure->width())) <= 2);
+
+    // The model is still untouched: only the preview followed the figure
+    QVERIFY(qAbs(columnAt(0) - 0.5) < RATIO_EPSILON);
+    QVERIFY(escape());
+}
+
+/**
+ * @brief Esc removes the boundary line without touching the tracks
+ */
+void TestFigureGridSplitter::testBoundaryEscapeCancelsWithoutChange()
+{
+    QSignalSpy changedSpy(m_grid, &QwtFigureGrid::sizesChanged);
+    QSignalSpy finishedSpy(m_grid, &QwtFigureGrid::sizesChangeFinished);
+
+    const int dividerX = qRound(0.5 * m_figure->width());
+    const int midY     = qRound(0.5 * m_figure->height()) / 2;
+
+    QVERIFY(pressAt(QPoint(dividerX, midY)));
+    QVERIFY(dragTo(QPoint(dividerX + 30, midY)));
+    QVERIFY(boundaryLineWidget() != nullptr);
+
+    QVERIFY(escape());
+    QVERIFY(!m_splitter->isDragging());
+    QCOMPARE(boundaryLineWidget(), nullptr);
+    QVERIFY(qAbs(columnAt(0) - 0.5) < RATIO_EPSILON);
+    QVERIFY(qAbs(columnAt(1) - 0.5) < RATIO_EPSILON);
+    QCOMPARE(changedSpy.count(), 0);
+    QCOMPARE(finishedSpy.count(), 0);
+    QVERIFY(QWidget::mouseGrabber() == nullptr);
+}
+
+/**
+ * @brief The boundary pen is configurable and its width drives the strip width
+ */
+void TestFigureGridSplitter::testBoundaryLinePen()
+{
+    QPen pen(Qt::red);
+    pen.setWidthF(3.0);
+    pen.setStyle(Qt::SolidLine);
+    m_splitter->setBoundaryLinePen(pen);
+    QCOMPARE(m_splitter->boundaryLinePen(), pen);
+
+    const int dividerX = qRound(0.5 * m_figure->width());
+    const int midY     = qRound(0.5 * m_figure->height()) / 2;
+
+    QVERIFY(pressAt(QPoint(dividerX, midY)));
+    QWidget* line = boundaryLineWidget();
+    QVERIFY(line != nullptr);
+    QCOMPARE(line->width(), 3);
+
+    // Changing the pen while the drag runs re-places the strip
+    QPen thicker(Qt::black);
+    thicker.setWidthF(5.0);
+    m_splitter->setBoundaryLinePen(thicker);
+    QCOMPARE(line->width(), 5);
+    QVERIFY(escape());
+}
+
+/**
+ * @brief Dragging the column divider in Live mode only changes the column ratios
+ */
+void TestFigureGridSplitter::testLiveDragChangesOnlyColumnTracks()
 {
     QSignalSpy finishedSpy(m_grid, &QwtFigureGrid::sizesChangeFinished);
+    m_splitter->setDragPreviewMode(QwtFigureGridSplitter::Live);
 
     const int dividerX         = qRound(0.5 * m_figure->width());
     const int dividerY         = qRound(0.5 * m_figure->height());
@@ -264,6 +438,7 @@ void TestFigureGridSplitter::testDragChangesOnlyColumnTracks()
 
     QVERIFY(pressAt(QPoint(dividerX, midY)));
     QVERIFY(m_splitter->isDragging());
+    QCOMPARE(boundaryLineWidget(), nullptr);  // no virtual line in Live mode
 
     QVERIFY(dragTo(QPoint(dividerX + deltaPixels, midY)));
     QVERIFY(qAbs(columnAt(0) - expectedFirst) < RATIO_EPSILON);
@@ -280,14 +455,16 @@ void TestFigureGridSplitter::testDragChangesOnlyColumnTracks()
 }
 
 /**
- * @brief The members follow the new ratios immediately, within the move event
+ * @brief In Live mode the members follow the new ratios immediately
  *
  * The splitter relies on the synchronous layout pass of QwtFigure that is driven
  * by QwtFigureGrid::sizesChanged(); it must not need a second explicit layout or
  * another event loop iteration to preview the drag.
  */
-void TestFigureGridSplitter::testDragRelayoutsImmediately()
+void TestFigureGridSplitter::testLiveDragRelayoutsImmediately()
 {
+    m_splitter->setDragPreviewMode(QwtFigureGridSplitter::Live);
+
     const int dividerX    = qRound(0.5 * m_figure->width());
     const int midY        = qRound(0.5 * m_figure->height()) / 2;
     const int deltaPixels = 40;
@@ -314,6 +491,8 @@ void TestFigureGridSplitter::testDragRelayoutsImmediately()
  */
 void TestFigureGridSplitter::testMinimumTrackClamp()
 {
+    m_splitter->setDragPreviewMode(QwtFigureGridSplitter::Live);
+
     const int dividerX    = qRound(0.5 * m_figure->width());
     const int dividerY    = qRound(0.5 * m_figure->height());
     const int midY        = dividerY / 2;
@@ -365,12 +544,13 @@ void TestFigureGridSplitter::testFinishedEmittedExactlyOnceAndOnlyWhenChanged()
 }
 
 /**
- * @brief Esc restores the original ratios and emits no finished signal
+ * @brief Esc restores the original ratios of a Live drag and emits no finished signal
  */
-void TestFigureGridSplitter::testEscapeRestoresOriginalSizes()
+void TestFigureGridSplitter::testLiveEscapeRestoresOriginalSizes()
 {
     QSignalSpy finishedSpy(m_grid, &QwtFigureGrid::sizesChangeFinished);
     QSignalSpy changedSpy(m_grid, &QwtFigureGrid::sizesChanged);
+    m_splitter->setDragPreviewMode(QwtFigureGridSplitter::Live);
 
     const int dividerX = qRound(0.5 * m_figure->width());
     const int dividerY = qRound(0.5 * m_figure->height());
@@ -388,7 +568,7 @@ void TestFigureGridSplitter::testEscapeRestoresOriginalSizes()
     QVERIFY(qAbs(rowAt(0) - 0.5) < RATIO_EPSILON);
     QCOMPARE(finishedSpy.count(), 0);
 
-    // The repaints are enabled again after the cancel
+    // The members keep repainting after the cancel
     QVERIFY(m_topPlot->updatesEnabled());
     QVERIFY(m_bottomLeftPlot->updatesEnabled());
 
@@ -398,30 +578,42 @@ void TestFigureGridSplitter::testEscapeRestoresOriginalSizes()
 }
 
 /**
- * @brief The member widgets stop repainting while a divider is dragged
+ * @brief A drag never suspends the repaints of the members
+ *
+ * Suspending setUpdatesEnabled() during a drag was the old optimization for the
+ * live resize; Qt kept showing stale pixels of the moved members, which is what
+ * produced the ghosting the boundary-line preview now avoids. Both preview modes
+ * must leave the members visible to the compositor.
  */
-void TestFigureGridSplitter::testUpdatesDisabledWhileDragging()
+void TestFigureGridSplitter::testMemberRepaintsStayEnabledWhileDragging()
 {
-    const int dividerX = qRound(0.5 * m_figure->width());
-    const int dividerY = qRound(0.5 * m_figure->height());
-    const int midY     = dividerY / 2;
+    const int midY = qRound(0.5 * m_figure->height()) / 2;
 
-    QVERIFY(m_topPlot->updatesEnabled());
-    QVERIFY(m_bottomLeftPlot->updatesEnabled());
-    QVERIFY(m_bottomRightPlot->updatesEnabled());
+    const QwtFigureGridSplitter::DragPreviewMode modes[] = { QwtFigureGridSplitter::BoundaryLine,
+                                                             QwtFigureGridSplitter::Live };
+    for (QwtFigureGridSplitter::DragPreviewMode mode : modes) {
+        m_splitter->setDragPreviewMode(mode);
 
-    QVERIFY(pressAt(QPoint(dividerX, midY)));
-    QVERIFY(!m_topPlot->updatesEnabled());
-    QVERIFY(!m_bottomLeftPlot->updatesEnabled());
-    QVERIFY(!m_bottomRightPlot->updatesEnabled());
+        // The previous iteration moved the divider: hit it where it is now
+        const int dividerX = qRound(m_grid->dividers().constFirst().position * m_figure->width());
 
-    QVERIFY(dragTo(QPoint(dividerX + 25, midY)));
-    QVERIFY(!m_topPlot->updatesEnabled());
+        QVERIFY(m_topPlot->updatesEnabled());
+        QVERIFY(m_bottomLeftPlot->updatesEnabled());
+        QVERIFY(m_bottomRightPlot->updatesEnabled());
 
-    QVERIFY(releaseAt(QPoint(dividerX + 25, midY)));
-    QVERIFY(m_topPlot->updatesEnabled());
-    QVERIFY(m_bottomLeftPlot->updatesEnabled());
-    QVERIFY(m_bottomRightPlot->updatesEnabled());
+        QVERIFY(pressAt(QPoint(dividerX, midY)));
+        QVERIFY(m_topPlot->updatesEnabled());
+        QVERIFY(m_bottomLeftPlot->updatesEnabled());
+        QVERIFY(m_bottomRightPlot->updatesEnabled());
+
+        QVERIFY(dragTo(QPoint(dividerX + 25, midY)));
+        QVERIFY(m_topPlot->updatesEnabled());
+
+        QVERIFY(releaseAt(QPoint(dividerX + 25, midY)));
+        QVERIFY(m_topPlot->updatesEnabled());
+        QVERIFY(m_bottomLeftPlot->updatesEnabled());
+        QVERIFY(m_bottomRightPlot->updatesEnabled());
+    }
 }
 
 /**
@@ -434,6 +626,7 @@ void TestFigureGridSplitter::testUpdatesDisabledWhileDragging()
 void TestFigureGridSplitter::testWindowDeactivateCancelsDrag()
 {
     QSignalSpy finishedSpy(m_grid, &QwtFigureGrid::sizesChangeFinished);
+    m_splitter->setDragPreviewMode(QwtFigureGridSplitter::Live);
 
     const int dividerX = qRound(0.5 * m_figure->width());
     const int midY     = qRound(0.5 * m_figure->height()) / 2;
@@ -443,7 +636,6 @@ void TestFigureGridSplitter::testWindowDeactivateCancelsDrag()
     QVERIFY(QWidget::mouseGrabber() == m_figure);  // the drag owns the mouse
     QVERIFY(dragTo(QPoint(dividerX + 30, midY)));
     QVERIFY(qAbs(columnAt(0) - 0.5) > RATIO_EPSILON);
-    QVERIFY(!m_topPlot->updatesEnabled());
 
     // The window loses activation while the divider is dragged
     sendSimpleEvent(m_figure, QEvent::WindowDeactivate);
@@ -472,6 +664,7 @@ void TestFigureGridSplitter::testWindowDeactivateCancelsDrag()
 void TestFigureGridSplitter::testUngrabMouseCancelsDrag()
 {
     QSignalSpy finishedSpy(m_grid, &QwtFigureGrid::sizesChangeFinished);
+    m_splitter->setDragPreviewMode(QwtFigureGridSplitter::Live);
 
     const int dividerX = qRound(0.5 * m_figure->width());
     const int midY     = qRound(0.5 * m_figure->height()) / 2;
@@ -479,7 +672,6 @@ void TestFigureGridSplitter::testUngrabMouseCancelsDrag()
     QVERIFY(pressAt(QPoint(dividerX, midY)));
     QVERIFY(m_splitter->isDragging());
     QVERIFY(dragTo(QPoint(dividerX + 30, midY)));
-    QVERIFY(!m_topPlot->updatesEnabled());
 
     // The mouse grab is lost while the divider is dragged
     sendSimpleEvent(m_figure, QEvent::UngrabMouse);
@@ -506,6 +698,7 @@ void TestFigureGridSplitter::testDragSurvivesConsumingCanvasFilter()
 {
     QWidget* canvas = m_topPlot->canvas();
     QVERIFY(canvas != nullptr);
+    m_splitter->setDragPreviewMode(QwtFigureGridSplitter::Live);
 
     struct ConsumingFilter : QObject
     {
@@ -553,7 +746,7 @@ void TestFigureGridSplitter::testDragSurvivesConsumingCanvasFilter()
     QVERIFY(m_splitter->isDragging());
     // The drag owns the mouse: the release is routed to the figure
     QVERIFY(QWidget::mouseGrabber() == m_figure);
-    QVERIFY(!m_topPlot->updatesEnabled());
+    QVERIFY(m_topPlot->updatesEnabled());
 
     // A move delivered to the canvas is consumed by the hostile filter and
     // never reaches the splitter - the situation that used to stall the drag
